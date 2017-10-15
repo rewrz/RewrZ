@@ -1,0 +1,249 @@
+{% load staticfiles %}
+{% load blog_tags %}
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="utf-8" />
+    <link rel="apple-touch-icon" sizes="76x76" href="{% static 'blog/img/apple-icon.png' %}">
+    <link rel="icon" type="image/png" href="{% static 'blog/img/favicon.png' %}">
+    <link rel="shortcut icon" href="{%static 'blog/img/favicon.png'  %}" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <title>
+        {% if post.title %}{{ post.title }} | {{ TITLE }}
+        {% else %}{{ TITLE }}
+        {% endif %}
+    </title>
+    <meta content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, shrink-to-fit=no' name='viewport' />
+    <!--     Fonts and icons     -->
+    <link href="https://fonts.lug.ustc.edu.cn/css?family=Montserrat:400,700,200" rel="stylesheet" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css" />
+    <!-- CSS Files -->
+    <link href="{% static 'blog/css/bootstrap.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'blog/css/now-ui-kit.css' %}" rel="stylesheet" />
+    <link href="{% static 'blog/css/style.css' %}" rel="stylesheet" />
+    <!--  Social tags      -->
+    <meta name="keywords" content="{% if post.tags.all %}{% for tag in post.tags.all %}{{ tag.name }},{% endfor %}{% else %}RewrZ,开源,博客,IT,ACG{% endif %}">
+    <meta name="description" content="{% if post.excerpt %}{{ post.excerpt }}{% else %}{{ DESCRIPTION }}{% endif %}">
+</head>
+
+<body class="profile-page sidebar-collapse">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg bg-primary fixed-top navbar-transparent " color-on-scroll="400">
+        <div class="container">
+            <div class="dropdown button-dropdown">
+                <a href="#pablo" class="dropdown-toggle" id="navbarDropdown" data-toggle="dropdown">
+                    <span class="button-bar"></span>
+                    <span class="button-bar"></span>
+                    <span class="button-bar"></span>
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                    <a class="dropdown-header">下拉菜单</a>
+                    <a class="dropdown-item" href="#">Action</a>
+                    <a class="dropdown-item" href="#">Another action</a>
+                    <a class="dropdown-item" href="#">Something else here</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="#">Separated link</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="#">One more separated link</a>
+                </div>
+            </div>
+            <div class="navbar-translate">
+                <a class="navbar-brand" href="{% url 'blog:index' %}" rel="tooltip" title="返回首页" data-placement="bottom">
+                    RewrZ
+                </a>
+                <button class="navbar-toggler navbar-toggler" type="button" data-toggle="collapse" data-target="#navigation" aria-controls="navigation-index" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-bar bar1"></span>
+                    <span class="navbar-toggler-bar bar2"></span>
+                    <span class="navbar-toggler-bar bar3"></span>
+                </button>
+            </div>
+            <div class="collapse navbar-collapse justify-content-end" data-nav-image="{% static 'blog/img/blurred-image-1.jpg' %}">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" rel="tooltip" title="最新文章" data-placement="bottom" data-toggle="modal" data-target="#NewpostModal" href="#NewpostModal">News</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" rel="tooltip" title="About" data-placement="bottom" href="/archive/about">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" rel="tooltip" title="Look me on Wordpress" data-placement="bottom" href="https://wordpress.com" target="_blank">
+                            <i class="fa fa-wordpress"></i>
+                            <p class="d-lg-none d-xl-none">Wordpress</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" rel="tooltip" title="Follow me on Tumblr" data-placement="bottom" href="https://acgit.tumblr.com" target="_blank">
+                            <i class="fa fa-tumblr"></i>
+                            <p class="d-lg-none d-xl-none">Tumblr</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" rel="tooltip" title="Find me on Facebook" data-placement="bottom" href="https://www.facebook.com/" target="_blank">
+                            <i class="fa fa-facebook"></i>
+                            <p class="d-lg-none d-xl-none">Facebook</p>
+                        </a>
+                    </li>
+                    <li class="form-group">
+                        <form role="search" method="get" id="searchform" action="{% url 'haystack_search' %}">
+                          <input type="search" name="q" class="form-control" placeholder="?" required>
+                        </form>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" rel="tooltip" title="RSS订阅" data-placement="bottom" href="{% url 'rss' %}" target="_blank">
+                            <i class="fa fa-rss"></i>
+                            <p class="d-lg-none d-xl-none">RSS 订阅</p>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="wrapper">
+        <!-- End Navbar -->
+
+        {% block header %}
+        {% endblock header %}
+
+        {% block main %}
+        {% endblock main %}
+
+        <div class="modal fade" id="NewpostModal" tabindex="-1" role="dialog" aria-labelledby="NewpostModalLabel" aria-hidden="true">
+                  <div class="modal-dialog">
+                      <div class="modal-content">
+                          <div class="modal-header">
+                              <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                              <h4 class="modal-title" id="NewpostModalLabel">最新文章</h4>
+                          </div>
+                          <hr>
+                          <div class="modal-body">
+                              {% get_recent_posts as recent_post_list %}
+                              <ul>
+                                  {% for post in recent_post_list %}
+                                  <li>
+                                      <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+                                  </li>
+                                  {% empty %}
+                                  暂无文章！
+                                  {% endfor %}
+                              </ul>
+                          </div>
+                      </div>
+                  </div>
+        </div>
+
+        <footer class="footer" style="background-color: #868e96;">
+            <div class="container">
+			    <div class="row">
+
+                    <div class="col-md-4 ml-auto mr-auto">
+                        <div class="card widget widget-archives">
+                            <h5 class="title widget-title"><i class="fa fa-calendar" aria-hidden="true"></i>每月归档</h5>
+                            <hr>
+                            <div class="card-body">
+                                {% archives as date_list %}
+                                <ul>
+                                    {% for date in date_list %}
+                                    <li>
+                                        <a href="{% url 'blog:archives' date.year date.month %}">{{ date.year }} 年 {{ date.month }} 月</a>
+                                    </li>
+                                    {% empty %}
+                                    暂无归档！
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+				    </div>
+
+                    <div class="col-md-4 ml-auto mr-auto">
+                        <div class="card widget widget-category">
+                            <h5 class="title widget-title"><i class="fa fa-archive" aria-hidden="true"></i>分类归档</h5>
+                            <hr>
+                            <div class="card-body">
+                                {% get_categories as category_list %}
+                                <ul>
+                                    {% for category in category_list %}
+                                    <li>
+                                        <a href="{{ category.get_absolute_url }}">{{ category.name }} <span class="post-count">({{ category.num_posts }})</span></a>
+                                    </li>
+                                    {% empty %}
+                                    暂无分类！
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+				    </div>
+
+                    <div class="col-md-4 ml-auto mr-auto">
+                        <div class="card widget widget-tag-cloud">
+                            <h5 class="title widget-title"><i class="fa fa-tags" aria-hidden="true"></i>标签归档</h5>
+                            <hr>
+                            <div class="card-body">
+                                {% get_tags as tag_list %}
+                                <ul>
+                                    {% for tag in tag_list %}
+                                    <li>
+                                        <a href="{{ tag.get_absolute_url }}"><i class="now-ui-icons shopping_tag-content"></i>{{ tag.name }}<span class="post-count">({{ tag.num_posts }})</span></a>
+                                    </li>
+                                    {% empty %}
+                                    暂无标签！
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+				    </div>
+
+                </div>
+            </div>
+            <div class="container"  style="color: white;">
+                <nav>
+                    <ul>
+                        <li>
+                            <i class="fa fa-creative-commons" aria-hidden="true"></i>
+                            <a rel="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">
+                                Creative Commons License
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://github.com/rewrz/rewrz" target="_blank">
+                                AGPL License
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+                <div class="copyright">
+                    &copy;
+                    <script>
+                        document.write(new Date().getFullYear())
+                    </script>, Thanks for Open Source Community. Coded by RewrZ.
+                </div>
+            </div>
+        </footer>
+    </div>
+</body>
+<!--   Core JS Files   -->
+<script src="{% static 'blog/js/core/jquery.3.2.1.min.js' %}" type="text/javascript"></script>
+<script src="{% static 'blog/js/core/popper.min.js' %}" type="text/javascript"></script>
+<script src="{% static 'blog/js/core/bootstrap.min.js' %}" type="text/javascript"></script>
+<!--  Plugin for Switches, full documentation here: http://www.jque.re/plugins/version3/bootstrap.switch/ -->
+<script src="{% static 'blog/js/plugins/bootstrap-switch.js' %}"></script>
+<!--  Plugin for the Sliders, full documentation here: http://refreshless.com/nouislider/ -->
+<script src="{% static 'blog/js/plugins/nouislider.min.js' %}" type="text/javascript"></script>
+<!--  Plugin for the DatePicker, full documentation here: https://github.com/uxsolutions/bootstrap-datepicker -->
+<script src="{% static 'blog/js/plugins/bootstrap-datepicker.js' %}" type="text/javascript"></script>
+<!-- Share Library etc -->
+<!--<script src="{% static 'blog/js/plugins/jquery.sharrre.js' %}" type="text/javascript"></script>-->
+<!-- Control Center for Now Ui Kit: parallax effects, scripts for the example pages etc -->
+<script src="{% static 'blog/js/now-ui-kit.js' %}" type="text/javascript"></script>
+<script>
+$(function(){
+    $('#CommentModal').on('show.bs.modal', function (event) {
+      var i = $(event.relatedTarget)
+      var obj_name = i.data('name')
+      var obj_id = i.data('id')
+      var modal = $(this)
+      modal.find('.modal-title').text('回复 @' + obj_name)
+      modal.find('.modal-body #id_parent').val(parseInt(obj_id))
+    });
+});
+</script>
+</html>

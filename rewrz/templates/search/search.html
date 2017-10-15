@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load highlight %}
+{% load staticfiles %}
+
+{% block header %}
+        <div class="page-header page-header-small" filter-color="orange">
+            <div class="page-header-image" data-parallax="true" style="background-image:url({% static 'blog/img/header2.jpg' %});">
+            </div>
+            <div class="container">
+                <div class="content-center">
+                    <h1 class="title"><a href="#">搜索结果：{{ key }}</a></h1>
+                </div>
+            </div>
+        </div>
+{% endblock header %}
+
+{% block main %}
+
+<style>span.highlighted {color: #ff00a3;}</style>
+<article class="section">
+    <div class="container">
+        <div class="row">
+            {% if query %}
+            {% for result in page.object_list %}
+            <div class="col-md-4 ml-auto mr-auto">
+                <div class="card card-body post post-{{ result.object.pk }}">
+                    <h5 class="post-title"><a href="{{ result.object.get_absolute_url }}">{% highlight result.object.title with query %}</a></h5>
+                    <hr>
+                    <span class="post-date badge badge-info">
+                        <time class="entry-date" datetime="{{ result.object.created_time }}">{{ result.object.created_time }}</time>
+                    </span>
+                    <!--   meta   -->
+                    <div class="entry-meta">
+                        <a href="#!"><span class="post-author badge badge-success">{% if result.object.author.get_full_name %}{{ result.object.author.last_name }}{{ result.object.author.first_name }}{% else %}{{ result.object.author }}{% endif %}</span></a>
+                        <a href="{% url 'blog:category' result.object.category.pk %}"><span class="post-category badge badge-primary">{{ result.object.category.name }}</span></a>
+                        <a href="{{ result.object.get_absolute_url }}#comment-area"><span class="comments-link badge badge-warning">{{ result.object.comment_set.count }} 评论</span></a>
+                        <span class="views-count badge badge-danger">{{ result.object.views }} 阅读</span>
+                    </div>
+                    <!--   content   -->
+                    <div class="entry-content">
+                      <p>{% highlight result.object.body with query %}</p>
+                      <div class="read-more">
+                        <a href="{{ result.object.get_absolute_url }}" class="more-link">继续阅读 <span class="meta-nav">→</span></a>
+                      </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="no-post">没有搜索到你想要的结果！</div>
+            {% endfor %}
+
+            <!-- Pagination -->
+            {% if page.has_previous or page.has_next %}
+            <div class="col-md-12">
+                <div class="pagination-container justify-content-center">
+                    <ul class="pagination pagination-primary">
+                        {% if page.has_previous %}
+                        <li class="page-item arrow-margin-left">
+                            <a class="page-link" href="?q={{ query }}&amp;page={{ page.previous_page_number }}" aria-label="Previous">
+                                <span aria-hidden="true"><i class="now-ui-icons arrows-1_minimal-left" aria-hidden="true"></i></span>
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        {% if page.has_next %}
+                        <li class="page-item arrow-margin-right">
+                            <a class="page-link" href="?q={{ query }}&amp;page={{ page.next_page_number }}" aria-label="Next">
+                                <span aria-hidden="true"><i class="now-ui-icons arrows-1_minimal-right" aria-hidden="true"></i></span>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+            <!-- Pagination -->
+            {% else %}
+                请输入搜索关键词，例如 django
+            {% endif %}
+        </div>
+    </div>
+</article>
+
+{% endblock main %}

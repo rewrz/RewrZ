@@ -99,3 +99,7 @@ ENV/
 
 # mypy
 .mypy_cache/
+rewrz/media/uploads/
+django_ven_362/
+*.sqlite3
+rewrz/whoosh_index/
