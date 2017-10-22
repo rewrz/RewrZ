@@ -3287,9 +3287,9 @@ p.description {
 }
 
 body {
-    color: #2c2c2c;
+    color: #000000;
     font-size: 14px;
-    font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", "Hiragino Sans GB W3", "WenQuanYi Micro Hei", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
     -moz-osx-font-smoothing: grayscale;
     -webkit-font-smoothing: antialiased;
 }

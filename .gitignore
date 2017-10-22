@@ -103,3 +103,6 @@ rewrz/media/uploads/
 django_ven_362/
 *.sqlite3
 rewrz/whoosh_index/
+rewrz/static/
+rewrz/blog/migrations/
+rewrz/comments/migrations/

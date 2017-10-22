@@ -16,13 +16,51 @@ a:hover{
 .badge{
     font-size: 0.8rem;
 }
+/* 文章内容 */
+.entry-content h2{
+	border-left: 8px solid #f96332;
+	border-bottom: 1px solid #f96332;
+	margin: 20px -20px 20px -24px;
+	padding: 10px 20px 9px 10px;
+	background-color: #fbfbfb;
+}
+.entry-content h3{
+	border-left: 2px solid #ff3636;
+	background-color: #fbfbfb;
+}
+.entry-content p{
+	font-size: 1rem;
+}
+.entry-content ol{
+    margin-left: 3rem;
+    line-height: 30px;
+    font-size: 12px;
+}
+.entry-content ul{
+    margin-left: 2rem;
+}
+.entry-content ul li:before{
+    display: inline-block;
+    font-family: FontAwesome;
+    content: "\f192";
+    width: 20px;
+    height: 0;
+    line-height: 30px;
+    font-size: 12px;
+}
+blockquote{
+    padding: 10px 20px;
+    /*margin: 0 0 20px;*/
+    border-left: 5px solid #add;
+    border-top: 1px solid #18ce0f;
+    border-right: 5px solid #add;
+    border-bottom: 1px solid #28a745;
+    background-color: #f8f9fa;
+}
+pre{
+    border: 1px solid #868e96;
+}
 /* Comment ===================================*/
-/**
- * Oscuro: #283035
- * Azul: #03658c
- * Detalle: #c7cacb
- * Fondo: #dee1e3
- ----------------------------------*/
  * {
     margin: 0;
     padding: 0;
