@@ -1,0 +1,90 @@
+{% extends 'portal/base.html' %}
+{% load staticfiles %}
+{% block head_title %}RewrZ Project - 最终的改写{% endblock head_title %}
+
+{% block nav_top %}
+        <!-- 导航 -->
+        <div class="navbar-fixed">
+            <nav class="nav-extended hoverable">
+                <div class="nav-wrapper">
+                    <a href="#" data-activates="slide-out" class="button-collapse" style="display:flex;"><i class="material-icons">menu</i></a>
+                    <a href="{% url 'portal:index' %}" class="brand-logo">最後 の 改寫</a>
+                    <ul class="right hide-on-med-and-down">
+                        <li><a href="blog">博客</a></li>
+                        <li><a href="tweet">推文</a></li>
+                        <li><a href="photo">精选</a></li>
+                        <li><a href="about">关于</a></li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+{% endblock nav_top %}
+
+
+{% block head_style %}
+    <style>
+        /*动态背景图片（以视差效果最后一张图片为背景）-虚化处理（朦胧美）*/
+        .bg-image{
+            background-image:url({% if post_list.0.get_postimg_url %}{{ post_list.0.get_postimg_url }}{% else %}{% static 'portal/img/10.jpg' %}{% endif %});
+            height:100%;
+            text-align: center;
+        }
+        .bg-imge-blur{
+            float: left;
+            width: 100%;
+            z-index: -99999;
+            position: fixed;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: cover;
+            -webkit-filter: blur(9px);
+            -moz-filter: blur(9px);
+            -o-filter: blur(9px);
+            -ms-filter: blur(9px);
+            filter: blur(9px);
+        }
+    </style>
+{% endblock head_style%}
+
+    {% block content %}
+    <!-- 首页 -->
+    <div id="cover" class="col s12">
+        <!--轮播-->
+        <div class="slider fullscreen z-depth-2 hoverable">
+            <ul class="slides">
+               <li>
+                 <img src="{% static 'portal/img/3.jpg' %}">
+                 <div class="caption center-align">
+                 <h3>艰苦的黑夜终会结束</h3>
+                 <h5 class="light grey-text text-lighten-3">何时曾梦见过的，那片天空。</h5>
+                 </div>
+               </li>
+               <li>
+                 <img src="{% static 'portal/img/2.jpg' %}">
+                 <div class="caption left-align">
+                 <h3>向着远方奔跑吧</h3>
+                 <h5 class="light grey-text text-lighten-3">胸中紧怀着爱奔跑下去吧！</h5>
+                 </div>
+               </li>
+               <li>
+                 <img src="{% static 'portal/img/5.jpg' %}">
+                 <div class="caption right-align">
+                 <h3>一定能到达未来的</h3>
+                 <h5 class="light grey-text text-lighten-3">即使没有翅膀</h5>
+                 </div>
+               </li>
+               <li>
+                 <img src="{% static 'portal/img/4.jpg' %}">
+                 <div class="caption center-align">
+                 <h3>请紧紧把握着不要放手</h3>
+                 <h5 class="light grey-text text-lighten-3">两个人的话，一定能到达的。</h5>
+                 </div>
+               </li>
+            </ul>
+        </div>
+        <!--轮播 END-->
+    </div>
+    {% endblock %}
+    {% block footer %}
+    {% endblock footer %}
+

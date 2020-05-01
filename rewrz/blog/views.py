@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from .models import Post, Category, Tag
 from comments.forms import CommentForm
 from django.db.models import Q
@@ -8,17 +8,7 @@ from django.conf import settings
 from haystack.views import SearchView
 
 # Create your views here.
-
-# 首页
-def index(request):
-    post_list = Post.objects.all()
-    return render(request, 'blog/index.html', context={
-        'title': settings.SITE_TITLE,
-        'welcome': '欢迎访问我的博客首页',
-        'post_list': post_list
-    })
-
-class IndexView(ListView):
+class BlogView(ListView):
     model = Post
     template_name = 'blog/index.html'
     context_object_name = 'post_list'
@@ -289,7 +279,7 @@ def archives(request, year, month):
     context = {'post_list': post_list}
     context['TITLE'] = year + '年' + month + '月 | ' + settings.SITE_TITLE + ' - ' + settings.SITE_SUBTITLE
     context['DESCRIPTION'] = year + '年' + month + '月 发布的文章'
-    return render(request, 'blog/index.html', context=context)
+    return render(request, 'portal/index.html', context=context)
 
 # 分类归档
 def category(request, pk):
@@ -303,9 +293,10 @@ def category(request, pk):
     context = {'post_list': post_list}
     context['TITLE'] = '分类：' + cate.name + ' | ' + settings.SITE_TITLE + ' - ' + settings.SITE_SUBTITLE
     context['DESCRIPTION'] = '分类：' + cate.name
-    return render(request, 'blog/index.html', context=context)
+    context['CATEGORY_NAME'] = cate.name
+    return render(request, 'blog/archive-category.html', context=context)
 
-class CategoryView(IndexView):
+class CategoryView(BlogView):
     def get_queryset(self):
         cate = get_object_or_404(Category, pk=self.kwargs.get('pk'))
         return super(CategoryView, self).get_queryset().filter(category=cate)
@@ -322,7 +313,8 @@ def category_slug(request, slug):
     context = {'post_list': post_list}
     context['TITLE'] = '分类：' + cate.name + ' | ' + settings.SITE_TITLE + ' - ' + settings.SITE_SUBTITLE
     context['DESCRIPTION'] = '分类：' + cate.name
-    return render(request, 'blog/index.html', context=context)
+    context['CATEGORY_NAME'] = cate.name
+    return render(request, 'blog/archive-category.html', context=context)
 
 # 标签归档
 def tag(request, pk):
@@ -335,12 +327,13 @@ def tag(request, pk):
     context = {'post_list': post_list}
     context['TITLE'] = '标签：' + tag.name + ' | ' + settings.SITE_TITLE + ' - ' + settings.SITE_SUBTITLE
     context['DESCRIPTION'] = '标签：' + tag.name
-    return render(request, 'blog/index.html', context=context)
+    context['TAG_NAME'] = tag.name
+    return render(request, 'blog/archive-tag.html', context=context)
 
 
 class TagView(ListView):
     model = Post
-    template_name = 'blog/index.html'
+    template_name = 'blog/archive-tag.html'
     context_object_name = 'post_list'
 
     def get_queryset(self):
@@ -358,33 +351,5 @@ def tag_slug(request, slug):
     context = {'post_list': post_list}
     context['TITLE'] = '标签：' + tag.name + ' | ' + settings.SITE_TITLE + ' - ' + settings.SITE_SUBTITLE
     context['DESCRIPTION'] = '标签：' + tag.name
-    return render(request, 'blog/index.html', context=context)
-
-# 简单全文搜索
-def search(request):
-    q = request.GET.get('q')
-    error_msg = ''
-
-    if not q:
-        error_msg = "请输入关键词"
-        return render(request, 'search/search.html', {'error_msg': error_msg})
-
-    post_list = Post.objects.filter(Q(title__icontains=q) | Q(body__icontains=q))
-    context = {'error_msg': error_msg,
-               'post_list': post_list,
-               'key': q}
-    context['TITLE'] = '搜索结果：' + q + ' | ' + settings.SITE_TITLE + ' - ' + settings.SITE_SUBTITLE
-    return render(request, 'search/search.html', context=context)
-
-# 自定义高亮搜索视图
-class MySeachView(SearchView):
-
-    def extra_context(self):       #重载extra_context来添加额外的context内容
-        context = super(MySeachView,self).extra_context()
-        if self.results == []:
-            context['error_msg'] = "请输入关键词"
-            context['TITLE'] = '没有找到任何结果' + ' | ' + settings.SITE_TITLE + ' - ' + settings.SITE_SUBTITLE
-        else:
-            context['TITLE'] = '搜索结果' + ' | ' + settings.SITE_TITLE + ' - ' + settings.SITE_SUBTITLE
-
-        return context
+    context['TAG_NAME'] = tag.name
+    return render(request, 'blog/archive-tag.html', context=context)

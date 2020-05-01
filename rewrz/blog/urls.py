@@ -3,8 +3,7 @@ from . import views
 
 app_name = 'blog'
 urlpatterns = [
-    #url(r'^$', views.index, name='index'),
-    url(r'^$', views.IndexView.as_view(), name='index'),
+    url(r'^blog/$', views.BlogView.as_view(), name='index'),
     # url(r'^post/(?P<pk>[0-9]+)/$', views.detail, name='detail'),
     url(r'^p/(?P<pk>[0-9]+)/$', views.PostDetailView.as_view(), name='detail'),
     url(r'^archive/(?P<slug>.+)/$', views.PostDetailViewSlug.as_view(), name='detail_slug'),

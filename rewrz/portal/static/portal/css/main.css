@@ -1,0 +1,732 @@
+/*! HTML5 Boilerplate v6.0.1 | MIT License | https://html5boilerplate.com/ */
+
+/*
+ * What follows is the result of much research on cross-browser styling.
+ * Credit left inline and big thanks to Nicolas Gallagher, Jonathan Neal,
+ * Kroc Camen, and the H5BP dev community and team.
+ */
+
+/* ==========================================================================
+   Base styles: opinionated defaults
+   ========================================================================== */
+
+html {
+    color: #222;
+    font-size: 1em;
+    line-height: 1.4;
+}
+
+/*
+ * Remove text-shadow in selection highlight:
+ * https://twitter.com/miketaylr/status/12228805301
+ *
+ * Vendor-prefixed and regular ::selection selectors cannot be combined:
+ * https://stackoverflow.com/a/16982510/7133471
+ *
+ * Customize the background color to match your design.
+ */
+
+::-moz-selection {
+    background: #b3d4fc;
+    text-shadow: none;
+}
+
+::selection {
+    background: #b3d4fc;
+    text-shadow: none;
+}
+
+/*
+ * A better looking default horizontal rule
+ */
+
+hr {
+    display: block;
+    height: 1px;
+    border: 0;
+    border-top: 1px solid #ccc;
+    margin: 1em 0;
+    padding: 0;
+}
+
+/*
+ * Remove the gap between audio, canvas, iframes,
+ * images, videos and the bottom of their containers:
+ * https://github.com/h5bp/html5-boilerplate/issues/440
+ */
+
+audio,
+canvas,
+iframe,
+img,
+svg,
+video {
+    vertical-align: middle;
+}
+
+/*
+ * Remove default fieldset styles.
+ */
+
+fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+}
+
+/*
+ * Allow only vertical resizing of textareas.
+ */
+
+textarea {
+    resize: vertical;
+}
+
+/* ==========================================================================
+   Browser Upgrade Prompt
+   ========================================================================== */
+
+.browserupgrade {
+    margin: 0.2em 0;
+    background: #ccc;
+    color: #000;
+    padding: 0.2em 0;
+}
+
+/* ==========================================================================
+   Author's custom styles
+   ========================================================================== */
+
+/* 自定义导航栏颜色 */
+nav{
+	background-color: #000000a3 !important;
+}
+/* 自定义搜索图标颜色 */
+.input-field i.material-icons{
+}
+/* 自定义页脚颜色 */
+footer.page-footer{
+	background-color: #ff5e0047 !important;
+}
+/* 首页幻灯片字体阴影效果，卡片标题阴影效果 */
+.slider .slides li .caption, .card-title{
+    text-shadow: 2px 3px 4px black;
+}
+/* 微博头像样式 */
+.weibo-avatar-s{
+    max-width: 64px;
+    max-height: 64px;
+    margin: auto;
+}
+/* 文章头像样式 */
+.archive-avatar-m{
+    width: 6rem;
+    height: 6rem;
+    margin: auto;
+}
+/* 标签样式 */
+.chip-tag{
+    display: inline-block;
+    height: 32px;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(0,0,0,0.6);
+    line-height: 32px;
+    padding: 0 12px;
+    border-radius: 16px;
+    background-color: #ffffff;
+    margin-bottom: 5px;
+    margin-right: 5px;
+}
+
+/* 瀑布流CSS */
+.card-container {
+    -moz-column-width: 23rem;
+    -webkit-column-width: 23rem;
+    -moz-column-gap: 1rem;
+    -webkit-column-gap: 1rem;
+}
+
+.card {
+    display: inline-block;
+    width:  100%;
+}
+
+@media only screen and (max-width: 600px) {
+  .card-container {
+    -webkit-column-count: 1;
+    -moz-column-count: 1;
+    column-count: 1;
+  }
+    /* 卡片正方形大小限制 */
+    .card-small-square{
+        max-width: 100%;
+    }
+}
+@media only screen and (min-width: 601px) {
+  .card-container {
+    -webkit-column-count: 3;
+    -moz-column-count: 3;
+    column-count: 3;
+  }
+    /* 卡片正方形大小限制 */
+    .card-small-square{
+        max-width: 49.6%;
+    }
+}
+@media only screen and (min-width: 993px) {
+  .card-container {
+    -webkit-column-count: 5;
+    -moz-column-count: 5;
+    column-count: 5;
+  }
+    /* 卡片正方形大小限制 */
+    .card-small-square{
+        max-width: 24.7%;
+    }
+}
+@media only screen and (min-width: 1280px) {
+    /* 卡片正方形大小限制 */
+    .card-small-square{
+        max-width: 19.75%;
+    }
+}
+
+/*时间轴效果 https://codepen.io/piitaya/pen/vLappz*/
+.timeline {
+  position: relative;
+}
+
+.timeline .timeline-event {
+  position: relative;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.timeline .timeline-event .timeline-content {
+  position: relative;
+  width: calc(50% - 50px);
+}
+
+.timeline .timeline-event::before {
+  display: block;
+  content: "";
+  width: 2px;
+  height: calc(50% - 30px);
+  position: absolute;
+  background: #d2d2d2;
+  left: calc(50% - 1px);
+  top: 0;
+}
+
+.timeline .timeline-event::after {
+  display: block;
+  content: "";
+  width: 2px;
+  height: calc(50% - 30px);
+  position: absolute;
+  background: #d2d2d2;
+  left: calc(50% - 1px);
+  top: calc(50% + 30px);
+}
+
+.timeline .timeline-event:first-child::before {
+  display: none;
+}
+
+.timeline .timeline-event:last-child::after {
+  display: none;
+}
+
+.timeline .timeline-event:nth-child(even) .timeline-content {
+  margin-left: calc(50% + 50px);
+}
+
+.timeline .timeline-event:nth-child(odd) .timeline-content {
+  margin-left: 0;
+}
+
+.timeline .timeline-badge {
+  display: block;
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  background: #d2d2d2;
+  top: calc(50% - 32px);
+  right: calc(50% - 32px);
+  border-radius: 50%;
+  text-align: center;
+  cursor: default;
+}
+
+.timeline .timeline-badge i {
+  font-size: 25px;
+  line-height: 40px;
+}
+
+@media (max-width: 600px) {
+  .timeline .timeline-event .timeline-content {
+    width: calc(100% - 70px);
+  }
+  .timeline .timeline-event::before {
+    left: 19px;
+  }
+  .timeline .timeline-event::after {
+    left: 19px;
+  }
+  .timeline .timeline-event:nth-child(even) .timeline-content {
+    margin-left: 70px;
+  }
+  .timeline .timeline-event:nth-child(odd) .timeline-content {
+    margin-left: 70px;
+  }
+  .timeline .timeline-badge {
+    left: 0;
+  }
+}
+
+/* 文章内容 */
+.entry-content h2{
+	border-left: 8px solid #f96332;
+	border-bottom: 1px solid #f96332;
+	margin: 20px -20px 20px -24px;
+	padding: 10px 20px 9px 10px;
+	/*background-color: #fbfbfb;*/
+}
+.entry-content h3{
+	border-left: 2px solid #ff3636;
+	/*background-color: #fbfbfb;*/
+}
+.entry-content p{
+    font-size: 1.25rem;
+    margin-bottom: 1.25rem !important;
+    text-indent: 2em;
+}
+.entry-excerpt p{
+    text-indent: 2em;
+}
+.entry-content img{
+    max-width: 100%;
+    margin: auto;
+    display:block;
+}
+.entry-content ol{
+    margin-left: 3rem;
+    line-height: 30px;
+    font-size: 1.25rem;
+}
+.entry-content ul{
+    margin-left: 2rem;
+}
+.entry-content ul li:before{
+    display: inline-block;
+    font-family: FontAwesome;
+    content: "\f192";
+    width: 20px;
+    height: 0;
+    line-height: 30px;
+    font-size: 12px;
+}
+blockquote{
+    padding: 10px 20px;
+    /*margin: 0 0 20px;*/
+    border-left: 5px solid #add;
+    border-top: 1px solid #18ce0f;
+    border-right: 5px solid #add;
+    border-bottom: 1px solid #28a745;
+    /*background-color: #f8f9fa;*/
+}
+pre{
+    border: 1px solid #868e96;
+}
+/* 自动生成文章目录样式 */
+.outline-chapter-code{
+    margin: 1em;
+}
+.outline-subject{
+    text-indent: 1em;
+}
+.outline-inside-body{
+    float: left;
+}
+.outline-inside{
+    border: dotted;
+    margin: 1em;
+}
+/*
+.hljs{
+    background: #000000a3 !important;
+}
+*/
+ /*
+ * Comment CSS
+ */
+ /* 父评论样式 */
+.comment {
+    overflow: hidden;
+    padding: 0 0 1em;
+    border-bottom: 1px solid #ddd;
+    margin: 0 0 1em;
+    *zoom: 1;
+}
+.comment-img {
+    float: left;
+    margin-right: 23px;
+    overflow: hidden;
+}
+
+.comment-img img {
+    display: block;
+}
+img.circle{
+    transition:All 0.4s ease-in-out;
+    -webkit-transition:All 0.4s ease-in-out;
+    -moz-transition:All 0.4s ease-in-out;
+    -o-transition:All 0.4s ease-in-out;
+}
+img.circle:hover{
+    transform:rotate(360deg);
+    -webkit-transform:rotate(360deg);
+    -moz-transform:rotate(360deg);
+    -o-transform:rotate(360deg);
+    -ms-transform:rotate(360deg);
+}
+
+.comment-body {
+    overflow: hidden;
+}
+
+.comment-body:hover{
+    /*box-shadow: -4px 4px 10px #f00;*/
+}
+
+.comment .comment-content {
+    padding: 1rem;
+    border: 1px solid #e5e5e5;
+    border-radius: 1rem;
+    background: #ffffff;
+}
+
+.comment .comment-content p:last-child {
+    margin: 0;
+}
+
+.comment .attribution {
+    margin: 0.5em 0 0;
+    font-size: 14px;
+    color: #666;
+}
+
+/* Decoration */
+
+.comments,
+.comment-child,
+.comments-child,
+.comment {
+    position: relative;
+}
+
+.comments:before,
+.comment:before,
+.comment .comment-content:before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 69px;
+}
+
+.comments:before {
+    width: 3px;
+    top: -20px;
+    bottom: -20px;
+    background: rgba(0, 255, 205, 0.2);
+}
+.comments:hover:before{
+    background: rgba(0, 255, 205, 0.5);
+}
+
+.comment:before {
+    width: 9px;
+    height: 9px;
+    border: 3px solid #fff;
+    border-radius: 100px;
+    margin: 16px 0 0 -6px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.2), inset 0 1px 1px rgba(0,0,0,0.1);
+    background: #ccc;
+}
+
+.comment:hover:before {
+    background: orange;
+    border-color: red;
+}
+
+.comment .comment-content:before {
+    top: 18px;
+    left: 78px;
+    width: 9px;
+    height: 9px;
+    border-width: 0 0 1px 1px;
+    border-style: solid;
+    border-color: #e5e5e5;
+    background: #ffffff;
+    -webkit-transform: rotate(45deg);
+    -moz-transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    -o-transform: rotate(45deg);
+}
+
+
+/* 子评论样式 */
+.comments-child:before {
+    width: 3px;
+    top: -20px;
+    bottom: -20px;
+    background: rgba(255, 233, 0, 0.2);
+}
+.comments-child:hover:before{
+    background: rgba(255, 233, 0, 0.5);
+}
+.comments-child:before,
+.comment-child:before,
+.comment-child .comment-content:before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 90px;
+}
+.comment-child .comment-content {
+    padding: 1rem;
+    border: 1px solid #e5e5e5;
+    border-radius: 1rem;
+    background: #ffffff;
+}
+
+.comment-child .comment-content p:last-child {
+    margin: 0;
+}
+
+.comment-child .attribution {
+    margin: 0.5em 0 0;
+    font-size: 14px;
+    color: #666;
+}
+
+.comment-child:hover:before {
+    background: red;
+    border-color: orange;
+}
+
+.comment-child .comment-content:before {
+    top: 18px;
+    right: 111px;
+    width: 9px;
+    height: 9px;
+    border-width: 1px 1px 0 0;
+    border-style: solid;
+    border-color: #e5e5e5;
+    background: #ffffff;
+    -webkit-transform: rotate(45deg);
+    -moz-transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    -o-transform: rotate(45deg);
+}
+.comment-child{
+    overflow: hidden;
+    padding: 0 0em 1em 6em;
+    border-bottom: 1px solid #ddd;
+    margin: 0 0 1em;
+    *zoom: 1;
+}
+.comment-child:before {
+    width: 9px;
+    height: 9px;
+    border: 3px solid #fff;
+    border-radius: 100px;
+    margin: 16px 0 0 -6px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.2), inset 0 1px 1px rgba(0,0,0,0.1);
+    background: #ccc;
+}
+.comment-child .comment-img {
+    float: right;
+    margin-left: 33px;
+    overflow: hidden;
+}
+
+
+
+/* ==========================================================================
+   Helper classes
+   ========================================================================== */
+
+/*
+ * Hide visually and from screen readers
+ */
+
+.hidden {
+    display: none !important;
+}
+
+/*
+ * Hide only visually, but have it available for screen readers:
+ * https://snook.ca/archives/html_and_css/hiding-content-for-accessibility
+ *
+ * 1. For long content, line feeds are not interpreted as spaces and small width
+ *    causes content to wrap 1 word per line:
+ *    https://medium.com/@jessebeach/beware-smushed-off-screen-accessible-text-5952a4c2cbfe
+ */
+
+.visuallyhidden {
+    border: 0;
+    clip: rect(0 0 0 0);
+    -webkit-clip-path: inset(50%);
+    clip-path: inset(50%);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    width: 1px;
+    white-space: nowrap; /* 1 */
+}
+
+/*
+ * Extends the .visuallyhidden class to allow the element
+ * to be focusable when navigated to via the keyboard:
+ * https://www.drupal.org/node/897638
+ */
+
+.visuallyhidden.focusable:active,
+.visuallyhidden.focusable:focus {
+    clip: auto;
+    -webkit-clip-path: none;
+    clip-path: none;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    position: static;
+    width: auto;
+    white-space: inherit;
+}
+
+/*
+ * Hide visually and from screen readers, but maintain layout
+ */
+
+.invisible {
+    visibility: hidden;
+}
+
+/*
+ * Clearfix: contain floats
+ *
+ * For modern browsers
+ * 1. The space content is one way to avoid an Opera bug when the
+ *    `contenteditable` attribute is included anywhere else in the document.
+ *    Otherwise it causes space to appear at the top and bottom of elements
+ *    that receive the `clearfix` class.
+ * 2. The use of `table` rather than `block` is only necessary if using
+ *    `:before` to contain the top-margins of child elements.
+ */
+
+.clearfix:before,
+.clearfix:after {
+    content: " "; /* 1 */
+    display: table; /* 2 */
+}
+
+.clearfix:after {
+    clear: both;
+}
+
+/* ==========================================================================
+   EXAMPLE Media Queries for Responsive Design.
+   These examples override the primary ('mobile first') styles.
+   Modify as content requires.
+   ========================================================================== */
+
+@media only screen and (min-width: 35em) {
+    /* Style adjustments for viewports that meet the condition */
+}
+
+@media print,
+       (-webkit-min-device-pixel-ratio: 1.25),
+       (min-resolution: 1.25dppx),
+       (min-resolution: 120dpi) {
+    /* Style adjustments for high resolution devices */
+}
+
+/* ==========================================================================
+   Print styles.
+   Inlined to avoid the additional HTTP request:
+   http://www.phpied.com/delay-loading-your-print-css/
+   ========================================================================== */
+
+@media print {
+    *,
+    *:before,
+    *:after {
+        background: transparent !important;
+        color: #000 !important; /* Black prints faster:
+                                   http://www.sanbeiji.com/archives/953 */
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+
+    a,
+    a:visited {
+        text-decoration: underline;
+    }
+
+    a[href]:after {
+        content: " (" attr(href) ")";
+    }
+
+    abbr[title]:after {
+        content: " (" attr(title) ")";
+    }
+
+    /*
+     * Don't show links that are fragment identifiers,
+     * or use the `javascript:` pseudo protocol
+     */
+
+    a[href^="#"]:after,
+    a[href^="javascript:"]:after {
+        content: "";
+    }
+
+    pre {
+        white-space: pre-wrap !important;
+    }
+    pre,
+    blockquote {
+        border: 1px solid #999;
+        page-break-inside: avoid;
+    }
+
+    /*
+     * Printing Tables:
+     * http://css-discuss.incutio.com/wiki/Printing_Tables
+     */
+
+    thead {
+        display: table-header-group;
+    }
+
+    tr,
+    img {
+        page-break-inside: avoid;
+    }
+
+    p,
+    h2,
+    h3 {
+        orphans: 3;
+        widows: 3;
+    }
+
+    h2,
+    h3 {
+        page-break-after: avoid;
+    }
+}

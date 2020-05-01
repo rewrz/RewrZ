@@ -1,0 +1,124 @@
+{% extends 'portal/base.html' %}
+{% load staticfiles %}
+{% block head_title %}后台管理设置 - 终改非人{% endblock head_title %}
+{% block nav_top %}
+        <!-- 导航 -->
+        <div class="navbar-fixed">
+            <nav class="nav-extended hoverable">
+                <div class="nav-wrapper">
+                    <a href="#" data-activates="slide-out" class="button-collapse" style="display:flex;"><i class="material-icons">menu</i></a>
+                    <a href="#" class="brand-logo">RewrZ</a>
+                    <ul class="right hide-on-med-and-down">
+                        <li><a href="blog">博客</a></li>
+                        <li><a href="tweet">推文</a></li>
+                        <li><a href="about">关于</a></li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+{% endblock nav_top %}
+
+{% block content %}
+
+<div class="container col s12 m7">
+
+<!--  常规设置 -->
+     <div class="card card-small-square hoverable" style="margin: 2em;">
+         <!-- Card Content -->
+         <div class="card-image">
+             <img src="{% static 'portal/img/3.jpg' %}">
+             <span class="card-title"><a href="#modal-home-setting" class="white-text modal-trigger">常规设置</a></span>
+         </div>
+     </div>
+
+<!--  首页设置 -->
+     <div class="card card-small-square hoverable" style="margin: 2em;">
+         <!-- Card Content -->
+         <div class="card-image">
+             <img src="{% static 'portal/img/3.jpg' %}">
+             <span class="card-title"><a href="#modal-home-setting" class="white-text modal-trigger">首页设置</a></span>
+         </div>
+     </div>
+
+    <!--  邮箱设置 -->
+     <div class="card card-small-square hoverable" style="margin: 2em;">
+         <!-- Card Content -->
+         <div class="card-image">
+             <img src="{% static 'portal/img/3.jpg' %}">
+             <span class="card-title"><a href="#modal-home-setting" class="white-text modal-trigger">邮箱设置</a></span>
+         </div>
+     </div>
+
+    <!--  菜单设置 -->
+     <div class="card card-small-square hoverable" style="margin: 2em;">
+         <!-- Card Content -->
+         <div class="card-image">
+             <img src="{% static 'portal/img/3.jpg' %}">
+             <span class="card-title"><a href="#modal-home-setting" class="white-text modal-trigger">菜单设置</a></span>
+         </div>
+     </div>
+
+    <!--  助手 -->
+     <div class="card card-small-square hoverable" style="margin: 2em;">
+         <!-- Card Content -->
+         <div class="card-image">
+             <img src="{% static 'portal/img/3.jpg' %}">
+             <span class="card-title"><a href="#modal-home-setting" class="white-text modal-trigger">助手</a></span>
+         </div>
+     </div>
+
+</div>
+
+
+<!--  首页设置模态 -->
+<div id="modal-home-setting" class="modal">
+    <div class="modal-content">
+        <h4>首页设置</h4>
+
+            <div class="row">
+                <form class="col s12">
+                    <div class="row">
+                        <div class="input-field col s4">
+                            <input id="image1-title" type="text" class="validate">
+                            <label for="image1-title">首页图片标题</label>
+                        </div>
+                        <div class="input-field col s4">
+                            <input id="image1-desc" type="text" class="validate">
+                            <label for="image1-desc">首页图片描述</label>
+                        </div>
+                        <div class="input-field col s4">
+                            <input id="image1-links" type="text" class="validate">
+                            <label for="image1-links">展示图片地址</label>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="input-field col s4">
+                            <input id="image2-title" type="text" class="validate">
+                            <label for="image2-title">首页图片标题</label>
+                        </div>
+                        <div class="input-field col s4">
+                            <input id="image2-desc" type="text" class="validate">
+                            <label for="image2-desc">首页图片描述</label>
+                        </div>
+                        <div class="input-field col s4">
+                            <input id="image2-links" type="text" class="validate">
+                            <label for="image2-links">展示图片地址</label>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class=" modal-action modal-close waves-effect waves-green btn-flat">保存</a>
+        <a href="#!" class=" modal-action modal-close waves-effect waves-green btn-flat">取消</a>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block head_style %}
+{% endblock head_style%}
+{% block footer %}
+{% endblock footer %}

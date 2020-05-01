@@ -1,0 +1,304 @@
+{% extends 'portal/base.html' %}
+{% load staticfiles %}
+{% block head_title %}RewrZ - 终改非人{% endblock head_title %}
+{% block head_style %}
+    <style>
+        /*动态背景图片（以视差效果最后一张图片为背景）-虚化处理（朦胧美）*/
+        .bg-image{
+            background-image:url({% if post_list.0.get_postimg_url %}{{ post_list.0.get_postimg_url }}{% else %}{% static 'portal/img/10.jpg' %}{% endif %});
+            height:100%;
+            text-align: center;
+        }
+        .bg-imge-blur{
+            float: left;
+            width: 100%;
+            z-index: -99999;
+            position: fixed;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: cover;
+            -webkit-filter: blur(9px);
+            -moz-filter: blur(9px);
+            -o-filter: blur(9px);
+            -ms-filter: blur(9px);
+            filter: blur(9px);
+        }
+    </style>
+{% endblock head_style%}
+
+    {% block content %}
+    <!-- 首页 -->
+    <div id="cover" class="col s12">
+        <!--轮播-->
+        <div class="slider fullscreen z-depth-2 hoverable">
+            <ul class="slides">
+               <li>
+                 <img src="{% static 'portal/img/3.jpg' %}">
+                 <div class="caption center-align">
+                 <h3>艰苦的黑夜终会结束</h3>
+                 <h5 class="light grey-text text-lighten-3">何时曾梦见过的，那片天空。</h5>
+                 </div>
+               </li>
+               <li>
+                 <img src="{% static 'portal/img/2.jpg' %}">
+                 <div class="caption left-align">
+                 <h3>向着远方奔跑吧</h3>
+                 <h5 class="light grey-text text-lighten-3">胸中紧怀着爱奔跑下去吧！</h5>
+                 </div>
+               </li>
+               <li>
+                 <img src="{% static 'portal/img/5.jpg' %}">
+                 <div class="caption right-align">
+                 <h3>一定能到达未来的</h3>
+                 <h5 class="light grey-text text-lighten-3">即使没有翅膀</h5>
+                 </div>
+               </li>
+               <li>
+                 <img src="{% static 'portal/img/4.jpg' %}">
+                 <div class="caption center-align">
+                 <h3>请紧紧把握着不要放手</h3>
+                 <h5 class="light grey-text text-lighten-3">两个人的话，一定能到达的。</h5>
+                 </div>
+               </li>
+            </ul>
+        </div>
+        <!--轮播 END-->
+    </div>
+
+    <!-- 瀑布流卡片 -->
+
+    <div id="archive" class="col s12" style="padding-top: 6rem;">
+        <div class="row">
+            <div class="col s12 card-container">
+
+                {% for post in post_list %}
+                <div class="card hoverable post-{{ post.pk }}">
+                    <div class="card-image">
+                        <img class="" data-caption="{{ post.title }}" src="{% if post.get_postimg_url %}{{ post.get_postimg_url }}{% else %}{% static 'portal/img/1.jpg' %}{% endif %}" onerror="this.src='{% static 'portal/img/1.jpg' %}'">
+                        <span class="card-title">
+                            <a href="{{ post.get_absolute_url }}" class="white-text">{{ post.title }}</a>
+                        </span>
+                        <a class="btn-floating halfway-fab waves-effect waves-light red"><i class="material-icons">add</i></a>
+                    </div>
+                    <div class="card-content">
+                      <p class="truncate">{{ post.excerpt }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 世界线-分类标签 -->
+    <div id="worldline" class="col s12 m6 s3" style="padding-top: 6rem;">
+        <div class="row">
+            <!-- 分类 -->
+            <div class="col s12">
+                <div class="card-panel teal hoverable" style="background-color: #00968899 !important;">
+                  <h2 class="white-text">线性收束</h2>
+                </div>
+
+
+
+                <div class="card card-small-square hoverable">
+                    <!-- Card Content -->
+                    <div class="card-image">
+                        <img class="materialboxed" data-caption="网站名+分类名称" src="{% static 'portal/img/3.jpg' %}">
+                        <span class="card-title"><a href="#" class="white-text">分类名称</a></span>
+                    </div>
+                </div>
+
+                <div class="card card-small-square hoverable">
+                    <!-- Card Content -->
+                    <div class="card-image">
+                        <img class="materialboxed" data-caption="网站名+分类名称" src="{% static 'portal/img/3.jpg' %}">
+                        <span class="card-title"><a href="#" class="white-text">我是一个比较长的分类名称，可能会超出长度显示。</a></span>
+                    </div>
+                </div>
+
+                <div class="card card-small-square hoverable">
+                    <!-- Card Content -->
+                    <div class="card-image">
+                        <img class="materialboxed" data-caption="网站名+分类名称" src="{% static 'portal/img/3.jpg' %}">
+                        <span class="card-title"><a href="#" class="white-text">分类名称</a></span>
+                    </div>
+                </div>
+
+                <div class="card card-small-square hoverable">
+                    <!-- Card Content -->
+                    <div class="card-image">
+                        <img class="materialboxed" data-caption="网站名+分类名称" src="{% static 'portal/img/3.jpg' %}">
+                        <span class="card-title"><a href="#" class="white-text">分类名称</a></span>
+                    </div>
+                </div>
+
+                <div class="card card-small-square hoverable">
+                    <!-- Card Content -->
+                    <div class="card-image">
+                        <img class="materialboxed" data-caption="网站名+分类名称" src="{% static 'portal/img/3.jpg' %}">
+                        <span class="card-title"><a href="#" class="white-text">分类名称</a></span>
+                    </div>
+                </div>
+
+                <div class="card card-small-square hoverable">
+                    <!-- Card Content -->
+                    <div class="card-image">
+                        <img class="materialboxed" data-caption="网站名+分类名称" src="{% static 'portal/img/3.jpg' %}">
+                        <span class="card-title"><a href="#" class="white-text">分类名称</a></span>
+                    </div>
+                </div>
+
+
+
+            </div>
+
+            <!-- 标签 -->
+
+            <div class="col s12 dynamic-color">
+                <div class="card-panel teal hoverable" style="background-color: #00968899 !important;">
+                  <h2 class="white-text">非线性拘束</h2>
+                </div>
+                <a class="chip-tag white red-text hoverable" href="#">#傲娇</a>
+                <a class="chip-tag white red-text hoverable" href="#">#萌</a>
+                <a class="chip-tag white red-text hoverable" href="#">#萝莉</a>
+                <a class="chip-tag white red-text hoverable" href="#">#双马尾</a>
+                <a class="chip-tag white red-text hoverable" href="#">#元气</a>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 文章归档 -->
+    <div id="time-goes-by" class="col s12" style="padding-top: 6rem;">
+        <div class="container">
+
+            <ul class="collection with-header hoverable">
+                <li class="collection-header"><span class="new badge" data-badge-caption="篇文章">100</span><h3>2018年</h3></li>
+                <a href="#!" class="collection-item active"><span class="new badge red" data-badge-caption="篇文章">1</span>2018年6月</a>
+                <a href="#!" class="collection-item"><span class="new badge red" data-badge-caption="篇文章">10</span>2018年5月</a>
+                <a href="#!" class="collection-item">2018年4月</a>
+                <a href="#!" class="collection-item">2018年3月</a>
+            </ul>
+
+            <ul class="collection with-header hoverable">
+                <li class="collection-header"><h3>2017年</h3></li>
+                <a href="#!" class="collection-item">2017年6月</a>
+                <a href="#!" class="collection-item">2017年5月</a>
+                <a href="#!" class="collection-item">2017年4月</a>
+                <a href="#!" class="collection-item">2017年3月</a>
+            </ul>
+
+        </div>
+    </div>
+
+    <!-- 独立微博（时间轴） -->
+    <div id="weibo" class="col s12" style="padding-top: 6rem;">
+        <div class="container">
+
+            <div class="timeline">
+
+                <div class="timeline-event">
+                    <div class="timeline-content">
+
+                        <div class="card-panel teal hoverable">
+                            <div class="chip-tag white">
+                                <a class="black-text" href="#">#萌</a>
+                            </div>
+                            <p class="yellow-text">发表时间：2050年12月32日 0时0分0秒</p>
+                            <span class="white-text"> 怒发冲冠，凭栏处、潇潇雨歇。抬望眼、仰天长啸，壮怀激烈。三十功名尘与土，八千里路云和月。莫等闲、白了少年头，空悲切。靖康耻，犹未雪。臣子恨，何时灭。驾长车，踏破贺兰山缺。壮志饥餐胡虏肉，笑谈渴饮匈奴血。待从头、收拾旧山河，朝天阙。
+                            </span>
+                        </div>
+
+                    </div>
+                    <div class="timeline-badge blue white-text">
+                        <img class="circle weibo-avatar-s" src="https://www.gravatar.com/avatar/21609dc9fc01c7d776bab8b4422c0f50?d=mm&s=64">
+                    </div>
+                </div>
+
+              <div class="timeline-event">
+                    <div class="timeline-content">
+
+                        <div class="card-panel teal hoverable">
+                            <div class="chip-tag white">
+                                <a class="black-text" href="#">#萌</a>
+                            </div>
+                            <p class="yellow-text">发表时间：2050年12月32日 0时0分0秒</p>
+                            <span class="white-text">雨急云飞，惊散暮鸦，微弄凉月。谁家疏柳低迷，几点流萤明灭。夜帆风驶，满湖烟水苍茫，菰蒲零乱秋声咽。梦断酒醒时，倚危樯清绝。心折。长庚光怒，群盗纵横，逆胡猖獗。欲挽天河，一洗中原膏血。两宫何处，塞垣祗隔长江，唾壶空击悲歌缺。万里想龙沙，泣孤臣吴越。
+                            </span>
+                        </div>
+
+                    </div>
+                    <div class="timeline-badge blue white-text">
+                        <img class="circle weibo-avatar-s" src="https://www.gravatar.com/avatar/21609dc9fc01c7d776bab8b4422c0f50?d=mm&s=64">
+                    </div>
+                </div>
+
+              <div class="timeline-event">
+                    <div class="timeline-content">
+
+                        <div class="card-panel teal hoverable">
+                            <div class="chip-tag white">
+                                <a class="black-text" href="#">#萌</a>
+                            </div>
+                            <p class="yellow-text">发表时间：2050年12月32日 0时0分0秒</p>
+                            <span class="white-text">醉里挑灯看剑，梦回吹角连营。八百里分麾下炙，五十弦翻塞外声。沙场秋点兵。 马作的卢飞快，弓如霹雳弦惊。了却君王天下事，赢得生前身后名。可怜白发生！
+                            </span>
+                        </div>
+
+                    </div>
+                    <div class="timeline-badge blue white-text">
+                        <img class="circle weibo-avatar-s" src="https://www.gravatar.com/avatar/21609dc9fc01c7d776bab8b4422c0f50?d=mm&s=64">
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 独立论坛（圆桌会议） -->
+    <div id="roundtable" class="col s12" style="padding-top: 6rem;">
+        <div class="container">
+
+            <ul class="collection with-header hoverable">
+                <li class="collection-header"><h3><i class="medium material-icons prefix">forum</i>最新议题</h3></li>
+                <li class="collection-item avatar">
+                  <img src="{% static 'portal/img/1.jpg' %}" alt="" class="circle">
+                  <span class="title">议题：这就是命运石之门的选择吗</span>
+                  <p>提出时间：2045年2月31日 0时0分0秒 <br>
+                     议题分类：机关
+                  </p>
+                  <a href="#!" class="secondary-content"><i class="material-icons">grade</i></a>
+                </li>
+                <li class="collection-item avatar">
+                  <i class="material-icons circle">folder</i>
+                  <span class="title">标题</span>
+                  <p>第一行 <br>
+                     第二行
+                  </p>
+                  <a href="#!" class="secondary-content"><i class="material-icons">grade</i></a>
+                </li>
+                <li class="collection-item avatar">
+                  <i class="material-icons circle green">insert_chart</i>
+                  <span class="title">标题</span>
+                  <p>第一行 <br>
+                     第二行
+                  </p>
+                  <a href="#!" class="secondary-content"><i class="material-icons">grade</i></a>
+                </li>
+                <li class="collection-item avatar">
+                  <i class="material-icons circle red">play_arrow</i>
+                  <span class="title">标题</span>
+                  <p>第一行 <br>
+                     第二行
+                  </p>
+                  <a href="#!" class="secondary-content"><i class="material-icons">grade</i></a>
+                </li>
+              </ul>
+
+        </div>
+    </div>
+    {% endblock %}
+

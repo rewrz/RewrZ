@@ -1,248 +1,257 @@
+<!doctype html>
 {% load staticfiles %}
-{% load blog_tags %}
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="utf-8" />
-    <link rel="apple-touch-icon" sizes="76x76" href="{% static 'blog/img/apple-icon.png' %}">
-    <link rel="icon" type="image/png" href="{% static 'blog/img/favicon.png' %}">
-    <link rel="shortcut icon" href="{%static 'blog/img/favicon.png'  %}" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
-    <title>
-        {% if post.title %}{{ post.title }} | {{ TITLE }}
-        {% else %}{{ TITLE }}
-        {% endif %}
-    </title>
-    <meta content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, shrink-to-fit=no' name='viewport' />
-    <!--     Fonts and icons     -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css" />
-    <!-- CSS Files -->
-    <link href="{% static 'blog/css/bootstrap.min.css' %}" rel="stylesheet" />
-    <link href="{% static 'blog/css/now-ui-kit.css' %}" rel="stylesheet" />
-    <link href="{% static 'blog/css/style.css' %}" rel="stylesheet" />
-    <!--  Social tags      -->
-    <meta name="keywords" content="{% if post.tags.all %}{% for tag in post.tags.all %}{{ tag.name }},{% endfor %}{% else %}RewrZ,开源,博客,IT,ACG{% endif %}">
-    <meta name="description" content="{% if post.excerpt %}{{ post.excerpt }}{% else %}{{ DESCRIPTION }}{% endif %}">
-</head>
+<html class="no-js" lang="zh_CN">
+    <head>
+        {% block head %}
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <title>{% block head_title %}RewrZ - 终改非人{% endblock head_title %}</title>
+        <meta name="description" content="{% block head_description %} 大会长非人哉！{% endblock head_description %}">
+        <meta name="keywords" content="{% block head_keywords %}RewrZ,开源,博客,IT,ACG{% endblock head_keywords %}">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<body class="profile-page sidebar-collapse">
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg bg-primary fixed-top navbar-transparent " color-on-scroll="400">
-        <div class="container">
-            <div class="dropdown button-dropdown">
-                <a href="#pablo" class="dropdown-toggle" id="navbarDropdown" data-toggle="dropdown">
-                    <span class="button-bar"></span>
-                    <span class="button-bar"></span>
-                    <span class="button-bar"></span>
-                </a>
-                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
-                    <a class="dropdown-header">下拉菜单</a>
-                    <a class="dropdown-item" href="#">Action</a>
-                    <a class="dropdown-item" href="#">Another action</a>
-                    <a class="dropdown-item" href="#">Something else here</a>
-                    <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="#">Separated link</a>
-                    <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="#">One more separated link</a>
+        <link rel="manifest" href="{% static 'portal/site.webmanifest' %}">
+        <link rel="apple-touch-icon" href="{% static 'portal/apple-icon.png' %}">
+        <link rel="icon" type="image/png" href="{% static 'portal/favicon.ico' %}">
+        <link rel="shortcut icon" href="{% static 'portal/favicon.png' %}" />
+        <!-- Place favicon.ico in the root directory -->
+
+        <link rel="stylesheet" href="{% static 'portal/css/normalize.css' %}">
+        <link rel="stylesheet" href="{% static 'portal/css/main.css' %}">
+
+        <script src="{% static 'portal/js/vendor/modernizr-3.5.0.min.js' %}"></script>
+
+        <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+        <script>window.jQuery || document.write('<script src="{% static 'portal/js/vendor/jquery-3.2.1.min.js' %}"><\/script>')</script>
+        <script src="{% static 'portal/js/plugins.js' %}"></script>
+        <script src="{% static 'portal/js/main.js' %}"></script>
+
+        <!-- Compiled and minified CSS -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css">
+        <!--<link rel="stylesheet" href="{% static 'portal/css/materialize.min.css' %}">-->
+
+        <!--<link rel="stylesheet" href="https://fonts.loli.net/icon?family=Material+Icons">-->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/material-design-icons/3.0.1/iconfont/material-icons.min.css">
+
+        <!--<<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">-->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+        <!--<link rel="stylesheet" href="{% static 'portal/css/font-awesome.min.css' %}">-->
+
+        <!-- Compiled and minified JavaScript -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
+        <!--<script src="{% static 'portal/js/materialize.min.js' %}"></script>-->
+
+        {% block head_style %}
+        <style>
+            /*动态背景图片（以视差效果最后一张图片为背景）-虚化处理（朦胧美）*/
+            .bg-image{
+                background-image:url({% static 'portal/img/10.jpg' %});
+                height:100%;
+                text-align: center;
+            }
+            .bg-imge-blur{
+                float: left;
+                width: 100%;
+                z-index: -99999;
+                position: fixed;
+                background-repeat: no-repeat;
+                background-position: center;
+                background-size: cover;
+                -webkit-filter: blur(9px);
+                -moz-filter: blur(9px);
+                -o-filter: blur(9px);
+                -ms-filter: blur(9px);
+                filter: blur(9px);
+            }
+        </style>
+        {% endblock head_style%}
+        {% endblock head %}
+    </head>
+
+    <body>
+        <!--[if lte IE 9]>
+            <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="https://browsehappy.com/">upgrade your browser</a> to improve your experience and security.</p>
+        <![endif]-->
+
+        <!-- Add your site or application content here -->
+        <!--背景虚化处理-->
+        <div class="bg-image bg-imge-blur"></div>
+
+        {% block side_left %}
+        <!-- 侧边栏 -->
+        <ul id="slide-out" class="side-nav">
+            <li><div class="user-view">
+                <div class="background">
+                   <!-- 自动获取网站背景图片作为背景 -->
+                    <img src="{% static 'portal/img/10.jpg' %}">
                 </div>
-            </div>
-            <div class="navbar-translate">
-                <a class="navbar-brand" href="{% url 'blog:index' %}" rel="tooltip" title="返回首页" data-placement="bottom">
-                    RewrZ
-                </a>
-                <button class="navbar-toggler navbar-toggler" type="button" data-toggle="collapse" data-target="#navigation" aria-controls="navigation-index" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-bar bar1"></span>
-                    <span class="navbar-toggler-bar bar2"></span>
-                    <span class="navbar-toggler-bar bar3"></span>
-                </button>
-            </div>
-            <div class="collapse navbar-collapse justify-content-end" data-nav-image="{% static 'blog/img/blurred-image-1.jpg' %}">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" rel="tooltip" title="最新文章" data-placement="bottom" data-toggle="modal" data-target="#NewpostModal" href="#NewpostModal">News</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" rel="tooltip" title="About" data-placement="bottom" href="/archive/about">About</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" rel="tooltip" title="Look me on Wordpress" data-placement="bottom" href="https://wordpress.com" target="_blank">
-                            <i class="fa fa-wordpress"></i>
-                            <p class="d-lg-none d-xl-none">Wordpress</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" rel="tooltip" title="Follow me on Tumblr" data-placement="bottom" href="https://acgit.tumblr.com" target="_blank">
-                            <i class="fa fa-tumblr"></i>
-                            <p class="d-lg-none d-xl-none">Tumblr</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" rel="tooltip" title="Find me on Facebook" data-placement="bottom" href="https://www.facebook.com/" target="_blank">
-                            <i class="fa fa-facebook"></i>
-                            <p class="d-lg-none d-xl-none">Facebook</p>
-                        </a>
-                    </li>
-                    <li class="form-group">
-                        <form role="search" method="get" id="searchform" action="{% url 'haystack_search' %}">
-                          <input type="search" name="q" class="form-control" placeholder="?" required>
-                        </form>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" rel="tooltip" title="RSS订阅" data-placement="bottom" href="{% url 'rss' %}" target="_blank">
-                            <i class="fa fa-rss"></i>
-                            <p class="d-lg-none d-xl-none">RSS 订阅</p>
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
-    <div class="wrapper">
-        <!-- End Navbar -->
-
-        {% block header %}
-        {% endblock header %}
-
-        {% block main %}
-        {% endblock main %}
-
-        <div class="modal fade" id="NewpostModal" tabindex="-1" role="dialog" aria-labelledby="NewpostModalLabel" aria-hidden="true">
-                  <div class="modal-dialog">
-                      <div class="modal-content">
-                          <div class="modal-header">
-                              <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                              <h4 class="modal-title" id="NewpostModalLabel">最新文章</h4>
-                          </div>
-                          <hr>
-                          <div class="modal-body">
-                              {% get_recent_posts as recent_post_list %}
-                              <ul>
-                                  {% for post in recent_post_list %}
-                                  <li>
-                                      <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
-                                  </li>
-                                  {% empty %}
-                                  暂无文章！
-                                  {% endfor %}
-                              </ul>
-                          </div>
-                      </div>
-                  </div>
-        </div>
-
-        <footer class="footer" style="background-color: #868e96;">
-            <div class="container">
-			    <div class="row">
-
-                    <div class="col-md-4 ml-auto mr-auto">
-                        <div class="card widget widget-archives">
-                            <h5 class="title widget-title"><i class="fa fa-calendar" aria-hidden="true"></i>每月归档</h5>
-                            <hr>
-                            <div class="card-body">
-                                {% archives as date_list %}
-                                <ul>
-                                    {% for date in date_list %}
-                                    <li>
-                                        <a href="{% url 'blog:archives' date.year date.month %}">{{ date.year }} 年 {{ date.month }} 月</a>
-                                    </li>
-                                    {% empty %}
-                                    暂无归档！
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                        </div>
-				    </div>
-
-                    <div class="col-md-4 ml-auto mr-auto">
-                        <div class="card widget widget-category">
-                            <h5 class="title widget-title"><i class="fa fa-archive" aria-hidden="true"></i>分类归档</h5>
-                            <hr>
-                            <div class="card-body">
-                                {% get_categories as category_list %}
-                                <ul>
-                                    {% for category in category_list %}
-                                    <li>
-                                        <a href="{{ category.get_absolute_url }}">{{ category.name }} <span class="post-count">({{ category.num_posts }})</span></a>
-                                    </li>
-                                    {% empty %}
-                                    暂无分类！
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                        </div>
-				    </div>
-
-                    <div class="col-md-4 ml-auto mr-auto">
-                        <div class="card widget widget-tag-cloud">
-                            <h5 class="title widget-title"><i class="fa fa-tags" aria-hidden="true"></i>标签归档</h5>
-                            <hr>
-                            <div class="card-body">
-                                {% get_tags as tag_list %}
-                                <ul>
-                                    {% for tag in tag_list %}
-                                    <li>
-                                        <a href="{{ tag.get_absolute_url }}"><i class="now-ui-icons shopping_tag-content"></i>{{ tag.name }}<span class="post-count">({{ tag.num_posts }})</span></a>
-                                    </li>
-                                    {% empty %}
-                                    暂无标签！
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                        </div>
-				    </div>
-
+                <!-- 以当前登陆用户的头像、用户名、邮箱显示，否则以网站设置信息显示 -->
+                <a href="#!user"><img class="circle" src="{% static 'portal/logo.png' %}"></a>
+                <a href="#!name"><span class="white-text name">RewrZ</span></a>
+                <a href="#!email"><span class="white-text email">go@steinsgate.win</span></a>
+            </div></li>
+            <li><form>
+                <div class="input-field">
+                    <input id="search" type="search" required>
+                    <label for="search"><i class="material-icons">search</i></label>
                 </div>
-            </div>
-            <div class="container"  style="color: white;">
-                <nav>
-                    <ul>
-                        <li>
-                            <i class="fa fa-creative-commons" aria-hidden="true"></i>
-                            <a rel="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">
-                                Creative Commons License
-                            </a>
-                        </li>
-                        <li>
-                            <a href="https://github.com/rewrz/rewrz" target="_blank">
-                                AGPL License
-                            </a>
-                        </li>
+            </form></li>
+            <li><a href="#!"><i class="material-icons">cloud</i>First Link With Icon</a></li>
+            <li><a href="#!">Second Link</a></li>
+            <li><div class="divider"></div></li>
+            <li><a class="subheader">Subheader</a></li>
+            <li><a class="waves-effect" href="#!">Third Link With Waves</a></li>
+        </ul>
+        {% endblock side_left %}
+
+        {% block nav_top %}
+        <!-- 导航 -->
+        <div class="navbar-fixed">
+            <nav class="nav-extended hoverable">
+                <div class="nav-wrapper">
+                    <a href="#" data-activates="slide-out" class="button-collapse" style="display:flex;"><i class="material-icons">menu</i></a>
+                    <a href="{% url 'portal:index' %}" class="brand-logo">传送门</a>
+                    <ul class="right hide-on-med-and-down">
+                        <li><a href="blog">博客</a></li>
+                        <li><a href="tweet">推文</a></li>
+                        <li><a href="about">关于</a></li>
                     </ul>
-                </nav>
-                <div class="copyright">
-                    &copy;
-                    <script>
-                        document.write(new Date().getFullYear())
-                    </script>, Thanks for Open Source Community. Coded by RewrZ.
+                </div>
+                <div class="nav-content">
+                    <ul class="tabs tabs-transparent">
+                        <li class="tab"><a class="active" href="#cover">封面</a></li>
+                        <li class="tab"><a href="#archive">博文杂记</a></li>
+                        <li class="tab"><a href="#worldline">γ世界线</a></li>
+                        <li class="tab"><a href="#time-goes-by">时光流逝</a></li>
+                        <li class="tab"><a href="#weibo">微言大义</a></li>
+                        <li class="tab"><a href="#roundtable">圆桌会议</a></li>
+                      </ul>
+                </div>
+            </nav>
+        </div>
+        {% endblock nav_top %}
+
+        {% block content %}
+        <!-- 内容 -->
+        {% endblock content %}
+
+        {% block btn_float %}
+        <!-- 浮动按钮 -->
+        <div class="fixed-action-btn" style="bottom: 45px; right: 24px;">
+          <a class="btn-floating btn-large red">
+            <i class="material-icons">mode_edit</i>
+          </a>
+          <ul>
+            <li><a class="btn-floating red" style="transform: scaleY(0.4) scaleX(0.4) translateY(40px) translateX(0px); opacity: 0;"><i class="material-icons">insert_chart</i></a></li>
+            <li><a class="btn-floating yellow darken-1" style="transform: scaleY(0.4) scaleX(0.4) translateY(40px) translateX(0px); opacity: 0;"><i class="material-icons">format_quote</i></a></li>
+            <li><a class="btn-floating green" style="transform: scaleY(0.4) scaleX(0.4) translateY(40px) translateX(0px); opacity: 0;"><i class="material-icons">publish</i></a></li>
+            <li><a class="btn-floating blue" style="transform: scaleY(0.4) scaleX(0.4) translateY(40px) translateX(0px); opacity: 0;"><i class="material-icons">attach_file</i></a></li>
+          </ul>
+        </div>
+        {% endblock btn_float %}
+
+        {% block footer %}
+        <!-- 页脚 -->
+        <footer class="page-footer">
+            <div class="container">
+                <div class="row">
+                    <div class="col l6 s12">
+                        <h5 class="white-text">喂，是我。什么？！</h5>
+                        <p class="grey-text text-lighten-4">“机关...已经开始行动了？混沌的宇宙将迎来最终的改写。”</p>
+                        <p class="grey-text text-lighten-4">“这就是『石头门』的选择么。”</p>
+                        <p class="grey-text text-lighten-4">“El Psy Congroo Rewrz”</p>
+                        <div id="Date" class="white-text"></div>
+                    </div>
+                    <div class="col l4 offset-l2 s12">
+                        <h5 class="white-text">==量子节点==</h5>
+                        <a class="tooltipped btn-floating btn-medium waves-effect waves-light purple"  href="mailto:hello@rewrz.com"  data-position="bottom" data-delay="50" data-tooltip="Email">
+                        <i class="fa fa-envelope"></i>
+                        </a>
+                        <a class="tooltipped btn-floating btn-medium waves-effect waves-light green"  href="#WeChat" target="_blank" data-position="top" data-delay="50" data-tooltip="WeChat">
+                        <i class="fa fa-weixin"></i>
+                        </a>
+                        <a class="tooltipped btn-floating btn-medium waves-effect waves-light indigo"  href="https://steamcommunity.com/id/acgit" target="_blank" data-position="bottom" data-delay="50" data-tooltip="Steam">
+                        <i class="fa fa-steam"></i>
+                        </a>
+                        <a class="tooltipped btn-floating btn-medium waves-effect waves-light light-blue"  href="https://twitter.com" target="_blank" data-position="top" data-delay="50" data-tooltip="Twitter">
+                        <i class="fa fa-twitter"></i>
+                        </a>
+                        <a class="tooltipped btn-floating btn-medium waves-effect waves-light red"  href="https://plus.google.com/" target="_blank" data-position="bottom" data-delay="50" data-tooltip="Google+">
+                        <i class="fa fa-google-plus"></i>
+                        </a>
+                        <a class="tooltipped btn-floating btn-medium waves-effect waves-light cyan"  href="https://bitbucket.org/rewrz/" target="_blank" data-position="top" data-delay="50" data-tooltip="Bitbucket">
+                        <i class="fa fa-bitbucket"></i>
+                        </a>
+                        <a class="tooltipped btn-floating btn-medium waves-effect waves-light orange"  href="https://github.com/rewrz" target="_blank" data-position="bottom" data-delay="50" data-tooltip="Github">
+                        <i class="fa fa-github"></i>
+                        </a>
+                        <ul>
+                            <li><a class="grey-text text-lighten-3" href="#!"><i class="fa fa-space-shuttle"></i>『反300人委员会』</a></li>
+                            <li><a class="grey-text text-lighten-3" href="#!"><i class="fa fa-space-shuttle"></i>『未来机关对策室』</a></li>
+                            <li><a class="grey-text text-lighten-3" href="/all/rss/"><i class="fa fa-rss"></i>『RSS订阅』</a></li>
+                            <li><a class="grey-text text-lighten-3" href="https://steinsgate.win"><i class="fa fa-circle-o"></i>『Steins;Gate』</a></li>
+                        </ul>
+                        <a class="tooltipped btn-floating btn-medium waves-effect waves-light pink"  href="https://wordpress.com" target="_blank" data-position="bottom" data-delay="50" data-tooltip="WordPress">
+                        <i class="fa fa-wordpress"></i>
+                        </a>
+                        <a class="tooltipped btn-floating btn-medium waves-effect waves-light blue-grey"  href="https://www.tumblr.com" target="_blank" data-position="top" data-delay="50" data-tooltip="Tumblr">
+                        <i class="fa fa-tumblr"></i>
+                        </a>
+                        <a class="tooltipped btn-floating btn-medium waves-effect waves-light deep-purple"  href="https://www.facebook.com" target="_blank" data-position="bottom" data-delay="50" data-tooltip="Facebook">
+                        <i class="fa fa-facebook"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-copyright">
+                <div class="container">
+                   <script type="text/javascript"> 
+                        window.onload=function(){
+                        setInterval(function(){
+                        var date=new Date();
+                        var year=date.getFullYear(); //获取当前年份
+                        var mon=date.getMonth()+1; //获取当前月份
+                        var day=date.getDate(); //获取当前日
+                        var weekday=date.getDay(); //获取当前星期几
+                        var h=date.getHours(); //获取小时
+                        var m=date.getMinutes(); //获取分钟
+                        var s=date.getSeconds(); //获取秒
+                        if(weekday == 0)
+                            weekday="星期日";
+                            else if(weekday == 1)
+                            weekday="星期一";
+                            else if(weekday == 2)
+                            weekday="星期二";
+                            else if(weekday == 3)
+                            weekday="星期三";
+                            else if(weekday == 4)
+                            weekday="星期四";
+                            else if(weekday == 5)
+                            weekday="星期五";
+                            else if(weekday == 6)
+                            weekday="星期六";
+                        var d=document.getElementById('Date');
+                        d.innerHTML= year + '年' + mon + '月' + day + '日'+ ' ' + weekday +' '+ h + ':' + m + ':' + s;  },1000)  }
+                    </script>
+                    Copyright © RewrZ, 2017-<script>document.write(new Date().getFullYear())</script>.
+                    Writing default licensed under
+                    <a class="white-text" href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="license">Creative Commons License</a>
+                    <a class="grey-text text-lighten-4 right" href="https://code.rewrz.com/">Code and Theme by RewrZ licensed under AGPL</a>
                 </div>
             </div>
         </footer>
-    </div>
-</body>
-<!--   Core JS Files   -->
-<script src="{% static 'blog/js/core/jquery.3.2.1.min.js' %}" type="text/javascript"></script>
-<script src="{% static 'blog/js/core/popper.min.js' %}" type="text/javascript"></script>
-<script src="{% static 'blog/js/core/bootstrap.min.js' %}" type="text/javascript"></script>
-<!--  Plugin for Switches, full documentation here: http://www.jque.re/plugins/version3/bootstrap.switch/ -->
-<script src="{% static 'blog/js/plugins/bootstrap-switch.js' %}"></script>
-<!--  Plugin for the Sliders, full documentation here: http://refreshless.com/nouislider/ -->
-<script src="{% static 'blog/js/plugins/nouislider.min.js' %}" type="text/javascript"></script>
-<!--  Plugin for the DatePicker, full documentation here: https://github.com/uxsolutions/bootstrap-datepicker -->
-<script src="{% static 'blog/js/plugins/bootstrap-datepicker.js' %}" type="text/javascript"></script>
-<!-- Share Library etc -->
-<!--<script src="{% static 'blog/js/plugins/jquery.sharrre.js' %}" type="text/javascript"></script>-->
-<!-- Control Center for Now Ui Kit: parallax effects, scripts for the example pages etc -->
-<script src="{% static 'blog/js/now-ui-kit.js' %}" type="text/javascript"></script>
-<script>
-$(function(){
-    $('#CommentModal').on('show.bs.modal', function (event) {
-      var i = $(event.relatedTarget)
-      var obj_name = i.data('name')
-      var obj_id = i.data('id')
-      var modal = $(this)
-      modal.find('.modal-title').text('回复 @' + obj_name)
-      modal.find('.modal-body #id_parent').val(parseInt(obj_id))
-    });
-});
-</script>
+        {% endblock footer %}
+
+        {% block google_analytics %}
+        <!-- Google Analytics: change UA-XXXXX-Y to be your site's ID. -->
+        <!--
+        <script>
+            window.ga=function(){ga.q.push(arguments)};ga.q=[];ga.l=+new Date;
+            ga('create','UA-XXXXX-Y','auto');ga('send','pageview')
+        </script>
+        <script src="https://www.google-analytics.com/analytics.js" async defer></script>
+        -->
+        {% endblock google_analytics %}
+
+    </body>
 </html>

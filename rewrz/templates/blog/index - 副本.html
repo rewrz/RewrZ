@@ -1,0 +1,315 @@
+{% extends 'blog/base.html' %}
+{% load staticfiles %}
+{% load blog_tags %}
+{% block head_style %}
+	<style>
+			/*动态背景图片（以视差效果最后一张图片为背景）-虚化处理（朦胧美）*/
+			.bg-image{
+				background-image:url({% if post_list.0.get_postimg_url %}{{ post_list.0.get_postimg_url }}{% else %}{% static 'portal/img/4.jpg' %}{% endif %});
+				height:100%;
+				text-align: center;
+			}
+			.bg-imge-blur{
+				float: left;
+				width: 100%;
+				z-index: -99999;
+				position: fixed;
+				background-repeat: no-repeat;
+				background-position: center;
+				background-size: cover;
+				-webkit-filter: blur(9px);
+				-moz-filter: blur(9px);
+				-o-filter: blur(9px);
+				-ms-filter: blur(9px);
+				filter: blur(9px);
+			}
+        </style>
+{% endblock head_style%}
+
+{% block side_left %}
+        <!-- 侧边栏 -->
+        <ul id="slide-out" class="side-nav">
+            <li><div class="user-view">
+                <div class="background">
+                   <!-- 自动获取网站背景图片作为背景 -->
+                    <img src="{% static 'portal/img/10.jpg' %}">
+                </div>
+                <!-- 以当前登陆用户的头像、用户名、邮箱显示，否则以网站设置信息显示 -->
+                <a href="#!user"><img class="circle" src="{% static 'portal/logo.png' %}"></a>
+                <a href="#!name"><span class="white-text name">RewrZ</span></a>
+                <a href="#!email"><span class="white-text email">go@steinsgate.win</span></a>
+            </div></li>
+            <li><form>
+                <div class="input-field">
+                    <input id="search" type="search" required>
+                    <label for="search"><i class="material-icons">search</i></label>
+                </div>
+            </form></li>
+            <!-- 文章归档 -->
+            <li><a href="#!"><i class="material-icons">cloud</i>First Link With Icon</a></li>
+            {% archives as date_list %}
+            {% for date in date_list %}
+             <li><a href="{% url 'blog:archives' date.year date.month %}" class="collection-item">{{ date.year }}年 {{ date.month }} 月</a>
+             </li>
+             {% empty %}
+             {% endfor %}
+            <li><div class="divider"></div></li>
+            <li><a class="subheader">Subheader</a></li>
+            <li><a class="waves-effect" href="#!">Third Link With Waves</a></li>
+        </ul>
+        {% endblock side_left %}
+
+{% block nav_top %}
+        <!-- 导航 -->
+        <div class="navbar-fixed">
+            <nav class="nav-extended hoverable">
+                <div class="nav-wrapper">
+                    <a href="#" data-activates="slide-out" class="button-collapse" style="display:flex;"><i class="material-icons">menu</i></a>
+                    <a href="{% url 'portal:index' %}" class="brand-logo">最后的改写</a>
+                    <ul class="right hide-on-med-and-down">
+                        <li><a href="{% url 'blog:index' %}">博客</a></li>
+                        <li><a href="tweet">推文</a></li>
+                        <li><a href="about">关于</a></li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+{% endblock nav_top %}
+
+{% block content %}
+<!-- 内容 -->
+<div class="row">
+    <div id="blog-info" class="col s12">
+        <div class="center">
+            <h1 class="white-text">终改非人</h1>
+            <a class="tooltipped btn-floating btn-medium waves-effect waves-light purple"  href="mailto:hello@rewrz.com"  data-position="bottom" data-delay="50" data-tooltip="Email">
+            <i class="fa fa-envelope"></i>
+            </a>
+            <a class="tooltipped btn-floating btn-medium waves-effect waves-light green"  href="#WeChat" target="_blank" data-position="top" data-delay="50" data-tooltip="WeChat">
+            <i class="fa fa-weixin"></i>
+            </a>
+            <a class="tooltipped btn-floating btn-medium waves-effect waves-light indigo"  href="https://steamcommunity.com/id/acgit" target="_blank" data-position="bottom" data-delay="50" data-tooltip="Steam">
+            <i class="fa fa-steam"></i>
+            </a>
+            <a class="tooltipped btn-floating btn-medium waves-effect waves-light light-blue"  href="https://twitter.com" target="_blank" data-position="top" data-delay="50" data-tooltip="Twitter">
+            <i class="fa fa-twitter"></i>
+            </a>
+            <a class="tooltipped btn-floating btn-medium waves-effect waves-light red"  href="https://plus.google.com/" target="_blank" data-position="bottom" data-delay="50" data-tooltip="Google+">
+            <i class="fa fa-google-plus"></i>
+            </a>
+            <a class="tooltipped btn-floating btn-medium waves-effect waves-light cyan"  href="https://bitbucket.org/rewrz/" target="_blank" data-position="top" data-delay="50" data-tooltip="Bitbucket">
+            <i class="fa fa-bitbucket"></i>
+            </a>
+            <a class="tooltipped btn-floating btn-medium waves-effect waves-light orange"  href="https://github.com/rewrz" target="_blank" data-position="bottom" data-delay="50" data-tooltip="Github">
+            <i class="fa fa-github"></i>
+            </a>
+            <ul>
+                <li><p class="grey-text text-lighten-4">El Psy Congroo</p></li>
+            </ul>
+            <a class="tooltipped btn-floating btn-medium waves-effect waves-light pink"  href="https://wordpress.com" target="_blank" data-position="bottom" data-delay="50" data-tooltip="WordPress">
+            <i class="fa fa-wordpress"></i>
+            </a>
+            <a class="tooltipped btn-floating btn-medium waves-effect waves-light blue-grey"  href="https://www.tumblr.com" target="_blank" data-position="top" data-delay="50" data-tooltip="Tumblr">
+            <i class="fa fa-tumblr"></i>
+            </a>
+            <a class="tooltipped btn-floating btn-medium waves-effect waves-light deep-purple"  href="https://www.facebook.com" target="_blank" data-position="bottom" data-delay="50" data-tooltip="Facebook">
+            <i class="fa fa-facebook"></i>
+            </a>
+        </div>
+        <!-- 标签 -->
+        <div class="col s6 dynamic-color">
+            <div class="card-panel teal hoverable center" style="background-color: #00968899 !important;">
+                <h3 class="white-text">非线性拘束</h3>
+                {% get_tags as tag_list %}
+                {% for tag in tag_list %}
+                <a class="chip-tag white red-text hoverable" href="{{ tag.get_absolute_url }}">#{{ tag.name }}({{ tag.num_posts }})</a>
+                {% empty %}
+                <a class="chip-tag white red-text hoverable" href="#">#暂无</a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 分类 -->
+        <div class="col s6 dynamic-color">
+            <div class="card-panel teal hoverable center" style="background-color: #00968899 !important;">
+                <h3 class="white-text">世界线收束</h3>
+                {% get_categories as category_list %}
+                {% for category in category_list %}
+                <a class="chip-tag white red-text hoverable" href="{{ category.get_absolute_url }}">*{{ category.name }}({{ category.num_posts }})</a>
+                {% empty %}
+                <a class="chip-tag white red-text hoverable" href="#">*暂无</a>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+</div>
+<div class="row">
+    <!-- 瀑布流卡片 -->
+    <div id="archive" class="col s12" style="padding-top: 6rem;">
+        <div class="row">
+            <div class="col s12 card-container">
+                {% for post in post_list %}
+                <div class="card hoverable post-{{ post.pk }}">
+                    <div class="card-image material-placeholder">
+                        <img class="materialboxed" data-caption="{{ post.title }}" src="{% if post.coverimg %}{{ post.coverimg }}{% elif post.get_postimg_url %}{{ post.get_postimg_url }}{% else %}{% static 'portal/img/1.jpg' %}{% endif %}" onerror="this.src='{% static 'portal/img/1.jpg' %}'">
+                        <span class="card-title">
+                            <a href="{{ post.get_absolute_url }}" class="white-text">{{ post.title }}</a>
+                        </span>
+                        <a class="btn-floating btn-large halfway-fab waves-effect waves-light red"><i class="material-icons">add</i></a>
+                    </div>
+                    <div class="card-content">
+                      <p class="truncate">{{ post.excerpt }}...</p>
+                    </div>
+                </div>
+                {% empty %}
+				<div class="no-post white-text center"><h1>暂时还没有发布的文章！</h1></div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Pagination -->
+				{% if is_paginated %}
+					<hr>
+                    <div class="pagination-container center">
+                        <ul class="pagination pagination-primary">
+							{% if page_obj.has_previous %}
+                            <li class="page-item arrow-margin-left">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                    <span aria-hidden="true"><i class="material-icons white" aria-hidden="true">chevron_left</i></span>
+                                </a>
+                            </li>
+							{% endif %}
+							{% if first %}
+                            <li class="page-item"><a class="white" href="?page=1">1</a></li>
+							{% endif %}
+							{% if left %}
+							{% if left_has_more %}
+                            <li class="page-item"><a class="white" href="#!">...</a></li>
+							{% endif %}
+							{% for i in left %}
+                            <li class="page-item"><a class="white" href="?page={{ i }}">{{ i }}</a></li>
+							{% endfor %}
+					  		{% endif %}
+                            <li class="page-item active"><a class="page-link" href="?page={{ page_obj.number }}">{{ page_obj.number }}</a></li>
+							{% if right %}
+							{% for i in right %}
+                            <li class="page-item"><a class="white" href="?page={{ i }}">{{ i }}</a></li>
+							{% endfor %}
+							{% if right_has_more %}
+							<li class="page-item"><a class="white" href="#!">...</a></li>
+							{% endif %}
+							{% endif %}
+							{% if last %}
+							<li class="page-item"><a class="white" href="?page={{ paginator.num_pages }}">{{ paginator.num_pages }}</a></li>
+							{% endif %}
+							{% if page_obj.has_next %}
+                            <li class="page-item arrow-margin-right">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                                    <span aria-hidden="true"><i class="material-icons white" aria-hidden="true">chevron_right</i></span>
+                                </a>
+                            </li>
+							{% endif %}
+                        </ul>
+                    </div>
+					<hr>
+				{% endif %}
+                <!-- Pagination -->
+    </div>
+</div>
+{% endblock content %}
+
+
+{% block main %}
+<!--   article   -->
+	<article class="section">
+		<div class="container">
+			<div class="row">
+
+				{% for post in post_list %}
+				<div class="col-md-4 ml-auto mr-auto">
+					<div class="card card-body post post-{{ post.pk }}">
+						<h5 class="post-title"><a href="{{ post.get_absolute_url }}">{{ post.title }}</a></h5>
+						<hr>
+						<span class="post-date badge badge-info">
+							<time class="entry-date" datetime="{{ post.created_time }}">{{ post.created_time }}</time>
+						</span>
+						<!--   meta   -->
+						<div class="entry-meta">
+							<span class="post-author badge badge-success">{% if post.author.get_full_name %}{{ post.author.last_name }}{{ post.author.first_name }}{% else %}{{ post.author }}{% endif %}</span>
+							<a href="{{ post.category.get_absolute_url }}"><span class="post-category badge badge-primary">{{ post.category.name }}</span></a>
+							<span class="comments-link badge badge-warning">{{ post.comment_set.count }} 评论</span>
+							<span class="views-count badge badge-danger">{{ post.views }} 阅读</span>
+						</div>
+						<!--   content   -->
+						<div class="entry-content">
+						  <p>{{ post.excerpt }}</p>
+						  <div class="read-more">
+							<a href="{{ post.get_absolute_url }}" class="more-link">继续阅读 <span class="meta-nav">→</span></a>
+						  </div>
+						</div>
+						<hr>
+						{% for tag in post.tags.all %}
+						<a href="{{ tag.get_absolute_url }}">
+							<span class="badge badge-default"><i class="now-ui-icons shopping_tag-content"></i>{{ tag.name }}</span>
+						</a>
+                        {% endfor %}
+					</div>
+				</div>
+				{% empty %}
+				<div class="no-post">暂时还没有发布的文章！</div>
+				{% endfor %}
+
+                <!-- Pagination -->
+				{% if is_paginated %}
+                <div class="col-md-12">
+					<hr>
+                    <div class="pagination-container justify-content-center">
+                        <ul class="pagination pagination-primary">
+							{% if page_obj.has_previous %}
+                            <li class="page-item arrow-margin-left">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                    <span aria-hidden="true"><i class="fa fa-chevron-left" aria-hidden="true"></i></span>
+                                </a>
+                            </li>
+							{% endif %}
+							{% if first %}
+                            <li class="page-item"><a class="page-link" href="?page=1">1</a></li>
+							{% endif %}
+							{% if left %}
+							{% if left_has_more %}
+                            <li class="page-item"><a class="page-link" href="#!">...</a></li>
+							{% endif %}
+							{% for i in left %}
+                            <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+							{% endfor %}
+					  		{% endif %}
+                            <li class="page-item active"><a class="page-link" href="?page={{ page_obj.number }}">{{ page_obj.number }}</a></li>
+							{% if right %}
+							{% for i in right %}
+                            <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+							{% endfor %}
+							{% if right_has_more %}
+							<li class="page-item"><a class="page-link" href="#!">...</a></li>
+							{% endif %}
+							{% endif %}
+							{% if last %}
+							<li class="page-item"><a class="page-link" href="?page={{ paginator.num_pages }}">{{ paginator.num_pages }}</a></li>
+							{% endif %}
+							{% if page_obj.has_next %}
+                            <li class="page-item arrow-margin-right">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                                    <span aria-hidden="true"><i class="fa fa-chevron-right" aria-hidden="true"></i></span>
+                                </a>
+                            </li>
+							{% endif %}
+                        </ul>
+                    </div>
+					<hr>
+                </div>
+                {% endif %}
+                <!-- Pagination -->
+            </div>
+        </div>
+    </article>
+{% endblock main %}

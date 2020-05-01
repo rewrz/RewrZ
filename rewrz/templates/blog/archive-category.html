@@ -1,0 +1,156 @@
+{% extends 'blog/base.html' %}
+{% load staticfiles %}
+{% load blog_tags %}
+{% block head_style %}
+	<style>
+			/*动态背景图片（以视差效果最后一张图片为背景）-虚化处理（朦胧美）*/
+			.bg-image{
+				background-image:url({% if post_list.0.get_postimg_url %}{{ post_list.0.get_postimg_url }}{% else %}{% static 'portal/img/4.jpg' %}{% endif %});
+				height:100%;
+				text-align: center;
+			}
+			.bg-imge-blur{
+				float: left;
+				width: 100%;
+				z-index: -99999;
+				position: fixed;
+				background-repeat: no-repeat;
+				background-position: center;
+				background-size: cover;
+				-webkit-filter: blur(9px);
+				-moz-filter: blur(9px);
+				-o-filter: blur(9px);
+				-ms-filter: blur(9px);
+				filter: blur(9px);
+			}
+        </style>
+{% endblock head_style%}
+
+{% block side_left %}
+        <!-- 侧边栏 -->
+        <ul id="slide-out" class="side-nav">
+            <li><div class="user-view">
+                <div class="background">
+                   <!-- 自动获取网站背景图片作为背景 -->
+                    <img src="{% static 'portal/img/10.jpg' %}">
+                </div>
+                <!-- 以当前登陆用户的头像、用户名、邮箱显示，否则以网站设置信息显示 -->
+                <a href="#!user"><img class="circle" src="{% static 'portal/logo.png' %}"></a>
+                <a href="#!name"><span class="white-text name">RewrZ</span></a>
+                <a href="#!email"><span class="white-text email">go@steinsgate.win</span></a>
+            </div></li>
+            <li><form>
+                <div class="input-field">
+                    <input id="search" type="search" required>
+                    <label for="search"><i class="material-icons">search</i></label>
+                </div>
+            </form></li>
+            <!-- 文章归档 -->
+            <li><a href="#!"><i class="material-icons">cloud</i>First Link With Icon</a></li>
+            {% archives as date_list %}
+            {% for date in date_list %}
+             <li><a href="{% url 'blog:archives' date.year date.month %}" class="collection-item">{{ date.year }}年 {{ date.month }} 月</a>
+             </li>
+             {% empty %}
+             {% endfor %}
+            <li><div class="divider"></div></li>
+            <li><a class="subheader">Subheader</a></li>
+            <li><a class="waves-effect" href="#!">Third Link With Waves</a></li>
+        </ul>
+        {% endblock side_left %}
+
+{% block nav_top %}
+        <!-- 导航 -->
+        <div class="navbar-fixed">
+            <nav class="nav-extended hoverable">
+                <div class="nav-wrapper">
+                    <a href="#" data-activates="slide-out" class="button-collapse" style="display:flex;"><i class="material-icons">menu</i></a>
+                    <a href="{% url 'portal:index' %}" class="brand-logo">最后的改写</a>
+                    <ul class="right hide-on-med-and-down">
+                        <li><a href="{% url 'blog:index' %}">博客</a></li>
+                        <li><a href="tweet">推文</a></li>
+                        <li><a href="{% url 'portal:index' %}archive/about">关于</a></li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+{% endblock nav_top %}
+
+{% block content %}
+        <!-- 瀑布流卡片 -->
+        
+        <div id="archive" class="col s12" style="padding-top: 6rem;">
+            <div class="row">
+                <div class="col s12 card-container">
+                
+                    <div class="card-panel teal hoverable" style="background-color: #00968899 !important;">
+                        <h2 class="white-text">CATEGORY：<br>{{ CATEGORY_NAME }}</h2>
+                    </div>
+
+                    {% for post in post_list %}
+                    <div class="card hoverable post_list post-{{ post.pk }}">
+                        <div class="card-image">
+                            <img class="materialboxed" data-caption="{{ post.title }}" src="{% if post.coverimg %}{{ post.coverimg }}{% elif post.get_postimg_url %}{{ post.get_postimg_url }}{% else %}{% static 'portal/img/1.jpg' %}{% endif %}" onerror="this.src='{% static 'portal/img/1.jpg' %}'">
+                            <span class="card-title"><a href="{{ post.get_absolute_url }}" class="white-text">{{ post.title }}</a></span>
+                            <a class="btn-floating halfway-fab waves-effect waves-light red"><i class="material-icons">add</i></a>
+                        </div>
+                        <div class="card-content entry-excerpt">
+                            {{ post.excerpt }}...
+                        </div>
+                    </div>
+
+                    {% empty %}
+				    <div class="no-post white-text center"><h1>暂时还没有发布的文章！</h1></div>
+                    {% endfor %}
+
+                </div>
+               <!-- Pagination -->
+				{% if is_paginated %}
+					<hr>
+                    <div class="pagination-container center">
+                        <ul class="pagination pagination-primary">
+							{% if page_obj.has_previous %}
+                            <li class="page-item arrow-margin-left">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                    <span aria-hidden="true"><i class="material-icons white" aria-hidden="true">chevron_left</i></span>
+                                </a>
+                            </li>
+							{% endif %}
+							{% if first %}
+                            <li class="page-item"><a class="white" href="?page=1">1</a></li>
+							{% endif %}
+							{% if left %}
+							{% if left_has_more %}
+                            <li class="page-item"><a class="white" href="#!">...</a></li>
+							{% endif %}
+							{% for i in left %}
+                            <li class="page-item"><a class="white" href="?page={{ i }}">{{ i }}</a></li>
+							{% endfor %}
+					  		{% endif %}
+                            <li class="page-item active"><a class="page-link" href="?page={{ page_obj.number }}">{{ page_obj.number }}</a></li>
+							{% if right %}
+							{% for i in right %}
+                            <li class="page-item"><a class="white" href="?page={{ i }}">{{ i }}</a></li>
+							{% endfor %}
+							{% if right_has_more %}
+							<li class="page-item"><a class="white" href="#!">...</a></li>
+							{% endif %}
+							{% endif %}
+							{% if last %}
+							<li class="page-item"><a class="white" href="?page={{ paginator.num_pages }}">{{ paginator.num_pages }}</a></li>
+							{% endif %}
+							{% if page_obj.has_next %}
+                            <li class="page-item arrow-margin-right">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                                    <span aria-hidden="true"><i class="material-icons white" aria-hidden="true">chevron_right</i></span>
+                                </a>
+                            </li>
+							{% endif %}
+                        </ul>
+                    </div>
+					<hr>
+				{% endif %}
+                <!-- Pagination -->
+            </div>
+        </div>
+{% endblock content %}

@@ -1,0 +1,77 @@
+<!doctype html>
+{% load staticfiles %}
+<html lang="zh_CN">
+<head>
+    <meta charset="utf-8">
+    <title>世界线禁制！</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="{% static 'portal/favicon.ico' %}">
+    <style>
+
+        * {
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        html {
+            color: #888;
+            display: table;
+            font-family: sans-serif;
+            height: 100%;
+            text-align: center;
+            width: 100%;
+        }
+
+        body {
+            display: table-cell;
+            vertical-align: middle;
+            margin: 2em auto;
+        }
+
+        h1 {
+            color: #555;
+            font-size: 18em;
+            font-weight: 400;
+        }
+        h2 {
+            color: #555;
+            font-size: 3em;
+            font-weight: 400;
+        }
+        p {
+            margin: 0 auto;
+            font-size: 2em;
+        }
+
+        @media only screen and (max-width: 280px) {
+
+            body, p {
+                width: 95%;
+            }
+
+            h1 {
+                font-size: 15em;
+                margin: 0 0 0.3em;
+            }
+
+        }
+
+    </style>
+</head>
+<body>
+                <div class="error-template">
+                    <h1><i>"</i>403</h1>
+                    <h2>世界线禁制！</h2>
+                    <h2>你的力量似乎暂时还无法突破『大会长非人哉！』设下的世界线禁制～</h2>
+                    <div class="error-details">
+                        <p>你的力量暂时还无法穿越这条世界线！</p>
+                    </div>
+                    <hr>
+                    <div class="error-actions" style="line-height: 3;">
+                        <a href="/"><span>尝试跳回传送门</span>
+                        </a>
+                    </div>
+                </div>
+</body>
+</html>
+<!-- IE needs 512+ bytes: https://blogs.msdn.microsoft.com/ieinternals/2010/08/18/friendly-http-error-pages/ -->

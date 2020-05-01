@@ -50,9 +50,21 @@ INSTALLED_APPS = [
     'axes', # django-axes 限制用户登陆尝试次数
     'ckeditor',# ckeditor富文本编辑器
     'ckeditor_uploader',# ckeditor富文本编辑器
+    'mptt',# django-mptt
     'haystack',# 全文搜索
+    'portal', # 注册 portal 应用
     'blog', # 注册 blog 应用
+    'microblog', # 注册 microblog 应用
     'comments', # 注册 comments 应用
+    'captcha', # django-simple-captcha 注册验证码功能
+]
+
+AUTHENTICATION_BACKENDS = [
+    # AxesBackend should be the first backend in the AUTHENTICATION_BACKENDS list.
+    'axes.backends.AxesBackend',
+
+    # Django ModelBackend is the default authentication backend.
+    'django.contrib.auth.backends.ModelBackend',
 ]
 
 MIDDLEWARE = [
@@ -65,27 +77,32 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django_otp.middleware.OTPMiddleware', # 2FA
+    # 踩了个大坑，2.0版本后无需安装中间件：
+    # As of 2.0.0, django-axes has default_app_config so you can just use axes in INSTALLED_APPS without installing middleware
+    #'axes.middleware.AxesMiddleware', # Axes
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.locale.LocaleMiddleware',
 ]
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    },
+    'axes_cache': {
+        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+    }
+}
+AXES_CACHE = 'axes_cache'
+
 ROOT_URLCONF = 'rewrz.urls'
 
 # HTML压缩强制开启，默认会在生产环境开启
-HTML_MINIFY = True
+HTML_MINIFY = False
 # Django-Compressor 静态文件压缩暂未使用
 # CACHES功能暂未使用
 
 TEMPLATES = [
-    #{
-    #    'BACKEND': 'django.template.backends.jinja2.Jinja2',
-    #    'DIRS': [os.path.join(BASE_DIR, 'templates')],
-    #    'APP_DIRS': True,
-    #    'OPTIONS': {
-    #        'environment': 'rewrz.jinja2_env.environment',
-    #    },
-    #},
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [os.path.join(BASE_DIR, 'templates')],
@@ -97,6 +114,14 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
+        },
+    },
+    {
+        'BACKEND': 'django.template.backends.jinja2.Jinja2',
+        'DIRS': [os.path.join(BASE_DIR, 'jinja2')],
+        'APP_DIRS': False, # 去app下的子目录的jinja2目录找模板
+        'OPTIONS': {
+            'environment': 'rewrz.jinja2_env.environment',
         },
     },
 ]
@@ -161,7 +186,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR,'media')
 CKEDITOR_UPLOAD_PATH = 'uploads/'
 CKEDITOR_IMAGE_BACKEND = 'pillow'
-CKEDITOR_JQUERY_URL = 'https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js'
+CKEDITOR_JQUERY_URL = 'https://cdn.jsdelivr.net/npm/jquery@2.1.1/dist/jquery.min.js'
 # CKEDITOR_FILENAME_GENERATOR = 'utils.get_filename'
 
 
@@ -271,13 +296,39 @@ OTP_ENABLE = False # 自定义的开关
 
 # django-Axes设置
 # https://django-axes.readthedocs.io/en/latest/configuration.html
-AXES_LOGIN_FAILURE_LIMIT = 3
-AXES_LOCK_OUT_AT_FAILURE =True
+#AXES_LOGIN_FAILURE_LIMIT = 3 # 登录失败次数
+AXES_LOCK_OUT_AT_FAILURE = False # 登录失败锁定
 
 # 如果启用HTTPS，请将下面两项设置为：True
 CSRF_COOKIE_SECURE = False # 将此设置为True可避免意外传输HTTP上的CSRF Coo​​kie
 SESSION_COOKIE_SECURE = False # 将此设置为True可避免意外地通过HTTP传输会话Cookie
 
+# django-simple-captcha验证码设置
+# 设置 captcha 生成图片大小像素（宽度，高度）
+CAPTCHA_IMAGE_SIZE = (100, 50)
+# 验证码字符长度
+CAPTCHA_LENGTH = 5
+# 验证码超时时间(分钟)
+CAPTCHA_TIMEOUT = 1
+# 设置字体大小
+CAPTCHA_FONT_SIZE = 20
+# 验证码的背景颜色
+CAPTCHA_BACKGROUND_COLOR = "#ccff99"
+# 验证码的字体颜色
+CAPTCHA_FOREGROUND_COLOR = "#330066"
+# 随机字符验证码
+CAPTCHA_CHALLENGE_FUNCT =  'captcha.helpers.random_char_challenge'
+# # 数学验证码
+# CAPTCHA_CHALLENGE_FUNCT =  'captcha.helpers.math_challenge'
+# 字典词字符验证码
+# CAPTCHA_CHALLENGE_FUNCT =  'captcha.helpers.word_challenge'
+# 输出格式：输入框验证码图片隐藏域
+CAPTCHA_OUTPUT_FORMAT ='%(text_field)s %(image)s %(hidden_field)s'
+CAPTCHA_NOISE_FUNCTIONS =(
+    'captcha.helpers.noise_null',
+    'captcha.helpers.noise_arcs', # 线
+    'captcha.helpers.noise_dots', # 点
+)
 
 # 网站设置
 # ====后台设置====
