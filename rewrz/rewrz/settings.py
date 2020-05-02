@@ -77,9 +77,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django_otp.middleware.OTPMiddleware', # 2FA
-    # 踩了个大坑，2.0版本后无需安装中间件：
-    # As of 2.0.0, django-axes has default_app_config so you can just use axes in INSTALLED_APPS without installing middleware
-    #'axes.middleware.AxesMiddleware', # Axes
+    'axes.middleware.AxesMiddleware', # Axes
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.locale.LocaleMiddleware',
