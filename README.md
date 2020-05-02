@@ -129,6 +129,49 @@ Whoosh==2.7.4
 
 ![文章页2](https://cdn.jsdelivr.net/gh/rewrz/rp@master/rewrz-preview/20200501114545.jpg)
 
+```asgiref==3.2.7
+beautifulsoup4==4.9.0
+cachetools==4.1.0
+colorama==0.4.3
+cssselect==1.1.0
+Django==2.2.12
+django-appconf==1.0.4
+django-axes==5.3.1
+django-ckeditor==5.9.0
+django-cors-headers==3.2.1
+django-haystack==2.8.1
+django-htmlmin==0.11.0
+django-ipware==2.1.0
+django-jet==1.0.8
+django-js-asset==1.2.2
+django-mptt==0.11.0
+django-otp==0.9.0
+django-ranged-response==0.2.0
+django-simple-captcha==0.5.12
+feedparser==5.2.1
+html5lib==1.0.1
+httplib2==0.17.3
+jieba==0.39
+Jinja2==2.11.2
+lxml==4.5.0
+MarkupSafe==1.1.1
+oauth2client==4.1.3
+olefile==0.46
+Pillow==7.1.2
+pyasn1==0.4.8
+pyasn1-modules==0.2.8
+pyquery==1.4.1
+pytz==2019.1
+rsa==4.0
+six==1.12.0
+soupsieve==1.9.2
+sqlparse==0.3.0
+uritemplate==3.0.1
+utils==1.0.1
+webencodings==0.5.1
+Whoosh==2.7.4
+```
+
 # RewrZ 升级
 
 ## 1.x 升级到 2.x
