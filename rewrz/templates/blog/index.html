@@ -133,19 +133,23 @@
                         <p class="">{{ post.excerpt|safe }}……</p>
                     </div>
                     <div class="card-action">
-                        {% if post.category.name %}
-                        <a href="{{ post.category.get_absolute_url }}" class="red-text">分类：{{ post.category.name }}</a>
-                        {% else %}
-                        <a href="{{ post.get_absolute_url }}" class="red-text">分类：暂未进行分类</a>
-                        {% endif %}
-                        {% for tag in post.tags.all %}
-                        <a href="{{ tag.get_absolute_url }}" class="red-text">标签：{{ tag.name }}</a>
-                        {% empty %}
-                        <a href="{{ post.get_absolute_url }}" class="red-text">标签：暂未贴上标签</a>
-                        {% endfor %}
-                        <a href="{{ post.get_absolute_url }}" class="red-text">阅读：{{ post.views }}</a>
-                        <a href="{{ post.get_absolute_url }}#commentsArea" class="red-text">评论：{{ post.comment_set.count }}</a>
-                    </div>
+                            <span style="font-weight: bold;">分类：</span>
+                            {% if post.category.name %}
+                            <a href="{{ post.category.get_absolute_url }}" class="red-text">{{ post.category.name }}</a>
+                            {% else %}
+                            <a href="{{ post.get_absolute_url }}" class="red-text">分类：暂未进行分类</a>
+                            {% endif %}
+                            <span style="font-weight: bold;">标签：</span>
+                            {% for tag in post.tags.all %}
+                            <a href="{{ tag.get_absolute_url }}" class="red-text">{{ tag.name }}</a>
+                            {% empty %}
+                            <a href="{{ post.get_absolute_url }}" class="red-text">标签：暂未贴上标签</a>
+                            {% endfor %}
+                            <span style="font-weight: bold;">阅读：</span>
+                            <a href="{{ post.get_absolute_url }}" class="red-text">{{ post.views }}</a>
+                            <span style="font-weight: bold;">评论：</span>
+                            <a href="{{ post.get_absolute_url }}#commentsArea" class="red-text">评论：{{ post.comment_set.count }}</a>
+                        </div>
                 </div>
             </div>
             {% else %}
@@ -160,17 +164,21 @@
                             <p class="">{{ post.excerpt|safe }}……</p>
                         </div>
                         <div class="card-action">
+                            <span style="font-weight: bold;">分类：</span>
                             {% if post.category.name %}
-                            <a href="{{ post.category.get_absolute_url }}" class="red-text">分类：{{ post.category.name }}</a>
+                            <a href="{{ post.category.get_absolute_url }}" class="red-text">{{ post.category.name }}</a>
                             {% else %}
                             <a href="{{ post.get_absolute_url }}" class="red-text">分类：暂未进行分类</a>
                             {% endif %}
+                            <span style="font-weight: bold;">标签：</span>
                             {% for tag in post.tags.all %}
-                            <a href="{{ tag.get_absolute_url }}" class="red-text">标签：{{ tag.name }}</a>
+                            <a href="{{ tag.get_absolute_url }}" class="red-text">{{ tag.name }}</a>
                             {% empty %}
                             <a href="{{ post.get_absolute_url }}" class="red-text">标签：暂未贴上标签</a>
                             {% endfor %}
-                            <a href="{{ post.get_absolute_url }}" class="red-text">阅读：{{ post.views }}</a>
+                            <span style="font-weight: bold;">阅读：</span>
+                            <a href="{{ post.get_absolute_url }}" class="red-text">{{ post.views }}</a>
+                            <span style="font-weight: bold;">评论：</span>
                             <a href="{{ post.get_absolute_url }}#commentsArea" class="red-text">评论：{{ post.comment_set.count }}</a>
                         </div>
                     </div>
