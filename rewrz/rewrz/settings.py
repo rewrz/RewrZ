@@ -341,3 +341,7 @@ BLOG_PAGINATE_NUM = 9 # 文章分页
 COMMENT_PAGINATE_NUM = 5 # 评论分页
 # ===是否开启固定链接美化===
 POST_FIXED_LINK = True
+# 垃圾评论过滤设置 Akismet
+AKISMET_API_KEY = 'you-api-key' # API 密匙
+AKISMET_SITE_URL = 'https://rewrz.com' # 网站地址
+AKISMET_TEST_MODE = False # 测试模式开关

@@ -46,7 +46,7 @@ def refresh_captcha(request):
 def post_comment(request, post_pk):
     post = get_object_or_404(Post, pk=post_pk)
     if request.method == 'POST':
-        form = CommentForm(request.POST)
+        form = CommentForm(request.POST, request=request)
 
         if form.is_valid():
             new_comment = form.save(commit=False)
