@@ -59,8 +59,8 @@
             <div class="mb-4">
                 <i class="fas fa-blog text-6xl text-indigo-600"></i>
             </div>
-            <h1 class="text-4xl font-bold text-gray-900 mb-2">欢迎使用 RewrZ</h1>
-            <p class="text-gray-600 text-lg">一个功能强大的个人博客系统</p>
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">欢迎使用 RewrZ Project</h1>
+            <p class="text-gray-600 text-lg">一个简洁中庸的开源个人博客系统</p>
         </div>
 
         <!-- Step Indicator -->
@@ -98,7 +98,7 @@
                     <!-- Welcome Content -->
                     <div class="text-center mb-8">
                         <h2 class="text-2xl font-bold text-gray-900 mb-4">开始安装 RewrZ</h2>
-                        <p class="text-gray-600">RewrZ 是一个现代化的个人博客系统，支持多重身份内容系统、动态主题、SEO优化等强大功能。</p>
+                        <p class="text-gray-600">RewrZ 是一个简洁中庸、性能优异、高度个性化的内容发布平台，专为追求纯粹创作体验的博主设计。</p>
                     </div>
 
                     <!-- Features Grid -->
@@ -106,32 +106,32 @@
                         <div class="feature-card bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg text-center">
                             <i class="fas fa-palette text-3xl text-blue-600 mb-3"></i>
                             <h3 class="font-semibold text-gray-900 mb-2">多重身份系统</h3>
-                            <p class="text-sm text-gray-600">支持文章、微博、相册、视频等多种内容格式</p>
+                            <p class="text-sm text-gray-600">一篇内容可同时拥有文章、微博、相册、视频、音乐等多种格式身份</p>
                         </div>
                         <div class="feature-card bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg text-center">
                             <i class="fas fa-shield-alt text-3xl text-green-600 mb-3"></i>
                             <h3 class="font-semibold text-gray-900 mb-2">反垃圾评论</h3>
-                            <p class="text-sm text-gray-600">三层防护系统，有效阻止垃圾评论</p>
+                            <p class="text-sm text-gray-600">三层防护系统，保护您的创作空间免受垃圾评论侵扰</p>
                         </div>
                         <div class="feature-card bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg text-center">
                             <i class="fas fa-search text-3xl text-purple-600 mb-3"></i>
                             <h3 class="font-semibold text-gray-900 mb-2">SEO 优化</h3>
-                            <p class="text-sm text-gray-600">自动生成sitemap、robots.txt，支持Open Graph</p>
+                            <p class="text-sm text-gray-600">智能SEO优化，让您的内容被更多人发现</p>
                         </div>
                         <div class="feature-card bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-lg text-center">
                             <i class="fas fa-images text-3xl text-yellow-600 mb-3"></i>
                             <h3 class="font-semibold text-gray-900 mb-2">媒体管理</h3>
-                            <p class="text-sm text-gray-600">智能图像处理、缩略图生成、格式转换</p>
+                            <p class="text-sm text-gray-600">响应式图片系统，智能优化加载速度</p>
                         </div>
                         <div class="feature-card bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-lg text-center">
                             <i class="fas fa-history text-3xl text-red-600 mb-3"></i>
                             <h3 class="font-semibold text-gray-900 mb-2">版本快照</h3>
-                            <p class="text-sm text-gray-600">自动保存文章历史版本，支持版本比较和恢复</p>
+                            <p class="text-sm text-gray-600">轻量级版本控制，记录每一次创作的足迹</p>
                         </div>
                         <div class="feature-card bg-gradient-to-br from-indigo-50 to-indigo-100 p-6 rounded-lg text-center">
                             <i class="fas fa-moon text-3xl text-indigo-600 mb-3"></i>
                             <h3 class="font-semibold text-gray-900 mb-2">动态主题</h3>
-                            <p class="text-sm text-gray-600">支持深色模式和节日氛围主题</p>
+                            <p class="text-sm text-gray-600">5种预设主题+自定义主题，彰显个性表达</p>
                         </div>
                     </div>
 
@@ -145,7 +145,7 @@
                             <div>
                                 <h4 class="font-medium text-gray-800 mb-2">服务器环境</h4>
                                 <ul class="text-sm text-gray-600 space-y-1">
-                                    <li><i class="fas fa-check text-green-500 mr-2"></i>Python 3.8+</li>
+                                    <li><i class="fas fa-check text-green-500 mr-2"></i>Python 3.10+</li>
                                     <li><i class="fas fa-check text-green-500 mr-2"></i>FastAPI 框架</li>
                                     <li><i class="fas fa-check text-green-500 mr-2"></i>SQLite 数据库</li>
                                 </ul>
@@ -184,11 +184,14 @@
 
         <!-- Footer -->
         <div class="text-center mt-8 text-gray-500 text-sm">
-            <p>&copy; 2024 RewrZ. Powered by FastAPI, HTMX, and Tailwind CSS.</p>
+            <p>&copy; <span id="current-year">2025</span> RewrZ. 用 ❤️ 和 ☕ 制作</p>
         </div>
     </div>
 
     <script>
+        // 设置当前年份
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+        
         // 步骤管理
         function updateStepIndicator(currentStep) {
             const steps = document.querySelectorAll('.step');

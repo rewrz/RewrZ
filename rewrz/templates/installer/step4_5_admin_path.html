@@ -1,7 +1,7 @@
 <!-- Step 4.5: Admin Path Configuration -->
 <div class="text-center mb-6">
     <h2 class="text-2xl font-bold text-gray-900 mb-2">后台路径配置</h2>
-    <p class="text-gray-600">自定义您的博客后台访问路径，提高安全性</p>
+    <p class="text-gray-600">自定义您的博客后台访问路径，保护创作空间的安全</p>
 </div>
 
 <form id="admin-path-form" class="space-y-6 mb-8">
@@ -11,12 +11,12 @@
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div class="flex items-center mb-2">
             <i class="fas fa-shield-alt text-blue-600 mr-2"></i>
-            <h3 class="font-semibold text-blue-900">为什么要自定义后台路径？</h3>
+            <h3 class="font-semibold text-blue-900">为什么需要自定义后台路径？</h3>
         </div>
         <ul class="text-sm text-blue-800 space-y-1">
-            <li>• 隐藏后台入口，防止低级自动化扫描攻击</li>
-            <li>• 使用随机或自定义路径，增加安全性</li>
-            <li>• 避免使用默认的 /admin 路径被恶意发现</li>
+            <li>• 隐藏后台入口，防止自动化扫描攻击</li>
+            <li>• 使用随机或自定义路径，增强访问安全性</li>
+            <li>• 避免使用默认路径，保护创作空间隐私</li>
         </ul>
     </div>
     
@@ -38,7 +38,7 @@
                             <h4 class="font-medium text-gray-900">经典模式</h4>
                             <span class="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">推荐</span>
                         </div>
-                        <p class="text-sm text-gray-600 mb-2">传统的admin加随机字符格式，安全性最高</p>
+                        <p class="text-sm text-gray-600 mb-2">传统的admin加随机字符格式，安全性最高，有效防止恶意扫描</p>
                         <div class="text-sm text-gray-500">
                             <span class="font-mono bg-gray-100 px-2 py-1 rounded">/admin_a1b2c3d4</span>
                             <span class="mx-2">或</span>
@@ -58,7 +58,7 @@
                             <h4 class="font-medium text-gray-900">品牌模式</h4>
                             <span class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">易记</span>
                         </div>
-                        <p class="text-sm text-gray-600 mb-2">使用品牌名称，便于记忆但安全性相对较低</p>
+                        <p class="text-sm text-gray-600 mb-2">使用品牌名称，便于记忆但安全性相对较低，适合个人博客使用</p>
                         <div class="text-sm text-gray-500">
                             <span class="font-mono bg-gray-100 px-2 py-1 rounded">/rewrz-admin</span>
                             <span class="mx-2">或</span>
@@ -78,7 +78,7 @@
                             <h4 class="font-medium text-gray-900">简短模式</h4>
                             <span class="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">简洁</span>
                         </div>
-                        <p class="text-sm text-gray-600 mb-2">使用简短前缀，便于输入</p>
+                        <p class="text-sm text-gray-600 mb-2">使用简短前缀，便于输入和记忆</p>
                         <div class="text-sm text-gray-500">
                             <span class="font-mono bg-gray-100 px-2 py-1 rounded">/ra-admin</span>
                             <span class="mx-2">或</span>
@@ -98,7 +98,7 @@
                             <h4 class="font-medium text-gray-900">混合模式</h4>
                             <span class="ml-2 px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">平衡</span>
                         </div>
-                        <p class="text-sm text-gray-600 mb-2">品牌名称加随机字符，兼顾安全性和记忆性</p>
+                        <p class="text-sm text-gray-600 mb-2">品牌名称加随机字符，兼顾安全性和记忆性，平衡隐私与便利</p>
                         <div class="text-sm text-gray-500">
                             <span class="font-mono bg-gray-100 px-2 py-1 rounded">/rewrz-admin_a1b2</span>
                             <span class="mx-2">或</span>
@@ -118,7 +118,7 @@
                             <h4 class="font-medium text-gray-900">自定义模式</h4>
                             <span class="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">高级</span>
                         </div>
-                        <p class="text-sm text-gray-600 mb-2">完全自定义路径，需要您自行确保安全性</p>
+                        <p class="text-sm text-gray-600 mb-2">完全自定义路径，需要您自行确保安全性，适合有特殊需求的用户</p>
                         <div class="text-sm text-gray-500">
                             <span class="font-mono bg-gray-100 px-2 py-1 rounded">/my-secret-panel</span>
                             <span class="mx-2">或</span>
@@ -197,7 +197,7 @@
             路径预览
         </h3>
         <div class="font-mono text-lg text-green-800 bg-white px-3 py-2 rounded border" id="path-preview">
-            /admin_a1b2c3d4
+            /admin_a1b2c3d4e5f6g7h8
         </div>
         <p class="text-sm text-green-700 mt-2">这将是您的后台登录和管理路径</p>
     </div>
@@ -309,7 +309,10 @@
         const randomLen = parseInt(document.getElementById('random_length').value) || 8;
         
         let preview = '';
-        const randomStr = 'a1b2c3d4'.substring(0, randomLen);
+        // 生成真实的随机字符串
+        const randomStr = Array.from({length: randomLen}, () => 
+            Math.floor(Math.random() * 16).toString(16)
+        ).join('');
         
         switch(selectedTemplate) {
             case 'classic':

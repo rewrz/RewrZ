@@ -15,19 +15,21 @@
             <!-- Step 1: Welcome & Environment Check -->
             <div id="step-welcome">
                 <h3 class="text-xl font-semibold mb-4">欢迎使用 RewrZ！</h3>
-                <p class="mb-4">本向导将帮助您完成 RewrZ 博客系统的初始化设置。</p>
+                <p class="mb-4">本向导将帮助您完成 RewrZ 个人博客系统的初始化设置。</p>
                 <h4 class="text-lg font-medium mb-2">环境检查：</h4>
-                <ul class="list-disc list-inside mb-4">
-                    <li>媒体上传目录权限：<span class="text-green-600">可写</span> (假设)</li>
-                    <li>数据库文件路径：<span class="text-green-600">./rewrz.db</span> (SQLite)</li>
-                </ul>
-                <button hx-get="#step-admin-setup" hx-swap="outerHTML" class="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-                    开始设置
+                <div id="environment-check-results">
+                    <div class="flex items-center text-blue-600 mb-4">
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                        <span>正在检查环境...</span>
+                    </div>
+                </div>
+                <button id="start-setup-btn" disabled class="px-6 py-2 bg-gray-400 text-white rounded-md cursor-not-allowed">
+                    正在检查环境...
                 </button>
             </div>
 
             <!-- Step 2: Admin Account & Site Info Setup (Loaded via HTMX) -->
-            <div id="step-admin-setup" hx-swap-oob="true">
+            <div id="step-admin-setup" hx-swap-oob="true" style="display: none;">
                 <h3 class="text-xl font-semibold mb-4">管理员账户与站点信息</h3>
                 <form hx-post="/installer/setup" hx-trigger="submit" hx-target="#installer-steps" hx-swap="outerHTML" class="space-y-4">
                     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
@@ -60,5 +62,100 @@
             </div>
         </div>
     </div>
+    <script>
+        // 页面加载后执行环境检查
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/installer/check-environment')
+                .then(response => response.json())
+                .then(data => {
+                    displayEnvironmentResults(data);
+                })
+                .catch(error => {
+                    console.error('环境检查失败:', error);
+                    displayEnvironmentError(error);
+                });
+        });
+
+        function displayEnvironmentResults(data) {
+            const container = document.getElementById('environment-check-results');
+            const button = document.getElementById('start-setup-btn');
+            
+            let html = '<ul class="list-disc list-inside mb-4">';
+            
+            // 检查结果项目
+            const checkItems = [
+                { key: 'python_version', label: 'Python 版本' },
+                { key: 'write_permissions', label: '目录写权限' },
+                { key: 'media_directory', label: '媒体目录' },
+                { key: 'database_path', label: '数据库路径' },
+                { key: 'dependencies', label: '依赖库' }
+            ];
+            
+            checkItems.forEach(item => {
+                const status = data.checks[item.key];
+                const statusText = status ? '<span class="text-green-600">通过</span>' : '<span class="text-red-600">失败</span>';
+                html += `<li>${item.label}：${statusText}</li>`;
+            });
+            
+            html += '</ul>';
+            
+            // 显示错误信息
+            if (data.errors && data.errors.length > 0) {
+                html += '<div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">';
+                html += '<h4 class="font-semibold text-red-800 mb-2">发现问题:</h4>';
+                html += '<ul class="text-red-700 text-sm space-y-1">';
+                data.errors.forEach(error => {
+                    html += `<li>• ${error}</li>`;
+                });
+                html += '</ul></div>';
+            }
+            
+            // 如果检查成功，启用按钮
+            if (data.success) {
+                html += '<div class="text-green-600 mb-4">✅ 环境检查通过，可以继续安装</div>';
+                if (button) {
+                    button.innerHTML = '开始设置';
+                    button.disabled = false;
+                    button.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                    button.classList.add('bg-indigo-600', 'hover:bg-indigo-700', 'cursor-pointer');
+                    button.onclick = function() {
+                        document.getElementById('step-admin-setup').style.display = 'block';
+                        document.getElementById('step-welcome').style.display = 'none';
+                    };
+                }
+            } else {
+                html += '<div class="text-red-600 mb-4">❌ 环境检查未通过，请解决上述问题后重试</div>';
+                if (button) {
+                    button.innerHTML = '环境检查失败';
+                    button.disabled = true;
+                    button.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+                    button.classList.add('bg-red-600');
+                }
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        function displayEnvironmentError(error) {
+            const container = document.getElementById('environment-check-results');
+            container.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                    <div class="flex items-center">
+                        <span class="font-semibold text-red-800">环境检查失败</span>
+                    </div>
+                    <p class="text-red-700 text-sm mt-2">无法完成环境检查，请检查网络连接或联系技术支持。</p>
+                    <p class="text-red-600 text-xs mt-1">错误详情: ${error.message}</p>
+                </div>
+            `;
+            
+            const button = document.getElementById('start-setup-btn');
+            if (button) {
+                button.innerHTML = '检查失败，请刷新重试';
+                button.disabled = true;
+                button.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+                button.classList.add('bg-red-600');
+            }
+        }
+    </script>
 </body>
 </html>

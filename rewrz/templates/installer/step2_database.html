@@ -1,29 +1,33 @@
 <!-- Step 2: Database Setup -->
 <div class="text-center mb-6">
     <h2 class="text-2xl font-bold text-gray-900 mb-2">数据库初始化</h2>
-    <p class="text-gray-600">创建数据库表结构和基础数据</p>
+    <p class="text-gray-600">配置并创建数据库</p>
 </div>
 
-<div class="bg-gray-50 rounded-lg p-6 mb-6">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">
-        <i class="fas fa-database text-gray-600 mr-2"></i>
-        数据库配置
-    </h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">数据库类型</label>
-            <input type="text" value="SQLite" readonly class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100">
+<form id="database-config-form">
+    <div class="bg-gray-50 rounded-lg p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+            <i class="fas fa-database text-gray-600 mr-2"></i>
+            数据库配置
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">数据库类型</label>
+                <select id="database-type" class="w-full px-3 py-2 border border-gray-300 rounded-md bg-white">
+                    <option value="sqlite">SQLite</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">数据库文件路径</label>
+                <input type="text" id="database-path" value="./data/rewrz.db" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+            </div>
         </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">数据库文件</label>
-            <input type="text" value="./data/rewrz.db" readonly class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100">
-        </div>
+        <p class="text-sm text-gray-600 mt-3">
+            <i class="fas fa-info-circle mr-1"></i>
+            RewrZ 使用 SQLite 数据库。您可以指定数据库文件的路径和名称。数据库文件将在点击"初始化数据库"按钮后创建。
+        </p>
     </div>
-    <p class="text-sm text-gray-600 mt-3">
-        <i class="fas fa-info-circle mr-1"></i>
-        RewrZ 使用 SQLite 数据库，无需额外配置。数据库文件将自动创建在 data 目录中。
-    </p>
-</div>
+</form>
 
 <div id="database-init-results" class="mb-8">
     <!-- 初始化结果将在这里显示 -->
@@ -45,7 +49,10 @@
     <button id="next-step-btn" 
             type="button" 
             class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg cursor-not-allowed" 
-            disabled>
+            disabled
+            hx-get="/installer/step/3"
+            hx-target="#installation-content"
+            hx-swap="innerHTML">
         下一步<i class="fas fa-arrow-right ml-2"></i>
     </button>
 </div>
@@ -59,6 +66,7 @@
         const button = this;
         const nextBtn = document.getElementById('next-step-btn');
         const resultsContainer = document.getElementById('database-init-results');
+        const databasePath = document.getElementById('database-path').value;
         
         // 禁用按钮并显示加载状态
         button.disabled = true;
@@ -82,12 +90,13 @@
             </div>
         `;
         
-        // 发送初始化请求
+        // 发送初始化请求，包含数据库路径
         fetch('/installer/initialize-database', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-            }
+            },
+            body: `database_path=${encodeURIComponent(databasePath)}`
         })
         .then(response => response.json())
         .then(data => {
@@ -102,15 +111,15 @@
                         <div class="mt-3 space-y-1 text-sm text-green-700">
                             <div class="flex items-center">
                                 <i class="fas fa-check text-green-500 mr-2"></i>
+                                数据库文件: ${databasePath}
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-check text-green-500 mr-2"></i>
                                 数据库表创建完成
                             </div>
                             <div class="flex items-center">
                                 <i class="fas fa-check text-green-500 mr-2"></i>
                                 基础数据结构就绪
-                            </div>
-                            <div class="flex items-center">
-                                <i class="fas fa-check text-green-500 mr-2"></i>
-                                系统配置表初始化完成
                             </div>
                         </div>
                     </div>
@@ -119,9 +128,6 @@
                 // 启用下一步按钮
                 nextBtn.disabled = false;
                 nextBtn.className = 'px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors';
-                nextBtn.setAttribute('hx-get', '/installer/step/3');
-                nextBtn.setAttribute('hx-target', '#installation-content');
-                nextBtn.setAttribute('hx-swap', 'innerHTML');
                 
                 // 隐藏初始化按钮
                 button.style.display = 'none';

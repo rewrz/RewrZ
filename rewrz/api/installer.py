@@ -61,15 +61,22 @@ async def check_environment(request: Request):
     验证系统环境是否满足安装要求
     """
     checks = {
-        "python_version": True,
+        "python_version": False,
         "write_permissions": False,
         "media_directory": False,
         "database_path": False,
-        "dependencies": True
+        "dependencies": False
     }
     
     errors = []
     warnings = []
+    
+    # 检查Python版本 (需要3.10+)
+    import sys
+    if sys.version_info >= (3, 10):
+        checks["python_version"] = True
+    else:
+        errors.append(f"Python版本过低: 当前版本 {sys.version_info.major}.{sys.version_info.minor}，需要 3.10+")
     
     # 检查写权限
     try:
@@ -99,6 +106,15 @@ async def check_environment(request: Request):
     except Exception as e:
         errors.append(f"数据目录创建失败: {str(e)}")
     
+    # 检查关键依赖库
+    try:
+        import fastapi
+        import sqlalchemy
+        import jinja2
+        checks["dependencies"] = True
+    except ImportError as e:
+        errors.append(f"缺少关键依赖库: {str(e)}")
+    
     # 检查是否已安装
     if os.path.exists(".env"):
         errors.append("系统已经安装，如需重新安装请删除 .env 文件")
@@ -113,7 +129,7 @@ async def check_environment(request: Request):
     })
 
 @router.get("/installer/step/{step_number}")
-async def get_install_step(step_number: int, request: Request):
+async def get_install_step(step_number: float, request: Request):
     """
     获取安装步骤页面
     
@@ -125,13 +141,13 @@ async def get_install_step(step_number: int, request: Request):
     csrf_token = generate_csrf_token()
     
     step_templates = {
-        1: "installer/step1_environment.html",
-        2: "installer/step2_database.html", 
-        3: "installer/step3_admin.html",
-        4: "installer/step4_site_config.html",
+        1.0: "installer/step1_environment.html",
+        2.0: "installer/step2_database.html", 
+        3.0: "installer/step3_admin.html",
+        4.0: "installer/step4_site_config.html",
         4.5: "installer/step4_5_admin_path.html",  # 新增后台路径配置步骤
-        5: "installer/step5_initial_content.html",
-        6: "installer/step6_complete.html"
+        5.0: "installer/step5_initial_content.html",
+        6.0: "installer/step6_complete.html"
     }
     
     if step_number not in step_templates:
@@ -144,15 +160,31 @@ async def get_install_step(step_number: int, request: Request):
     })
 
 @router.post("/installer/initialize-database")
-async def initialize_database(request: Request, db: Session = Depends(get_db)):
+async def initialize_database(request: Request, database_path: str = Form("./data/rewrz.db")):
     """
     初始化数据库
     
     创建数据库表结构和运行初始迁移
     """
     try:
+        # 保存数据库路径到会话中，供后续步骤使用
+        request.session["database_path"] = database_path
+        
+        # 创建数据目录（如果不存在）
+        from pathlib import Path
+        db_path = Path(database_path)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # 更新数据库URL并重新创建引擎
+        from ..core.database import engine, SessionLocal, Base
+        import sqlalchemy as sa
+        
+        # 重新创建引擎使用用户指定的数据库路径
+        new_database_url = f"sqlite:///{database_path}"
+        new_engine = sa.create_engine(new_database_url, connect_args={"check_same_thread": False})
+        
         # 创建数据库表
-        create_all_tables()
+        Base.metadata.create_all(bind=new_engine)
         
         return JSONResponse({
             "success": True,
@@ -172,7 +204,6 @@ async def create_admin_user(
     password: str = Form(...),
     display_name: str = Form(None),
     csrf_token: str = Form(...),
-    db: Session = Depends(get_db)
 ):
     """
     创建管理员账户
@@ -183,41 +214,55 @@ async def create_admin_user(
         # 验证 CSRF 令牌
         # verify_csrf_token(request, csrf_token)
         
-        # 检查用户名是否已存在
-        existing_user = crud_user.get_user_by_username(db, username=username)
-        if existing_user:
+        # 获取数据库会话
+        from ..core.database import SessionLocal
+        from sqlalchemy.orm import sessionmaker
+        # 使用安装向导中设置的数据库路径
+        database_path = request.session.get("database_path", "./data/rewrz.db")
+        new_database_url = f"sqlite:///{database_path}"
+        import sqlalchemy as sa
+        new_engine = sa.create_engine(new_database_url, connect_args={"check_same_thread": False})
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=new_engine)
+        db = SessionLocal()
+        
+        try:
+            # 检查用户名是否已存在
+            existing_user = crud_user.get_user_by_username(db, username=username)
+            if existing_user:
+                return JSONResponse({
+                    "success": False,
+                    "error": "用户名已存在"
+                }, status_code=400)
+            
+            # 检查邮箱是否已存在
+            existing_email = crud_user.get_user_by_email(db, email=email)
+            if existing_email:
+                return JSONResponse({
+                    "success": False,
+                    "error": "邮箱已存在"
+                }, status_code=400)
+            
+            # 创建管理员用户
+            user_data = UserCreate(
+                username=username,
+                email=email,
+                password=password,
+                display_name=display_name or username
+            )
+            
+            admin_user = crud_user.create_user(db=db, user=user_data)
+            
+            # 设置为超级管理员
+            admin_user.role = "super_admin"
+            db.commit()
+            
             return JSONResponse({
-                "success": False,
-                "error": "用户名已存在"
-            }, status_code=400)
-        
-        # 检查邮箱是否已存在
-        existing_email = crud_user.get_user_by_email(db, email=email)
-        if existing_email:
-            return JSONResponse({
-                "success": False,
-                "error": "邮箱已存在"
-            }, status_code=400)
-        
-        # 创建管理员用户
-        user_data = UserCreate(
-            username=username,
-            email=email,
-            password=password,
-            display_name=display_name or username
-        )
-        
-        admin_user = crud_user.create_user(db=db, user=user_data)
-        
-        # 设置为超级管理员
-        admin_user.role = "super_admin"
-        db.commit()
-        
-        return JSONResponse({
-            "success": True,
-            "message": "管理员账户创建成功",
-            "user_id": admin_user.id
-        })
+                "success": True,
+                "message": "管理员账户创建成功",
+                "user_id": admin_user.id
+            })
+        finally:
+            db.close()
         
     except Exception as e:
         return JSONResponse({
@@ -234,7 +279,6 @@ async def configure_site(
     timezone: str = Form("Asia/Shanghai"),
     language: str = Form("zh-CN"),
     csrf_token: str = Form(...),
-    db: Session = Depends(get_db)
 ):
     """
     配置站点基础信息
@@ -245,54 +289,68 @@ async def configure_site(
         # 验证 CSRF 令牌
         # verify_csrf_token(request, csrf_token)
         
-        # 基础站点设置
-        settings_data = [
-            {
-                "key": "site_title",
-                "value": {"value": site_title},
-                "description": "站点标题",
-                "category": "basic",
-                "type": "text"
-            },
-            {
-                "key": "tagline", 
-                "value": {"value": tagline or "一个功能强大的个人博客系统"},
-                "description": "站点号口",
-                "category": "basic",
-                "type": "text"
-            },
-            {
-                "key": "site_url",
-                "value": {"value": site_url or ""},
-                "description": "站点URL地址",
-                "category": "basic", 
-                "type": "text"
-            },
-            {
-                "key": "timezone",
-                "value": {"value": timezone},
-                "description": "时区设置",
-                "category": "basic",
-                "type": "select"
-            },
-            {
-                "key": "language",
-                "value": {"value": language},
-                "description": "语言设置",
-                "category": "basic",
-                "type": "select"
-            }
-        ]
+        # 获取数据库会话
+        from ..core.database import SessionLocal
+        from sqlalchemy.orm import sessionmaker
+        # 使用安装向导中设置的数据库路径
+        database_path = request.session.get("database_path", "./data/rewrz.db")
+        new_database_url = f"sqlite:///{database_path}"
+        import sqlalchemy as sa
+        new_engine = sa.create_engine(new_database_url, connect_args={"check_same_thread": False})
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=new_engine)
+        db = SessionLocal()
         
-        # 保存设置
-        for setting_data in settings_data:
-            setting = SettingCreate(**setting_data)
-            crud_setting.create_setting(db, setting)
-        
-        return JSONResponse({
-            "success": True,
-            "message": "站点配置保存成功"
-        })
+        try:
+            # 基础站点设置
+            settings_data = [
+                {
+                    "key": "site_title",
+                    "value": {"value": site_title},
+                    "description": "站点标题",
+                    "category": "basic",
+                    "type": "text"
+                },
+                {
+                    "key": "tagline", 
+                    "value": {"value": tagline or ""},
+                    "description": "站点副标题",
+                    "category": "basic",
+                    "type": "text"
+                },
+                {
+                    "key": "site_url",
+                    "value": {"value": site_url or ""},
+                    "description": "站点URL地址",
+                    "category": "basic", 
+                    "type": "text"
+                },
+                {
+                    "key": "timezone",
+                    "value": {"value": timezone},
+                    "description": "时区设置",
+                    "category": "basic",
+                    "type": "select"
+                },
+                {
+                    "key": "language",
+                    "value": {"value": language},
+                    "description": "语言设置",
+                    "category": "basic",
+                    "type": "select"
+                }
+            ]
+            
+            # 保存设置
+            for setting_data in settings_data:
+                setting = SettingCreate(**setting_data)
+                crud_setting.create_setting(db, setting)
+            
+            return JSONResponse({
+                "success": True,
+                "message": "站点配置保存成功"
+            })
+        finally:
+            db.close()
         
     except Exception as e:
         return JSONResponse({
@@ -305,7 +363,6 @@ async def create_initial_content(
     request: Request,
     create_sample_content: bool = Form(False),
     csrf_token: str = Form(...),
-    db: Session = Depends(get_db)
 ):
     """
     创建初始内容
@@ -316,63 +373,79 @@ async def create_initial_content(
         # 验证 CSRF 令牌
         # verify_csrf_token(request, csrf_token)
         
-        # 创建默认分类
-        default_categories = [
-            {"name": "技术", "slug": "tech", "description": "技术相关文章"},
-            {"name": "生活", "slug": "life", "description": "生活随笔和感悟"},
-            {"name": "思考", "slug": "thoughts", "description": "个人思考和观点"}
-        ]
+        # 获取数据库会话
+        from ..core.database import SessionLocal
+        from sqlalchemy.orm import sessionmaker
+        # 使用安装向导中设置的数据库路径
+        database_path = request.session.get("database_path", "./data/rewrz.db")
+        new_database_url = f"sqlite:///{database_path}"
+        import sqlalchemy as sa
+        new_engine = sa.create_engine(new_database_url, connect_args={"check_same_thread": False})
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=new_engine)
+        db = SessionLocal()
         
-        for cat_data in default_categories:
-            try:
-                category = CategoryCreate(**cat_data)
-                crud_category.create_category(db, category)
-            except:
-                pass  # 忽略重复创建错误
-        
-        # 创建默认标签
-        default_tags = [
-            {"name": "Python", "slug": "python"},
-            {"name": "Web开发", "slug": "web-dev"},
-            {"name": "编程", "slug": "programming"},
-            {"name": "教程", "slug": "tutorial"}
-        ]
-        
-        for tag_data in default_tags:
-            try:
-                tag = TagCreate(**tag_data)
-                crud_tag.create_tag(db, tag)
-            except:
-                pass  # 忽略重复创建错误
-        
-        # 创建默认格式
-        default_formats = [
-            {"name": "标准文章", "slug": "article", "description": "标准的博客文章格式"},
-            {"name": "微博", "slug": "micro-post", "description": "类似微博的短内容"},
-            {"name": "相册", "slug": "photo-album", "description": "图片展示格式"},
-            {"name": "视频", "slug": "video", "description": "视频内容格式"},
-            {"name": "音乐", "slug": "music", "description": "音频内容格式"}
-        ]
-        
-        for format_data in default_formats:
-            try:
-                format_obj = FormatCreate(**format_data)
-                crud_format.create_format(db, format_obj)
-            except:
-                pass  # 忽略重复创建错误
-        
-        content_created = {
-            "categories": len(default_categories),
-            "tags": len(default_tags), 
-            "formats": len(default_formats),
-            "sample_post": create_sample_content
-        }
-        
-        return JSONResponse({
-            "success": True,
-            "message": "初始内容创建成功",
-            "created": content_created
-        })
+        try:
+            # 创建默认分类
+            default_categories = [
+                {"name": "技术", "slug": "tech", "description": "技术相关文章"},
+                {"name": "生活", "slug": "life", "description": "生活随笔和感悟"},
+                {"name": "思考", "slug": "thoughts", "description": "个人思考和观点"}
+            ]
+            
+            # 只有当用户选择创建默认内容时才创建
+            if create_sample_content:
+                for cat_data in default_categories:
+                    try:
+                        category = CategoryCreate(**cat_data)
+                        crud_category.create_category(db, category)
+                    except:
+                        pass  # 忽略重复创建错误
+                
+                # 创建默认标签
+                default_tags = [
+                    {"name": "Python", "slug": "python"},
+                    {"name": "Web开发", "slug": "web-dev"},
+                    {"name": "编程", "slug": "programming"},
+                    {"name": "教程", "slug": "tutorial"}
+                ]
+                
+                for tag_data in default_tags:
+                    try:
+                        tag = TagCreate(**tag_data)
+                        crud_tag.create_tag(db, tag)
+                    except:
+                        pass  # 忽略重复创建错误
+                
+                # 创建默认格式
+                default_formats = [
+                    {"name": "标准文章", "slug": "article", "description": "标准的博客文章格式"},
+                    {"name": "微博", "slug": "micro-post", "description": "类似微博的短内容"},
+                    {"name": "相册", "slug": "photo-album", "description": "图片展示格式"},
+                    {"name": "视频", "slug": "video", "description": "视频内容格式"},
+                    {"name": "音乐", "slug": "music", "description": "音频内容格式"}
+                ]
+                
+                for format_data in default_formats:
+                    try:
+                        format_obj = FormatCreate(**format_data)
+                        crud_format.create_format(db, format_obj)
+                    except:
+                        pass  # 忽略重复创建错误
+            
+            content_created = {
+                "categories": len(default_categories) if create_sample_content else 0,
+                "tags": len(default_tags) if create_sample_content else 0, 
+                "formats": len(default_formats) if create_sample_content else 0,
+                "sample_post": create_sample_content
+            }
+            
+            return JSONResponse({
+                "success": True,
+                "message": "初始内容创建成功",
+                "created": content_created
+            })
+        finally:
+            db.close()
         
     except Exception as e:
         return JSONResponse({
@@ -450,8 +523,7 @@ async def configure_admin_path(
 @router.post("/installer/finalize")
 async def finalize_installation(
     request: Request,
-    csrf_token: str = Form(...),
-    db: Session = Depends(get_db)
+    csrf_token: str = Form(...)
 ):
     """
     完成安装
@@ -468,6 +540,9 @@ async def finalize_installation(
                 "success": False,
                 "error": "系统已经安装"
             }, status_code=400)
+        
+        # 获取数据库路径配置（从会话中获取用户自定义的路径）
+        database_path = request.session.get("database_path", "./data/rewrz.db")
         
         # 生成安全密钥
         secret_key = secrets.token_hex(32)
@@ -488,7 +563,7 @@ async def finalize_installation(
 SECRET_KEY="{secret_key}"
 
 # 数据库连接地址
-DATABASE_URL="sqlite:///./data/rewrz.db"
+DATABASE_URL="sqlite:///{database_path}"
 
 # 管理后台路径（随机生成以提高安全性）
 ADMIN_PATH="{admin_path}"
@@ -507,29 +582,41 @@ INSTALLATION_COMPLETE="true"
         with open(".env", "w", encoding="utf-8") as f:
             f.write(env_content)
         
-        # 更新安装状态设置
-        install_status_setting = SettingCreate(
-            key="installation_complete",
-            value={"value": True},
-            description="安装完成标记",
-            category="system",
-            type="boolean"
-        )
-        crud_setting.create_setting(db, install_status_setting)
+        # 获取数据库会话
+        # 使用安装向导中设置的数据库路径
+        new_database_url = f"sqlite:///{database_path}"
+        import sqlalchemy as sa
+        from sqlalchemy.orm import sessionmaker
+        new_engine = sa.create_engine(new_database_url, connect_args={"check_same_thread": False})
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=new_engine)
+        db = SessionLocal()
         
-        # 记录安装时间
-        install_time_setting = SettingCreate(
-            key="installation_time",
-            value={"value": str(datetime.now())},
-            description="安装完成时间",
-            category="system",
-            type="datetime"
-        )
-        crud_setting.create_setting(db, install_time_setting)
+        try:
+            # 更新安装状态设置
+            install_status_setting = SettingCreate(
+                key="installation_complete",
+                value={"value": True},
+                description="安装完成标记",
+                category="system",
+                type="boolean"
+            )
+            crud_setting.create_setting(db, install_status_setting)
+            
+            # 记录安装时间
+            install_time_setting = SettingCreate(
+                key="installation_time",
+                value={"value": str(datetime.now())},
+                description="安装完成时间",
+                category="system",
+                type="datetime"
+            )
+            crud_setting.create_setting(db, install_time_setting)
+        finally:
+            db.close()
         
         return JSONResponse({
             "success": True,
-            "message": "RewrZ 博客系统安装完成！",
+            "message": "RewrZ 博客系统安装完成！请重启服务器以应用新的配置。",
             "admin_path": admin_path,  # 返回后台路径供用户查看
             "redirect_url": f"{admin_path}/login"
         })
@@ -548,8 +635,7 @@ async def run_installer(
     email: str = Form(...),
     password: str = Form(...),
     site_title: str = Form(...),
-    csrf_token: str = Form(...),
-    db: Session = Depends(get_db)
+    csrf_token: str = Form(...)
 ):
     """
     简单安装流程（兼容旧模板）
@@ -567,9 +653,10 @@ async def run_installer(
         # 1. 创建 .env 文件
         secret_key = secrets.token_hex(32)
         admin_path = "/admin_" + secrets.token_hex(8)  # 生成随机后台路径
+        database_path = "./data/rewrz.db"  # 默认数据库路径
         env_content = f'''
 SECRET_KEY="{secret_key}"
-DATABASE_URL="sqlite:///./data/rewrz.db"
+DATABASE_URL="sqlite:///{database_path}"
 ADMIN_PATH="{admin_path}"
 MEDIA_UPLOAD_DIR="media_uploads"
 '''
@@ -577,27 +664,45 @@ MEDIA_UPLOAD_DIR="media_uploads"
             f.write(env_content.strip())
 
         # 2. 初始化数据库
-        create_all_tables()
-
-        # 3. 创建管理员用户
-        db_user = crud_user.get_user_by_username(db, username=username)
-        if db_user:
-            raise HTTPException(status_code=400, detail="用户名已存在")
+        # 创建数据目录（如果不存在）
+        from pathlib import Path
+        db_path = Path(database_path)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
         
-        user_create = UserCreate(username=username, email=email, password=password)
-        admin_user = crud_user.create_user(db=db, user=user_create)
-        admin_user.role = "super_admin"
-        db.commit()
+        # 重新创建引擎使用指定的数据库路径
+        from ..core.database import engine, SessionLocal, Base
+        import sqlalchemy as sa
+        new_database_url = f"sqlite:///{database_path}"
+        new_engine = sa.create_engine(new_database_url, connect_args={"check_same_thread": False})
+        Base.metadata.create_all(bind=new_engine)
 
-        # 保存站点标题
-        site_title_setting = SettingCreate(
-            key="site_title", 
-            value={"value": site_title}, 
-            description="网站主标题",
-            category="basic",
-            type="text"
-        )
-        crud_setting.create_setting(db, site_title_setting)
+        # 获取数据库会话
+        from sqlalchemy.orm import sessionmaker
+        NewSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=new_engine)
+        db = NewSessionLocal()
+        
+        try:
+            # 3. 创建管理员用户
+            db_user = crud_user.get_user_by_username(db, username=username)
+            if db_user:
+                raise HTTPException(status_code=400, detail="用户名已存在")
+            
+            user_create = UserCreate(username=username, email=email, password=password)
+            admin_user = crud_user.create_user(db=db, user=user_create)
+            admin_user.role = "super_admin"
+            db.commit()
+
+            # 保存站点标题
+            site_title_setting = SettingCreate(
+                key="site_title", 
+                value={"value": site_title}, 
+                description="网站主标题",
+                category="basic",
+                type="text"
+            )
+            crud_setting.create_setting(db, site_title_setting)
+        finally:
+            db.close()
 
         # 重定向到动态后台登录页面
         return RedirectResponse(url=f"{admin_path}/login", status_code=303)

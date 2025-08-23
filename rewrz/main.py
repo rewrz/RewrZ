@@ -46,7 +46,19 @@ from datetime import date, datetime # 导入date和datetime用于纪念日检查
 from starlette.middleware.sessions import SessionMiddleware # 导入会话中间件
 from .core.security import generate_csrf_token # 导入CSRF令牌生成函数
 
-app = FastAPI()
+# 应用生命周期管理器
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时检查.env文件，如果不存在则重定向到安装向导
+    if not os.path.exists(".env"):
+        print("INFO: .env file not found. Redirecting to installer.")
+        # 这不会立即重定向，但会为根路由设置条件
+    create_all_tables()
+    yield
+    # 关闭时的清理工作（如果需要）
+
+# 只保留一个FastAPI实例定义，包含lifespan参数
+app = FastAPI(lifespan=lifespan)
 
 # 为CSRF保护添加会话中间件 (需求规格 3.2.1)
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
@@ -260,23 +272,13 @@ app.include_router(comment_settings_api.router)
 # 包含错误处理配置路由
 app.include_router(error_config_api.router)
 
-# 应用生命周期管理器
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # 启动时检查.env文件，如果不存在则重定向到安装向导
-    if not os.path.exists(".env"):
-        print("INFO: .env file not found. Redirecting to installer.")
-        # 这不会立即重定向，但会为根路由设置条件
-    create_all_tables()
-    yield
-    # 关闭时的清理工作（如果需要）
-
-app = FastAPI(lifespan=lifespan)
-
 @app.middleware("http")
 async def add_global_context(request: Request, call_next):
     # 检查.env文件并重定向到安装向导
-    if not os.path.exists(".env") and request.url.path != "/installer" and not request.url.path.startswith("/static") and not request.url.path.startswith("/api"):
+    if not os.path.exists(".env") and \
+       not request.url.path.startswith("/installer") and \
+       not request.url.path.startswith("/static") and \
+       not request.url.path.startswith("/api"):
         return RedirectResponse(url="/installer")
 
     # 初始化全局上下文变量

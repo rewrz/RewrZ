@@ -1,7 +1,7 @@
 <!-- Step 5: Initial Content Setup -->
 <div class="text-center mb-6">
     <h2 class="text-2xl font-bold text-gray-900 mb-2">初始内容设置</h2>
-    <p class="text-gray-600">创建博客的基础分类、标签和格式</p>
+    <p class="text-gray-600">为您的个人博客创建基础的内容分类体系</p>
 </div>
 
 <!-- 默认内容预览 -->
@@ -95,7 +95,7 @@
                     <label for="create_default_content" class="block text-sm font-medium text-gray-900">
                         创建默认分类、标签和格式
                     </label>
-                    <p class="text-xs text-gray-500 mt-1">为您的博客创建基础的内容分类体系，包括3个分类、4个标签和5种内容格式</p>
+                    <p class="text-xs text-gray-500 mt-1">为您的博客创建基础的内容分类体系，包括技术、生活、思考3个分类，Python、Web开发、编程、教程4个标签，以及文章、微博、相册、视频、音乐5种内容格式</p>
                 </div>
             </div>
             <div class="flex items-start">
@@ -125,10 +125,10 @@
                 </h4>
                 <div class="mt-2 text-sm text-yellow-700">
                     <ul class="list-disc list-inside space-y-1">
-                        <li>默认内容可以帮助您快速开始使用博客系统</li>
+                        <li>默认内容可以帮助您快速开始使用个人博客系统</li>
                         <li>所有分类、标签和格式都可以在管理后台随时修改或删除</li>
                         <li>如果您已有明确的内容规划，也可以跳过此步骤</li>
-                        <li>多重身份内容系统支持文章、微博、相册等多种展示方式</li>
+                        <li>多重身份内容系统支持文章、微博、相册、视频、音乐等多种展示方式</li>
                     </ul>
                 </div>
             </div>
@@ -164,7 +164,10 @@
     <button id="next-step-btn" 
             type="button" 
             class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg cursor-not-allowed" 
-            disabled>
+            disabled
+            hx-get="/installer/step/6"
+            hx-target="#installation-content"
+            hx-swap="innerHTML">
         下一步<i class="fas fa-arrow-right ml-2"></i>
     </button>
 </div>
@@ -250,9 +253,6 @@
                 // 启用下一步按钮
                 nextBtn.disabled = false;
                 nextBtn.className = 'px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors';
-                nextBtn.setAttribute('hx-get', '/installer/step/6');
-                nextBtn.setAttribute('hx-target', '#installation-content');
-                nextBtn.setAttribute('hx-swap', 'innerHTML');
                 
                 // 隐藏创建和跳过按钮
                 button.style.display = 'none';

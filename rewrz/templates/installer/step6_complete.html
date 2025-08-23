@@ -4,7 +4,7 @@
         <i class="fas fa-check-circle text-6xl text-green-600"></i>
     </div>
     <h2 class="text-3xl font-bold text-gray-900 mb-4">安装即将完成</h2>
-    <p class="text-gray-600 text-lg">最后一步，完成系统配置文件的生成</p>
+    <p class="text-gray-600 text-lg">最后一步，完成个人博客系统配置文件的生成</p>
 </div>
 
 <!-- 安装摘要 -->
@@ -40,27 +40,27 @@
             </ul>
         </div>
         <div>
-            <h4 class="font-medium text-gray-800 mb-3">🚀 即将启用的功能</h4>
+            <h4 class="font-medium text-indigo-800 mb-3">🚀 即将启用的功能</h4>
             <ul class="space-y-2 text-sm">
                 <li class="flex items-center text-blue-700">
                     <i class="fas fa-globe text-blue-500 mr-2"></i>
-                    多重身份内容系统
+                    多重身份内容系统（文章、微博、相册、视频、音乐）
                 </li>
                 <li class="flex items-center text-blue-700">
                     <i class="fas fa-shield-alt text-blue-500 mr-2"></i>
-                    反垃圾评论防护
+                    三层反垃圾评论防护
                 </li>
                 <li class="flex items-center text-blue-700">
                     <i class="fas fa-search text-blue-500 mr-2"></i>
-                    SEO优化功能
+                    智能SEO优化功能
                 </li>
                 <li class="flex items-center text-blue-700">
                     <i class="fas fa-images text-blue-500 mr-2"></i>
-                    智能媒体管理
+                    响应式图片系统
                 </li>
                 <li class="flex items-center text-blue-700">
                     <i class="fas fa-history text-blue-500 mr-2"></i>
-                    版本快照系统
+                    轻量级版本快照系统
                 </li>
             </ul>
         </div>
@@ -77,8 +77,8 @@
         <div>
             <h4 class="font-medium text-indigo-800 mb-2">立即可以做的事情</h4>
             <ul class="space-y-1 text-sm text-indigo-700">
-                <li>• 登录管理后台编写第一篇文章</li>
-                <li>• 上传您的头像和站点logo</li>
+                <li>• 登录管理后台编写第一篇创作</li>
+                <li>• 上传您的头像和站点Logo</li>
                 <li>• 配置评论和SEO设置</li>
                 <li>• 自定义分类和标签</li>
             </ul>
@@ -89,7 +89,7 @@
                 <li>• 配置站点URL和域名</li>
                 <li>• 设置主题和外观偏好</li>
                 <li>• 配置邮件服务（可选）</li>
-                <li>• 备份重要数据</li>
+                <li>• 定期备份重要数据</li>
             </ul>
         </div>
     </div>
@@ -182,6 +182,19 @@
                             <h3 class="text-2xl font-bold text-green-900 mb-3">🎉 安装成功完成！</h3>
                             <p class="text-green-700 text-lg mb-4">${data.message}</p>
                             
+                            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                                <div class="flex items-center">
+                                    <i class="fas fa-exclamation-triangle text-yellow-600 text-lg mr-3"></i>
+                                    <span class="font-semibold text-yellow-800">需要手动重启服务器</span>
+                                </div>
+                                <p class="text-yellow-700 text-sm mt-2">为了使配置生效，请手动重启服务器。在生产环境中，您可能需要：</p>
+                                <ul class="text-yellow-700 text-sm mt-2 list-disc list-inside">
+                                    <li>使用 systemctl restart your-app-service</li>
+                                    <li>或者重启您的进程管理器（如 PM2、Supervisor 等）</li>
+                                    <li>在开发环境中，只需重新运行启动命令</li>
+                                </ul>
+                            </div>
+                            
                             <div class="bg-white rounded-lg p-4 mb-6">
                                 <h4 class="font-semibold text-gray-900 mb-3">快速开始</h4>
                                 <div class="space-y-3">
@@ -204,21 +217,8 @@
                     </div>
                 `;
                 
-                // 隐藏按钮区域
-                document.querySelector('.flex.justify-between').style.display = 'none';
-                
-                // 更新所有步骤为完成状态
-                const steps = document.querySelectorAll('.step');
-                steps.forEach(step => {
-                    step.classList.remove('active', 'pending');
-                    step.classList.add('completed');
-                });
-                
-                // 3秒后自动跳转
-                setTimeout(() => {
-                    window.location.href = data.redirect_url;
-                }, 3000);
-                
+                // 隐藏完成按钮
+                button.style.display = 'none';
             } else {
                 resultsContainer.innerHTML = `
                     <div class="bg-red-50 border border-red-200 rounded-lg p-4">

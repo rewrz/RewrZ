@@ -1,7 +1,7 @@
 <!-- Step 3: Admin Account Setup -->
 <div class="text-center mb-6">
     <h2 class="text-2xl font-bold text-gray-900 mb-2">创建管理员账户</h2>
-    <p class="text-gray-600">设置您的博客管理员账户信息</p>
+    <p class="text-gray-600">设置您的个人博客管理员账户信息</p>
 </div>
 
 <form id="admin-form" class="space-y-6 mb-8">
@@ -76,7 +76,7 @@
                    id="display_name" 
                    name="display_name" 
                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                   placeholder="输入显示名称（可选）">
+                   placeholder="输入显示名称（可选，默认使用用户名）">
             <p class="text-xs text-gray-500 mt-1">在博客中显示的名称，留空则使用用户名</p>
         </div>
     </div>
@@ -117,7 +117,10 @@
     <button id="next-step-btn" 
             type="button" 
             class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg cursor-not-allowed" 
-            disabled>
+            disabled
+            hx-get="/installer/step/4"
+            hx-target="#installation-content"
+            hx-swap="innerHTML">
         下一步<i class="fas fa-arrow-right ml-2"></i>
     </button>
 </div>
@@ -219,9 +222,6 @@
                 // 启用下一步按钮
                 nextBtn.disabled = false;
                 nextBtn.className = 'px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors';
-                nextBtn.setAttribute('hx-get', '/installer/step/4');
-                nextBtn.setAttribute('hx-target', '#installation-content');
-                nextBtn.setAttribute('hx-swap', 'innerHTML');
                 
                 // 隐藏创建按钮
                 button.style.display = 'none';

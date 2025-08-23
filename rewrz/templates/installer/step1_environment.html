@@ -1,7 +1,7 @@
 <!-- Step 1: Environment Check -->
 <div class="text-center mb-6">
     <h2 class="text-2xl font-bold text-gray-900 mb-2">环境检查</h2>
-    <p class="text-gray-600">正在检查系统环境和文件权限...</p>
+    <p class="text-gray-600">正在检查系统环境和文件权限，确保博客系统能正常运行...</p>
 </div>
 
 <div id="environment-check-results" class="mb-8">
@@ -22,7 +22,10 @@
     <button id="next-step-btn" 
             type="button" 
             class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg cursor-not-allowed" 
-            disabled>
+            disabled
+            hx-get="/installer/step/2"
+            hx-target="#installation-content"
+            hx-swap="innerHTML">
         下一步<i class="fas fa-arrow-right ml-2"></i>
     </button>
 </div>
@@ -103,16 +106,13 @@
                         <i class="fas fa-check-circle text-green-600 text-lg mr-3"></i>
                         <span class="font-semibold text-green-800">环境检查通过！</span>
                     </div>
-                    <p class="text-green-700 text-sm mt-2">您的系统满足 RewrZ 的运行要求，可以继续安装。</p>
+                    <p class="text-green-700 text-sm mt-2">您的系统满足 RewrZ 博客系统的运行要求，可以继续安装。</p>
                 </div>
             `;
             
             // 启用下一步按钮
             nextBtn.disabled = false;
             nextBtn.className = 'px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors';
-            nextBtn.setAttribute('hx-get', '/installer/step/2');
-            nextBtn.setAttribute('hx-target', '#installation-content');
-            nextBtn.setAttribute('hx-swap', 'innerHTML');
         }
         
         container.innerHTML = html;
