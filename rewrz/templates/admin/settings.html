@@ -1,0 +1,822 @@
+{% extends "admin/base.html" %}
+
+{% block title %}网站设置 - RewrZ 管理后台{% endblock %}
+
+{% block admin_content %}
+<h1 class="text-3xl font-semibold text-gray-800 mb-6">网站设置</h1>
+
+{% if message %}
+<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+    <strong class="font-bold">成功!</strong>
+    <span class="block sm:inline">{{ message }}</span>
+</div>
+{% endif %}
+
+<form hx-post="{{ request.state.admin_path }}/settings" hx-target="#admin-content" hx-swap="outerHTML" class="space-y-8">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <!-- 通用设置 -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">通用设置</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="site_title" class="block text-sm font-medium text-gray-700">网站主标题</label>
+                <input type="text" id="site_title" name="site_title" value="{{ settings.site_title }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+            </div>
+            <div>
+                <label for="tagline" class="block text-sm font-medium text-gray-700">网站副标题 / 标语</label>
+                <input type="text" id="tagline" name="tagline" value="{{ settings.tagline }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+            </div>
+            <div>
+                <label for="site_url" class="block text-sm font-medium text-gray-700">网站地址 (URL)</label>
+                <input type="url" id="site_url" name="site_url" value="{{ settings.site_url }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+            </div>
+            <div>
+                <label for="admin_email" class="block text-sm font-medium text-gray-700">管理员电子邮箱</label>
+                <input type="email" id="admin_email" name="admin_email" value="{{ settings.admin_email }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+            </div>
+            <div>
+                <label for="site_logo_light" class="block text-sm font-medium text-gray-700">网站 Logo (亮色)</label>
+                <input type="text" id="site_logo_light" name="site_logo_light" value="{{ settings.site_logo_light }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="图片URL">
+            </div>
+            <div>
+                <label for="site_logo_dark" class="block text-sm font-medium text-gray-700">网站 Logo (暗色)</label>
+                <input type="text" id="site_logo_dark" name="site_logo_dark" value="{{ settings.site_logo_dark }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="图片URL">
+            </div>
+            <div>
+                <label for="favicon" class="block text-sm font-medium text-gray-700">网站 Favicon</label>
+                <input type="text" id="favicon" name="favicon" value="{{ settings.favicon }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder=".ico 或 .png 文件URL">
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚设置 -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">页脚设置</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="copyright_info" class="block text-sm font-medium text-gray-700">版权信息</label>
+                <input type="text" id="copyright_info" name="copyright_info" value="{{ settings.copyright_info }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="支持 {year} 动态年份占位符">
+            </div>
+            <div>
+                <label for="custom_footer_text" class="block text-sm font-medium text-gray-700">自定义页脚文本/HTML</label>
+                <textarea id="custom_footer_text" name="custom_footer_text" rows="3"
+                          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">{{ settings.custom_footer_text }}</textarea>
+            </div>
+            <div>
+                <label for="icp_beian" class="block text-sm font-medium text-gray-700">ICP 备案号</label>
+                <input type="text" id="icp_beian" name="icp_beian" value="{{ settings.icp_beian }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+            </div>
+            <div>
+                <label for="gongan_beian" class="block text-sm font-medium text-gray-700">公安备案号</label>
+                <input type="text" id="gongan_beian" name="gongan_beian" value="{{ settings.gongan_beian }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+            </div>
+        </div>
+    </div>
+
+    <!-- 社交链接管理 -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">社交链接管理</h2>
+        <div id="social-links-container" class="space-y-4 mb-4">
+            {% for link in settings.social_links %}
+            <div class="flex items-center space-x-4 social-link-item">
+                <input type="text" class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="图标类名 (如 fab fa-github)" value="{{ link.icon }}">
+                <input type="url" class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="链接 URL" value="{{ link.url }}">
+                <button type="button" class="remove-social-link px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">移除</button>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="button" id="add-social-link" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">添加社交链接</button>
+        <input type="hidden" name="social_links_json" id="social-links-json">
+    </div>
+
+    <!-- 纪念日氛围模式 -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">纪念日氛围模式</h2>
+        <div id="anniversaries-container" class="space-y-4 mb-4">
+            {% for anniversary in settings.anniversaries %}
+            <div class="flex items-center space-x-4 anniversary-item">
+                <input type="number" class="w-20 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="月" min="1" max="12" value="{{ anniversary.month }}">
+                <input type="number" class="w-20 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="日" min="1" max="31" value="{{ anniversary.day }}">
+                <input type="text" class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="名称 (如 国庆节)" value="{{ anniversary.name }}">
+                <select class="px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    <option value="Festive" {% if anniversary.type == 'Festive' %}selected{% endif %}>喜庆 Festive</option>
+                    <option value="Mourn" {% if anniversary.type == 'Mourn' %}selected{% endif %}>悼念 Mourn</option>
+                </select>
+                <button type="button" class="remove-anniversary px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">移除</button>
+            </div>
+            {% endfor %}
+        </div>
+    <button type="button" id="add-anniversary" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">添加纪念日</button>
+    <input type="hidden" name="anniversaries_json" id="anniversaries-json">
+</div>
+
+    <!-- SEO 管理 -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">SEO 管理</h2>
+        <div class="space-y-4">
+            <div>
+                <label class="inline-flex items-center">
+                    <input type="checkbox" name="sitemap_enabled" class="form-checkbox" {% if settings.sitemap_enabled %}checked{% endif %}>
+                    <span class="ml-2 text-gray-700">启用 `sitemap.xml` 自动生成</span>
+                </label>
+            </div>
+            <div>
+                <label class="inline-flex items-center">
+                    <input type="checkbox" name="noindex_site" class="form-checkbox" {% if settings.noindex_site %}checked{% endif %}>
+                    <span class="ml-2 text-gray-700">建议搜索引擎不要索引本网站</span>
+                </label>
+            </div>
+            <div>
+                <label class="inline-flex items-center">
+                    <input type="checkbox" name="block_ai_crawlers" class="form-checkbox" {% if settings.block_ai_crawlers %}checked{% endif %}>
+                    <span class="ml-2 text-gray-700">阻止已知的 AI 训练爬虫</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- RSS 订阅管理 -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">RSS 订阅管理</h2>
+        <div class="space-y-4">
+            <div>
+                <label class="inline-flex items-center">
+                    <input type="checkbox" name="rss_enabled" class="form-checkbox" {% if settings.rss_enabled %}checked{% endif %}>
+                    <span class="ml-2 text-gray-700">启用 RSS/Atom 订阅源</span>
+                </label>
+                <p class="text-sm text-gray-500 mt-1">关闭后所有 RSS 订阅源将返回 404 错误</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="rss_items_limit" class="block text-sm font-medium text-gray-700">RSS 输出文章数量</label>
+                    <input type="number" id="rss_items_limit" name="rss_items_limit" 
+                           value="{{ settings.rss_items_limit if settings.rss_items_limit else 20 }}" 
+                           min="1" max="100"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                           placeholder="默认 20">
+                    <p class="text-sm text-gray-500 mt-1">建议设置在 10-50 之间</p>
+                </div>
+                <div>
+                    <label for="rss_cache_duration" class="block text-sm font-medium text-gray-700">RSS 缓存时间（分钟）</label>
+                    <select id="rss_cache_duration" name="rss_cache_duration" 
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        <option value="15" {% if settings.rss_cache_duration == 15 %}selected{% endif %}>15 分钟</option>
+                        <option value="30" {% if settings.rss_cache_duration == 30 %}selected{% endif %}>30 分钟</option>
+                        <option value="60" {% if settings.rss_cache_duration == 60 or not settings.rss_cache_duration %}selected{% endif %}>1 小时（推荐）</option>
+                        <option value="120" {% if settings.rss_cache_duration == 120 %}selected{% endif %}>2 小时</option>
+                        <option value="360" {% if settings.rss_cache_duration == 360 %}selected{% endif %}>6 小时</option>
+                        <option value="720" {% if settings.rss_cache_duration == 720 %}selected{% endif %}>12 小时</option>
+                    </select>
+                    <p class="text-sm text-gray-500 mt-1">更短的缓存时间可以获得更及时的更新</p>
+                </div>
+            </div>
+            <div>
+                <label for="rss_description" class="block text-sm font-medium text-gray-700">RSS 源描述</label>
+                <textarea id="rss_description" name="rss_description" rows="3"
+                          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                          placeholder="留空将使用网站副标题">{{ settings.rss_description if settings.rss_description else '' }}</textarea>
+                <p class="text-sm text-gray-500 mt-1">将显示在 RSS 阅读器中的源描述</p>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h3 class="text-sm font-medium text-gray-800 mb-2">RSS 订阅源地址</h3>
+                <div class="space-y-2 text-sm text-gray-600">
+                    <div>全站订阅：<code class="bg-gray-200 px-2 py-1 rounded">/feed.xml</code> 或 <code class="bg-gray-200 px-2 py-1 rounded">/rss.xml</code></div>
+                    <div>Atom 格式：<code class="bg-gray-200 px-2 py-1 rounded">/atom.xml</code></div>
+                    <div>分类订阅：<code class="bg-gray-200 px-2 py-1 rounded">/feed/category/{slug}</code></div>
+                    <div>标签订阅：<code class="bg-gray-200 px-2 py-1 rounded">/feed/tag/{slug}</code></div>
+                    <div>格式订阅：<code class="bg-gray-200 px-2 py-1 rounded">/feed/format/{slug}</code></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页面显示配置 -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">页面显示配置</h2>
+        <div class="space-y-4">
+            <p class="text-sm text-gray-600 mb-4">配置各个页面显示的文章数量</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="homepage_posts_limit" class="block text-sm font-medium text-gray-700">首页文章数量</label>
+                    <input type="number" id="homepage_posts_limit" name="homepage_posts_limit" 
+                           value="{{ settings.homepage_posts_limit if settings.homepage_posts_limit else 10 }}" 
+                           min="1" max="50"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                           placeholder="默认 10">
+                    <p class="text-sm text-gray-500 mt-1">建议设置在 5-20 之间</p>
+                </div>
+                <div>
+                    <label for="archive_posts_limit" class="block text-sm font-medium text-gray-700">归档页文章数量</label>
+                    <input type="number" id="archive_posts_limit" name="archive_posts_limit" 
+                           value="{{ settings.archive_posts_limit if settings.archive_posts_limit else 20 }}" 
+                           min="1" max="100"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                           placeholder="默认 20">
+                    <p class="text-sm text-gray-500 mt-1">分类、标签、格式等归档页的文章数量</p>
+                </div>
+                <div>
+                    <label for="search_results_limit" class="block text-sm font-medium text-gray-700">搜索结果数量</label>
+                    <input type="number" id="search_results_limit" name="search_results_limit" 
+                           value="{{ settings.search_results_limit if settings.search_results_limit else 15 }}" 
+                           min="1" max="50"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                           placeholder="默认 15">
+                    <p class="text-sm text-gray-500 mt-1">每页搜索结果的文章数量</p>
+                </div>
+                <div>
+                    <label for="related_posts_limit" class="block text-sm font-medium text-gray-700">相关文章数量</label>
+                    <input type="number" id="related_posts_limit" name="related_posts_limit" 
+                           value="{{ settings.related_posts_limit if settings.related_posts_limit else 5 }}" 
+                           min="1" max="20"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                           placeholder="默认 5">
+                    <p class="text-sm text-gray-500 mt-1">文章详情页显示的相关文章数量</p>
+                </div>
+            </div>
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-blue-800 mb-2">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    配置说明
+                </h3>
+                <ul class="text-blue-700 text-sm space-y-1">
+                    <li>• 较小的数值可以提高页面加载速度</li>
+                    <li>• 首页建议设置较少的文章数，突出重点内容</li>
+                    <li>• 归档页可以设置较多的文章数，便于浏览</li>
+                    <li>• 设置过大的数值可能影响页面性能</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 打赏功能配置 -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-heart text-red-500 mr-2"></i>
+            打赏功能配置
+        </h2>
+        <div class="space-y-6">
+            <!-- 打赏功能开关 -->
+            <div>
+                <label class="inline-flex items-center">
+                    <input type="checkbox" name="donation_enabled" class="form-checkbox" {% if settings.donation_enabled %}checked{% endif %}>
+                    <span class="ml-2 text-gray-700">启用打赏功能</span>
+                </label>
+                <p class="text-sm text-gray-500 mt-1">在文章末尾显示打赏组件，支持作者创作</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 文本配置 -->
+                <div class="space-y-4">
+                    <h3 class="text-lg font-medium text-gray-800">文本配置</h3>
+                    <div>
+                        <label for="donation_title" class="block text-sm font-medium text-gray-700">打赏标题</label>
+                        <input type="text" id="donation_title" name="donation_title" 
+                               value="{{ settings.donation_title if settings.donation_title else '如果这篇文章对您有帮助，请考虑支持作者' }}"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                               placeholder="如果这篇文章对您有帮助，请考虑支持作者">
+                    </div>
+                    <div>
+                        <label for="donation_description" class="block text-sm font-medium text-gray-700">打赏描述</label>
+                        <textarea id="donation_description" name="donation_description" rows="3"
+                                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                  placeholder="您的支持是我创作的动力！">{{ settings.donation_description if settings.donation_description else '您的支持是我创作的动力！' }}</textarea>
+                    </div>
+                </div>
+                
+                <!-- 打赏方式配置 -->
+                <div class="space-y-4">
+                    <h3 class="text-lg font-medium text-gray-800">打赏方式</h3>
+                    <div>
+                        <label for="donation_qr_code_url" class="block text-sm font-medium text-gray-700">打赏二维码 URL</label>
+                        <input type="url" id="donation_qr_code_url" name="donation_qr_code_url" 
+                               value="{{ settings.donation_qr_code_url if settings.donation_qr_code_url else '' }}"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                               placeholder="上传二维码图片并输入 URL">
+                        <p class="text-sm text-gray-500 mt-1">如微信收款码、支付宝收款码等</p>
+                    </div>
+                    <div>
+                        <label for="donation_link_text" class="block text-sm font-medium text-gray-700">打赏链接文字</label>
+                        <input type="text" id="donation_link_text" name="donation_link_text" 
+                               value="{{ settings.donation_link_text if settings.donation_link_text else '' }}"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                               placeholder="如：支持作者">
+                    </div>
+                    <div>
+                        <label for="donation_link_url" class="block text-sm font-medium text-gray-700">打赏链接地址</label>
+                        <input type="url" id="donation_link_url" name="donation_link_url" 
+                               value="{{ settings.donation_link_url if settings.donation_link_url else '' }}"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                               placeholder="如：https://ko-fi.com/yourname">
+                        <p class="text-sm text-gray-500 mt-1">支持 Ko-fi、Patreon 等平台链接</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 样式配置 -->
+                <div>
+                    <label for="donation_style_theme" class="block text-sm font-medium text-gray-700">组件样式</label>
+                    <select id="donation_style_theme" name="donation_style_theme" 
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        <option value="elegant" {% if settings.donation_style_theme == 'elegant' or not settings.donation_style_theme %}selected{% endif %}>优雅风格</option>
+                        <option value="minimal" {% if settings.donation_style_theme == 'minimal' %}selected{% endif %}>简洁风格</option>
+                        <option value="card" {% if settings.donation_style_theme == 'card' %}selected{% endif %}>卡片风格</option>
+                    </select>
+                    <p class="text-sm text-gray-500 mt-1">不同风格适合不同的博客主题</p>
+                </div>
+                
+                <!-- 显示位置 -->
+                <div>
+                    <label for="donation_show_position" class="block text-sm font-medium text-gray-700">显示位置</label>
+                    <select id="donation_show_position" name="donation_show_position" 
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        <option value="article_end" {% if settings.donation_show_position == 'article_end' or not settings.donation_show_position %}selected{% endif %}>文章末尾</option>
+                        <option value="sidebar" {% if settings.donation_show_position == 'sidebar' %}selected{% endif %}>侧边栏</option>
+                    </select>
+                    <p class="text-sm text-gray-500 mt-1">文章末尾更容易被读者发现</p>
+                </div>
+            </div>
+            
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-blue-800 mb-2">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    使用说明
+                </h3>
+                <ul class="text-blue-700 text-sm space-y-1">
+                    <li>• 可以同时配置二维码和链接，组件会自动显示所有可用方式</li>
+                    <li>• 二维码建议使用 120x120 像素的正方形图片</li>
+                    <li>• 链接支持 Ko-fi、Patreon、爱发电等平台</li>
+                    <li>• 优雅风格适合大多数主题，简洁风格更加低调</li>
+                </ul>
+            </div>
+        </div>
+
+    <!-- 后台路径配置 -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-shield-alt text-gray-600 mr-2"></i>
+            后台路径配置
+        </h2>
+        <div class="space-y-4">
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-exclamation-triangle text-amber-600 mr-2"></i>
+                    <h3 class="font-semibold text-amber-900">重要提醒</h3>
+                </div>
+                <ul class="text-amber-800 text-sm space-y-1">
+                    <li>• 修改后台路径后需要重新登录</li>
+                    <li>• 请确保记住新的后台路径，否则无法访问后台</li>
+                    <li>• 修改生效需要重启应用程序</li>
+                </ul>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-lg font-medium text-gray-800 mb-3">当前后台路径</h3>
+                    <div class="bg-gray-100 p-4 rounded-lg border">
+                        <div class="font-mono text-lg text-gray-800" id="current-admin-path">
+                            {{ request.state.admin_path }}
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2">您当前正在使用的后台访问路径</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-medium text-gray-800 mb-3">生成新路径</h3>
+                    <div class="space-y-3">
+                        <button type="button" id="generate-random-path" 
+                                class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                            <i class="fas fa-random mr-2"></i>
+                            生成随机路径
+                        </button>
+                        <button type="button" id="customize-path" 
+                                class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                            <i class="fas fa-edit mr-2"></i>
+                            自定义路径
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 路径配置表单 -->
+            <div id="admin-path-config" class="bg-gray-50 p-4 rounded-lg" style="display: none;">
+                <h3 class="text-lg font-medium text-gray-800 mb-4">后台路径配置</h3>
+                
+                <div class="space-y-4">
+                    <!-- 路径类型选择 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">路径类型</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <label class="border border-gray-300 rounded-lg p-3 cursor-pointer hover:border-blue-300 transition-colors">
+                                <input type="radio" name="path_type" value="random" checked class="sr-only">
+                                <div class="text-center">
+                                    <i class="fas fa-random text-blue-600 text-xl mb-1"></i>
+                                    <div class="font-medium text-gray-900">随机路径</div>
+                                    <div class="text-sm text-gray-500">最高安全性</div>
+                                </div>
+                            </label>
+                            <label class="border border-gray-300 rounded-lg p-3 cursor-pointer hover:border-blue-300 transition-colors">
+                                <input type="radio" name="path_type" value="brand" class="sr-only">
+                                <div class="text-center">
+                                    <i class="fas fa-tag text-green-600 text-xl mb-1"></i>
+                                    <div class="font-medium text-gray-900">品牌路径</div>
+                                    <div class="text-sm text-gray-500">易于记忆</div>
+                                </div>
+                            </label>
+                            <label class="border border-gray-300 rounded-lg p-3 cursor-pointer hover:border-blue-300 transition-colors">
+                                <input type="radio" name="path_type" value="custom" class="sr-only">
+                                <div class="text-center">
+                                    <i class="fas fa-edit text-purple-600 text-xl mb-1"></i>
+                                    <div class="font-medium text-gray-900">自定义</div>
+                                    <div class="text-sm text-gray-500">完全控制</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 自定义路径输入 -->
+                    <div id="custom-path-input" class="space-y-3" style="display: none;">
+                        <div>
+                            <label for="new_admin_path" class="block text-sm font-medium text-gray-700">自定义路径</label>
+                            <input type="text" id="new_admin_path" 
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="例如：/my-secret-admin">
+                            <div id="path-validation-message" class="mt-2 text-sm"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 路径预览 -->
+                    <div class="bg-white p-4 rounded-lg border">
+                        <h4 class="font-medium text-gray-800 mb-2">新路径预览</h4>
+                        <div class="font-mono text-lg text-blue-600" id="new-path-preview">
+                            /admin_随机字符
+                        </div>
+                    </div>
+                    
+                    <!-- 操作按钮 -->
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" id="cancel-path-config" 
+                                class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
+                            取消
+                        </button>
+                        <button type="button" id="apply-new-path" 
+                                class="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                            <i class="fas fa-shield-alt mr-2"></i>
+                            应用新路径
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 安全提示 -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-blue-800 mb-2">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    安全建议
+                </h3>
+                <ul class="text-blue-700 text-sm space-y-1">
+                    <li>• 定期更换后台路径可以提高安全性</li>
+                    <li>• 避免使用过于简单或容易猜测的路径</li>
+                    <li>• 随机路径提供最好的安全保护</li>
+                    <li>• 如果忘记路径，可以通过修改 .env 文件恢复</li>
+                </ul>
+            </div>
+        </div>
+</form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Social Links Management
+        const socialLinksContainer = document.getElementById('social-links-container');
+        const addSocialLinkBtn = document.getElementById('add-social-link');
+        const socialLinksJsonInput = document.getElementById('social-links-json');
+
+        function updateSocialLinksJson() {
+            const links = [];
+            socialLinksContainer.querySelectorAll('.social-link-item').forEach(item => {
+                const icon = item.children[0].value;
+                const url = item.children[1].value;
+                if (icon && url) {
+                    links.push({ icon: icon, url: url });
+                }
+            });
+            socialLinksJsonInput.value = JSON.stringify(links);
+        }
+
+        addSocialLinkBtn.addEventListener('click', () => {
+            const newItem = document.createElement('div');
+            newItem.classList.add('flex', 'items-center', 'space-x-4', 'social-link-item');
+            newItem.innerHTML = `
+                <input type="text" class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="图标类名 (如 fab fa-github)">
+                <input type="url" class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="链接 URL">
+                <button type="button" class="remove-social-link px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">移除</button>
+            `;
+            socialLinksContainer.appendChild(newItem);
+            newItem.querySelector('.remove-social-link').addEventListener('click', (e) => {
+                e.target.closest('.social-link-item').remove();
+                updateSocialLinksJson();
+            });
+            newItem.querySelectorAll('input').forEach(input => input.addEventListener('input', updateSocialLinksJson));
+            updateSocialLinksJson();
+        });
+
+        socialLinksContainer.querySelectorAll('.remove-social-link').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.target.closest('.social-link-item').remove();
+                updateSocialLinksJson();
+            });
+        });
+        socialLinksContainer.querySelectorAll('input').forEach(input => input.addEventListener('input', updateSocialLinksJson));
+        updateSocialLinksJson(); // Initial update
+
+        // Anniversaries Management
+        const anniversariesContainer = document.getElementById('anniversaries-container');
+        const addAnniversaryBtn = document.getElementById('add-anniversary');
+        const anniversariesJsonInput = document.getElementById('anniversaries-json');
+
+        function updateAnniversariesJson() {
+            const anniversaries = [];
+            anniversariesContainer.querySelectorAll('.anniversary-item').forEach(item => {
+                const month = parseInt(item.children[0].value);
+                const day = parseInt(item.children[1].value);
+                const name = item.children[2].value;
+                const type = item.children[3].value;
+                if (month && day && name && type) {
+                    anniversaries.push({ month: month, day: day, name: name, type: type });
+                }
+            });
+            anniversariesJsonInput.value = JSON.stringify(anniversaries);
+        }
+
+        addAnniversaryBtn.addEventListener('click', () => {
+            const newItem = document.createElement('div');
+            newItem.classList.add('flex', 'items-center', 'space-x-4', 'anniversary-item');
+            newItem.innerHTML = `
+                <input type="number" class="w-20 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="月" min="1" max="12">
+                <input type="number" class="w-20 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="日" min="1" max="31">
+                <input type="text" class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="名称 (如 国庆节)">
+                <select class="px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    <option value="Festive">喜庆 Festive</option>
+                    <option value="Mourn">悼念 Mourn</option>
+                </select>
+                <button type="button" class="remove-anniversary px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">移除</button>
+            `;
+            anniversariesContainer.appendChild(newItem);
+            newItem.querySelector('.remove-anniversary').addEventListener('click', (e) => {
+                e.target.closest('.anniversary-item').remove();
+                updateAnniversariesJson();
+            });
+            newItem.querySelectorAll('input, select').forEach(input => input.addEventListener('input', updateAnniversariesJson));
+            updateAnniversariesJson();
+        });
+
+        anniversariesContainer.querySelectorAll('.remove-anniversary').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.target.closest('.anniversary-item').remove();
+                updateAnniversariesJson();
+            });
+        });
+        anniversariesContainer.querySelectorAll('input, select').forEach(input => input.addEventListener('input', updateAnniversariesJson));
+        updateAnniversariesJson(); // Initial update
+
+        // 后台路径配置管理
+        const generateRandomPathBtn = document.getElementById('generate-random-path');
+        const customizePathBtn = document.getElementById('customize-path');
+        const adminPathConfig = document.getElementById('admin-path-config');
+        const pathTypeInputs = document.querySelectorAll('input[name="path_type"]');
+        const customPathInput = document.getElementById('custom-path-input');
+        const newAdminPathInput = document.getElementById('new_admin_path');
+        const pathValidationMessage = document.getElementById('path-validation-message');
+        const newPathPreview = document.getElementById('new-path-preview');
+        const cancelPathConfigBtn = document.getElementById('cancel-path-config');
+        const applyNewPathBtn = document.getElementById('apply-new-path');
+
+        // 显示路径配置面板
+        function showPathConfig(pathType = 'random') {
+            adminPathConfig.style.display = 'block';
+            generateRandomPathBtn.style.display = 'none';
+            customizePathBtn.style.display = 'none';
+            
+            // 设置默认选中的路径类型
+            const targetInput = document.querySelector(`input[name="path_type"][value="${pathType}"]`);
+            if (targetInput) {
+                targetInput.checked = true;
+            }
+            
+            updatePathTypeUI();
+            updatePathPreview();
+        }
+
+        // 隐藏路径配置面板
+        function hidePathConfig() {
+            adminPathConfig.style.display = 'none';
+            generateRandomPathBtn.style.display = 'block';
+            customizePathBtn.style.display = 'block';
+        }
+
+        // 更新路径类型UI
+        function updatePathTypeUI() {
+            const selectedType = document.querySelector('input[name="path_type"]:checked').value;
+            
+            // 更新选中状态的视觉效果
+            document.querySelectorAll('input[name="path_type"]').forEach(input => {
+                const label = input.closest('label');
+                if (input.checked) {
+                    label.classList.add('border-blue-500', 'bg-blue-50');
+                    label.classList.remove('border-gray-300');
+                } else {
+                    label.classList.remove('border-blue-500', 'bg-blue-50');
+                    label.classList.add('border-gray-300');
+                }
+            });
+            
+            // 显示或隐藏自定义路径输入
+            if (selectedType === 'custom') {
+                customPathInput.style.display = 'block';
+            } else {
+                customPathInput.style.display = 'none';
+            }
+        }
+
+        // 更新路径预览
+        function updatePathPreview() {
+            const selectedType = document.querySelector('input[name="path_type"]:checked').value;
+            let preview = '';
+            
+            switch(selectedType) {
+                case 'random':
+                    preview = '/admin_' + generateRandomString(8);
+                    break;
+                case 'brand':
+                    preview = '/rewrz-admin';
+                    break;
+                case 'custom':
+                    const customPath = newAdminPathInput.value.trim();
+                    if (customPath) {
+                        preview = customPath.startsWith('/') ? customPath : '/' + customPath;
+                    } else {
+                        preview = '/your-custom-path';
+                    }
+                    break;
+                default:
+                    preview = '/admin_' + generateRandomString(8);
+            }
+            
+            newPathPreview.textContent = preview;
+        }
+
+        // 生成随机字符串
+        function generateRandomString(length) {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        // 验证自定义路径
+        function validateCustomPath(path) {
+            if (!path) {
+                return { valid: false, message: '请输入路径' };
+            }
+            
+            // 确保以/开头
+            if (!path.startsWith('/')) {
+                path = '/' + path;
+            }
+            
+            // 检查字符
+            if (!/^[a-zA-Z0-9\-_/]+$/.test(path)) {
+                return { valid: false, message: '路径只能包含字母、数字、连字符和下划线' };
+            }
+            
+            // 检查长度
+            if (path.length < 3) {
+                return { valid: false, message: '路径长度至少需要3个字符' };
+            }
+            
+            if (path.length > 50) {
+                return { valid: false, message: '路径长度不能超过50个字符' };
+            }
+            
+            // 检查保留路径
+            const reservedPaths = ['/admin', '/api', '/static', '/media', '/installer', '/feed', '/rss', '/sitemap'];
+            if (reservedPaths.some(reserved => path.toLowerCase().startsWith(reserved.toLowerCase()))) {
+                return { valid: false, message: '该路径是系统保留路径，请选择其他路径' };
+            }
+            
+            return { valid: true, message: '路径格式正确' };
+        }
+
+        // 事件绑定
+        generateRandomPathBtn.addEventListener('click', () => showPathConfig('random'));
+        customizePathBtn.addEventListener('click', () => showPathConfig('custom'));
+        cancelPathConfigBtn.addEventListener('click', hidePathConfig);
+        
+        // 路径类型选择变化
+        pathTypeInputs.forEach(input => {
+            input.addEventListener('change', () => {
+                updatePathTypeUI();
+                updatePathPreview();
+            });
+        });
+        
+        // 自定义路径输入变化
+        newAdminPathInput.addEventListener('input', function() {
+            const path = this.value.trim();
+            const validation = validateCustomPath(path);
+            
+            if (path) {
+                pathValidationMessage.textContent = validation.message;
+                pathValidationMessage.className = validation.valid ? 
+                    'mt-2 text-sm text-green-600' : 'mt-2 text-sm text-red-600';
+            } else {
+                pathValidationMessage.textContent = '';
+            }
+            
+            updatePathPreview();
+        });
+        
+        // 应用新路径
+        applyNewPathBtn.addEventListener('click', function() {
+            const selectedType = document.querySelector('input[name="path_type"]:checked').value;
+            let newPath = '';
+            
+            // 准备新路径数据
+            const pathData = {
+                path_type: selectedType
+            };
+            
+            if (selectedType === 'custom') {
+                const customPath = newAdminPathInput.value.trim();
+                const validation = validateCustomPath(customPath);
+                
+                if (!validation.valid) {
+                    alert('路径格式无效：' + validation.message);
+                    return;
+                }
+                
+                pathData.custom_path = customPath.startsWith('/') ? customPath : '/' + customPath;
+                newPath = pathData.custom_path;
+            } else {
+                newPath = newPathPreview.textContent;
+                if (selectedType === 'brand') {
+                    pathData.brand_name = 'rewrz';
+                } else if (selectedType === 'random') {
+                    pathData.random_length = 8;
+                }
+            }
+            
+            // 确认操作
+            if (!confirm(`确定要将后台路径更改为 "${newPath}" 吗？\n\n更改后您需要使用新路径来访问后台管理。`)) {
+                return;
+            }
+            
+            // 禁用按钮并显示加载状态
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>正在更新...';
+            
+            // 发送更新请求
+            fetch('{{ admin_path }}/api/update-admin-path', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                },
+                body: JSON.stringify(pathData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`后台路径已成功更新为：${data.new_path}\n\n页面将自动跳转到新的后台地址。`);
+                    // 跳转到新的后台路径
+                    window.location.href = data.new_path + '/settings';
+                } else {
+                    alert('更新失败：' + (data.error || '未知错误'));
+                    // 恢复按钮状态
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-shield-alt mr-2"></i>应用新路径';
+                }
+            })
+            .catch(error => {
+                console.error('更新失败:', error);
+                alert('网络错误，请稍后重试');
+                // 恢复按钮状态
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-shield-alt mr-2"></i>应用新路径';
+            });
+        });
+    });
+</script>
+{% endblock %}

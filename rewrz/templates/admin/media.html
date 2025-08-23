@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>媒体库 - RewrZ 管理后台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .upload-area {
+            border: 2px dashed #e5e7eb;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        .upload-area.dragover {
+            border-color: #6366f1;
+            background-color: #f8fafc;
+        }
+        .media-item {
+            position: relative;
+            transition: transform 0.2s ease;
+        }
+        .media-item:hover {
+            transform: translateY(-2px);
+        }
+        .media-item.selected {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        .modal {
+            display: none;
+        }
+        .modal.active {
+            display: flex;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-gray-800 text-white p-4 space-y-6">
+        <div class="text-2xl font-bold mb-6">RewrZ Admin</div>
+        <nav>
+            <a href="{{ request.state.admin_path }}/dashboard" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">仪表盘</a>
+            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">文章管理</a>
+            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">页面管理</a>
+            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">分类管理</a>
+            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">标签管理</a>
+            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">评论管理</a>
+            <a href="{{ request.state.admin_path }}/media" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 bg-gray-700">媒体库</a>
+            <a href="{{ request.state.admin_path }}/settings" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">设置</a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 p-10">
+        <header class="flex justify-between items-center pb-6 border-b border-gray-200 mb-6">
+            <h1 class="text-3xl font-semibold text-gray-800">媒体库</h1>
+            <div class="flex items-center space-x-4">
+                <button id="upload-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition">上传文件</button>
+                <button id="batch-delete-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition" disabled>删除选中</button>
+                <a href="{{ admin_path }}/media/settings" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition">媒体设置</a>
+            </div>
+        </header>
+
+        <!-- Upload Area -->
+        <div id="upload-area" class="upload-area p-8 mb-6 text-center">
+            <div class="mb-4">
+                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </div>
+            <div class="text-lg font-medium text-gray-900 mb-2">拖拽文件到此处或点击上传</div>
+            <div class="text-sm text-gray-500 mb-4">支持 JPG、PNG、GIF、WebP、MP4、MP3 等格式</div>
+            <input type="file" id="file-input" multiple accept="image/*,video/*,audio/*" class="hidden">
+            <button onclick="document.getElementById('file-input').click()" class="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition">选择文件</button>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <!-- Toolbar -->
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex space-x-2">
+                    <select id="type-filter" class="border border-gray-300 rounded-md px-3 py-2">
+                        <option value="">所有媒体</option>
+                        <option value="image">图片</option>
+                        <option value="video">视频</option>
+                        <option value="audio">音频</option>
+                        <option value="document">文档</option>
+                    </select>
+                    <select id="date-filter" class="border border-gray-300 rounded-md px-3 py-2">
+                        <option value="">所有日期</option>
+                        <option value="today">今天</option>
+                        <option value="week">本周</option>
+                        <option value="month">本月</option>
+                    </select>
+                    <button id="filter-btn" class="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 transition">筛选</button>
+                </div>
+                <div class="flex space-x-2 items-center">
+                    <input type="search" id="search-input" placeholder="搜索媒体..." class="border border-gray-300 rounded-md px-3 py-2">
+                    <div class="flex items-center space-x-2">
+                        <label class="text-sm text-gray-600">视图:</label>
+                        <button id="grid-view" class="p-2 bg-indigo-100 text-indigo-600 rounded">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                            </svg>
+                        </button>
+                        <button id="list-view" class="p-2 text-gray-400 rounded hover:bg-gray-100">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Batch Operations -->
+            <div id="batch-toolbar" class="hidden mb-4 p-3 bg-blue-50 rounded-lg">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-blue-700">已选择 <span id="selected-count">0</span> 个文件</span>
+                    <div class="space-x-2">
+                        <button id="select-all" class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">全选</button>
+                        <button id="clear-selection" class="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700">取消选择</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Media Grid -->
+            <div id="media-container">
+                <div id="media-grid" class="media-grid">
+                    {% if media_items %}
+                        {% for media in media_items %}
+                        <div class="media-item border rounded-lg overflow-hidden bg-white hover:shadow-md transition cursor-pointer" data-id="{{ media.id }}" data-type="{{ media.file_type }}">
+                            <div class="relative">
+                                <input type="checkbox" class="media-checkbox absolute top-2 left-2 z-10" value="{{ media.id }}">
+                                {% if media.file_type == 'image' %}
+                                    <img src="{{ media.filepath }}" alt="{{ media.title or media.filename }}" class="w-full h-32 object-cover" loading="lazy">
+                                {% elif media.file_type == 'video' %}
+                                    <div class="w-full h-32 bg-gray-100 flex items-center justify-center">
+                                        <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M2 6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM8 9a1 1 0 000 2h4a1 1 0 100-2H8z" />
+                                        </svg>
+                                    </div>
+                                {% elif media.file_type == 'audio' %}
+                                    <div class="w-full h-32 bg-gray-100 flex items-center justify-center">
+                                        <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM15.657 6.343a1 1 0 011.414 0A9.972 9.972 0 0119 12a9.972 9.972 0 01-1.929 5.657 1 1 0 11-1.414-1.414A7.971 7.971 0 0017 12a7.971 7.971 0 00-1.343-4.243 1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                {% else %}
+                                    <div class="w-full h-32 bg-gray-100 flex items-center justify-center">
+                                        <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="p-3">
+                                <p class="text-sm font-medium truncate" title="{{ media.title or media.filename }}">{{ media.title or media.filename }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ media.uploaded_at.strftime('%Y-%m-%d') }}</p>
+                                <div class="flex items-center justify-between mt-2">
+                                    <span class="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">{{ media.file_type }}</span>
+                                    <button class="text-xs text-indigo-600 hover:text-indigo-800" onclick="showMediaDetails({{ media.id }})">详情</button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-span-full text-center py-12">
+                            <svg class="mx-auto h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <h3 class="mt-4 text-lg font-medium text-gray-900">暂无媒体文件</h3>
+                            <p class="mt-2 text-gray-500">开始上传一些文件来填充您的媒体库。</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="mt-6 flex items-center justify-between">
+                <div class="text-sm text-gray-500">
+                    显示 1-{{ media_items|length }} 共 {{ media_items|length }} 项
+                </div>
+                <div class="flex space-x-2">
+                    <!-- Pagination buttons would go here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Media Details Modal -->
+    <div id="media-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">媒体详情</h3>
+                <button onclick="closeModal('media-modal')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="media-details-content">
+                <!-- 媒体详情内容将动态加载 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Progress Modal -->
+    <div id="upload-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">文件上传</h3>
+                <button onclick="closeModal('upload-modal')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="upload-progress">
+                <!-- 上传进度内容 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let selectedFiles = new Set();
+        let currentView = 'grid';
+        
+        // DOM 元素
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        const batchToolbar = document.getElementById('batch-toolbar');
+        const selectedCount = document.getElementById('selected-count');
+        const batchDeleteBtn = document.getElementById('batch-delete-btn');
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeEventListeners();
+            updateBatchToolbar();
+        });
+        
+        function initializeEventListeners() {
+            // 文件上传事件
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('dragleave', handleDragLeave);
+            uploadArea.addEventListener('drop', handleDrop);
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // 媒体选择事件
+            document.addEventListener('change', function(e) {
+                if (e.target.classList.contains('media-checkbox')) {
+                    handleMediaSelect(e);
+                }
+            });
+            
+            // 批量操作事件
+            document.getElementById('select-all').addEventListener('click', selectAllMedia);
+            document.getElementById('clear-selection').addEventListener('click', clearSelection);
+            batchDeleteBtn.addEventListener('click', deleteSelectedMedia);
+            
+            // 筛选事件
+            document.getElementById('filter-btn').addEventListener('click', applyFilters);
+            document.getElementById('search-input').addEventListener('input', debounce(searchMedia, 300));
+            
+            // 视图切换
+            document.getElementById('grid-view').addEventListener('click', () => switchView('grid'));
+            document.getElementById('list-view').addEventListener('click', () => switchView('list'));
+        }
+        
+        // 文件上传功能
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+        
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            uploadFiles(files);
+        }
+        
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            uploadFiles(files);
+        }
+        
+        async function uploadFiles(files) {
+            if (files.length === 0) return;
+            
+            showModal('upload-modal');
+            const progressContainer = document.getElementById('upload-progress');
+            progressContainer.innerHTML = '';
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                await uploadSingleFile(file, progressContainer);
+            }
+            
+            // 上传完成后刷新页面
+            setTimeout(() => {
+                closeModal('upload-modal');
+                location.reload();
+            }, 1000);
+        }
+        
+        async function uploadSingleFile(file, container) {
+            const progressItem = document.createElement('div');
+            progressItem.className = 'mb-4 p-3 border rounded';
+            progressItem.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium">${file.name}</span>
+                    <span class="text-xs text-gray-500">${formatFileSize(file.size)}</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">制备上传...</div>
+            `;
+            container.appendChild(progressItem);
+            
+            const progressBar = progressItem.querySelector('.bg-indigo-600');
+            const statusText = progressItem.querySelector('.text-xs');
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('auto_process', 'true');
+                formData.append('generate_thumbnails', 'true');
+                
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        progressBar.style.width = percentComplete + '%';
+                        statusText.textContent = `上传中... ${Math.round(percentComplete)}%`;
+                    }
+                });
+                
+                xhr.addEventListener('load', () => {
+                    if (xhr.status === 200) {
+                        progressBar.style.width = '100%';
+                        statusText.textContent = '上传成功';
+                        statusText.className = 'text-xs text-green-600 mt-1';
+                    } else {
+                        statusText.textContent = '上传失败';
+                        statusText.className = 'text-xs text-red-600 mt-1';
+                    }
+                });
+                
+                xhr.addEventListener('error', () => {
+                    statusText.textContent = '上传错误';
+                    statusText.className = 'text-xs text-red-600 mt-1';
+                });
+                
+                xhr.open('POST', '/media/upload');
+                xhr.send(formData);
+                
+            } catch (error) {
+                statusText.textContent = '上传失败: ' + error.message;
+                statusText.className = 'text-xs text-red-600 mt-1';
+            }
+        }
+        
+        // 媒体选择功能
+        function handleMediaSelect(e) {
+            const mediaId = e.target.value;
+            const mediaItem = e.target.closest('.media-item');
+            
+            if (e.target.checked) {
+                selectedFiles.add(mediaId);
+                mediaItem.classList.add('selected');
+            } else {
+                selectedFiles.delete(mediaId);
+                mediaItem.classList.remove('selected');
+            }
+            
+            updateBatchToolbar();
+        }
+        
+        function selectAllMedia() {
+            const checkboxes = document.querySelectorAll('.media-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+                const mediaItem = checkbox.closest('.media-item');
+                mediaItem.classList.add('selected');
+                selectedFiles.add(checkbox.value);
+            });
+            updateBatchToolbar();
+        }
+        
+        function clearSelection() {
+            selectedFiles.clear();
+            const checkboxes = document.querySelectorAll('.media-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+                const mediaItem = checkbox.closest('.media-item');
+                mediaItem.classList.remove('selected');
+            });
+            updateBatchToolbar();
+        }
+        
+        function updateBatchToolbar() {
+            selectedCount.textContent = selectedFiles.size;
+            
+            if (selectedFiles.size > 0) {
+                batchToolbar.classList.remove('hidden');
+                batchDeleteBtn.disabled = false;
+            } else {
+                batchToolbar.classList.add('hidden');
+                batchDeleteBtn.disabled = true;
+            }
+        }
+        
+        // 批量删除
+        async function deleteSelectedMedia() {
+            if (selectedFiles.size === 0) return;
+            
+            if (!confirm(`确定要删除选中的 ${selectedFiles.size} 个文件吗？此操作不可恢复。`)) {
+                return;
+            }
+            
+            try {
+                for (const mediaId of selectedFiles) {
+                    await fetch(`/media/${mediaId}`, {
+                        method: 'DELETE'
+                    });
+                }
+                
+                // 刷新页面
+                location.reload();
+            } catch (error) {
+                alert('删除失败：' + error.message);
+            }
+        }
+        
+        // 筛选功能
+        function applyFilters() {
+            const typeFilter = document.getElementById('type-filter').value;
+            const dateFilter = document.getElementById('date-filter').value;
+            const searchTerm = document.getElementById('search-input').value;
+            
+            // 这里可以实现筛选逻辑
+            // 暂时使用前端筛选，实际项目中应该使用后端 API
+            filterMediaItems(typeFilter, dateFilter, searchTerm);
+        }
+        
+        function searchMedia() {
+            const searchTerm = document.getElementById('search-input').value;
+            filterMediaItems('', '', searchTerm);
+        }
+        
+        function filterMediaItems(type, date, search) {
+            const mediaItems = document.querySelectorAll('.media-item');
+            
+            mediaItems.forEach(item => {
+                let show = true;
+                
+                // 类型筛选
+                if (type && item.dataset.type !== type) {
+                    show = false;
+                }
+                
+                // 搜索筛选
+                if (search) {
+                    const title = item.querySelector('p').textContent.toLowerCase();
+                    if (!title.includes(search.toLowerCase())) {
+                        show = false;
+                    }
+                }
+                
+                item.style.display = show ? 'block' : 'none';
+            });
+        }
+        
+        // 视图切换
+        function switchView(view) {
+            currentView = view;
+            const gridBtn = document.getElementById('grid-view');
+            const listBtn = document.getElementById('list-view');
+            const mediaGrid = document.getElementById('media-grid');
+            
+            if (view === 'grid') {
+                gridBtn.classList.add('bg-indigo-100', 'text-indigo-600');
+                gridBtn.classList.remove('text-gray-400');
+                listBtn.classList.add('text-gray-400');
+                listBtn.classList.remove('bg-indigo-100', 'text-indigo-600');
+                mediaGrid.className = 'media-grid';
+            } else {
+                listBtn.classList.add('bg-indigo-100', 'text-indigo-600');
+                listBtn.classList.remove('text-gray-400');
+                gridBtn.classList.add('text-gray-400');
+                gridBtn.classList.remove('bg-indigo-100', 'text-indigo-600');
+                mediaGrid.className = 'space-y-2';
+            }
+        }
+        
+        // 媒体详情
+        async function showMediaDetails(mediaId) {
+            try {
+                const response = await fetch(`/media/${mediaId}`);
+                const media = await response.json();
+                
+                const detailsContent = document.getElementById('media-details-content');
+                detailsContent.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            ${media.file_type === 'image' ? 
+                                `<img src="${media.filepath}" alt="${media.title}" class="w-full rounded-lg">` :
+                                `<div class="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center">
+                                    <span class="text-gray-500">${media.filename}</span>
+                                </div>`
+                            }
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-4">文件信息</h4>
+                            <dl class="space-y-2 text-sm">
+                                <dt class="font-medium">文件名:</dt>
+                                <dd class="text-gray-600">${media.filename}</dd>
+                                <dt class="font-medium">标题:</dt>
+                                <dd class="text-gray-600">${media.title || '无'}</dd>
+                                <dt class="font-medium">类型:</dt>
+                                <dd class="text-gray-600">${media.file_type}</dd>
+                                <dt class="font-medium">上传时间:</dt>
+                                <dd class="text-gray-600">${new Date(media.uploaded_at).toLocaleString()}</dd>
+                            </dl>
+                            <div class="mt-6 space-y-2">
+                                <button onclick="editMedia(${media.id})" class="w-full px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">编辑</button>
+                                <button onclick="deleteMedia(${media.id})" class="w-full px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">删除</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                showModal('media-modal');
+            } catch (error) {
+                alert('加载媒体详情失败：' + error.message);
+            }
+        }
+        
+        // 媒体编辑
+        async function editMedia(mediaId) {
+            // 实现媒体编辑功能
+            alert('媒体编辑功能待实现');
+        }
+        
+        // 单个媒体删除
+        async function deleteMedia(mediaId) {
+            if (!confirm('确定要删除这个文件吗？此操作不可恢复。')) {
+                return;
+            }
+            
+            try {
+                await fetch(`/media/${mediaId}`, {
+                    method: 'DELETE'
+                });
+                
+                closeModal('media-modal');
+                location.reload();
+            } catch (error) {
+                alert('删除失败：' + error.message);
+            }
+        }
+        
+        // 工具函数
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+    </script>
+</body>
+</html>

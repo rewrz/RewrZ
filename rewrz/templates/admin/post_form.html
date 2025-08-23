@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>编辑文章 - RewrZ 管理后台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <!-- Toast UI Editor -->
+    <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" />
+    <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-gray-800 text-white p-4 space-y-6">
+        <div class="text-2xl font-bold mb-6">RewrZ Admin</div>
+        <nav>
+            <a href="{{ request.state.admin_path }}/dashboard" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">仪表盘</a>
+            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 bg-gray-700">文章管理</a>
+            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">页面管理</a>
+            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">分类管理</a>
+            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">标签管理</a>
+            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">评论管理</a>
+            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">媒体库</a>
+            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">设置</a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 p-10">
+        <header class="flex justify-between items-center pb-6 border-b border-gray-200 mb-6">
+            <h1 class="text-3xl font-semibold text-gray-800">{% if post %}编辑文章{% else %}新建文章{% endif %}</h1>
+            <div class="flex items-center space-x-4">
+                {% if post %}
+                <button onclick="window.open('/api/v1/posts/{{ post.id }}/snapshots', '_blank')" 
+                        class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition" title="查看版本快照">
+                    <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    历史快照
+                </button>
+                {% endif %}
+                <button type="submit" form="post-form" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                    {% if post %}更新{% else %}发布{% endif %}
+                </button>
+            </div>
+        </header>
+
+        <form id="post-form" hx-post="{% if post %}{{ request.state.admin_path }}/posts/{{ post.id }}{% else %}{{ request.state.admin_path }}/posts/new{% endif %}" hx-target="#admin-content" hx-swap="outerHTML" class="space-y-6">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+            {% if post %}
+            <input type="hidden" name="_method" value="PUT">
+            {% endif %}
+            <div class="grid grid-cols-12 gap-6">
+                <!-- Main Editor -->
+                <div class="col-span-9">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="mb-4">
+                            <label for="title" class="block text-sm font-medium text-gray-700">标题</label>
+                            <input type="text" id="title" name="title" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        </div>
+                        <div id="editor"></div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="col-span-3">
+                    <div class="bg-white p-6 rounded-lg shadow-md space-y-6">
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">URL 别名 (Slug)</h3>
+                            <input type="text" name="slug" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">特色图片</h3>
+                            <button class="w-full py-2 border-dashed border-2 border-gray-300 rounded-md hover:bg-gray-50">上传图片</button>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">摘要</h3>
+                            <textarea name="excerpt" rows="4" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></textarea>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">内容格式</h3>
+                            <div class="space-y-2">
+                                {% for format in formats %}
+                                <label class="inline-flex items-center">
+                                    <input type="checkbox" name="formats" value="{{ format.id }}" class="form-checkbox">
+                                    <span class="ml-2 text-gray-700">{{ format.name }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">版权声明</h3>
+                            <select name="license_type" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                {{ (post.license_type if post else 'cc_by_nc_sa_4') | license_options | safe }}
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">选择适合的版权协议保护您的作品</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const editor = new toastui.Editor({
+            el: document.querySelector('#editor'),
+            height: '600px',
+            initialEditType: 'markdown',
+            previewStyle: 'vertical'
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!-- Step 3: Admin Account Setup -->
+<div class="text-center mb-6">
+    <h2 class="text-2xl font-bold text-gray-900 mb-2">创建管理员账户</h2>
+    <p class="text-gray-600">设置您的博客管理员账户信息</p>
+</div>
+
+<form id="admin-form" class="space-y-6 mb-8">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    
+    <!-- 账户信息 -->
+    <div class="bg-gray-50 rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+            <i class="fas fa-user-shield text-gray-600 mr-2"></i>
+            账户信息
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
+                    用户名 <span class="text-red-500">*</span>
+                </label>
+                <input type="text" 
+                       id="username" 
+                       name="username" 
+                       required 
+                       pattern="[a-zA-Z0-9_]{3,20}"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                       placeholder="输入管理员用户名">
+                <p class="text-xs text-gray-500 mt-1">3-20个字符，只能包含字母、数字和下划线</p>
+            </div>
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+                    邮箱地址 <span class="text-red-500">*</span>
+                </label>
+                <input type="email" 
+                       id="email" 
+                       name="email" 
+                       required 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                       placeholder="输入邮箱地址">
+                <p class="text-xs text-gray-500 mt-1">用于登录和接收系统通知</p>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+                    密码 <span class="text-red-500">*</span>
+                </label>
+                <input type="password" 
+                       id="password" 
+                       name="password" 
+                       required 
+                       minlength="8"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                       placeholder="输入密码">
+                <p class="text-xs text-gray-500 mt-1">至少8个字符，建议包含数字和特殊字符</p>
+            </div>
+            <div>
+                <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-1">
+                    确认密码 <span class="text-red-500">*</span>
+                </label>
+                <input type="password" 
+                       id="confirm_password" 
+                       name="confirm_password" 
+                       required 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                       placeholder="再次输入密码">
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <label for="display_name" class="block text-sm font-medium text-gray-700 mb-1">
+                显示名称
+            </label>
+            <input type="text" 
+                   id="display_name" 
+                   name="display_name" 
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                   placeholder="输入显示名称（可选）">
+            <p class="text-xs text-gray-500 mt-1">在博客中显示的名称，留空则使用用户名</p>
+        </div>
+    </div>
+    
+    <!-- 权限说明 -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h4 class="font-semibold text-blue-800 mb-2">
+            <i class="fas fa-info-circle mr-2"></i>
+            超级管理员权限
+        </h4>
+        <ul class="text-blue-700 text-sm space-y-1">
+            <li>• 完全访问管理后台所有功能</li>
+            <li>• 管理文章、页面、分类、标签</li>
+            <li>• 配置系统设置和主题</li>
+            <li>• 管理用户和权限（如有多用户）</li>
+            <li>• 查看系统日志和统计信息</li>
+        </ul>
+    </div>
+</form>
+
+<div id="create-admin-results" class="mb-6">
+    <!-- 创建结果将在这里显示 -->
+</div>
+
+<div class="flex justify-between">
+    <button type="button" 
+            class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            hx-get="/installer/step/2"
+            hx-target="#installation-content"
+            hx-swap="innerHTML">
+        <i class="fas fa-arrow-left mr-2"></i>上一步
+    </button>
+    <button id="create-admin-btn" 
+            type="button" 
+            class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+        <i class="fas fa-user-plus mr-2"></i>创建管理员
+    </button>
+    <button id="next-step-btn" 
+            type="button" 
+            class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg cursor-not-allowed" 
+            disabled>
+        下一步<i class="fas fa-arrow-right ml-2"></i>
+    </button>
+</div>
+
+<script>
+    // 更新步骤指示器
+    updateStepIndicator(3);
+    
+    // 密码确认验证
+    document.getElementById('confirm_password').addEventListener('input', function() {
+        const password = document.getElementById('password').value;
+        const confirmPassword = this.value;
+        
+        if (password !== confirmPassword) {
+            this.setCustomValidity('密码不匹配');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+    
+    // 创建管理员按钮事件
+    document.getElementById('create-admin-btn').addEventListener('click', function() {
+        const form = document.getElementById('admin-form');
+        const button = this;
+        const nextBtn = document.getElementById('next-step-btn');
+        const resultsContainer = document.getElementById('create-admin-results');
+        
+        // 表单验证
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        // 密码匹配检查
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        if (password !== confirmPassword) {
+            resultsContainer.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-times-circle text-red-600 text-lg mr-3"></i>
+                        <span class="font-semibold text-red-800">密码不匹配</span>
+                    </div>
+                    <p class="text-red-700 text-sm mt-2">请确保两次输入的密码相同。</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // 禁用按钮并显示加载状态
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>创建中...';
+        
+        // 显示进度信息
+        resultsContainer.innerHTML = `
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
+                    <span class="text-blue-800 font-medium">正在创建管理员账户...</span>
+                </div>
+            </div>
+        `;
+        
+        // 准备表单数据
+        const formData = new FormData(form);
+        
+        // 发送创建请求
+        fetch('/installer/create-admin', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                resultsContainer.innerHTML = `
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-check-circle text-green-600 text-lg mr-3"></i>
+                            <span class="font-semibold text-green-800">管理员账户创建成功！</span>
+                        </div>
+                        <p class="text-green-700 text-sm mt-2">${data.message}</p>
+                        <div class="mt-3 space-y-1 text-sm text-green-700">
+                            <div class="flex items-center">
+                                <i class="fas fa-check text-green-500 mr-2"></i>
+                                用户名: ${formData.get('username')}
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-check text-green-500 mr-2"></i>
+                                权限: 超级管理员
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-check text-green-500 mr-2"></i>
+                                账户状态: 已激活
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // 启用下一步按钮
+                nextBtn.disabled = false;
+                nextBtn.className = 'px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors';
+                nextBtn.setAttribute('hx-get', '/installer/step/4');
+                nextBtn.setAttribute('hx-target', '#installation-content');
+                nextBtn.setAttribute('hx-swap', 'innerHTML');
+                
+                // 隐藏创建按钮
+                button.style.display = 'none';
+                
+                // 禁用表单
+                const inputs = form.querySelectorAll('input');
+                inputs.forEach(input => input.disabled = true);
+            } else {
+                resultsContainer.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-times-circle text-red-600 text-lg mr-3"></i>
+                            <span class="font-semibold text-red-800">创建失败</span>
+                        </div>
+                        <p class="text-red-700 text-sm mt-2">${data.error}</p>
+                    </div>
+                `;
+                
+                // 重新启用按钮
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-user-plus mr-2"></i>重新创建';
+            }
+        })
+        .catch(error => {
+            console.error('创建管理员失败:', error);
+            resultsContainer.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-times-circle text-red-600 text-lg mr-3"></i>
+                        <span class="font-semibold text-red-800">网络错误</span>
+                    </div>
+                    <p class="text-red-700 text-sm mt-2">无法连接到服务器，请检查网络连接。</p>
+                </div>
+            `;
+            
+            // 重新启用按钮
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-user-plus mr-2"></i>重新创建';
+        });
+    });
+</script>

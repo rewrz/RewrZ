@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ site_title }}{% if tagline %} - {{ tagline }}{% endif %}{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="{% block meta_description %}{{ tagline if tagline else site_title }}{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}{{ title if title else site_title }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ tagline if tagline else site_title }}{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    {% if featured_image_url %}<meta property="og:image" content="{{ featured_image_url }}">{% endif %}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}{{ title if title else site_title }}{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}{{ tagline if tagline else site_title }}{% endblock %}">
+    {% if featured_image_url %}<meta name="twitter:image" content="{{ featured_image_url }}">{% endif %}
+    {% if noindex_site %}<meta name="robots" content="noindex, nofollow">{% endif %}
+    {% block head %}{% endblock %}
+    <!-- highlight.js for code highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- 动态主题CSS变量 -->
+    <link rel="stylesheet" href="/api/theme/variables.css">
+    
+    <style>
+        /* 基础样式和CSS变量应用 */
+        .bg-primary { background-color: var(--color-primary); }
+        .text-primary { color: var(--color-primary); }
+        .border-primary { border-color: var(--color-primary); }
+        .bg-background { background-color: var(--color-background); }
+        .text-text { color: var(--color-text); }
+        .text-text-light { color: var(--color-text-light); }
+        .border-border { border-color: var(--color-border); }
+        .bg-card-bg { background-color: var(--color-card-bg); }
+        
+        /* 过渡动画 */
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        /* 氛围主题样式 */
+        .atmosphere-festive {
+            position: relative;
+        }
+        
+        .atmosphere-festive::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, rgba(239, 68, 68, 0.05) 0%, rgba(251, 191, 36, 0.05) 100%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .atmosphere-memorial {
+            filter: saturate(0.3);
+        }
+        
+        .atmosphere-memorial * {
+            transition: filter 0.5s ease;
+        }
+        
+        .atmosphere-celebration {
+            position: relative;
+        }
+        
+        .atmosphere-celebration::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        /* 响应式主题切换按钮 */
+        .theme-toggle {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .theme-toggle .light-icon,
+        .theme-toggle .dark-icon {
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        
+        .dark .theme-toggle .light-icon {
+            transform: rotate(180deg);
+            opacity: 0;
+        }
+        
+        .dark .theme-toggle .dark-icon {
+            transform: rotate(0deg);
+            opacity: 1;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        :not(.dark) .theme-toggle .dark-icon {
+            transform: rotate(-180deg);
+            opacity: 0;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-180deg);
+        }
+        
+        /* 版权声明样式 */
+        .article-license {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-left: 4px solid #6c757d;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .license-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .license-header i::before {
+            content: '©';
+            margin-right: 0.5rem;
+            font-size: 1.1em;
+        }
+        
+        .license-content {
+            color: #6c757d;
+            line-height: 1.6;
+        }
+        
+        .license-content p {
+            margin: 0.5rem 0;
+        }
+        
+        .license-icon {
+            margin-right: 1rem;
+            vertical-align: middle;
+            max-height: 31px;
+        }
+        
+        .license-content a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        
+        .license-content a:hover {
+            text-decoration: underline;
+        }
+        
+        /* 打赏组件样式 */
+        .donation-widget {
+            margin: 2rem 0;
+            text-align: center;
+        }
+        
+        /* 优雅风格 */
+        .donation-widget.elegant-style {
+            background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 50%, #fff5f5 100%);
+            border: 2px solid #fed7d7;
+            border-radius: 16px;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .donation-widget.elegant-style::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 192, 203, 0.1) 0%, transparent 70%);
+            animation: gentle-pulse 4s ease-in-out infinite;
+        }
+        
+        @keyframes gentle-pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        .donation-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .heart-icon {
+            width: 24px;
+            height: 24px;
+            fill: #e53e3e;
+            margin-right: 0.5rem;
+            animation: heart-beat 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes heart-beat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .donation-title {
+            margin: 0;
+            color: #2d3748;
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+        
+        .donation-description {
+            color: #4a5568;
+            margin-bottom: 1.5rem;
+            font-style: italic;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .donation-methods {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .donation-qr {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .qr-code {
+            width: 120px;
+            height: 120px;
+            border: 3px solid #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .qr-code:hover {
+            transform: scale(1.05);
+        }
+        
+        .qr-hint {
+            margin-top: 0.5rem;
+            font-size: 0.9em;
+            color: #718096;
+        }
+        
+        .donation-button {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+        }
+        
+        .donation-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(229, 62, 62, 0.4);
+            text-decoration: none;
+            color: white;
+        }
+        
+        /* 简洁风格 */
+        .donation-widget.minimal-style {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+        
+        .minimal-style .donation-title {
+            font-size: 1.1em;
+            color: #2d3748;
+            margin-bottom: 1rem;
+        }
+        
+        .minimal-style .qr-code {
+            width: 100px;
+            height: 100px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .minimal-style .donation-button {
+            background: #4299e1;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+        
+        .minimal-style .donation-button:hover {
+            background: #3182ce;
+        }
+        
+        /* 卡片风格 */
+        .donation-widget.card-style {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .donation-card {
+            padding: 0;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .card-header .donation-title {
+            color: white;
+            margin-bottom: 0.5rem;
+        }
+        
+        .card-header .donation-description {
+            color: rgba(255, 255, 255, 0.9);
+            margin: 0;
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        .card-style .qr-code {
+            width: 100px;
+            height: 100px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .card-style .donation-button {
+            background: #667eea;
+            border-radius: 8px;
+        }
+        
+        .card-style .donation-button:hover {
+            background: #5a67d8;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .donation-widget.elegant-style {
+                padding: 1.5rem;
+                margin: 1.5rem 0;
+            }
+            
+            .qr-code {
+                width: 100px;
+                height: 100px;
+            }
+            
+            .donation-title {
+                font-size: 1.1em;
+            }
+        }
+    </style>
+</head>
+<body class="bg-background text-text {{ atmosphere_class if atmosphere_class else '' }}">
+    <script>
+        // 动态主题系统
+        let currentThemeConfig = null;
+        let atmosphereClass = '';
+        
+        // 加载服务器端主题配置
+        async function loadThemeConfig() {
+            try {
+                const response = await fetch('/api/theme/current');
+                const config = await response.json();
+                currentThemeConfig = config;
+                atmosphereClass = config.atmosphere_class || '';
+                
+                // 应用主题配置
+                applyThemeConfig(config);
+                
+                // 应用氛围主题
+                applyAtmosphere(config.atmosphere_class);
+                
+            } catch (error) {
+                console.error('加载主题配置失败:', error);
+            }
+        }
+        
+        // 应用主题配置
+        function applyThemeConfig(config) {
+            const root = document.documentElement;
+            
+            // 应用CSS变量
+            Object.entries(config.variables).forEach(([name, value]) => {
+                root.style.setProperty(name, value);
+            });
+            
+            // 保存当前主题
+            localStorage.setItem('current_theme', config.theme);
+            if (config.atmosphere) {
+                localStorage.setItem('current_atmosphere', config.atmosphere);
+            } else {
+                localStorage.removeItem('current_atmosphere');
+            }
+        }
+        
+        // 应用氛围主题
+        function applyAtmosphere(className) {
+            const body = document.body;
+            
+            // 清除之前的氛围类
+            body.className = body.className.replace(/atmosphere-\w+/g, '');
+            
+            // 添加新的氛围类
+            if (className) {
+                body.classList.add(className);
+            }
+        }
+        
+        // 主题切换逻辑（保留用户手动切换功能）
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('user_theme_preference', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('user_theme_preference', 'light');
+            }
+        }
+
+        // 检查用户偏好，然后系统偏好
+        function initializeTheme() {
+            const savedUserTheme = localStorage.getItem('user_theme_preference');
+            if (savedUserTheme) {
+                applyTheme(savedUserTheme);
+            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                applyTheme('dark');
+            } else {
+                applyTheme('light');
+            }
+        }
+
+        // 初始化高亮显示
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 初始化用户主题偏好
+            initializeTheme();
+            
+            // 加载服务器端主题配置
+            await loadThemeConfig();
+            
+            // 初始化代码高亮
+            hljs.highlightAll();
+        });
+
+        // 重新高亮通过HTMX加载的内容
+        document.body.addEventListener('htmx:afterSwap', function(event) {
+            if (event.detail.target) {
+                event.detail.target.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+            } else {
+                hljs.highlightAll();
+            }
+        });
+
+        // 主题切换函数（用户手动切换）
+        function toggleTheme() {
+            const currentTheme = localStorage.getItem('user_theme_preference');
+            applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+        }
+        
+        // 定期检查主题更新（每5分钟）
+        setInterval(loadThemeConfig, 5 * 60 * 1000);
+    </script>
+    <header class="bg-card-bg shadow-sm">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="/" class="text-2xl font-bold text-primary">RewrZ</a>
+            <nav class="space-x-4 flex items-center">
+                <a href="/" class="text-text-light hover:text-primary">首页</a>
+                <a href="/archives" class="text-text-light hover:text-primary">归档</a>
+                <a href="/formats/photo-album" class="text-text-light hover:text-primary">相册</a>
+                <a href="/formats/micro-post" class="text-text-light hover:text-primary">微博</a>
+                <a href="/about" class="text-text-light hover:text-primary">关于</a>
+                
+                <!-- 快速搜索 -->
+                <div class="relative hidden md:block">
+                    <form action="/search" method="GET" class="flex items-center">
+                        <input type="text" 
+                               name="q" 
+                               placeholder="搜索..." 
+                               class="px-3 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary bg-card-bg text-text"
+                               style="width: 150px;">
+                        <button type="submit" class="ml-1 p-1 text-text-light hover:text-primary">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+                
+                <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none theme-toggle" title="切换主题">
+                    <svg class="w-6 h-6 text-text-light light-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                    <svg class="w-6 h-6 text-yellow-300 dark-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                    </svg>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bg-card-bg mt-12 py-6 border-t border-border">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="text-center md:text-left text-text-light mb-4 md:mb-0">
+                    <p>&copy; {{"now"|date("Y")}} RewrZ. All rights reserved.</p>
+                    <p class="text-sm mt-1">Powered by FastAPI, HTMX, and Tailwind CSS.</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/feed.xml" class="text-text-light hover:text-primary" title="RSS订阅">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3.429 2.429c0.377 0 0.682 0.305 0.682 0.682s-0.305 0.682-0.682 0.682-0.682-0.305-0.682-0.682 0.305-0.682 0.682-0.682zM3.429 1.714c-0.754 0-1.365 0.611-1.365 1.365s0.611 1.365 1.365 1.365 1.365-0.611 1.365-1.365-0.611-1.365-1.365-1.365z"></path>
+                            <path d="M1.714 6.857c0-0.946 0.768-1.714 1.714-1.714s1.714 0.768 1.714 1.714-0.768 1.714-1.714 1.714-1.714-0.768-1.714-1.714zM3.429 5.857c-0.553 0-1 0.447-1 1s0.447 1 1 1 1-0.447 1-1-0.447-1-1-1z"></path>
+                            <path d="M1.714 14.857c6.446 0 11.714-5.268 11.714-11.714h-1.714c0 5.522-4.478 10-10 10v1.714z"></path>
+                            <path d="M1.714 10.857c2.946 0 5.714-2.768 5.714-5.714h-1.714c0 2.054-1.946 4-4 4v1.714z"></path>
+                        </svg>
+                    </a>
+                    <a href="/atom.xml" class="text-text-light hover:text-primary" title="Atom订阅">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M4 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zM4 7a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 4 7zm0 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"></path>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

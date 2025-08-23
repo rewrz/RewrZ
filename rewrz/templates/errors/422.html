@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>请求验证错误 - 422 - {{ site_title }}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .error-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        .error-icon {
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container p-8 max-w-2xl w-full mx-4 text-center">
+        <div class="error-icon text-6xl mb-6 text-yellow-500">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        
+        <h1 class="text-4xl font-bold text-gray-800 mb-4">422 请求验证错误</h1>
+        
+        <p class="text-xl text-gray-600 mb-6">
+            抱歉，您的请求参数验证失败，请检查后重试。
+        </p>
+        
+        <div class="bg-gray-100 rounded-lg p-4 mb-6">
+            <p class="text-gray-600">
+                服务器无法处理您的请求，因为请求参数不符合要求。
+            </p>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row justify-center gap-4">
+            <button onclick="history.back()" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center justify-center">
+                <i class="fas fa-arrow-left mr-2"></i>
+                返回上一页
+            </button>
+            
+            <a href="/" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center justify-center">
+                <i class="fas fa-home mr-2"></i>
+                返回首页
+            </a>
+        </div>
+        
+        <p class="text-sm text-gray-500 mt-6">
+            请检查您的输入并重试。
+        </p>
+    </div>
+</body>
+</html>

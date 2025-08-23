@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户登录 - RewrZ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
+        <h2 class="text-2xl font-bold text-center mb-6">用户登录</h2>
+        <form hx-post="{{ admin_path }}/auth" hx-trigger="submit" hx-target="body" hx-swap="innerHTML">
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700">用户名</label>
+                <input type="text" id="username" name="username" required
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+            </div>
+            <div class="mt-4">
+                <label for="password" class="block text-sm font-medium text-gray-700">密码</label>
+                <input type="password" id="password" name="password" required
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+            </div>
+            <div id="login-message" class="text-red-500 text-sm mt-2"></div>
+            <button type="submit"
+                    class="mt-6 w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                登录
+            </button>
+        </form>
+    </div>
+
+    <script>
+        document.body.addEventListener('htmx:beforeSend', function(evt) {
+            // 清除之前的消息
+            document.getElementById('login-message').textContent = '';
+        });
+
+        document.body.addEventListener('htmx:responseError', function(evt) {
+            // 显示错误消息
+            if (evt.detail.xhr.status === 401) {
+                document.getElementById('login-message').textContent = '用户名或密码错误';
+            } else {
+                document.getElementById('login-message').textContent = '登录失败，请稍后重试';
+            }
+        });
+    </script>
+</body>
+</html>

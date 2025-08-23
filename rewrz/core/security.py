@@ -1,0 +1,95 @@
+from datetime import datetime, timedelta
+from typing import Optional
+import logging
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from fastapi import Depends, HTTPException, status, Request
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+import secrets # For CSRF token generation
+from starlette.responses import RedirectResponse
+
+# Configuration for JWT
+from .config import settings
+from .database import get_db  # 导入get_db函数
+
+# 静音passlib的bcrypt警告
+logging.getLogger('passlib').setLevel(logging.ERROR)
+
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+CSRF_TOKEN_LENGTH = 32 # Length of CSRF token in bytes
+
+# Password hashing context
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# OAuth2 scheme 配置（注意：实际登录端点现在是动态的，格式为 {ADMIN_PATH}/auth）
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/admin/auth")  # 这只是示例，实际使用动态路径
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+async def get_token_from_cookie(request: Request):
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    return token
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def decode_access_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        return None
+
+# Dependency to get current user (for protected routes)
+async def get_current_user(token: str = Depends(get_token_from_cookie), db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    payload = decode_access_token(token)
+    if payload is None:
+        raise credentials_exception
+    
+    user_id = payload.get("sub")
+    if user_id is None:
+        raise credentials_exception
+    
+    from ..crud import user as crud_user
+    db_user = crud_user.get_user(db, user_id=int(user_id))
+    if db_user is None:
+        raise credentials_exception
+    return db_user
+
+def generate_csrf_token() -> str:
+    """Generates a URL-safe CSRF token."""
+    return secrets.token_urlsafe(CSRF_TOKEN_LENGTH)
+
+def verify_csrf_token(request: Request, form_csrf_token: str):
+    """Verifies the CSRF token from the form against the one in the session."""
+    session_csrf_token = request.session.get("csrf_token")
+    if not session_csrf_token or not secrets.compare_digest(session_csrf_token, form_csrf_token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="CSRF token mismatch or missing."
+        )

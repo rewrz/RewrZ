@@ -1,0 +1,38 @@
+<div class="reply-form bg-gray-100 p-4 rounded-lg mt-4">
+    <h4 class="text-lg font-semibold mb-3">回复 @{{ crud_comment.get_comment(db=request.state.db, comment_id=parent_id).author_name }}</h4>
+    <form hx-post="/api/v1/comments/{{ post_id }}" hx-target="#comments-list" hx-swap="beforeend" hx-on::after-request="this.reset(); document.getElementById('comment-form-{{ parent_id }}').innerHTML = '';">
+        <input type="hidden" name="parent_id" value="{{ parent_id }}">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label for="reply_author_name_{{ parent_id }}" class="block text-sm font-medium text-gray-700">昵称 <span class="text-red-500">*</span></label>
+                <input type="text" id="reply_author_name_{{ parent_id }}" name="author_name" required
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+            </div>
+            <div>
+                <label for="reply_author_email_{{ parent_id }}" class="block text-sm font-medium text-gray-700">邮箱 <span class="text-red-500">*</span></label>
+                <input type="email" id="reply_author_email_{{ parent_id }}" name="author_email" required
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+            </div>
+        </div>
+        <div class="mb-4">
+            <label for="reply_author_url_{{ parent_id }}" class="block text-sm font-medium text-gray-700">个人网站/URL</label>
+            <input type="url" id="reply_author_url_{{ parent_id }}" name="author_url"
+                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+        </div>
+        <div class="mb-4">
+            <label for="reply_content_{{ parent_id }}" class="block text-sm font-medium text-gray-700">评论内容 <span class="text-red-500">*</span></label>
+            <textarea id="reply_content_{{ parent_id }}" name="content" rows="3" required
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></textarea>
+        </div>
+        <div class="flex justify-end space-x-2">
+            <button type="button" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                    hx-on:click="document.getElementById('comment-form-{{ parent_id }}').innerHTML = '';">
+                取消回复
+            </button>
+            <button type="submit"
+                    class="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                提交回复
+            </button>
+        </div>
+    </form>
+</div>

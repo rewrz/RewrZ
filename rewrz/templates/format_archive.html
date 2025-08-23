@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}{{ format.name }} - {{ site_title }}{% endblock %}
+
+{% block content %}
+<div class="{{ atmosphere_class }}">
+    <h1 class="text-4xl font-bold text-gray-900 mb-8">{{ format.name }}</h1>
+    <p class="text-gray-600 mb-8">格式：{{ format.name }}</p>
+
+    {% if posts %}
+    <!-- 根据格式类型使用不同的布局 -->
+    {% if format.slug == 'photo-album' %}
+    <!-- 相册格式：瀑布流布局 -->
+    <div class="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
+        {% for post in posts %}
+        <div class="break-inside-avoid bg-white rounded-lg shadow-md overflow-hidden mb-4">
+            {% if post.featured_image_url %}
+            {{ post.featured_image_url | responsive_image(post.title, "w-full h-auto", "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw", request.state.db) | safe }}
+            {% endif %}
+            <div class="p-4">
+                <h2 class="text-lg font-semibold text-gray-800 mb-2">
+                    <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
+                </h2>
+                <p class="text-gray-600 text-sm">{{ post.published_at.strftime('%Y年%m月%d日') }}</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% elif format.slug == 'micro-post' %}
+    <!-- 微博格式：信息流布局 -->
+    <div class="max-w-2xl mx-auto space-y-4">
+        {% for post in posts %}
+        <div class="bg-white p-4 rounded-lg shadow-md border-l-4 border-indigo-500">
+            <div class="flex items-center mb-3">
+                <div class="flex-1">
+                    <h3 class="text-lg font-medium text-gray-900">
+                        <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
+                    </h3>
+                    <p class="text-sm text-gray-500">{{ post.published_at.strftime('%Y年%m月%d日 %H:%M') }}</p>
+                </div>
+            </div>
+            {% if post.featured_image_url %}
+            {{ post.featured_image_url | responsive_image(post.title, "w-full max-w-sm rounded-lg mb-3", "(max-width: 768px) 100vw, 400px", request.state.db) | safe }}
+            {% endif %}
+            <div class="text-gray-700">{{ post.excerpt }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- 标准格式：网格布局 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for post in posts %}
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            {% if post.featured_image_url %}
+            {{ post.featured_image_url | responsive_image(post.title, "w-full h-48 object-cover rounded-lg mb-4", "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw", request.state.db) | safe }}
+            {% endif %}
+            <h2 class="text-xl font-semibold text-gray-800 mb-2">
+                <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
+            </h2>
+            <div class="flex items-center space-x-4 text-gray-600 text-sm mb-4">
+                <span>发布于 {{ post.published_at.strftime('%Y年%m月%d日') }}</span>
+                <span class="flex items-center">
+                    <i class="fas fa-clock mr-1"></i>
+                    {{ post.content_markdown | reading_time }}阅读
+                </span>
+                {% set stats = post.content_markdown | reading_stats(post) %}
+                <span class="flex items-center">
+                    <i class="fas fa-file-text mr-1"></i>
+                    {{ stats.word_count }}字
+                </span>
+            </div>
+            <p class="text-gray-700">{{ post.excerpt }}</p>
+            <a href="/posts/{{ post.slug }}" class="inline-block mt-4 text-indigo-600 hover:underline">阅读更多 &rarr;</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="text-center py-12">
+        <p class="text-gray-600 text-lg">此格式下暂无文章。</p>
+        <a href="/" class="inline-block mt-4 text-indigo-600 hover:underline">返回首页</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

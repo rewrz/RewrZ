@@ -1,0 +1,50 @@
+<!-- SEO Meta Tags Component -->
+<!-- 这个组件应该在页面的 <head> 标签中包含 -->
+
+<!-- 基础 Meta 标签 -->
+<meta name=\"description\" content=\"{{ seo_data.meta_data.description }}\">
+<meta name=\"keywords\" content=\"{% if seo_data.meta_data.tags %}{{ seo_data.meta_data.tags | join(', ') }}{% endif %}\">
+
+<!-- Robots Meta 标签 -->
+{% if noindex_site %}
+    <meta name=\"robots\" content=\"noindex, nofollow\">
+{% else %}
+    <meta name=\"robots\" content=\"index, follow\">
+{% endif %}
+
+<!-- Open Graph 标签 -->
+{% if seo_data.open_graph %}
+    {% for property, content in seo_data.open_graph.items() %}
+        <meta property=\"{{ property }}\" content=\"{{ content }}\">
+    {% endfor %}
+{% endif %}
+
+<!-- Twitter Cards 标签 -->
+{% if seo_data.twitter_cards %}
+    {% for name, content in seo_data.twitter_cards.items() %}
+        <meta name=\"{{ name }}\" content=\"{{ content }}\">
+    {% endfor %}
+{% endif %}
+
+<!-- Canonical URL -->
+<link rel=\"canonical\" href=\"{{ seo_data.meta_data.url }}\">
+
+<!-- 结构化数据 (JSON-LD) -->
+{% if seo_data.structured_data %}
+<script type=\"application/ld+json\">
+{{ seo_data.structured_data | tojson }}
+</script>
+{% endif %}
+
+<!-- AI爬虫阻止标记 -->
+{% if block_ai_crawlers %}
+<meta name=\"ChatGPT\" content=\"noindex\">
+<meta name=\"GPTBot\" content=\"noindex\">
+<meta name=\"Google-Extended\" content=\"noindex\">
+<meta name=\"anthropic-ai\" content=\"noindex\">
+<meta name=\"Claude-Web\" content=\"noindex\">
+<meta name=\"CCBot\" content=\"noindex\">
+{% endif %}
+
+<!-- 页面特定的额外SEO标签 -->
+{% block extra_seo_tags %}{% endblock %}

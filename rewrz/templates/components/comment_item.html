@@ -1,0 +1,59 @@
+<div class="comment-item {% if comment.is_admin_reply %}bg-blue-50{% endif %} p-4 rounded-lg border border-gray-200">
+    <div class="flex items-start space-x-3">
+        <!-- 评论者头像 -->
+        <div class="flex-shrink-0">
+            {% if avatar_url %}
+                <img class="w-10 h-10 rounded-full" 
+                     src="{{ avatar_url }}" 
+                     alt="{{ comment.author_name }}的头像"
+                     loading="lazy"
+                     onerror="this.src='/static/images/default-avatar.png'">
+            {% else %}
+                <!-- 使用Gravatar服务生成头像 -->
+                {% set gravatar_hash = comment.author_email | md5 %}
+                <img class="w-10 h-10 rounded-full" 
+                     src="https://www.gravatar.com/avatar/{{ gravatar_hash }}?s=40&d=identicon&r=g" 
+                     alt="{{ comment.author_name }}的头像"
+                     loading="lazy"
+                     onerror="this.src='/static/images/default-avatar.png'">
+            {% endif %}
+        </div>
+        
+        <!-- 评论内容 -->
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center space-x-3 mb-2">
+                <div class="font-semibold text-gray-900">
+                    {% if comment.author_url %}
+                    <a href="{{ comment.author_url }}" target="_blank" rel="nofollow noopener" class="text-indigo-600 hover:underline">{{ comment.author_name }}</a>
+                    {% else %}
+                    {{ comment.author_name }}
+                    {% endif %}
+                </div>
+                {% if comment.is_admin_reply %}
+                <span class="px-2 py-0.5 bg-indigo-600 text-white text-xs rounded-full">博主</span>
+                {% endif %}
+                <span class="text-gray-500 text-sm">{{ comment.created_at.strftime('%Y年%m月%d日 %H:%M') }}</span>
+            </div>
+            <div class="prose prose-sm prose-gray max-w-none mb-3">
+                {{ comment.content | safe }}
+            </div>
+            <div class="text-right">
+                <button class="text-indigo-600 hover:underline text-sm"
+                        hx-get="/api/v1/comments/reply_form/{{ post.id }}/{{ comment.id }}"
+                        hx-target="#comment-form-{{ comment.id }}"
+                        hx-swap="outerHTML">
+                    回复
+                </button>
+                <div id="comment-form-{{ comment.id }}" class="mt-4"></div> {# Placeholder for reply form #}
+            </div>
+        </div>
+    </div>
+
+    {% if comment.children %}
+    <div class="ml-8 mt-4 space-y-4 border-l pl-4">
+        {% for child_comment in comment.children %}
+            {% include "components/comment_item.html" with comment=child_comment %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>

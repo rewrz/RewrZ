@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RewrZ 安装向导</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+        .step {
+            display: flex;
+            align-items: center;
+            margin: 0 1rem;
+        }
+        .step-number {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.5rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .step.active .step-number {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .step.completed .step-number {
+            background-color: #10b981;
+            color: white;
+        }
+        .step.pending .step-number {
+            background-color: #e5e7eb;
+            color: #6b7280;
+        }
+        .installation-content {
+            min-height: 400px;
+        }
+        .feature-card {
+            transition: transform 0.2s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="mb-4">
+                <i class="fas fa-blog text-6xl text-indigo-600"></i>
+            </div>
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">欢迎使用 RewrZ</h1>
+            <p class="text-gray-600 text-lg">一个功能强大的个人博客系统</p>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step active">
+                <div class="step-number">1</div>
+                <span class="text-sm font-medium">环境检查</span>
+            </div>
+            <div class="step pending">
+                <div class="step-number">2</div>
+                <span class="text-sm font-medium">数据库</span>
+            </div>
+            <div class="step pending">
+                <div class="step-number">3</div>
+                <span class="text-sm font-medium">管理员</span>
+            </div>
+            <div class="step pending">
+                <div class="step-number">4</div>
+                <span class="text-sm font-medium">站点配置</span>
+            </div>
+            <div class="step pending">
+                <div class="step-number">5</div>
+                <span class="text-sm font-medium">初始内容</span>
+            </div>
+            <div class="step pending">
+                <div class="step-number">6</div>
+                <span class="text-sm font-medium">完成</span>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div id="installation-content" class="installation-content p-8">
+                    <!-- Welcome Content -->
+                    <div class="text-center mb-8">
+                        <h2 class="text-2xl font-bold text-gray-900 mb-4">开始安装 RewrZ</h2>
+                        <p class="text-gray-600">RewrZ 是一个现代化的个人博客系统，支持多重身份内容系统、动态主题、SEO优化等强大功能。</p>
+                    </div>
+
+                    <!-- Features Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                        <div class="feature-card bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg text-center">
+                            <i class="fas fa-palette text-3xl text-blue-600 mb-3"></i>
+                            <h3 class="font-semibold text-gray-900 mb-2">多重身份系统</h3>
+                            <p class="text-sm text-gray-600">支持文章、微博、相册、视频等多种内容格式</p>
+                        </div>
+                        <div class="feature-card bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg text-center">
+                            <i class="fas fa-shield-alt text-3xl text-green-600 mb-3"></i>
+                            <h3 class="font-semibold text-gray-900 mb-2">反垃圾评论</h3>
+                            <p class="text-sm text-gray-600">三层防护系统，有效阻止垃圾评论</p>
+                        </div>
+                        <div class="feature-card bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg text-center">
+                            <i class="fas fa-search text-3xl text-purple-600 mb-3"></i>
+                            <h3 class="font-semibold text-gray-900 mb-2">SEO 优化</h3>
+                            <p class="text-sm text-gray-600">自动生成sitemap、robots.txt，支持Open Graph</p>
+                        </div>
+                        <div class="feature-card bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-lg text-center">
+                            <i class="fas fa-images text-3xl text-yellow-600 mb-3"></i>
+                            <h3 class="font-semibold text-gray-900 mb-2">媒体管理</h3>
+                            <p class="text-sm text-gray-600">智能图像处理、缩略图生成、格式转换</p>
+                        </div>
+                        <div class="feature-card bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-lg text-center">
+                            <i class="fas fa-history text-3xl text-red-600 mb-3"></i>
+                            <h3 class="font-semibold text-gray-900 mb-2">版本快照</h3>
+                            <p class="text-sm text-gray-600">自动保存文章历史版本，支持版本比较和恢复</p>
+                        </div>
+                        <div class="feature-card bg-gradient-to-br from-indigo-50 to-indigo-100 p-6 rounded-lg text-center">
+                            <i class="fas fa-moon text-3xl text-indigo-600 mb-3"></i>
+                            <h3 class="font-semibold text-gray-900 mb-2">动态主题</h3>
+                            <p class="text-sm text-gray-600">支持深色模式和节日氛围主题</p>
+                        </div>
+                    </div>
+
+                    <!-- System Requirements -->
+                    <div class="bg-gray-50 rounded-lg p-6 mb-8">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                            <i class="fas fa-server text-gray-600 mr-2"></i>
+                            系统要求
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <h4 class="font-medium text-gray-800 mb-2">服务器环境</h4>
+                                <ul class="text-sm text-gray-600 space-y-1">
+                                    <li><i class="fas fa-check text-green-500 mr-2"></i>Python 3.8+</li>
+                                    <li><i class="fas fa-check text-green-500 mr-2"></i>FastAPI 框架</li>
+                                    <li><i class="fas fa-check text-green-500 mr-2"></i>SQLite 数据库</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h4 class="font-medium text-gray-800 mb-2">文件权限</h4>
+                                <ul class="text-sm text-gray-600 space-y-1">
+                                    <li><i class="fas fa-check text-green-500 mr-2"></i>当前目录可写</li>
+                                    <li><i class="fas fa-check text-green-500 mr-2"></i>媒体目录可创建</li>
+                                    <li><i class="fas fa-check text-green-500 mr-2"></i>数据目录可创建</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="text-center">
+                        <button id="start-installation" 
+                                class="px-8 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+                                hx-get="/installer/step/1"
+                                hx-target="#installation-content"
+                                hx-swap="innerHTML">
+                            <i class="fas fa-rocket mr-2"></i>
+                            开始安装
+                        </button>
+                        <div class="mt-4">
+                            <a href="https://github.com/RewrZ/RewrZ" class="text-sm text-gray-500 hover:text-gray-700" target="_blank">
+                                <i class="fab fa-github mr-1"></i>
+                                查看项目文档
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-gray-500 text-sm">
+            <p>&copy; 2024 RewrZ. Powered by FastAPI, HTMX, and Tailwind CSS.</p>
+        </div>
+    </div>
+
+    <script>
+        // 步骤管理
+        function updateStepIndicator(currentStep) {
+            const steps = document.querySelectorAll('.step');
+            steps.forEach((step, index) => {
+                const stepNumber = index + 1;
+                step.classList.remove('active', 'completed', 'pending');
+                
+                if (stepNumber < currentStep) {
+                    step.classList.add('completed');
+                } else if (stepNumber === currentStep) {
+                    step.classList.add('active');
+                } else {
+                    step.classList.add('pending');
+                }
+            });
+        }
+
+        // HTMX 事件监听
+        document.body.addEventListener('htmx:beforeRequest', function(evt) {
+            const button = evt.detail.elt;
+            if (button.tagName === 'BUTTON') {
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>处理中...';
+            }
+        });
+
+        document.body.addEventListener('htmx:afterRequest', function(evt) {
+            const button = evt.detail.elt;
+            if (button.tagName === 'BUTTON') {
+                button.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

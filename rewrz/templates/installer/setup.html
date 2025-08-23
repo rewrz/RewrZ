@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安装向导 - RewrZ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-2xl">
+        <h2 class="text-3xl font-bold text-center mb-6">RewrZ 安装向导</h2>
+        
+        <div id="installer-steps" class="space-y-6">
+            <!-- Step 1: Welcome & Environment Check -->
+            <div id="step-welcome">
+                <h3 class="text-xl font-semibold mb-4">欢迎使用 RewrZ！</h3>
+                <p class="mb-4">本向导将帮助您完成 RewrZ 博客系统的初始化设置。</p>
+                <h4 class="text-lg font-medium mb-2">环境检查：</h4>
+                <ul class="list-disc list-inside mb-4">
+                    <li>媒体上传目录权限：<span class="text-green-600">可写</span> (假设)</li>
+                    <li>数据库文件路径：<span class="text-green-600">./rewrz.db</span> (SQLite)</li>
+                </ul>
+                <button hx-get="#step-admin-setup" hx-swap="outerHTML" class="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                    开始设置
+                </button>
+            </div>
+
+            <!-- Step 2: Admin Account & Site Info Setup (Loaded via HTMX) -->
+            <div id="step-admin-setup" hx-swap-oob="true">
+                <h3 class="text-xl font-semibold mb-4">管理员账户与站点信息</h3>
+                <form hx-post="/installer/setup" hx-trigger="submit" hx-target="#installer-steps" hx-swap="outerHTML" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-gray-700">管理员用户名</label>
+                        <input type="text" id="username" name="username" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700">管理员邮箱</label>
+                        <input type="email" id="email" name="email" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700">管理员密码</label>
+                        <input type="password" id="password" name="password" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="site_title" class="block text-sm font-medium text-gray-700">网站主标题</label>
+                        <input type="text" id="site_title" name="site_title" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div id="error-message" class="text-red-500 text-sm"></div>
+                    <button type="submit"
+                            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        完成安装
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

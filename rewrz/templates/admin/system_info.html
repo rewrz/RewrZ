@@ -1,0 +1,525 @@
+{% extends "admin/base.html" %}
+
+{% block title %}系统信息 - {{ site_title }}{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 rounded-lg shadow-md">
+    <h1 class="text-3xl font-bold text-gray-900 mb-6">
+        <i class="fas fa-server text-blue-600 mr-3"></i>
+        系统信息
+    </h1>
+    
+    <p class="text-gray-600 mb-6">以下是 RewrZ 博客系统的运行环境信息</p>
+    
+    <!-- 操作系统信息 -->
+    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-desktop text-green-600 mr-2"></i>
+            操作系统
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <dl class="space-y-2">
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">系统名称:</dt>
+                        <dd class="text-gray-900">{{ system_info.os.name }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">系统版本:</dt>
+                        <dd class="text-gray-900">{{ system_info.os.version }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">系统架构:</dt>
+                        <dd class="text-gray-900">{{ system_info.os.architecture }}</dd>
+                    </div>
+                </dl>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <dl class="space-y-2">
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">主机名:</dt>
+                        <dd class="text-gray-900">{{ system_info.os.hostname }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">处理器:</dt>
+                        <dd class="text-gray-900">{{ system_info.os.processor }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">平台详情:</dt>
+                        <dd class="text-gray-900 text-sm">{{ system_info.os.platform }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <!-- Python信息 -->
+    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+            <i class="fab fa-python text-yellow-600 mr-2"></i>
+            Python 环境
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <dl class="space-y-2">
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">Python 版本:</dt>
+                        <dd class="text-gray-900 font-mono">{{ system_info.python.version }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">实现方式:</dt>
+                        <dd class="text-gray-900">{{ system_info.python.implementation }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">编译器:</dt>
+                        <dd class="text-gray-900 text-sm">{{ system_info.python.compiler }}</dd>
+                    </div>
+                </dl>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <dl class="space-y-2">
+                    <div>
+                        <dt class="font-medium text-gray-700 mb-1">可执行文件路径:</dt>
+                        <dd class="text-gray-900 text-sm font-mono bg-white p-2 rounded border break-all">{{ system_info.python.executable }}</dd>
+                    </div>
+                    <div>
+                        <dt class="font-medium text-gray-700 mb-1">项目路径:</dt>
+                        <dd class="text-gray-900 text-sm font-mono bg-white p-2 rounded border break-all">{{ system_info.python.path }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <!-- 框架版本信息 -->
+    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-code text-purple-600 mr-2"></i>
+            框架与依赖库版本
+        </h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {% for name, version in system_info.frameworks.items() %}
+            <div class="bg-gray-50 p-4 rounded-lg text-center">
+                <div class="font-semibold text-gray-800">{{ name }}</div>
+                <div class="text-lg font-mono text-blue-600">{{ version }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 数据库信息 -->
+    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-database text-indigo-600 mr-2"></i>
+            数据库信息
+        </h2>
+        {% if system_info.database.error %}
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="text-red-800">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                获取数据库信息时出错: {{ system_info.database.error }}
+            </div>
+        </div>
+        {% else %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <dl class="space-y-2">
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">数据库类型:</dt>
+                        <dd class="text-gray-900 font-semibold">{{ system_info.database.type }}</dd>
+                    </div>
+                    {% if system_info.database.path %}
+                    <div>
+                        <dt class="font-medium text-gray-700 mb-1">文件路径:</dt>
+                        <dd class="text-gray-900 text-sm font-mono bg-white p-2 rounded border break-all">{{ system_info.database.path }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if system_info.database.size %}
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">数据库大小:</dt>
+                        <dd class="text-gray-900">{{ system_info.database.size }}</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <dl class="space-y-2">
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">数据表数量:</dt>
+                        <dd class="text-gray-900">{{ system_info.database.table_count }}</dd>
+                    </div>
+                    {% if system_info.database.version %}
+                    <div>
+                        <dt class="font-medium text-gray-700 mb-1">数据库版本:</dt>
+                        <dd class="text-gray-900 text-sm">{{ system_info.database.version }}</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 媒体库信息 -->
+    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-images text-pink-600 mr-2"></i>
+            媒体库信息
+        </h2>
+        {% if system_info.media.error %}
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="text-red-800">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                获取媒体库信息时出错: {{ system_info.media.error }}
+            </div>
+        </div>
+        {% else %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <dl class="space-y-2">
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">总文件数:</dt>
+                        <dd class="text-gray-900 font-semibold">{{ system_info.media.total_files }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">总大小:</dt>
+                        <dd class="text-gray-900 font-semibold text-blue-600">{{ system_info.media.total_size }}</dd>
+                    </div>
+                    {% if system_info.media.directory_size %}
+                    <div class="flex justify-between">
+                        <dt class="font-medium text-gray-700">目录实际大小:</dt>
+                        <dd class="text-gray-900">{{ system_info.media.directory_size }}</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h3 class="font-medium text-gray-700 mb-2">文件类型分布</h3>
+                <div class="space-y-1 text-sm">
+                    <div class="flex justify-between">
+                        <span>图片文件:</span>
+                        <span class="font-mono">{{ system_info.media.image_count }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>视频文件:</span>
+                        <span class="font-mono">{{ system_info.media.video_count }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>音频文件:</span>
+                        <span class="font-mono">{{ system_info.media.audio_count }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>文档文件:</span>
+                        <span class="font-mono">{{ system_info.media.document_count }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-4">
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <dt class="font-medium text-gray-700 mb-1">媒体目录路径:</dt>
+                <dd class="text-gray-900 text-sm font-mono bg-white p-2 rounded border break-all">{{ system_info.media.directory }}</dd>
+                <div class="mt-2">
+                    {% if system_info.media.directory_exists %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <i class="fas fa-check-circle mr-1"></i>
+                        目录存在
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        目录不存在
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 系统资源信息 -->
+    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-microchip text-orange-600 mr-2"></i>
+            系统资源
+        </h2>
+        {% if system_info.resources.error %}
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="text-red-800">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                获取系统资源信息时出错: {{ system_info.resources.error }}
+            </div>
+        </div>
+        {% else %}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- CPU信息 -->
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h3 class="font-semibold text-gray-800 mb-3">
+                    <i class="fas fa-microchip text-blue-600 mr-2"></i>
+                    CPU
+                </h3>
+                <dl class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">物理核心:</dt>
+                        <dd class="font-mono">{{ system_info.resources.cpu.count }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">逻辑核心:</dt>
+                        <dd class="font-mono">{{ system_info.resources.cpu.count_logical }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">当前使用率:</dt>
+                        <dd class="font-mono">{{ "%.1f"|format(system_info.resources.cpu.usage_percent) }}%</dd>
+                    </div>
+                    {% if system_info.resources.cpu.frequency %}
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">频率:</dt>
+                        <dd class="font-mono">{{ "%.0f"|format(system_info.resources.cpu.frequency.current) }} MHz</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+            
+            <!-- 内存信息 -->
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h3 class="font-semibold text-gray-800 mb-3">
+                    <i class="fas fa-memory text-green-600 mr-2"></i>
+                    内存
+                </h3>
+                <dl class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">总内存:</dt>
+                        <dd class="font-mono">{{ system_info.resources.memory.total }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">已使用:</dt>
+                        <dd class="font-mono">{{ system_info.resources.memory.used }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">可用:</dt>
+                        <dd class="font-mono">{{ system_info.resources.memory.available }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">使用率:</dt>
+                        <dd class="font-mono">{{ "%.1f"|format(system_info.resources.memory.usage_percent) }}%</dd>
+                    </div>
+                </dl>
+                <!-- 内存使用率进度条 -->
+                <div class="mt-3">
+                    <div class="bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-600 h-2 rounded-full" style="width: {{ system_info.resources.memory.usage_percent }}%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 交换分区信息 -->
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h3 class="font-semibold text-gray-800 mb-3">
+                    <i class="fas fa-hdd text-purple-600 mr-2"></i>
+                    交换分区
+                </h3>
+                <dl class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">总大小:</dt>
+                        <dd class="font-mono">{{ system_info.resources.swap.total }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">已使用:</dt>
+                        <dd class="font-mono">{{ system_info.resources.swap.used }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">可用:</dt>
+                        <dd class="font-mono">{{ system_info.resources.swap.free }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">使用率:</dt>
+                        <dd class="font-mono">{{ "%.1f"|format(system_info.resources.swap.usage_percent) }}%</dd>
+                    </div>
+                </dl>
+                <!-- 交换分区使用率进度条 -->
+                <div class="mt-3">
+                    <div class="bg-gray-200 rounded-full h-2">
+                        <div class="bg-purple-600 h-2 rounded-full" style="width: {{ system_info.resources.swap.usage_percent }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 磁盘空间信息 -->
+    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-hdd text-red-600 mr-2"></i>
+            磁盘空间
+        </h2>
+        {% if system_info.disk.error %}
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="text-red-800">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                获取磁盘信息时出错: {{ system_info.disk.error }}
+            </div>
+        </div>
+        {% else %}
+        <!-- 当前驱动器 -->
+        <div class="bg-gray-50 p-4 rounded-lg mb-4">
+            <h3 class="font-semibold text-gray-800 mb-3">当前项目所在驱动器</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                <div class="text-center">
+                    <div class="text-gray-600">总空间</div>
+                    <div class="font-mono text-lg">{{ system_info.disk.current_drive.total }}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-gray-600">已使用</div>
+                    <div class="font-mono text-lg">{{ system_info.disk.current_drive.used }}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-gray-600">可用空间</div>
+                    <div class="font-mono text-lg text-green-600">{{ system_info.disk.current_drive.free }}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-gray-600">使用率</div>
+                    <div class="font-mono text-lg">{{ "%.1f"|format(system_info.disk.current_drive.usage_percent) }}%</div>
+                </div>
+            </div>
+            <!-- 磁盘使用率进度条 -->
+            <div class="mt-3">
+                <div class="bg-gray-200 rounded-full h-3">
+                    <div class="bg-red-600 h-3 rounded-full" style="width: {{ system_info.disk.current_drive.usage_percent }}%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 所有分区 -->
+        {% if system_info.disk.partitions %}
+        <div>
+            <h3 class="font-semibold text-gray-800 mb-3">所有磁盘分区</h3>
+            <div class="space-y-2">
+                {% for partition in system_info.disk.partitions %}
+                <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="font-mono text-sm font-semibold">{{ partition.device }}</div>
+                            <div class="text-xs text-gray-600">{{ partition.mountpoint }} ({{ partition.fstype }})</div>
+                        </div>
+                        {% if partition.error %}
+                        <div class="text-red-600 text-sm">{{ partition.error }}</div>
+                        {% else %}
+                        <div class="text-right text-sm">
+                            <div>{{ partition.free }} 可用 / {{ partition.total }}</div>
+                            <div class="text-xs text-gray-600">使用率: {{ "%.1f"|format(partition.usage_percent) }}%</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- 操作按钮 -->
+    <div class="flex justify-between items-center">
+        <div class="text-sm text-gray-500">
+            最后更新时间: <span id="last-update-time">加载中...</span>
+        </div>
+        <div class="flex space-x-3">
+            <button type="button" onclick="window.location.href='{{ admin_path }}/dashboard'" 
+                    class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
+                返回仪表盘
+            </button>
+            <button type="button" id="refresh-btn" onclick="refreshSystemInfo()" 
+                    class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                <i class="fas fa-sync-alt mr-2" id="refresh-icon"></i>
+                更新信息
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// 更新系统信息的JavaScript函数
+async function refreshSystemInfo() {
+    const refreshBtn = document.getElementById('refresh-btn');
+    const refreshIcon = document.getElementById('refresh-icon');
+    const lastUpdateTime = document.getElementById('last-update-time');
+    
+    // 设置加载状态
+    refreshBtn.disabled = true;
+    refreshIcon.classList.add('fa-spin');
+    refreshBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin mr-2"></i>更新中...';
+    
+    try {
+        const response = await fetch('{{ admin_path }}/api/system/info');
+        const result = await response.json();
+        
+        if (result.success) {
+            // 更新成功，刷新页面
+            lastUpdateTime.textContent = new Date().toLocaleString('zh-CN');
+            
+            // 显示成功消息
+            showNotification('系统信息更新成功！', 'success');
+            
+            // 延迟1秒后刷新页面以显示最新数据
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            throw new Error(result.error || '更新失败');
+        }
+    } catch (error) {
+        console.error('更新系统信息失败:', error);
+        showNotification('更新系统信息失败: ' + error.message, 'error');
+    } finally {
+        // 恢复按钮状态
+        setTimeout(() => {
+            refreshBtn.disabled = false;
+            refreshIcon.classList.remove('fa-spin');
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt mr-2"></i>更新信息';
+        }, 1000);
+    }
+}
+
+// 显示通知消息
+function showNotification(message, type) {
+    // 创建通知元素
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm ${
+        type === 'success' 
+            ? 'bg-green-100 border border-green-400 text-green-700' 
+            : 'bg-red-100 border border-red-400 text-red-700'
+    }`;
+    
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas ${
+                type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'
+            } mr-2"></i>
+            <span>${message}</span>
+            <button onclick="this.parentElement.parentElement.remove()" 
+                    class="ml-2 text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    
+    // 添加到页面
+    document.body.appendChild(notification);
+    
+    // 3秒后自动移除
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 3000);
+}
+
+// 页面加载完成后设置自动更新时间显示
+document.addEventListener('DOMContentLoaded', function() {
+    const lastUpdateTime = document.getElementById('last-update-time');
+    if (lastUpdateTime) {
+        lastUpdateTime.textContent = new Date().toLocaleString('zh-CN');
+    }
+});
+</script>

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}{{ year }}年{{ month }}月归档 - RewrZ{% endblock %}
+
+{% block content %}
+<h1 class="text-4xl font-bold text-gray-900 mb-8">{{ year }}年{{ month }}月归档</h1>
+
+{% if posts %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+    {% for post in posts %}
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        {% if post.featured_image_url %}
+        {{ post.featured_image_url | responsive_image(post.title, "w-full h-48 object-cover rounded-lg mb-4", "(max-width: 768px) 100vw, (max-width: 1200px) 600px, 800px", request.state.db) | safe }}
+        {% endif %}
+        <h2 class="text-2xl font-semibold text-gray-800 mb-2">
+            <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
+        </h2>
+        <p class="text-gray-600 text-sm mb-4">发布于 {{ post.published_at.strftime('%Y年%m月%d日') }}</p>
+        <p class="text-gray-700">{{ post.excerpt }}</p>
+        <a href="/posts/{{ post.slug }}" class="inline-block mt-4 text-indigo-600 hover:underline">阅读更多 &rarr;</a>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-gray-600">此月份暂无文章。</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - RewrZ{% endblock %}
+
+{% block content %}
+<article class="bg-white p-8 rounded-lg shadow-md">
+    <h1 class="text-4xl font-bold text-gray-900 mb-4">{{ title }}</h1>
+    <div class="prose prose-indigo max-w-none mb-8">
+        {{ content | safe }}
+    </div>
+</article>
+{% endblock %}

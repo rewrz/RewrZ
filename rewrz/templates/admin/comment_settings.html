@@ -1,0 +1,314 @@
+{% extends "admin/base.html" %}
+
+{% block title %}评论设置 - {{ site_title }}{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 rounded-lg shadow-md">
+    <h1 class="text-3xl font-bold text-gray-900 mb-6">
+        <i class="fas fa-comments text-blue-600 mr-3"></i>
+        评论设置
+    </h1>
+    
+    <form method="post" action="{{ admin_path }}/api/comments/settings" id="comment-settings-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <!-- 第一层：无感防御 -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-shield-alt text-green-600 mr-2"></i>
+                第一层：无感防御
+            </h2>
+            <p class="text-gray-600 mb-4">通过技术手段自动拦截机器人评论，对用户完全透明</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="flex items-center">
+                    <input type="checkbox" id="honeypot_enabled" name="honeypot_enabled" value="true"
+                           {{ 'checked' if settings.honeypot_enabled }}
+                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <label for="honeypot_enabled" class="ml-2 block text-sm text-gray-900">启用蜜罐陷阱</label>
+                </div>
+                
+                <div>
+                    <label for="time_threshold" class="block text-sm font-medium text-gray-700">最短提交时间（秒）</label>
+                    <input type="number" id="time_threshold" name="time_threshold" 
+                           min="1" max="60" step="1"
+                           value="{{ settings.time_threshold if settings.time_threshold else 3 }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="text-sm text-gray-500 mt-1">低于此时间的提交将被视为机器人行为</p>
+                </div>
+            </div>
+            
+            <div class="bg-green-50 border border-green-200 rounded-md p-4 mt-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-info-circle text-green-600"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-green-800">第一层防护说明</h3>
+                        <div class="mt-2 text-sm text-green-700">
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>蜜罐陷阱：在表单中添加隐藏字段，机器人填写后自动拦截</li>
+                                <li>时间检查：检查用户从加载页面到提交评论的时间</li>
+                                <li>User-Agent检查：过滤可疑的用户代理字符串</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第二层：内容分析 -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-search text-orange-600 mr-2"></i>
+                第二层：内容分析
+            </h2>
+            <p class="text-gray-600 mb-4">分析评论内容特征，检测垃圾评论模式</p>
+            
+            <!-- 链接检查 -->
+            <div class="mb-6">
+                <h3 class="text-lg font-medium text-gray-800 mb-3">链接数量检查</h3>
+                <div>
+                    <label for="max_links" class="block text-sm font-medium text-gray-700">允许的最大链接数</label>
+                    <input type="number" id="max_links" name="max_links" 
+                           min="0" max="10" step="1"
+                           value="{{ settings.max_links if settings.max_links is not none else 2 }}"
+                           class="mt-1 block w-32 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="text-sm text-gray-500 mt-1">超过此数量的链接将被视为垃圾评论</p>
+                </div>
+            </div>
+            
+            <!-- 关键词过滤 -->
+            <div class="mb-6">
+                <h3 class="text-lg font-medium text-gray-800 mb-3">关键词过滤</h3>
+                <div class="flex items-center mb-3">
+                    <input type="checkbox" id="keyword_filter" name="keyword_filter" value="true"
+                           {{ 'checked' if settings.keyword_filter }}
+                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <label for="keyword_filter" class="ml-2 block text-sm text-gray-900">启用关键词过滤</label>
+                </div>
+                
+                <div>
+                    <label for="keywords" class="block text-sm font-medium text-gray-700">垃圾关键词列表</label>
+                    <textarea id="keywords" name="keywords" rows="6"
+                              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                              placeholder="每行一个关键词">{% if settings.keywords %}{% for keyword in settings.keywords %}{{ keyword }}
+{% endfor %}{% endif %}</textarea>
+                    <p class="text-sm text-gray-500 mt-1">包含这些关键词的评论将被标记为可疑</p>
+                </div>
+            </div>
+            
+            <!-- Akismet配置 -->
+            <div class="mb-6">
+                <h3 class="text-lg font-medium text-gray-800 mb-3">
+                    <i class="fas fa-cloud text-blue-600 mr-2"></i>
+                    Akismet 云端检测
+                </h3>
+                
+                <div class="flex items-center mb-3">
+                    <input type="checkbox" id="akismet_enabled" name="akismet_enabled" value="true"
+                           {{ 'checked' if settings.akismet_enabled }}
+                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <label for="akismet_enabled" class="ml-2 block text-sm text-gray-900">启用 Akismet 垃圾检测</label>
+                </div>
+                
+                <div id="akismet-settings" class="{{ 'hidden' if not settings.akismet_enabled }}">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="akismet_key" class="block text-sm font-medium text-gray-700">Akismet API 密钥</label>
+                            <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="text" id="akismet_key" name="akismet_key" 
+                                       value="{{ settings.akismet_key if settings.akismet_key else '' }}"
+                                       placeholder="获取密钥请访问 akismet.com"
+                                       class="flex-1 block w-full px-3 py-2 border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <button type="button" id="test-akismet-btn"
+                                        class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-gray-500 text-sm hover:bg-gray-100">
+                                    <i class="fas fa-check mr-1"></i>
+                                    测试
+                                </button>
+                            </div>
+                            <div id="akismet-test-result" class="mt-2 hidden"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mt-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-info-circle text-blue-600"></i>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-blue-800">关于 Akismet</h3>
+                                <div class="mt-2 text-sm text-blue-700">
+                                    <ul class="list-disc list-inside space-y-1">
+                                        <li>Akismet 是业界领先的垃圾评论检测服务</li>
+                                        <li>个人博客可以免费使用</li>
+                                        <li>通过云端API调用，不消耗本地服务器资源</li>
+                                        <li>访问 <a href="https://akismet.com" target="_blank" class="underline">akismet.com</a> 获取API密钥</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第三层：主动验证 -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-user-shield text-purple-600 mr-2"></i>
+                第三层：主动验证
+            </h2>
+            <p class="text-gray-600 mb-4">对可疑评论要求用户完成验证码验证</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="flex items-center">
+                    <input type="checkbox" id="captcha_enabled" name="captcha_enabled" value="true"
+                           {{ 'checked' if settings.captcha_enabled }}
+                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <label for="captcha_enabled" class="ml-2 block text-sm text-gray-900">启用验证码验证</label>
+                </div>
+                
+                <div>
+                    <label for="captcha_threshold" class="block text-sm font-medium text-gray-700">验证码触发阈值</label>
+                    <input type="number" id="captcha_threshold" name="captcha_threshold" 
+                           min="0" max="1" step="0.1"
+                           value="{{ settings.captcha_threshold if settings.captcha_threshold is not none else 0.6 }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="text-sm text-gray-500 mt-1">垃圾概率超过此值时显示验证码（0.0-1.0）</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 动作阈值配置 -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-cogs text-gray-600 mr-2"></i>
+                动作阈值配置
+            </h2>
+            <p class="text-gray-600 mb-4">根据垃圾概率决定如何处理评论</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="moderate_threshold" class="block text-sm font-medium text-gray-700">审核阈值</label>
+                    <input type="number" id="moderate_threshold" name="moderate_threshold" 
+                           min="0" max="1" step="0.1"
+                           value="{{ settings.moderate_threshold if settings.moderate_threshold is not none else 0.5 }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="text-sm text-gray-500 mt-1">超过此值的评论将进入待审核状态</p>
+                </div>
+                
+                <div>
+                    <label for="block_threshold" class="block text-sm font-medium text-gray-700">阻止阈值</label>
+                    <input type="number" id="block_threshold" name="block_threshold" 
+                           min="0" max="1" step="0.1"
+                           value="{{ settings.block_threshold if settings.block_threshold is not none else 0.8 }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="text-sm text-gray-500 mt-1">超过此值的评论将被直接拒绝</p>
+                </div>
+            </div>
+            
+            <div class="bg-gray-50 border border-gray-200 rounded-md p-4 mt-4">
+                <h3 class="text-sm font-medium text-gray-800 mb-2">处理流程说明</h3>
+                <div class="text-sm text-gray-600 space-y-1">
+                    <div><span class="inline-block w-20">0.0-{{ settings.moderate_threshold if settings.moderate_threshold is not none else 0.5 }}:</span> 自动通过</div>
+                    <div><span class="inline-block w-20">{{ settings.moderate_threshold if settings.moderate_threshold is not none else 0.5 }}-{{ settings.block_threshold if settings.block_threshold is not none else 0.8 }}:</span> 待审核</div>
+                    <div><span class="inline-block w-20">{{ settings.block_threshold if settings.block_threshold is not none else 0.8 }}-1.0:</span> 直接拒绝</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 提交按钮 -->
+        <div class="flex justify-end space-x-3">
+            <button type="button" onclick="window.location.href='{{ admin_path }}/dashboard'" 
+                    class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
+                返回仪表盘
+            </button>
+            <button type="submit" 
+                    class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                保存设置
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Akismet设置显示/隐藏
+    const akismetCheckbox = document.getElementById('akismet_enabled');
+    const akismetSettings = document.getElementById('akismet-settings');
+    akismetCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            akismetSettings.classList.remove('hidden');
+        } else {
+            akismetSettings.classList.add('hidden');
+        }
+    });
+
+    // 测试Akismet密钥
+    const testAkismetBtn = document.getElementById('test-akismet-btn');
+    const akismetKeyInput = document.getElementById('akismet_key');
+    const testResult = document.getElementById('akismet-test-result');
+    
+    testAkismetBtn.addEventListener('click', async function() {
+        const apiKey = akismetKeyInput.value.trim();
+        if (!apiKey) {
+            alert('请先输入API密钥');
+            return;
+        }
+        
+        testAkismetBtn.disabled = true;
+        testAkismetBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>测试中...';
+        
+        try {
+            const response = await fetch(`{{ admin_path }}/api/comments/test-akismet?api_key=${encodeURIComponent(apiKey)}`);
+            const result = await response.json();
+            
+            testResult.classList.remove('hidden');
+            if (result.success && result.valid) {
+                testResult.innerHTML = '<div class="text-green-600"><i class="fas fa-check-circle mr-1"></i>API密钥有效</div>';
+            } else {
+                testResult.innerHTML = '<div class="text-red-600"><i class="fas fa-times-circle mr-1"></i>' + (result.message || '密钥无效') + '</div>';
+            }
+        } catch (error) {
+            testResult.classList.remove('hidden');
+            testResult.innerHTML = '<div class="text-red-600"><i class="fas fa-exclamation-triangle mr-1"></i>测试失败: ' + error.message + '</div>';
+        } finally {
+            testAkismetBtn.disabled = false;
+            testAkismetBtn.innerHTML = '<i class="fas fa-check mr-1"></i>测试';
+        }
+    });
+
+    // 表单提交处理
+    const form = document.getElementById('comment-settings-form');
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        try {
+            const response = await fetch(this.action, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('评论设置保存成功！');
+                if (result.redirect_url) {
+                    window.location.href = result.redirect_url;
+                }
+            } else {
+                alert('保存失败: ' + (result.error || '未知错误'));
+                if (result.details && result.details.length > 0) {
+                    alert('详细错误:\n' + result.details.join('\n'));
+                }
+            }
+        } catch (error) {
+            alert('保存失败: ' + error.message);
+        }
+    });
+});
+</script>
+{% endblock %}

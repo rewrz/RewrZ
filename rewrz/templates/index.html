@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}{{ site_title }} - {{ tagline }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+{% if seo_data %}
+    <!-- Dynamic SEO Meta Tags -->
+    {% include "components/seo_meta.html" %}
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="space-y-12">
+    {% for post in posts %}
+        {% set format_slugs = post.formats | map(attribute='slug') | list %}
+
+        {% if 'micro-post' in format_slugs %}
+            {# 微博样式，添加头像显示 #}
+            <div class="bg-white p-6 rounded-lg shadow-md flex space-x-4">
+                <div class="flex-shrink-0">
+                    {# 显示作者头像 #}
+                    {% if post.author.avatar_url %}
+                        <img class="h-12 w-12 rounded-full" src="{{ post.author.avatar_url }}" alt="{{ post.author.username }}的头像">
+                    {% else %}
+                        {# 使用Gravatar或默认头像 #}
+                        {% set author_email_hash = post.author.email | md5 if post.author.email else '' %}
+                        <img class="h-12 w-12 rounded-full" 
+                             src="https://www.gravatar.com/avatar/{{ author_email_hash }}?s=48&d=identicon&r=g" 
+                             alt="{{ post.author.username }}的头像"
+                             onerror="this.src='/static/images/default-avatar.png'">
+                    {% endif %}
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-center space-x-2">
+                        <h3 class="font-bold text-gray-900">{{ post.author.username }}</h3>
+                        <span class="text-gray-500 text-sm">{{ post.published_at.strftime('%Y年%m月%d日') }}</span>
+                    </div>
+                    <div class="prose prose-indigo max-w-none mt-2">
+                        {{ post.content_html | safe }}
+                    </div>
+                    {# 九宫格图片展示 (简化版) #}
+                    {% if post.featured_image_url %}
+                    <div class="mt-4 grid grid-cols-3 gap-2">
+                        {{ post.featured_image_url | responsive_image(post.title, "rounded-lg object-cover h-32 w-full", "(max-width: 768px) 33vw, 200px", request.state.db) | safe }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% elif 'photo-album' in format_slugs %}
+            {# 相册样式 #}
+            <div class="bg-white rounded-lg shadow-md overflow-hidden relative">
+                {{ post.featured_image_url | responsive_image(post.title, "w-full h-96 object-cover", "(max-width: 768px) 100vw, (max-width: 1200px) 800px, 1200px", request.state.db) | safe }}
+                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-6">
+                    <h2 class="text-3xl font-bold text-white mb-2">
+                        <a href="/posts/{{ post.slug }}" class="hover:underline">{{ post.title }}</a>
+                    </h2>
+                    <p class="text-gray-300">{{ post.excerpt }}</p>
+                </div>
+            </div>
+        {% elif 'video' in format_slugs or 'music' in format_slugs %}
+            {# 视频/音乐样式 #}
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="relative">
+                    {{ post.featured_image_url | responsive_image(post.title, "w-full h-64 object-cover rounded-lg", "(max-width: 768px) 100vw, (max-width: 1200px) 600px, 800px", request.state.db) | safe }}
+                    <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                        <svg class="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path></svg>
+                    </div>
+                </div>
+                <h2 class="text-2xl font-semibold text-gray-800 mt-4 mb-2">
+                    <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
+                </h2>
+                <p class="text-gray-700">{{ post.excerpt }}</p>
+            </div>
+        {% else %}
+            {# 标准文章样式 #}
+            <div class="bg-white p-6 rounded-lg shadow-md grid grid-cols-12 gap-6">
+                <div class="col-span-4">
+                    {{ post.featured_image_url | responsive_image(post.title, "w-full h-full object-cover rounded-lg", "(max-width: 768px) 100vw, 400px", request.state.db) | safe }}
+                </div>
+                <div class="col-span-8">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">
+                        <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
+                    </h2>
+                    <div class="flex items-center space-x-4 text-gray-600 text-sm mb-4">
+                        <span>发布于 {{ post.published_at.strftime('%Y年%m月%d日') }}</span>
+                        <span class="flex items-center">
+                            <i class="fas fa-clock mr-1"></i>
+                            {{ post.content_markdown | reading_time }}阅读
+                        </span>
+                        {% set stats = post.content_markdown | reading_stats(post) %}
+                        <span class="flex items-center">
+                            <i class="fas fa-file-text mr-1"></i>
+                            {{ stats.word_count }}字
+                        </span>
+                    </div>
+                    <p class="text-gray-700">{{ post.excerpt }}</p>
+                    <a href="/posts/{{ post.slug }}" class="inline-block mt-4 text-indigo-600 hover:underline">阅读更多 &rarr;</a>
+                </div>
+            </div>
+        {% endif %}
+    {% endfor %}
+</div>
+{% endblock %}

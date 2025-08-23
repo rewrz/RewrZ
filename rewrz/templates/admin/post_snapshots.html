@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang=\"zh-CN\">
+<head>
+    <meta charset=\"UTF-8\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+    <title>文章快照 - {{ post.title }}</title>
+    <script src=\"https://cdn.tailwindcss.com\"></script>
+    <script src=\"https://unpkg.com/htmx.org@1.9.10\"></script>
+    <style>
+        .diff-addition {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        .diff-deletion {
+            background-color: #fef2f2;
+            color: #dc2626;
+        }
+        .diff-context {
+            background-color: #f9fafb;
+            color: #6b7280;
+        }
+        .snapshot-item {
+            transition: all 0.2s ease;
+        }
+        .snapshot-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .modal {
+            display: none;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .diff-viewer {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body class=\"bg-gray-100 min-h-screen\">
+    <div class=\"container mx-auto px-4 py-8\">
+        <!-- Header -->
+        <div class=\"mb-8\">
+            <div class=\"flex items-center justify-between\">
+                <div>
+                    <h1 class=\"text-3xl font-bold text-gray-900 mb-2\">文章快照历史</h1>
+                    <p class=\"text-gray-600\">文章: <span class=\"font-medium\">{{ post.title }}</span></p>
+                </div>
+                <div class=\"flex space-x-3\">
+                    <button onclick=\"window.history.back()\" class=\"px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition\">
+                        返回编辑
+                    </button>
+                    <button id=\"cleanup-btn\" class=\"px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition\">
+                        清理快照
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class=\"grid grid-cols-1 lg:grid-cols-3 gap-8\">
+            <!-- 快照列表 -->
+            <div class=\"lg:col-span-1\">
+                <div class=\"bg-white rounded-lg shadow-md\">
+                    <div class=\"p-6 border-b border-gray-200\">
+                        <h2 class=\"text-xl font-semibold text-gray-900 mb-2\">版本历史</h2>
+                        <p class=\"text-sm text-gray-600\">共 {{ snapshots|length }} 个历史版本</p>
+                    </div>
+                    
+                    <div class=\"p-6 space-y-4\">
+                        <!-- 当前版本 -->
+                        <div class=\"snapshot-item p-4 bg-green-50 border border-green-200 rounded-lg\">
+                            <div class=\"flex items-center justify-between mb-2\">
+                                <span class=\"text-sm font-medium text-green-700\">当前版本</span>
+                                <span class=\"text-xs text-green-600\">{{ current_content.split()|length }} 词</span>
+                            </div>
+                            <p class=\"text-sm text-gray-600 mb-3\">{{ current_content[:100] }}{% if current_content|length > 100 %}...{% endif %}</p>
+                            <div class=\"flex space-x-2\">
+                                <button onclick=\"viewContent('current', `{{ current_content|e }}`)\" class=\"text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700\">预览</button>
+                            </div>
+                        </div>
+
+                        <!-- 历史快照 -->
+                        {% for snapshot in snapshots %}
+                        <div class=\"snapshot-item p-4 bg-white border border-gray-200 rounded-lg hover:border-indigo-300\">
+                            <div class=\"flex items-center justify-between mb-2\">
+                                <span class=\"text-sm font-medium text-gray-700\">快照 {{ loop.index }}</span>
+                                <span class=\"text-xs text-gray-500\">{{ snapshot.word_count }} 词</span>
+                            </div>
+                            
+                            <div class=\"text-xs text-gray-500 mb-2\">
+                                <div>{{ snapshot.formatted_time }}</div>
+                                <div class=\"text-blue-600\">{{ snapshot.relative_time }}</div>
+                            </div>
+                            
+                            <p class=\"text-sm text-gray-600 mb-3\">{{ snapshot.content_preview }}</p>
+                            
+                            <div class=\"flex flex-wrap gap-2\">
+                                <button onclick=\"viewContent({{ snapshot.index }}, `{{ snapshot.content|e }}`, '{{ snapshot.formatted_time }}')\" 
+                                        class=\"text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700\">
+                                    预览
+                                </button>
+                                <button onclick=\"compareSnapshot({{ snapshot.index }})\" 
+                                        class=\"text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700\">
+                                    比较
+                                </button>
+                                <button onclick=\"restoreSnapshot({{ snapshot.index }}, '{{ snapshot.formatted_time }}')\" 
+                                        class=\"text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700\">
+                                    恢复
+                                </button>
+                                <button onclick=\"deleteSnapshot({{ snapshot.index }})\" 
+                                        class=\"text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700\">
+                                    删除
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if snapshots|length == 0 %}
+                        <div class=\"text-center py-8\">
+                            <svg class=\"mx-auto h-12 w-12 text-gray-300\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">
+                                <path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z\"></path>
+                            </svg>
+                            <h3 class=\"mt-2 text-sm font-medium text-gray-900\">暂无历史快照</h3>
+                            <p class=\"mt-1 text-sm text-gray-500\">编辑文章时会自动创建版本快照。</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 内容预览区域 -->
+            <div class=\"lg:col-span-2\">
+                <div class=\"bg-white rounded-lg shadow-md\">
+                    <div class=\"p-6 border-b border-gray-200\">
+                        <h2 class=\"text-xl font-semibold text-gray-900\">内容预览</h2>
+                        <p class=\"text-sm text-gray-600 mt-1\" id=\"preview-title\">选择左侧的快照或当前版本进行预览</p>
+                    </div>
+                    
+                    <div class=\"p-6\">
+                        <div id=\"content-preview\" class=\"prose max-w-none\">
+                            <div class=\"text-center py-12 text-gray-500\">
+                                <svg class=\"mx-auto h-16 w-16 text-gray-300 mb-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">
+                                    <path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M15 12a3 3 0 11-6 0 3 3 0 016 0z\"></path>
+                                    <path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z\"></path>
+                                </svg>
+                                <p>点击快照预览内容</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 内容比较模态框 -->
+    <div id=\"compare-modal\" class=\"modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50\">
+        <div class=\"bg-white rounded-lg p-6 max-w-6xl w-full mx-4 max-h-screen overflow-y-auto\">
+            <div class=\"flex justify-between items-center mb-4\">
+                <h3 class=\"text-lg font-semibold\">版本比较</h3>
+                <button onclick=\"closeModal('compare-modal')\" class=\"text-gray-400 hover:text-gray-600\">
+                    <svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">
+                        <path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id=\"compare-content\" class=\"diff-viewer\">
+                <!-- 比较内容将在这里加载 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 清理快照模态框 -->
+    <div id=\"cleanup-modal\" class=\"modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50\">
+        <div class=\"bg-white rounded-lg p-6 max-w-md w-full mx-4\">
+            <div class=\"flex justify-between items-center mb-4\">
+                <h3 class=\"text-lg font-semibold\">清理历史快照</h3>
+                <button onclick=\"closeModal('cleanup-modal')\" class=\"text-gray-400 hover:text-gray-600\">
+                    <svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">
+                        <path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class=\"mb-4\">
+                <p class=\"text-gray-600 mb-4\">选择要保留的快照数量，较旧的快照将被删除。</p>
+                <label class=\"block text-sm font-medium text-gray-700 mb-2\">保留快照数量</label>
+                <select id=\"keep-count\" class=\"w-full border border-gray-300 rounded-md px-3 py-2\">
+                    <option value=\"1\">1个</option>
+                    <option value=\"2\">2个</option>
+                    <option value=\"3\" selected>3个</option>
+                    <option value=\"5\">5个</option>
+                </select>
+            </div>
+            
+            <div class=\"flex space-x-3\">
+                <button onclick=\"closeModal('cleanup-modal')\" class=\"flex-1 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition\">
+                    取消
+                </button>
+                <button onclick=\"performCleanup()\" class=\"flex-1 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition\">
+                    清理
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const postId = {{ post.id }};
+        
+        // 预览内容
+        function viewContent(index, content, timestamp = null) {
+            const preview = document.getElementById('content-preview');
+            const title = document.getElementById('preview-title');
+            
+            if (index === 'current') {
+                title.textContent = '当前版本内容';
+            } else {
+                title.textContent = `快照 ${index + 1} 内容 (${timestamp})`;
+            }
+            
+            // 将Markdown内容转换为HTML显示（简单处理）
+            const htmlContent = markdownToHtml(content);
+            preview.innerHTML = htmlContent;
+        }
+        
+        // 简单的Markdown转HTML（基础实现）
+        function markdownToHtml(markdown) {
+            return markdown
+                .replace(/\n/g, '<br>')
+                .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')
+                .replace(/\\*(.*?)\\*/g, '<em>$1</em>')
+                .replace(/`(.*?)`/g, '<code class=\"bg-gray-100 px-1 rounded\">$1</code>')
+                .replace(/^# (.*$)/gim, '<h1 class=\"text-2xl font-bold mb-4\">$1</h1>')
+                .replace(/^## (.*$)/gim, '<h2 class=\"text-xl font-bold mb-3\">$1</h2>')
+                .replace(/^### (.*$)/gim, '<h3 class=\"text-lg font-bold mb-2\">$1</h3>');
+        }
+        
+        // 比较快照
+        async function compareSnapshot(snapshotIndex) {
+            try {
+                const response = await fetch(`/api/v1/posts/${postId}/snapshots/${snapshotIndex}/compare`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayComparison(data);
+                    showModal('compare-modal');
+                } else {
+                    alert('比较失败: ' + data.detail);
+                }
+            } catch (error) {
+                alert('比较失败: ' + error.message);
+            }
+        }
+        
+        // 显示比较结果
+        function displayComparison(data) {
+            const content = document.getElementById('compare-content');
+            
+            let html = `
+                <div class=\"mb-4\">
+                    <h4 class=\"font-semibold mb-2\">比较摘要</h4>
+                    <div class=\"flex space-x-4 text-sm\">
+                        <span class=\"text-green-600\">+${data.summary.additions} 行添加</span>
+                        <span class=\"text-red-600\">-${data.summary.deletions} 行删除</span>
+                        <span class=\"text-gray-600\">${data.summary.total_changes} 处变更</span>
+                    </div>
+                </div>
+                <div class=\"border rounded-lg p-4 bg-gray-50\">
+            `;
+            
+            if (data.diff.length === 0) {
+                html += '<p class=\"text-gray-500\">两个版本内容相同，无差异。</p>';
+            } else {
+                data.diff.forEach(line => {
+                    let className = 'diff-context';
+                    let prefix = ' ';
+                    
+                    if (line.type === 'addition') {
+                        className = 'diff-addition';
+                        prefix = '+';
+                    } else if (line.type === 'deletion') {
+                        className = 'diff-deletion';
+                        prefix = '-';
+                    } else if (line.type === 'header' || line.type === 'range') {
+                        className = 'text-blue-600 font-semibold';
+                        prefix = '';
+                    }
+                    
+                    html += `<div class=\"${className} px-2 py-1 font-mono text-sm\">${prefix}${escapeHtml(line.content)}</div>`;
+                });
+            }
+            
+            html += '</div>';
+            content.innerHTML = html;
+        }
+        
+        // 恢复快照
+        async function restoreSnapshot(snapshotIndex, timestamp) {
+            if (!confirm(`确定要恢复到快照版本 (${timestamp}) 吗？\n\n当前内容将被保存为新的快照。`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/posts/${postId}/snapshots/${snapshotIndex}/restore`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('文章已恢复到指定快照版本！');
+                    location.reload();
+                } else {
+                    alert('恢复失败: ' + data.detail);
+                }
+            } catch (error) {
+                alert('恢复失败: ' + error.message);
+            }
+        }
+        
+        // 删除快照
+        async function deleteSnapshot(snapshotIndex) {
+            if (!confirm('确定要删除这个快照吗？此操作不可恢复。')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/posts/${postId}/snapshots/${snapshotIndex}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('快照已删除！');
+                    location.reload();
+                } else {
+                    alert('删除失败: ' + data.detail);
+                }
+            } catch (error) {
+                alert('删除失败: ' + error.message);
+            }
+        }
+        
+        // 显示清理模态框
+        document.getElementById('cleanup-btn').addEventListener('click', function() {
+            showModal('cleanup-modal');
+        });
+        
+        // 执行清理
+        async function performCleanup() {
+            const keepCount = document.getElementById('keep-count').value;
+            
+            if (!confirm(`确定要清理快照吗？只保留最新的 ${keepCount} 个快照，其余将被删除。`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/posts/${postId}/snapshots/cleanup`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ keep_count: parseInt(keepCount) })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(data.message);
+                    closeModal('cleanup-modal');
+                    location.reload();
+                } else {
+                    alert('清理失败: ' + data.detail);
+                }
+            } catch (error) {
+                alert('清理失败: ' + error.message);
+            }
+        }
+        
+        // 模态框控制
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+        
+        // 工具函数
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // 初始化：默认显示当前版本
+        document.addEventListener('DOMContentLoaded', function() {
+            {% if current_content %}
+            viewContent('current', `{{ current_content|e }}`);
+            {% endif %}
+        });
+    </script>
+</body>
+</html>

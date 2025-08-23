@@ -1,0 +1,134 @@
+<!-- Step 1: Environment Check -->
+<div class="text-center mb-6">
+    <h2 class="text-2xl font-bold text-gray-900 mb-2">环境检查</h2>
+    <p class="text-gray-600">正在检查系统环境和文件权限...</p>
+</div>
+
+<div id="environment-check-results" class="mb-8">
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <div class="flex items-center">
+            <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
+            <span class="text-blue-800">正在检查环境...</span>
+        </div>
+    </div>
+</div>
+
+<div class="flex justify-between">
+    <button type="button" 
+            class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg cursor-not-allowed" 
+            disabled>
+        <i class="fas fa-arrow-left mr-2"></i>上一步
+    </button>
+    <button id="next-step-btn" 
+            type="button" 
+            class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg cursor-not-allowed" 
+            disabled>
+        下一步<i class="fas fa-arrow-right ml-2"></i>
+    </button>
+</div>
+
+<script>
+    // 更新步骤指示器
+    updateStepIndicator(1);
+    
+    // 执行环境检查
+    fetch('/installer/check-environment')
+        .then(response => response.json())
+        .then(data => {
+            displayEnvironmentResults(data);
+        })
+        .catch(error => {
+            console.error('环境检查失败:', error);
+            displayEnvironmentError(error);
+        });
+
+    function displayEnvironmentResults(data) {
+        const container = document.getElementById('environment-check-results');
+        const nextBtn = document.getElementById('next-step-btn');
+        
+        let html = '';
+        
+        // 检查结果项目
+        const checkItems = [
+            { key: 'python_version', label: 'Python 版本', icon: 'fas fa-code' },
+            { key: 'write_permissions', label: '目录写权限', icon: 'fas fa-folder-open' },
+            { key: 'media_directory', label: '媒体目录', icon: 'fas fa-images' },
+            { key: 'database_path', label: '数据库路径', icon: 'fas fa-database' },
+            { key: 'dependencies', label: '依赖库', icon: 'fas fa-puzzle-piece' }
+        ];
+        
+        checkItems.forEach(item => {
+            const status = data.checks[item.key];
+            const statusClass = status ? 'text-green-600 bg-green-50 border-green-200' : 'text-red-600 bg-red-50 border-red-200';
+            const statusIcon = status ? 'fas fa-check-circle' : 'fas fa-times-circle';
+            
+            html += `
+                <div class="flex items-center justify-between p-4 border rounded-lg mb-3 ${statusClass}">
+                    <div class="flex items-center">
+                        <i class="${item.icon} text-lg mr-3"></i>
+                        <span class="font-medium">${item.label}</span>
+                    </div>
+                    <i class="${statusIcon} text-lg"></i>
+                </div>
+            `;
+        });
+        
+        // 显示错误信息
+        if (data.errors && data.errors.length > 0) {
+            html += '<div class="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">';
+            html += '<h4 class="font-semibold text-red-800 mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>发现问题:</h4>';
+            html += '<ul class="text-red-700 text-sm space-y-1">';
+            data.errors.forEach(error => {
+                html += `<li>• ${error}</li>`;
+            });
+            html += '</ul></div>';
+        }
+        
+        // 显示警告信息
+        if (data.warnings && data.warnings.length > 0) {
+            html += '<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">';
+            html += '<h4 class="font-semibold text-yellow-800 mb-2"><i class="fas fa-exclamation-circle mr-2"></i>注意事项:</h4>';
+            html += '<ul class="text-yellow-700 text-sm space-y-1">';
+            data.warnings.forEach(warning => {
+                html += `<li>• ${warning}</li>`;
+            });
+            html += '</ul></div>';
+        }
+        
+        // 显示成功信息
+        if (data.success) {
+            html += `
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-green-600 text-lg mr-3"></i>
+                        <span class="font-semibold text-green-800">环境检查通过！</span>
+                    </div>
+                    <p class="text-green-700 text-sm mt-2">您的系统满足 RewrZ 的运行要求，可以继续安装。</p>
+                </div>
+            `;
+            
+            // 启用下一步按钮
+            nextBtn.disabled = false;
+            nextBtn.className = 'px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors';
+            nextBtn.setAttribute('hx-get', '/installer/step/2');
+            nextBtn.setAttribute('hx-target', '#installation-content');
+            nextBtn.setAttribute('hx-swap', 'innerHTML');
+        }
+        
+        container.innerHTML = html;
+    }
+    
+    function displayEnvironmentError(error) {
+        const container = document.getElementById('environment-check-results');
+        container.innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <i class="fas fa-times-circle text-red-600 text-lg mr-3"></i>
+                    <span class="font-semibold text-red-800">环境检查失败</span>
+                </div>
+                <p class="text-red-700 text-sm mt-2">无法完成环境检查，请检查网络连接或联系技术支持。</p>
+                <p class="text-red-600 text-xs mt-1">错误详情: ${error.message}</p>
+            </div>
+        `;
+    }
+</script>

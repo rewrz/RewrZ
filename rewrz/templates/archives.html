@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}文章归档 - RewrZ{% endblock %}
+
+{% block content %}
+<h1 class="text-4xl font-bold text-gray-900 mb-8">文章归档</h1>
+
+{% if posts %}
+<div class="space-y-8">
+    {% set current_year = "" %}
+    {% set current_month = "" %}
+    {% for post in posts %}
+        {% set post_year = post.published_at.strftime('%Y') %}
+        {% set post_month = post.published_at.strftime('%m') %}
+
+        {% if post_year != current_year %}
+            {% if not loop.first %}
+                </ul>
+            {% endif %}
+            <h2 class="text-3xl font-bold text-gray-800 mt-8 mb-4">{{ post_year }}</h2>
+            {% set current_year = post_year %}
+            {% set current_month = "" %} {# Reset month for new year #}
+        {% endif %}
+
+        {% if post_month != current_month %}
+            {% if not loop.first and current_month != "" %}
+                </ul>
+            {% endif %}
+            <h3 class="text-2xl font-semibold text-gray-700 mt-6 mb-3"><a href="/archives/{{ post_year }}/{{ post_month }}" class="hover:text-indigo-600">{{ post.published_at.strftime('%B') }}</a></h3>
+            <ul class="list-disc list-inside space-y-2">
+            {% set current_month = post_month %}
+        {% endif %}
+
+        <li class="flex items-center justify-between py-2">
+            <div class="flex-1">
+                <span class="text-gray-500 text-sm">{{ post.published_at.strftime('%d日') }}</span> &mdash; 
+                <a href="/posts/{{ post.slug }}" class="text-indigo-600 hover:underline">{{ post.title }}</a>
+            </div>
+            <div class="flex items-center space-x-3 text-xs text-gray-500">
+                <span class="flex items-center">
+                    <i class="fas fa-clock mr-1"></i>
+                    {{ post.content_markdown | reading_time }}
+                </span>
+                {% set stats = post.content_markdown | reading_stats(post) %}
+                <span>{{ stats.word_count }}字</span>
+            </div>
+        </li>
+    {% endfor %}
+    </ul> {# Close the last ul #}
+</div>
+{% else %}
+<p class="text-gray-600">暂无文章可供归档。</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,480 @@
+<!-- Step 4.5: Admin Path Configuration -->
+<div class="text-center mb-6">
+    <h2 class="text-2xl font-bold text-gray-900 mb-2">后台路径配置</h2>
+    <p class="text-gray-600">自定义您的博客后台访问路径，提高安全性</p>
+</div>
+
+<form id="admin-path-form" class="space-y-6 mb-8">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    
+    <!-- 安全说明 -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex items-center mb-2">
+            <i class="fas fa-shield-alt text-blue-600 mr-2"></i>
+            <h3 class="font-semibold text-blue-900">为什么要自定义后台路径？</h3>
+        </div>
+        <ul class="text-sm text-blue-800 space-y-1">
+            <li>• 隐藏后台入口，防止低级自动化扫描攻击</li>
+            <li>• 使用随机或自定义路径，增加安全性</li>
+            <li>• 避免使用默认的 /admin 路径被恶意发现</li>
+        </ul>
+    </div>
+    
+    <!-- 路径模板选择 -->
+    <div class="bg-gray-50 rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+            <i class="fas fa-route text-gray-600 mr-2"></i>
+            选择路径类型
+        </h3>
+        
+        <div class="space-y-4">
+            <!-- 经典模式 -->
+            <div class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                <label class="flex items-start cursor-pointer">
+                    <input type="radio" name="path_template" value="classic" checked 
+                           class="mt-1 mr-3 text-blue-600 focus:ring-blue-500">
+                    <div class="flex-1">
+                        <div class="flex items-center mb-2">
+                            <h4 class="font-medium text-gray-900">经典模式</h4>
+                            <span class="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">推荐</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">传统的admin加随机字符格式，安全性最高</p>
+                        <div class="text-sm text-gray-500">
+                            <span class="font-mono bg-gray-100 px-2 py-1 rounded">/admin_a1b2c3d4</span>
+                            <span class="mx-2">或</span>
+                            <span class="font-mono bg-gray-100 px-2 py-1 rounded">/admin_x9y8z7w6</span>
+                        </div>
+                    </div>
+                </label>
+            </div>
+            
+            <!-- 品牌模式 -->
+            <div class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                <label class="flex items-start cursor-pointer">
+                    <input type="radio" name="path_template" value="brand" 
+                           class="mt-1 mr-3 text-blue-600 focus:ring-blue-500">
+                    <div class="flex-1">
+                        <div class="flex items-center mb-2">
+                            <h4 class="font-medium text-gray-900">品牌模式</h4>
+                            <span class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">易记</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">使用品牌名称，便于记忆但安全性相对较低</p>
+                        <div class="text-sm text-gray-500">
+                            <span class="font-mono bg-gray-100 px-2 py-1 rounded">/rewrz-admin</span>
+                            <span class="mx-2">或</span>
+                            <span class="font-mono bg-gray-100 px-2 py-1 rounded">/rz-admin</span>
+                        </div>
+                    </div>
+                </label>
+            </div>
+            
+            <!-- 简短模式 -->
+            <div class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                <label class="flex items-start cursor-pointer">
+                    <input type="radio" name="path_template" value="short" 
+                           class="mt-1 mr-3 text-blue-600 focus:ring-blue-500">
+                    <div class="flex-1">
+                        <div class="flex items-center mb-2">
+                            <h4 class="font-medium text-gray-900">简短模式</h4>
+                            <span class="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">简洁</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">使用简短前缀，便于输入</p>
+                        <div class="text-sm text-gray-500">
+                            <span class="font-mono bg-gray-100 px-2 py-1 rounded">/ra-admin</span>
+                            <span class="mx-2">或</span>
+                            <span class="font-mono bg-gray-100 px-2 py-1 rounded">/mgmt</span>
+                        </div>
+                    </div>
+                </label>
+            </div>
+            
+            <!-- 混合模式 -->
+            <div class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                <label class="flex items-start cursor-pointer">
+                    <input type="radio" name="path_template" value="mixed" 
+                           class="mt-1 mr-3 text-blue-600 focus:ring-blue-500">
+                    <div class="flex-1">
+                        <div class="flex items-center mb-2">
+                            <h4 class="font-medium text-gray-900">混合模式</h4>
+                            <span class="ml-2 px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">平衡</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">品牌名称加随机字符，兼顾安全性和记忆性</p>
+                        <div class="text-sm text-gray-500">
+                            <span class="font-mono bg-gray-100 px-2 py-1 rounded">/rewrz-admin_a1b2</span>
+                            <span class="mx-2">或</span>
+                            <span class="font-mono bg-gray-100 px-2 py-1 rounded">/re-admin_x9y8</span>
+                        </div>
+                    </div>
+                </label>
+            </div>
+            
+            <!-- 自定义模式 -->
+            <div class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                <label class="flex items-start cursor-pointer">
+                    <input type="radio" name="path_template" value="custom" 
+                           class="mt-1 mr-3 text-blue-600 focus:ring-blue-500">
+                    <div class="flex-1">
+                        <div class="flex items-center mb-2">
+                            <h4 class="font-medium text-gray-900">自定义模式</h4>
+                            <span class="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">高级</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">完全自定义路径，需要您自行确保安全性</p>
+                        <div class="text-sm text-gray-500">
+                            <span class="font-mono bg-gray-100 px-2 py-1 rounded">/my-secret-panel</span>
+                            <span class="mx-2">或</span>
+                            <span class="font-mono bg-gray-100 px-2 py-1 rounded">/dashboard123</span>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 自定义配置选项 -->
+    <div id="custom-options" class="bg-gray-50 rounded-lg p-6" style="display: none;">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+            <i class="fas fa-cog text-gray-600 mr-2"></i>
+            自定义配置
+        </h3>
+        
+        <!-- 品牌名称输入 -->
+        <div id="brand-input" class="mb-4" style="display: none;">
+            <label for="brand_name" class="block text-sm font-medium text-gray-700 mb-1">
+                品牌名称
+            </label>
+            <input type="text" id="brand_name" name="brand_name" value="rewrz"
+                   pattern="[a-zA-Z0-9\-]{1,10}" maxlength="10"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                   placeholder="输入品牌名称">
+            <p class="text-xs text-gray-500 mt-1">只能包含字母、数字和连字符，最多10个字符</p>
+        </div>
+        
+        <!-- 简短前缀输入 -->
+        <div id="prefix-input" class="mb-4" style="display: none;">
+            <label for="short_prefix" class="block text-sm font-medium text-gray-700 mb-1">
+                简短前缀
+            </label>
+            <input type="text" id="short_prefix" name="short_prefix" value="ra"
+                   pattern="[a-zA-Z0-9\-]{1,6}" maxlength="6"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                   placeholder="输入简短前缀">
+            <p class="text-xs text-gray-500 mt-1">只能包含字母、数字和连字符，最多6个字符</p>
+        </div>
+        
+        <!-- 完全自定义路径输入 -->
+        <div id="custom-input" class="mb-4" style="display: none;">
+            <label for="custom_path" class="block text-sm font-medium text-gray-700 mb-1">
+                自定义路径
+            </label>
+            <input type="text" id="custom_path" name="custom_path" 
+                   pattern="[a-zA-Z0-9\-_/]{3,50}" maxlength="50"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                   placeholder="例如：/my-secret-panel">
+            <p class="text-xs text-gray-500 mt-1">只能包含字母、数字、连字符、下划线和斜杠，3-50个字符</p>
+            <div id="path-validation" class="mt-2 text-sm"></div>
+        </div>
+        
+        <!-- 随机字符长度 -->
+        <div id="random-length" class="mb-4">
+            <label for="random_length" class="block text-sm font-medium text-gray-700 mb-1">
+                随机字符长度
+            </label>
+            <select id="random_length" name="random_length" 
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <option value="8" selected>8个字符（推荐）</option>
+                <option value="6">6个字符</option>
+                <option value="10">10个字符</option>
+                <option value="12">12个字符（更安全）</option>
+            </select>
+            <p class="text-xs text-gray-500 mt-1">更长的随机字符提供更高的安全性</p>
+        </div>
+    </div>
+    
+    <!-- 路径预览 -->
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+        <h3 class="font-semibold text-green-900 mb-2">
+            <i class="fas fa-eye text-green-600 mr-2"></i>
+            路径预览
+        </h3>
+        <div class="font-mono text-lg text-green-800 bg-white px-3 py-2 rounded border" id="path-preview">
+            /admin_a1b2c3d4
+        </div>
+        <p class="text-sm text-green-700 mt-2">这将是您的后台登录和管理路径</p>
+    </div>
+    
+    <!-- 安全提醒 -->
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div class="flex items-center mb-2">
+            <i class="fas fa-exclamation-triangle text-amber-600 mr-2"></i>
+            <h3 class="font-semibold text-amber-900">重要提醒</h3>
+        </div>
+        <ul class="text-sm text-amber-800 space-y-1">
+            <li>• 请记住您的后台路径，丢失后需要手动修改 .env 文件</li>
+            <li>• 避免使用过于简单或容易猜测的路径</li>
+            <li>• 定期更换后台路径可以进一步提高安全性</li>
+        </ul>
+    </div>
+</form>
+
+<div id="admin-path-results" class="mb-6">
+    <!-- 配置结果将在这里显示 -->
+</div>
+
+<div class="flex justify-between">
+    <button type="button" 
+            class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            hx-get="/installer/step/4"
+            hx-target="#installation-content"
+            hx-swap="innerHTML">
+        <i class="fas fa-arrow-left mr-2"></i>上一步
+    </button>
+    <button id="admin-path-btn" 
+            type="button" 
+            class="px-8 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-all transform hover:scale-105">
+        <i class="fas fa-route mr-2"></i>配置后台路径
+    </button>
+</div>
+
+<script>
+    // 更新步骤指示器
+    updateStepIndicator(4.5);
+    
+    // 路径模板选择处理
+    const pathTemplateInputs = document.querySelectorAll('input[name="path_template"]');
+    const customOptions = document.getElementById('custom-options');
+    const brandInput = document.getElementById('brand-input');
+    const prefixInput = document.getElementById('prefix-input');
+    const customInput = document.getElementById('custom-input');
+    const randomLength = document.getElementById('random-length');
+    const pathPreview = document.getElementById('path-preview');
+    
+    // 监听模板选择变化
+    pathTemplateInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            updateCustomOptions();
+            updatePathPreview();
+        });
+    });
+    
+    // 监听自定义选项变化
+    document.getElementById('brand_name').addEventListener('input', updatePathPreview);
+    document.getElementById('short_prefix').addEventListener('input', updatePathPreview);
+    document.getElementById('custom_path').addEventListener('input', function() {
+        validateCustomPath();
+        updatePathPreview();
+    });
+    document.getElementById('random_length').addEventListener('change', updatePathPreview);
+    
+    function updateCustomOptions() {
+        const selectedTemplate = document.querySelector('input[name="path_template"]:checked').value;
+        
+        // 隐藏所有自定义选项
+        customOptions.style.display = 'none';
+        brandInput.style.display = 'none';
+        prefixInput.style.display = 'none';
+        customInput.style.display = 'none';
+        randomLength.style.display = 'none';
+        
+        // 根据选择显示相应选项
+        switch(selectedTemplate) {
+            case 'classic':
+                customOptions.style.display = 'block';
+                randomLength.style.display = 'block';
+                break;
+            case 'brand':
+                customOptions.style.display = 'block';
+                brandInput.style.display = 'block';
+                break;
+            case 'short':
+                customOptions.style.display = 'block';
+                prefixInput.style.display = 'block';
+                break;
+            case 'mixed':
+                customOptions.style.display = 'block';
+                brandInput.style.display = 'block';
+                randomLength.style.display = 'block';
+                break;
+            case 'custom':
+                customOptions.style.display = 'block';
+                customInput.style.display = 'block';
+                break;
+        }
+    }
+    
+    function updatePathPreview() {
+        const selectedTemplate = document.querySelector('input[name="path_template"]:checked').value;
+        const brandName = document.getElementById('brand_name').value || 'rewrz';
+        const shortPrefix = document.getElementById('short_prefix').value || 'ra';
+        const customPath = document.getElementById('custom_path').value;
+        const randomLen = parseInt(document.getElementById('random_length').value) || 8;
+        
+        let preview = '';
+        const randomStr = 'a1b2c3d4'.substring(0, randomLen);
+        
+        switch(selectedTemplate) {
+            case 'classic':
+                preview = `/admin_${randomStr}`;
+                break;
+            case 'brand':
+                preview = `/${brandName.toLowerCase()}-admin`;
+                break;
+            case 'short':
+                preview = `/${shortPrefix.toLowerCase()}-admin`;
+                break;
+            case 'mixed':
+                const shortRandom = randomStr.substring(0, 4);
+                preview = `/${brandName.toLowerCase()}-admin_${shortRandom}`;
+                break;
+            case 'custom':
+                preview = customPath.startsWith('/') ? customPath : `/${customPath}`;
+                break;
+        }
+        
+        pathPreview.textContent = preview;
+    }
+    
+    function validateCustomPath() {
+        const customPath = document.getElementById('custom_path').value;
+        const validation = document.getElementById('path-validation');
+        
+        if (!customPath) {
+            validation.innerHTML = '';
+            return false;
+        }
+        
+        // 安全性验证
+        const isValidFormat = /^[a-zA-Z0-9\-_/]{3,50}$/.test(customPath);
+        const startsWithSlash = customPath.startsWith('/');
+        const reservedPaths = ['/admin', '/api', '/static', '/media', '/installer', '/feed', '/rss', '/sitemap', '/robots', '/favicon', '/archive', '/archives', '/category', '/tag', '/format', '/search', '/about', '/contact', '/login', '/logout'];
+        const isReserved = reservedPaths.some(path => customPath.toLowerCase().startsWith(path.toLowerCase()));
+        const hasDangerousChars = /[<>"'&\\]/.test(customPath);
+        const isJustSlash = customPath === '/';
+        const hasConsecutiveSlashes = /\/\//.test(customPath);
+        
+        if (isJustSlash) {
+            validation.innerHTML = '<span class="text-red-600">不能使用根路径 "/"</span>';
+            return false;
+        } else if (!startsWithSlash) {
+            validation.innerHTML = '<span class="text-amber-600">路径将自动添加 "/" 前缀</span>';
+            return true;
+        } else if (hasDangerousChars) {
+            validation.innerHTML = '<span class="text-red-600">路径包含危险字符，请移除 < > " \' & \\ 等字符</span>';
+            return false;
+        } else if (hasConsecutiveSlashes) {
+            validation.innerHTML = '<span class="text-red-600">路径不能包含连续的斜杠</span>';
+            return false;
+        } else if (!isValidFormat) {
+            validation.innerHTML = '<span class="text-red-600">路径格式无效，只能包含字母、数字、连字符、下划线和斜杠</span>';
+            return false;
+        } else if (isReserved) {
+            validation.innerHTML = '<span class="text-red-600">该路径是系统保留路径，请选择其他路径</span>';
+            return false;
+        } else if (customPath.length < 3) {
+            validation.innerHTML = '<span class="text-red-600">路径长度至少需要3个字符</span>';
+            return false;
+        } else if (customPath.length > 50) {
+            validation.innerHTML = '<span class="text-red-600">路径长度不能超过50个字符</span>';
+            return false;
+        } else {
+            validation.innerHTML = '<span class="text-green-600">路径格式正确</span>';
+            return true;
+        }
+    }
+    
+    // 初始化
+    updateCustomOptions();
+    updatePathPreview();
+    
+    // 配置后台路径按钮事件
+    document.getElementById('admin-path-btn').addEventListener('click', function() {
+        const form = document.getElementById('admin-path-form');
+        const button = this;
+        const resultsContainer = document.getElementById('admin-path-results');
+        const selectedTemplate = document.querySelector('input[name="path_template"]:checked').value;
+        
+        // 验证表单
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        // 如果是自定义模式，检查自定义路径验证
+        if (selectedTemplate === 'custom') {
+            const isValid = validateCustomPath();
+            if (!isValid) {
+                return;
+            }
+        }
+        
+        // 禁用按钮并显示加载状态
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>正在配置...';
+        
+        // 准备表单数据
+        const formData = new FormData(form);
+        
+        // 发送配置请求
+        fetch('/installer/configure-admin-path', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                resultsContainer.innerHTML = `
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                        <div class="text-center">
+                            <div class="mb-4">
+                                <i class="fas fa-check-circle text-4xl text-green-500"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-green-900 mb-3">后台路径配置成功！</h3>
+                            <div class="bg-white rounded-lg p-4 mb-4">
+                                <h4 class="font-semibold text-gray-900 mb-2">您的后台路径</h4>
+                                <div class="font-mono text-lg text-green-700 bg-green-100 px-4 py-2 rounded border">
+                                    ${data.admin_path}
+                                </div>
+                                <p class="text-sm text-gray-600 mt-2">请记住这个路径，这是您的后台入口</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // 3秒后自动进入下一步
+                setTimeout(() => {
+                    htmx.ajax('GET', '/installer/step/5', {target:'#installation-content', swap:'innerHTML'});
+                }, 3000);
+                
+            } else {
+                resultsContainer.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-times-circle text-red-600 text-lg mr-3"></i>
+                            <span class="font-semibold text-red-800">后台路径配置失败</span>
+                        </div>
+                        <p class="text-red-700 text-sm mt-2">${data.error}</p>
+                    </div>
+                `;
+                
+                // 重新启用按钮
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-route mr-2"></i>重新配置';
+            }
+        })
+        .catch(error => {
+            console.error('配置失败:', error);
+            resultsContainer.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-times-circle text-red-600 text-lg mr-3"></i>
+                        <span class="font-semibold text-red-800">网络错误</span>
+                    </div>
+                    <p class="text-red-700 text-sm mt-2">无法连接到服务器，请检查网络连接。</p>
+                </div>
+            `;
+            
+            // 重新启用按钮
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-route mr-2"></i>重新配置';
+        });
+    });
+</script>

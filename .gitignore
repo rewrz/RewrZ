@@ -24,6 +24,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -101,6 +102,8 @@ ENV/
 .mypy_cache/
 rewrz/media/uploads/
 old-version
-
+/alembic/versions/
 *.sqlite3
+*.db
 rewrz/static/
+media_uploads/
