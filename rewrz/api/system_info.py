@@ -254,7 +254,7 @@ async def get_media_info(db: Session) -> Dict[str, Any]:
     
     try:
         # 获取媒体文件数量
-        media_items = crud_media.get_all_media_items(db)
+        media_items = crud_media.get_all_media(db)
         media_info['total_files'] = len(media_items)
         
         # 计算总大小

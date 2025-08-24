@@ -10,7 +10,7 @@ def get_media(db: Session, media_id: int):
 def get_media_by_filepath(db: Session, filepath: str):
     return db.execute(select(Media).filter(Media.filepath == filepath)).scalar_one_or_none()
 
-def get_all_media_items(db: Session, skip: int = 0, limit: int = 100) -> List[Media]:
+def get_all_media(db: Session, skip: int = 0, limit: int = 100) -> List[Media]:
     """
     获取所有媒体项目
 

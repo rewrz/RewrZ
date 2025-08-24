@@ -33,7 +33,7 @@ async def media_library_page(request: Request, db: Session = Depends(get_db), cu
     显示所有上传的媒体文件，支持搜索、筛选、批量操作
     """
     templates = get_templates()
-    media_items = crud_media.get_all_media_items(db=db) # 从请求状态获取数据库会话
+    media_items = crud_media.get_all_media(db=db) # 从请求状态获取数据库会话
     return templates.TemplateResponse("admin/media.html", {"request": request, "user": current_user, "media_items": media_items})
 
 @router.post("/media/upload", response_model=Media)
@@ -237,7 +237,7 @@ async def media_library_page(request: Request, db: Session = Depends(get_db), cu
     显示所有上传的媒体文件，支持搜索、筛选、批量操作
     """
     templates = get_templates()
-    media_items = crud_media.get_all_media_items(db=db) # 从请求状态获取数据库会话
+    media_items = crud_media.get_all_media(db=db) # 从请求状态获取数据库会话
     return templates.TemplateResponse("admin/media.html", {"request": request, "user": current_user, "media_items": media_items})
 
 @router.post("/media/upload", response_model=Media)
