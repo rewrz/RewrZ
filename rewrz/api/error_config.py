@@ -34,14 +34,42 @@ async def error_settings_page(
     错误处理设置页面
     """
     # 获取当前错误处理配置
-    error_config = setting_crud.get_setting(db, key="error_handling_config")
-    current_config = error_config.value.get("value", {}) if error_config and error_config.value else {}
+    error_config_setting = setting_crud.get_setting(db, key="error_handling_config")
+    saved_config = error_config_setting.value.get("value", {}) if error_config_setting and error_config_setting.value else {}
     
+    # 提供一个完整的默认配置，以防止模板渲染错误
+    default_config = {
+        "enable_custom_error_pages": False,
+        "error_page_template": "default",
+        "custom_error_messages": {
+            "404": {"title": "页面未找到", "message": "抱歉，您访问的页面不存在。"},
+            "500": {"title": "服务器内部错误", "message": "抱歉，服务器遇到了一些问题，请稍后再试。"},
+            "403": {"title": "访问被禁止", "message": "抱歉，您没有权限访问此页面。"},
+            "400": {"title": "请求错误", "message": "抱歉，您的请求存在问题，请检查后重试。"}
+        },
+        "enable_error_caching": True,
+        "error_cache_duration": 3600,
+        "enable_error_logging": True,
+        "log_level": "INFO",
+        "enable_performance_optimization": True,
+        "related_posts_cache_strategy": "aggressive",
+        "reading_time_cache_duration": 7200
+    }
+    
+    # 使用保存的配置更新默认配置
+    # 注意：这里需要一个深度合并策略，但为了简单起见，我们只合并顶层键和 custom_error_messages
+    config = default_config.copy()
+    for key, value in saved_config.items():
+        if key == "custom_error_messages" and isinstance(value, dict):
+            config[key].update(value)
+        else:
+            config[key] = value
+
     return templates.TemplateResponse("admin/error_settings.html", {
         "request": request,
         "user": current_user,
         "admin_path": settings.ADMIN_PATH.rstrip('/'),
-        "error_config": current_config
+        "error_config": config
     })
 
 

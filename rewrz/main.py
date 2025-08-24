@@ -6,7 +6,8 @@ RewrZ 博客系统主应用模块
 """
 import os
 from fastapi import FastAPI, Depends, HTTPException, Request, Response, Form, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.exceptions import RequestValidationError
 from fastapi import FastAPI
@@ -65,6 +66,9 @@ async def lifespan(app: FastAPI):
 
 # 只保留一个FastAPI实例定义，包含lifespan参数
 app = FastAPI(lifespan=lifespan)
+
+# 挂载静态文件目录
+app.mount("/static", StaticFiles(directory="rewrz/static"), name="static")
 
 # 为CSRF保护添加会话中间件 (需求规格 3.2.1)
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
@@ -187,7 +191,7 @@ def register_admin_routes():
     async def dynamic_admin_new_post_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         return await posts_api.new_post_page(request, db, current_user)
     
-    # 新增：文章列表管理页面
+    # 注册后台文章列表管理页面
     @app.get(f"{admin_path}/posts", response_class=HTMLResponse)
     async def dynamic_admin_posts_list_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         from .crud import post as crud_post
@@ -207,7 +211,7 @@ def register_admin_routes():
     async def dynamic_update_post(post_id: int, request: Request, post: PostUpdate, format_ids: Optional[List[int]] = Form(None), csrf_token: str = Form(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         return posts_api.update_post_api(request, post_id, post, format_ids, csrf_token, db, current_user)
     
-    # 新增：分类管理页面
+    # 注册后台分类管理页面
     @app.get(f"{admin_path}/categories", response_class=HTMLResponse)
     async def dynamic_admin_categories_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         from .crud import category as crud_category
@@ -219,7 +223,7 @@ def register_admin_routes():
             "admin_path": admin_path
         })
     
-    # 新增：标签管理页面
+    # 注册后台标签管理页面
     @app.get(f"{admin_path}/tags", response_class=HTMLResponse)
     async def dynamic_admin_tags_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         from .crud import tag as crud_tag
@@ -231,7 +235,7 @@ def register_admin_routes():
             "admin_path": admin_path
         })
     
-    # 新增：评论管理页面
+    # 注册后台评论管理页面
     @app.get(f"{admin_path}/comments", response_class=HTMLResponse)
     async def dynamic_admin_comments_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         from .crud import comment as crud_comment
@@ -243,7 +247,7 @@ def register_admin_routes():
             "admin_path": admin_path
         })
     
-    # 新增：页面管理页面
+    # 注册后台页面管理页面
     @app.get(f"{admin_path}/pages", response_class=HTMLResponse)
     async def dynamic_admin_pages_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         from .crud import post as crud_post
@@ -256,13 +260,13 @@ def register_admin_routes():
             "admin_path": admin_path
         })
     
-    # 注册系统信息页面
-    @app.get(f"{admin_path}/system/info", response_class=HTMLResponse)
+    # 注册后台系统信息页面
+    @app.get(f"{admin_path}/system-info", response_class=HTMLResponse)
     async def dynamic_admin_system_info_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         from .api import system_info as system_info_api
         return await system_info_api.system_info_page(request, db, current_user)
     
-    @app.get(f"{admin_path}/api/system/info")
+    @app.get(f"{admin_path}/api/system-info")
     async def dynamic_get_system_info_api(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         from .api import system_info as system_info_api
         return await system_info_api.get_system_info_api(db, current_user)
@@ -272,6 +276,28 @@ def register_admin_routes():
     async def dynamic_admin_error_settings_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         return await error_config_api.error_settings_page(request, db, current_user)
     
+    # 注册评论设置页面
+    @app.get(f"{admin_path}/comment-settings", response_class=HTMLResponse)
+    async def dynamic_admin_comment_settings_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+        return await comment_settings_api.comment_settings_page(request, db, current_user)
+
+    # 注册数据管理页面
+    @app.get(f"{admin_path}/data-management", response_class=HTMLResponse)
+    async def dynamic_admin_data_management_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+        return await data_api.data_management_page(request, db, current_user)
+
+    # 包含数据导入导出路由
+    app.include_router(data_api.router, prefix=admin_path)
+    
+    # 注册数据统计API
+    @app.get(f"{admin_path}/api/dashboard/stats")
+    async def dynamic_get_dashboard_stats(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+        from .api import admin_dashboard as admin_dashboard_api
+        return await admin_dashboard_api.get_dashboard_stats(request, db)
+
+    """
+    动态注册错误处理配置页面
+    """
     @app.post(f"{admin_path}/error-settings")
     async def dynamic_update_error_settings(
         request: Request,
@@ -333,8 +359,6 @@ app.include_router(themes_api.router)
 app.include_router(search_api.router)
 # 包含RSS路由
 app.include_router(rss_api.router)
-# 包含数据导入导出路由
-app.include_router(data_api.router)
 # 包含媒体设置路由
 app.include_router(media_settings_api.router)
 # 包含评论设置路由
@@ -492,6 +516,10 @@ def get_admin_path() -> str:
         后台路径
     """
     return settings.ADMIN_PATH.rstrip('/')
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse("rewrz/static/favicon.ico")
 
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request, db: Session = Depends(get_db)):

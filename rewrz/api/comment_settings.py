@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from ..core.database import get_db
-from ..core.security import get_current_user
+from ..core.security import get_current_user, generate_csrf_token # 导入 generate_csrf_token
 from ..core.template_filters import get_templates
 from ..crud import setting as crud_setting
 from ..schemas import User, SettingCreate, SettingUpdate
@@ -83,7 +83,8 @@ async def comment_settings_page(
         "request": request,
         "user": current_user,
         "settings": settings_data,
-        "admin_path": getattr(request.state, 'admin_path', os.getenv('ADMIN_PATH', '/admin'))
+        "admin_path": getattr(request.state, 'admin_path', os.getenv('ADMIN_PATH', '/admin')),
+        "csrf_token": generate_csrf_token # 将 csrf_token 函数传递给模板
     })
 
 

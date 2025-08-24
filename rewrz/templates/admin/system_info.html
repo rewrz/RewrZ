@@ -1,13 +1,9 @@
 {% extends "admin/base.html" %}
 
 {% block title %}系统信息 - {{ site_title }}{% endblock %}
-{% block page_title %}系统信息{% endblock %}
+{% block page_title %}<i class="fas fa-server text-blue-600 mr-3"></i>系统信息{% endblock %}
 {% block content %}
 <div class="bg-white p-6 rounded-lg shadow-md">
-    <h1 class="text-3xl font-bold text-gray-900 mb-6">
-        <i class="fas fa-server text-blue-600 mr-3"></i>
-        系统信息
-    </h1>
     
     <p class="text-gray-600 mb-6">以下是 RewrZ 博客系统的运行环境信息</p>
     
@@ -523,3 +519,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+{% endblock %}

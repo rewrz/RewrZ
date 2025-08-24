@@ -48,7 +48,27 @@
             <h3 class="px-4 text-xs text-gray-500 uppercase font-bold">系统管理</h3>
             <a href="{{ request.state.admin_path }}/settings" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
                 <i class="fas fa-cog w-6"></i>
-                <span>设置</span>
+                 <span>常规设置</span>
+             </a>
+            <a href="{{ request.state.admin_path }}/comment-settings" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
+                <i class="fas fa-comment-dots w-6"></i>
+                <span>评论设置</span>
+            </a>
+            <a href="{{ request.state.admin_path }}/data-management" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
+                <i class="fas fa-database w-6"></i>
+                <span>数据管理</span>
+            </a>
+            <a href="{{ request.state.admin_path }}/themes" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
+                <i class="fas fa-palette w-6"></i>
+                <span>主题管理</span>
+            </a>
+            <a href="{{ request.state.admin_path }}/error-settings" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
+                <i class="fas fa-exclamation-triangle w-6"></i>
+                <span>错误处理</span>
+            </a>
+            <a href="{{ request.state.admin_path }}/system-info" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
+                <i class="fas fa-info-circle w-6"></i>
+                <span>系统信息</span>
             </a>
         </div>
     </nav>

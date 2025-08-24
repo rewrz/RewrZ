@@ -30,11 +30,10 @@ router = APIRouter()
 templates = get_templates()
 
 
-@router.get("/admin/data", response_class=HTMLResponse)
 async def data_management_page(
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session,
+    current_user: User
 ):
     """
     数据管理页面
@@ -48,7 +47,7 @@ async def data_management_page(
     })
 
 
-@router.get("/admin/api/export/json")
+@router.get("/api/export/json")
 async def export_data_json(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -96,7 +95,7 @@ async def export_data_json(
         raise HTTPException(status_code=500, detail=f"导出失败: {str(e)}")
 
 
-@router.get("/admin/api/export/backup")
+@router.get("/api/export/backup")
 async def export_backup_package(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -134,7 +133,7 @@ async def export_backup_package(
         raise HTTPException(status_code=500, detail=f"备份失败: {str(e)}")
 
 
-@router.post("/admin/api/import/wordpress")
+@router.post("/api/import/wordpress")
 async def import_wordpress_data(
     wxr_file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -186,7 +185,7 @@ async def import_wordpress_data(
             os.unlink(temp_file.name)
 
 
-@router.post("/admin/api/import/rewrz")
+@router.post("/api/import/rewrz")
 async def import_rewrz_data(
     json_file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -238,7 +237,7 @@ async def import_rewrz_data(
             os.unlink(temp_file.name)
 
 
-@router.post("/admin/api/import/backup")
+@router.post("/api/import/backup")
 async def import_backup_package(
     backup_file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -331,7 +330,7 @@ async def import_backup_package(
         _cleanup_temp_files(temp_dir)
 
 
-@router.get("/admin/api/data/stats")
+@router.get("/api/data/stats")
 async def get_data_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)

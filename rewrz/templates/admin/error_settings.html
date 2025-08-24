@@ -1,13 +1,12 @@
 {% extends "admin/base.html" %}
 
 {% block title %}错误处理设置{% endblock %}
-{% block page_title %}错误处理设置{% endblock %}
+{% block page_title %}<i class="fas fa-exclamation-circle text-red-500 mr-3"></i>错误处理设置{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto">
     <div class="bg-white rounded-lg shadow-md p-6">
         <div class="flex items-center justify-between mb-6">
-            <h1 class="text-2xl font-bold text-gray-800">错误处理设置</h1>
             <button type="submit" form="error-settings-form" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200">
                 保存设置
             </button>
@@ -58,13 +57,13 @@
                             <div>
                                 <label for="custom_error_404_title" class="block text-sm font-medium text-gray-700">标题</label>
                                 <input type="text" id="custom_error_404_title" name="custom_error_404_title" 
-                                       value="{{ error_config.custom_error_messages.404.title or '页面未找到' }}"
+                                       value="{{ error_config.custom_error_messages['404'].title or '页面未找到' }}"
                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                             </div>
                             <div>
                                 <label for="custom_error_404_message" class="block text-sm font-medium text-gray-700">消息</label>
                                 <textarea id="custom_error_404_message" name="custom_error_404_message" rows="2"
-                                          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{ error_config.custom_error_messages.404.message or '抱歉，您访问的页面不存在。' }}</textarea>
+                                          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{ error_config.custom_error_messages['404'].message or '抱歉，您访问的页面不存在。' }}</textarea>
                             </div>
                         </div>
                     </div>
@@ -76,13 +75,13 @@
                             <div>
                                 <label for="custom_error_500_title" class="block text-sm font-medium text-gray-700">标题</label>
                                 <input type="text" id="custom_error_500_title" name="custom_error_500_title" 
-                                       value="{{ error_config.custom_error_messages.500.title or '服务器内部错误' }}"
+                                       value="{{ error_config.custom_error_messages['500'].title or '服务器内部错误' }}"
                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                             </div>
                             <div>
                                 <label for="custom_error_500_message" class="block text-sm font-medium text-gray-700">消息</label>
                                 <textarea id="custom_error_500_message" name="custom_error_500_message" rows="2"
-                                          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{ error_config.custom_error_messages.500.message or '抱歉，服务器遇到了一些问题，请稍后再试。' }}</textarea>
+                                          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{ error_config.custom_error_messages['500'].message or '抱歉，服务器遇到了一些问题，请稍后再试。' }}</textarea>
                             </div>
                         </div>
                     </div>
@@ -94,13 +93,13 @@
                             <div>
                                 <label for="custom_error_403_title" class="block text-sm font-medium text-gray-700">标题</label>
                                 <input type="text" id="custom_error_403_title" name="custom_error_403_title" 
-                                       value="{{ error_config.custom_error_messages.403.title or '访问被禁止' }}"
+                                       value="{{ error_config.custom_error_messages['403'].title or '访问被禁止' }}"
                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                             </div>
                             <div>
                                 <label for="custom_error_403_message" class="block text-sm font-medium text-gray-700">消息</label>
                                 <textarea id="custom_error_403_message" name="custom_error_403_message" rows="2"
-                                          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{ error_config.custom_error_messages.403.message or '抱歉，您没有权限访问此页面。' }}</textarea>
+                                          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{ error_config.custom_error_messages['403'].message or '抱歉，您没有权限访问此页面。' }}</textarea>
                             </div>
                         </div>
                     </div>
@@ -112,13 +111,13 @@
                             <div>
                                 <label for="custom_error_400_title" class="block text-sm font-medium text-gray-700">标题</label>
                                 <input type="text" id="custom_error_400_title" name="custom_error_400_title" 
-                                       value="{{ error_config.custom_error_messages.400.title or '请求错误' }}"
+                                       value="{{ error_config.custom_error_messages['400'].title or '请求错误' }}"
                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                             </div>
                             <div>
                                 <label for="custom_error_400_message" class="block text-sm font-medium text-gray-700">消息</label>
                                 <textarea id="custom_error_400_message" name="custom_error_400_message" rows="2"
-                                          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{ error_config.custom_error_messages.400.message or '抱歉，您的请求存在问题，请检查后重试。' }}</textarea>
+                                          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{ error_config.custom_error_messages['400'].message or '抱歉，您的请求存在问题，请检查后重试。' }}</textarea>
                             </div>
                         </div>
                     </div>

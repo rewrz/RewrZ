@@ -1,13 +1,9 @@
 {% extends "admin/base.html" %}
 
 {% block title %}评论设置 - {{ site_title }}{% endblock %}
-
+{% block page_title %}<i class="fas fa-comments text-blue-600 mr-3"></i>评论设置{% endblock %}
 {% block content %}
 <div class="bg-white p-6 rounded-lg shadow-md">
-    <h1 class="text-3xl font-bold text-gray-900 mb-6">
-        <i class="fas fa-comments text-blue-600 mr-3"></i>
-        评论设置
-    </h1>
     
     <form method="post" action="{{ admin_path }}/api/comments/settings" id="comment-settings-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
