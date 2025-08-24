@@ -46,6 +46,9 @@ from datetime import date, datetime # 导入date和datetime用于纪念日检查
 from starlette.middleware.sessions import SessionMiddleware # 导入会话中间件
 from .core.security import generate_csrf_token # 导入CSRF令牌生成函数
 
+# 全局状态，用于标记后台路由是否已注册
+ADMIN_ROUTES_REGISTERED = False
+
 # 应用生命周期管理器
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -298,8 +301,6 @@ def register_admin_routes():
             reading_time_cache_duration, csrf_token
         )
 
-# 调用动态路由注册
-register_admin_routes()
 # 包含安装向导路由
 app.include_router(installer_api.router)
 # 包含文章路由
@@ -335,8 +336,15 @@ app.include_router(error_config_api.router)
 
 @app.middleware("http")
 async def add_global_context(request: Request, call_next):
+    global ADMIN_ROUTES_REGISTERED
+    # 动态注册后台路由（如果需要）
+    # 在安装完成后，通过首次请求动态加载后台路由，避免重启服务器
+    if settings.installation_complete and not ADMIN_ROUTES_REGISTERED:
+        register_admin_routes()
+        ADMIN_ROUTES_REGISTERED = True
+
     # 检查.env文件并重定向到安装向导
-    if not os.path.exists(".env") and \
+    if not settings.installation_complete and \
        not request.url.path.startswith("/installer") and \
        not request.url.path.startswith("/static") and \
        not request.url.path.startswith("/api"):
