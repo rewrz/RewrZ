@@ -176,6 +176,18 @@ def register_admin_routes():
     async def dynamic_admin_new_post_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         return await posts_api.new_post_page(request, db, current_user)
     
+    # 新增：文章列表管理页面
+    @app.get(f"{admin_path}/posts", response_class=HTMLResponse)
+    async def dynamic_admin_posts_list_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+        from .crud import post as crud_post
+        posts = crud_post.get_posts(db, limit=50)  # 获取最新50篇文章
+        return templates.TemplateResponse("admin/posts_list.html", {
+            "request": request, 
+            "posts": posts, 
+            "user": current_user,
+            "admin_path": admin_path
+        })
+    
     @app.post(f"{admin_path}/posts/new")
     async def dynamic_create_post(request: Request, post: PostCreate, format_ids: Optional[List[int]] = Form(None), csrf_token: str = Form(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         return posts_api.create_post_api(request, post, format_ids, csrf_token, db, current_user)
@@ -183,6 +195,55 @@ def register_admin_routes():
     @app.post(f"{admin_path}/posts/{{post_id}}")
     async def dynamic_update_post(post_id: int, request: Request, post: PostUpdate, format_ids: Optional[List[int]] = Form(None), csrf_token: str = Form(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         return posts_api.update_post_api(request, post_id, post, format_ids, csrf_token, db, current_user)
+    
+    # 新增：分类管理页面
+    @app.get(f"{admin_path}/categories", response_class=HTMLResponse)
+    async def dynamic_admin_categories_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+        from .crud import category as crud_category
+        categories = crud_category.get_categories(db)
+        return templates.TemplateResponse("admin/categories_list.html", {
+            "request": request, 
+            "categories": categories, 
+            "user": current_user,
+            "admin_path": admin_path
+        })
+    
+    # 新增：标签管理页面
+    @app.get(f"{admin_path}/tags", response_class=HTMLResponse)
+    async def dynamic_admin_tags_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+        from .crud import tag as crud_tag
+        tags = crud_tag.get_tags(db)
+        return templates.TemplateResponse("admin/tags_list.html", {
+            "request": request, 
+            "tags": tags, 
+            "user": current_user,
+            "admin_path": admin_path
+        })
+    
+    # 新增：评论管理页面
+    @app.get(f"{admin_path}/comments", response_class=HTMLResponse)
+    async def dynamic_admin_comments_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+        from .crud import comment as crud_comment
+        comments = crud_comment.get_comments(db, limit=50)  # 获取最新50条评论
+        return templates.TemplateResponse("admin/comments_list.html", {
+            "request": request, 
+            "comments": comments, 
+            "user": current_user,
+            "admin_path": admin_path
+        })
+    
+    # 新增：页面管理页面
+    @app.get(f"{admin_path}/pages", response_class=HTMLResponse)
+    async def dynamic_admin_pages_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+        from .crud import post as crud_post
+        # 获取类型为页面的文章
+        pages = crud_post.get_posts_by_type(db, post_type="page", limit=50)
+        return templates.TemplateResponse("admin/pages_list.html", {
+            "request": request, 
+            "pages": pages, 
+            "user": current_user,
+            "admin_path": admin_path
+        })
     
     # 注册系统信息页面
     @app.get(f"{admin_path}/system/info", response_class=HTMLResponse)

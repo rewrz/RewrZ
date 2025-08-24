@@ -582,14 +582,29 @@ INSTALLATION_COMPLETE="true"
         with open(".env", "w", encoding="utf-8") as f:
             f.write(env_content)
         
-        # 获取数据库会话
-        # 使用安装向导中设置的数据库路径
-        new_database_url = f"sqlite:///{database_path}"
-        import sqlalchemy as sa
-        from sqlalchemy.orm import sessionmaker
-        new_engine = sa.create_engine(new_database_url, connect_args={"check_same_thread": False})
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=new_engine)
-        db = SessionLocal()
+        # 关键修复：立即重新加载配置和数据库连接
+        from ..core.config import settings
+        from ..core.database import db_manager
+        
+        # 重新加载配置
+        config_reloaded = settings.reload_config()
+        
+        # 重新初始化数据库连接
+        db_initialized = db_manager.initialize()
+        
+        if not db_initialized:
+            return JSONResponse({
+                "success": False,
+                "error": "配置文件创建成功，但数据库连接初始化失败"
+            }, status_code=500)
+        
+        # 使用新的数据库连接保存安装状态
+        db = db_manager.get_session()
+        if not db:
+            return JSONResponse({
+                "success": False,
+                "error": "无法获取数据库会话"
+            }, status_code=500)
         
         try:
             # 更新安装状态设置
@@ -616,9 +631,10 @@ INSTALLATION_COMPLETE="true"
         
         return JSONResponse({
             "success": True,
-            "message": "RewrZ 博客系统安装完成！请重启服务器以应用新的配置。",
+            "message": "RewrZ 博客系统安装完成！配置已自动重载，可以立即使用。",
             "admin_path": admin_path,  # 返回后台路径供用户查看
-            "redirect_url": f"{admin_path}/login"
+            "redirect_url": f"{admin_path}/login",
+            "auto_reloaded": True  # 标记配置已自动重载
         })
         
     except Exception as e:
