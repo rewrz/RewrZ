@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import logging
 from jose import JWTError, jwt
@@ -18,14 +18,14 @@ logging.getLogger('passlib').setLevel(logging.ERROR)
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 CSRF_TOKEN_LENGTH = 32 # Length of CSRF token in bytes
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # OAuth2 scheme 配置（注意：实际登录端点现在是动态的，格式为 {ADMIN_PATH}/auth）
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/admin/auth")  # 这只是示例，实际使用动态路径
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth")  # 这只是示例，实际使用动态路径
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -46,9 +46,9 @@ async def get_token_from_cookie(request: Request):
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt

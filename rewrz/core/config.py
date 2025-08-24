@@ -16,6 +16,7 @@ class DynamicSettings:
         self.ADMIN_PATH: str = os.getenv("ADMIN_PATH", "/admin")
         self.SECRET_KEY: str = os.getenv("SECRET_KEY", "super-secret-default-key")
         self.DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+        self.ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
         self.MEDIA_UPLOAD_DIR: str = os.getenv("MEDIA_UPLOAD_DIR", "media_uploads")
     
     def reload_config(self) -> bool:

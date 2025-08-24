@@ -571,6 +571,9 @@ ADMIN_PATH="{admin_path}"
 # 媒体上传目录
 MEDIA_UPLOAD_DIR="media_uploads"
 
+# 会话过期时间（分钟）
+ACCESS_TOKEN_EXPIRE_MINUTES=43200
+
 # 日志级别
 LOG_LEVEL="INFO"
 
