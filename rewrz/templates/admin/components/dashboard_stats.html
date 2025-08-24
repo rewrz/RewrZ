@@ -1,0 +1,67 @@
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Published Posts -->
+    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+        <div class="bg-green-500 p-3 rounded-full mr-4">
+            <i class="fas fa-check-circle text-white text-2xl"></i>
+        </div>
+        <div>
+            <p class="text-sm text-gray-500">已发布文章</p>
+            <p class="text-2xl font-bold text-gray-800">{{ stats.published_posts }}</p>
+        </div>
+    </div>
+
+    <!-- Draft Posts -->
+    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+        <div class="bg-yellow-500 p-3 rounded-full mr-4">
+            <i class="fas fa-pencil-alt text-white text-2xl"></i>
+        </div>
+        <div>
+            <p class="text-sm text-gray-500">草稿箱</p>
+            <p class="text-2xl font-bold text-gray-800">{{ stats.draft_posts }}</p>
+        </div>
+    </div>
+
+    <!-- Total Comments -->
+    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+        <div class="bg-blue-500 p-3 rounded-full mr-4">
+            <i class="fas fa-comments text-white text-2xl"></i>
+        </div>
+        <div>
+            <p class="text-sm text-gray-500">总评论数</p>
+            <p class="text-2xl font-bold text-gray-800">{{ stats.total_comments }}</p>
+        </div>
+    </div>
+
+    <!-- Pending Comments -->
+    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+        <div class="bg-red-500 p-3 rounded-full mr-4">
+            <i class="fas fa-hourglass-half text-white text-2xl"></i>
+        </div>
+        <div>
+            <p class="text-sm text-gray-500">待审核评论</p>
+            <p class="text-2xl font-bold text-gray-800">{{ stats.pending_comments }}</p>
+        </div>
+    </div>
+
+    <!-- Total Categories -->
+    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+        <div class="bg-purple-500 p-3 rounded-full mr-4">
+            <i class="fas fa-folder text-white text-2xl"></i>
+        </div>
+        <div>
+            <p class="text-sm text-gray-500">分类总数</p>
+            <p class="text-2xl font-bold text-gray-800">{{ stats.total_categories }}</p>
+        </div>
+    </div>
+
+    <!-- Total Tags -->
+    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+        <div class="bg-indigo-500 p-3 rounded-full mr-4">
+            <i class="fas fa-tags text-white text-2xl"></i>
+        </div>
+        <div>
+            <p class="text-sm text-gray-500">标签总数</p>
+            <p class="text-2xl font-bold text-gray-800">{{ stats.total_tags }}</p>
+        </div>
+    </div>
+</div>

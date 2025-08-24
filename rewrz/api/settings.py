@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Form
-from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from ..core.database import get_db
@@ -11,70 +10,61 @@ from ..core.template_filters import get_templates
 from typing import List, Dict, Any, Optional
 import json
 import os
+from datetime import datetime
 
 router = APIRouter()
 templates = get_templates()
 
-@router.get("/admin/settings", response_class=HTMLResponse)
-async def admin_settings_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    site_title_setting = crud_setting.get_setting(db, key="site_title")
-    tagline_setting = crud_setting.get_setting(db, key="tagline")
-    site_url_setting = crud_setting.get_setting(db, key="site_url")
-    admin_email_setting = crud_setting.get_setting(db, key="admin_email")
-    site_logo_light_setting = crud_setting.get_setting(db, key="site_logo_light")
-    site_logo_dark_setting = crud_setting.get_setting(db, key="site_logo_dark")
-    favicon_setting = crud_setting.get_setting(db, key="favicon")
+def _get_settings_data(db: Session, request: Request, current_user: User) -> Dict[str, Any]:
+    """Helper function to fetch and structure settings data."""
     
-    copyright_info_setting = crud_setting.get_setting(db, key="copyright_info")
-    custom_footer_text_setting = crud_setting.get_setting(db, key="custom_footer_text")
-    icp_beian_setting = crud_setting.get_setting(db, key="icp_beian")
-    gongan_beian_setting = crud_setting.get_setting(db, key="gongan_beian")
-
-    social_links_setting = crud_setting.get_setting(db, key="social_links")
-    anniversaries_setting = crud_setting.get_setting(db, key="anniversaries")
-    sitemap_enabled_setting = crud_setting.get_setting(db, key="sitemap_enabled")
-    noindex_site_setting = crud_setting.get_setting(db, key="noindex_site")
-    block_ai_crawlers_setting = crud_setting.get_setting(db, key="block_ai_crawlers")
-
-    # RSS订阅设置
-    rss_enabled_setting = crud_setting.get_setting(db, key="rss_enabled")
-    rss_items_limit_setting = crud_setting.get_setting(db, key="rss_items_limit")
-    rss_cache_duration_setting = crud_setting.get_setting(db, key="rss_cache_duration")
-    rss_description_setting = crud_setting.get_setting(db, key="rss_description")
-
-    # 页面显示配置设置
-    homepage_posts_limit_setting = crud_setting.get_setting(db, key="homepage_posts_limit")
-    archive_posts_limit_setting = crud_setting.get_setting(db, key="archive_posts_limit")
-    search_results_limit_setting = crud_setting.get_setting(db, key="search_results_limit")
-    related_posts_limit_setting = crud_setting.get_setting(db, key="related_posts_limit")
+    def get_setting_value(key: str, default: Any = None):
+        """Safely get a setting value, handling missing or malformed data."""
+        setting = crud_setting.get_setting(db, key=key)
+        if setting and isinstance(setting.value, dict) and "value" in setting.value:
+            return setting.value["value"]
+        return default
 
     settings_data = {
-        "site_title": site_title_setting.value.get("value") if site_title_setting else "RewrZ",
-        "tagline": tagline_setting.value.get("value") if tagline_setting else "A Personal Blog System",
-        "site_url": site_url_setting.value.get("value") if site_url_setting else request.url.scheme + "://" + request.url.netloc,
-        "admin_email": admin_email_setting.value.get("value") if admin_email_setting else current_user.email,
-        "site_logo_light": site_logo_light_setting.value.get("value") if site_logo_light_setting else "",
-        "site_logo_dark": site_logo_dark_setting.value.get("value") if site_logo_dark_setting else "",
-        "favicon": favicon_setting.value.get("value") if favicon_setting else "",
-        "copyright_info": copyright_info_setting.value.get("value") if copyright_info_setting else "&copy; {year} RewrZ. All rights reserved.",
-        "custom_footer_text": custom_footer_text_setting.value.get("value") if custom_footer_text_setting else "",
-        "icp_beian": icp_beian_setting.value.get("value") if icp_beian_setting else "",
-        "gongan_beian": gongan_beian_setting.value.get("value") if gongan_beian_setting else "",
-        "social_links": social_links_setting.value.get("value") if social_links_setting else [],
-        "anniversaries": anniversaries_setting.value.get("value") if anniversaries_setting else [],
-        "sitemap_enabled": sitemap_enabled_setting.value.get("value") if sitemap_enabled_setting else False,
-        "noindex_site": noindex_site_setting.value.get("value") if noindex_site_setting else False,
-        "block_ai_crawlers": block_ai_crawlers_setting.value.get("value") if block_ai_crawlers_setting else False,
-        "rss_enabled": rss_enabled_setting.value.get("value") if rss_enabled_setting else True,
-        "rss_items_limit": rss_items_limit_setting.value.get("value") if rss_items_limit_setting else 20,
-        "rss_cache_duration": rss_cache_duration_setting.value.get("value") if rss_cache_duration_setting else 60,
-        "rss_description": rss_description_setting.value.get("value") if rss_description_setting else "",
-        "homepage_posts_limit": homepage_posts_limit_setting.value.get("value") if homepage_posts_limit_setting else 10,
-        "archive_posts_limit": archive_posts_limit_setting.value.get("value") if archive_posts_limit_setting else 20,
-        "search_results_limit": search_results_limit_setting.value.get("value") if search_results_limit_setting else 15,
-        "related_posts_limit": related_posts_limit_setting.value.get("value") if related_posts_limit_setting else 5,
+        "site_title": get_setting_value("site_title", "RewrZ"),
+        "tagline": get_setting_value("tagline", "A Personal Blog System"),
+        "site_url": get_setting_value("site_url", str(request.base_url)),
+        "admin_email": get_setting_value("admin_email", current_user.email),
+        "site_logo_light": get_setting_value("site_logo_light", ""),
+        "site_logo_dark": get_setting_value("site_logo_dark", ""),
+        "favicon": get_setting_value("favicon", ""),
+        "copyright_info": get_setting_value("copyright_info", f"&copy; {datetime.now().year} RewrZ. All rights reserved."),
+        "custom_footer_text": get_setting_value("custom_footer_text", ""),
+        "icp_beian": get_setting_value("icp_beian", ""),
+        "gongan_beian": get_setting_value("gongan_beian", ""),
+        "social_links": get_setting_value("social_links", []),
+        "anniversaries": get_setting_value("anniversaries", []),
+        "sitemap_enabled": get_setting_value("sitemap_enabled", False),
+        "noindex_site": get_setting_value("noindex_site", False),
+        "block_ai_crawlers": get_setting_value("block_ai_crawlers", False),
+        "rss_enabled": get_setting_value("rss_enabled", True),
+        "rss_items_limit": get_setting_value("rss_items_limit", 20),
+        "rss_cache_duration": get_setting_value("rss_cache_duration", 60),
+        "rss_description": get_setting_value("rss_description", ""),
+        "homepage_posts_limit": get_setting_value("homepage_posts_limit", 10),
+        "archive_posts_limit": get_setting_value("archive_posts_limit", 20),
+        "search_results_limit": get_setting_value("search_results_limit", 15),
+        "related_posts_limit": get_setting_value("related_posts_limit", 5),
+        "donation_enabled": get_setting_value("donation_enabled", False),
+        "donation_title": get_setting_value("donation_title", '如果这篇文章对您有帮助，请考虑支持作者'),
+        "donation_description": get_setting_value("donation_description", '您的支持是我创作的动力！'),
+        "donation_qr_code_url": get_setting_value("donation_qr_code_url", ''),
+        "donation_link_text": get_setting_value("donation_link_text", ''),
+        "donation_link_url": get_setting_value("donation_link_url", ''),
+        "donation_style_theme": get_setting_value("donation_style_theme", 'elegant'),
+        "donation_show_position": get_setting_value("donation_show_position", 'article_end'),
     }
+    return settings_data
 
+@router.get("/settings", response_class=HTMLResponse)
+async def admin_settings_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    settings_data = _get_settings_data(db, request, current_user)
+    
     return templates.TemplateResponse("admin/settings.html", {
         "request": request, 
         "user": current_user, 
@@ -82,7 +72,7 @@ async def admin_settings_page(request: Request, db: Session = Depends(get_db), c
         "admin_path": getattr(request.state, 'admin_path', os.getenv('ADMIN_PATH', '/admin'))
     })
 
-@router.post("/admin/settings", response_class=HTMLResponse)
+@router.post("/settings", response_class=HTMLResponse)
 async def update_admin_settings(
     request: Request,
     db: Session = Depends(get_db),
@@ -125,6 +115,12 @@ async def update_admin_settings(
     from ..core.security import verify_csrf_token
     verify_csrf_token(request, csrf_token)
 
+    try:
+        social_links = json.loads(social_links_json)
+        anniversaries = json.loads(anniversaries_json)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON format for social links or anniversaries.")
+
     settings_to_update = {
         "site_title": site_title,
         "tagline": tagline,
@@ -137,8 +133,8 @@ async def update_admin_settings(
         "custom_footer_text": custom_footer_text,
         "icp_beian": icp_beian,
         "gongan_beian": gongan_beian,
-        "social_links": json.loads(social_links_json),
-        "anniversaries": json.loads(anniversaries_json),
+        "social_links": social_links,
+        "anniversaries": anniversaries,
         "sitemap_enabled": sitemap_enabled,
         "noindex_site": noindex_site,
         "block_ai_crawlers": block_ai_crawlers,
@@ -150,7 +146,6 @@ async def update_admin_settings(
         "archive_posts_limit": archive_posts_limit,
         "search_results_limit": search_results_limit,
         "related_posts_limit": related_posts_limit,
-        # 打赏功能相关设置
         "donation_enabled": donation_enabled,
         "donation_title": donation_title,
         "donation_description": donation_description,
@@ -163,88 +158,14 @@ async def update_admin_settings(
 
     for key, value in settings_to_update.items():
         db_setting = crud_setting.get_setting(db, key=key)
+        update_payload = {"value": value}
         if db_setting:
-            crud_setting.update_setting(db, key=key, setting_update=SettingUpdate(value={"value": value}))
+            crud_setting.update_setting(db, key=key, setting_update=SettingUpdate(value=update_payload))
         else:
-            crud_setting.create_setting(db, setting=SettingCreate(key=key, value={"value": value}, description=f"Global setting for {key.replace('_', ' ')}"))
+            crud_setting.create_setting(db, setting=SettingCreate(key=key, value=update_payload, description=f"Global setting for {key.replace('_', ' ')}"))
     
-    # Re-fetch settings to ensure the template gets the latest data
-    site_title_setting = crud_setting.get_setting(db, key="site_title")
-    tagline_setting = crud_setting.get_setting(db, key="tagline")
-    site_url_setting = crud_setting.get_setting(db, key="site_url")
-    admin_email_setting = crud_setting.get_setting(db, key="admin_email")
-    site_logo_light_setting = crud_setting.get_setting(db, key="site_logo_light")
-    site_logo_dark_setting = crud_setting.get_setting(db, key="site_logo_dark")
-    favicon_setting = crud_setting.get_setting(db, key="favicon")
-    
-    copyright_info_setting = crud_setting.get_setting(db, key="copyright_info")
-    custom_footer_text_setting = crud_setting.get_setting(db, key="custom_footer_text")
-    icp_beian_setting = crud_setting.get_setting(db, key="icp_beian")
-    gongan_beian_setting = crud_setting.get_setting(db, key="gongan_beian")
-
-    social_links_setting = crud_setting.get_setting(db, key="social_links")
-    anniversaries_setting = crud_setting.get_setting(db, key="anniversaries")
-    sitemap_enabled_setting = crud_setting.get_setting(db, key="sitemap_enabled")
-    noindex_site_setting = crud_setting.get_setting(db, key="noindex_site")
-    block_ai_crawlers_setting = crud_setting.get_setting(db, key="block_ai_crawlers")
-
-    # 重新获取RSS设置
-    rss_enabled_setting = crud_setting.get_setting(db, key="rss_enabled")
-    rss_items_limit_setting = crud_setting.get_setting(db, key="rss_items_limit")
-    rss_cache_duration_setting = crud_setting.get_setting(db, key="rss_cache_duration")
-    rss_description_setting = crud_setting.get_setting(db, key="rss_description")
-
-    # 重新获取页面显示配置设置
-    homepage_posts_limit_setting = crud_setting.get_setting(db, key="homepage_posts_limit")
-    archive_posts_limit_setting = crud_setting.get_setting(db, key="archive_posts_limit")
-    search_results_limit_setting = crud_setting.get_setting(db, key="search_results_limit")
-    related_posts_limit_setting = crud_setting.get_setting(db, key="related_posts_limit")
-    
-    # 重新获取打赏功能相关设置
-    donation_enabled_setting = crud_setting.get_setting(db, key="donation_enabled")
-    donation_title_setting = crud_setting.get_setting(db, key="donation_title")
-    donation_description_setting = crud_setting.get_setting(db, key="donation_description")
-    donation_qr_code_url_setting = crud_setting.get_setting(db, key="donation_qr_code_url")
-    donation_link_text_setting = crud_setting.get_setting(db, key="donation_link_text")
-    donation_link_url_setting = crud_setting.get_setting(db, key="donation_link_url")
-    donation_style_theme_setting = crud_setting.get_setting(db, key="donation_style_theme")
-    donation_show_position_setting = crud_setting.get_setting(db, key="donation_show_position")
-
-    settings_data = {
-        "site_title": site_title_setting.value.get("value") if site_title_setting else "RewrZ",
-        "tagline": tagline_setting.value.get("value") if tagline_setting else "A Personal Blog System",
-        "site_url": site_url_setting.value.get("value") if site_url_setting else request.url.scheme + "://" + request.url.netloc,
-        "admin_email": admin_email_setting.value.get("value") if admin_email_setting else current_user.email,
-        "site_logo_light": site_logo_light_setting.value.get("value") if site_logo_light_setting else "",
-        "site_logo_dark": site_logo_dark_setting.value.get("value") if site_logo_dark_setting else "",
-        "favicon": favicon_setting.value.get("value") if favicon_setting else "",
-        "copyright_info": copyright_info_setting.value.get("value") if copyright_info_setting else "&copy; {year} RewrZ. All rights reserved.",
-        "custom_footer_text": custom_footer_text_setting.value.get("value") if custom_footer_text_setting else "",
-        "icp_beian": icp_beian_setting.value.get("value") if icp_beian_setting else "",
-        "gongan_beian": gongan_beian_setting.value.get("value") if gongan_beian_setting else "",
-        "social_links": social_links_setting.value.get("value") if social_links_setting else [],
-        "anniversaries": anniversaries_setting.value.get("value") if anniversaries_setting else [],
-        "sitemap_enabled": sitemap_enabled_setting.value.get("value") if sitemap_enabled_setting else False,
-        "noindex_site": noindex_site_setting.value.get("value") if noindex_site_setting else False,
-        "block_ai_crawlers": block_ai_crawlers_setting.value.get("value") if block_ai_crawlers_setting else False,
-        "rss_enabled": rss_enabled_setting.value.get("value") if rss_enabled_setting else True,
-        "rss_items_limit": rss_items_limit_setting.value.get("value") if rss_items_limit_setting else 20,
-        "rss_cache_duration": rss_cache_duration_setting.value.get("value") if rss_cache_duration_setting else 60,
-        "rss_description": rss_description_setting.value.get("value") if rss_description_setting else "",
-        "homepage_posts_limit": homepage_posts_limit_setting.value.get("value") if homepage_posts_limit_setting else 10,
-        "archive_posts_limit": archive_posts_limit_setting.value.get("value") if archive_posts_limit_setting else 20,
-        "search_results_limit": search_results_limit_setting.value.get("value") if search_results_limit_setting else 15,
-        "related_posts_limit": related_posts_limit_setting.value.get("value") if related_posts_limit_setting else 5,
-        # 打赏功能相关设置
-        "donation_enabled": donation_enabled_setting.value.get("value") if donation_enabled_setting else False,
-        "donation_title": donation_title_setting.value.get("value") if donation_title_setting else '如果这篇文章对您有帮助，请考虑支持作者',
-        "donation_description": donation_description_setting.value.get("value") if donation_description_setting else '您的支持是我创作的动力！',
-        "donation_qr_code_url": donation_qr_code_url_setting.value.get("value") if donation_qr_code_url_setting else '',
-        "donation_link_text": donation_link_text_setting.value.get("value") if donation_link_text_setting else '',
-        "donation_link_url": donation_link_url_setting.value.get("value") if donation_link_url_setting else '',
-        "donation_style_theme": donation_style_theme_setting.value.get("value") if donation_style_theme_setting else 'elegant',
-        "donation_show_position": donation_show_position_setting.value.get("value") if donation_show_position_setting else 'article_end',
-    }
+    # Re-fetch settings using the helper function to ensure the template gets the latest data
+    settings_data = _get_settings_data(db, request, current_user)
 
     return templates.TemplateResponse("admin/settings.html", {
         "request": request, 
@@ -254,7 +175,7 @@ async def update_admin_settings(
         "admin_path": getattr(request.state, 'admin_path', os.getenv('ADMIN_PATH', '/admin'))
     })
 
-@router.post("/admin/api/update-admin-path")
+@router.post("/api/update-admin-path")
 async def update_admin_path(
     request: Request,
     db: Session = Depends(get_db),

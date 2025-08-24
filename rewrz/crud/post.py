@@ -4,7 +4,7 @@
 支持多重身份内容系统和版本快照功能。
 """
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select
+from sqlalchemy import select, func
 from ..models import Post, Format, Category, Tag
 from ..schemas import PostCreate, PostUpdate
 from datetime import datetime
@@ -31,10 +31,31 @@ def get_posts(db: Session, skip: int = 0, limit: int = 100, status: Optional[str
         query = query.filter(Post.post_type == post_type)
     return db.execute(query.offset(skip).limit(limit)).unique().scalars().all()
 
+
+def get_posts_by_type(db: Session, post_type: str, limit: int = 100, skip: int = 0) -> List[Post]:
+    """根据文章类型获取文章列表
+
+    Args:
+        db: 数据库会话
+        post_type: 文章类型（例如 "post" 或 "page"）
+        limit: 返回的最大数量
+        skip: 跳过的数量
+
+    Returns:
+        符合条件的文章列表
+    """
+    return get_posts(db=db, post_type=post_type, limit=limit, skip=skip)
+
 def get_all_posts(db: Session):
     """获取所有文章（不分页）"""
     query = select(Post).options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags), joinedload(Post.author))
     return db.execute(query).unique().scalars().all()
+
+def count_posts_by_status(db: Session, status: str) -> int:
+    """
+    根据状态计算文章数量
+    """
+    return db.execute(select(func.count(Post.id)).filter(Post.status == status)).scalar_one()
 
 def get_posts_by_category(db: Session, category_id: int, skip: int = 0, limit: int = 100):
     """根据分类ID获取文章列表"""

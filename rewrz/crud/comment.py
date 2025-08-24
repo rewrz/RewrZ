@@ -4,7 +4,7 @@
 支持嵌套评论和状态管理。
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 from ..models import Comment
 from ..schemas import CommentCreate
 from datetime import datetime
@@ -16,6 +16,31 @@ def get_comment(db: Session, comment_id: int):
 def get_comments_for_post(db: Session, post_id: int, skip: int = 0, limit: int = 100):
     """获取指定文章的评论列表，支持分页"""
     return db.execute(select(Comment).filter(Comment.post_id == post_id).offset(skip).limit(limit)).scalars().all()
+
+def get_comments(db: Session, skip: int = 0, limit: int = 100):
+    """获取评论列表，支持分页
+    
+    Args:
+        db: 数据库会话
+        skip: 跳过的记录数
+        limit: 返回的记录数上限
+        
+    Returns:
+        评论对象列表
+    """
+    return db.execute(select(Comment).offset(skip).limit(limit)).scalars().all()
+
+def count_comments(db: Session) -> int:
+    """
+    计算所有评论的数量
+    """
+    return db.execute(select(func.count(Comment.id))).scalar_one()
+
+def count_comments_by_status(db: Session, status: str) -> int:
+    """
+    根据状态计算评论数量
+    """
+    return db.execute(select(func.count(Comment.id)).filter(Comment.status == status)).scalar_one()
 
 def create_comment(db: Session, comment: CommentCreate, ip_address: str = "", user_agent: str = ""):
     """创建新评论

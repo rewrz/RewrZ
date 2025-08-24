@@ -1,58 +1,24 @@
 {% extends "admin/base.html" %}
 
-{% block title %}仪表盘 - RewrZ 管理后台{% endblock %}
+{% block title %}仪表盘 - {{ site_title }} 后台管理{% endblock %}
 
-{% block admin_header %}仪表盘{% endblock %}
+{% block page_title %}仪表盘{% endblock %}
 
-{% block admin_content %}
-<section class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <!-- Overview Widget -->
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h3 class="text-xl font-semibold text-gray-800 mb-4">概览</h3>
-        <ul class="space-y-2 text-gray-700">
-            <li>已发布文章: <span class="font-bold">0</span></li>
-            <li>草稿: <span class="font-bold">0</span></li>
-            <li>页面: <span class="font-bold">0</span></li>
-            <li>待审核评论: <span class="font-bold">0</span></li>
-        </ul>
-    </div>
-
-    <!-- Latest Comments Widget -->
-    <div class="bg-white p-6 rounded-lg shadow-md col-span-full lg:col-span-2">
-        <h3 class="text-xl font-semibold text-gray-800 mb-4">最新评论</h3>
-        <p class="text-gray-500">暂无最新评论。</p>
-        <!-- Example comment structure (will be dynamically loaded) -->
-        <!--
-        <div class="border-t border-gray-200 pt-4 mt-4">
-            <p class="font-semibold">评论者: John Doe</p>
-            <p class="text-sm text-gray-600">文章: My First Post</p>
-            <p class="text-gray-800 mt-2">这是一条评论内容。</p>
-            <div class="mt-2 space-x-2">
-                <button class="px-3 py-1 bg-green-500 text-white rounded text-sm">批准</button>
-                <button class="px-3 py-1 bg-blue-500 text-white rounded text-sm">回复</button>
-                <button class="px-3 py-1 bg-yellow-500 text-white rounded text-sm">垃圾</button>
-                <button class="px-3 py-1 bg-red-500 text-white rounded text-sm">删除</button>
+{% block content %}
+<div>
+    <div id="stats-container" 
+         hx-get="{{ request.state.admin_path }}/api/dashboard/stats" 
+         hx-trigger="load, every 30s" 
+         hx-swap="innerHTML">
+        <!-- 初始加载状态 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for i in range(6) %}
+            <div class="bg-white p-6 rounded-lg shadow animate-pulse">
+                <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div class="h-8 bg-gray-300 rounded w-1/2"></div>
             </div>
+            {% endfor %}
         </div>
-        -->
     </div>
-
-    <!-- Quick Draft Widget -->
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h3 class="text-xl font-semibold text-gray-800 mb-4">快速草稿</h3>
-        <form class="space-y-4">
-            <div>
-                <label for="draft-title" class="block text-sm font-medium text-gray-700">标题</label>
-                <input type="text" id="draft-title" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
-            </div>
-            <div>
-                <label for="draft-content" class="block text-sm font-medium text-gray-700">内容</label>
-                <textarea id="draft-content" rows="5" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></textarea>
-            </div>
-            <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                保存草稿
-            </button>
-        </form>
-    </div>
-</section>
+</div>
 {% endblock %}

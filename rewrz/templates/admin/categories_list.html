@@ -1,11 +1,10 @@
 {% extends "admin/base.html" %}
 
 {% block title %}分类管理 - RewrZ 管理后台{% endblock %}
-
+{% block page_title %}分类管理{% endblock %}
 {% block content %}
 <div class="bg-white rounded-lg shadow-md p-6">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">分类管理</h1>
         <button onclick="showCreateCategoryModal()" 
                 class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
             <i class="fas fa-plus mr-2"></i>新建分类
@@ -46,7 +45,7 @@
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-600">总文章数</p>
                     <p class="text-2xl font-bold text-gray-900">
-                        {{ categories|sum(attribute='posts|length') if categories else 0 }}
+                        {{ categories|map(attribute='posts')|map('length')|sum }}
                     </p>
                 </div>
             </div>
@@ -101,7 +100,7 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div class="flex space-x-2">
-                            <button onclick="editCategory({{ category.id }}, '{{ category.name }}', '{{ category.slug }}', '{{ category.description }}')" 
+                            <button onclick="editCategory('{{ category.id }}', '{{ category.name }}', '{{ category.slug }}', '{{ category.description }}')" 
                                     class="text-blue-600 hover:text-blue-900">
                                 <i class="fas fa-edit"></i>
                             </button>
@@ -109,7 +108,7 @@
                                class="text-green-600 hover:text-green-900">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <button onclick="deleteCategory({{ category.id }}, '{{ category.name }}')" 
+                            <button onclick="deleteCategory('{{ category.id }}', '{{ category.name }}')" 
                                     class="text-red-600 hover:text-red-900 {{ 'opacity-50 cursor-not-allowed' if category.posts and category.posts|length > 0 else '' }}">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -275,8 +274,8 @@ function deleteCategory(id, name) {
 // 自动生成别名
 document.getElementById('categoryName').addEventListener('input', function() {
     const slug = this.value.toLowerCase()
-        .replace(/[^\w\s-]/g, '')
-        .replace(/[\s_-]+/g, '-')
+        .replace(/[^\\w\\s-]/g, '')
+        .replace(/[\\s_-]+/g, '-')
         .replace(/^-+|-+$/g, '');
     document.getElementById('categorySlug').value = slug;
 });

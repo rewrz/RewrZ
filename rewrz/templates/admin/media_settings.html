@@ -1,13 +1,11 @@
 {% extends "admin/base.html" %}
 
 {% block title %}媒体设置 - {{ site_title }}{% endblock %}
-
+{% block page_title %}媒体设置{% endblock %}
 {% block content %}
 <div class="bg-white p-6 rounded-lg shadow-md">
-    <h1 class="text-3xl font-bold text-gray-900 mb-6">媒体设置</h1>
-    
     <form method="post" action="{{ admin_path }}/api/media/settings" id="media-settings-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         
         <!-- 图像处理设置 -->
         <div class="bg-white p-6 rounded-lg shadow-md mb-6">

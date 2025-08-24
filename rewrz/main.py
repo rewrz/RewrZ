@@ -35,6 +35,9 @@ from .api import data_import_export as data_api # 导入数据导入导出路由
 from .api import media_settings as media_settings_api # 导入媒体设置路由
 from .api import comment_settings as comment_settings_api # 导入评论设置路由
 from .api import error_config as error_config_api # 导入错误处理配置路由
+from .api import admin_dashboard as admin_dashboard_api # 导入仪表盘API路由
+from .api import categories as categories_api # 导入分类API路由
+from .api import tags as tags_api # 导入标签API路由
 from .crud import post as crud_post
 from .crud import category as crud_category
 from .crud import tag as crud_tag
@@ -150,8 +153,13 @@ def register_admin_routes():
     
     # 注册后台媒体页面
     @app.get(f"{admin_path}/media", response_class=HTMLResponse) 
-    async def dynamic_admin_media_page(request: Request, current_user: User = Depends(get_current_user)):
-        return await media_api.admin_media_page(request, current_user)
+    async def dynamic_admin_media_page(request: Request, db: Session = Depends(get_db),current_user: User = Depends(get_current_user)):
+        return await media_api.media_library_page(request, db, current_user)
+    
+    # 注册后台媒体设置页面
+    @app.get(f"{admin_path}/media/settings", response_class=HTMLResponse)
+    async def dynamic_admin_media_settings_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+        return await media_settings_api.media_settings_page(request, db, current_user)
     
     # 注册后台主题页面
     @app.get(f"{admin_path}/themes", response_class=HTMLResponse)
@@ -333,6 +341,12 @@ app.include_router(media_settings_api.router)
 app.include_router(comment_settings_api.router)
 # 包含错误处理配置路由
 app.include_router(error_config_api.router)
+# 包含仪表盘API路由
+app.include_router(admin_dashboard_api.router)
+# 包含分类API路由
+app.include_router(categories_api.router)
+# 包含标签API路由
+app.include_router(tags_api.router)
 
 @app.middleware("http")
 async def add_global_context(request: Request, call_next):

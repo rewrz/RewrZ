@@ -1,0 +1,220 @@
+{% extends "admin/base.html" %}
+
+{% block title %}标签管理 - RewrZ 管理后台{% endblock %}
+{% block page_title %}标签管理{% endblock %}
+{% block content %}
+<div class="bg-white rounded-lg shadow-md p-6">
+    <div class="flex justify-between items-center mb-6">
+        <button onclick="showCreateTagModal()" 
+                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+            <i class="fas fa-plus mr-2"></i>新建标签
+        </button>
+    </div>
+
+    <!-- 标签列表 -->
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-white border border-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标签名称</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">别名</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">文章数</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建时间</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for tag in tags %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">{{ tag.name }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">{{ tag.slug }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {{ tag.posts|length if tag.posts else 0 }} 篇
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ tag.created_at.strftime('%Y-%m-%d') if tag.created_at else '-' }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex space-x-2">
+                            <button onclick="editTag('{{ tag.id }}', '{{ tag.name }}', '{{ tag.slug }}')"
+                                    class="text-blue-600 hover:text-blue-900">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <a href="/archives/by-tag/{{ tag.slug }}" target="_blank"
+                               class="text-green-600 hover:text-green-900">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <button onclick="deleteTag('{{ tag.id }}', '{{ tag.name }}')"
+                                    class="text-red-600 hover:text-red-900">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                
+                {% if not tags %}
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                        <i class="fas fa-tags text-4xl mb-4 text-gray-400"></i>
+                        <div class="text-lg">暂无标签</div>
+                        <div class="text-sm">
+                            <button onclick="showCreateTagModal()" class="text-blue-600 hover:text-blue-800">
+                                立即创建第一个标签
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 创建/编辑标签模态框 -->
+<div id="tagModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="flex items-center justify-between p-6 border-b">
+            <h3 id="modalTitle" class="text-lg font-medium text-gray-900">新建标签</h3>
+            <button onclick="hideTagModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form id="tagForm" class="p-6 space-y-4">
+            <input type="hidden" id="tagId" value="">
+            
+            <div>
+                <label for="tagName" class="block text-sm font-medium text-gray-700 mb-1">
+                    标签名称 <span class="text-red-500">*</span>
+                </label>
+                <input type="text" 
+                       id="tagName" 
+                       name="name" 
+                       required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                       placeholder="输入标签名称">
+            </div>
+            
+            <div>
+                <label for="tagSlug" class="block text-sm font-medium text-gray-700 mb-1">
+                    URL别名
+                </label>
+                <input type="text" 
+                       id="tagSlug" 
+                       name="slug" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                       placeholder="自动生成或手动输入">
+                <p class="text-xs text-gray-500 mt-1">留空将根据标签名称自动生成</p>
+            </div>
+        </form>
+        
+        <div class="flex justify-end space-x-3 p-6 border-t bg-gray-50">
+            <button type="button" 
+                    onclick="hideTagModal()" 
+                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                取消
+            </button>
+            <button type="button" 
+                    onclick="saveTag()" 
+                    class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700">
+                保存
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function showCreateTagModal() {
+    document.getElementById('modalTitle').textContent = '新建标签';
+    document.getElementById('tagId').value = '';
+    document.getElementById('tagForm').reset();
+    document.getElementById('tagModal').classList.remove('hidden');
+    document.getElementById('tagModal').classList.add('flex');
+}
+
+function editTag(id, name, slug) {
+    document.getElementById('modalTitle').textContent = '编辑标签';
+    document.getElementById('tagId').value = id;
+    document.getElementById('tagName').value = name;
+    document.getElementById('tagSlug').value = slug;
+    document.getElementById('tagModal').classList.remove('hidden');
+    document.getElementById('tagModal').classList.add('flex');
+}
+
+function hideTagModal() {
+    document.getElementById('tagModal').classList.add('hidden');
+    document.getElementById('tagModal').classList.remove('flex');
+}
+
+function saveTag() {
+    const form = document.getElementById('tagForm');
+    const formData = new FormData(form);
+    const tagId = document.getElementById('tagId').value;
+    
+    const url = tagId ? 
+        `{{ request.state.admin_path }}/api/tags/${tagId}` : 
+        `{{ request.state.admin_path }}/api/tags`;
+    
+    const method = tagId ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            hideTagModal();
+            location.reload();
+        } else {
+            alert('保存失败：' + (data.error || '未知错误'));
+        }
+    })
+    .catch(error => {
+        alert('保存失败：' + error.message);
+    });
+}
+
+function deleteTag(id, name) {
+    if (confirm(`确定要删除标签"${name}"吗？`)) {
+        fetch(`{{ request.state.admin_path }}/api/tags/${id}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('删除失败：' + (data.error || '未知错误'));
+            }
+        })
+        .catch(error => {
+            alert('删除失败：' + error.message);
+        });
+    }
+}
+
+// 自动生成别名
+document.getElementById('tagName').addEventListener('input', function() {
+    const slug = this.value.toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    document.getElementById('tagSlug').value = slug;
+});
+
+// 点击模态框外部关闭
+document.getElementById('tagModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideTagModal();
+    }
+});
+</script>
+{% endblock %}

@@ -1,11 +1,10 @@
 {% extends "admin/base.html" %}
 
 {% block title %}文章管理 - RewrZ 管理后台{% endblock %}
-
+{% block page_title %}文章管理{% endblock %}
 {% block content %}
 <div class="bg-white rounded-lg shadow-md p-6">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">文章管理</h1>
         <div class="flex space-x-3">
             <a href="{{ request.state.admin_path }}/posts/new" 
                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">

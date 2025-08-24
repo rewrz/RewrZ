@@ -1,0 +1,55 @@
+<aside class="w-64 bg-gray-900 text-white min-h-screen p-4">
+    <div class="mb-8">
+        <h2 class="text-2xl font-bold">RewrZ 后台管理</h2>
+    </div>
+    <nav>
+        <a href="{{ request.state.admin_path }}/dashboard" class="flex items-center px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
+            <i class="fas fa-tachometer-alt w-6"></i>
+            <span>仪表盘</span>
+        </a>
+        
+        <div class="mt-4">
+            <h3 class="px-4 text-xs text-gray-500 uppercase font-bold">内容管理</h3>
+            <a href="{{ request.state.admin_path }}/posts/new" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
+                <i class="fas fa-plus w-6"></i>
+                <span>新建文章</span>
+            </a>
+            <a href="{{ request.state.admin_path }}/posts" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
+                <i class="fas fa-file-alt w-6"></i>
+                <span>文章管理</span>
+            </a>
+            <a href="{{ request.state.admin_path }}/pages" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
+                <i class="fas fa-file w-6"></i>
+                <span>页面管理</span>
+            </a>
+            <a href="{{ request.state.admin_path }}/comments" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
+                <i class="fas fa-comments w-6"></i>
+                <span>评论管理</span>
+            </a>
+            <a href="{{ request.state.admin_path }}/media" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
+                <i class="fas fa-images w-6"></i>
+                <span>媒体库</span>
+            </a>
+        </div>
+
+        <div class="mt-4">
+            <h3 class="px-4 text-xs text-gray-500 uppercase font-bold">分类标签</h3>
+            <a href="{{ request.state.admin_path }}/categories" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
+                <i class="fas fa-folder w-6"></i>
+                <span>分类管理</span>
+            </a>
+            <a href="{{ request.state.admin_path }}/tags" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
+                <i class="fas fa-tags w-6"></i>
+                <span>标签管理</span>
+            </a>
+        </div>
+
+        <div class="mt-4">
+            <h3 class="px-4 text-xs text-gray-500 uppercase font-bold">系统管理</h3>
+            <a href="{{ request.state.admin_path }}/settings" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
+                <i class="fas fa-cog w-6"></i>
+                <span>设置</span>
+            </a>
+        </div>
+    </nav>
+</aside>

@@ -1,0 +1,118 @@
+{% extends "admin/base.html" %}
+
+{% block title %}评论管理 - RewrZ 管理后台{% endblock %}
+{% block page_title %}评论管理{% endblock %}
+{% block content %}
+<div class="bg-white rounded-lg shadow-md p-6">
+    <!-- 评论列表 -->
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-white border border-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">作者</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">评论内容</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">所属文章</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">提交时间</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for comment in comments %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">{{ comment.author_name }}</div>
+                        <div class="text-sm text-gray-500">{{ comment.author_email }}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm text-gray-900">{{ comment.content|truncate(100) }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <a href="/archive/{{ comment.post.slug }}" target="_blank" class="text-sm text-blue-600 hover:underline">
+                            {{ comment.post.title|truncate(30) }}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if comment.is_approved %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                已批准
+                            </span>
+                        {% else %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                待审核
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else '-' }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex space-x-2">
+                            {% if not comment.is_approved %}
+                            <button onclick="approveComment('{{ comment.id }}')" class="text-green-600 hover:text-green-900">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            {% endif %}
+                            <button onclick="replyComment('{{ comment.id }}')" class="text-blue-600 hover:text-blue-900">
+                                <i class="fas fa-reply"></i>
+                            </button>
+                            <button onclick="deleteComment('{{ comment.id }}')" class="text-red-600 hover:text-red-900">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                
+                {% if not comments %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                        <i class="fas fa-comments text-4xl mb-4 text-gray-400"></i>
+                        <div class="text-lg">暂无评论</div>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function approveComment(commentId) {
+    if (confirm('确定要批准这条评论吗？')) {
+        fetch(`{{ request.state.admin_path }}/api/comments/${commentId}/approve`, {
+            method: 'POST',
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('批准失败：' + data.error);
+            }
+        });
+    }
+}
+
+function replyComment(commentId) {
+    // Implement reply functionality, maybe open a modal
+    alert('回复功能待实现');
+}
+
+function deleteComment(commentId) {
+    if (confirm('确定要删除这条评论吗？')) {
+        fetch(`{{ request.state.admin_path }}/api/comments/${commentId}`, {
+            method: 'DELETE',
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('删除失败：' + data.error);
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

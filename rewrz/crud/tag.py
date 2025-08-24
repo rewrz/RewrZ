@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 from ..models import Tag
 from ..schemas import TagCreate, TagUpdate
 
@@ -15,6 +15,12 @@ def get_tags(db: Session, skip: int = 0, limit: int = 100):
 def get_all_tags(db: Session):
     """获取所有标签（不分页）"""
     return db.execute(select(Tag)).scalars().all()
+
+def count_tags(db: Session) -> int:
+    """
+    计算所有标签的数量
+    """
+    return db.execute(select(func.count(Tag.id))).scalar_one()
 
 def get_tag_by_name(db: Session, name: str):
     """根据标签名称获取标签"""

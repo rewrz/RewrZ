@@ -10,7 +10,18 @@ def get_media(db: Session, media_id: int):
 def get_media_by_filepath(db: Session, filepath: str):
     return db.execute(select(Media).filter(Media.filepath == filepath)).scalar_one_or_none()
 
-def get_all_media(db: Session, skip: int = 0, limit: int = 100) -> List[Media]:
+def get_all_media_items(db: Session, skip: int = 0, limit: int = 100) -> List[Media]:
+    """
+    获取所有媒体项目
+
+    Args:
+        db (Session): 数据库会话.
+        skip (int, optional): 跳过的项目数. Defaults to 0.
+        limit (int, optional): 返回的最大项目数. Defaults to 100.
+
+    Returns:
+        List[Media]: 媒体项目列表.
+    """
     return db.execute(select(Media).offset(skip).limit(limit)).scalars().all()
 
 def create_media(db: Session, media: MediaCreate, uploaded_by_id: int):

@@ -3,48 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}RewrZ 管理后台{% endblock %}</title>
+    <title>{% block title %}{{ site_title }} 后台管理{% endblock %}</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Custom styles for modern look and feel */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 0.625rem 1rem; /* 10px 16px */
+            margin-top: 0.5rem; /* 8px */
+            color: #D1D5DB; /* gray-300 */
+            border-radius: 0.375rem; /* rounded-md */
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .nav-item:hover {
+            background-color: #374151; /* gray-700 */
+            color: #FFFFFF;
+        }
+        .nav-item.active {
+            background-color: #4F46E5; /* indigo-600 */
+            color: #FFFFFF;
+        }
+        .nav-item i {
+            width: 1.5rem; /* w-6 */
+            margin-right: 0.5rem; /* mr-2 */
+        }
+        .nav-group-title {
+            padding-left: 1rem; /* px-4 */
+            font-size: 0.75rem; /* text-xs */
+            color: #9CA3AF; /* gray-500 */
+            text-transform: uppercase;
+            font-weight: 700; /* font-bold */
+            margin-top: 1rem; /* mt-4 */
+            margin-bottom: 0.5rem; /* mb-2 */
+        }
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            aside {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+            #admin-content {
+                margin-left: 0;
+            }
+        }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex">
-    <!-- Sidebar -->
-    <aside class="w-64 bg-gray-800 text-white p-4 space-y-6">
-        <div class="text-2xl font-bold mb-6">RewrZ Admin</div>
-        <nav>
-            <a href="{{ request.state.admin_path }}/dashboard" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">仪表盘</a>
-            <a href="{{ request.state.admin_path }}/posts/new" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">新建文章</a>
-            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">文章管理</a>
-            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">页面管理</a>
-            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">分类管理</a>
-            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">标签管理</a>
-            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">评论管理</a>
-            <a href="{{ request.state.admin_path }}/comments/settings" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">评论设置</a>
-            <a href="{{ request.state.admin_path }}/media" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">媒体库</a>
-            <a href="{{ request.state.admin_path }}/themes" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">主题管理</a>
-            <a href="{{ request.state.admin_path }}/settings" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">设置</a>
-            <a href="{{ request.state.admin_path }}/error-settings" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">
-                <i class="fas fa-exclamation-triangle mr-2"></i>错误处理
-            </a>
-            <a href="{{ request.state.admin_path }}/system/info" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">
-                <i class="fas fa-server mr-2"></i>系统信息
-            </a>
-        </nav>
-    </aside>
+<body class="bg-gray-100 min-h-screen flex flex-col md:flex-row">
+    {% include 'admin/components/sidebar.html' %}
 
     <!-- Main Content -->
-    <div id="admin-content" class="flex-1 p-10">
-        <header class="flex justify-between items-center pb-6 border-b border-gray-200 mb-6">
-            <h1 class="text-3xl font-semibold text-gray-800">{% block admin_header %}{% endblock %}</h1>
+    <div id="admin-content" class="flex-1 p-4 md:p-10">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 md:pb-6 border-b border-gray-200 mb-4 md:mb-6">
+            <h1 class="text-2xl md:text-3xl font-semibold text-gray-800 mb-2 md:mb-0">{% block page_title %}{% endblock %}</h1>
             <div class="flex items-center space-x-4">
                 <span class="text-gray-700">欢迎, {{ user.username }}!</span>
                 <a href="/auth/logout" class="text-indigo-600 hover:underline">退出</a>
             </div>
         </header>
-        {% block admin_content %}{% endblock %}
+        {% block content %}{% endblock %}
     </div>
 </body>
 </html>
