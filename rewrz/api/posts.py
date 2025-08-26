@@ -29,7 +29,7 @@ async def new_post_page(request: Request, db: Session = Depends(get_db), current
         "categories": categories,
         "formats": formats,
         "post": None, # 新建文章时没有post对象
-        "post_type": "article" # 明确指定为文章类型
+        "post_type": "post" # 明确指定为文章类型
     })
 
 @router.get(f"{settings.ADMIN_PATH.rstrip('/')}/posts/{{post_id}}/edit", response_class=HTMLResponse)
@@ -51,7 +51,7 @@ async def edit_post_page(post_id: int, request: Request, db: Session = Depends(g
         "post": post,
         "categories": categories,
         "formats": formats,
-        "post_type": "article" # 明确指定为文章类型
+        "post_type": "post" # 明确指定为文章类型
     })
 
 @router.post(f"{settings.ADMIN_PATH.rstrip('/')}/posts/new")
@@ -77,13 +77,13 @@ async def create_post_api(
     
     post_create_data = PostCreate(
         title=title,
-        content=content,
+        content_markdown=content,
         slug=slug,
         excerpt=excerpt,
         status=status,
         category_id=category_id,
         license_type=license_type,
-        post_type="article" # 确保文章类型为 'article'
+        post_type="post" # 确保文章类型为 'post'
     )
     
     # 处理标签
@@ -92,9 +92,7 @@ async def create_post_api(
     db_post = crud_post.create_post(
         db=db, 
         post=post_create_data, 
-        author_id=current_user.id, 
-        format_ids=format_ids,
-        tag_names=tag_names
+        author_id=current_user.id
     )
     
     # 返回HTMX响应，重定向到文章列表或编辑页面
@@ -134,7 +132,7 @@ async def update_post_api(
 
     post_update_data = PostUpdate(
         title=title,
-        content=content,
+        content_markdown=content,
         slug=slug,
         excerpt=excerpt,
         status=status,
@@ -238,7 +236,7 @@ async def create_page_api(
     
     page_create_data = PostCreate(
         title=title,
-        content=content,
+        content_markdown=content,
         slug=slug,
         excerpt=excerpt,
         status=status,
@@ -253,9 +251,7 @@ async def create_page_api(
     db_page = crud_post.create_post(
         db=db, 
         post=page_create_data, 
-        author_id=current_user.id, 
-        format_ids=format_ids,
-        tag_names=tag_names
+        author_id=current_user.id
     )
     
     # 返回HTMX响应，重定向到页面列表
@@ -295,7 +291,7 @@ async def update_page_api(
 
     page_update_data = PostUpdate(
         title=title,
-        content=content,
+        content_markdown=content,
         slug=slug,
         excerpt=excerpt,
         status=status,

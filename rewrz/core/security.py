@@ -88,6 +88,9 @@ def generate_csrf_token() -> str:
 def verify_csrf_token(request: Request, form_csrf_token: str):
     """Verifies the CSRF token from the form against the one in the session."""
     session_csrf_token = request.session.get("csrf_token")
+    # 添加调试信息
+    print(f"DEBUG: Session CSRF Token: {session_csrf_token}")
+    print(f"DEBUG: Form CSRF Token: {form_csrf_token}")
     if not session_csrf_token or not secrets.compare_digest(session_csrf_token, form_csrf_token):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

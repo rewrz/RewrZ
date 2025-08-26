@@ -34,7 +34,7 @@
                 <div class="flex-1">
                     <div class="flex items-center space-x-2">
                         <h3 class="font-bold text-gray-900">{{ post.author.username }}</h3>
-                        <span class="text-gray-500 text-sm">{{ post.published_at.strftime('%Y年%m月%d日') }}</span>
+                        <span class="text-gray-500 text-sm">{% if post.published_at %}{{ post.published_at.strftime('%Y年%m月%d日') }}{% else %}未发布{% endif %}</span>
                     </div>
                     <div class="prose prose-indigo max-w-none mt-2">
                         {{ post.content_html | safe }}
@@ -83,7 +83,7 @@
                         <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
                     </h2>
                     <div class="flex items-center space-x-4 text-gray-600 text-sm mb-4">
-                        <span>发布于 {{ post.published_at.strftime('%Y年%m月%d日') }}</span>
+                        <span>发布于 {% if post.published_at %}{{ post.published_at.strftime('%Y年%m月%d日') }}{% else %}未发布{% endif %}</span>
                         <span class="flex items-center">
                             <i class="fas fa-clock mr-1"></i>
                             {{ post.content_markdown | reading_time }}阅读

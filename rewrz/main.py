@@ -70,9 +70,6 @@ app = FastAPI(lifespan=lifespan)
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="rewrz/static"), name="static")
 
-# 为CSRF保护添加会话中间件 (需求规格 3.2.1)
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
-
 # 配置Jinja2模板引擎（带自定义过滤器）
 templates = get_templates()
 
@@ -397,100 +394,84 @@ async def add_global_context(request: Request, call_next):
     request.state.admin_path = get_admin_path()  # 添加后台路径
     request.state.csrf_token = "" # 初始化CSRF令牌
 
+    db = next(get_db())
     try:
-        db = next(get_db()) # 获取中间件的数据库会话
-
-        # 获取全局设置
-        try:
-            site_title_setting = crud_setting.get_setting(db, key="site_title")
-            if site_title_setting and site_title_setting.value:
-                request.state.site_title = site_title_setting.value.get("value", "RewrZ")
-        except Exception:
-            pass
-        
-        try:
-            tagline_setting = crud_setting.get_setting(db, key="tagline")
-            if tagline_setting and tagline_setting.value:
-                request.state.tagline = tagline_setting.value.get("value", "A Personal Blog System")
-        except Exception:
-            pass
-
-        try:
-            noindex_site_setting = crud_setting.get_setting(db, key="noindex_site")
-            if noindex_site_setting and noindex_site_setting.value:
-                request.state.noindex_site = noindex_site_setting.value.get("value", False)
-        except Exception:
-            pass
-
-        try:
-            block_ai_crawlers_setting = crud_setting.get_setting(db, key="block_ai_crawlers")
-            if block_ai_crawlers_setting and block_ai_crawlers_setting.value:
-                request.state.block_ai_crawlers = block_ai_crawlers_setting.value.get("value", False)
-        except Exception:
-            pass
+        # 获取并设置所有全局上下文
+        settings_keys = {
+            "site_title": "RewrZ",
+            "tagline": "A Personal Blog System",
+            "noindex_site": False,
+            "block_ai_crawlers": False
+        }
+        all_settings = crud_setting.get_settings_by_keys(db, list(settings_keys.keys()))
+        for key, default_value in settings_keys.items():
+            setattr(request.state, key, all_settings.get(key, default_value))
 
         # 检查主题调度和氛围主题
         # 检查是否有计划中的氛围主题
         scheduled_atmosphere = None
-        try:
-            schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
-            if schedule_setting and schedule_setting.value:
-                schedule = schedule_setting.value.get("value", [])
-                today = date.today()
-                
-                for item in schedule:
-                    if isinstance(item, dict) and "start_date" in item and "end_date" in item:
-                        try:
-                            start_date = datetime.strptime(item["start_date"], "%Y-%m-%d").date()
-                            end_date = datetime.strptime(item["end_date"], "%Y-%m-%d").date()
-                            
-                            if start_date <= today <= end_date:
-                                scheduled_atmosphere = item.get("atmosphere")
-                                break
-                        except (ValueError, KeyError):
-                            continue
-        except Exception:
-            pass
+        schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
+        if schedule_setting and schedule_setting.value:
+            schedule = schedule_setting.value.get("value", [])
+            today = date.today()
+            
+            for item in schedule:
+                if isinstance(item, dict) and "start_date" in item and "end_date" in item:
+                    try:
+                        start_date = datetime.strptime(item["start_date"], "%Y-%m-%d").date()
+                        end_date = datetime.strptime(item["end_date"], "%Y-%m-%d").date()
+                        
+                        if start_date <= today <= end_date:
+                            scheduled_atmosphere = item.get("atmosphere")
+                            break
+                    except (ValueError, KeyError):
+                        continue
         
         if scheduled_atmosphere:
             request.state.atmosphere_class = f"atmosphere-{scheduled_atmosphere}"
         
-        # Check for anniversaries (原有逐步被取代)
-        try:
+        else:
+            # 仅在没有计划主题时检查纪念日
             anniversaries_setting = crud_setting.get_setting(db, key="anniversaries")
-            if anniversaries_setting and anniversaries_setting.value and not scheduled_atmosphere:
+            if anniversaries_setting and anniversaries_setting.value:
                 anniversaries = anniversaries_setting.value.get("value", [])
                 today = date.today()
                 for anniversary in anniversaries:
-                    if (isinstance(anniversary, dict) and 
-                        "month" in anniversary and "day" in anniversary and "type" in anniversary):
+                    if isinstance(anniversary, dict) and "month" in anniversary and "day" in anniversary and "type" in anniversary:
                         try:
                             if anniversary["month"] == today.month and anniversary["day"] == today.day:
                                 request.state.atmosphere_class = f"atmosphere-{anniversary['type'].lower()}"
                                 break
                         except (KeyError, TypeError):
                             continue
-        except Exception:
-            pass
-            
+    finally:
         db.close() # 关闭会话
-    except Exception:
-        # 如果数据库操作失败，使用默认值
-        pass
 
-    # 在会话中生成和存储CSRF令牌 (需求规格 3.2.1)
+    # 在会话中生成和存储CSRF令牌
     try:
-        if hasattr(request, 'session') and "csrf_token" not in request.session:
-            request.session["csrf_token"] = generate_csrf_token()
         if hasattr(request, 'session'):
-            request.state.csrf_token = request.session.get("csrf_token", generate_csrf_token())
+            csrf_token = request.session.get("csrf_token")
+            if not csrf_token:
+                csrf_token = generate_csrf_token()
+                request.session["csrf_token"] = csrf_token
+            request.state.csrf_token = csrf_token
         else:
+            # 如果没有会话（例如API测试），则生成一个临时令牌
             request.state.csrf_token = generate_csrf_token()
-    except Exception:
-        # 如果会话不可用（如非HTTP请求），使用临时CSRF令牌
+    except Exception as e:
+        # 记录实际的异常，而不是静默忽略
+        print(f"ERROR: Failed to handle CSRF token: {e}")
+        # 异常情况下，也生成一个临时令牌以避免应用崩溃
         request.state.csrf_token = generate_csrf_token()
 
     response = await call_next(request)
+
+    # 添加调试信息
+    if hasattr(request, 'session'):
+        print(f"DEBUG: 2、Session (after call_next): {request.session}")
+        print(f"DEBUG: 3、Session CSRF Token (after call_next): {request.session.get("csrf_token")}")
+    print(f"DEBUG: 4、Request State CSRF Token (after call_next): {request.state.csrf_token}")
+    print(f"DEBUG: 5、Settings SECRET_KEY: {settings.SECRET_KEY}")
     return response
 
 def get_page_config(db: Session, config_key: str, default_value: int) -> int:
@@ -547,7 +528,7 @@ async def homepage(request: Request, db: Session = Depends(get_db)):
         "block_ai_crawlers": request.state.block_ai_crawlers,
     })
 
-@app.get("/archive/{post_slug}", response_class=HTMLResponse)
+@app.get("/posts/{post_slug}", response_class=HTMLResponse)
 async def read_post(request: Request, post_slug: str, db: Session = Depends(get_db)):
     """
     文章详情页路由
@@ -562,10 +543,16 @@ async def read_post(request: Request, post_slug: str, db: Session = Depends(get_
     from .api.seo import _generate_post_seo_data
     seo_data = _generate_post_seo_data(db_post, request, db)
     
+    # 获取打赏配置
+    from .core.donation_system import get_donation_system
+    donation_system = get_donation_system(db)
+    donation_config = donation_system.settings
+    
     return templates.TemplateResponse("post_detail.html", {
         "request": request, 
         "post": db_post, 
         "seo_data": seo_data,
+        "donation_config": donation_config,
         "atmosphere_class": request.state.atmosphere_class,
         "site_title": request.state.site_title,
         "tagline": request.state.tagline,
@@ -788,10 +775,5 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
                 status_code=422
             )
 
-# 启动时检查.env文件，如果不存在则重定向到安装向导
-# @app.on_event("startup")
-# def on_startup():
-#     if not os.path.exists(".env"):
-#         print("INFO: .env file not found. Redirecting to installer.")
-#         # 这不会立即重定向，但会为根路由设置条件
-#     create_all_tables()
+# 为CSRF保护添加会话中间件
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)

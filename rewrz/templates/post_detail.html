@@ -188,7 +188,7 @@
     {% endif %}
     
     <!-- 打赏功能 -->
-    {% if donation_config.enabled %}
+    {% if donation_config and donation_config.enabled %}
     <div class="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-6 mb-8">
         <div class="text-center">
             <h3 class="text-xl font-semibold text-gray-800 mb-2 flex items-center justify-center">
@@ -276,12 +276,15 @@
         const title = document.getElementById('qr-title');
         const image = document.getElementById('qr-image');
         
-        if (type === 'alipay') {
-            title.textContent = '支付宝打赏';
-            image.src = '{{ donation_config.alipay_qr }}';
-        } else if (type === 'wechat') {
-            title.textContent = '微信打赏';
-            image.src = '{{ donation_config.wechat_qr }}';
+        // 检查donation_config是否存在
+        if (typeof donation_config !== 'undefined' && donation_config) {
+            if (type === 'alipay') {
+                title.textContent = '支付宝打赏';
+                image.src = '{{ donation_config.alipay_qr }}';
+            } else if (type === 'wechat') {
+                title.textContent = '微信打赏';
+                image.src = '{{ donation_config.wechat_qr }}';
+            }
         }
         
         modal.classList.remove('hidden');

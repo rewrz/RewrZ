@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from ..models import Setting
 from ..schemas import SettingCreate, SettingUpdate
 from ..core.cache import cache_settings, clear_cache, cache_key_for_setting, cache # Import cache functions
@@ -23,6 +23,22 @@ def get_setting(db: Session, key: str) -> Optional[Setting]:
     # Don't cache None values to avoid confusion in tests
 
     return result
+
+def get_settings_by_keys(db: Session, keys: List[str]) -> Dict[str, Any]:
+    """
+    一次性通过键列表获取多个设置项.
+
+    Args:
+        db: 数据库会话.
+        keys: 需要查询的设置键名列表.
+
+    Returns:
+        一个字典，键为设置名，值为从value字段中提取的实际值.
+    """
+    # Bypassing cache for simplicity in this batch operation for now.
+    results = db.execute(select(Setting).where(Setting.key.in_(keys))).scalars().all()
+    # 直接返回提取后的值，供中间件使用
+    return {setting.key: setting.value.get("value") for setting in results if setting.value}
 
 def create_setting(db: Session, setting: SettingCreate) -> Setting:
     db_setting = Setting(key=setting.key, value=setting.value, description=setting.description)

@@ -30,7 +30,7 @@
                                         class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
                                         <i class="fas fa-arrow-left mr-2"></i>返回列表
                                     </a>
-                                    <button onclick="document.getElementById('post-form').submit()" 
+                                    <button type="submit"
                                         class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
                                         <i class="fas fa-save mr-2"></i>保存
                                     </button>
@@ -88,6 +88,13 @@
                             </div>
                         </div>
                         <div>
+                            <h3 class="text-lg font-semibold mb-2">状态</h3>
+                            <select name="status" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="draft" {% if post and post.status == "draft" %}selected{% endif %}>草稿</option>
+                                <option value="published" {% if post and post.status == "published" %}selected{% endif %}>已发布</option>
+                            </select>
+                        </div>
+                        <div>
                             <h3 class="text-lg font-semibold mb-2">版权声明</h3>
                             <select name="license_type" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                                 {{ (post.license_type if post else 'cc_by_nc_sa_4') | license_options | safe }}
@@ -106,6 +113,10 @@
             initialEditType: 'markdown',
             previewStyle: 'vertical',
             initialValue: `{{ post.content|tojson|safe if post else '' }}`
+        });
+
+        document.getElementById('post-form').addEventListener('htmx:configRequest', function (event) {
+            event.detail.parameters.content = editor.getMarkdown();
         });
 
         // Simple tag implementation

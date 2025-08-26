@@ -11,7 +11,7 @@ class PostBase(BaseModel):
     content_markdown: str
     excerpt: Optional[str] = None
     featured_image_url: Optional[HttpUrl] = None
-    post_type: str = "article"
+    post_type: str = "post"
     status: str = "draft"
     visibility: str = "public"
     password: Optional[str] = None
