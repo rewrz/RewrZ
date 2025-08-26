@@ -26,9 +26,15 @@ def get_posts(db: Session, skip: int = 0, limit: int = 100, status: Optional[str
     """获取文章列表，支持分页和状态过滤"""
     query = select(Post).options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
     if status:
-        query = query.filter(Post.status == status)
+        # 确保文章状态为 'published' 且 published_at 不为空
+        if status == "published":
+            query = query.filter(Post.status == status, Post.published_at.isnot(None))
+        else:
+            query = query.filter(Post.status == status)
     if post_type:
         query = query.filter(Post.post_type == post_type)
+    # 默认按发布时间降序排列
+    query = query.order_by(Post.published_at.desc())
     return db.execute(query.offset(skip).limit(limit)).unique().scalars().all()
 
 

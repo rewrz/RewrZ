@@ -511,7 +511,8 @@ async def homepage(request: Request, db: Session = Depends(get_db)):
     """
     # 获取首页文章数量配置
     homepage_posts_limit = get_page_config(db, "homepage_posts_limit", 10)
-    posts = crud_post.get_posts(db, skip=0, limit=homepage_posts_limit) # 使用配置的文章数量
+    # 获取已发布的文章，数量根据后台配置确定
+    posts = crud_post.get_posts(db, skip=0, limit=homepage_posts_limit, status="published")
     
     # 获取首页SEO元数据
     from .api.seo import _generate_homepage_seo_data

@@ -1,0 +1,32 @@
+<!--
+评论组件
+
+使用方法：
+在文章详情页面中使用：
+
+需要在上下文中提供：
+- post: 当前文章对象
+- db: 数据库会话 (通过 request.state.db)
+- request: Starlette Request 对象
+-->
+
+{% if post.allow_comments %}
+<div class="comments-section mt-8">
+    <h3 class="text-xl font-bold text-gray-800 mb-4">所有评论 ({{ post.comments|length }})</h3>
+    
+    {% if post.comments %}
+    <div class="space-y-6">
+        {% for comment in post.comments %}
+            {% include "components/comment_item.html" %}
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-gray-600">目前还没有评论。成为第一个评论者吧！</p>
+    {% endif %}
+    
+    <div class="mt-8">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">发表评论</h3>
+        {% include "components/comment_form.html" %}
+    </div>
+</div>
+{% endif %}
