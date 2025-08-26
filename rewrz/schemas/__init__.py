@@ -1,5 +1,5 @@
 from .user import User, UserCreate, UserUpdate, UserAvatarUpdate
-from .post import Post, PostCreate, PostUpdate
+from .post import Post, PostCreate, PostUpdate, PostBatchUpdate
 from .category import Category, CategoryCreate, CategoryUpdate
 from .tag import Tag, TagCreate, TagUpdate
 from .comment import Comment, CommentCreate

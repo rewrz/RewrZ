@@ -47,3 +47,6 @@ class Post(PostBase):
     model_config = {
         "from_attributes": True
     }
+
+class PostBatchUpdate(BaseModel):
+    post_ids: List[int]

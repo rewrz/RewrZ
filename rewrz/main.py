@@ -190,15 +190,56 @@ def register_admin_routes():
     
     # 注册后台文章列表管理页面
     @app.get(f"{admin_path}/posts", response_class=HTMLResponse)
-    async def dynamic_admin_posts_list_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    async def dynamic_admin_posts_list_page(
+        request: Request, 
+        search: Optional[str] = None,
+        status: Optional[str] = None,
+        category: Optional[str] = None,
+        db: Session = Depends(get_db), 
+        current_user: User = Depends(get_current_user)
+    ):
         from .crud import post as crud_post
-        posts = crud_post.get_posts(db, limit=50)  # 获取最新50篇文章
+        from sqlalchemy import select
+        from .models import Post
+        
+        # 构建查询条件
+        query = select(Post)
+        if search:
+            query = query.filter(Post.title.contains(search) | Post.content_markdown.contains(search))
+        if status:
+            query = query.filter(Post.status == status)
+        if category:
+            # 确保 category 是整数
+            try:
+                category_id = int(category)
+                # 通过 Post.categories 关联表进行筛选
+                query = query.filter(Post.categories.any(id=category_id))
+            except ValueError:
+                # 如果 category 不是有效的整数，则忽略筛选条件
+                pass
+        
+        # 执行查询
+        posts = db.execute(query.limit(50)).scalars().all()
+        
+        # 获取所有分类用于筛选
+        categories = crud_category.get_categories(db)
+        
         return templates.TemplateResponse("admin/posts_list.html", {
             "request": request, 
             "posts": posts, 
+            "categories": categories,
             "user": current_user,
             "admin_path": admin_path
         })
+    
+    # 注册获取分类选项的API端点
+    @app.get(f"{admin_path}/api/categories/options")
+    async def dynamic_get_category_options(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+        categories = crud_category.get_categories(db)
+        options_html = '<option value="">全部分类</option>'
+        for category in categories:
+            options_html += f'<option value="{category.id}">{category.name}</option>'
+        return HTMLResponse(content=options_html)
     
     @app.post(f"{admin_path}/posts/new")
     async def dynamic_create_post(request: Request, post: PostCreate, format_ids: Optional[List[int]] = Form(None), csrf_token: str = Form(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

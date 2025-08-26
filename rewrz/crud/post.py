@@ -84,7 +84,7 @@ def get_posts_by_format(db: Session, format_id: int, skip: int = 0, limit: int =
         .limit(limit)
     ).unique().scalars().all()
 
-def create_post(db: Session, post: PostCreate, author_id: int):
+def create_post(db: Session, post: PostCreate, author_id: int, tag_names: Optional[List[str]] = None, format_ids: Optional[List[int]] = None):
     """创建新文章
     
     自动处理：
@@ -133,14 +133,19 @@ def create_post(db: Session, post: PostCreate, author_id: int):
         categories = db.execute(select(Category).filter(Category.id.in_(post.category_ids))).scalars().all()
         db_post.categories.extend(categories)
 
-    # 如果指定了标签ID，则关联对应的标签
-    if post.tag_ids:
-        tags = db.execute(select(Tag).filter(Tag.id.in_(post.tag_ids))).scalars().all()
-        db_post.tags.extend(tags)
+    # 如果指定了标签名称，则创建或获取标签并关联
+    if tag_names:
+        for tag_name in tag_names:
+            tag = db.execute(select(Tag).filter(Tag.name == tag_name)).scalar_one_or_none()
+            if not tag:
+                tag = Tag(name=tag_name, slug=slugify(tag_name))
+                db.add(tag)
+                db.flush() # 确保tag有ID
+            db_post.tags.append(tag)
     
     # 如果指定了格式ID，则关联对应的格式（多重身份内容系统）
-    if post.format_ids:
-        formats = db.execute(select(Format).filter(Format.id.in_(post.format_ids))).scalars().all()
+    if format_ids:
+        formats = db.execute(select(Format).filter(Format.id.in_(format_ids))).scalars().all()
         db_post.formats.extend(formats)
 
     db.add(db_post)
@@ -148,7 +153,7 @@ def create_post(db: Session, post: PostCreate, author_id: int):
     db.refresh(db_post)
     return db_post
 
-def update_post(db: Session, post_id: int, post: PostUpdate):
+def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional[List[str]] = None, format_ids: Optional[List[int]] = None):
     """更新文章信息
     
     自动处理：
@@ -207,14 +212,21 @@ def update_post(db: Session, post_id: int, post: PostUpdate):
             categories = db.execute(select(Category).filter(Category.id.in_(post.category_ids))).scalars().all()
             db_post.categories.extend(categories)
 
-        if post.tag_ids:
+        # 更新标签
+        if tag_names is not None:
             db_post.tags.clear()
-            tags = db.execute(select(Tag).filter(Tag.id.in_(post.tag_ids))).scalars().all()
-            db_post.tags.extend(tags)
+            for tag_name in tag_names:
+                tag = db.execute(select(Tag).filter(Tag.name == tag_name)).scalar_one_or_none()
+                if not tag:
+                    tag = Tag(name=tag_name, slug=slugify(tag_name))
+                    db.add(tag)
+                    db.flush()
+                db_post.tags.append(tag)
 
-        if post.format_ids is not None: # 仅在明确提供格式ID时才更新
+        # 更新内容格式
+        if format_ids is not None:
             db_post.formats.clear()
-            formats = db.execute(select(Format).filter(Format.id.in_(post.format_ids))).scalars().all()
+            formats = db.execute(select(Format).filter(Format.id.in_(format_ids))).scalars().all()
             db_post.formats.extend(formats)
 
         # 确保 updated_at 设置为当前时间

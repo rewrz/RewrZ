@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, Form
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Form, Header
+from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import Optional, List
 
@@ -8,7 +8,7 @@ from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..core.config import settings
 from ..crud import post as crud_post, category as crud_category, tag as crud_tag, format as crud_format
-from ..schemas import Post, PostCreate, PostUpdate, User
+from ..schemas import Post, PostCreate, PostUpdate, User, PostBatchUpdate
 
 router = APIRouter()
 templates = get_templates()
@@ -81,7 +81,7 @@ async def create_post_api(
         slug=slug,
         excerpt=excerpt,
         status=status,
-        category_id=category_id,
+        category_ids=[category_id] if category_id else [], # 将单个 category_id 转换为列表
         license_type=license_type,
         post_type="post" # 确保文章类型为 'post'
     )
@@ -92,7 +92,9 @@ async def create_post_api(
     db_post = crud_post.create_post(
         db=db, 
         post=post_create_data, 
-        author_id=current_user.id
+        author_id=current_user.id,
+        tag_names=tag_names, # 传递标签名称列表
+        format_ids=format_ids # 传递内容格式ID列表
     )
     
     # 返回HTMX响应，重定向到文章列表或编辑页面
@@ -136,7 +138,7 @@ async def update_post_api(
         slug=slug,
         excerpt=excerpt,
         status=status,
-        category_id=category_id,
+        category_ids=[category_id] if category_id else [], # 将单个 category_id 转换为列表
         license_type=license_type,
         post_type="post" # 确保文章类型不被修改
     )
@@ -171,6 +173,83 @@ async def delete_post_api(post_id: int, db: Session = Depends(get_db), current_u
 
     crud_post.delete_post(db, post_id=post_id)
     return {"success": True, "message": "文章删除成功"}
+
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/posts/batch-publish", response_model=dict)
+async def batch_publish_posts(
+    request: Request,
+    post_batch_update: PostBatchUpdate, # 使用新的Pydantic模型
+    csrf_token: str = Header(..., alias="X-CSRF-Token"), # 从请求头获取CSRF令牌
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    批量发布文章的API端点
+    """
+    verify_csrf_token(request, csrf_token) # 验证CSRF令牌
+    try:
+        published_count = 0
+        for post_id in post_batch_update.post_ids: # 访问post_ids属性
+            db_post = crud_post.get_post(db, post_id=post_id)
+            if db_post and db_post.author_id == current_user.id:
+                post_update = PostUpdate(status="published")
+                crud_post.update_post(db, post_id=post_id, post=post_update)
+                published_count += 1
+        return {"success": True, "message": f"成功发布 {published_count} 篇文章"}
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={"success": False, "error": e.detail})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": f"批量发布失败: {str(e)}"})
+
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/posts/batch-draft", response_model=dict)
+async def batch_draft_posts(
+    request: Request,
+    post_batch_update: PostBatchUpdate, # 使用新的Pydantic模型
+    csrf_token: str = Header(..., alias="X-CSRF-Token"), # 从请求头获取CSRF令牌
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    批量将文章移至草稿的API端点
+    """
+    verify_csrf_token(request, csrf_token) # 验证CSRF令牌
+    try:
+        drafted_count = 0
+        for post_id in post_batch_update.post_ids: # 访问post_ids属性
+            db_post = crud_post.get_post(db, post_id=post_id)
+            if db_post and db_post.author_id == current_user.id:
+                post_update = PostUpdate(status="draft")
+                crud_post.update_post(db, post_id=post_id, post=post_update)
+                drafted_count += 1
+        return {"success": True, "message": f"成功将 {drafted_count} 篇文章移至草稿"}
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={"success": False, "error": e.detail})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": f"批量移至草稿失败: {str(e)}"})
+
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/posts/batch-delete", response_model=dict)
+async def batch_delete_posts(
+    request: Request,
+    post_batch_update: PostBatchUpdate, # 使用新的Pydantic模型
+    csrf_token: str = Header(..., alias="X-CSRF-Token"), # 从请求头获取CSRF令牌
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    批量删除文章的API端点
+    """
+    verify_csrf_token(request, csrf_token) # 验证CSRF令牌
+    try:
+        deleted_count = 0
+        for post_id in post_batch_update.post_ids: # 访问post_ids属性
+            db_post = crud_post.get_post(db, post_id=post_id)
+            if db_post and db_post.author_id == current_user.id:
+                crud_post.delete_post(db, post_id=post_id)
+                deleted_count += 1
+        return {"success": True, "message": f"成功删除 {deleted_count} 篇文章"}
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={"success": False, "error": e.detail})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": f"批量删除失败: {str(e)}"})
 
 # --- 页面管理路由 ---
 
@@ -240,7 +319,7 @@ async def create_page_api(
         slug=slug,
         excerpt=excerpt,
         status=status,
-        category_id=category_id,
+        category_ids=[category_id] if category_id else [], # 将单个 category_id 转换为列表
         license_type=license_type,
         post_type="page" # 确保文章类型为 'page'
     )
@@ -251,7 +330,9 @@ async def create_page_api(
     db_page = crud_post.create_post(
         db=db, 
         post=page_create_data, 
-        author_id=current_user.id
+        author_id=current_user.id,
+        tag_names=tag_names, # 传递标签名称列表
+        format_ids=format_ids # 传递内容格式ID列表
     )
     
     # 返回HTMX响应，重定向到页面列表
@@ -295,7 +376,7 @@ async def update_page_api(
         slug=slug,
         excerpt=excerpt,
         status=status,
-        category_id=category_id,
+        category_ids=[category_id] if category_id else [], # 将单个 category_id 转换为列表
         license_type=license_type,
         post_type="page" # 确保文章类型不被修改
     )
