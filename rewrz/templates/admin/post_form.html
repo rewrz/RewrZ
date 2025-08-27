@@ -162,7 +162,12 @@
         const featureImagePreview = document.getElementById('feature-image-preview');
 
         featureImageUploadButton.addEventListener('click', () => {
-            openMediaLibraryModal();
+            // 确保模态框组件已加载
+            if (typeof openMediaLibraryModal === 'function') {
+                openMediaLibraryModal();
+            } else {
+                console.error('openMediaLibraryModal function not found');
+            }
         });
 
         featureImageRemoveButton.addEventListener('click', () => {
@@ -172,6 +177,14 @@
             featureImageRemoveButton.classList.add('hidden');
             alert('特色图片已移除。');
         });
+        
+        // 添加openMediaLibraryModal函数定义
+        function openMediaLibraryModal() {
+            document.getElementById('media-library-modal').classList.remove('hidden');
+            loadMediaItems(); // 每次打开模态框时加载媒体文件
+            // 激活媒体库tab
+            document.getElementById('library-tab').click();
+        }
     </script>
     {% include 'admin/components/media_library_modal.html' %}
 {% endblock %}

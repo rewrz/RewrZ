@@ -12,7 +12,7 @@ def get_media_by_filepath(db: Session, filepath: str):
 
 def get_all_media(db: Session, skip: int = 0, limit: int = 100, search: Optional[str] = None) -> List[Media]:
     """
-    获取所有媒体项目
+    获取所有媒体项目，按上传时间降序排列（最新的在前面）
 
     Args:
         db (Session): 数据库会话.
@@ -21,9 +21,11 @@ def get_all_media(db: Session, skip: int = 0, limit: int = 100, search: Optional
         search (str, optional): 搜索关键词，用于模糊匹配文件名或标题. Defaults to None.
 
     Returns:
-        List[Media]: 媒体项目列表.
+        List[Media]: 媒体项目列表，按上传时间降序排列.
     """
-    query = select(Media)
+    from sqlalchemy import desc
+    
+    query = select(Media).order_by(desc(Media.uploaded_at))
     if search:
         query = query.filter(Media.filename.ilike(f"%{search}%") | Media.title.ilike(f"%{search}%"))
     

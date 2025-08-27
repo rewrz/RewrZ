@@ -82,33 +82,54 @@
     }
 
     async function loadMediaItems(loadMore = false) {
+        console.log('loadMediaItems called with loadMore:', loadMore);
         const grid = document.getElementById('media-items-grid');
         const loadingIndicator = document.getElementById('media-loading-indicator');
         const loadMoreButton = document.getElementById('load-more-media-button');
         
+        // 检查必要的DOM元素是否存在
+        if (!grid) {
+            console.error('Media items grid not found');
+            return;
+        }
+        
         if (!loadMore) {
             grid.innerHTML = ''; // 清空现有内容
             currentPage = 1;
-            loadingIndicator.classList.remove('hidden');
-            loadMoreButton.classList.add('hidden');
+            // 只有当loadingIndicator存在时才操作它
+            if (loadingIndicator) {
+                loadingIndicator.classList.remove('hidden');
+            }
+            // 只有当loadMoreButton存在时才操作它
+            if (loadMoreButton) {
+                loadMoreButton.classList.add('hidden');
+            }
         } else {
             currentPage++;
         }
 
         try {
-            const search = document.getElementById('media-search-input').value;
-            const response = await fetch(`{{ request.state.admin_path }}/api/media?page=${currentPage}&limit=${itemsPerPage}&search=${search}`);
+            const search = document.getElementById('media-search-input')?.value || '';
+            const apiUrl = `{{ request.state.admin_path }}/api/media?page=${currentPage}&limit=${itemsPerPage}&search=${search}`;
+            console.log('Fetching media items from:', apiUrl);
+            const response = await fetch(apiUrl);
+            console.log('Response status:', response.status);
             if (!response.ok) {
                 throw new Error('无法加载媒体文件');
             }
             const mediaItems = await response.json();
+            console.log('Received media items:', mediaItems);
 
-            loadingIndicator.classList.add('hidden');
+            // 只有当loadingIndicator存在时才操作它
+            if (loadingIndicator) {
+                loadingIndicator.classList.add('hidden');
+            }
 
             if (mediaItems.length === 0 && !loadMore) {
                 grid.innerHTML = '<p class="col-span-full text-center text-gray-500 py-10">没有找到媒体文件。</p>';
             } else {
                 mediaItems.forEach(item => {
+                    console.log('Processing item:', item);
                     const card = document.createElement('div');
                     card.className = 'media-item-card relative group cursor-pointer border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow';
                     card.dataset.filepath = item.filepath;
@@ -117,7 +138,7 @@
                     card.dataset.title = item.title;
 
                     card.innerHTML = `
-                        <img src="${item.filepath.replace('{{ media_upload_dir_name }}', '/media')}" alt="${item.title}" class="w-full h-32 object-cover">
+                        <img src="${item.url}" alt="${item.title}" class="w-full h-32 object-cover">
                         <div class="p-2 text-sm truncate">${item.title}</div>
                         <div class="absolute inset-0 bg-blue-500 bg-opacity-0 group-hover:bg-opacity-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                             <i class="fas fa-check-circle text-white text-3xl hidden selected-icon"></i>
@@ -126,40 +147,54 @@
                     card.addEventListener('click', () => {
                         document.querySelectorAll('.media-item-card').forEach(c => {
                             c.classList.remove('border-blue-500', 'border-2');
-                            c.querySelector('.selected-icon').classList.add('hidden');
+                            c.querySelector('.selected-icon')?.classList.add('hidden');
                         });
                         card.classList.add('border-blue-500', 'border-2');
-                        card.querySelector('.selected-icon').classList.remove('hidden');
+                        card.querySelector('.selected-icon')?.classList.remove('hidden');
                         selectedMediaItem = {
                             id: item.id,
                             filepath: item.filepath,
-                            url: item.filepath.replace('{{ media_upload_dir_name }}', '/media'),
+                            url: item.url,
                             title: item.title
                         };
-                        document.getElementById('select-media-button').disabled = false;
+                        const selectButton = document.getElementById('select-media-button');
+                        if (selectButton) {
+                            selectButton.disabled = false;
+                        }
                     });
                     grid.appendChild(card);
                 });
 
-                if (mediaItems.length === itemsPerPage) {
-                    loadMoreButton.classList.remove('hidden');
-                } else {
-                    loadMoreButton.classList.add('hidden');
+                // 只有当loadMoreButton存在时才操作它
+                if (loadMoreButton) {
+                    if (mediaItems.length === itemsPerPage) {
+                        loadMoreButton.classList.remove('hidden');
+                    } else {
+                        loadMoreButton.classList.add('hidden');
+                    }
                 }
             }
         } catch (error) {
             console.error('加载媒体文件失败:', error);
-            loadingIndicator.classList.add('hidden');
-            grid.innerHTML = '<p class="col-span-full text-center text-red-500 py-10">加载媒体文件时发生错误。</p>';
+            // 只有当loadingIndicator存在时才操作它
+            if (loadingIndicator) {
+                loadingIndicator.classList.add('hidden');
+            }
+            if (grid) {
+                grid.innerHTML = '<p class="col-span-full text-center text-red-500 py-10">加载媒体文件时发生错误。</p>';
+            }
         }
     }
 
     function selectMediaItem() {
         if (selectedMediaItem) {
-            featureImageUrlInput.value = selectedMediaItem.url;
-            featureImagePreview.innerHTML = `<img src="${selectedMediaItem.url}" alt="${selectedMediaItem.title}" class="max-w-full h-auto rounded-md">`;
-            featureImagePreview.classList.remove('hidden');
-            featureImageRemoveButton.classList.remove('hidden');
+            // 确保这些变量在全局作用域中定义
+            if (typeof featureImageUrlInput !== 'undefined' && typeof featureImagePreview !== 'undefined' && typeof featureImageRemoveButton !== 'undefined') {
+                featureImageUrlInput.value = selectedMediaItem.url;
+                featureImagePreview.innerHTML = `<img src="${selectedMediaItem.url}" alt="${selectedMediaItem.title}" class="max-w-full h-auto rounded-md">`;
+                featureImagePreview.classList.remove('hidden');
+                featureImageRemoveButton.classList.remove('hidden');
+            }
             closeMediaLibraryModal();
         }
     }
