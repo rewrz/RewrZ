@@ -40,6 +40,20 @@ class LicenseManager:
             "url": "https://creativecommons.org/licenses/by-nc/4.0/deed.zh",
             "description": "允许他人在非商业目的下使用作品，但必须署名。"
         },
+        "cc_by_nd_4": {
+            "name": "CC BY-ND 4.0",
+            "full_name": "知识共享署名-禁止演绎 4.0 国际许可协议",
+            "icon": "https://licensebuttons.net/l/by-nd/4.0/88x31.png",
+            "url": "https://creativecommons.org/licenses/by-nd/4.0/deed.zh",
+            "description": "允许他人在任何目的下使用作品，但必须署名且不能修改作品。"
+        },
+        "cc_by_nc_nd_4": {
+            "name": "CC BY-NC-ND 4.0",
+            "full_name": "知识共享署名-非商业性使用-禁止演绎 4.0 国际许可协议",
+            "icon": "https://licensebuttons.net/l/by-nc-nd/4.0/88x31.png",
+            "url": "https://creativecommons.org/licenses/by-nc-nd/4.0/deed.zh",
+            "description": "允许他人在非商业目的下使用作品，但必须署名且不能修改作品。"
+        },
         "all_rights_reserved": {
             "name": "保留所有权利",
             "full_name": "保留所有权利",
