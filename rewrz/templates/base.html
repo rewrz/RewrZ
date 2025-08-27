@@ -542,7 +542,7 @@
         <div class="container mx-auto px-6">
             <div class="flex flex-col md:flex-row justify-between items-center">
                 <div class="text-center md:text-left text-text-light mb-4 md:mb-0">
-                    <p>&copy; {{"now"|date("Y")}} RewrZ. All rights reserved.</p>
+                    <p>&copy; <span id="current-year">2025</span> RewrZ. All rights reserved.</p>
                     <p class="text-sm mt-1">Powered by FastAPI, HTMX, and Tailwind CSS.</p>
                 </div>
                 <div class="flex items-center space-x-4">
@@ -563,5 +563,10 @@
             </div>
         </div>
     </footer>
+    <script>
+        // 获取当前年份并设置到id为current-year的元素中
+        var currentYear = new Date().getFullYear();
+        document.getElementById('current-year').textContent = currentYear;
+    </script>
 </body>
 </html>
