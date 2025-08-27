@@ -70,7 +70,14 @@
                         </div>
                         <div>
                             <h3 class="text-lg font-semibold mb-2">特色图片</h3>
-                            <button class="w-full py-2 border-dashed border-2 border-gray-300 rounded-md hover:bg-gray-50">上传图片</button>
+                            <input type="hidden" name="feature_image_url" id="feature-image-url-input" value="{% if post %}{{ post.feature_image_url }}{% endif %}">
+                            <div id="feature-image-preview" class="mb-2 {% if not post or not post.feature_image_url %}hidden{% endif %}">
+                                {% if post and post.feature_image_url %}
+                                <img src="{{ post.feature_image_url }}" alt="特色图片预览" class="max-w-full h-auto rounded-md">
+                                {% endif %}
+                            </div>
+                            <button type="button" class="w-full py-2 border-dashed border-2 border-gray-300 rounded-md hover:bg-gray-50" id="feature-image-upload-button">选择或上传图片</button>
+                            <button type="button" class="w-full mt-2 py-2 border-dashed border-2 border-red-300 text-red-600 rounded-md hover:bg-red-50 {% if not post or not post.feature_image_url %}hidden{% endif %}" id="remove-feature-image-button">移除图片</button>
                         </div>
                         <div>
                             <h3 class="text-lg font-semibold mb-2">摘要</h3>
@@ -97,7 +104,7 @@
                         <div>
                             <h3 class="text-lg font-semibold mb-2">版权声明</h3>
                             <select name="license_type" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                                {{ (post.license_type if post else 'cc_by_nc_sa_4') | license_options | safe }}
+                                {{ post.license_type | license_options | safe }}
                             </select>
                             <p class="text-xs text-gray-500 mt-1">选择适合的版权协议保护您的作品</p>
                         </div>
@@ -147,5 +154,24 @@
                 tagsHiddenInput.value = currentTags.join(',');
             }
         }
+
+        // Feature Image Logic (using media library modal)
+        const featureImageUploadButton = document.getElementById('feature-image-upload-button');
+        const featureImageRemoveButton = document.getElementById('remove-feature-image-button');
+        const featureImageUrlInput = document.getElementById('feature-image-url-input');
+        const featureImagePreview = document.getElementById('feature-image-preview');
+
+        featureImageUploadButton.addEventListener('click', () => {
+            openMediaLibraryModal();
+        });
+
+        featureImageRemoveButton.addEventListener('click', () => {
+            featureImageUrlInput.value = '';
+            featureImagePreview.innerHTML = '';
+            featureImagePreview.classList.add('hidden');
+            featureImageRemoveButton.classList.add('hidden');
+            alert('特色图片已移除。');
+        });
     </script>
+    {% include 'admin/components/media_library_modal.html' %}
 {% endblock %}

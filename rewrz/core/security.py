@@ -76,10 +76,18 @@ async def get_current_user(token: str = Depends(get_token_from_cookie), db: Sess
         raise credentials_exception
     
     from ..crud import user as crud_user
+    from ..schemas import User as UserSchema # 导入Pydantic User schema
+    
     db_user = crud_user.get_user(db, user_id=int(user_id))
     if db_user is None:
         raise credentials_exception
-    return db_user
+    
+    # 确保use_gravatar是字符串类型，以匹配schema
+    if db_user.use_gravatar is None:
+        db_user.use_gravatar = "auto" # 或者其他默认字符串值
+    
+    # 显式地将SQLAlchemy模型对象转换为Pydantic schema对象
+    return UserSchema.model_validate(db_user)
 
 def generate_csrf_token() -> str:
     """Generates a URL-safe CSRF token."""
@@ -88,9 +96,6 @@ def generate_csrf_token() -> str:
 def verify_csrf_token(request: Request, form_csrf_token: str):
     """Verifies the CSRF token from the form against the one in the session."""
     session_csrf_token = request.session.get("csrf_token")
-    # 添加调试信息
-    print(f"DEBUG: Session CSRF Token: {session_csrf_token}")
-    print(f"DEBUG: Form CSRF Token: {form_csrf_token}")
     if not session_csrf_token or not secrets.compare_digest(session_csrf_token, form_csrf_token):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

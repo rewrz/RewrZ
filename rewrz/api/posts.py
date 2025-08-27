@@ -29,7 +29,8 @@ async def new_post_page(request: Request, db: Session = Depends(get_db), current
         "categories": categories,
         "formats": formats,
         "post": None, # 新建文章时没有post对象
-        "post_type": "post" # 明确指定为文章类型
+        "post_type": "post", # 明确指定为文章类型
+        "media_upload_dir_name": settings.MEDIA_UPLOAD_DIR # 传递媒体上传目录名称
     })
 
 @router.get(f"{settings.ADMIN_PATH.rstrip('/')}/posts/{{post_id}}/edit", response_class=HTMLResponse)
@@ -51,7 +52,8 @@ async def edit_post_page(post_id: int, request: Request, db: Session = Depends(g
         "post": post,
         "categories": categories,
         "formats": formats,
-        "post_type": "post" # 明确指定为文章类型
+        "post_type": "post", # 明确指定为文章类型
+        "media_upload_dir_name": settings.MEDIA_UPLOAD_DIR # 传递媒体上传目录名称
     })
 
 @router.post(f"{settings.ADMIN_PATH.rstrip('/')}/posts/new")

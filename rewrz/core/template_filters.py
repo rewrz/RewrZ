@@ -14,6 +14,7 @@ from jinja2 import Environment
 from .license_manager import render_license, LicenseManager
 from .donation_system import render_donation_widget
 from .blog_enhancements import calculate_reading_time, get_related_posts, get_post_statistics
+from ..core.config import settings # 导入settings
 
 
 def md5_filter(text: str) -> str:
@@ -154,6 +155,15 @@ def license_html_filter(license_type: str, author: str, site_url: str = "") -> s
         版权声明HTML
     """
     return render_license(license_type, author, site_url)
+
+
+def url_filter(filepath: str) -> str:
+    """
+    将媒体文件路径转换为可访问的URL
+    """
+    if not filepath:
+        return ""
+    return filepath.replace(settings.MEDIA_UPLOAD_DIR, '/media')
 
 
 def get_license_options_filter(selected_license: str = "cc_by_nc_sa_4") -> str:
@@ -306,6 +316,7 @@ def register_template_filters(app):
     templates.env.filters['license_options'] = get_license_options_filter
     templates.env.filters['donation_widget'] = donation_widget_filter
     templates.env.filters['responsive_image'] = responsive_image_filter
+    templates.env.filters['url'] = url_filter # 注册url过滤器
     
     return templates
 
@@ -331,6 +342,7 @@ def get_templates():
         _templates.env.filters['license_options'] = get_license_options_filter
         _templates.env.filters['donation_widget'] = donation_widget_filter
         _templates.env.filters['responsive_image'] = responsive_image_filter
+        _templates.env.filters['url'] = url_filter # 注册url过滤器
         # 新增的现代化博客功能过滤器
         _templates.env.filters['reading_time'] = reading_time_filter
         _templates.env.filters['reading_stats'] = reading_stats_filter

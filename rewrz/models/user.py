@@ -4,7 +4,7 @@
 定义系统用户的数据结构，包括管理员和博主账户。
 支持自定义头像上传和管理功能。
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean # 导入Boolean
 from sqlalchemy.sql import func
 from .base import Base
 
@@ -16,6 +16,7 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     email = Column(String, unique=True, index=True)
+    is_active = Column(Boolean, default=True, nullable=False) # 添加is_active字段
     role = Column(String, default="admin") # 未来的多用户角色系统
     
     # 头像相关字段

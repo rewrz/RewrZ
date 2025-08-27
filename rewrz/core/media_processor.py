@@ -55,7 +55,7 @@ class MediaProcessor:
         self.auto_compress = self._get_setting_bool("media_auto_compress", True)
         
         # 缩略图设置
-        self.generate_thumbnails = self._get_setting_bool("media_generate_thumbnails", True)
+        self._should_generate_thumbnails = self._get_setting_bool("media_generate_thumbnails", True) # 重命名属性
         self.thumbnail_quality = self._get_setting_int("media_thumbnail_quality", 80)
         
         # 上传设置
@@ -293,7 +293,7 @@ class MediaProcessor:
         Returns:
             缩略图路径字典 {size_name: file_path}
         """
-        if not self.generate_thumbnails:
+        if not self._should_generate_thumbnails: # 使用重命名后的属性
             return {}
         
         thumbnails = {}

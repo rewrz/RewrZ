@@ -30,7 +30,7 @@ class User(UserBase):
     is_active: bool
     avatar_url: Optional[str] = None
     avatar_filename: Optional[str] = None
-    use_gravatar: bool = True
+    use_gravatar: str = "auto" # 修改为str类型，默认值为"auto"
     created_at: datetime
     updated_at: datetime
     last_login_at: Optional[datetime] = None

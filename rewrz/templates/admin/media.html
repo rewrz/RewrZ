@@ -107,7 +107,7 @@
                 </div>
                 <div class="p-3">
                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate" title="{{ media.title or media.filename }}">{{ media.title or media.filename }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ media.created_at.strftime('%Y-%m-%d') }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ media.uploaded_at.strftime('%Y-%m-%d') }}</p>
                 </div>
                 <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <button class="text-white font-semibold" onclick="showMediaDetails('{{ media.id }}', event)">查看详情</button>
@@ -141,6 +141,7 @@
 </div>
 
 <script>
+    const ADMIN_PATH = "{{ request.state.admin_path }}"; // 将admin_path从Jinja2传递到JavaScript
 document.addEventListener('DOMContentLoaded', () => {
     const uploadButton = document.getElementById('upload-button');
     const uploadDropZone = document.getElementById('upload-drop-zone');
@@ -254,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (const mediaId of selectedFiles) {
             try {
-                const response = await fetch(`/media/${mediaId}`, { method: 'DELETE' });
+                const response = await fetch(`/api/media/${mediaId}`, { method: 'DELETE' });
                 if (!response.ok) {
                     console.error(`Failed to delete media ${mediaId}`);
                 }
@@ -274,14 +275,19 @@ function showMediaDetails(mediaId, event) {
     content.innerHTML = '<p class="text-center">正在加载...</p>';
     modal.classList.remove('hidden');
 
-    fetch(`/media/${mediaId}`)
-        .then(response => response.json())
+    fetch(`${ADMIN_PATH}/api/media/${mediaId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(media => {
             content.innerHTML = `
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="w-full aspect-w-1 aspect-h-1 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
                         ${media.file_type.startsWith('image') ? 
-                            `<img src="${media.filepath}" alt="${media.alt_text || media.title}" class="w-full h-full object-contain">` :
+                            `<img src="${media.url}" alt="${media.alt_text || media.title}" class="w-full h-full object-contain">` :
                             `<div class="w-full h-full flex items-center justify-center text-gray-400"><span>预览不可用</span></div>`
                         }
                     </div>
@@ -301,12 +307,13 @@ function showMediaDetails(mediaId, event) {
                         <div class="text-sm text-gray-500 dark:text-gray-400 space-y-2">
                             <p><strong>文件名:</strong> ${media.filename}</p>
                             <p><strong>文件类型:</strong> ${media.mime_type}</p>
-                            <p><strong>上传于:</strong> ${new Date(media.created_at).toLocaleString()}</p>
-                            <p><strong>文件路径:</strong> <input type="text" readonly value="${media.filepath}" class="w-full bg-gray-100 dark:bg-gray-900 border-none rounded-md p-1"></p>
+                            <p><strong>上传于:</strong> ${new Date(media.uploaded_at).toLocaleString()}</p>
+                            <p><strong>上传者:</strong> ${media.uploaded_by ? media.uploaded_by.username : '未知'}</p>
+                            <p><strong>文件路径:</strong> <input type="text" readonly value="${media.url}" class="w-full bg-gray-100 dark:bg-gray-900 border-none rounded-md p-1"></p>
                         </div>
                         <div class="flex space-x-2 pt-4">
-                            <button class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">保存更改</button>
-                            <button class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700" onclick="deleteMedia(${media.id})">删除</button>
+                            <button id="save-media-changes" class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">保存更改</button>
+                            <button class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700" onclick="deleteMedia(${media.id}, event)">删除</button>
                         </div>
                     </div>
                 </div>
@@ -321,18 +328,116 @@ function closeModal() {
     document.getElementById('media-details-modal').classList.add('hidden');
 }
 
-async function deleteMedia(mediaId) {
+async function deleteMedia(mediaId, event) {
+    event.stopPropagation(); // Prevent card selection
     if (!confirm('确定要删除这个文件吗？此操作不可恢复。')) return;
     try {
-        const response = await fetch(`/media/${mediaId}`, { method: 'DELETE' });
+        const response = await fetch(`${ADMIN_PATH}/api/media/${mediaId}`, { method: 'DELETE' });
         if (response.ok) {
             location.reload();
         } else {
-            alert('删除失败');
+            const errorData = await response.json();
+            alert('删除失败: ' + (errorData.detail || response.statusText));
         }
     } catch (error) {
         alert('删除时发生错误: ' + error.message);
     }
+}
+
+// Add event listener for save button after content is loaded
+function setupMediaDetailsListeners(mediaId) {
+    const saveButton = document.getElementById('save-media-changes');
+    if (saveButton) {
+        saveButton.onclick = async () => {
+            const title = document.querySelector('#media-details-content input[type="text"]').value;
+            const alt_text = document.querySelectorAll('#media-details-content input[type="text"]')[1].value;
+            const description = document.querySelector('#media-details-content textarea').value;
+
+            try {
+                const response = await fetch(`${ADMIN_PATH}/api/media/${mediaId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': '{{ request.state.csrf_token }}' // Assuming CSRF token is available
+                    },
+                    body: JSON.stringify({ title, alt_text, description })
+                });
+
+                if (response.ok) {
+                    alert('媒体信息已保存！');
+                    closeModal();
+                    location.reload(); // Refresh to reflect changes
+                } else {
+                    const errorData = await response.json();
+                    alert('保存失败: ' + (errorData.detail || response.statusText));
+                }
+            } catch (error) {
+                alert('保存时发生错误: ' + error.message);
+            }
+        };
+    }
+}
+
+// Modify showMediaDetails to call setupMediaDetailsListeners
+function showMediaDetails(mediaId, event) {
+    event.stopPropagation(); // Prevent card selection when clicking details
+    const modal = document.getElementById('media-details-modal');
+    const content = document.getElementById('media-details-content');
+    content.innerHTML = '<p class="text-center">正在加载...</p>';
+    modal.classList.remove('hidden');
+
+    fetch(`${ADMIN_PATH}/api/media/${mediaId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(media => {
+            content.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="w-full aspect-w-1 aspect-h-1 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
+                        ${media.file_type.startsWith('image') ? 
+                            `<img src="${media.url}" alt="${media.alt_text || media.title}" class="w-full h-full object-contain">` :
+                            `<div class="w-full h-full flex items-center justify-center text-gray-400"><span>预览不可用</span></div>`
+                        }
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">标题</label>
+                            <input type="text" value="${media.title || ''}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">替代文本</label>
+                            <input type="text" value="${media.alt_text || ''}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">描述</label>
+                            <textarea rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600">${media.description || ''}</textarea>
+                        </div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400 space-y-2">
+                            <p><strong>文件名:</strong> ${media.filename}</p>
+                            <p><strong>文件类型:</strong> ${media.mime_type}</p>
+                            <p><strong>上传于:</strong> ${new Date(media.uploaded_at).toLocaleString()}</p>
+                            <p><strong>上传者:</strong> ${media.uploaded_by ? media.uploaded_by.username : '未知'}</p>
+                            <p><strong>文件路径:</strong> <input type="text" readonly value="${media.url}" class="w-full bg-gray-100 dark:bg-gray-900 border-none rounded-md p-1"></p>
+                        </div>
+                        <div class="flex space-x-2 pt-4">
+                            <button id="save-media-changes" class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">保存更改</button>
+                            <button class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700" onclick="deleteMedia(${media.id}, event)">删除</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            setupMediaDetailsListeners(media.id); // Setup listeners after content is rendered
+        })
+        .catch(err => {
+            content.innerHTML = `<p class="text-center text-red-500">加载失败: ${err.message}</p>`;
+        });
+}
+
+function closeModal() {
+    document.getElementById('media-details-modal').classList.add('hidden');
 }
 </script>
 {% endblock %}

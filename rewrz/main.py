@@ -69,6 +69,8 @@ app = FastAPI(lifespan=lifespan)
 
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="rewrz/static"), name="static")
+# 挂载媒体上传目录
+app.mount("/media", StaticFiles(directory=settings.MEDIA_UPLOAD_DIR), name="media")
 
 # 配置Jinja2模板引擎（带自定义过滤器）
 templates = get_templates()
@@ -504,15 +506,7 @@ async def add_global_context(request: Request, call_next):
         print(f"ERROR: Failed to handle CSRF token: {e}")
         # 异常情况下，也生成一个临时令牌以避免应用崩溃
         request.state.csrf_token = generate_csrf_token()
-
     response = await call_next(request)
-
-    # 添加调试信息
-    if hasattr(request, 'session'):
-        print(f"DEBUG: 2、Session (after call_next): {request.session}")
-        print(f"DEBUG: 3、Session CSRF Token (after call_next): {request.session.get("csrf_token")}")
-    print(f"DEBUG: 4、Request State CSRF Token (after call_next): {request.state.csrf_token}")
-    print(f"DEBUG: 5、Settings SECRET_KEY: {settings.SECRET_KEY}")
     return response
 
 def get_page_config(db: Session, config_key: str, default_value: int) -> int:

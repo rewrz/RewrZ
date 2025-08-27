@@ -1,6 +1,7 @@
 from pydantic import BaseModel, HttpUrl
 from typing import Optional
 from datetime import datetime
+from .user import User # 导入User schema
 
 class MediaBase(BaseModel):
     filename: str
@@ -23,6 +24,8 @@ class Media(MediaBase):
     id: int
     uploaded_at: datetime
     uploaded_by_id: int
+    uploaded_by: Optional[User] = None
+    url: str # 修改为str类型
 
     model_config = {
         "from_attributes": True
