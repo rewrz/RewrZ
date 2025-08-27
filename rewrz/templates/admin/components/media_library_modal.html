@@ -66,12 +66,39 @@
     let selectedMediaItem = null;
     let currentPage = 1;
     const itemsPerPage = 12; // 每页显示的项目数量
+    let isMediaLoading = false; // 添加标志来防止重复加载
 
     function openMediaLibraryModal() {
+        console.log('openMediaLibraryModal called');
         document.getElementById('media-library-modal').classList.remove('hidden');
-        loadMediaItems(); // 每次打开模态框时加载媒体文件
         // 激活媒体库tab
-        document.getElementById('library-tab').click();
+        document.getElementById('library-tab').classList.add('active', 'border-b-2', 'border-blue-600');
+        document.getElementById('library-tab').classList.remove('border-transparent', 'hover:text-gray-600', 'hover:border-gray-300');
+        document.getElementById('library-tab').setAttribute('aria-selected', 'true');
+        document.getElementById('media-library-content').classList.remove('hidden');
+        
+        // 隐藏上传内容
+        document.getElementById('upload-tab').classList.remove('active', 'border-b-2', 'border-blue-600');
+        document.getElementById('upload-tab').classList.add('border-transparent', 'hover:text-gray-600', 'hover:border-gray-300');
+        document.getElementById('upload-tab').setAttribute('aria-selected', 'false');
+        document.getElementById('media-upload-content').classList.add('hidden');
+        
+        // 检查是否需要加载媒体项
+        const grid = document.getElementById('media-items-grid');
+        const loadingIndicator = document.getElementById('media-loading-indicator');
+        console.log('Grid children count:', grid ? grid.children.length : 'grid not found');
+        console.log('Loading indicator hidden:', loadingIndicator ? loadingIndicator.classList.contains('hidden') : 'loading indicator not found');
+        // 只有当媒体库为空时才加载媒体文件，避免重复加载
+        // 同时检查是否已经在加载中
+        if (!isMediaLoading && grid && (!grid.firstChild || (grid.children.length === 1 && loadingIndicator && !loadingIndicator.classList.contains('hidden')))) {
+            console.log('Loading media items in openMediaLibraryModal');
+            isMediaLoading = true; // 设置加载标志
+            loadMediaItems().finally(() => {
+                isMediaLoading = false; // 无论成功还是失败都清除加载标志
+            });
+        } else {
+            console.log('Skipping media items load in openMediaLibraryModal');
+        }
     }
 
     function closeMediaLibraryModal() {
@@ -79,6 +106,7 @@
         selectedMediaItem = null;
         document.getElementById('select-media-button').disabled = true;
         document.querySelectorAll('.media-item-card').forEach(card => card.classList.remove('border-blue-500', 'border-2'));
+        isMediaLoading = false; // 重置加载标志
     }
 
     async function loadMediaItems(loadMore = false) {
@@ -219,7 +247,7 @@
             document.querySelector(targetId).classList.remove('hidden');
 
             if (targetId === '#media-library-content') {
-                loadMediaItems(); // 切换到媒体库时重新加载
+                console.log('Switching to media library tab');
             }
         });
     });
@@ -317,9 +345,4 @@
         uploadedFilesPreview.appendChild(previewCard);
     }
 
-    // Initial load for media library tab
-    document.addEventListener('DOMContentLoaded', () => {
-        // Simulate click on the default active tab
-        document.getElementById('library-tab').click();
-    });
 </script>
