@@ -244,12 +244,43 @@ def register_admin_routes():
         return HTMLResponse(content=options_html)
     
     @app.post(f"{admin_path}/posts/new")
-    async def dynamic_create_post(request: Request, post: PostCreate, format_ids: Optional[List[int]] = Form(None), csrf_token: str = Form(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-        return posts_api.create_post_api(request, post, format_ids, csrf_token, db, current_user)
+    async def dynamic_create_post(
+        request: Request,
+        title: str = Form(...),
+        content: str = Form(...),
+        slug: Optional[str] = Form(None),
+        excerpt: Optional[str] = Form(None),
+        featured_image_url: Optional[str] = Form(None),
+        status: str = Form("draft"),
+        category_ids: Optional[List[int]] = Form(None),
+        tags: Optional[str] = Form(None),
+        format_ids: Optional[List[int]] = Form(None),
+        license_type: str = Form("cc_by_nc_sa_4"),
+        csrf_token: str = Form(...),
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
+    ):
+        return await posts_api.create_post_api(request, title, content, slug, excerpt, featured_image_url, status, category_ids, tags, format_ids, license_type, csrf_token, db, current_user)
     
     @app.post(f"{admin_path}/posts/{{post_id}}")
-    async def dynamic_update_post(post_id: int, request: Request, post: PostUpdate, format_ids: Optional[List[int]] = Form(None), csrf_token: str = Form(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-        return posts_api.update_post_api(request, post_id, post, format_ids, csrf_token, db, current_user)
+    async def dynamic_update_post(
+        post_id: int,
+        request: Request,
+        title: str = Form(...),
+        content: str = Form(...),
+        slug: Optional[str] = Form(None),
+        excerpt: Optional[str] = Form(None),
+        featured_image_url: Optional[str] = Form(None),
+        status: str = Form("draft"),
+        category_ids: Optional[List[int]] = Form(None),
+        tags: Optional[str] = Form(None),
+        format_ids: Optional[List[int]] = Form(None),
+        license_type: str = Form("cc_by_nc_sa_4"),
+        csrf_token: str = Form(...),
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
+    ):
+        return await posts_api.update_post_api(request, post_id, title, content, slug, excerpt, featured_image_url, status, category_ids, tags, format_ids, license_type, csrf_token, db, current_user)
     
     # 注册后台分类管理页面
     @app.get(f"{admin_path}/categories", response_class=HTMLResponse)

@@ -18,7 +18,7 @@
                     <div class="bg-white p-6 rounded-lg shadow-md">
                         <div class="mb-4">
                             <label for="title" class="block text-sm font-medium text-gray-700">标题</label>
-                            <input type="text" id="title" name="title" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                            <input type="text" id="title" name="title" value="{% if post %}{{ post.title }}{% endif %}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                         </div>
                         <div id="editor">
                             <!-- 编辑器内容将由JavaScript初始化 -->
@@ -45,16 +45,18 @@
                     <div class="bg-white p-6 rounded-lg shadow-md space-y-6">
                         <div>
                             <h3 class="text-lg font-semibold mb-2">URL 别名 (Slug)</h3>
-                            <input type="text" name="slug" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                            <input type="text" name="slug" value="{% if post %}{{ post.slug }}{% endif %}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                         </div>
                         <div>
                             <h3 class="text-lg font-semibold mb-2">分类</h3>
-                            <select name="category_id" class="w-full px-3 py-2 border rounded-md">
-                                <option value="">选择分类</option>
+                            <div class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
                                 {% for category in categories %}
-                                <option value="{{ category.id }}" {% if post and post.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                                <label class="inline-flex items-center">
+                                    <input type="checkbox" name="category_ids" value="{{ category.id }}" {% if post and category in post.categories %}checked{% endif %} class="form-checkbox">
+                                    <span class="ml-2 text-gray-700 text-sm">{{ category.name }}</span>
+                                </label>
                                 {% endfor %}
-                            </select>
+                            </div>
                         </div>
                         <div>
                             <h3 class="text-lg font-semibold mb-2">标签</h3>
@@ -70,25 +72,25 @@
                         </div>
                         <div>
                             <h3 class="text-lg font-semibold mb-2">特色图片</h3>
-                            <input type="hidden" name="feature_image_url" id="feature-image-url-input" value="{% if post %}{{ post.feature_image_url }}{% endif %}">
-                            <div id="feature-image-preview" class="mb-2 {% if not post or not post.feature_image_url %}hidden{% endif %}">
-                                {% if post and post.feature_image_url %}
-                                <img src="{{ post.feature_image_url }}" alt="特色图片预览" class="max-w-full h-auto rounded-md">
+                            <input type="hidden" name="featured_image_url" id="feature-image-url-input" value="{% if post %}{{ post.featured_image_url }}{% endif %}">
+                            <div id="feature-image-preview" class="mb-2 {% if not post or not post.featured_image_url or post.featured_image_url == 'None' %}hidden{% endif %}">
+                                {% if post and post.featured_image_url and post.featured_image_url != 'None' %}
+                                <img src="{{ post.featured_image_url }}" alt="特色图片预览" class="max-w-full h-auto rounded-md">
                                 {% endif %}
                             </div>
                             <button type="button" class="w-full py-2 border-dashed border-2 border-gray-300 rounded-md hover:bg-gray-50" id="feature-image-upload-button">选择或上传图片</button>
-                            <button type="button" class="w-full mt-2 py-2 border-dashed border-2 border-red-300 text-red-600 rounded-md hover:bg-red-50 {% if not post or not post.feature_image_url %}hidden{% endif %}" id="remove-feature-image-button">移除图片</button>
+                            <button type="button" class="w-full mt-2 py-2 border-dashed border-2 border-red-300 text-red-600 rounded-md hover:bg-red-50 {% if not post or not post.featured_image_url %}hidden{% endif %}" id="remove-feature-image-button">移除图片</button>
                         </div>
                         <div>
                             <h3 class="text-lg font-semibold mb-2">摘要</h3>
-                            <textarea name="excerpt" rows="4" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></textarea>
+                            <textarea name="excerpt" rows="4" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">{% if post %}{{ post.excerpt }}{% endif %}</textarea>
                         </div>
                         <div>
                             <h3 class="text-lg font-semibold mb-2">内容格式</h3>
                             <div class="space-y-2">
                                 {% for format in formats %}
                                 <label class="inline-flex items-center">
-                                    <input type="checkbox" name="formats" value="{{ format.id }}" class="form-checkbox">
+                                    <input type="checkbox" name="format_ids" value="{{ format.id }}" {% if post and format in post.formats %}checked{% endif %} class="form-checkbox">
                                     <span class="ml-2 text-gray-700">{{ format.name }}</span>
                                 </label>
                                 {% endfor %}
@@ -119,7 +121,7 @@
             height: '600px',
             initialEditType: 'markdown',
             previewStyle: 'vertical',
-            initialValue: `{{ post.content|tojson|safe if post else '' }}`
+            initialValue: `{{ post.content_markdown|tojson|safe if post else '' }}`
         });
 
         document.getElementById('post-form').addEventListener('htmx:configRequest', function (event) {

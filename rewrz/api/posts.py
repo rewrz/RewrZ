@@ -63,8 +63,9 @@ async def create_post_api(
     content: str = Form(...),
     slug: Optional[str] = Form(None),
     excerpt: Optional[str] = Form(None),
+    featured_image_url: Optional[str] = Form(None),
     status: str = Form("draft"),
-    category_id: Optional[int] = Form(None),
+    category_ids: Optional[List[int]] = Form(None),
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
     format_ids: Optional[List[int]] = Form(None),
     license_type: str = Form("cc_by_nc_sa_4"),
@@ -82,8 +83,9 @@ async def create_post_api(
         content_markdown=content,
         slug=slug,
         excerpt=excerpt,
+        featured_image_url=featured_image_url,
         status=status,
-        category_ids=[category_id] if category_id else [], # 将单个 category_id 转换为列表
+        category_ids=category_ids if category_ids else [],
         license_type=license_type,
         post_type="post" # 确保文章类型为 'post'
     )
@@ -112,8 +114,9 @@ async def update_post_api(
     content: str = Form(...),
     slug: Optional[str] = Form(None),
     excerpt: Optional[str] = Form(None),
+    featured_image_url: Optional[str] = Form(None),
     status: str = Form("draft"),
-    category_id: Optional[int] = Form(None),
+    category_ids: Optional[List[int]] = Form(None),
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
     format_ids: Optional[List[int]] = Form(None),
     license_type: str = Form("cc_by_nc_sa_4"),
@@ -139,8 +142,9 @@ async def update_post_api(
         content_markdown=content,
         slug=slug,
         excerpt=excerpt,
+        featured_image_url=featured_image_url,
         status=status,
-        category_ids=[category_id] if category_id else [], # 将单个 category_id 转换为列表
+        category_ids=category_ids if category_ids else [],
         license_type=license_type,
         post_type="post" # 确保文章类型不被修改
     )
@@ -302,7 +306,7 @@ async def create_page_api(
     slug: Optional[str] = Form(None),
     excerpt: Optional[str] = Form(None),
     status: str = Form("draft"),
-    category_id: Optional[int] = Form(None),
+    category_ids: Optional[List[int]] = Form(None),
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
     format_ids: Optional[List[int]] = Form(None),
     license_type: str = Form("cc_by_nc_sa_4"),
@@ -321,7 +325,7 @@ async def create_page_api(
         slug=slug,
         excerpt=excerpt,
         status=status,
-        category_ids=[category_id] if category_id else [], # 将单个 category_id 转换为列表
+        category_ids=category_ids if category_ids else [],
         license_type=license_type,
         post_type="page" # 确保文章类型为 'page'
     )
@@ -351,7 +355,7 @@ async def update_page_api(
     slug: Optional[str] = Form(None),
     excerpt: Optional[str] = Form(None),
     status: str = Form("draft"),
-    category_id: Optional[int] = Form(None),
+    category_ids: Optional[List[int]] = Form(None),
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
     format_ids: Optional[List[int]] = Form(None),
     license_type: str = Form("cc_by_nc_sa_4"),
@@ -378,7 +382,7 @@ async def update_page_api(
         slug=slug,
         excerpt=excerpt,
         status=status,
-        category_ids=[category_id] if category_id else [], # 将单个 category_id 转换为列表
+        category_ids=category_ids if category_ids else [],
         license_type=license_type,
         post_type="page" # 确保文章类型不被修改
     )

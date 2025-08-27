@@ -185,6 +185,12 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
                 db_post.password = hashed_password
             del update_data['password']  # 从更新数据中移除，避免重复设置
 
+        # 确保featured_image_url字段被处理
+        if hasattr(post, 'featured_image_url') and post.featured_image_url is not None:
+            db_post.featured_image_url = post.featured_image_url
+        elif hasattr(post, 'featured_image_url') and post.featured_image_url is None:
+            db_post.featured_image_url = None
+
         for key, value in update_data.items():
             if key == "content_markdown":
                 db_post.content_html = markdown(value)
@@ -199,7 +205,9 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
                 db_post.slug = slug
             elif key == "excerpt" and not value and db_post.content_markdown: # 如果内容变化且摘要为空，则自动生成摘要
                 db_post.excerpt = db_post.content_markdown[:120]
-            setattr(db_post, key, value)
+            # 跳过featured_image_url，因为它已经在上面处理过了
+            elif key != "featured_image_url":
+                setattr(db_post, key, value)
         
         # 如果状态变为已发布，更新发布时间
         if post.status == "published" and db_post.published_at is None:

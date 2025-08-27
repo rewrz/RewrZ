@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 from .category import Category
@@ -10,7 +10,7 @@ class PostBase(BaseModel):
     slug: Optional[str] = None
     content_markdown: str
     excerpt: Optional[str] = None
-    featured_image_url: Optional[HttpUrl] = None
+    featured_image_url: Optional[str] = None
     post_type: str = "post"
     status: str = "draft"
     visibility: str = "public"
