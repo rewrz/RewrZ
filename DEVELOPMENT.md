@@ -678,9 +678,9 @@ def get_system_info() -> dict:
 
 ## 📞 获取帮助
 
-- 🐛 [报告 Bug](https://github.com/yourusername/RewrZ/issues)
-- 💡 [功能建议](https://github.com/yourusername/RewrZ/discussions)
-- 📖 [使用疑问](https://github.com/yourusername/RewrZ/discussions)
+- 🐛 [报告 Bug](https://github.com/RewrZ/RewrZ/issues)
+- 💡 [功能建议](https://github.com/RewrZ/RewrZ/discussions)
+- 📖 [使用疑问](https://github.com/RewrZ/RewrZ/discussions)
 
 欢迎加入 RewrZ 开发者社区，一起打造更好的博客系统！
 
