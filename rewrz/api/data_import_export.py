@@ -355,8 +355,17 @@ async def get_data_stats(
         settings_count = len(crud_setting.get_all_settings(db))
         
         # 计算媒体文件总大小
+        import os
         media_items = crud_media.get_all_media(db)
-        total_media_size = sum(item.file_size or 0 for item in media_items)
+        total_media_size = 0
+        for item in media_items:
+            # 获取实际文件大小
+            if os.path.exists(item.filepath):
+                total_media_size += os.path.getsize(item.filepath)
+            # 如果文件不存在，尝试从文件名推断路径
+            elif os.path.exists(os.path.join("media_uploads", item.filepath)):
+                total_media_size += os.path.getsize(os.path.join("media_uploads", item.filepath))
+            # 如果还是找不到文件，则跳过
         
         # 格式化文件大小
         def format_file_size(size_bytes):

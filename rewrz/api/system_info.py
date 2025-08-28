@@ -264,20 +264,32 @@ async def get_media_info(db: Session) -> Dict[str, Any]:
         audio_count = 0
         document_count = 0
         
+        # 获取媒体目录路径
+        media_dir = os.getenv('MEDIA_UPLOAD_DIR', 'media_uploads')
+        
         for item in media_items:
-            if item.file_size:
-                total_size += item.file_size
+            # 获取实际文件大小
+            file_path = item.filepath
+            full_path = os.path.join(media_dir, file_path) if not os.path.isabs(file_path) else file_path
+            if os.path.exists(file_path):
+                file_size = os.path.getsize(file_path)
+            elif os.path.exists(full_path):
+                file_size = os.path.getsize(full_path)
+            else:
+                file_size = 0
+                
+            total_size += file_size
             
-            # 按类型分类
-            if item.file_type:
-                if item.file_type.startswith('image/'):
-                    image_count += 1
-                elif item.file_type.startswith('video/'):
-                    video_count += 1
-                elif item.file_type.startswith('audio/'):
-                    audio_count += 1
-                else:
-                    document_count += 1
+            # 按文件扩展名分类
+            file_extension = os.path.splitext(item.filename)[1].lower()
+            if file_extension in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg']:
+                image_count += 1
+            elif file_extension in ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv']:
+                video_count += 1
+            elif file_extension in ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a']:
+                audio_count += 1
+            else:
+                document_count += 1
         
         media_info['total_size'] = format_file_size(total_size)
         media_info['total_size_bytes'] = total_size
