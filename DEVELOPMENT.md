@@ -336,17 +336,7 @@ class Post(PostBase):
 
 ```html
 <!-- 基础模板 -->
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{% block title %}{{ settings.site_title }}{% endblock %}</title>
-    <script src="https://unpkg.com/htmx.org"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body>
-    {% block content %}{% endblock %}
-</body>
-</html>
+ 参考 官方文档
 ```
 
 ---
