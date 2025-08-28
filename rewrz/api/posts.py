@@ -65,6 +65,7 @@ async def create_post_api(
     excerpt: Optional[str] = Form(None),
     featured_image_url: Optional[str] = Form(None),
     status: str = Form("draft"),
+    allow_comments: bool = Form(True),
     category_ids: Optional[List[int]] = Form(None),
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
     format_ids: Optional[List[int]] = Form(None),
@@ -85,6 +86,7 @@ async def create_post_api(
         excerpt=excerpt,
         featured_image_url=featured_image_url,
         status=status,
+        allow_comments=allow_comments,
         category_ids=category_ids if category_ids else [],
         license_type=license_type,
         post_type="post" # 确保文章类型为 'post'
@@ -116,6 +118,7 @@ async def update_post_api(
     excerpt: Optional[str] = Form(None),
     featured_image_url: Optional[str] = Form(None),
     status: str = Form("draft"),
+    allow_comments: bool = Form(True),
     category_ids: Optional[List[int]] = Form(None),
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
     format_ids: Optional[List[int]] = Form(None),
@@ -144,6 +147,7 @@ async def update_post_api(
         excerpt=excerpt,
         featured_image_url=featured_image_url,
         status=status,
+        allow_comments=allow_comments,
         category_ids=category_ids if category_ids else [],
         license_type=license_type,
         post_type="post" # 确保文章类型不被修改
@@ -264,16 +268,13 @@ async def new_page_page(request: Request, db: Session = Depends(get_db), current
     """
     显示新建页面页面
     """
-    categories = crud_category.get_categories(db)
-    formats = crud_format.get_formats(db)
-    return templates.TemplateResponse("admin/post_form.html", {
+    from ..core.template_filters import get_license_options_filter
+    return templates.TemplateResponse("admin/page_form.html", {
         "request": request,
         "user": current_user,
         "admin_path": settings.ADMIN_PATH.rstrip('/'),
-        "categories": categories,
-        "formats": formats,
-        "post": None, # 新建页面时没有post对象
-        "post_type": "page" # 明确指定为页面类型
+        "post": None,  # 新建页面时没有post对象
+        "license_options": get_license_options_filter
     })
 
 @router.get(f"{settings.ADMIN_PATH.rstrip('/')}/pages/{{page_id}}/edit", response_class=HTMLResponse)
@@ -285,17 +286,13 @@ async def edit_page_page(page_id: int, request: Request, db: Session = Depends(g
     if not page or page.post_type != "page":
         raise HTTPException(status_code=404, detail="Page not found or is not a page type")
     
-    categories = crud_category.get_categories(db)
-    formats = crud_format.get_formats(db)
-    
-    return templates.TemplateResponse("admin/post_form.html", {
+    from ..core.template_filters import get_license_options_filter
+    return templates.TemplateResponse("admin/page_form.html", {
         "request": request,
         "user": current_user,
         "admin_path": settings.ADMIN_PATH.rstrip('/'),
         "post": page,
-        "categories": categories,
-        "formats": formats,
-        "post_type": "page" # 明确指定为页面类型
+        "license_options": get_license_options_filter
     })
 
 @router.post(f"{settings.ADMIN_PATH.rstrip('/')}/pages/new")
@@ -305,10 +302,9 @@ async def create_page_api(
     content: str = Form(...),
     slug: Optional[str] = Form(None),
     excerpt: Optional[str] = Form(None),
+    featured_image_url: Optional[str] = Form(None),
     status: str = Form("draft"),
-    category_ids: Optional[List[int]] = Form(None),
-    tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
-    format_ids: Optional[List[int]] = Form(None),
+    allow_comments: bool = Form(True),
     license_type: str = Form("cc_by_nc_sa_4"),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
@@ -324,21 +320,17 @@ async def create_page_api(
         content_markdown=content,
         slug=slug,
         excerpt=excerpt,
+        featured_image_url=featured_image_url,
         status=status,
-        category_ids=category_ids if category_ids else [],
+        allow_comments=allow_comments,
         license_type=license_type,
         post_type="page" # 确保文章类型为 'page'
     )
     
-    # 处理标签
-    tag_names = [name.strip() for name in tags.split(',') if name.strip()] if tags else []
-    
     db_page = crud_post.create_post(
         db=db, 
         post=page_create_data, 
-        author_id=current_user.id,
-        tag_names=tag_names, # 传递标签名称列表
-        format_ids=format_ids # 传递内容格式ID列表
+        author_id=current_user.id
     )
     
     # 返回HTMX响应，重定向到页面列表
@@ -354,10 +346,9 @@ async def update_page_api(
     content: str = Form(...),
     slug: Optional[str] = Form(None),
     excerpt: Optional[str] = Form(None),
+    featured_image_url: Optional[str] = Form(None),
     status: str = Form("draft"),
-    category_ids: Optional[List[int]] = Form(None),
-    tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
-    format_ids: Optional[List[int]] = Form(None),
+    allow_comments: bool = Form(True),
     license_type: str = Form("cc_by_nc_sa_4"),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
@@ -381,21 +372,17 @@ async def update_page_api(
         content_markdown=content,
         slug=slug,
         excerpt=excerpt,
+        featured_image_url=featured_image_url,
         status=status,
-        category_ids=category_ids if category_ids else [],
+        allow_comments=allow_comments,
         license_type=license_type,
         post_type="page" # 确保文章类型不被修改
     )
     
-    # 处理标签
-    tag_names = [name.strip() for name in tags.split(',') if name.strip()] if tags else []
-
     updated_page = crud_post.update_post(
         db=db, 
         post_id=page_id, 
-        post=page_update_data, 
-        format_ids=format_ids,
-        tag_names=tag_names
+        post=page_update_data
     )
     
     # 返回HTMX响应，重定向到页面列表

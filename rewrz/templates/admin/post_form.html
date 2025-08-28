@@ -104,6 +104,13 @@
                             </select>
                         </div>
                         <div>
+                            <h3 class="text-lg font-semibold mb-2">评论设置</h3>
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" name="allow_comments" {% if post is none or post.allow_comments %}checked{% endif %} class="form-checkbox">
+                                <span class="ml-2 text-gray-700">允许评论</span>
+                            </label>
+                        </div>
+                        <div>
                             <h3 class="text-lg font-semibold mb-2">版权声明</h3>
                             <select name="license_type" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                                 {{ post.license_type | license_options | safe }}

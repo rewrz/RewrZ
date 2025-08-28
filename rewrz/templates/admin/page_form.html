@@ -1,0 +1,128 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if post %}编辑页面{% else %}新建页面{% endif %} - RewrZ 管理后台{% endblock %}
+{% block page_title %}{% if post %}<i class="fas fa-edit text-yellow-600 mr-3"></i>编辑页面{% else %}<i class="fas fa-plus-circle text-green-600 mr-3"></i>新建页面{% endif %}{% endblock %}
+{% block content %}
+<!-- Toast UI Editor -->
+<link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" />
+<script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+
+<form id="page-form" hx-post="{% if post %}{{ request.state.admin_path }}/pages/{{ post.id }}{% else %}{{ request.state.admin_path }}/pages/new{% endif %}" hx-target="#admin-content" hx-swap="outerHTML" class="space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    {% if post %}
+    <input type="hidden" name="_method" value="PUT">
+    {% endif %}
+    <div class="grid grid-cols-12 gap-6">
+        <!-- Main Editor -->
+        <div class="col-span-9">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="mb-4">
+                    <label for="title" class="block text-sm font-medium text-gray-700">标题</label>
+                    <input type="text" id="title" name="title" value="{% if post %}{{ post.title }}{% endif %}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required>
+                </div>
+                <div id="editor">
+                    <!-- 编辑器内容将由JavaScript初始化 -->
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+                    <div class="flex justify-between items-center">
+                        <div class="space-x-2">
+                            <a href="{{ request.state.admin_path }}/pages" 
+                                class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                                <i class="fas fa-arrow-left mr-2"></i>返回列表
+                            </a>
+                            <button type="submit"
+                                class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                                <i class="fas fa-save mr-2"></i>保存
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-span-3">
+            <div class="bg-white p-6 rounded-lg shadow-md space-y-6">
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">URL 别名 (Slug)</h3>
+                    <input type="text" name="slug" value="{% if post %}{{ post.slug }}{% endif %}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">特色图片</h3>
+                    <input type="hidden" name="featured_image_url" id="feature-image-url-input" value="{% if post %}{{ post.featured_image_url }}{% endif %}">
+                    <div id="feature-image-preview" class="mb-2 {% if not post or not post.featured_image_url or post.featured_image_url == 'None' %}hidden{% endif %}">
+                        {% if post and post.featured_image_url and post.featured_image_url != 'None' %}
+                        <img src="{{ post.featured_image_url }}" alt="特色图片预览" class="max-w-full h-auto rounded-md">
+                        {% endif %}
+                    </div>
+                    <button type="button" class="w-full py-2 border-dashed border-2 border-gray-300 rounded-md hover:bg-gray-50" id="feature-image-upload-button">选择或上传图片</button>
+                    <button type="button" class="w-full mt-2 py-2 border-dashed border-2 border-red-300 text-red-600 rounded-md hover:bg-red-50 {% if not post or not post.featured_image_url %}hidden{% endif %}" id="remove-feature-image-button">移除图片</button>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">摘要</h3>
+                    <textarea name="excerpt" rows="4" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">{% if post %}{{ post.excerpt }}{% endif %}</textarea>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">状态</h3>
+                    <select name="status" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="draft" {% if post and post.status == "draft" %}selected{% endif %}>草稿</option>
+                        <option value="published" {% if post and post.status == "published" %}selected{% endif %}>已发布</option>
+                    </select>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">评论设置</h3>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="allow_comments" {% if post is none or post.allow_comments %}checked{% endif %} class="form-checkbox">
+                        <span class="ml-2 text-gray-700">允许评论</span>
+                    </label>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">版权声明</h3>
+                    <select name="license_type" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        {{ license_options(post.license_type if post else 'cc_by_nc_sa_4') | safe }}
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">选择适合的版权协议保护您的作品</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+    const editor = new toastui.Editor({
+        el: document.querySelector('#editor'),
+        height: '600px',
+        initialEditType: 'markdown',
+        previewStyle: 'vertical',
+        initialValue: `{{ post.content_markdown|tojson|safe if post else '' }}`
+    });
+
+    document.getElementById('page-form').addEventListener('htmx:configRequest', function (event) {
+        event.detail.parameters.content = editor.getMarkdown();
+    });
+
+    // Feature Image Logic (using media library modal)
+    const featureImageUploadButton = document.getElementById('feature-image-upload-button');
+    const featureImageRemoveButton = document.getElementById('remove-feature-image-button');
+    const featureImageUrlInput = document.getElementById('feature-image-url-input');
+    const featureImagePreview = document.getElementById('feature-image-preview');
+
+    featureImageUploadButton.addEventListener('click', () => {
+        console.log('Feature image upload button clicked');
+        // 确保模态框组件已加载
+        if (typeof openMediaLibraryModal === 'function') {
+            openMediaLibraryModal();
+        } else {
+            console.error('openMediaLibraryModal function not found');
+        }
+    });
+
+    featureImageRemoveButton.addEventListener('click', () => {
+        featureImageUrlInput.value = '';
+        featureImagePreview.innerHTML = '';
+        featureImagePreview.classList.add('hidden');
+        featureImageRemoveButton.classList.add('hidden');
+    });
+</script>
+{% include 'admin/components/media_library_modal.html' %}
+{% endblock %}

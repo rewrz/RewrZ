@@ -204,8 +204,8 @@ def register_admin_routes():
         from sqlalchemy import select
         from .models import Post
         
-        # 构建查询条件
-        query = select(Post)
+        # 构建查询条件，只获取文章类型（排除页面类型）
+        query = select(Post).filter(Post.post_type == "post")
         if search:
             query = query.filter(Post.title.contains(search) | Post.content_markdown.contains(search))
         if status:
@@ -252,6 +252,7 @@ def register_admin_routes():
         excerpt: Optional[str] = Form(None),
         featured_image_url: Optional[str] = Form(None),
         status: str = Form("draft"),
+        allow_comments: bool = Form(True),
         category_ids: Optional[List[int]] = Form(None),
         tags: Optional[str] = Form(None),
         format_ids: Optional[List[int]] = Form(None),
@@ -260,7 +261,7 @@ def register_admin_routes():
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
     ):
-        return await posts_api.create_post_api(request, title, content, slug, excerpt, featured_image_url, status, category_ids, tags, format_ids, license_type, csrf_token, db, current_user)
+        return await posts_api.create_post_api(request, title, content, slug, excerpt, featured_image_url, status,allow_comments, category_ids, tags, format_ids, license_type, csrf_token, db, current_user)
     
     @app.post(f"{admin_path}/posts/{{post_id}}")
     async def dynamic_update_post(
@@ -272,6 +273,7 @@ def register_admin_routes():
         excerpt: Optional[str] = Form(None),
         featured_image_url: Optional[str] = Form(None),
         status: str = Form("draft"),
+        allow_comments: bool = Form(True),
         category_ids: Optional[List[int]] = Form(None),
         tags: Optional[str] = Form(None),
         format_ids: Optional[List[int]] = Form(None),
@@ -280,7 +282,7 @@ def register_admin_routes():
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
     ):
-        return await posts_api.update_post_api(request, post_id, title, content, slug, excerpt, featured_image_url, status, category_ids, tags, format_ids, license_type, csrf_token, db, current_user)
+        return await posts_api.update_post_api(request, post_id, title, content, slug, excerpt, featured_image_url, status, allow_comments, category_ids, tags, format_ids, license_type, csrf_token, db, current_user)
     
     # 注册后台分类管理页面
     @app.get(f"{admin_path}/categories", response_class=HTMLResponse)
@@ -330,6 +332,41 @@ def register_admin_routes():
             "user": current_user,
             "admin_path": admin_path
         })
+    
+    @app.post(f"{admin_path}/pages/new")
+    async def dynamic_create_page(
+        request: Request,
+        title: str = Form(...),
+        content: str = Form(...),
+        slug: Optional[str] = Form(None),
+        excerpt: Optional[str] = Form(None),
+        featured_image_url: Optional[str] = Form(None),
+        status: str = Form("draft"),
+        allow_comments: bool = Form(True),
+        license_type: str = Form("cc_by_nc_sa_4"),
+        csrf_token: str = Form(...),
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
+    ):
+        return await posts_api.create_page_api(request, title, content, slug, excerpt, featured_image_url, status, allow_comments, license_type, csrf_token, db, current_user)
+    
+    @app.post(f"{admin_path}/pages/{{page_id}}")
+    async def dynamic_update_page(
+        page_id: int,
+        request: Request,
+        title: str = Form(...),
+        content: str = Form(...),
+        slug: Optional[str] = Form(None),
+        excerpt: Optional[str] = Form(None),
+        featured_image_url: Optional[str] = Form(None),
+        status: str = Form("draft"),
+        allow_comments: bool = Form(True),
+        license_type: str = Form("cc_by_nc_sa_4"),
+        csrf_token: str = Form(...),
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
+    ):
+        return await posts_api.update_page_api(request, page_id, title, content, slug, excerpt, featured_image_url, status, allow_comments, license_type, csrf_token, db, current_user)
     
     # 注册后台系统信息页面
     @app.get(f"{admin_path}/system-info", response_class=HTMLResponse)
@@ -737,42 +774,38 @@ async def format_page(request: Request, format_slug: str, db: Session = Depends(
         "block_ai_crawlers": request.state.block_ai_crawlers,
     })
 
-# 占位符路由：/about
-@app.get("/about", response_class=HTMLResponse)
-async def about_page(request: Request):
+# 动态页面路由处理器
+@app.get("/{page_slug}", response_class=HTMLResponse)
+async def read_page(request: Request, page_slug: str, db: Session = Depends(get_db)):
     """
-    关于页面
+    页面详情页路由
     
-    静态页面示例
+    根据页面别名显示单个页面的详细内容
     """
+    # 首先检查是否是特殊路由（避免与现有路由冲突）
+    if page_slug in ["installer", "static", "api", "favicon.ico"]:
+        raise HTTPException(status_code=404, detail="Page not found")
+    
+    # 检查是否存在具有该别名的页面
+    db_page = crud_post.get_post_by_slug(db, slug=page_slug)
+    if db_page is None or db_page.post_type != "page" or (db_page.status != "published" and not hasattr(request.state, 'user')):
+        # 如果没有找到页面，检查是否是其他特殊路由
+        raise HTTPException(status_code=404, detail="Page not found")
+    
+    # 获取SEO元数据
+    from .api.seo import _generate_post_seo_data
+    seo_data = _generate_post_seo_data(db_page, request, db)
+    
     return templates.TemplateResponse("page.html", {
         "request": request, 
-        "title": "关于我们", 
-        "content": "这是一个关于页面。", 
+        "post": db_page,
+        "seo_data": seo_data,
         "atmosphere_class": request.state.atmosphere_class,
         "site_title": request.state.site_title,
         "tagline": request.state.tagline,
         "noindex_site": request.state.noindex_site,
         "block_ai_crawlers": request.state.block_ai_crawlers,
     })
-
-# 如果不是公共API的一部分，则移除旧的用户创建/读取路由
-# @app.post("/users/", response_model=User)
-# def create_new_user(user: UserCreate, db: Session = Depends(get_db)):
-#     db_user = crud_user.get_user_by_username(db, username=user.username)
-#     if db_user:
-#         raise HTTPException(status_code=400, detail="Username already registered")
-#     db_user = crud_user.get_user_by_email(db, email=user.email)
-#     if db_user:
-#         raise HTTPException(status_code=400, detail="Email already registered")
-#     return crud_user.create_user(db=db, user=user)
-
-# @app.get("/users/{user_id}", response_model=User)
-# def read_user(user_id: int, db: Session = Depends(get_db)):
-#     db_user = crud_user.get_user(db, user_id=user_id)
-#     if db_user is None:
-#         raise HTTPException(status_code=404, detail="User not found")
-#     return db_user
 
 # 全局异常处理器
 @app.exception_handler(404)

@@ -1,12 +1,120 @@
 {% extends "base.html" %}
 
-{% block title %}{{ title }} - RewrZ{% endblock %}
+{% block title %}{{ post.title if post else title }} - {{ site_title }}{% endblock %}
 
 {% block content %}
-<article class="bg-white p-8 rounded-lg shadow-md">
-    <h1 class="text-4xl font-bold text-gray-900 mb-4">{{ title }}</h1>
-    <div class="prose prose-indigo max-w-none mb-8">
-        {{ content | safe }}
+{% if post and post.status == "published" %}
+    {% if post.featured_image_url %}
+    <div class="relative w-full h-64 md:h-96 mb-8 rounded-lg overflow-hidden">
+        <img src="{{ post.featured_image_url }}" alt="{{ post.title }}" class="w-full h-full object-cover">
+        <div class="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+            <h1 class="text-3xl md:text-5xl font-bold text-white text-center px-4">{{ post.title }}</h1>
+        </div>
     </div>
-</article>
+    {% else %}
+    <h1 class="text-4xl font-bold text-gray-900 mb-4">{{ post.title }}</h1>
+    {% endif %}
+    
+    <article class="bg-white p-8 rounded-lg shadow-md">
+        <div class="flex flex-wrap items-center gap-4 text-gray-600 mb-6">
+            <span class="flex items-center">
+                <i class="fas fa-calendar-alt mr-2"></i>
+                {{ post.created_at.strftime('%Y年%m月%d日') }}
+            </span>
+            
+            {% if post.updated_at and post.updated_at != post.created_at %}
+            <span class="flex items-center">
+                <i class="fas fa-sync-alt mr-2"></i>
+                更新于 {{ post.updated_at.strftime('%Y年%m月%d日') }}
+            </span>
+            {% endif %}
+        </div>
+        
+        <div class="prose prose-indigo max-w-none mb-8">
+            {{ post.content_html | safe }}
+        </div>
+        
+        <!-- 版权声明 -->
+        {% if post.license_type %}
+        <div class="bg-gray-50 border-l-4 border-indigo-500 p-4 mb-8 rounded">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-copyright text-indigo-500"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-gray-700">
+                        <strong>版权声明：</strong>
+                        {% if post.license_type == "cc_by_4" %}
+                            本作品采用 <a href="https://creativecommons.org/licenses/by/4.0/deed.zh" class="text-indigo-600 hover:underline" target="_blank">知识共享署名 4.0 国际许可协议</a> 进行许可。
+                        {% elif post.license_type == "cc_by_sa_4" %}
+                            本作品采用 <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.zh" class="text-indigo-600 hover:underline" target="_blank">知识共享署名-相同方式共享 4.0 国际许可协议</a> 进行许可。
+                        {% elif post.license_type == "cc_by_nd_4" %}
+                            本作品采用 <a href="https://creativecommons.org/licenses/by-nd/4.0/deed.zh" class="text-indigo-600 hover:underline" target="_blank">知识共享署名-禁止演绎 4.0 国际许可协议</a> 进行许可。
+                        {% elif post.license_type == "cc_by_nc_4" %}
+                            本作品采用 <a href="https://creativecommons.org/licenses/by-nc/4.0/deed.zh" class="text-indigo-600 hover:underline" target="_blank">知识共享署名-非商业性使用 4.0 国际许可协议</a> 进行许可。
+                        {% elif post.license_type == "cc_by_nc_sa_4" %}
+                            本作品采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="text-indigo-600 hover:underline" target="_blank">知识共享署名-非商业性使用-相同方式共享 4.0 国际许可协议</a> 进行许可。
+                        {% elif post.license_type == "cc_by_nc_nd_4" %}
+                            本作品采用 <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.zh" class="text-indigo-600 hover:underline" target="_blank">知识共享署名-非商业性使用-禁止演绎 4.0 国际许可协议</a> 进行许可。
+                        {% elif post.license_type == "all_rights_reserved" %}
+                            本作品版权所有，保留所有权利。转载请注明出处。
+                        {% else %}
+                            本文版权归作者所有，转载请注明出处。
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- 评论系统 -->
+        {% if post.allow_comments %}
+        <div class="mt-12">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">评论</h2>
+            {% include "components/comments.html" %}
+        </div>
+        {% endif %}
+    </article>
+{% elif post and post.status == "draft" %}
+    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-yellow-700">
+                    <strong>注意:</strong> 这是一个草稿页面，只有管理员才能查看。
+                </p>
+            </div>
+        </div>
+    </div>
+    <article class="bg-white p-8 rounded-lg shadow-md">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">{{ post.title }}</h1>
+        <div class="flex flex-wrap items-center gap-4 text-gray-600 mb-6">
+            <span class="flex items-center">
+                <i class="fas fa-calendar-alt mr-2"></i>
+                {{ post.created_at.strftime('%Y年%m月%d日') }}
+            </span>
+            
+            {% if post.updated_at and post.updated_at != post.created_at %}
+            <span class="flex items-center">
+                <i class="fas fa-sync-alt mr-2"></i>
+                更新于 {{ post.updated_at.strftime('%Y年%m月%d日') }}
+            </span>
+            {% endif %}
+        </div>
+        <div class="prose prose-indigo max-w-none mb-8">
+            {{ post.content_html | safe }}
+        </div>
+    </article>
+{% else %}
+    <article class="bg-white p-8 rounded-lg shadow-md">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">{{ title }}</h1>
+        <div class="prose prose-indigo max-w-none mb-8">
+            {{ content | safe }}
+        </div>
+    </article>
+{% endif %}
 {% endblock %}
