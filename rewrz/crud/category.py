@@ -27,7 +27,12 @@ def get_category_by_name(db: Session, name: str):
     return db.execute(select(Category).filter(Category.name == name)).scalar_one_or_none()
 
 def create_category(db: Session, category: CategoryCreate):
-    db_category = Category(name=category.name, slug=category.slug, parent_id=category.parent_id)
+    db_category = Category(
+        name=category.name, 
+        slug=category.slug, 
+        parent_id=category.parent_id,
+        description=category.description
+    )
     db.add(db_category)
     db.commit()
     db.refresh(db_category)

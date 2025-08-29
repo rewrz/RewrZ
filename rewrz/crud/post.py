@@ -193,6 +193,7 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
 
         for key, value in update_data.items():
             if key == "content_markdown":
+                db_post.content_markdown = value # 添加这一行来更新 content_markdown
                 db_post.content_html = markdown(value)
             elif key == "title": # 如果标题发生变化，更新别名并确保唯一性
                 base_slug = slugify(value)

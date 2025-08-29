@@ -4,6 +4,7 @@ from typing import Optional
 class CategoryBase(BaseModel):
     name: str
     slug: str
+    description: Optional[str] = None
     parent_id: Optional[int] = None
 
 class CategoryCreate(CategoryBase):
@@ -19,4 +20,5 @@ class Category(CategoryBase):
 class CategoryUpdate(CategoryBase):
     name: Optional[str] = None
     slug: Optional[str] = None
+    description: Optional[str] = None
     parent_id: Optional[int] = None

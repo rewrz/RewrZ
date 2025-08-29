@@ -201,27 +201,22 @@ def register_admin_routes():
         current_user: User = Depends(get_current_user)
     ):
         from .crud import post as crud_post
-        from sqlalchemy import select
-        from .models import Post
         
-        # 构建查询条件，只获取文章类型（排除页面类型）
-        query = select(Post).filter(Post.post_type == "post")
+        # 使用已有的 get_posts 函数来获取文章列表，确保按发布时间降序排列
+        posts = crud_post.get_posts(db, post_type="post", limit=50, status=status)
+        
+        # 如果有搜索条件，需要额外过滤
         if search:
-            query = query.filter(Post.title.contains(search) | Post.content_markdown.contains(search))
-        if status:
-            query = query.filter(Post.status == status)
+            posts = [post for post in posts if search.lower() in post.title.lower() or search.lower() in post.content_markdown.lower()]
+        
+        # 如果有分类筛选，需要额外过滤
         if category:
-            # 确保 category 是整数
             try:
                 category_id = int(category)
-                # 通过 Post.categories 关联表进行筛选
-                query = query.filter(Post.categories.any(id=category_id))
+                posts = [post for post in posts if any(cat.id == category_id for cat in post.categories)]
             except ValueError:
                 # 如果 category 不是有效的整数，则忽略筛选条件
                 pass
-        
-        # 执行查询
-        posts = db.execute(query.limit(50)).scalars().all()
         
         # 获取所有分类用于筛选
         categories = crud_category.get_categories(db)
@@ -324,8 +319,8 @@ def register_admin_routes():
     @app.get(f"{admin_path}/pages", response_class=HTMLResponse)
     async def dynamic_admin_pages_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         from .crud import post as crud_post
-        # 获取类型为页面的文章
-        pages = crud_post.get_posts_by_type(db, post_type="page", limit=50)
+        # 获取类型为页面的文章，按发布时间降序排列
+        pages = crud_post.get_posts(db, post_type="page", limit=50)
         return templates.TemplateResponse("admin/pages_list.html", {
             "request": request, 
             "pages": pages, 
@@ -442,6 +437,12 @@ def register_admin_routes():
             enable_performance_optimization, related_posts_cache_strategy,
             reading_time_cache_duration, csrf_token
         )
+    
+    # 动态注册分类API路由
+    app.include_router(categories_api.router, prefix=admin_path)
+    
+    # 动态注册标签API路由
+    app.include_router(tags_api.router, prefix=admin_path)
 
 # 包含安装向导路由
 app.include_router(installer_api.router)
@@ -475,10 +476,6 @@ app.include_router(comment_settings_api.router)
 app.include_router(error_config_api.router)
 # 包含仪表盘API路由
 app.include_router(admin_dashboard_api.router)
-# 包含分类API路由
-app.include_router(categories_api.router)
-# 包含标签API路由
-app.include_router(tags_api.router)
 
 @app.middleware("http")
 async def add_global_context(request: Request, call_next):

@@ -91,10 +91,10 @@
 <script>
     const editor = new toastui.Editor({
         el: document.querySelector('#editor'),
-        height: '600px',
+        height: '1200px',
         initialEditType: 'markdown',
         previewStyle: 'vertical',
-        initialValue: `{{ post.content_markdown|tojson|safe if post else '' }}`
+        initialValue: {% if post %}{{ post.content_markdown|tojson }}{% else %}""{% endif %}
     });
 
     document.getElementById('page-form').addEventListener('htmx:configRequest', function (event) {
