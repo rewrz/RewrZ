@@ -39,6 +39,7 @@ from .api import error_config as error_config_api # 导入错误处理配置路�
 from .api import admin_dashboard as admin_dashboard_api # 导入仪表盘API路由
 from .api import categories as categories_api # 导入分类API路由
 from .api import tags as tags_api # 导入标签API路由
+from .api import captcha as captcha_api # 导入验证码API路由
 from .crud import post as crud_post
 from .crud import category as crud_category
 from .crud import tag as crud_tag
@@ -64,8 +65,16 @@ async def lifespan(app: FastAPI):
     yield
     # 关闭时的清理工作（如果需要）
 
-# 只保留一个FastAPI实例定义，包含lifespan参数
-app = FastAPI(lifespan=lifespan)
+# 只保留一个FastAPI实例定义，包含lifespan参数，完全关闭api接口防止滥用
+app = FastAPI(
+    title="RewrZ Blog System",
+    description="A Personal Blog System built with FastAPI, supporting multi-identity content system, dynamic themes, anti-spam comments, version snapshots, and more. Featuring HTMX + Tailwind CSS frontend stack.",
+    version="1.0.0",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+    lifespan=lifespan,
+    )
 
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="rewrz/static"), name="static")
@@ -476,6 +485,8 @@ app.include_router(comment_settings_api.router)
 app.include_router(error_config_api.router)
 # 包含仪表盘API路由
 app.include_router(admin_dashboard_api.router)
+# 包含验证码API路由
+app.include_router(captcha_api.router)
 
 @app.middleware("http")
 async def add_global_context(request: Request, call_next):

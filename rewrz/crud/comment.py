@@ -54,12 +54,15 @@ def create_comment(db: Session, comment: CommentCreate, ip_address: str = "", us
     Returns:
         创建的评论对象
     """
+    # 将HttpUrl转换为字符串
+    author_url_str = str(comment.author_url) if comment.author_url else None
+    
     db_comment = Comment(
         post_id=comment.post_id,
         parent_id=comment.parent_id,
         author_name=comment.author_name,
         author_email=comment.author_email,
-        author_url=comment.author_url,
+        author_url=author_url_str,
         content=comment.content,
         ip_address=ip_address,
         user_agent=user_agent,

@@ -52,7 +52,9 @@
     {% if comment.children %}
     <div class="ml-8 mt-4 space-y-4 border-l pl-4">
         {% for child_comment in comment.children %}
-            {% include "components/comment_item.html" with comment=child_comment %}
+            {% with comment=child_comment %}
+                {% include "components/comment_item.html" %}
+            {% endwith %}
         {% endfor %}
     </div>
     {% endif %}

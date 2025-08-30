@@ -83,9 +83,8 @@
                        name="captcha" 
                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                        placeholder="请输入验证码">
-                <div class="captcha-image bg-gray-100 px-4 py-2 rounded border">
-                    <!-- 这里将来集成验证码图片 -->
-                    <span class="text-gray-500 text-sm">验证码</span>
+                <div class="captcha-image">
+                    <img src="/api/v1/captcha" alt="Captcha" onclick="this.src='/api/v1/captcha?t=' + new Date().getTime()">
                 </div>
             </div>
         </div>
@@ -111,20 +110,15 @@
     </form>
 </div>
 
+<!-- 引入crypto-js用于MD5计算 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
 <!-- JavaScript for avatar preview -->
 <script>
 function updateAvatarPreview(email) {
     if (!email) {
         document.getElementById('avatar-preview').src = '/static/images/default-avatar.png';
         return;
-    }
-    
-    // 简单的MD5实现用于Gravatar
-    // 在实际应用中，建议使用专门的MD5库
-    function md5(string) {
-        // 这里使用简化版MD5实现
-        // 实际项目中应该使用crypto-js或其他成熟的库
-        return email.toLowerCase().trim(); // 临时实现
     }
     
     // 生成Gravatar URL
@@ -142,6 +136,3 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-
-<!-- 引入crypto-js用于MD5计算 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>

@@ -27,6 +27,18 @@
     <link rel="stylesheet" href="/api/theme/variables.css">
     
     <style>
+        /* 定义自定义字体 */
+        @font-face {
+            font-family: 'SourceHanSansCN';
+            src: url('/static/fonts/SourceHanSansCN-Medium.otf') format('opentype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        
+        /* 设置全局字体 */
+        body {
+            font-family: 'SourceHanSansCN', 'Microsoft YaHei', sans-serif;
+        }
         /* 基础样式和CSS变量应用 */
         .bg-primary { background-color: var(--color-primary); }
         .text-primary { color: var(--color-primary); }

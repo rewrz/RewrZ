@@ -84,13 +84,11 @@ async def create_comment_api(
     
     elif spam_result.action == "captcha":
         # 需要验证码确认
-        if not captcha_response:
+        if not captcha_response or captcha_response != request.session.get('captcha'):
             raise HTTPException(
                 status_code=400, 
-                detail="需要验证码确认，请完成验证码验证"
+                detail="验证码错误，请重新输入"
             )
-        # 这里应该验证验证码，简化实现假设验证码正确
-        # 实际应用中需要集成真实的验证码服务（如Google reCAPTCHA）
         
     # 决定评论状态
     if spam_result.action == "moderate" or spam_result.confidence > 0.3:
