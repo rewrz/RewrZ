@@ -15,12 +15,34 @@ from ..core.security import get_password_hash, verify_password
 from typing import Optional, List
 
 def get_post(db: Session, post_id: int):
-    """根据文章ID获取文章信息，包含关联的格式、分类、标签"""
-    return db.execute(select(Post).options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags)).filter(Post.id == post_id)).unique().scalar_one_or_none()
+    """根据文章ID获取文章信息，包含关联的格式、分类、标签和评论"""
+    from sqlalchemy.orm import selectinload
+    from ..models import Comment
+    return db.execute(
+        select(Post)
+        .options(
+            joinedload(Post.formats), 
+            joinedload(Post.categories), 
+            joinedload(Post.tags),
+            selectinload(Post.comments).selectinload(Comment.children)  # 加载评论及其子评论
+        )
+        .filter(Post.id == post_id)
+    ).unique().scalar_one_or_none()
 
 def get_post_by_slug(db: Session, slug: str):
-    """根据文章别名获取文章信息，包含关联的格式、分类、标签"""
-    return db.execute(select(Post).options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags)).filter(Post.slug == slug)).unique().scalar_one_or_none()
+    """根据文章别名获取文章信息，包含关联的格式、分类、标签和评论"""
+    from sqlalchemy.orm import selectinload
+    from ..models import Comment
+    return db.execute(
+        select(Post)
+        .options(
+            joinedload(Post.formats), 
+            joinedload(Post.categories), 
+            joinedload(Post.tags),
+            selectinload(Post.comments).selectinload(Comment.children)  # 加载评论及其子评论
+        )
+        .filter(Post.slug == slug)
+    ).unique().scalar_one_or_none()
 
 def get_posts(db: Session, skip: int = 0, limit: int = 100, status: Optional[str] = None, post_type: Optional[str] = None):
     """获取文章列表，支持分页和状态过滤"""

@@ -4,11 +4,52 @@
 {% block page_title %}<i class="fas fa-comments text-blue-600 mr-3"></i>评论管理{% endblock %}
 {% block content %}
 <div class="bg-white rounded-lg shadow-md p-6">
+    <!-- 筛选和批量操作 -->
+    <div class="flex justify-between items-center mb-4">
+        <div class="flex space-x-2">
+            <select id="bulk-action" class="border-gray-300 rounded-md shadow-sm">
+                <option value="">批量操作</option>
+                <option value="approve">批准</option>
+                <option value="delete">删除</option>
+            </select>
+            <button onclick="applyBulkAction()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">应用</button>
+        </div>
+        <div class="flex space-x-2">
+            <a href="{{ request.state.admin_path }}/comments" class="px-4 py-2 rounded-md {% if not current_status %}bg-blue-600 text-white{% else %}bg-gray-200 text-gray-700{% endif %}">全部</a>
+            <a href="{{ request.state.admin_path }}/comments?status=pending" class="px-4 py-2 rounded-md {% if current_status == 'pending' %}bg-blue-600 text-white{% else %}bg-gray-200 text-gray-700{% endif %}">待审核</a>
+            <a href="{{ request.state.admin_path }}/comments?status=approved" class="px-4 py-2 rounded-md {% if current_status == 'approved' %}bg-blue-600 text-white{% else %}bg-gray-200 text-gray-700{% endif %}">已批准</a>
+            <a href="{{ request.state.admin_path }}/comments?status=spam" class="px-4 py-2 rounded-md {% if current_status == 'spam' %}bg-blue-600 text-white{% else %}bg-gray-200 text-gray-700{% endif %}">垃圾评论</a>
+        </div>
+    </div>
+
+    <!-- 回复模态框 -->
+    <div id="reply-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden justify-center items-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-1/2">
+            <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">回复评论</h3>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <textarea id="reply-content" class="w-full h-32 p-2 border border-gray-300 rounded-md" placeholder="请输入您的回复..."></textarea>
+            </div>
+            <div class="px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200">
+                <button id="send-reply" type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                    发送回复
+                </button>
+                <button id="cancel-reply" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- 评论列表 -->
     <div class="overflow-x-auto">
         <table class="min-w-full bg-white border border-gray-200">
             <thead class="bg-gray-50">
                 <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <input type="checkbox" id="select-all">
+                    </th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">作者</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">评论内容</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">所属文章</th>
@@ -18,28 +59,53 @@
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-                {% for comment in comments %}
+                {% for item in comments_with_avatars %}
+                {% set comment = item.comment %}
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm font-medium text-gray-900">{{ comment.author_name }}</div>
-                        <div class="text-sm text-gray-500">{{ comment.author_email }}</div>
-                    </td>
-                    <td class="px-6 py-4">
-                        <div class="text-sm text-gray-900">{{ comment.content|truncate(100) }}</div>
+                        <input type="checkbox" class="comment-checkbox" value="{{ comment.id }}">
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <a href="/archive/{{ comment.post.slug }}" target="_blank" class="text-sm text-blue-600 hover:underline">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10">
+                                <img class="h-10 w-10 rounded-full" src="{{ item.avatar_url }}" alt="{{ comment.author_name }}'s avatar">
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-medium text-gray-900">{{ comment.author_name }}</div>
+                                <div class="text-sm text-gray-500">{{ comment.author_email }}</div>
+                                {% if comment.author_url %}
+                                <div class="text-sm text-gray-500">
+                                    <a href="{{ comment.author_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">{{ comment.author_url }}</a>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm text-gray-900">
+                            {% if comment.parent %}
+                                <a href="/posts/{{ comment.post.slug }}#comment-{{ comment.parent.id }}" class="text-indigo-600 font-semibold hover:underline">@{{ comment.parent.author_name }}</a>
+                            {% endif %}
+                            {{ comment.content|truncate(100) }}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <a href="/posts/{{ comment.post.slug }}" target="_blank" class="text-sm text-blue-600 hover:underline">
                             {{ comment.post.title|truncate(30) }}
                         </a>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        {% if comment.is_approved %}
+                        {% if comment.status == 'approved' %}
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                 已批准
                             </span>
-                        {% else %}
+                        {% elif comment.status == 'pending' %}
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
                                 待审核
+                            </span>
+                        {% else %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                {{ comment.status }}
                             </span>
                         {% endif %}
                     </td>
@@ -48,15 +114,15 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div class="flex space-x-2">
-                            {% if not comment.is_approved %}
-                            <button onclick="approveComment('{{ comment.id }}')" class="text-green-600 hover:text-green-900">
+                            {% if comment.status != 'approved' %}
+                            <button onclick="approveComment('{{ comment.id }}')" class="text-green-600 hover:text-green-900" title="批准">
                                 <i class="fas fa-check"></i>
                             </button>
                             {% endif %}
-                            <button onclick="replyComment('{{ comment.id }}')" class="text-blue-600 hover:text-blue-900">
+                            <button onclick="replyComment('{{ comment.id }}')" class="text-blue-600 hover:text-blue-900" title="回复">
                                 <i class="fas fa-reply"></i>
                             </button>
-                            <button onclick="deleteComment('{{ comment.id }}')" class="text-red-600 hover:text-red-900">
+                            <button onclick="deleteComment('{{ comment.id }}')" class="text-red-600 hover:text-red-900" title="删除">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -64,7 +130,7 @@
                 </tr>
                 {% endfor %}
                 
-                {% if not comments %}
+                {% if not comments_with_avatars %}
                 <tr>
                     <td colspan="6" class="px-6 py-12 text-center text-gray-500">
                         <i class="fas fa-comments text-4xl mb-4 text-gray-400"></i>
@@ -78,39 +144,148 @@
 </div>
 
 <script>
-function approveComment(commentId) {
-    if (confirm('确定要批准这条评论吗？')) {
-        fetch(`{{ request.state.admin_path }}/api/comments/${commentId}/approve`, {
+document.getElementById('select-all').addEventListener('change', function(e) {
+    document.querySelectorAll('.comment-checkbox').forEach(checkbox => {
+        checkbox.checked = e.target.checked;
+    });
+});
+
+function applyBulkAction() {
+    const action = document.getElementById('bulk-action').value;
+    if (!action) {
+        alert('请选择一个批量操作。');
+        return;
+    }
+
+    const selectedIds = Array.from(document.querySelectorAll('.comment-checkbox:checked')).map(cb => cb.value);
+    if (selectedIds.length === 0) {
+        alert('请至少选择一条评论。');
+        return;
+    }
+
+    if (confirm(`确定要对选中的 ${selectedIds.length} 条评论执行 "${action}" 操作吗？`)) {
+        fetch(`/api/comments/bulk-action`, {
             method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '{{ request.state.csrf_token }}'
+            },
+            body: JSON.stringify({
+                action: action,
+                comment_ids: selectedIds.map(id => parseInt(id))
+            })
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 location.reload();
             } else {
-                alert('批准失败：' + data.error);
+                alert('批量操作失败：' + (data.detail || data.error));
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('批量操作遇到网络错误。');
         });
     }
 }
 
-function replyComment(commentId) {
-    // Implement reply functionality, maybe open a modal
-    alert('回复功能待实现');
-}
-
-function deleteComment(commentId) {
-    if (confirm('确定要删除这条评论吗？')) {
-        fetch(`{{ request.state.admin_path }}/api/comments/${commentId}`, {
-            method: 'DELETE',
+function approveComment(commentId) {
+    if (confirm('确定要批准这条评论吗？')) {
+        fetch(`/api/comments/${commentId}/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '{{ request.state.csrf_token }}'
+            }
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 location.reload();
             } else {
-                alert('删除失败：' + data.error);
+                alert('批准失败：' + (data.detail || data.error));
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('批准操作遇到网络错误。');
+        });
+    }
+}
+
+let currentReplyCommentId = null;
+
+function replyComment(commentId) {
+    currentReplyCommentId = commentId;
+    document.getElementById('reply-content').value = '';
+    document.getElementById('reply-modal').classList.remove('hidden');
+    document.getElementById('reply-modal').classList.add('flex');
+}
+
+document.getElementById('cancel-reply').addEventListener('click', function() {
+    document.getElementById('reply-modal').classList.add('hidden');
+    document.getElementById('reply-modal').classList.remove('flex');
+});
+
+document.getElementById('send-reply').addEventListener('click', function() {
+    const content = document.getElementById('reply-content').value.trim();
+    if (!content) {
+        alert('回复内容不能为空。');
+        return;
+    }
+
+    if (!currentReplyCommentId) {
+        alert('无效的评论ID。');
+        return;
+    }
+
+    fetch(`/api/comments/${currentReplyCommentId}/reply`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': '{{ request.state.csrf_token }}'
+        },
+        body: JSON.stringify({ content: content })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.id) {
+            alert('回复成功！');
+            document.getElementById('reply-modal').classList.add('hidden');
+            document.getElementById('reply-modal').classList.remove('flex');
+            // 这里可以考虑不刷新页面，而是动态添加回复的评论项
+            location.reload();
+        } else {
+            alert('回复失败：' + (data.detail || data.error));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('回复操作遇到网络错误。');
+    });
+});
+
+function deleteComment(commentId) {
+    if (confirm('确定要删除这条评论吗？')) {
+        fetch(`/api/comments/${commentId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '{{ request.state.csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('删除失败：' + (data.detail || data.error));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('删除操作遇到网络错误。');
         });
     }
 }

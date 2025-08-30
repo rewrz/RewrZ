@@ -10,7 +10,11 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..crud import comment as crud_comment
 from ..crud import post as crud_post
-from ..schemas import CommentCreate, Comment
+from ..crud import setting as crud_setting
+from ..schemas import CommentCreate, Comment, User
+from ..core.security import get_current_user
+from pydantic import BaseModel
+from typing import List
 import bleach # 导入bleach用于HTML净化
 from markdown import markdown
 from ..core.config import settings # 反垃圾设置
@@ -20,6 +24,13 @@ from ..core.template_filters import get_templates # 导入模板函数
 import time
 
 router = APIRouter()
+
+class BulkAction(BaseModel):
+    action: str
+    comment_ids: List[int]
+
+class AdminReply(BaseModel):
+    content: str
 
 # 定义评论允许的HTML标签和属性 (需求规格 2.3.1)
 ALLOWED_TAGS = ['a', 'strong', 'em', 'code', 'p', 'br']
@@ -221,11 +232,40 @@ async def get_comment_form(request: Request, post_id: int, db: Session = Depends
         }
     )
 
+@router.post("/api/comments/{comment_id}/approve", status_code=status.HTTP_200_OK)
+async def approve_comment_api(
+    comment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    批准评论
+    """
+    db_comment = crud_comment.update_comment_status(db, comment_id=comment_id, status="approved")
+    if db_comment is None:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    return {"success": True, "message": "Comment approved successfully"}
+
+@router.delete("/api/comments/{comment_id}", status_code=status.HTTP_200_OK)
+async def delete_comment_api(
+    comment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    删除评论
+    """
+    db_comment = crud_comment.delete_comment(db, comment_id=comment_id)
+    if db_comment is None:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    return {"success": True, "message": "Comment deleted successfully"}
+
 @router.post("/api/v1/admin/comments/{comment_id}/moderate")
 async def moderate_comment(
     comment_id: int,
     action: str = Form(...),  # approve, reject, spam
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     管理员审核评论
@@ -234,8 +274,6 @@ async def moderate_comment(
         comment_id: 评论ID
         action: 审核动作 (approve/reject/spam)
     """
-    # TODO: 添加管理员权限检查
-    
     if action not in ["approve", "reject", "spam"]:
         raise HTTPException(status_code=400, detail="Invalid action")
     
@@ -255,12 +293,83 @@ async def moderate_comment(
     
     return {"message": f"Comment {action}d successfully", "comment_id": comment_id}
 
+@router.post("/api/comments/bulk-action", status_code=status.HTTP_200_OK)
+async def bulk_action_api(
+    bulk_action: BulkAction,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    批量操作评论
+    """
+    if bulk_action.action == "approve":
+        crud_comment.bulk_update_comment_status(db, comment_ids=bulk_action.comment_ids, status="approved")
+        message = "Comments approved successfully"
+    elif bulk_action.action == "delete":
+        crud_comment.bulk_delete_comments(db, comment_ids=bulk_action.comment_ids)
+        message = "Comments deleted successfully"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid action")
+        
+    return {"success": True, "message": message}
+
+@router.post("/api/comments/{comment_id}/reply", response_model=Comment, status_code=status.HTTP_201_CREATED)
+async def admin_reply_to_comment(
+    comment_id: int,
+    reply: AdminReply,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    管理员回复评论
+    """
+    # 获取被回复的评论
+    original_comment = crud_comment.get_comment(db, comment_id=comment_id)
+    if not original_comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    
+    # 从数据库获取网站设置
+    site_url_setting = crud_setting.get_setting(db, "site_url")
+    admin_email_setting = crud_setting.get_setting(db, "admin_email")
+    
+    site_url = None
+    admin_email = ""
+    
+    if site_url_setting and site_url_setting.value:
+        site_url_value = site_url_setting.value.get("value")
+        # 确保 site_url_value 是字符串并且不为空
+        if isinstance(site_url_value, str) and site_url_value.strip():
+            site_url = site_url_value.strip()
+    
+    if admin_email_setting and admin_email_setting.value:
+        admin_email_value = admin_email_setting.value.get("value")
+        # 确保 admin_email_value 是字符串并且不为空
+        if isinstance(admin_email_value, str) and admin_email_value.strip():
+            admin_email = admin_email_value.strip()
+    
+    # 创建回复评论
+    reply_comment = CommentCreate(
+        post_id=original_comment.post_id,
+        parent_id=comment_id,
+        author_name=current_user.username,  # 使用管理员用户名
+        author_email=admin_email,  # 使用管理员邮箱
+        author_url=site_url,    # 使用网站地址
+        content=reply.content,
+        status="approved",  # 管理员回复默认批准
+        is_admin_reply=True
+    )
+    
+    db_reply = crud_comment.create_comment(db=db, comment=reply_comment)
+    return db_reply
+
 @router.get("/api/v1/admin/comments/pending")
-async def get_pending_comments(db: Session = Depends(get_db)):
+async def get_pending_comments(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
     获取待审核的评论列表
     """
-    # TODO: 添加管理员权限检查
     # TODO: 实现获取待审核评论的CRUD函数
     
     return {"message": "Pending comments endpoint - to be implemented"}

@@ -40,6 +40,7 @@ from .api import admin_dashboard as admin_dashboard_api # 导入仪表盘API路�
 from .api import categories as categories_api # 导入分类API路由
 from .api import tags as tags_api # 导入标签API路由
 from .api import captcha as captcha_api # 导入验证码API路由
+from .core.avatar import get_avatar_service
 from .crud import post as crud_post
 from .crud import category as crud_category
 from .crud import tag as crud_tag
@@ -314,14 +315,34 @@ def register_admin_routes():
     
     # 注册后台评论管理页面
     @app.get(f"{admin_path}/comments", response_class=HTMLResponse)
-    async def dynamic_admin_comments_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    async def dynamic_admin_comments_page(
+        request: Request, 
+        status: Optional[str] = None,
+        db: Session = Depends(get_db), 
+        current_user: User = Depends(get_current_user)
+    ):
         from .crud import comment as crud_comment
-        comments = crud_comment.get_comments(db, limit=50)  # 获取最新50条评论
+        comments = crud_comment.get_comments(db, limit=50, sort_by_latest=True, status=status)
+        
+        avatar_service = get_avatar_service(db)
+        comments_with_avatars = []
+        for comment in comments:
+            avatar_url = avatar_service.get_comment_avatar_url(
+                author_email=comment.author_email,
+                author_id=None,
+                size=40
+            )
+            comments_with_avatars.append({
+                "comment": comment,
+                "avatar_url": avatar_url
+            })
+
         return templates.TemplateResponse("admin/comments_list.html", {
             "request": request, 
-            "comments": comments, 
+            "comments_with_avatars": comments_with_avatars, 
             "user": current_user,
-            "admin_path": admin_path
+            "admin_path": admin_path,
+            "current_status": status
         })
     
     # 注册后台页面管理页面

@@ -11,7 +11,7 @@ class CommentBase(BaseModel):
     content: str
 
 class CommentCreate(CommentBase):
-    pass
+    status: str = "pending"
 
 class Comment(CommentBase):
     id: int

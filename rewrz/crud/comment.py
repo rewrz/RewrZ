@@ -17,18 +17,28 @@ def get_comments_for_post(db: Session, post_id: int, skip: int = 0, limit: int =
     """获取指定文章的评论列表，支持分页"""
     return db.execute(select(Comment).filter(Comment.post_id == post_id).offset(skip).limit(limit)).scalars().all()
 
-def get_comments(db: Session, skip: int = 0, limit: int = 100):
-    """获取评论列表，支持分页
+def get_comments(db: Session, skip: int = 0, limit: int = 100, sort_by_latest: bool = False, status: str = None):
+    """获取评论列表，支持分页、排序和状态筛选
     
     Args:
         db: 数据库会话
         skip: 跳过的记录数
         limit: 返回的记录数上限
+        sort_by_latest: 是否按最新时间排序
+        status: 评论状态 ('approved', 'pending', 'spam')
         
     Returns:
         评论对象列表
     """
-    return db.execute(select(Comment).offset(skip).limit(limit)).scalars().all()
+    query = select(Comment)
+    
+    if status:
+        query = query.filter(Comment.status == status)
+        
+    if sort_by_latest:
+        query = query.order_by(Comment.created_at.desc())
+    
+    return db.execute(query.offset(skip).limit(limit)).scalars().all()
 
 def count_comments(db: Session) -> int:
     """
@@ -66,6 +76,7 @@ def create_comment(db: Session, comment: CommentCreate, ip_address: str = "", us
         content=comment.content,
         ip_address=ip_address,
         user_agent=user_agent,
+        status=comment.status,  # 使用传入的状态
         created_at=datetime.now()
     )
     db.add(db_comment)
@@ -97,3 +108,13 @@ def delete_comment(db: Session, comment_id: int):
         db.delete(db_comment)
         db.commit()
     return db_comment
+
+def bulk_update_comment_status(db: Session, comment_ids: list[int], status: str):
+    """批量更新评论状态"""
+    db.query(Comment).filter(Comment.id.in_(comment_ids)).update({"status": status}, synchronize_session=False)
+    db.commit()
+
+def bulk_delete_comments(db: Session, comment_ids: list[int]):
+    """批量删除评论"""
+    db.query(Comment).filter(Comment.id.in_(comment_ids)).delete(synchronize_session=False)
+    db.commit()

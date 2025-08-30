@@ -19,5 +19,6 @@ class Comment(Base):
     is_admin_reply = Column(Boolean, default=False)
     created_at = Column(DateTime, default=func.now())
 
-    post = relationship("Post")
+    post = relationship("Post", back_populates="comments")
     parent = relationship("Comment", remote_side=[id])
+    children = relationship("Comment", back_populates="parent")

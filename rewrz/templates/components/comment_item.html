@@ -1,4 +1,4 @@
-<div class="comment-item {% if comment.is_admin_reply %}bg-blue-50{% endif %} p-4 rounded-lg border border-gray-200">
+<div id="comment-{{ comment.id }}" class="comment-item {% if comment.is_admin_reply %}bg-blue-50{% endif %} p-4 rounded-lg border border-gray-200">
     <div class="flex items-start space-x-3">
         <!-- 评论者头像 -->
         <div class="flex-shrink-0">
@@ -35,6 +35,9 @@
                 <span class="text-gray-500 text-sm">{{ comment.created_at.strftime('%Y年%m月%d日 %H:%M') }}</span>
             </div>
             <div class="prose prose-sm prose-gray max-w-none mb-3">
+                {% if comment.parent %}
+                    <a href="#comment-{{ comment.parent.id }}" class="text-indigo-600 font-semibold hover:underline" title="{{ comment.parent.content|truncate(100) }}">@{{ comment.parent.author_name }}</a>
+                {% endif %}
                 {{ comment.content | safe }}
             </div>
             <div class="text-right">

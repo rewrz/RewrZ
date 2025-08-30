@@ -16,7 +16,7 @@
     
     {% if post.comments %}
     <div id="comments-list" class="space-y-6">
-        {% for comment in post.comments %}
+        {% for comment in post.comments if not comment.parent_id %}
             {% include "components/comment_item.html" %}
         {% endfor %}
     </div>
