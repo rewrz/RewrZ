@@ -147,7 +147,16 @@ def register_admin_routes():
         homepage_posts_limit: int = Form(10),
         archive_posts_limit: int = Form(20),
         search_results_limit: int = Form(15),
-        related_posts_limit: int = Form(5),
+        related_posts_limit: int = Form(5), # 打赏功能相关参数之前的参数
+        # 打赏功能相关参数
+        donation_enabled: bool = Form(False),
+        donation_title: str = Form('如果这篇文章对您有帮助，请考虑支持作者'),
+        donation_description: str = Form('您的支持是我创作的动力！'),
+        donation_qr_code_url: Optional[str] = Form(None),
+        donation_link_text: Optional[str] = Form(None),
+        donation_link_url: Optional[str] = Form(None),
+        donation_style_theme: str = Form('elegant'),
+        donation_show_position: str = Form('article_end'),
         csrf_token: str = Form(...),
     ):
         return await settings_api.update_admin_settings(
@@ -156,7 +165,12 @@ def register_admin_routes():
             icp_beian, gongan_beian, social_links_json, anniversaries_json, sitemap_enabled,
             noindex_site, block_ai_crawlers, rss_enabled, rss_items_limit, rss_cache_duration,
             rss_description, homepage_posts_limit, archive_posts_limit, search_results_limit,
-            related_posts_limit, csrf_token
+            related_posts_limit,
+            # 打赏功能相关参数
+            donation_enabled, donation_title, donation_description,
+            donation_qr_code_url, donation_link_text, donation_link_url,
+            donation_style_theme, donation_show_position,
+            csrf_token
         )
     
     # 注册后台路径更新API端点
