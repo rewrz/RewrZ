@@ -547,6 +547,12 @@ async def add_global_context(request: Request, call_next):
     request.state.block_ai_crawlers = False
     request.state.admin_path = get_admin_path()  # 添加后台路径
     request.state.csrf_token = "" # 初始化CSRF令牌
+    # 初始化主页个性化设置
+    request.state.homepage_mode = "default"
+    request.state.homepage_background_image_url = ""
+    request.state.homepage_background_video_url = ""
+    request.state.homepage_background_music_url = ""
+    request.state.homepage_music_autoplay = False
 
     db = next(get_db())
     try:
@@ -555,7 +561,13 @@ async def add_global_context(request: Request, call_next):
             "site_title": "RewrZ",
             "tagline": "A Personal Blog System",
             "noindex_site": False,
-            "block_ai_crawlers": False
+            "block_ai_crawlers": False,
+            # 主页个性化设置
+            "homepage_mode": "default",
+            "homepage_background_image_url": "",
+            "homepage_background_video_url": "",
+            "homepage_background_music_url": "",
+            "homepage_music_autoplay": False,
         }
         all_settings = crud_setting.get_settings_by_keys(db, list(settings_keys.keys()))
         for key, default_value in settings_keys.items():
@@ -664,6 +676,26 @@ async def homepage(request: Request, db: Session = Depends(get_db)):
     from .api.seo import _generate_homepage_seo_data
     seo_data = _generate_homepage_seo_data(request, db)
     
+    # 准备设置上下文 (包含主页个性化设置)
+    # 获取主页相关的设置项
+    homepage_setting_keys = [
+        "homepage_mode",
+        "homepage_background_image_url",
+        "homepage_background_video_url",
+        "homepage_background_music_url",
+        "homepage_music_autoplay"
+    ]
+    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
+    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
+    settings_dict = {}
+    for key, setting_obj in homepage_settings.items():
+        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
+        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
+            settings_dict[key] = setting_obj.value['value']
+        else:
+            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
+            settings_dict[key] = getattr(request.state, key, "")
+    
     return templates.TemplateResponse("index.html", {
         "request": request, 
         "posts": posts, 
@@ -673,6 +705,7 @@ async def homepage(request: Request, db: Session = Depends(get_db)):
         "tagline": request.state.tagline,
         "noindex_site": request.state.noindex_site,
         "block_ai_crawlers": request.state.block_ai_crawlers,
+        "settings": settings_dict,  # 传递设置字典给模板
     })
 
 @app.get("/posts/{post_slug}", response_class=HTMLResponse)
@@ -784,6 +817,27 @@ async def archives_page(request: Request, db: Session = Depends(get_db)):
     """
     archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
     posts = crud_post.get_posts(db, skip=0, limit=archive_posts_limit) # 使用配置的文章数量
+    
+    # 准备主页个性化设置上下文 (包含主页个性化设置)
+    # 获取主页相关的设置项
+    homepage_setting_keys = [
+        "homepage_mode",
+        "homepage_background_image_url",
+        "homepage_background_video_url",
+        "homepage_background_music_url",
+        "homepage_music_autoplay"
+    ]
+    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
+    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
+    settings_dict = {}
+    for key, setting_obj in homepage_settings.items():
+        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
+        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
+            settings_dict[key] = setting_obj.value['value']
+        else:
+            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
+            settings_dict[key] = getattr(request.state, key, "")
+    
     return templates.TemplateResponse("archives.html", {
         "request": request, 
         "posts": posts, 
@@ -792,29 +846,53 @@ async def archives_page(request: Request, db: Session = Depends(get_db)):
         "tagline": request.state.tagline,
         "noindex_site": request.state.noindex_site,
         "block_ai_crawlers": request.state.block_ai_crawlers,
+        "settings": settings_dict,  # 传递设置字典给模板
     })
 
-# 占位符路由：/formats/photos 和 /formats/micro-posts
+# 聚合页面路由：/formats/photos, /formats/weibo, /formats/video, /formats/music
 @app.get("/formats/{format_slug}", response_class=HTMLResponse)
 async def format_page(request: Request, format_slug: str, db: Session = Depends(get_db)):
     """
     格式归档页面（多重身份内容系统）
     
-    根据格式别名显示指定格式的所有文章
+    根据格式别名显示指定格式的所有文章，URL符合 /formats/{format_slug} 规范
     """
     format = crud_format.get_format_by_slug(db, slug=format_slug)
     if format is None:
         raise HTTPException(status_code=404, detail="Format not found")
     posts = crud_post.get_posts_by_format(db, format_id=format.id)
+    
+    # 准备设置上下文 (包含主页个性化设置)
+    # 获取主页相关的设置项
+    homepage_setting_keys = [
+        "homepage_mode",
+        "homepage_background_image_url",
+        "homepage_background_video_url",
+        "homepage_background_music_url",
+        "homepage_music_autoplay"
+    ]
+    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
+    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
+    settings_dict = {}
+    for key, setting_obj in homepage_settings.items():
+        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
+        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
+            settings_dict[key] = setting_obj.value['value']
+        else:
+            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
+            settings_dict[key] = getattr(request.state, key, "")
+    
     return templates.TemplateResponse("format_archive.html", {
         "request": request, 
         "format": format, 
+        "format_slug": format_slug,  # 将format_slug传递给模板
         "posts": posts, 
         "atmosphere_class": request.state.atmosphere_class,
         "site_title": request.state.site_title,
         "tagline": request.state.tagline,
         "noindex_site": request.state.noindex_site,
         "block_ai_crawlers": request.state.block_ai_crawlers,
+        "settings": settings_dict,  # 传递设置字典给模板
     })
 
 # 动态页面路由处理器
@@ -839,6 +917,26 @@ async def read_page(request: Request, page_slug: str, db: Session = Depends(get_
     from .api.seo import _generate_post_seo_data
     seo_data = _generate_post_seo_data(db_page, request, db)
     
+    # 准备设置上下文 (包含主页个性化设置)
+    # 获取主页相关的设置项
+    homepage_setting_keys = [
+        "homepage_mode",
+        "homepage_background_image_url",
+        "homepage_background_video_url",
+        "homepage_background_music_url",
+        "homepage_music_autoplay"
+    ]
+    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
+    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
+    settings_dict = {}
+    for key, setting_obj in homepage_settings.items():
+        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
+        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
+            settings_dict[key] = setting_obj.value['value']
+        else:
+            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
+            settings_dict[key] = getattr(request.state, key, "")
+    
     return templates.TemplateResponse("page.html", {
         "request": request, 
         "post": db_page,
@@ -848,6 +946,7 @@ async def read_page(request: Request, page_slug: str, db: Session = Depends(get_
         "tagline": request.state.tagline,
         "noindex_site": request.state.noindex_site,
         "block_ai_crawlers": request.state.block_ai_crawlers,
+        "settings": settings_dict,  # 传递设置字典给模板
     })
 
 # 全局异常处理器

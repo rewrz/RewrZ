@@ -69,31 +69,3 @@ async def delete_format(
     if db_format is None:
         raise HTTPException(status_code=404, detail="Format not found")
     return {"message": "Format deleted successfully"}
-
-# 格式聚合页面路由
-@router.get("/formats/{format_slug}", response_class=HTMLResponse)
-async def format_archive_page(request: Request, format_slug: str, db: Session = Depends(get_db)):
-    """格式聚合页面 - 根据需求规格说明书2.2.1实现"""
-    from ..crud import post as crud_post
-    
-    templates = get_templates()
-    
-    # 获取格式信息
-    format_obj = crud_format.get_format_by_slug(db, slug=format_slug)
-    if format_obj is None:
-        raise HTTPException(status_code=404, detail="Format not found")
-    
-    # 获取该格式的所有文章（只包含已发布的）
-    # 这里需要实现按格式筛选的查询
-    # 暂时返回空列表，后续需要在post CRUD中实现按格式查询
-    posts = []
-    
-    return templates.TemplateResponse(
-        "format_archive.html", 
-        {
-            "request": request, 
-            "format": format_obj,
-            "posts": posts,
-            "page_title": f"{format_obj.name} - 格式聚合"
-        }
-    )

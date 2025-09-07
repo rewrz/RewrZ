@@ -8,97 +8,219 @@
     <!-- Dynamic SEO Meta Tags -->
     {% include "components/seo_meta.html" %}
 {% endif %}
+<link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css">
+<style>
+    /* Custom styles for timeline arrows */
+    .left-timeline .arrow::before {
+        content: " ";
+        height: 0;
+        position: absolute;
+        top: 22px;
+        width: 0;
+        z-index: 1;
+        right: -10px;
+        border: medium solid white;
+        border-width: 10px 0 10px 10px;
+        border-color: transparent transparent transparent white;
+    }
+    .right-timeline .arrow::before {
+        content: " ";
+        height: 0;
+        position: absolute;
+        top: 22px;
+        width: 0;
+        z-index: 1;
+        left: -10px;
+        border: medium solid white;
+        border-width: 10px 10px 10px 0;
+        border-color: transparent white transparent transparent;
+    }
+
+    /* Animation for timeline items */
+    .timeline-item {
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+    }
+    .left-timeline.timeline-item {
+        transform: translateX(-100px);
+    }
+    .right-timeline.timeline-item {
+        transform: translateX(100px);
+    }
+    .timeline-item.is-visible {
+        opacity: 1;
+        transform: translateX(0);
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="space-y-12">
-    {% for post in posts %}
-        {% set format_slugs = post.formats | map(attribute='slug') | list %}
+{# 确保 settings 变量存在并提供默认值 #}
+{% set settings = settings or {} %}
+{% set homepage_mode = settings.get('homepage_mode') %}
 
-        {% if 'micro-post' in format_slugs %}
-            {# 微博样式，添加头像显示 #}
-            <div class="bg-white p-6 rounded-lg shadow-md flex space-x-4">
-                <div class="flex-shrink-0">
-                    {# 显示作者头像 #}
-                    {% if post.author.avatar_url %}
-                        <img class="h-12 w-12 rounded-full" src="{{ post.author.avatar_url }}" alt="{{ post.author.username }}的头像">
-                    {% else %}
-                        {# 使用Gravatar或默认头像 #}
-                        {% set author_email_hash = post.author.email | md5 if post.author.email else '' %}
-                        <img class="h-12 w-12 rounded-full" 
-                             src="https://www.gravatar.com/avatar/{{ author_email_hash }}?s=48&d=identicon&r=g" 
-                             alt="{{ post.author.username }}的头像"
-                             onerror="this.src='/static/images/default-avatar.png'">
-                    {% endif %}
-                </div>
-                <div class="flex-1">
-                    <div class="flex items-center space-x-2">
-                        <h3 class="font-bold text-gray-900">{{ post.author.username }}</h3>
-                        <span class="text-gray-500 text-sm">{% if post.published_at %}{{ post.published_at.strftime('%Y年%m月%d日') }}{% else %}未发布{% endif %}</span>
-                    </div>
-                    <div class="prose prose-indigo max-w-none mt-2">
-                        {{ post.content_html | safe }}
-                    </div>
-                    {# 九宫格图片展示 (简化版) #}
-                    {% if post.featured_image_url %}
-                    <div class="mt-4 grid grid-cols-3 gap-2">
-                        {{ post.featured_image_url | responsive_image(post.title, "rounded-lg object-cover h-32 w-full", "(max-width: 768px) 33vw, 200px", request.state.db) | safe }}
-                    </div>
-                    {% endif %}
-                </div>
+{# 1. Hero Section (Fullscreen Gallery or Video) #}
+{% if homepage_mode == 'fullscreen_gallery' %}
+<div class="relative h-screen w-full overflow-hidden">
+    <!-- Background Swiper -->
+    <div class="absolute inset-0 z-0">
+        <div id="fullscreen-gallery-swiper" class="swiper h-full w-full">
+            <div class="swiper-wrapper">
+                {% if settings.homepage_background_image_url %}
+                    {% set images = settings.homepage_background_image_url.split('\n') %}
+                    {% for image_url in images %}
+                        {% if image_url.strip() %}
+                        <div class="swiper-slide">
+                            <img src="{{ image_url.strip() }}" alt="Background Image" class="w-full h-full object-cover">
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
             </div>
-        {% elif 'photo-album' in format_slugs %}
-            {# 相册样式 #}
-            <div class="bg-white rounded-lg shadow-md overflow-hidden relative">
-                {{ post.featured_image_url | responsive_image(post.title, "w-full h-96 object-cover", "(max-width: 768px) 100vw, (max-width: 1200px) 800px, 1200px", request.state.db) | safe }}
-                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-6">
-                    <h2 class="text-3xl font-bold text-white mb-2">
-                        <a href="/posts/{{ post.slug }}" class="hover:underline">{{ post.title }}</a>
-                    </h2>
-                    <p class="text-gray-300">{{ post.excerpt }}</p>
-                </div>
+            <div class="swiper-pagination"></div>
+            <div class="swiper-button-prev"></div>
+            <div class="swiper-button-next"></div>
+        </div>
+    </div>
+    <!-- Overlay Content -->
+    <div class="relative z-10 flex flex-col items-center justify-center h-full text-white bg-black bg-opacity-40">
+        <div class="text-center p-8 bg-black bg-opacity-50 rounded-lg backdrop-blur-sm">
+            <h1 class="text-5xl md:text-6xl font-bold mb-4">{{ site_title }}</h1>
+            {% if tagline %}<p class="text-xl md:text-2xl mb-8">{{ tagline }}</p>{% endif %}
+            <div class="flex flex-wrap justify-center gap-4 mt-8">
+                <a href="/archives" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">归档</a>
+                <a href="/formats/photos" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">相册</a>
+                <a href="/formats/weibo" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">微博</a>
+                <a href="/formats/video" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">视频</a>
+                <a href="/formats/music" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">音乐</a>
             </div>
-        {% elif 'video' in format_slugs or 'music' in format_slugs %}
-            {# 视频/音乐样式 #}
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <div class="relative">
-                    {{ post.featured_image_url | responsive_image(post.title, "w-full h-64 object-cover rounded-lg", "(max-width: 768px) 100vw, (max-width: 1200px) 600px, 800px", request.state.db) | safe }}
-                    <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
-                        <svg class="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path></svg>
-                    </div>
-                </div>
-                <h2 class="text-2xl font-semibold text-gray-800 mt-4 mb-2">
-                    <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
-                </h2>
-                <p class="text-gray-700">{{ post.excerpt }}</p>
-            </div>
-        {% else %}
-            {# 标准文章样式 #}
-            <div class="bg-white p-6 rounded-lg shadow-md grid grid-cols-12 gap-6">
-                <div class="col-span-4">
-                    {{ post.featured_image_url | responsive_image(post.title, "w-full h-full object-cover rounded-lg", "(max-width: 768px) 100vw, 400px", request.state.db) | safe }}
-                </div>
-                <div class="col-span-8">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-2">
-                        <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
-                    </h2>
-                    <div class="flex items-center space-x-4 text-gray-600 text-sm mb-4">
-                        <span>发布于 {% if post.published_at %}{{ post.published_at.strftime('%Y年%m月%d日') }}{% else %}未发布{% endif %}</span>
-                        <span class="flex items-center">
-                            <i class="fas fa-clock mr-1"></i>
-                            {{ post.content_markdown | reading_time }}阅读
-                        </span>
-                        {% set stats = post.content_markdown | reading_stats(post) %}
-                        <span class="flex items-center">
-                            <i class="fas fa-file-text mr-1"></i>
-                            {{ stats.word_count }}字
-                        </span>
-                    </div>
-                    <p class="text-gray-700">{{ post.excerpt }}</p>
-                    <a href="/posts/{{ post.slug }}" class="inline-block mt-4 text-indigo-600 hover:underline">阅读更多 &rarr;</a>
-                </div>
-            </div>
-        {% endif %}
-    {% endfor %}
+        </div>
+    </div>
 </div>
+{% elif homepage_mode == 'fullscreen_video' %}
+<div class="relative h-screen w-full overflow-hidden">
+    <!-- Background Video -->
+    <div class="absolute inset-0 z-0">
+        {% if settings.homepage_background_video_url %}
+        <video autoplay muted loop playsinline class="w-full h-full object-cover">
+            <source src="{{ settings.homepage_background_video_url }}" type="video/mp4">
+            您的浏览器不支持视频播放。
+        </video>
+        {% endif %}
+    </div>
+    <!-- Overlay Content -->
+    <div class="relative z-10 flex flex-col items-center justify-center h-full text-white bg-black bg-opacity-40">
+        <div class="text-center p-8 bg-black bg-opacity-50 rounded-lg backdrop-blur-sm">
+            <h1 class="text-5xl md:text-6xl font-bold mb-4">{{ site_title }}</h1>
+            {% if tagline %}<p class="text-xl md:text-2xl mb-8">{{ tagline }}</p>{% endif %}
+            <div class="flex flex-wrap justify-center gap-4 mt-8">
+                <a href="/archives" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">归档</a>
+                <a href="/formats/photos" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">相册</a>
+                <a href="/formats/weibo" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">微博</a>
+                <a href="/formats/video" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">视频</a>
+                <a href="/formats/music" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">音乐</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# 2. Timeline Section (Always rendered) #}
+<div class="bg-gray-50 dark:bg-gray-800 py-8">
+    <div class="container mx-auto w-full h-full">
+        <div class="relative wrap overflow-hidden p-4 md:p-10 h-full">
+            <div class="absolute h-full border-2 border-gray-200 dark:border-gray-700" style="left: 50%"></div>
+            
+            {% for post in posts %}
+                {% set format_slugs = post.formats | map(attribute='slug') | list %}
+
+                {# Define dot and icon classes based on format #}
+                {% set dot_class = "bg-gray-500" %}
+                {% set icon_class = "fas fa-pen" %}
+                {% if 'micro-post' in format_slugs %}
+                    {% set dot_class = "bg-blue-500" %}
+                    {% set icon_class = "fas fa-comment-dots" %}
+                {% elif 'photo-album' in format_slugs %}
+                    {% set dot_class = "bg-purple-500" %}
+                    {% set icon_class = "fas fa-images" %}
+                {% elif 'video' in format_slugs %}
+                    {% set dot_class = "bg-red-500" %}
+                    {% set icon_class = "fas fa-video" %}
+                {% elif 'music' in format_slugs %}
+                    {% set dot_class = "bg-green-500" %}
+                    {% set icon_class = "fas fa-music" %}
+                {% endif %}
+
+                {% if loop.index is even %}
+                <!-- Right Timeline Item -->
+                <div class="mb-8 flex justify-between items-center w-full right-timeline timeline-item">
+                    <div class="order-1 w-5/12"></div>
+                    <div class="z-20 flex items-center order-1 {{ dot_class }} shadow-xl w-10 h-10 rounded-full">
+                        <i class="{{ icon_class }} mx-auto text-white text-lg"></i>
+                    </div>
+                    <div class="order-1 w-5/12">
+                        <div class="p-1 text-right">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{% if post.published_at %}{{ post.published_at.strftime('%Y年%m月%d日') }}{% else %}未发布{% endif %}</p>
+                        </div>
+                        {# Card Content #}
+                        {% include 'components/timeline_card.html' %}
+                    </div>
+                </div>
+                {% else %}
+                <!-- Left Timeline Item -->
+                <div class="mb-8 flex justify-between flex-row-reverse items-center w-full left-timeline timeline-item">
+                    <div class="order-1 w-5/12"></div>
+                    <div class="z-20 flex items-center order-1 {{ dot_class }} shadow-xl w-10 h-10 rounded-full">
+                        <i class="{{ icon_class }} mx-auto text-white text-lg"></i>
+                    </div>
+                    <div class="order-1 w-5/12">
+                         <div class="p-1 text-left">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{% if post.published_at %}{{ post.published_at.strftime('%Y年%m月%d日') }}{% else %}未发布{% endif %}</p>
+                        </div>
+                        {# Card Content #}
+                        {% include 'components/timeline_card.html' %}
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Init Swiper for gallery
+        if (document.getElementById('fullscreen-gallery-swiper')) {
+            new Swiper('#fullscreen-gallery-swiper', { loop: true, autoplay: { delay: 5000, disableOnInteraction: false }, pagination: { el: '.swiper-pagination', clickable: true }, navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' } });
+        }
+
+        // For image grids in micro-posts
+        const imageGrids = document.querySelectorAll('.image-grid');
+        imageGrids.forEach(grid => {
+            const imageCount = parseInt(grid.getAttribute('data-image-count'), 10);
+            if (!isNaN(imageCount) && imageCount > 0) {
+                let cols = imageCount;
+                if (imageCount > 2) { cols = 3; }
+                grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+            }
+        });
+
+        // For scroll animations
+        const timelineItems = document.querySelectorAll('.timeline-item');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                }
+            });
+        }, {
+            threshold: 0.1
+        });
+
+        timelineItems.forEach(item => {
+            observer.observe(item);
+        });
+    });
+</script>
 {% endblock %}

@@ -3,6 +3,9 @@
 {% block title %}{{ post.title if post else title }} - {{ site_title }}{% endblock %}
 
 {% block content %}
+{# 确保 settings 变量存在并提供默认值 #}
+{% set settings = settings or {} %}
+
 {% if post and post.status == "published" %}
     {% if post.featured_image_url %}
     <div class="relative w-full h-64 md:h-96 mb-8 rounded-lg overflow-hidden">

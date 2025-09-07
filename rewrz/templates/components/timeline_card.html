@@ -1,0 +1,107 @@
+{# This component renders a post card for the timeline #}
+
+{% if 'micro-post' in format_slugs %}
+    {# 微博样式 #}
+    <div class="bg-white p-6 rounded-lg shadow-xl relative arrow transition-transform duration-300 transform hover:scale-105 hover:shadow-2xl">
+        <div class="flex items-center space-x-3 mb-4">
+            <div class="flex-shrink-0">
+                {% if post.author.avatar_url %}
+                    <img class="h-10 w-10 rounded-full" src="{{ post.author.avatar_url }}" alt="{{ post.author.username }}的头像">
+                {% else %}
+                    {% set author_email_hash = post.author.email | md5 if post.author.email else '' %}
+                    <img class="h-10 w-10 rounded-full" 
+                         src="https://www.gravatar.com/avatar/{{ author_email_hash }}?s=40&d=identicon&r=g" 
+                         alt="{{ post.author.username }}的头像"
+                         onerror="this.src='/static/images/default-avatar.png'">
+                {% endif %}
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-900 text-lg">{{ post.author.username }}</h3>
+            </div>
+        </div>
+
+        {% set images = post.all_image_urls or [] %}
+        {% set image_count = images|length %}
+
+        {% if image_count == 1 %}
+        <div class="mb-4">
+            <a href="/posts/{{ post.slug }}"><img src="{{ images[0] }}" alt="Image" class="rounded-lg w-full object-cover max-h-96"></a>
+        </div>
+        {% endif %}
+
+        <div class="prose prose-indigo max-w-none">
+            {{ post.content_html | safe }}
+        </div>
+
+        {% if image_count > 1 %}
+        <div class="mt-4 grid gap-2 image-grid" data-image-count="{{ image_count if image_count < 3 else 3 }}">
+            {% for image_url in images[:9] %}
+            <div class="aspect-square overflow-hidden rounded-lg">
+                <a href="/posts/{{ post.slug }}"><img src="{{ image_url }}" alt="Image {{ loop.index }}" class="w-full h-full object-cover"></a>
+            </div>
+            {% endfor %}
+        </div>
+        {% if image_count > 9 %}
+        <div class="mt-2 text-sm text-gray-500">
+            共 {{ image_count }} 张图片
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+{% elif 'photo-album' in format_slugs %}
+    {# 相册样式 #}
+    <div class="rounded-lg shadow-xl overflow-hidden relative arrow transition-transform duration-300 transform hover:scale-105 hover:shadow-2xl">
+        <a href="/posts/{{ post.slug }}">
+            {{ post.featured_image_url | responsive_image(post.title, "w-full h-auto object-cover", "(max-width: 768px) 100vw, 800px", request.state.db) | safe }}
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-6">
+                <h2 class="text-2xl font-bold text-white mb-2 hover:underline">{{ post.title }}</h2>
+                <p class="text-gray-300 text-sm">{{ post.excerpt }}</p>
+            </div>
+        </a>
+    </div>
+{% elif 'video' in format_slugs or 'music' in format_slugs %}
+    {# 视频/音乐样式 #}
+    <div class="bg-black rounded-lg shadow-xl overflow-hidden relative arrow transition-transform duration-300 transform hover:scale-105 hover:shadow-2xl">
+        <a href="/posts/{{ post.slug }}" class="block">
+            <div class="relative">
+                {{ post.featured_image_url | responsive_image(post.title, "w-full h-auto object-cover rounded-lg", "(max-width: 768px) 100vw, 600px", request.state.db) | safe }}
+                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40">
+                    <svg class="w-16 h-16 text-white opacity-80" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path></svg>
+                </div>
+            </div>
+            <div class="p-4">
+                 <h2 class="text-xl font-semibold text-white mt-2 mb-1 hover:text-indigo-400">{{ post.title }}</h2>
+                 <p class="text-gray-400 text-sm">{{ post.excerpt }}</p>
+            </div>
+        </a>
+    </div>
+{% else %}
+    {# 标准文章样式 #}
+    <div class="bg-white p-6 rounded-lg shadow-xl flex flex-col relative arrow transition-transform duration-300 transform hover:scale-105 hover:shadow-2xl">
+        {% if post.featured_image_url %}
+        <div class="mb-4 -m-6 mt-0">
+            <a href="/posts/{{ post.slug }}">
+                {{ post.featured_image_url | responsive_image(post.title, "w-full h-auto object-cover rounded-t-lg", "(max-width: 768px) 100vw, 400px", request.state.db) | safe }}
+            </a>
+        </div>
+        {% endif %}
+        <div class="flex-grow pt-4">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">
+                <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
+            </h2>
+            <div class="flex items-center flex-wrap space-x-4 text-gray-600 text-sm mb-4">
+                <span class="flex items-center">
+                    <i class="fas fa-clock mr-1"></i>
+                    {{ post.content_markdown | reading_time }}阅读
+                </span>
+                {% set stats = post.content_markdown | reading_stats(post) %}
+                <span class="flex items-center">
+                    <i class="fas fa-file-text mr-1"></i>
+                    {{ stats.word_count }}字
+                </span>
+            </div>
+            <p class="text-gray-700">{{ post.excerpt }}</p>
+            <a href="/posts/{{ post.slug }}" class="inline-block mt-4 text-indigo-600 hover:underline">阅读更多 &rarr;</a>
+        </div>
+    </div>
+{% endif %}

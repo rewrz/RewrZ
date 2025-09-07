@@ -58,6 +58,12 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "donation_link_url": get_setting_value("donation_link_url", ''),
         "donation_style_theme": get_setting_value("donation_style_theme", 'elegant'),
         "donation_show_position": get_setting_value("donation_show_position", 'article_end'),
+        # 主页个性化设置
+        "homepage_mode": get_setting_value("homepage_mode", "default"),
+        "homepage_background_image_url": get_setting_value("homepage_background_image_url", ""),
+        "homepage_background_video_url": get_setting_value("homepage_background_video_url", ""),
+        "homepage_background_music_url": get_setting_value("homepage_background_music_url", ""),
+        "homepage_music_autoplay": get_setting_value("homepage_music_autoplay", False),
     }
     return settings_data
 
@@ -110,6 +116,12 @@ async def update_admin_settings(
     donation_link_url: Optional[str] = Form(None),
     donation_style_theme: str = Form('elegant'),
     donation_show_position: str = Form('article_end'),
+    # 主页个性化设置相关参数
+    homepage_mode: str = Form("default"),
+    homepage_background_image_url: Optional[str] = Form(None),
+    homepage_background_video_url: Optional[str] = Form(None),
+    homepage_background_music_url: Optional[str] = Form(None),
+    homepage_music_autoplay: bool = Form(False),
     csrf_token: str = Form(...),
 ):
     from ..core.security import verify_csrf_token
@@ -154,6 +166,12 @@ async def update_admin_settings(
         "donation_link_url": donation_link_url or '',
         "donation_style_theme": donation_style_theme,
         "donation_show_position": donation_show_position,
+        # 主页个性化设置
+        "homepage_mode": homepage_mode,
+        "homepage_background_image_url": homepage_background_image_url or '',
+        "homepage_background_video_url": homepage_background_video_url or '',
+        "homepage_background_music_url": homepage_background_music_url or '',
+        "homepage_music_autoplay": homepage_music_autoplay,
     }
 
     for key, value in settings_to_update.items():

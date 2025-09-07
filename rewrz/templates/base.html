@@ -514,8 +514,10 @@
             <nav class="space-x-4 flex items-center">
                 <a href="/" class="text-text-light hover:text-primary">首页</a>
                 <a href="/archives" class="text-text-light hover:text-primary">归档</a>
-                <a href="/formats/photo-album" class="text-text-light hover:text-primary">相册</a>
-                <a href="/formats/micro-post" class="text-text-light hover:text-primary">微博</a>
+                <a href="/formats/photos" class="text-text-light hover:text-primary">相册</a>
+                <a href="/formats/weibo" class="text-text-light hover:text-primary">微博</a>
+                <a href="/formats/video" class="text-text-light hover:text-primary">视频</a>
+                <a href="/formats/music" class="text-text-light hover:text-primary">音乐</a>
                 <a href="/about" class="text-text-light hover:text-primary">关于</a>
                 
                 <!-- 快速搜索 -->
@@ -549,6 +551,74 @@
     <main class="container mx-auto px-6 py-8">
         {% block content %}{% endblock %}
     </main>
+
+    <!-- 全局背景音乐播放器 -->
+    {% if settings.homepage_background_music_url %}
+    <div class="fixed bottom-4 right-4 z-50">
+        <audio id="global-bg-music" 
+               src="{{ settings.homepage_background_music_url }}" 
+               {% if settings.homepage_music_autoplay %}autoplay{% endif %} 
+               loop 
+               preload="none">
+            您的浏览器不支持音频播放。
+        </audio>
+        <button id="bg-music-toggle" 
+                class="bg-indigo-600 text-white p-3 rounded-full shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300"
+                title="背景音乐开关">
+            <i class="fas fa-volume-up"></i>
+        </button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const audio = document.getElementById('global-bg-music');
+            const button = document.getElementById('bg-music-toggle');
+            const icon = button.querySelector('i');
+            
+            // 检查本地存储的音乐状态
+            const isMusicPlaying = localStorage.getItem('bg-music-playing') === 'true';
+            const isMusicMuted = localStorage.getItem('bg-music-muted') === 'true';
+            
+            // 初始化音频状态
+            if (isMusicPlaying) {
+                audio.play().catch(e => console.log("Autoplay prevented by browser:", e));
+                icon.classList.remove('fa-volume-off');
+                icon.classList.add('fa-volume-up');
+            } else {
+                audio.pause();
+                icon.classList.remove('fa-volume-up');
+                icon.classList.add('fa-volume-off');
+            }
+            
+            if (isMusicMuted) {
+                audio.muted = true;
+            }
+            
+            // 切换播放/暂停
+            button.addEventListener('click', function() {
+                if (audio.paused) {
+                    audio.play().then(() => {
+                        localStorage.setItem('bg-music-playing', 'true');
+                        icon.classList.remove('fa-volume-off');
+                        icon.classList.add('fa-volume-up');
+                    }).catch(e => console.log("Play failed:", e));
+                } else {
+                    audio.pause();
+                    localStorage.setItem('bg-music-playing', 'false');
+                    icon.classList.remove('fa-volume-up');
+                    icon.classList.add('fa-volume-off');
+                }
+            });
+            
+            // 监听音频播放结束事件（虽然设置了loop，但以防万一）
+            audio.addEventListener('ended', function() {
+                localStorage.setItem('bg-music-playing', 'false');
+                icon.classList.remove('fa-volume-up');
+                icon.classList.add('fa-volume-off');
+            });
+        });
+    </script>
+    {% endif %}
 
     <footer class="bg-card-bg mt-12 py-6 border-t border-border">
         <div class="container mx-auto px-6">

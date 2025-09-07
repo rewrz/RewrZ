@@ -5,49 +5,154 @@
 {% block content %}
 <div class="{{ atmosphere_class }}">
     <h1 class="text-4xl font-bold text-gray-900 mb-8">{{ format.name }}</h1>
-    <p class="text-gray-600 mb-8">格式：{{ format.name }}</p>
 
     {% if posts %}
-    <!-- 根据格式类型使用不同的布局 -->
-    {% if format.slug == 'photo-album' %}
+    <!-- 根据URL中的format_slug使用不同的布局 -->
+    {% if format_slug == 'photos' %}
     <!-- 相册格式：瀑布流布局 -->
-    <div class="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
+    <div class="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
         {% for post in posts %}
         <div class="break-inside-avoid bg-white rounded-lg shadow-md overflow-hidden mb-4">
             {% if post.featured_image_url %}
-            {{ post.featured_image_url | responsive_image(post.title, "w-full h-auto", "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw", request.state.db) | safe }}
+            <a href="/posts/{{ post.slug }}">
+                {{ post.featured_image_url | responsive_image(post.title, "w-full h-auto object-cover", "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw", request.state.db) | safe }}
+            </a>
             {% endif %}
             <div class="p-4">
-                <h2 class="text-lg font-semibold text-gray-800 mb-2">
+                <h2 class="text-lg font-semibold text-gray-800 mb-1">
                     <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
                 </h2>
-                <p class="text-gray-600 text-sm">{{ post.published_at.strftime('%Y年%m月%d日') }}</p>
+                <p class="text-gray-600 text-xs">{{ post.published_at.strftime('%Y年%m月%d日') }}</p>
             </div>
         </div>
         {% endfor %}
     </div>
-    {% elif format.slug == 'micro-post' %}
+    {% elif format_slug == 'weibo' %}
     <!-- 微博格式：信息流布局 -->
-    <div class="max-w-2xl mx-auto space-y-4">
+    <div class="max-w-2xl mx-auto space-y-6">
         {% for post in posts %}
-        <div class="bg-white p-4 rounded-lg shadow-md border-l-4 border-indigo-500">
-            <div class="flex items-center mb-3">
-                <div class="flex-1">
-                    <h3 class="text-lg font-medium text-gray-900">
-                        <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
-                    </h3>
-                    <p class="text-sm text-gray-500">{{ post.published_at.strftime('%Y年%m月%d日 %H:%M') }}</p>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex items-center mb-4">
+                <div class="flex-shrink-0 mr-3">
+                    {% if post.author.avatar_url %}
+                        <img class="h-10 w-10 rounded-full" src="{{ post.author.avatar_url }}" alt="{{ post.author.username }}的头像">
+                    {% else %}
+                        {% set author_email_hash = post.author.email | md5 if post.author.email else '' %}
+                        <img class="h-10 w-10 rounded-full" 
+                             src="https://www.gravatar.com/avatar/{{ author_email_hash }}?s=40&d=identicon&r=g" 
+                             alt="{{ post.author.username }}的头像"
+                             onerror="this.src='/static/images/default-avatar.png'">
+                    {% endif %}
+                </div>
+                <div>
+                    <h3 class="font-bold text-gray-900">{{ post.author.username }}</h3>
+                    <p class="text-gray-500 text-sm">{{ post.published_at.strftime('%Y年%m月%d日 %H:%M') }}</p>
                 </div>
             </div>
-            {% if post.featured_image_url %}
-            {{ post.featured_image_url | responsive_image(post.title, "w-full max-w-sm rounded-lg mb-3", "(max-width: 768px) 100vw, 400px", request.state.db) | safe }}
+            
+            <div class="prose prose-indigo max-w-none mb-4">
+                {{ post.content_html | safe }}
+            </div>
+            
+            {# 九宫格图片展示 #}
+            {% if post.all_image_urls and post.all_image_urls|length > 0 %}
+            {% set image_count = post.all_image_urls|length %}
+            <div class="mt-4">
+                {% if image_count == 1 %}
+                    {# 单张图片 #}
+                    <img src="{{ post.all_image_urls[0] }}" alt="Image" class="rounded-lg w-full object-cover max-h-96">
+                {% else %}
+                    {# 多张图片，九宫格布局 #}
+                    <div class="grid gap-2 image-grid" data-image-count="{{ image_count if image_count < 3 else 3 }}">
+                        {% for image_url in post.all_image_urls[:9] %} {# 最多显示9张 #}
+                        <div class="aspect-square overflow-hidden rounded-lg">
+                            <img src="{{ image_url }}" alt="Image {{ loop.index }}" 
+                                 class="w-full h-full object-cover">
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {# 如果图片超过9张，显示计数 #}
+                    {% if image_count > 9 %}
+                    <div class="mt-2 text-sm text-gray-500">
+                        共 {{ image_count }} 张图片
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
             {% endif %}
-            <div class="text-gray-700">{{ post.excerpt }}</div>
         </div>
         {% endfor %}
     </div>
+    {% elif format_slug == 'video' %}
+    <!-- 视频格式：卡片式布局 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for post in posts %}
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+            <div class="relative">
+                {% if post.featured_image_url %}
+                {{ post.featured_image_url | responsive_image(post.title, "w-full h-48 object-cover", "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw", request.state.db) | safe }}
+                {% endif %}
+                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
+                    <svg class="w-12 h-12 text-white opacity-90 hover:opacity-100 transition-opacity" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path>
+                    </svg>
+                </div>
+                <div class="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                    视频
+                </div>
+            </div>
+            <div class="p-5">
+                <h2 class="text-xl font-bold text-gray-900 mb-2 line-clamp-2">
+                    <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
+                </h2>
+                <p class="text-gray-600 text-sm mb-4 line-clamp-3">{{ post.excerpt }}</p>
+                <div class="flex items-center justify-between text-xs text-gray-500">
+                    <span>{{ post.published_at.strftime('%Y年%m月%d日') }}</span>
+                    <span>{{ post.content_markdown | reading_time }}阅读</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% elif format_slug == 'music' %}
+    <!-- 音乐格式：列表式布局 -->
+    <div class="max-w-3xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+        <ul class="divide-y divide-gray-200">
+            {% for post in posts %}
+            <li class="hover:bg-gray-50 transition-colors duration-200">
+                <a href="/posts/{{ post.slug }}" class="block p-4">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 w-16 h-16 bg-gray-200 rounded-md flex items-center justify-center mr-4">
+                            {% if post.featured_image_url %}
+                            {{ post.featured_image_url | responsive_image(post.title, "w-full h-full object-cover rounded-md", "(max-width: 768px) 64px, 64px", request.state.db) | safe }}
+                            {% else %}
+                            <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"></path>
+                            </svg>
+                            {% endif %}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-lg font-semibold text-gray-900 truncate">{{ post.title }}</h3>
+                            <p class="text-gray-600 text-sm truncate">{{ post.excerpt }}</p>
+                            <div class="flex items-center mt-1 text-xs text-gray-500">
+                                <span>{{ post.published_at.strftime('%Y年%m月%d日') }}</span>
+                                <span class="mx-2">•</span>
+                                <span>{{ post.content_markdown | reading_time }}阅读</span>
+                            </div>
+                        </div>
+                        <div class="flex-shrink-0 ml-4">
+                            <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM15 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
     {% else %}
-    <!-- 标准格式：网格布局 -->
+    <!-- 其他格式：标准网格布局 -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% for post in posts %}
         <div class="bg-white p-6 rounded-lg shadow-md">
@@ -82,4 +187,17 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 为微博卡片中的图片九宫格动态设置列数
+        const imageGrids = document.querySelectorAll('.image-grid');
+        imageGrids.forEach(grid => {
+            const imageCount = parseInt(grid.getAttribute('data-image-count'), 10);
+            if (!isNaN(imageCount) && imageCount > 0) {
+                grid.style.gridTemplateColumns = `repeat(${imageCount}, minmax(0, 1fr))`;
+            }
+        });
+    });
+</script>
 {% endblock %}
