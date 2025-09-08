@@ -728,6 +728,26 @@ async def read_post(request: Request, post_slug: str, db: Session = Depends(get_
     donation_system = get_donation_system(db)
     donation_config = donation_system.settings
     
+    # 准备设置上下文 (包含主页个性化设置)
+    # 获取主页相关的设置项
+    homepage_setting_keys = [
+        "homepage_mode",
+        "homepage_background_image_url",
+        "homepage_background_video_url",
+        "homepage_background_music_url",
+        "homepage_music_autoplay"
+    ]
+    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
+    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
+    settings_dict = {}
+    for key, setting_obj in homepage_settings.items():
+        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
+        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
+            settings_dict[key] = setting_obj.value['value']
+        else:
+            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
+            settings_dict[key] = getattr(request.state, key, "")
+    
     return templates.TemplateResponse("post_detail.html", {
         "request": request, 
         "post": db_post, 
@@ -738,6 +758,7 @@ async def read_post(request: Request, post_slug: str, db: Session = Depends(get_
         "tagline": request.state.tagline,
         "noindex_site": request.state.noindex_site,
         "block_ai_crawlers": request.state.block_ai_crawlers,
+        "settings": settings_dict,  # 传递设置字典给模板
     })
 
 @app.get("/archives/by-category/{category_slug}", response_class=HTMLResponse)
@@ -751,6 +772,27 @@ async def posts_by_category(request: Request, category_slug: str, db: Session = 
     if category is None:
         raise HTTPException(status_code=404, detail="Category not found")
     posts = crud_post.get_posts_by_category(db, category_id=category.id)
+    
+    # 准备设置上下文 (包含主页个性化设置)
+    # 获取主页相关的设置项
+    homepage_setting_keys = [
+        "homepage_mode",
+        "homepage_background_image_url",
+        "homepage_background_video_url",
+        "homepage_background_music_url",
+        "homepage_music_autoplay"
+    ]
+    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
+    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
+    settings_dict = {}
+    for key, setting_obj in homepage_settings.items():
+        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
+        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
+            settings_dict[key] = setting_obj.value['value']
+        else:
+            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
+            settings_dict[key] = getattr(request.state, key, "")
+    
     return templates.TemplateResponse("category_archive.html", {
         "request": request, 
         "category": category, 
@@ -760,6 +802,7 @@ async def posts_by_category(request: Request, category_slug: str, db: Session = 
         "tagline": request.state.tagline,
         "noindex_site": request.state.noindex_site,
         "block_ai_crawlers": request.state.block_ai_crawlers,
+        "settings": settings_dict,  # 传递设置字典给模板
     })
 
 @app.get("/archives/by-tag/{tag_slug}", response_class=HTMLResponse)
@@ -773,6 +816,27 @@ async def posts_by_tag(request: Request, tag_slug: str, db: Session = Depends(ge
     if tag is None:
         raise HTTPException(status_code=404, detail="Tag not found")
     posts = crud_post.get_posts_by_tag(db, tag_id=tag.id)
+    
+    # 准备设置上下文 (包含主页个性化设置)
+    # 获取主页相关的设置项
+    homepage_setting_keys = [
+        "homepage_mode",
+        "homepage_background_image_url",
+        "homepage_background_video_url",
+        "homepage_background_music_url",
+        "homepage_music_autoplay"
+    ]
+    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
+    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
+    settings_dict = {}
+    for key, setting_obj in homepage_settings.items():
+        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
+        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
+            settings_dict[key] = setting_obj.value['value']
+        else:
+            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
+            settings_dict[key] = getattr(request.state, key, "")
+    
     return templates.TemplateResponse("tag_archive.html", {
         "request": request, 
         "tag": tag, 
@@ -782,6 +846,7 @@ async def posts_by_tag(request: Request, tag_slug: str, db: Session = Depends(ge
         "tagline": request.state.tagline,
         "noindex_site": request.state.noindex_site,
         "block_ai_crawlers": request.state.block_ai_crawlers,
+        "settings": settings_dict,  # 传递设置字典给模板
     })
 
 # 占位符路由：/archives/2025/08/
@@ -795,6 +860,27 @@ async def posts_by_month(request: Request, year: int, month: int, db: Session = 
     # 这需要更复杂的CRUD函数来按年/月过滤
     archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
     posts = crud_post.get_posts(db, skip=0, limit=archive_posts_limit) # 使用配置的文章数量
+    
+    # 准备设置上下文 (包含主页个性化设置)
+    # 获取主页相关的设置项
+    homepage_setting_keys = [
+        "homepage_mode",
+        "homepage_background_image_url",
+        "homepage_background_video_url",
+        "homepage_background_music_url",
+        "homepage_music_autoplay"
+    ]
+    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
+    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
+    settings_dict = {}
+    for key, setting_obj in homepage_settings.items():
+        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
+        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
+            settings_dict[key] = setting_obj.value['value']
+        else:
+            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
+            settings_dict[key] = getattr(request.state, key, "")
+    
     return templates.TemplateResponse("monthly_archive.html", {
         "request": request, 
         "year": year, 
@@ -805,6 +891,7 @@ async def posts_by_month(request: Request, year: int, month: int, db: Session = 
         "tagline": request.state.tagline,
         "noindex_site": request.state.noindex_site,
         "block_ai_crawlers": request.state.block_ai_crawlers,
+        "settings": settings_dict,  # 传递设置字典给模板
     })
 
 # 占位符路由：/archives
