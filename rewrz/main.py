@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
 from .core.template_filters import get_templates  # 导入带过滤器的模板系统
+from .core.template_context import build_base_template_context
 from .core.database import get_db, create_all_tables
 from .core.config import settings  # 导入settings实例
 from .schemas import UserCreate, User, PostCreate, PostUpdate
@@ -523,22 +524,8 @@ app.include_router(admin_dashboard_api.router)
 # 包含验证码API路由
 app.include_router(captcha_api.router)
 
-@app.middleware("http")
-async def add_global_context(request: Request, call_next):
-    global ADMIN_ROUTES_REGISTERED
-    # 动态注册后台路由（如果需要）
-    # 在安装完成后，通过首次请求动态加载后台路由，避免重启服务器
-    if settings.installation_complete and not ADMIN_ROUTES_REGISTERED:
-        register_admin_routes()
-        ADMIN_ROUTES_REGISTERED = True
-
-    # 检查.env文件并重定向到安装向导
-    if not settings.installation_complete and \
-       not request.url.path.startswith("/installer") and \
-       not request.url.path.startswith("/static") and \
-       not request.url.path.startswith("/api"):
-        return RedirectResponse(url="/installer")
-
+# 抽取：构建全局请求上下文（初始化默认值、读取设置、主题调度/纪念日、后台路径）
+def _populate_global_request_state(request: Request) -> None:
     # 初始化全局上下文变量
     request.state.atmosphere_class = ""
     request.state.site_title = "RewrZ"
@@ -546,7 +533,7 @@ async def add_global_context(request: Request, call_next):
     request.state.noindex_site = False
     request.state.block_ai_crawlers = False
     request.state.admin_path = get_admin_path()  # 添加后台路径
-    request.state.csrf_token = "" # 初始化CSRF令牌
+    request.state.csrf_token = ""  # 初始化CSRF令牌
     # 初始化主页个性化设置
     request.state.homepage_mode = "default"
     request.state.homepage_background_image_url = ""
@@ -613,7 +600,8 @@ async def add_global_context(request: Request, call_next):
     finally:
         db.close() # 关闭会话
 
-    # 在会话中生成和存储CSRF令牌
+# 抽取：确保 CSRF 令牌存在（优先使用会话，否则生成临时令牌）
+def _ensure_csrf_token(request: Request) -> None:
     try:
         if hasattr(request, 'session'):
             csrf_token = request.session.get("csrf_token")
@@ -629,6 +617,27 @@ async def add_global_context(request: Request, call_next):
         print(f"ERROR: Failed to handle CSRF token: {e}")
         # 异常情况下，也生成一个临时令牌以避免应用崩溃
         request.state.csrf_token = generate_csrf_token()
+
+@app.middleware("http")
+async def add_global_context(request: Request, call_next):
+    global ADMIN_ROUTES_REGISTERED
+    # 动态注册后台路由（如果需要）
+    # 在安装完成后，通过首次请求动态加载后台路由，避免重启服务器
+    if settings.installation_complete and not ADMIN_ROUTES_REGISTERED:
+        register_admin_routes()
+        ADMIN_ROUTES_REGISTERED = True
+
+    # 检查.env文件并重定向到安装向导
+    if not settings.installation_complete and \
+       not request.url.path.startswith("/installer") and \
+       not request.url.path.startswith("/static") and \
+       not request.url.path.startswith("/api"):
+        return RedirectResponse(url="/installer")
+
+    # 构建全局上下文并确保 CSRF 令牌
+    _populate_global_request_state(request)
+    _ensure_csrf_token(request)
+
     response = await call_next(request)
     return response
 
@@ -660,6 +669,26 @@ def get_admin_path() -> str:
 async def favicon():
     return FileResponse("rewrz/static/favicon.ico")
 
+
+def _load_homepage_settings_for_template(db: Session, request: Request) -> dict:
+    homepage_setting_keys = [
+        "homepage_mode",
+        "homepage_background_image_url",
+        "homepage_background_video_url",
+        "homepage_background_music_url",
+        "homepage_music_autoplay",
+    ]
+    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
+    settings_dict = {}
+    for key in homepage_setting_keys:
+        setting_obj = homepage_settings.get(key)
+        if setting_obj and getattr(setting_obj, 'value', None) and 'value' in setting_obj.value:
+            settings_dict[key] = setting_obj.value['value']
+        else:
+            # 回退到 request.state 中的默认值（已由 _populate_global_request_state 设置）
+            settings_dict[key] = getattr(request.state, key, "")
+    return settings_dict
+
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request, db: Session = Depends(get_db)):
     """
@@ -677,34 +706,13 @@ async def homepage(request: Request, db: Session = Depends(get_db)):
     seo_data = _generate_homepage_seo_data(request, db)
     
     # 准备设置上下文 (包含主页个性化设置)
-    # 获取主页相关的设置项
-    homepage_setting_keys = [
-        "homepage_mode",
-        "homepage_background_image_url",
-        "homepage_background_video_url",
-        "homepage_background_music_url",
-        "homepage_music_autoplay"
-    ]
-    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
-    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
-    settings_dict = {}
-    for key, setting_obj in homepage_settings.items():
-        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
-        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
-            settings_dict[key] = setting_obj.value['value']
-        else:
-            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
-            settings_dict[key] = getattr(request.state, key, "")
+    settings_dict = _load_homepage_settings_for_template(db, request)
     
     return templates.TemplateResponse("index.html", {
         "request": request, 
         "posts": posts, 
         "seo_data": seo_data,
-        "atmosphere_class": request.state.atmosphere_class,
-        "site_title": request.state.site_title,
-        "tagline": request.state.tagline,
-        "noindex_site": request.state.noindex_site,
-        "block_ai_crawlers": request.state.block_ai_crawlers,
+        **build_base_template_context(request),
         "settings": settings_dict,  # 传递设置字典给模板
     })
 
@@ -729,35 +737,14 @@ async def read_post(request: Request, post_slug: str, db: Session = Depends(get_
     donation_config = donation_system.settings
     
     # 准备设置上下文 (包含主页个性化设置)
-    # 获取主页相关的设置项
-    homepage_setting_keys = [
-        "homepage_mode",
-        "homepage_background_image_url",
-        "homepage_background_video_url",
-        "homepage_background_music_url",
-        "homepage_music_autoplay"
-    ]
-    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
-    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
-    settings_dict = {}
-    for key, setting_obj in homepage_settings.items():
-        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
-        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
-            settings_dict[key] = setting_obj.value['value']
-        else:
-            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
-            settings_dict[key] = getattr(request.state, key, "")
+    settings_dict = _load_homepage_settings_for_template(db, request)
     
     return templates.TemplateResponse("post_detail.html", {
-        "request": request, 
-        "post": db_post, 
+        "request": request,
+        "post": db_post,
         "seo_data": seo_data,
         "donation_config": donation_config,
-        "atmosphere_class": request.state.atmosphere_class,
-        "site_title": request.state.site_title,
-        "tagline": request.state.tagline,
-        "noindex_site": request.state.noindex_site,
-        "block_ai_crawlers": request.state.block_ai_crawlers,
+        **build_base_template_context(request),
         "settings": settings_dict,  # 传递设置字典给模板
     })
 
@@ -774,34 +761,13 @@ async def posts_by_category(request: Request, category_slug: str, db: Session = 
     posts = crud_post.get_posts_by_category(db, category_id=category.id)
     
     # 准备设置上下文 (包含主页个性化设置)
-    # 获取主页相关的设置项
-    homepage_setting_keys = [
-        "homepage_mode",
-        "homepage_background_image_url",
-        "homepage_background_video_url",
-        "homepage_background_music_url",
-        "homepage_music_autoplay"
-    ]
-    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
-    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
-    settings_dict = {}
-    for key, setting_obj in homepage_settings.items():
-        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
-        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
-            settings_dict[key] = setting_obj.value['value']
-        else:
-            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
-            settings_dict[key] = getattr(request.state, key, "")
+    settings_dict = _load_homepage_settings_for_template(db, request)
     
     return templates.TemplateResponse("category_archive.html", {
         "request": request, 
         "category": category, 
         "posts": posts, 
-        "atmosphere_class": request.state.atmosphere_class,
-        "site_title": request.state.site_title,
-        "tagline": request.state.tagline,
-        "noindex_site": request.state.noindex_site,
-        "block_ai_crawlers": request.state.block_ai_crawlers,
+        **build_base_template_context(request),
         "settings": settings_dict,  # 传递设置字典给模板
     })
 
@@ -818,34 +784,13 @@ async def posts_by_tag(request: Request, tag_slug: str, db: Session = Depends(ge
     posts = crud_post.get_posts_by_tag(db, tag_id=tag.id)
     
     # 准备设置上下文 (包含主页个性化设置)
-    # 获取主页相关的设置项
-    homepage_setting_keys = [
-        "homepage_mode",
-        "homepage_background_image_url",
-        "homepage_background_video_url",
-        "homepage_background_music_url",
-        "homepage_music_autoplay"
-    ]
-    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
-    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
-    settings_dict = {}
-    for key, setting_obj in homepage_settings.items():
-        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
-        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
-            settings_dict[key] = setting_obj.value['value']
-        else:
-            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
-            settings_dict[key] = getattr(request.state, key, "")
+    settings_dict = _load_homepage_settings_for_template(db, request)
     
     return templates.TemplateResponse("tag_archive.html", {
         "request": request, 
         "tag": tag, 
         "posts": posts, 
-        "atmosphere_class": request.state.atmosphere_class,
-        "site_title": request.state.site_title,
-        "tagline": request.state.tagline,
-        "noindex_site": request.state.noindex_site,
-        "block_ai_crawlers": request.state.block_ai_crawlers,
+        **build_base_template_context(request),
         "settings": settings_dict,  # 传递设置字典给模板
     })
 
@@ -862,35 +807,14 @@ async def posts_by_month(request: Request, year: int, month: int, db: Session = 
     posts = crud_post.get_posts(db, skip=0, limit=archive_posts_limit) # 使用配置的文章数量
     
     # 准备设置上下文 (包含主页个性化设置)
-    # 获取主页相关的设置项
-    homepage_setting_keys = [
-        "homepage_mode",
-        "homepage_background_image_url",
-        "homepage_background_video_url",
-        "homepage_background_music_url",
-        "homepage_music_autoplay"
-    ]
-    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
-    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
-    settings_dict = {}
-    for key, setting_obj in homepage_settings.items():
-        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
-        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
-            settings_dict[key] = setting_obj.value['value']
-        else:
-            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
-            settings_dict[key] = getattr(request.state, key, "")
+    settings_dict = _load_homepage_settings_for_template(db, request)
     
     return templates.TemplateResponse("monthly_archive.html", {
         "request": request, 
         "year": year, 
         "month": month, 
         "posts": posts, 
-        "atmosphere_class": request.state.atmosphere_class,
-        "site_title": request.state.site_title,
-        "tagline": request.state.tagline,
-        "noindex_site": request.state.noindex_site,
-        "block_ai_crawlers": request.state.block_ai_crawlers,
+        **build_base_template_context(request),
         "settings": settings_dict,  # 传递设置字典给模板
     })
 
@@ -906,33 +830,12 @@ async def archives_page(request: Request, db: Session = Depends(get_db)):
     posts = crud_post.get_posts(db, skip=0, limit=archive_posts_limit) # 使用配置的文章数量
     
     # 准备主页个性化设置上下文 (包含主页个性化设置)
-    # 获取主页相关的设置项
-    homepage_setting_keys = [
-        "homepage_mode",
-        "homepage_background_image_url",
-        "homepage_background_video_url",
-        "homepage_background_music_url",
-        "homepage_music_autoplay"
-    ]
-    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
-    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
-    settings_dict = {}
-    for key, setting_obj in homepage_settings.items():
-        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
-        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
-            settings_dict[key] = setting_obj.value['value']
-        else:
-            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
-            settings_dict[key] = getattr(request.state, key, "")
+    settings_dict = _load_homepage_settings_for_template(db, request)
     
     return templates.TemplateResponse("archives.html", {
         "request": request, 
         "posts": posts, 
-        "atmosphere_class": request.state.atmosphere_class,
-        "site_title": request.state.site_title,
-        "tagline": request.state.tagline,
-        "noindex_site": request.state.noindex_site,
-        "block_ai_crawlers": request.state.block_ai_crawlers,
+        **build_base_template_context(request),
         "settings": settings_dict,  # 传递设置字典给模板
     })
 
@@ -950,35 +853,14 @@ async def format_page(request: Request, format_slug: str, db: Session = Depends(
     posts = crud_post.get_posts_by_format(db, format_id=format.id)
     
     # 准备设置上下文 (包含主页个性化设置)
-    # 获取主页相关的设置项
-    homepage_setting_keys = [
-        "homepage_mode",
-        "homepage_background_image_url",
-        "homepage_background_video_url",
-        "homepage_background_music_url",
-        "homepage_music_autoplay"
-    ]
-    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
-    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
-    settings_dict = {}
-    for key, setting_obj in homepage_settings.items():
-        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
-        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
-            settings_dict[key] = setting_obj.value['value']
-        else:
-            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
-            settings_dict[key] = getattr(request.state, key, "")
+    settings_dict = _load_homepage_settings_for_template(db, request)
     
     return templates.TemplateResponse("format_archive.html", {
         "request": request, 
         "format": format, 
         "format_slug": format_slug,  # 将format_slug传递给模板
         "posts": posts, 
-        "atmosphere_class": request.state.atmosphere_class,
-        "site_title": request.state.site_title,
-        "tagline": request.state.tagline,
-        "noindex_site": request.state.noindex_site,
-        "block_ai_crawlers": request.state.block_ai_crawlers,
+        **build_base_template_context(request),
         "settings": settings_dict,  # 传递设置字典给模板
     })
 
@@ -1005,104 +887,18 @@ async def read_page(request: Request, page_slug: str, db: Session = Depends(get_
     seo_data = _generate_post_seo_data(db_page, request, db)
     
     # 准备设置上下文 (包含主页个性化设置)
-    # 获取主页相关的设置项
-    homepage_setting_keys = [
-        "homepage_mode",
-        "homepage_background_image_url",
-        "homepage_background_video_url",
-        "homepage_background_music_url",
-        "homepage_music_autoplay"
-    ]
-    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
-    # 将设置项转换为模板可以直接访问的格式 (例如 settings.homepage_mode)
-    settings_dict = {}
-    for key, setting_obj in homepage_settings.items():
-        # setting_obj.value 是一个字典，其中 'value' 键包含实际的设置值
-        if setting_obj and setting_obj.value and 'value' in setting_obj.value:
-            settings_dict[key] = setting_obj.value['value']
-        else:
-            # 如果设置项不存在或没有值，则使用 request.state 中的默认值
-            settings_dict[key] = getattr(request.state, key, "")
+    settings_dict = _load_homepage_settings_for_template(db, request)
     
     return templates.TemplateResponse("page.html", {
         "request": request, 
         "post": db_page,
         "seo_data": seo_data,
-        "atmosphere_class": request.state.atmosphere_class,
-        "site_title": request.state.site_title,
-        "tagline": request.state.tagline,
-        "noindex_site": request.state.noindex_site,
-        "block_ai_crawlers": request.state.block_ai_crawlers,
+        **build_base_template_context(request),
         "settings": settings_dict,  # 传递设置字典给模板
     })
 
-# 全局异常处理器
-@app.exception_handler(404)
-async def not_found_exception_handler(request: Request, exc: HTTPException):
-    """
-    404异常处理器
-    """
-    # 使用我们自定义的错误处理模块
-    return await error_handler.global_exception_handler(request, exc)
-
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """
-    全局异常处理器，处理所有未被捕获的异常
-    """
-    return await error_handler.global_exception_handler(request, exc)
-
-
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    """
-    HTTP异常处理器
-    """
-    # 使用我们自定义的错误处理模块
-    return await error_handler.global_exception_handler(request, exc)
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """
-    请求验证异常处理器
-    """
-    # 记录验证错误日志
-    error_handler.log_error(request, exc)
-    
-    # 根据Accept头判断返回JSON还是HTML
-    accept_header = request.headers.get("accept", "")
-    
-    if "application/json" in accept_header:
-        return error_handler.JSONResponse(
-            status_code=422,
-            content={
-                "error": {
-                    "code": "VALIDATION_ERROR",
-                    "message": "请求参数验证失败",
-                    "details": exc.errors()
-                }
-            }
-        )
-    else:
-        # 尝试渲染422错误页面
-        try:
-            return error_handler.templates.TemplateResponse(
-                request,
-                "errors/422.html",
-                {
-                    "status_code": 422,
-                    "error_message": "请求参数验证失败",
-                    "error_code": "VALIDATION_ERROR"
-                },
-                status_code=422
-            )
-        except Exception:
-            # 如果模板渲染失败，返回简单的错误信息
-            return error_handler.HTMLResponse(
-                content="<h1>422 验证错误</h1><p>请求参数验证失败</p>",
-                status_code=422
-            )
+# 统一注册全局异常处理器（集中管理，降低重复与维护成本）
+error_handler.register_error_handlers(app)
 
 # 为CSRF保护添加会话中间件
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)

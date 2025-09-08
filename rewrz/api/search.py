@@ -22,6 +22,7 @@ from ..crud import category as crud_category
 from ..crud import tag as crud_tag
 from ..crud import format as crud_format
 from ..crud import setting as crud_setting
+from ..core.template_context import build_base_template_context
 
 router = APIRouter()
 templates = get_templates()
@@ -83,11 +84,7 @@ async def search_page(
         "categories": categories,
         "tags": tags,
         "formats": formats,
-        "atmosphere_class": request.state.atmosphere_class,
-        "site_title": request.state.site_title,
-        "tagline": request.state.tagline,
-        "noindex_site": request.state.noindex_site,
-        "block_ai_crawlers": request.state.block_ai_crawlers,
+        **build_base_template_context(request),
     })
 
 @router.get("/api/search")

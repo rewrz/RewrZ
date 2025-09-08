@@ -17,6 +17,9 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 import os
 from starlette.exceptions import HTTPException as StarletteHTTPException
+# 新增导入：FastAPI 与 RequestValidationError
+from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -319,9 +322,68 @@ def get_localized_error_message(status_code: int) -> str:
     Returns:
         str: 本地化错误信息
     """
-    return ERROR_MESSAGES.get(status_code, "未知错误")
+    return ERROR_MESSAGES.get(status_code, "发生未知错误")
 
-
-# 导出常用的响应类，方便其他模块使用
+# 暴露响应类，保持对外接口兼容
 JSONResponse = JSONResponse
 HTMLResponse = HTMLResponse
+
+# 新增：统一注册异常处理器的便捷函数
+
+def register_error_handlers(app: FastAPI) -> None:
+    """
+    注册全局异常处理器（最小改动整合）。
+    - 404、HTTPException 与其它未捕获异常统一交由 global_exception_handler 处理
+    - 422 验证异常沿用原有逻辑（根据 Accept 头返回 JSON 或 HTML 模板）
+    """
+    
+    @app.exception_handler(404)
+    async def _not_found_exception_handler(request: Request, exc: HTTPException):
+        return await global_exception_handler(request, exc)
+
+    @app.exception_handler(Exception)
+    async def _global_exception_handler(request: Request, exc: Exception):
+        return await global_exception_handler(request, exc)
+
+    @app.exception_handler(HTTPException)
+    async def _http_exception_handler(request: Request, exc: HTTPException):
+        return await global_exception_handler(request, exc)
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_exception_handler(request: Request, exc: RequestValidationError):
+        # 记录验证错误日志
+        log_error(request, exc)
+        
+        # 根据Accept头判断返回JSON还是HTML
+        accept_header = request.headers.get("accept", "")
+        
+        if "application/json" in accept_header:
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "请求参数验证失败",
+                        "details": exc.errors()
+                    }
+                }
+            )
+        else:
+            # 尝试渲染422错误页面
+            try:
+                return templates.TemplateResponse(
+                    request,
+                    "errors/422.html",
+                    {
+                        "status_code": 422,
+                        "error_message": "请求参数验证失败",
+                        "error_code": "VALIDATION_ERROR"
+                    },
+                    status_code=422
+                )
+            except Exception:
+                # 如果模板渲染失败，返回简单的错误信息
+                return HTMLResponse(
+                    content="<h1>422 验证错误</h1><p>请求参数验证失败</p>",
+                    status_code=422
+                )
