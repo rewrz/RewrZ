@@ -11,6 +11,7 @@ from typing import List, Dict, Any, Optional
 import json
 import os
 from datetime import datetime
+from ..core.template_context import DEFAULT_HOMEPAGE_SETTINGS, DEFAULT_BASE_SETTINGS
 
 router = APIRouter()
 templates = get_templates()
@@ -26,8 +27,8 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         return default
 
     settings_data = {
-        "site_title": get_setting_value("site_title", "RewrZ"),
-        "tagline": get_setting_value("tagline", "A Personal Blog System"),
+        "site_title": get_setting_value("site_title", DEFAULT_BASE_SETTINGS["site_title"]),
+        "tagline": get_setting_value("tagline", DEFAULT_BASE_SETTINGS["tagline"]),
         "site_url": get_setting_value("site_url", str(request.base_url)),
         "admin_email": get_setting_value("admin_email", current_user.email),
         "site_logo_light": get_setting_value("site_logo_light", ""),
@@ -40,8 +41,8 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "social_links": get_setting_value("social_links", []),
         "anniversaries": get_setting_value("anniversaries", []),
         "sitemap_enabled": get_setting_value("sitemap_enabled", False),
-        "noindex_site": get_setting_value("noindex_site", False),
-        "block_ai_crawlers": get_setting_value("block_ai_crawlers", False),
+        "noindex_site": get_setting_value("noindex_site", DEFAULT_BASE_SETTINGS["noindex_site"]),
+        "block_ai_crawlers": get_setting_value("block_ai_crawlers", DEFAULT_BASE_SETTINGS["block_ai_crawlers"]),
         "rss_enabled": get_setting_value("rss_enabled", True),
         "rss_items_limit": get_setting_value("rss_items_limit", 20),
         "rss_cache_duration": get_setting_value("rss_cache_duration", 60),
@@ -59,11 +60,11 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "donation_style_theme": get_setting_value("donation_style_theme", 'elegant'),
         "donation_show_position": get_setting_value("donation_show_position", 'article_end'),
         # 主页个性化设置
-        "homepage_mode": get_setting_value("homepage_mode", "default"),
-        "homepage_background_image_url": get_setting_value("homepage_background_image_url", ""),
-        "homepage_background_video_url": get_setting_value("homepage_background_video_url", ""),
-        "homepage_background_music_url": get_setting_value("homepage_background_music_url", ""),
-        "homepage_music_autoplay": get_setting_value("homepage_music_autoplay", False),
+        "homepage_mode": get_setting_value("homepage_mode", DEFAULT_HOMEPAGE_SETTINGS["homepage_mode"]),
+        "homepage_background_image_url": get_setting_value("homepage_background_image_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_image_url"]),
+        "homepage_background_video_url": get_setting_value("homepage_background_video_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_video_url"]),
+        "homepage_background_music_url": get_setting_value("homepage_background_music_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_music_url"]),
+        "homepage_music_autoplay": get_setting_value("homepage_music_autoplay", DEFAULT_HOMEPAGE_SETTINGS["homepage_music_autoplay"]),
     }
     return settings_data
 
@@ -97,8 +98,8 @@ async def update_admin_settings(
     social_links_json: str = Form("[]"), # Expecting a JSON string for social links
     anniversaries_json: str = Form("[]"), # Expecting a JSON string for anniversaries
     sitemap_enabled: bool = Form(False),
-    noindex_site: bool = Form(False),
-    block_ai_crawlers: bool = Form(False),
+    noindex_site: bool = Form(DEFAULT_BASE_SETTINGS["noindex_site"]),
+    block_ai_crawlers: bool = Form(DEFAULT_BASE_SETTINGS["block_ai_crawlers"]),
     rss_enabled: bool = Form(False),
     rss_items_limit: int = Form(20),
     rss_cache_duration: int = Form(60),
@@ -117,11 +118,11 @@ async def update_admin_settings(
     donation_style_theme: str = Form('elegant'),
     donation_show_position: str = Form('article_end'),
     # 主页个性化设置相关参数
-    homepage_mode: str = Form("default"),
+    homepage_mode: str = Form(DEFAULT_HOMEPAGE_SETTINGS["homepage_mode"]),
     homepage_background_image_url: Optional[str] = Form(None),
     homepage_background_video_url: Optional[str] = Form(None),
     homepage_background_music_url: Optional[str] = Form(None),
-    homepage_music_autoplay: bool = Form(False),
+    homepage_music_autoplay: bool = Form(DEFAULT_HOMEPAGE_SETTINGS["homepage_music_autoplay"]),
     csrf_token: str = Form(...),
 ):
     from ..core.security import verify_csrf_token

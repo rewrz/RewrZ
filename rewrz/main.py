@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
 from .core.template_filters import get_templates  # 导入带过滤器的模板系统
-from .core.template_context import build_base_template_context
+from .core.template_context import build_base_template_context, HOMEPAGE_SETTING_KEYS, DEFAULT_HOMEPAGE_SETTINGS, DEFAULT_BASE_SETTINGS
 from .core.database import get_db, create_all_tables
 from .core.config import settings  # 导入settings实例
 from .schemas import UserCreate, User, PostCreate, PostUpdate
@@ -69,8 +69,8 @@ async def lifespan(app: FastAPI):
 
 # 只保留一个FastAPI实例定义，包含lifespan参数，完全关闭api接口防止滥用
 app = FastAPI(
-    title="RewrZ Blog System",
-    description="A Personal Blog System built with FastAPI, supporting multi-identity content system, dynamic themes, anti-spam comments, version snapshots, and more. Featuring HTMX + Tailwind CSS frontend stack.",
+    title=DEFAULT_BASE_SETTINGS["site_title"],
+    description=DEFAULT_BASE_SETTINGS["tagline"],
     version="1.0.0",
     docs_url=None,
     redoc_url=None,
@@ -127,6 +127,8 @@ def register_admin_routes():
         current_user: User = Depends(get_current_user),
         site_title: str = Form(...),
         tagline: str = Form(...),
+        noindex_site: bool = Form(DEFAULT_BASE_SETTINGS["noindex_site"]),
+        block_ai_crawlers: bool = Form(DEFAULT_BASE_SETTINGS["block_ai_crawlers"]),
         site_url: str = Form(...),
         admin_email: str = Form(...),
         site_logo_light: Optional[str] = Form(None),
@@ -139,8 +141,6 @@ def register_admin_routes():
         social_links_json: str = Form("[]"),
         anniversaries_json: str = Form("[]"),
         sitemap_enabled: bool = Form(False),
-        noindex_site: bool = Form(False),
-        block_ai_crawlers: bool = Form(False),
         rss_enabled: bool = Form(False),
         rss_items_limit: int = Form(20),
         rss_cache_duration: int = Form(60),
@@ -528,34 +528,22 @@ app.include_router(captcha_api.router)
 def _populate_global_request_state(request: Request) -> None:
     # 初始化全局上下文变量
     request.state.atmosphere_class = ""
-    request.state.site_title = "RewrZ"
-    request.state.tagline = "A Personal Blog System"
-    request.state.noindex_site = False
-    request.state.block_ai_crawlers = False
+    request.state.site_title = DEFAULT_BASE_SETTINGS["site_title"]
+    request.state.tagline = DEFAULT_BASE_SETTINGS["tagline"]
+    request.state.noindex_site = DEFAULT_BASE_SETTINGS["noindex_site"]
+    request.state.block_ai_crawlers = DEFAULT_BASE_SETTINGS["block_ai_crawlers"]
     request.state.admin_path = get_admin_path()  # 添加后台路径
     request.state.csrf_token = ""  # 初始化CSRF令牌
-    # 初始化主页个性化设置
-    request.state.homepage_mode = "default"
-    request.state.homepage_background_image_url = ""
-    request.state.homepage_background_video_url = ""
-    request.state.homepage_background_music_url = ""
-    request.state.homepage_music_autoplay = False
+    # 初始化主页个性化设置（集中默认值）
+    for k, v in DEFAULT_HOMEPAGE_SETTINGS.items():
+        setattr(request.state, k, v)
 
     db = next(get_db())
     try:
         # 获取并设置所有全局上下文
-        settings_keys = {
-            "site_title": "RewrZ",
-            "tagline": "A Personal Blog System",
-            "noindex_site": False,
-            "block_ai_crawlers": False,
-            # 主页个性化设置
-            "homepage_mode": "default",
-            "homepage_background_image_url": "",
-            "homepage_background_video_url": "",
-            "homepage_background_music_url": "",
-            "homepage_music_autoplay": False,
-        }
+        settings_keys = dict(DEFAULT_BASE_SETTINGS)
+        # 主页个性化设置
+        settings_keys.update(DEFAULT_HOMEPAGE_SETTINGS)
         all_settings = crud_setting.get_settings_by_keys(db, list(settings_keys.keys()))
         for key, default_value in settings_keys.items():
             setattr(request.state, key, all_settings.get(key, default_value))
@@ -671,16 +659,9 @@ async def favicon():
 
 
 def _load_homepage_settings_for_template(db: Session, request: Request) -> dict:
-    homepage_setting_keys = [
-        "homepage_mode",
-        "homepage_background_image_url",
-        "homepage_background_video_url",
-        "homepage_background_music_url",
-        "homepage_music_autoplay",
-    ]
-    homepage_settings = crud_setting.get_settings_by_keys(db, homepage_setting_keys)
+    homepage_settings = crud_setting.get_settings_by_keys(db, HOMEPAGE_SETTING_KEYS)
     settings_dict = {}
-    for key in homepage_setting_keys:
+    for key in HOMEPAGE_SETTING_KEYS:
         setting_obj = homepage_settings.get(key)
         if setting_obj and getattr(setting_obj, 'value', None) and 'value' in setting_obj.value:
             settings_dict[key] = setting_obj.value['value']

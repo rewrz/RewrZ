@@ -25,6 +25,7 @@ from ..crud import user as crud_user
 from ..models import Post, Category, Tag, Media
 from ..schemas import PostCreate, CategoryCreate, TagCreate
 import re
+from .template_context import DEFAULT_BASE_SETTINGS
 
 
 class DataExportManager:
@@ -58,10 +59,10 @@ class DataExportManager:
         site_title = crud_setting.get_setting(self.db, "site_title")
         tagline = crud_setting.get_setting(self.db, "tagline")
         site_url = crud_setting.get_setting(self.db, "site_url")
-        
+
         return {
-            "title": site_title.value.get("value") if site_title else "RewrZ Blog",
-            "tagline": tagline.value.get("value") if tagline else "A Personal Blog",
+            "title": site_title.value.get("value") if site_title else DEFAULT_BASE_SETTINGS["site_title"],
+            "tagline": tagline.value.get("value") if tagline else DEFAULT_BASE_SETTINGS["tagline"],
             "url": site_url.value.get("value") if site_url else "",
             "export_date": datetime.now().isoformat()
         }

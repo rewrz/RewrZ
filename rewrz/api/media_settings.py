@@ -18,6 +18,7 @@ from ..core.template_filters import get_templates
 from ..core.media_config import get_media_settings_schema
 from ..crud import setting as crud_setting
 from ..schemas import User, SettingCreate, SettingUpdate
+from ..core.template_context import DEFAULT_BASE_SETTINGS
 
 router = APIRouter()
 templates = get_templates()
@@ -82,7 +83,7 @@ async def update_media_settings(
     
     # 高级功能
     media_enable_watermark: bool = Form(False),
-    media_watermark_text: str = Form("RewrZ"),
+    media_watermark_text: str = Form(DEFAULT_BASE_SETTINGS["site_title"]),
     media_watermark_opacity: float = Form(0.5),
     
     # 其他设置

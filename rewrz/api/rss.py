@@ -21,6 +21,7 @@ from ..crud import tag as crud_tag
 from ..crud import format as crud_format
 from ..crud import setting as crud_setting
 from ..models import Post
+from ..core.template_context import DEFAULT_BASE_SETTINGS
 
 router = APIRouter()
 
@@ -215,8 +216,8 @@ def get_site_info(db: Session, request: Request) -> dict:
     admin_email_setting = crud_setting.get_setting(db, key="admin_email")
     rss_description_setting = crud_setting.get_setting(db, key="rss_description")
     
-    title = site_title_setting.value.get("value") if site_title_setting and site_title_setting.value else "RewrZ"
-    default_description = tagline_setting.value.get("value") if tagline_setting and tagline_setting.value else "A Personal Blog System"
+    title = site_title_setting.value.get("value") if site_title_setting and site_title_setting.value else DEFAULT_BASE_SETTINGS["site_title"]
+    default_description = tagline_setting.value.get("value") if tagline_setting and tagline_setting.value else DEFAULT_BASE_SETTINGS["tagline"]
     # 如果设置了自定义RSS描述，则使用自定义描述，否则使用站点标语
     description = rss_description_setting.value.get("value") if rss_description_setting and rss_description_setting.value and rss_description_setting.value.get("value") else default_description
     base_url = site_url_setting.value.get("value") if site_url_setting and site_url_setting.value else str(request.base_url).rstrip('/')
@@ -269,7 +270,7 @@ def generate_rss_xml(title: str, description: str, link: str, posts: List[Post],
         f'<atom:link href="{site_info["base_url"]}/feed.xml" rel="self" type="application/rss+xml" />',
         f'<managingEditor>{site_info["admin_email"]} ({title})</managingEditor>',
         f'<webMaster>{site_info["admin_email"]}</webMaster>',
-        '<generator>RewrZ Blog System</generator>',
++        f'<generator>{html.escape(DEFAULT_BASE_SETTINGS["site_title"])}</generator>',
     ]
     
     # 添加文章项
@@ -316,7 +317,7 @@ def generate_atom_xml(title: str, subtitle: str, link: str, posts: List[Post], s
         f'<name>{html.escape(title)}</name>',
         f'<email>{site_info["admin_email"]}</email>',
         '</author>',
-        '<generator>RewrZ Blog System</generator>',
++        f'<generator>{html.escape(DEFAULT_BASE_SETTINGS["site_title"])}</generator>',
     ]
     
     # 添加文章项

@@ -22,6 +22,7 @@ from ..crud import category as crud_category
 from ..crud import tag as crud_tag
 from ..crud import setting as crud_setting
 from ..schemas import User
+from ..core.template_context import DEFAULT_BASE_SETTINGS
 
 router = APIRouter()
 
@@ -92,10 +93,10 @@ async def generate_robots_txt(request: Request, db: Session = Depends(get_db)):
     block_ai_crawlers_setting = crud_setting.get_setting(db, key="block_ai_crawlers")
     site_url_setting = crud_setting.get_setting(db, key="site_url")
     
-    noindex_site = noindex_setting.value.get("value", False) if noindex_setting else False
-    block_ai_crawlers = block_ai_crawlers_setting.value.get("value", False) if block_ai_crawlers_setting else False
+    noindex_site = noindex_setting.value.get("value") if noindex_setting and noindex_setting.value else DEFAULT_BASE_SETTINGS["noindex_site"]
+    block_ai_crawlers = block_ai_crawlers_setting.value.get("value") if block_ai_crawlers_setting and block_ai_crawlers_setting.value else DEFAULT_BASE_SETTINGS["block_ai_crawlers"]
     base_url = site_url_setting.value.get("value") if site_url_setting else str(request.base_url).rstrip('/')
-    
+
     robots_content = []
     
     if noindex_site:
@@ -315,7 +316,7 @@ def _generate_structured_data(meta_data: Dict, base_url: str) -> Dict:
         },
         "publisher": {
             "@type": "Organization",
-            "name": "RewrZ",
+            "name": meta_data.get("site_name", DEFAULT_BASE_SETTINGS["site_title"]),
             "url": base_url
         }
     }
@@ -349,10 +350,10 @@ def _generate_website_structured_data(meta_data: Dict) -> Dict:
 
 def _generate_post_seo_data(db_post, request, db: Session) -> Dict:
     """
-    为文章详情页生成SEO数据的辅助函数
+    为文章生成SEO数据的辅助函数
     
     Args:
-        db_post: 文章对象
+        db_post: 数据库中的文章对象
         request: 请求对象
         db: 数据库会话
     
@@ -363,7 +364,7 @@ def _generate_post_seo_data(db_post, request, db: Session) -> Dict:
     site_title_setting = crud_setting.get_setting(db, key="site_title")
     site_url_setting = crud_setting.get_setting(db, key="site_url")
     
-    site_title = site_title_setting.value.get("value", "RewrZ") if site_title_setting else "RewrZ"
+    site_title = site_title_setting.value.get("value") if site_title_setting and site_title_setting.value else DEFAULT_BASE_SETTINGS["site_title"]
     base_url = site_url_setting.value.get("value") if site_url_setting else str(request.base_url).rstrip('/')
     
     post_url = urljoin(base_url, f"/posts/{db_post.slug}")
@@ -381,6 +382,8 @@ def _generate_post_seo_data(db_post, request, db: Session) -> Dict:
         "section": ", ".join([cat.name for cat in db_post.categories]) if db_post.categories else None,
         "tags": [tag.name for tag in db_post.tags] if db_post.tags else []
     }
+    # 为结构化数据提供站点名称，避免硬编码
+    meta_data["site_name"] = site_title
     
     # 生成标签和结构化数据
     open_graph = _generate_open_graph_tags(meta_data, site_title)
@@ -411,8 +414,8 @@ def _generate_homepage_seo_data(request, db: Session) -> Dict:
     site_url_setting = crud_setting.get_setting(db, key="site_url")
     site_logo_setting = crud_setting.get_setting(db, key="site_logo_light")
     
-    site_title = site_title_setting.value.get("value", "RewrZ") if site_title_setting else "RewrZ"
-    tagline = tagline_setting.value.get("value", "A Personal Blog System") if tagline_setting else "A Personal Blog System"
+    site_title = site_title_setting.value.get("value") if site_title_setting and site_title_setting.value else DEFAULT_BASE_SETTINGS["site_title"]
+    tagline = tagline_setting.value.get("value") if tagline_setting and tagline_setting.value else DEFAULT_BASE_SETTINGS["tagline"]
     base_url = site_url_setting.value.get("value") if site_url_setting else str(request.base_url).rstrip('/')
     site_logo = site_logo_setting.value.get("value") if site_logo_setting else None
     
@@ -423,6 +426,8 @@ def _generate_homepage_seo_data(request, db: Session) -> Dict:
         "image": site_logo,
         "type": "website"
     }
+    # 为结构化数据提供站点名称，避免硬编码
+    meta_data["site_name"] = site_title
     
     # 生成标签
     open_graph = _generate_open_graph_tags(meta_data, site_title)
