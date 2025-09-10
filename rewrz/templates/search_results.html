@@ -10,7 +10,7 @@
         
         <form method="GET" action="/search" class="space-y-4">
             <div class="flex space-x-4">
-                <div class="flex-1">
+                <div class="flex-1 relative">
                     <input type="text" 
                            name="q" 
                            value="{{ search_info.query }}" 
@@ -19,6 +19,10 @@
                            autocomplete="off"
                            id="search-input">
                     <div id="search-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg hidden"></div>
+                    <!-- 建议接口兜底提示 -->
+                    <div id="suggestion-error" class="absolute left-0 right-0 mt-2 text-sm text-red-600 hidden">
+                        无法获取搜索建议，请稍后重试。
+                    </div>
                 </div>
                 <button type="submit" 
                         class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500">
@@ -92,7 +96,7 @@
         <div class="flex justify-between items-center mb-6">
             <div>
                 <h2 class="text-xl font-semibold text-gray-800">
-                    搜索关键词: "<span class="text-indigo-600">{{ search_info.query }}</span>"
+                    搜索关键词: "<span class="text-indigo-600" id="query-text">{{ search_info.query }}</span>"
                 </h2>
                 <p class="text-gray-600 mt-1">
                     找到 {{ search_info.total_count }} 个结果
@@ -104,7 +108,7 @@
         </div>
         
         {% if results %}
-        <div class="space-y-6">
+        <div class="space-y-6" id="results-container">
             {% for post in results %}
             <div class="border-b border-gray-200 pb-6 last:border-b-0">
                 <div class="flex space-x-4">
@@ -116,10 +120,10 @@
                     
                     <div class="flex-1">
                         <h3 class="text-xl font-semibold text-gray-900 mb-2">
-                            <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
+                            <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600 result-title">{{ post.title }}</a>
                         </h3>
                         
-                        <p class="text-gray-700 mb-3">{{ post.excerpt or (post.content_html[:200] + '...' if post.content_html|length > 200 else post.content_html) }}</p>
+                        <p class="text-gray-700 mb-3 result-excerpt">{{ post.excerpt or (post.content_html[:200] + '...' if post.content_html|length > 200 else post.content_html) }}</p>
                         
                         <div class="flex items-center space-x-4 text-sm text-gray-500">
                             <span>
@@ -158,7 +162,7 @@
         <!-- 分页 -->
         {% if search_info.total_pages > 1 %}
         <div class="mt-8 flex justify-center">
-            <div class="flex space-x-2">
+            <div class="flex space-x-2" id="pagination">
                 {% if search_info.page > 1 %}
                 <a href="?q={{ search_info.query }}&category={{ search_info.category or '' }}&tag={{ search_info.tag or '' }}&format={{ search_info.format or '' }}&sort={{ search_info.sort }}&page={{ search_info.page - 1 }}" 
                    class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
@@ -219,6 +223,7 @@
 // 搜索建议功能
 const searchInput = document.getElementById('search-input');
 const suggestionsContainer = document.getElementById('search-suggestions');
+const suggestionError = document.getElementById('suggestion-error');
 let suggestionsTimeout;
 
 searchInput.addEventListener('input', function() {
@@ -230,6 +235,7 @@ searchInput.addEventListener('input', function() {
     
     if (query.length < 2) {
         hideSuggestions();
+        hideSuggestionError();
         return;
     }
     
@@ -246,10 +252,16 @@ searchInput.addEventListener('blur', function() {
 async function fetchSuggestions(query) {
     try {
         const response = await fetch(`/api/search/suggestions?q=${encodeURIComponent(query)}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
         const data = await response.json();
-        showSuggestions(data.suggestions);
+        showSuggestions(data.suggestions || []);
+        hideSuggestionError();
     } catch (error) {
         console.error('获取搜索建议失败:', error);
+        showSuggestionError('无法获取搜索建议，请稍后重试。');
+        hideSuggestions();
     }
 }
 
@@ -263,7 +275,7 @@ function showSuggestions(suggestions) {
         <div class="p-3 hover:bg-gray-50 cursor-pointer suggestion-item" data-url="${suggestion.url}">
             <div class="flex items-center">
                 <i class="fas fa-${getIcon(suggestion.type)} text-gray-400 mr-2"></i>
-                <span>${suggestion.title}</span>
+                <span>${escapeHtml(suggestion.title)}</span>
             </div>
         </div>
     `).join('');
@@ -290,6 +302,71 @@ function getIcon(type) {
         case 'tag': return 'tag';
         default: return 'search';
     }
+}
+
+function showSuggestionError(message) {
+    suggestionError.textContent = message || '无法获取搜索建议，请稍后重试。';
+    suggestionError.classList.remove('hidden');
+}
+
+function hideSuggestionError() {
+    suggestionError.classList.add('hidden');
+}
+
+// 关键词高亮：支持空格/中文分词（与后端一致的简单规则）
+(function highlightResults(){
+    const queryTextEl = document.getElementById('query-text');
+    if (!queryTextEl) return;
+    const q = queryTextEl.textContent || '';
+    if (!q.trim()) return;
+    const tokens = q.match(/[\u4e00-\u9fff]+|[A-Za-z0-9]+/g) || [q];
+    const unique = [];
+    tokens.forEach(t => { if (!unique.includes(t)) unique.push(t); });
+    if (unique.length === 0) unique.push(q);
+
+    const wrapHighlight = (el) => {
+        let html = el.innerHTML;
+        unique.forEach(tok => {
+            const esc = tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const re = new RegExp(`(${esc})`, 'gi');
+            html = html.replace(re, '<mark class="bg-yellow-200 px-1 rounded">$1</mark>');
+        });
+        el.innerHTML = html;
+    };
+
+    document.querySelectorAll('.result-title').forEach(wrapHighlight);
+    document.querySelectorAll('.result-excerpt').forEach(wrapHighlight);
+})();
+
+// 分页URL可读性优化：使用 URLSearchParams 维护参数
+(function enhancePagination(){
+    const container = document.getElementById('pagination');
+    if (!container) return;
+    const currentParams = new URLSearchParams(window.location.search);
+    container.querySelectorAll('a[href*="page="]').forEach(a => {
+        const url = new URL(a.href, window.location.origin);
+        const targetPage = url.searchParams.get('page');
+        const newParams = new URLSearchParams(currentParams);
+        newParams.set('page', targetPage || '1');
+        // 规范化：移除空参数
+        ['category','tag','format'].forEach(k => { if (!newParams.get(k)) newParams.delete(k); });
+        // 标准化排序值
+        if (!newParams.get('sort')) newParams.set('sort', 'relevance');
+        // 使用直观的顺序构建查询串
+        const ordered = new URLSearchParams();
+        ['q','category','tag','format','sort','page'].forEach(k => { if (newParams.has(k)) ordered.set(k, newParams.get(k)); });
+        a.href = `/search?${ordered.toString()}`;
+    });
+})();
+
+// 简单的HTML转义，避免建议标题插入风险
+function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
 }
 </script>
 

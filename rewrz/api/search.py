@@ -15,6 +15,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func, desc, case
+# 新增：引入正则用于分词
+import re
 from ..core.database import get_db
 from ..core.template_filters import get_templates
 from ..crud import post as crud_post
@@ -79,13 +81,11 @@ async def search_page(
     formats = crud_format.get_formats(db)
     # 准备设置上下文 (包含主页个性化设置，供 base.html 使用)
     homepage_settings = crud_setting.get_settings_by_keys(db, HOMEPAGE_SETTING_KEYS)
-    settings_dict = {}
-    for key in HOMEPAGE_SETTING_KEYS:
-        setting_obj = homepage_settings.get(key)
-        if setting_obj and getattr(setting_obj, 'value', None) and 'value' in setting_obj.value:
-            settings_dict[key] = setting_obj.value['value']
-        else:
-            settings_dict[key] = getattr(request.state, key, "")
+    # 该方法已返回 {key: value} 的映射，因此直接与 request.state 的默认值合并
+    settings_dict = {
+        key: homepage_settings.get(key, getattr(request.state, key, ""))
+        for key in HOMEPAGE_SETTING_KEYS
+    }
     
     return templates.TemplateResponse("search_results.html", {
         "request": request,
@@ -244,16 +244,27 @@ def perform_search(
     # 构建基础查询
     base_query = db.query(Post).filter(Post.status == "published")
     
-    # 添加搜索条件
-    search_conditions = []
+    # 多关键词分词（支持空格与中文连续字符），示例："python 入门 教程" 或 "中文分词测试"
+    tokens: List[str] = re.findall(r"[\u4e00-\u9fff]+|[A-Za-z0-9]+", query)
+    # 去重但保持顺序
+    seen = set()
+    tokens = [t for t in tokens if not (t in seen or seen.add(t))]
+    # 若分词为空，则退回整体查询
+    if not tokens:
+        tokens = [query]
     
-    # 搜索标题、内容、摘要
-    search_conditions.append(Post.title.ilike(f"%{query}%"))
-    search_conditions.append(Post.content_html.ilike(f"%{query}%"))
-    search_conditions.append(Post.excerpt.ilike(f"%{query}%"))
-    
-    # 应用搜索条件
-    base_query = base_query.filter(or_(*search_conditions))
+    # 组合搜索条件：要求每个token在任意字段匹配（AND语义），字段包括：标题、摘要、正文
+    token_conditions = []
+    for tok in tokens:
+        like = f"%{tok}%"
+        token_conditions.append(
+            or_(
+                Post.title.ilike(like),
+                Post.excerpt.ilike(like),
+                Post.content_html.ilike(like)
+            )
+        )
+    base_query = base_query.filter(and_(*token_conditions))
     
     # 分类筛选
     if category_slug:
@@ -278,16 +289,19 @@ def perform_search(
         base_query = base_query.order_by(desc(Post.published_at))
     elif sort == "title":
         base_query = base_query.order_by(Post.title)
-    else:  # relevance
-        # 简单的相关性排序：标题匹配权重更高
-        base_query = base_query.order_by(
-            # 标题完全匹配
-            case(
-                (Post.title.ilike(f"%{query}%"), 1),
-                else_=2
-            ),
-            desc(Post.published_at)
-        )
+    else:  # relevance 加权：标题 > 摘要 > 正文
+        score_expr = None
+        TITLE_W, EXCERPT_W, CONTENT_W = 3, 2, 1
+        for tok in tokens:
+            like = f"%{tok}%"
+            part = (
+                case((Post.title.ilike(like), TITLE_W), else_=0) +
+                case((Post.excerpt.ilike(like), EXCERPT_W), else_=0) +
+                case((Post.content_html.ilike(like), CONTENT_W), else_=0)
+            )
+            score_expr = part if score_expr is None else (score_expr + part)
+        # 降序按分数、其次按发布时间
+        base_query = base_query.order_by(desc(score_expr), desc(Post.published_at))
     
     # 计算总数
     total_count = base_query.count()
