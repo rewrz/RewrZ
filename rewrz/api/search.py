@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_, func, desc
+from sqlalchemy import or_, and_, func, desc, case
 from ..core.database import get_db
 from ..core.template_filters import get_templates
 from ..crud import post as crud_post
@@ -22,7 +22,8 @@ from ..crud import category as crud_category
 from ..crud import tag as crud_tag
 from ..crud import format as crud_format
 from ..crud import setting as crud_setting
-from ..core.template_context import build_base_template_context
+from ..core.template_context import build_base_template_context, HOMEPAGE_SETTING_KEYS
+from ..models import Post, Category, Tag
 
 router = APIRouter()
 templates = get_templates()
@@ -76,6 +77,15 @@ async def search_page(
     categories = crud_category.get_categories(db)
     tags = crud_tag.get_tags(db)
     formats = crud_format.get_formats(db)
+    # 准备设置上下文 (包含主页个性化设置，供 base.html 使用)
+    homepage_settings = crud_setting.get_settings_by_keys(db, HOMEPAGE_SETTING_KEYS)
+    settings_dict = {}
+    for key in HOMEPAGE_SETTING_KEYS:
+        setting_obj = homepage_settings.get(key)
+        if setting_obj and getattr(setting_obj, 'value', None) and 'value' in setting_obj.value:
+            settings_dict[key] = setting_obj.value['value']
+        else:
+            settings_dict[key] = getattr(request.state, key, "")
     
     return templates.TemplateResponse("search_results.html", {
         "request": request,
@@ -84,6 +94,7 @@ async def search_page(
         "categories": categories,
         "tags": tags,
         "formats": formats,
+        "settings": settings_dict,
         **build_base_template_context(request),
     })
 
@@ -271,7 +282,7 @@ def perform_search(
         # 简单的相关性排序：标题匹配权重更高
         base_query = base_query.order_by(
             # 标题完全匹配
-            func.case(
+            case(
                 (Post.title.ilike(f"%{query}%"), 1),
                 else_=2
             ),
