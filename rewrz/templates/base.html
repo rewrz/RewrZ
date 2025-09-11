@@ -4,11 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ site_title }}{% if tagline %} - {{ tagline }}{% endif %}{% endblock %}</title>
+    {# 动态 favicon：优先使用设置中的 favicon，其次回退到默认静态文件 #}
+    {% if favicon %}
+    <link rel="icon" href="{{ favicon }}">
+    {% else %}
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    {% endif %}
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <!-- SEO Meta Tags -->
-    <meta name="description" content="{% block meta_description %}{{ tagline if tagline else site_title }}{% endblock %}">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+     <!-- SEO Meta Tags -->
+     <meta name="description" content="{% block meta_description %}{{ tagline if tagline else site_title }}{% endblock %}">
     <meta property="og:title" content="{% block og_title %}{{ title if title else site_title }}{% endblock %}">
     <meta property="og:description" content="{% block og_description %}{{ tagline if tagline else site_title }}{% endblock %}">
     <meta property="og:type" content="website">
@@ -510,7 +517,13 @@
     </script>
     <header class="bg-card-bg shadow-sm">
         <div class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <a href="/" class="text-2xl font-bold text-primary">RewrZ</a>
+            <a href="/" class="flex items-center space-x-3 group">
+            {% set logo_src = site_logo_light if site_logo_light else (site_logo_dark if site_logo_dark else '') %}
+            {% if logo_src %}
+            <img src="{{ logo_src }}" alt="{{ site_title }}" class="h-8 w-auto object-contain transition-transform duration-200 group-hover:scale-105" loading="eager">
+            {% endif %}
+            <span class="text-2xl font-bold text-primary">{{ site_title }}</span>
+            </a>
             <nav class="space-x-4 flex items-center">
                 <a href="/" class="text-text-light hover:text-primary">首页</a>
                 <a href="/archives" class="text-text-light hover:text-primary">归档</a>
@@ -623,32 +636,66 @@
     <footer class="bg-card-bg mt-12 py-6 border-t border-border">
         <div class="container mx-auto px-6">
             <div class="flex flex-col md:flex-row justify-between items-center">
-                <div class="text-center md:text-left text-text-light mb-4 md:mb-0">
-                    <p>&copy; <span id="current-year">2025</span> RewrZ. All rights reserved.</p>
-                    <p class="text-sm mt-1">Powered by FastAPI, HTMX, and Tailwind CSS.</p>
+                <div class="text-center md:text-left text-text-light mb-4 md:mb-0 space-y-1">
+                    {% if copyright_info %}
+                        <p class="text-sm">{{ copyright_info | safe }}</p>
+                    {% else %}
+                        <p class="text-sm">&copy; <span id="current-year">2025</span> {{ site_title }}. All rights reserved.</p>
+                    {% endif %}
+                    {% if custom_footer_text %}
+                        <p class="text-sm">{{ custom_footer_text | safe }}</p>
+                    {% endif %}
+                    {% if icp_beian or gongan_beian %}
+                        <p class="text-xs">
+                            {% if icp_beian %}
+                                <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" class="hover:text-primary">{{ icp_beian }}</a>
+                            {% endif %}
+                            {% if gongan_beian %}
+                                <span class="ml-2">{{ gongan_beian }}</span>
+                            {% endif %}
+                        </p>
+                    {% endif %}
                 </div>
                 <div class="flex items-center space-x-4">
-                    <a href="/feed.xml" class="text-text-light hover:text-primary" title="RSS订阅">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M3.429 2.429c0.377 0 0.682 0.305 0.682 0.682s-0.305 0.682-0.682 0.682-0.682-0.305-0.682-0.682 0.305-0.682 0.682-0.682zM3.429 1.714c-0.754 0-1.365 0.611-1.365 1.365s0.611 1.365 1.365 1.365 1.365-0.611 1.365-1.365-0.611-1.365-1.365-1.365z"></path>
-                            <path d="M1.714 6.857c0-0.946 0.768-1.714 1.714-1.714s1.714 0.768 1.714 1.714-0.768 1.714-1.714 1.714-1.714-0.768-1.714-1.714zM3.429 5.857c-0.553 0-1 0.447-1 1s0.447 1 1 1 1-0.447 1-1-0.447-1-1-1z"></path>
-                            <path d="M1.714 14.857c6.446 0 11.714-5.268 11.714-11.714h-1.714c0 5.522-4.478 10-10 10v1.714z"></path>
-                            <path d="M1.714 10.857c2.946 0 5.714-2.768 5.714-5.714h-1.714c0 2.054-1.946 4-4 4v1.714z"></path>
-                        </svg>
-                    </a>
-                    <a href="/atom.xml" class="text-text-light hover:text-primary" title="Atom订阅">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M4 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zM4 7a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 4 7zm0 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"></path>
-                        </svg>
-                    </a>
+                    {% if social_links and social_links | length > 0 %}
+                        {% for link in social_links %}
+                            <a href="{{ link.url }}" class="text-text-light hover:text-primary" target="_blank" rel="noopener" title="{{ link.url }}">
+                                {% if link.icon %}
+                                    <i class="{{ link.icon }} text-lg"></i>
+                                {% else %}
+                                    <i class="fas fa-link text-lg"></i>
+                                {% endif %}
+                            </a>
+                        {% endfor %}
+                        <span class="w-px h-5 bg-border mx-2 hidden md:inline-block"></span>
+                    {% endif %}
+                    {% if rss_enabled %}
+                        <a href="/feed.xml" class="text-text-light hover:text-primary" title="RSS订阅">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M3.429 2.429c0.377 0 0.682 0.305 0.682 0.682s-0.305 0.682-0.682 0.682-0.682-0.305-0.682-0.682 0.305-0.682 0.682-0.682zM3.429 1.714c-0.754 0-1.365 0.611-1.365 1.365s0.611 1.365 1.365 1.365 1.365-0.611 1.365-1.365-0.611-1.365-1.365-1.365z"></path>
+                                <path d="M1.714 6.857c0-0.946 0.768-1.714 1.714-1.714s1.714 0.768 1.714 1.714-0.768 1.714-1.714 1.714-1.714-0.768-1.714-1.714zM3.429 5.857c-0.553 0-1 0.447-1 1s0.447 1 1 1 1-0.447 1-1-0.447-1-1-1z"></path>
+                                <path d="M1.714 14.857c6.446 0 11.714-5.268 11.714-11.714h-1.714c0 5.522-4.478 10-10 10v1.714z"></path>
+                                <path d="M1.714 10.857c2.946 0 5.714-2.768 5.714-5.714h-1.714c0 2.054-1.946 4-4 4v1.714z"></path>
+                            </svg>
+                        </a>
+                        <a href="/atom.xml" class="text-text-light hover:text-primary" title="Atom订阅">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M4 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zM4 7a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 4 7zm0 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"></path>
+                            </svg>
+                        </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </footer>
     <script>
-        // 获取当前年份并设置到id为current-year的元素中
-        var currentYear = new Date().getFullYear();
-        document.getElementById('current-year').textContent = currentYear;
-    </script>
-</body>
-</html>
+         // 获取当前年份并设置到id为current-year的元素中（元素存在时）
+         (function() {
+             var el = document.getElementById('current-year');
+             if (el) {
+                 el.textContent = new Date().getFullYear();
+             }
+         })();
+     </script>
+ </body>
+ </html>

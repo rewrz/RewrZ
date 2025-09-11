@@ -662,9 +662,9 @@ def _load_homepage_settings_for_template(db: Session, request: Request) -> dict:
     homepage_settings = crud_setting.get_settings_by_keys(db, HOMEPAGE_SETTING_KEYS)
     settings_dict = {}
     for key in HOMEPAGE_SETTING_KEYS:
-        setting_obj = homepage_settings.get(key)
-        if setting_obj and getattr(setting_obj, 'value', None) and 'value' in setting_obj.value:
-            settings_dict[key] = setting_obj.value['value']
+        if key in homepage_settings and homepage_settings.get(key) is not None:
+            # 直接使用批量查询返回的值
+            settings_dict[key] = homepage_settings[key]
         else:
             # 回退到 request.state 中的默认值（已由 _populate_global_request_state 设置）
             settings_dict[key] = getattr(request.state, key, "")

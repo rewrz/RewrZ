@@ -1,6 +1,13 @@
 <aside class="w-64 bg-gray-900 text-white min-h-screen p-4">
-    <div class="mb-8">
-        <h2 class="text-2xl font-bold">RewrZ 后台管理</h2>
+    <div class="mb-8 flex items-center space-x-3">
+        <a href="{{ request.state.admin_path }}/dashboard" class="flex items-center space-x-3">
+            {% if request.state.site_logo_light %}
+                <img src="{{ request.state.site_logo_light }}" alt="{{ request.state.site_title or '后台' }}" class="h-8 w-auto object-contain">
+            {% elif request.state.site_logo_dark %}
+                <img src="{{ request.state.site_logo_dark }}" alt="{{ request.state.site_title or '后台' }}" class="h-8 w-auto object-contain">
+            {% endif %}
+            <span class="text-2xl font-bold truncate">{{ request.state.site_title or 'RewrZ 后台管理' }}</span>
+        </a>
     </div>
     <nav>
         <a href="{{ request.state.admin_path }}/dashboard" class="flex items-center px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">

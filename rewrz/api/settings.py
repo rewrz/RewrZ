@@ -12,6 +12,7 @@ import json
 import os
 from datetime import datetime
 from ..core.template_context import DEFAULT_HOMEPAGE_SETTINGS, DEFAULT_BASE_SETTINGS
+import bleach
 
 router = APIRouter()
 templates = get_templates()
@@ -133,6 +134,26 @@ async def update_admin_settings(
         anniversaries = json.loads(anniversaries_json)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON format for social links or anniversaries.")
+
+    # Sanitize custom footer HTML to prevent XSS while allowing basic formatting and links
+    if custom_footer_text:
+        allowed_tags = [
+            'a', 'strong', 'em', 'code', 'br', 'span', 'p', 'ul', 'ol', 'li', 'small', 'i', 'b', 'u'
+        ]
+        allowed_attributes = {
+            'a': ['href', 'title', 'target', 'rel'],
+            'span': ['class'],
+            'p': ['class'],
+            'i': ['class']
+        }
+        custom_footer_text = bleach.clean(
+            custom_footer_text,
+            tags=allowed_tags,
+            attributes=allowed_attributes,
+            strip=True
+        )
+    else:
+        custom_footer_text = ''
 
     settings_to_update = {
         "site_title": site_title,
