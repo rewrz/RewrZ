@@ -1,0 +1,558 @@
+/* ==========================================================================
+   性能优化系统
+   高端极简主义设计 + 二次元科技感
+   ========================================================================== */
+
+/* ==========================================================================
+   硬件加速和GPU优化
+   ========================================================================== */
+
+/* 强制GPU加速的元素 */
+.gpu-accelerated,
+.parallax-layer,
+.timeline-item,
+.hero-content,
+.post-image,
+.reading-progress-bar {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* 动画性能优化 */
+.animate-optimized {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+/* 滚动性能优化 */
+.scroll-optimized {
+  transform: translateZ(0);
+  will-change: transform;
+  contain: layout style paint;
+}
+
+/* ==========================================================================
+   60fps 动画系统
+   ========================================================================== */
+
+/* 基础动画性能优化 */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 30px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fadeInDown {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -30px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes slideInLeft {
+  0% {
+    opacity: 0;
+    transform: translate3d(-30px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes slideInRight {
+  0% {
+    opacity: 0;
+    transform: translate3d(30px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes scaleIn {
+  0% {
+    opacity: 0;
+    transform: scale3d(0.8, 0.8, 1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale3d(1, 1, 1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale3d(1, 1, 1);
+  }
+  50% {
+    transform: scale3d(1.05, 1.05, 1);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px var(--color-primary-alpha-20);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--color-primary-alpha-40), 0 0 30px var(--color-primary-alpha-20);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+/* 高性能动画类 */
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* 动画延迟类 */
+.animate-delay-100 { animation-delay: 0.1s; }
+.animate-delay-200 { animation-delay: 0.2s; }
+.animate-delay-300 { animation-delay: 0.3s; }
+.animate-delay-400 { animation-delay: 0.4s; }
+.animate-delay-500 { animation-delay: 0.5s; }
+
+/* ==========================================================================
+   懒加载优化
+   ========================================================================== */
+
+/* 图片懒加载占位符 */
+.lazy-image {
+  background: linear-gradient(90deg, 
+    var(--color-surface) 25%, 
+    var(--color-border-primary) 50%, 
+    var(--color-surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  min-height: 200px;
+  border-radius: var(--radius-lg);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* 图片加载完成状态 */
+.lazy-image.loaded {
+  animation: none;
+  background: none;
+}
+
+/* 图片淡入效果 */
+.lazy-image img {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.lazy-image.loaded img {
+  opacity: 1;
+}
+
+/* 内容懒加载 */
+.lazy-content {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.lazy-content.loaded {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ==========================================================================
+   滚动性能优化
+   ========================================================================== */
+
+/* 滚动容器优化 */
+.scroll-container {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  contain: layout style paint;
+}
+
+/* 虚拟滚动优化 */
+.virtual-scroll {
+  height: 100%;
+  overflow: auto;
+  contain: strict;
+}
+
+.virtual-scroll-item {
+  contain: layout style paint;
+  will-change: transform;
+}
+
+/* 滚动指示器 */
+.scroll-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--color-surface);
+  z-index: var(--z-fixed);
+  pointer-events: none;
+}
+
+.scroll-indicator-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+  width: 0%;
+  transition: width 0.1s ease;
+  will-change: width;
+}
+
+/* ==========================================================================
+   资源加载优化
+   ========================================================================== */
+
+/* 关键资源预加载 */
+.preload-critical {
+  font-display: swap;
+}
+
+/* 字体加载优化 */
+@font-face {
+  font-family: 'Orbitron';
+  font-display: swap;
+  src: url('/static/fonts/orbitron.woff2') format('woff2');
+}
+
+/* 图片预加载提示 */
+.preload-image {
+  content-visibility: auto;
+  contain-intrinsic-size: 300px 200px;
+}
+
+/* 代码分割加载状态 */
+.loading-chunk {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-primary);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--color-border-primary);
+  border-top: 3px solid var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   内存优化
+   ========================================================================== */
+
+/* 内容可见性优化 */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* 大型列表优化 */
+.large-list {
+  contain: layout style paint;
+}
+
+.large-list-item {
+  contain: layout style paint;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 100px;
+}
+
+/* ==========================================================================
+   交互性能优化
+   ========================================================================== */
+
+/* 触摸优化 */
+.touch-optimized {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* 按钮交互优化 */
+.btn-optimized {
+  transform: translateZ(0);
+  will-change: transform;
+  transition: transform 0.15s ease;
+}
+
+.btn-optimized:active {
+  transform: translateZ(0) scale(0.98);
+}
+
+/* 悬停效果优化 */
+.hover-optimized {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  will-change: transform, box-shadow;
+}
+
+.hover-optimized:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ==========================================================================
+   渲染性能优化
+   ========================================================================== */
+
+/* 复合层优化 */
+.composite-layer {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  isolation: isolate;
+}
+
+/* 重绘优化 */
+.no-repaint {
+  contain: layout style paint;
+  will-change: transform;
+}
+
+/* 布局抖动防护 */
+.layout-stable {
+  min-height: 1px;
+  contain: layout;
+}
+
+/* ==========================================================================
+   网络性能优化
+   ========================================================================== */
+
+/* 图片优化 */
+.optimized-image {
+  max-width: 100%;
+  height: auto;
+  loading: lazy;
+  decoding: async;
+}
+
+/* 视频优化 */
+.optimized-video {
+  max-width: 100%;
+  height: auto;
+  preload: metadata;
+}
+
+/* ==========================================================================
+   移动端性能优化
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /* 移动端动画简化 */
+  .mobile-simple-animation {
+    animation: none !important;
+    transition: opacity 0.3s ease !important;
+  }
+  
+  /* 移动端视差禁用 */
+  .parallax-layer {
+    transform: none !important;
+    will-change: auto;
+  }
+  
+  /* 移动端图片优化 */
+  .mobile-optimized-image {
+    max-width: 100%;
+    height: auto;
+    object-fit: cover;
+  }
+}
+
+/* ==========================================================================
+   低端设备优化
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  /* 减少动画 */
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .parallax-layer {
+    transform: none !important;
+  }
+}
+
+/* 低性能设备检测 */
+@media (max-width: 768px) and (max-height: 1024px) {
+  .performance-heavy {
+    display: none;
+  }
+  
+  .performance-light {
+    display: block;
+  }
+}
+
+/* ==========================================================================
+   调试和监控
+   ========================================================================== */
+
+/* 性能监控标记 */
+.perf-mark {
+  position: relative;
+}
+
+.perf-mark::after {
+  content: attr(data-perf);
+  position: absolute;
+  top: -20px;
+  left: 0;
+  font-size: 10px;
+  color: var(--color-warning);
+  background: var(--color-surface);
+  padding: 2px 4px;
+  border-radius: 2px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.debug-mode .perf-mark::after {
+  opacity: 1;
+}
+
+/* FPS 监控 */
+.fps-monitor {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-family: monospace;
+  font-size: 12px;
+  z-index: 9999;
+  display: none;
+}
+
+.debug-mode .fps-monitor {
+  display: block;
+}
+
+/* ==========================================================================
+   实用工具类
+   ========================================================================== */
+
+/* 性能优先级 */
+.priority-high {
+  will-change: transform, opacity;
+  contain: layout style paint;
+}
+
+.priority-medium {
+  contain: layout style;
+}
+
+.priority-low {
+  contain: layout;
+}
+
+/* 渲染优化 */
+.render-optimized {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* 内存友好 */
+.memory-friendly {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 200px;
+}
+
+/* 带宽友好 */
+.bandwidth-friendly img {
+  loading: lazy;
+  decoding: async;
+}
+
+.bandwidth-friendly video {
+  preload: none;
+}
+
+/* 电池友好 */
+.battery-friendly {
+  will-change: auto;
+}
+
+.battery-friendly * {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .battery-friendly * {
+    animation-play-state: running;
+  }
+}

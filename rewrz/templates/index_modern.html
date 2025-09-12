@@ -1,0 +1,493 @@
+{% extends "base.html" %}
+
+{% block title %}{{ site_title }} - {{ tagline }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+{% if seo_data %}
+    <!-- Dynamic SEO Meta Tags -->
+    {% include "components/seo_meta.html" %}
+{% endif %}
+<link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css">
+<style>
+    /* 现代化时间轴动画 */
+    .timeline-item {
+        opacity: 0;
+        transform: translateY(30px);
+        transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .timeline-item.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    
+    .timeline-item:nth-child(even) {
+        transform: translateX(50px);
+    }
+    
+    .timeline-item:nth-child(odd) {
+        transform: translateX(-50px);
+    }
+    
+    .timeline-item.is-visible:nth-child(even),
+    .timeline-item.is-visible:nth-child(odd) {
+        transform: translateX(0);
+    }
+
+    /* 粒子背景动画 */
+    @keyframes particle-float {
+        0%, 100% { 
+            transform: translateY(0px) rotate(0deg); 
+            opacity: 0.3;
+        }
+        50% { 
+            transform: translateY(-20px) rotate(180deg); 
+            opacity: 0.8;
+        }
+    }
+    
+    .particle {
+        animation: particle-float 6s ease-in-out infinite;
+    }
+    
+    /* 英雄区域渐变动画 */
+    @keyframes gradient-shift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    .hero-gradient {
+        background: linear-gradient(-45deg, var(--color-primary), var(--color-primary-light), var(--color-accent), var(--color-primary-dark));
+        background-size: 400% 400%;
+        animation: gradient-shift 15s ease infinite;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{# 确保 settings 变量存在并提供默认值 #}
+{% set settings = settings or {} %}
+{% set homepage_mode = settings.get('homepage_mode', 'default') %}
+
+{# 现代化导航栏 #}
+<nav class="modern-navbar">
+    <div class="navbar-container">
+        <a href="/" class="navbar-brand">
+            {% if site_logo_light %}
+                <img src="{{ site_logo_light }}" alt="{{ site_title }}" class="h-8 mr-3 dark:hidden">
+            {% endif %}
+            {% if site_logo_dark %}
+                <img src="{{ site_logo_dark }}" alt="{{ site_title }}" class="h-8 mr-3 hidden dark:block">
+            {% endif %}
+            <span class="text-gradient">{{ site_title }}</span>
+        </a>
+        
+        <div class="navbar-nav">
+            <a href="/archives" class="nav-link">归档</a>
+            <a href="/categories" class="nav-link">分类</a>
+            <a href="/tags" class="nav-link">标签</a>
+            <a href="/about" class="nav-link">关于</a>
+        </div>
+    </div>
+</nav>
+
+{# 全屏模式处理 #}
+{% if homepage_mode == 'fullscreen_gallery' %}
+<div class="relative h-screen w-full overflow-hidden">
+    <!-- 背景轮播 -->
+    <div class="absolute inset-0 z-0">
+        <div id="fullscreen-gallery-swiper" class="swiper h-full w-full">
+            <div class="swiper-wrapper">
+                {% if settings.homepage_background_image_url %}
+                    {% set images = settings.homepage_background_image_url.split('\n') %}
+                    {% for image_url in images %}
+                        {% if image_url.strip() %}
+                        <div class="swiper-slide">
+                            <img src="{{ image_url.strip() }}" alt="Background Image" class="w-full h-full object-cover">
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+            <div class="swiper-pagination"></div>
+            <div class="swiper-button-prev"></div>
+            <div class="swiper-button-next"></div>
+        </div>
+    </div>
+    
+    <!-- 覆盖内容 -->
+    <div class="relative z-10 hero-section">
+        <div class="hero-content glass-effect">
+            <h1 class="hero-title">{{ site_title }}</h1>
+            {% if tagline %}<p class="hero-subtitle">{{ tagline }}</p>{% endif %}
+            <div class="hero-actions">
+                <a href="/archives" class="hero-button primary">探索内容</a>
+                <a href="/about" class="hero-button secondary">了解更多</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% elif homepage_mode == 'fullscreen_video' %}
+<div class="relative h-screen w-full overflow-hidden">
+    <!-- 背景视频 -->
+    <div class="absolute inset-0 z-0">
+        {% if settings.homepage_background_video_url %}
+        <video autoplay muted loop playsinline class="w-full h-full object-cover">
+            <source src="{{ settings.homepage_background_video_url }}" type="video/mp4">
+            您的浏览器不支持视频播放。
+        </video>
+        {% endif %}
+    </div>
+    
+    <!-- 覆盖内容 -->
+    <div class="relative z-10 hero-section">
+        <div class="hero-content glass-effect">
+            <h1 class="hero-title">{{ site_title }}</h1>
+            {% if tagline %}<p class="hero-subtitle">{{ tagline }}</p>{% endif %}
+            <div class="hero-actions">
+                <a href="/archives" class="hero-button primary">探索内容</a>
+                <a href="/about" class="hero-button secondary">了解更多</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+{# 默认英雄区域 #}
+<div class="hero-section hero-gradient">
+    <!-- 粒子背景 -->
+    <div class="particles-bg">
+        {% for i in range(20) %}
+        <div class="particle" style="
+            left: {{ (i * 5) % 100 }}%; 
+            top: {{ (i * 7) % 100 }}%; 
+            animation-delay: {{ (i * 0.3) }}s;
+        "></div>
+        {% endfor %}
+    </div>
+    
+    <div class="hero-content">
+        <h1 class="hero-title">{{ site_title }}</h1>
+        {% if tagline %}<p class="hero-subtitle">{{ tagline }}</p>{% endif %}
+        <div class="hero-actions">
+            <a href="#content" class="hero-button primary">开始阅读</a>
+            <a href="/about" class="hero-button secondary">了解更多</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# 背景音乐处理 #}
+{% if settings.homepage_background_music_url %}
+<audio id="background-music" loop {% if settings.homepage_music_autoplay %}autoplay{% endif %}>
+    <source src="{{ settings.homepage_background_music_url }}" type="audio/mpeg">
+    您的浏览器不支持音频播放。
+</audio>
+<button id="music-toggle" class="fixed bottom-4 right-4 z-50 p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700">
+    <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 14.142M9 9v6l4-3-4-3z"></path>
+    </svg>
+</button>
+{% endif %}
+
+{# 主要内容区域 #}
+<main id="content" class="py-16 bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-800 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {# 内容格式过滤器 #}
+        <div class="mb-12 text-center">
+            <div class="inline-flex rounded-lg bg-white dark:bg-gray-800 p-1 shadow-md">
+                <button class="format-filter active px-4 py-2 rounded-md text-sm font-medium transition-all" data-format="all">
+                    全部
+                </button>
+                <button class="format-filter px-4 py-2 rounded-md text-sm font-medium transition-all" data-format="article">
+                    文章
+                </button>
+                <button class="format-filter px-4 py-2 rounded-md text-sm font-medium transition-all" data-format="micro-post">
+                    微博
+                </button>
+                <button class="format-filter px-4 py-2 rounded-md text-sm font-medium transition-all" data-format="photo-album">
+                    相册
+                </button>
+                <button class="format-filter px-4 py-2 rounded-md text-sm font-medium transition-all" data-format="video">
+                    视频
+                </button>
+                <button class="format-filter px-4 py-2 rounded-md text-sm font-medium transition-all" data-format="music">
+                    音乐
+                </button>
+            </div>
+        </div>
+
+        {# 现代化内容网格 #}
+        <div class="content-grid" id="posts-container">
+            {% for post in posts %}
+                {% set format_slugs = post.formats | map(attribute='slug') | list %}
+                {% set primary_format = format_slugs[0] if format_slugs else 'article' %}
+                
+                <article class="timeline-item modern-card hover-lift" data-format="{{ primary_format }}">
+                    
+                    {# 文章卡片 #}
+                    {% if primary_format == 'article' or not format_slugs %}
+                    <div class="article-card">
+                        {% if post.featured_image_url %}
+                        <div class="card-image">
+                            <img src="{{ post.featured_image_url }}" alt="{{ post.title }}" loading="lazy">
+                        </div>
+                        {% endif %}
+                        
+                        <div class="card-body">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="px-2 py-1 bg-primary text-white text-xs rounded-full">文章</span>
+                                <time class="text-sm text-neutral-500">
+                                    {{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else '未发布' }}
+                                </time>
+                            </div>
+                            
+                            <h2 class="text-xl font-bold mb-3 text-neutral-900 dark:text-neutral-100">
+                                <a href="/posts/{{ post.slug }}" class="hover:text-accent transition-colors">
+                                    {{ post.title }}
+                                </a>
+                            </h2>
+                            
+                            {% if post.excerpt %}
+                            <p class="text-neutral-600 dark:text-neutral-400 mb-4 line-clamp-3">
+                                {{ post.excerpt }}
+                            </p>
+                            {% endif %}
+                            
+                            <div class="flex items-center justify-between">
+                                <div class="flex gap-2">
+                                    {% for tag in post.tags[:3] %}
+                                    <span class="px-2 py-1 bg-neutral-200 dark:bg-neutral-700 text-xs rounded">
+                                        {{ tag.name }}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                <a href="/posts/{{ post.slug }}" class="text-accent hover:text-accent-dark font-medium text-sm">
+                                    阅读更多 →
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {# 微博卡片 #}
+                    {% elif primary_format == 'micro-post' %}
+                    <div class="weibo-card">
+                        <div class="user-info">
+                            <img src="/static/images/avatar-default.png" alt="Avatar" class="avatar">
+                            <div>
+                                <div class="font-medium text-neutral-900 dark:text-neutral-100">{{ site_title }}</div>
+                                <time class="text-xs text-neutral-500">
+                                    {{ post.published_at.strftime('%m月%d日 %H:%M') if post.published_at else '未发布' }}
+                                </time>
+                            </div>
+                        </div>
+                        
+                        <div class="text-neutral-800 dark:text-neutral-200 mb-4">
+                            {{ post.content | safe }}
+                        </div>
+                        
+                        {% if post.media_files %}
+                        <div class="grid grid-cols-3 gap-2 mb-4">
+                            {% for media in post.media_files[:9] %}
+                            <img src="{{ media.file_url }}" alt="" class="w-full aspect-square object-cover rounded-lg">
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="flex items-center justify-between text-neutral-500 text-sm">
+                            <button class="flex items-center gap-1 hover:text-accent">
+                                <i class="far fa-heart"></i>
+                                <span>{{ post.likes_count or 0 }}</span>
+                            </button>
+                            <button class="flex items-center gap-1 hover:text-accent">
+                                <i class="far fa-comment"></i>
+                                <span>{{ post.comments_count or 0 }}</span>
+                            </button>
+                            <button class="flex items-center gap-1 hover:text-accent">
+                                <i class="far fa-share-square"></i>
+                                <span>分享</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {# 相册卡片 #}
+                    {% elif primary_format == 'photo-album' %}
+                    <div class="photo-card">
+                        {% if post.featured_image_url %}
+                        <img src="{{ post.featured_image_url }}" alt="{{ post.title }}" loading="lazy">
+                        <div class="overlay">
+                            <div class="text-white">
+                                <h3 class="font-bold mb-2">{{ post.title }}</h3>
+                                <p class="text-sm opacity-90">{{ post.media_files | length }} 张照片</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    {# 视频/音乐卡片 #}
+                    {% elif primary_format in ['video', 'music'] %}
+                    <div class="media-card">
+                        {% if post.featured_image_url %}
+                        <img src="{{ post.featured_image_url }}" alt="{{ post.title }}" class="w-full h-full object-cover">
+                        {% endif %}
+                        
+                        <div class="play-button">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        
+                        <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black to-transparent text-white">
+                            <h3 class="font-bold mb-1">{{ post.title }}</h3>
+                            <p class="text-sm opacity-90">
+                                {{ '视频' if primary_format == 'video' else '音乐' }}
+                            </p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                </article>
+            {% endfor %}
+        </div>
+        
+        {# 加载更多按钮 #}
+        {% if posts | length >= 10 %}
+        <div class="text-center mt-12">
+            <button id="load-more" class="px-8 py-3 bg-accent text-white rounded-lg hover:bg-accent-dark transition-colors font-medium">
+                加载更多
+            </button>
+        </div>
+        {% endif %}
+        
+    </div>
+</main>
+
+{# JavaScript #}
+<script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化轮播
+    if (document.getElementById('fullscreen-gallery-swiper')) {
+        new Swiper('#fullscreen-gallery-swiper', {
+            loop: true,
+            autoplay: {
+                delay: 5000,
+                disableOnInteraction: false
+            },
+            pagination: {
+                el: '.swiper-pagination',
+                clickable: true
+            },
+            navigation: {
+                nextEl: '.swiper-button-next',
+                prevEl: '.swiper-button-prev'
+            },
+            effect: 'fade',
+            fadeEffect: {
+                crossFade: true
+            }
+        });
+    }
+    
+    // 背景音乐控制
+    const backgroundMusic = document.getElementById('background-music');
+    const musicToggle = document.getElementById('music-toggle');
+    
+    if (backgroundMusic && musicToggle) {
+        var isPlaying = {{ settings.homepage_music_autoplay | tojson }};
+        
+        musicToggle.addEventListener('click', function() {
+            if (isPlaying) {
+                backgroundMusic.pause();
+                musicToggle.innerHTML = '<svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 14.142M9 9v6l4-3-4-3z"></path></svg>';
+            } else {
+                backgroundMusic.play();
+                musicToggle.innerHTML = '<svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6h4V9h-4zM6 9v6h4V9H6z"></path></svg>';
+            }
+            isPlaying = !isPlaying;
+        });
+    }
+    
+    // 格式过滤器
+    const formatFilters = document.querySelectorAll('.format-filter');
+    const posts = document.querySelectorAll('[data-format]');
+    
+    formatFilters.forEach(filter => {
+        filter.addEventListener('click', function() {
+            const format = this.dataset.format;
+            
+            // 更新活跃状态
+            formatFilters.forEach(f => f.classList.remove('active', 'bg-accent', 'text-white'));
+            this.classList.add('active', 'bg-accent', 'text-white');
+            
+            // 过滤内容
+            posts.forEach(post => {
+                if (format === 'all' || post.dataset.format === format) {
+                    post.style.display = 'block';
+                    post.classList.add('timeline-item');
+                } else {
+                    post.style.display = 'none';
+                    post.classList.remove('timeline-item');
+                }
+            });
+            
+            // 重新触发动画
+            setTimeout(() => {
+                const visiblePosts = document.querySelectorAll('[data-format]:not([style*="display: none"])');
+                visiblePosts.forEach((post, index) => {
+                    setTimeout(() => {
+                        post.classList.add('is-visible');
+                    }, index * 100);
+                });
+            }, 50);
+        });
+    });
+    
+    // 滚动动画观察器
+    const timelineItems = document.querySelectorAll('.timeline-item');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible');
+            }
+        });
+    }, {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    });
+    
+    timelineItems.forEach(item => {
+        observer.observe(item);
+    });
+    
+    // 导航栏滚动隐藏
+    let lastScrollTop = 0;
+    const navbar = document.querySelector('.modern-navbar');
+    
+    window.addEventListener('scroll', function() {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        
+        if (scrollTop > lastScrollTop && scrollTop > 100) {
+            navbar.classList.add('navbar-hidden');
+        } else {
+            navbar.classList.remove('navbar-hidden');
+        }
+        
+        lastScrollTop = scrollTop;
+    });
+    
+    // 平滑滚动到内容区域
+    const heroButtons = document.querySelectorAll('a[href="#content"]');
+    heroButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('content').scrollIntoView({
+                behavior: 'smooth'
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

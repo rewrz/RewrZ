@@ -135,6 +135,19 @@ async def admin_themes_page(request: Request, db: Session = Depends(get_db), cur
     auto_theme_enabled = auto_theme_setting.value.get("value") if auto_theme_setting else False
     theme_schedule = theme_schedule_setting.value.get("value") if theme_schedule_setting else []
     
+    # 获取纪念日设置
+    anniversaries_setting = crud_setting.get_setting(db, key="anniversaries")
+    anniversaries = []
+    if anniversaries_setting and anniversaries_setting.value:
+        try:
+            import json
+            anniversaries = json.loads(anniversaries_setting.value) if isinstance(anniversaries_setting.value, str) else anniversaries_setting.value.get("value", [])
+        except:
+            anniversaries = []
+    
+    # 创建settings对象
+    settings = type('Settings', (), {'anniversaries': anniversaries})()
+    
     return templates.TemplateResponse("admin/themes.html", {
         "request": request,
         "user": current_user,
@@ -144,7 +157,8 @@ async def admin_themes_page(request: Request, db: Session = Depends(get_db), cur
         "atmosphere_themes": ATMOSPHERE_THEMES,
         "current_atmosphere": current_atmosphere,
         "auto_theme_enabled": auto_theme_enabled,
-        "theme_schedule": theme_schedule
+        "theme_schedule": theme_schedule,
+        "settings": settings
     })
 
 @router.post("/admin/themes/update")
@@ -197,6 +211,20 @@ async def update_theme_settings(
         ))
     
     return JSONResponse({"success": True, "message": "主题设置已更新"})
+
+# 添加update_theme方法以兼容main.py中的调用
+async def update_theme(request: Request, db: Session, current_user: User):
+    """兼容性方法 - 重定向到update_theme_settings"""
+    form_data = await request.form()
+    return await update_theme_settings(
+        request=request,
+        db=db,
+        current_user=current_user,
+        current_theme=form_data.get("current_theme", "light"),
+        current_atmosphere=form_data.get("current_atmosphere"),
+        auto_theme_enabled=bool(form_data.get("auto_theme_enabled")),
+        csrf_token=form_data.get("csrf_token", "")
+    )
 
 @router.post("/admin/themes/custom")
 async def create_custom_theme(
@@ -376,3 +404,83 @@ async def theme_variables_css(request: Request, db: Session = Depends(get_db)):
 """
     
     return Response(content=css_content, media_type="text/css")
+
+@router.post("/api/theme/update")
+async def update_theme_realtime(
+    request: Request,
+    theme: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """实时更新主题设置"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    
+    # 验证主题是否存在
+    if theme not in DEFAULT_THEMES:
+        custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
+        custom_themes = custom_themes_setting.value.get("value") if custom_themes_setting else {}
+        if theme not in custom_themes:
+            raise HTTPException(status_code=400, detail="主题不存在")
+    
+    # 更新主题设置
+    theme_setting = crud_setting.get_setting(db, key="current_theme")
+    if theme_setting:
+        crud_setting.update_setting(db, theme_setting, SettingUpdate(value={"value": theme}))
+    else:
+        crud_setting.create_setting(db, SettingCreate(key="current_theme", value={"value": theme}))
+    
+    return JSONResponse({"success": True, "theme": theme})
+
+@router.post("/api/atmosphere/update")
+async def update_atmosphere_realtime(
+    request: Request,
+    atmosphere: Optional[str] = Form(None),
+    effects: List[str] = Form([]),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """实时更新氛围模式设置"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    
+    # 验证氛围主题是否存在
+    if atmosphere and atmosphere not in ATMOSPHERE_THEMES:
+        raise HTTPException(status_code=400, detail="氛围主题不存在")
+    
+    # 更新氛围设置
+    atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
+    atmosphere_data = {
+        "value": atmosphere,
+        "effects": effects,
+        "updated_at": datetime.now().isoformat()
+    }
+    
+    if atmosphere_setting:
+        crud_setting.update_setting(db, atmosphere_setting, SettingUpdate(value=atmosphere_data))
+    else:
+        crud_setting.create_setting(db, SettingCreate(key="current_atmosphere", value=atmosphere_data))
+    
+    return JSONResponse({"success": True, "atmosphere": atmosphere, "effects": effects})
+
+@router.get("/api/theme/sync")
+async def sync_theme_settings(request: Request, db: Session = Depends(get_db)):
+    """同步主题设置 - 用于前端实时获取最新配置"""
+    # 获取当前主题
+    theme_setting = crud_setting.get_setting(db, key="current_theme")
+    current_theme = theme_setting.value.get("value") if theme_setting else "light"
+    
+    # 获取当前氛围
+    atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
+    current_atmosphere = atmosphere_setting.value if atmosphere_setting else None
+    
+    # 获取主页设置
+    homepage_setting = crud_setting.get_setting(db, key="homepage_mode")
+    homepage_mode = homepage_setting.value.get("value") if homepage_setting else "default"
+    
+    return JSONResponse({
+        "theme": current_theme,
+        "atmosphere": current_atmosphere,
+        "homepage_mode": homepage_mode,
+        "timestamp": datetime.now().isoformat()
+    })

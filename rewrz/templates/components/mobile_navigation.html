@@ -1,0 +1,295 @@
+{# 移动端导航组件 #}
+
+<!-- 移动端汉堡菜单按钮 -->
+<button class="mobile-menu-toggle md:hidden" id="mobile-menu-toggle" aria-label="切换菜单">
+    <i class="fas fa-bars" id="menu-icon"></i>
+</button>
+
+<!-- 移动端导航菜单 -->
+<nav class="nav-menu md:flex md:items-center md:space-x-8" id="mobile-nav-menu">
+    <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">
+        <i class="fas fa-home md:hidden"></i>
+        <span>首页</span>
+    </a>
+    
+    {% if categories %}
+    <div class="nav-dropdown md:relative">
+        <button class="nav-dropdown-toggle" aria-expanded="false">
+            <i class="fas fa-folder md:hidden"></i>
+            <span>分类</span>
+            <i class="fas fa-chevron-down ml-1 transition-transform duration-200"></i>
+        </button>
+        <div class="nav-dropdown-menu">
+            {% for category in categories %}
+            <a href="/category/{{ category.slug }}" class="nav-dropdown-item">
+                {{ category.name }}
+                <span class="text-xs opacity-75">({{ category.posts_count or 0 }})</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <a href="/archives" class="nav-link {% if request.url.path == '/archives' %}active{% endif %}">
+        <i class="fas fa-archive md:hidden"></i>
+        <span>归档</span>
+    </a>
+    
+    <a href="/about" class="nav-link {% if request.url.path == '/about' %}active{% endif %}">
+        <i class="fas fa-user md:hidden"></i>
+        <span>关于</span>
+    </a>
+    
+    {% if current_user %}
+    <div class="nav-dropdown md:relative">
+        <button class="nav-dropdown-toggle" aria-expanded="false">
+            {% if current_user.avatar_url %}
+                <img src="{{ current_user.avatar_url }}" alt="头像" class="w-6 h-6 rounded-full inline-block md:hidden">
+            {% else %}
+                <i class="fas fa-user-circle md:hidden"></i>
+            {% endif %}
+            <span>{{ current_user.username }}</span>
+            <i class="fas fa-chevron-down ml-1 transition-transform duration-200"></i>
+        </button>
+        <div class="nav-dropdown-menu">
+            <a href="/admin" class="nav-dropdown-item">
+                <i class="fas fa-cog mr-2"></i>
+                管理后台
+            </a>
+            <a href="/profile" class="nav-dropdown-item">
+                <i class="fas fa-user mr-2"></i>
+                个人资料
+            </a>
+            <div class="nav-dropdown-divider"></div>
+            <form method="post" action="/auth/logout" class="inline">
+                <button type="submit" class="nav-dropdown-item w-full text-left">
+                    <i class="fas fa-sign-out-alt mr-2"></i>
+                    退出登录
+                </button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <a href="/auth/login" class="nav-link {% if request.url.path == '/auth/login' %}active{% endif %}">
+        <i class="fas fa-sign-in-alt md:hidden"></i>
+        <span>登录</span>
+    </a>
+    {% endif %}
+</nav>
+
+<!-- 移动端底部导航栏 -->
+<nav class="mobile-bottom-nav md:hidden">
+    <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">
+        <i class="fas fa-home"></i>
+        <span>首页</span>
+    </a>
+    
+    <a href="/archives" class="{% if request.url.path == '/archives' %}active{% endif %}">
+        <i class="fas fa-archive"></i>
+        <span>归档</span>
+    </a>
+    
+    <button id="mobile-search-toggle">
+        <i class="fas fa-search"></i>
+        <span>搜索</span>
+    </button>
+    
+    {% if categories and categories|length > 0 %}
+    <button id="mobile-categories-toggle">
+        <i class="fas fa-folder"></i>
+        <span>分类</span>
+    </button>
+    {% endif %}
+    
+    {% if current_user %}
+    <a href="/admin" class="{% if request.url.path.startswith('/admin') %}active{% endif %}">
+        <i class="fas fa-cog"></i>
+        <span>管理</span>
+    </a>
+    {% else %}
+    <a href="/auth/login" class="{% if request.url.path == '/auth/login' %}active{% endif %}">
+        <i class="fas fa-user"></i>
+        <span>登录</span>
+    </a>
+    {% endif %}
+</nav>
+
+<!-- 移动端搜索面板 -->
+<div id="mobile-search-panel" class="fixed inset-0 z-50 bg-white dark:bg-gray-900 transform translate-y-full transition-transform duration-300 md:hidden">
+    <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">搜索</h3>
+        <button id="mobile-search-close" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+    </div>
+    
+    <div class="p-4">
+        <form action="/search" method="get" class="mb-4">
+            <div class="relative">
+                <input type="text" name="q" placeholder="搜索文章..." 
+                       class="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                <button type="submit" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </form>
+        
+        <!-- 热门搜索标签 -->
+        {% if popular_tags %}
+        <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">热门标签</h4>
+            <div class="flex flex-wrap gap-2">
+                {% for tag in popular_tags[:8] %}
+                <a href="/tag/{{ tag.slug }}" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors">
+                    {{ tag.name }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- 最近搜索 -->
+        <div id="recent-searches" class="hidden">
+            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">最近搜索</h4>
+            <div id="recent-searches-list" class="space-y-2">
+                <!-- 动态填充最近搜索记录 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 移动端分类面板 -->
+<div id="mobile-categories-panel" class="fixed inset-0 z-50 bg-white dark:bg-gray-900 transform translate-y-full transition-transform duration-300 md:hidden">
+    <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">分类</h3>
+        <button id="mobile-categories-close" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+    </div>
+    
+    <div class="p-4">
+        {% if categories %}
+        <div class="space-y-2">
+            {% for category in categories %}
+            <a href="/category/{{ category.slug }}" 
+               class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <div class="flex items-center">
+                    <i class="fas fa-folder text-blue-500 mr-3"></i>
+                    <span class="font-medium text-gray-900 dark:text-white">{{ category.name }}</span>
+                </div>
+                <span class="text-sm text-gray-500 dark:text-gray-400">{{ category.posts_count or 0 }}</span>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+            <i class="fas fa-folder-open text-4xl mb-4"></i>
+            <p>暂无分类</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+/* 移动端导航样式补充 */
+.nav-dropdown {
+    position: relative;
+}
+
+.nav-dropdown-toggle {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 16px 20px;
+    text-align: left;
+    background: none;
+    border: none;
+    color: var(--color-text, #374151);
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.nav-dropdown-toggle:hover {
+    background-color: var(--color-neutral-100, #f3f4f6);
+}
+
+.nav-dropdown-toggle[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate(180deg);
+}
+
+.nav-dropdown-menu {
+    display: none;
+    background: var(--color-neutral-50, #f9fafb);
+    border-left: 3px solid var(--color-primary, #3b82f6);
+}
+
+.nav-dropdown-toggle[aria-expanded="true"] + .nav-dropdown-menu {
+    display: block;
+}
+
+.nav-dropdown-item {
+    display: block;
+    padding: 12px 24px 12px 40px;
+    color: var(--color-text, #374151);
+    text-decoration: none;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.nav-dropdown-item:hover {
+    background-color: var(--color-neutral-100, #f3f4f6);
+}
+
+.nav-dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.nav-dropdown-divider {
+    height: 1px;
+    background-color: var(--color-border, #e5e7eb);
+    margin: 8px 24px 8px 40px;
+}
+
+/* 暗色主题适配 */
+.dark .nav-dropdown-toggle:hover {
+    background-color: var(--color-neutral-700, #374151);
+}
+
+.dark .nav-dropdown-menu {
+    background: var(--color-neutral-800, #1f2937);
+}
+
+.dark .nav-dropdown-item:hover {
+    background-color: var(--color-neutral-700, #374151);
+}
+
+.dark .nav-dropdown-divider {
+    background-color: var(--color-border, #374151);
+}
+
+/* 桌面端样式 */
+@media (min-width: 768px) {
+    .nav-dropdown-menu {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        min-width: 200px;
+        background: var(--color-card-bg, #ffffff);
+        border: 1px solid var(--color-border, #e5e7eb);
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        z-index: 50;
+    }
+    
+    .nav-dropdown-item {
+        padding: 12px 16px;
+        border-bottom: none;
+    }
+    
+    .nav-dropdown-divider {
+        margin: 8px 16px;
+    }
+}
+</style>

@@ -1,0 +1,381 @@
+/**
+ * 多格式内容差异化布局样式
+ * 支持微博、相册、视频、音乐、标准文章等不同格式的专属布局
+ */
+
+/* 现代化卡片基础样式 */
+.modern-card {
+    background: var(--color-card-bg, #ffffff);
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    border: 1px solid var(--color-border, #e5e7eb);
+    position: relative;
+}
+
+.modern-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* 暗色主题适配 */
+.dark .modern-card {
+    background: var(--color-card-bg, #1f2937);
+    border-color: var(--color-border, #374151);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+.dark .modern-card:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+}
+
+/* 微博格式卡片 */
+.weibo-card {
+    max-width: 100%;
+    margin-bottom: 24px;
+}
+
+.weibo-card .card-body {
+    padding: 20px;
+}
+
+.weibo-card .user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.weibo-card .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--color-border, #e5e7eb);
+}
+
+/* 微博图片网格 */
+.image-grid {
+    display: grid;
+    gap: 8px;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.image-grid[data-image-count="1"] {
+    grid-template-columns: 1fr;
+}
+
+.image-grid[data-image-count="2"] {
+    grid-template-columns: 1fr 1fr;
+}
+
+.image-grid[data-image-count="3"] {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.image-grid .aspect-square {
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 8px;
+}
+
+.image-grid img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.image-grid img:hover {
+    transform: scale(1.05);
+}
+
+/* 相册格式卡片 */
+.photo-card {
+    aspect-ratio: 1;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+.photo-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.photo-card:hover img {
+    transform: scale(1.1);
+}
+
+.photo-card .overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.4), transparent);
+    padding: 20px;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+}
+
+.photo-card:hover .overlay {
+    transform: translateY(0);
+}
+
+/* 媒体格式卡片（视频/音乐） */
+.media-card {
+    aspect-ratio: 16/9;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+.media-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.media-card .play-button {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: var(--color-primary, #3b82f6);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.media-card:hover .play-button {
+    background: rgba(255, 255, 255, 1);
+    transform: translate(-50%, -50%) scale(1.1);
+}
+
+/* 标准文章格式卡片 */
+.article-card {
+    margin-bottom: 32px;
+    display: flex;
+    flex-direction: column;
+}
+
+.article-card .card-image {
+    aspect-ratio: 16/9;
+    overflow: hidden;
+    border-radius: 16px 16px 0 0;
+}
+
+.article-card .card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.article-card:hover .card-image img {
+    transform: scale(1.05);
+}
+
+.article-card .card-body {
+    padding: 24px;
+    flex: 1;
+}
+
+/* 文本截断样式 */
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* 标签样式 */
+.tag {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--color-neutral-200, #e5e7eb);
+    color: var(--color-text, #374151);
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.tag:hover {
+    background: var(--color-primary, #3b82f6);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.dark .tag {
+    background: var(--color-neutral-700, #374151);
+    color: var(--color-text, #f9fafb);
+}
+
+/* 瀑布流布局 */
+.masonry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 24px;
+    padding: 24px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .masonry-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 16px;
+    }
+    
+    .weibo-card .card-body,
+    .article-card .card-body {
+        padding: 16px;
+    }
+    
+    .photo-card .overlay {
+        padding: 16px;
+    }
+    
+    .media-card .play-button {
+        width: 60px;
+        height: 60px;
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .image-grid[data-image-count="3"] {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .weibo-card .avatar {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .media-card .play-button {
+        width: 50px;
+        height: 50px;
+        font-size: 18px;
+    }
+}
+
+/* 大屏幕优化 */
+@media (min-width: 1200px) {
+    .masonry-grid {
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 32px;
+        padding: 32px;
+    }
+    
+    .article-card {
+        margin-bottom: 40px;
+    }
+}
+
+/* 加载动画 */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modern-card {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.modern-card:nth-child(2) { animation-delay: 0.1s; }
+.modern-card:nth-child(3) { animation-delay: 0.2s; }
+.modern-card:nth-child(4) { animation-delay: 0.3s; }
+.modern-card:nth-child(5) { animation-delay: 0.4s; }
+
+/* 特殊格式标识 */
+.format-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: var(--color-primary, #3b82f6);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    z-index: 10;
+}
+
+.format-badge.video {
+    background: #ef4444;
+}
+
+.format-badge.music {
+    background: #8b5cf6;
+}
+
+.format-badge.photo {
+    background: #10b981;
+}
+
+.format-badge.micro {
+    background: #f59e0b;
+}
+
+/* 交互反馈 */
+.modern-card:active {
+    transform: translateY(-2px) scale(0.98);
+}
+
+/* 无障碍支持 */
+@media (prefers-reduced-motion: reduce) {
+    .modern-card,
+    .modern-card img,
+    .photo-card .overlay,
+    .media-card .play-button,
+    .tag {
+        transition: none;
+        animation: none;
+    }
+    
+    .modern-card:hover {
+        transform: none;
+    }
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+    .modern-card {
+        border: 2px solid var(--color-text, #000);
+    }
+    
+    .tag {
+        border: 1px solid var(--color-text, #000);
+    }
+}

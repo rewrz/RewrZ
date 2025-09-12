@@ -141,7 +141,6 @@
 </div>
 
 <script>
-    const ADMIN_PATH = "{{ request.state.admin_path }}"; // 将admin_path从Jinja2传递到JavaScript
 document.addEventListener('DOMContentLoaded', () => {
     const uploadButton = document.getElementById('upload-button');
     const uploadDropZone = document.getElementById('upload-drop-zone');
@@ -275,7 +274,7 @@ function showMediaDetails(mediaId, event) {
     content.innerHTML = '<p class="text-center">正在加载...</p>';
     modal.classList.remove('hidden');
 
-    fetch(`${ADMIN_PATH}/api/media/${mediaId}`)
+    fetch(`{{ request.state.admin_path }}/api/media/${mediaId}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -332,7 +331,7 @@ async function deleteMedia(mediaId, event) {
     event.stopPropagation(); // Prevent card selection
     if (!confirm('确定要删除这个文件吗？此操作不可恢复。')) return;
     try {
-        const response = await fetch(`${ADMIN_PATH}/api/media/${mediaId}`, { method: 'DELETE' });
+        const response = await fetch(`{{ request.state.admin_path }}/api/media/${mediaId}`, { method: 'DELETE' });
         if (response.ok) {
             location.reload();
         } else {
@@ -354,7 +353,7 @@ function setupMediaDetailsListeners(mediaId) {
             const description = document.querySelector('#media-details-content textarea').value;
 
             try {
-                const response = await fetch(`${ADMIN_PATH}/api/media/${mediaId}`, {
+                const response = await fetch(`{{ request.state.admin_path }}/api/media/${mediaId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -386,7 +385,7 @@ function showMediaDetails(mediaId, event) {
     content.innerHTML = '<p class="text-center">正在加载...</p>';
     modal.classList.remove('hidden');
 
-    fetch(`${ADMIN_PATH}/api/media/${mediaId}`)
+    fetch(`{{ request.state.admin_path }}/api/media/${mediaId}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);

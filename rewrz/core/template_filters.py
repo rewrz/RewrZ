@@ -191,6 +191,45 @@ def donation_widget_filter(db) -> str:
     """
     return render_donation_widget(db)
 
+# 新增：Font Awesome 兼容过滤器（将 FA6 风格类名映射为 FA5）
+def fa_compat_filter(icon_class: str) -> str:
+    """
+    将 Font Awesome 6 的风格前缀映射为 Font Awesome 5 的等价类，
+    以便在全局统一为 FA5 时保证图标正常显示。
+    """
+    if not icon_class:
+        return ""
+    tokens = icon_class.split()
+    style_map = {
+        'fa-solid': 'fas',
+        'fa-regular': 'far',
+        'fa-light': 'fal',
+        'fa-thin': 'fa',
+        'fa-duotone': 'fad',
+        'fa-brands': 'fab',
+        # 处理 FA6 的 sharp 系列，降级为常规风格
+        'fa-sharp': 'fas',
+        'fa-sharp-solid': 'fas',
+        'fa-sharp-regular': 'far',
+        'fa-sharp-light': 'fal',
+    }
+    normalized = []
+    replaced_style = False
+    for t in tokens:
+        mapped = style_map.get(t, t)
+        if mapped in ('fas', 'far', 'fal', 'fad', 'fab'):
+            # 保证只保留一个风格前缀，避免重复
+            if not replaced_style:
+                normalized.append(mapped)
+                replaced_style = True
+            # 如果已有风格则跳过额外风格标记
+            continue
+        normalized.append(mapped)
+    # 如果没有任何风格类，默认使用 fas
+    if not replaced_style:
+        normalized.insert(0, 'fas')
+    return ' '.join(normalized)
+
 
 def responsive_image_filter(image_url: str, alt_text: str = "", 
                            css_classes: str = "", sizes: str = "", db=None) -> str:
@@ -317,6 +356,7 @@ def register_template_filters(app):
     templates.env.filters['donation_widget'] = donation_widget_filter
     templates.env.filters['responsive_image'] = responsive_image_filter
     templates.env.filters['url'] = url_filter # 注册url过滤器
+    templates.env.filters['fa_compat'] = fa_compat_filter # 注册Font Awesome兼容过滤器
     
     return templates
 
@@ -347,5 +387,6 @@ def get_templates():
         _templates.env.filters['reading_time'] = reading_time_filter
         _templates.env.filters['reading_stats'] = reading_stats_filter
         _templates.env.filters['related_posts'] = related_posts_filter
+        _templates.env.filters['fa_compat'] = fa_compat_filter # 注册Font Awesome兼容过滤器
     
     return _templates

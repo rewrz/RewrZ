@@ -105,5 +105,4 @@ old-version
 /alembic/versions/
 *.sqlite3
 *.db
-rewrz/static/
 media_uploads/

@@ -41,6 +41,7 @@ from .api import admin_dashboard as admin_dashboard_api # 导入仪表盘API路�
 from .api import categories as categories_api # 导入分类API路由
 from .api import tags as tags_api # 导入标签API路由
 from .api import captcha as captcha_api # 导入验证码API路由
+from .api import anniversary_mode as anniversary_api # 导入纪念日氛围模式API路由
 from .core.avatar import get_avatar_service
 from .crud import post as crud_post
 from .crud import category as crud_category
@@ -523,6 +524,7 @@ app.include_router(error_config_api.router)
 app.include_router(admin_dashboard_api.router)
 # 包含验证码API路由
 app.include_router(captcha_api.router)
+app.include_router(anniversary_api.router, prefix="/api")
 
 # 抽取：构建全局请求上下文（初始化默认值、读取设置、主题调度/纪念日、后台路径）
 def _populate_global_request_state(request: Request) -> None:
@@ -548,43 +550,66 @@ def _populate_global_request_state(request: Request) -> None:
         for key, default_value in settings_keys.items():
             setattr(request.state, key, all_settings.get(key, default_value))
 
-        # 检查主题调度和氛围主题
-        # 检查是否有计划中的氛围主题
-        scheduled_atmosphere = None
-        schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
-        if schedule_setting and schedule_setting.value:
-            schedule = schedule_setting.value.get("value", [])
-            today = date.today()
-            
-            for item in schedule:
-                if isinstance(item, dict) and "start_date" in item and "end_date" in item:
-                    try:
-                        start_date = datetime.strptime(item["start_date"], "%Y-%m-%d").date()
-                        end_date = datetime.strptime(item["end_date"], "%Y-%m-%d").date()
-                        
-                        if start_date <= today <= end_date:
-                            scheduled_atmosphere = item.get("atmosphere")
-                            break
-                    except (ValueError, KeyError):
-                        continue
+        # 氛围模式优先级：纪念日氛围 > 前端明暗模式 > 主题管理调度
         
-        if scheduled_atmosphere:
-            request.state.atmosphere_class = f"atmosphere-{scheduled_atmosphere}"
-        
-        else:
-            # 仅在没有计划主题时检查纪念日
+        # 1. 最高优先级：检查纪念日氛围模式
+        # 优先检查 anniversaries_json（常规设置），然后检查 anniversaries（旧版本兼容）
+        anniversaries_setting = crud_setting.get_setting(db, key="anniversaries_json")
+        if not anniversaries_setting:
             anniversaries_setting = crud_setting.get_setting(db, key="anniversaries")
-            if anniversaries_setting and anniversaries_setting.value:
-                anniversaries = anniversaries_setting.value.get("value", [])
+        
+        anniversary_atmosphere = None
+        if anniversaries_setting and anniversaries_setting.value:
+            try:
+                # 如果是JSON字符串，解析它
+                if isinstance(anniversaries_setting.value.get("value"), str):
+                    import json
+                    anniversaries = json.loads(anniversaries_setting.value.get("value", "[]"))
+                else:
+                    anniversaries = anniversaries_setting.value.get("value", [])
+                
                 today = date.today()
                 for anniversary in anniversaries:
                     if isinstance(anniversary, dict) and "month" in anniversary and "day" in anniversary and "type" in anniversary:
                         try:
                             if anniversary["month"] == today.month and anniversary["day"] == today.day:
-                                request.state.atmosphere_class = f"atmosphere-{anniversary['type'].lower()}"
+                                anniversary_atmosphere = anniversary['type'].lower()
                                 break
                         except (KeyError, TypeError):
                             continue
+            except (json.JSONDecodeError, KeyError, TypeError):
+                # 如果解析失败，忽略纪念日设置
+                pass
+        
+        # 如果有纪念日氛围，直接应用（最高优先级）
+        if anniversary_atmosphere:
+            request.state.atmosphere_class = f"atmosphere-{anniversary_atmosphere}"
+        else:
+            # 2. 中等优先级：前端用户明暗模式切换（由前端JavaScript处理）
+            # 这里不设置atmosphere_class，让前端JavaScript根据用户偏好处理
+            
+            # 3. 最低优先级：检查主题管理中的调度设置
+            scheduled_atmosphere = None
+            schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
+            if schedule_setting and schedule_setting.value:
+                schedule = schedule_setting.value.get("value", [])
+                today = date.today()
+                
+                for item in schedule:
+                    if isinstance(item, dict) and "start_date" in item and "end_date" in item:
+                        try:
+                            start_date = datetime.strptime(item["start_date"], "%Y-%m-%d").date()
+                            end_date = datetime.strptime(item["end_date"], "%Y-%m-%d").date()
+                            
+                            if start_date <= today <= end_date:
+                                scheduled_atmosphere = item.get("atmosphere")
+                                break
+                        except (ValueError, KeyError):
+                            continue
+            
+            # 仅在没有纪念日氛围时应用调度氛围
+            if scheduled_atmosphere:
+                request.state.atmosphere_class = f"atmosphere-{scheduled_atmosphere}"
     finally:
         db.close() # 关闭会话
 

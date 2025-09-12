@@ -1,0 +1,353 @@
+/**
+ * RewrZ 增强版动态主题管理系统
+ * 支持纪念日氛围模式、明暗主题切换和自定义主题
+ */
+
+class EnhancedThemeManager {
+    constructor() {
+        this.currentTheme = 'light';
+        this.anniversaryMode = null;
+        this.customTheme = null;
+        this.effectManager = null;
+        this.anniversaryBanner = null;
+        
+        this.init();
+    }
+
+    async init() {
+        // 动态导入特效管理器
+        try {
+            const { default: EffectManager } = await import('./effects/effect-manager.js');
+            this.effectManager = new EffectManager();
+        } catch (error) {
+            console.warn('特效管理器加载失败:', error);
+        }
+
+        this.loadThemeFromStorage();
+        this.createThemeToggle();
+        this.checkAnniversaryMode();
+        this.applyTheme();
+        this.bindEvents();
+    }
+
+    /**
+     * 从本地存储加载主题设置
+     */
+    loadThemeFromStorage() {
+        const savedTheme = localStorage.getItem('rewrz-theme');
+        const savedAnniversary = localStorage.getItem('rewrz-anniversary-mode');
+        
+        if (savedTheme) {
+            this.currentTheme = savedTheme;
+        }
+        
+        if (savedAnniversary) {
+            try {
+                this.anniversaryMode = JSON.parse(savedAnniversary);
+            } catch (error) {
+                console.warn('纪念日模式数据解析失败:', error);
+            }
+        }
+    }
+
+    /**
+     * 保存主题设置到本地存储
+     */
+    saveThemeToStorage() {
+        localStorage.setItem('rewrz-theme', this.currentTheme);
+        if (this.anniversaryMode) {
+            localStorage.setItem('rewrz-anniversary-mode', JSON.stringify(this.anniversaryMode));
+        } else {
+            localStorage.removeItem('rewrz-anniversary-mode');
+        }
+    }
+
+    /**
+     * 创建主题切换按钮
+     */
+    createThemeToggle() {
+        const toggleButton = document.createElement('button');
+        toggleButton.id = 'theme-toggle';
+        toggleButton.className = 'fixed top-4 right-4 z-50 p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700';
+        toggleButton.innerHTML = `
+            <svg class="w-5 h-5 text-gray-600 dark:text-gray-300 theme-icon-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+            </svg>
+            <svg class="w-5 h-5 text-gray-600 dark:text-gray-300 theme-icon-dark hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+            </svg>
+        `;
+        
+        document.body.appendChild(toggleButton);
+        
+        toggleButton.addEventListener('click', () => {
+            this.toggleTheme();
+        });
+    }
+
+    /**
+     * 切换主题
+     */
+    toggleTheme() {
+        // 纪念日模式优先级最高，不允许切换
+        if (this.anniversaryMode && this.anniversaryMode.active) {
+            this.showMessage('当前处于纪念日氛围模式，无法切换主题');
+            return;
+        }
+
+        this.currentTheme = this.currentTheme === 'light' ? 'dark' : 'light';
+        this.applyTheme();
+        this.saveThemeToStorage();
+    }
+
+    /**
+     * 应用主题
+     */
+    applyTheme() {
+        const html = document.documentElement;
+        const body = document.body;
+        
+        // 移除所有主题类
+        html.classList.remove('light', 'dark');
+        body.classList.remove('spring-festival-theme', 'cherry-blossom-theme', 'winter-theme', 'celebration-theme');
+        
+        // 应用纪念日氛围模式（最高优先级）
+        if (this.anniversaryMode && this.anniversaryMode.active) {
+            this.applyAnniversaryMode();
+            return;
+        }
+        
+        // 应用明暗主题
+        html.classList.add(this.currentTheme);
+        
+        // 更新主题切换按钮图标
+        this.updateThemeToggleIcon();
+        
+        // 应用自定义主题（如果有）
+        if (this.customTheme) {
+            this.applyCustomTheme();
+        }
+    }
+
+    /**
+     * 更新主题切换按钮图标
+     */
+    updateThemeToggleIcon() {
+        const lightIcon = document.querySelector('.theme-icon-light');
+        const darkIcon = document.querySelector('.theme-icon-dark');
+        
+        if (lightIcon && darkIcon) {
+            if (this.currentTheme === 'dark') {
+                lightIcon.classList.add('hidden');
+                darkIcon.classList.remove('hidden');
+            } else {
+                lightIcon.classList.remove('hidden');
+                darkIcon.classList.add('hidden');
+            }
+        }
+    }
+
+    /**
+     * 检查纪念日模式
+     */
+    async checkAnniversaryMode() {
+        try {
+            const response = await fetch('/api/anniversary-mode');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.active) {
+                    this.anniversaryMode = data;
+                    this.applyAnniversaryMode();
+                }
+            }
+        } catch (error) {
+            console.warn('获取纪念日模式失败:', error);
+        }
+    }
+
+    /**
+     * 应用纪念日氛围模式
+     */
+    applyAnniversaryMode() {
+        if (!this.anniversaryMode || !this.anniversaryMode.active) {
+            return;
+        }
+
+        const html = document.documentElement;
+        const body = document.body;
+        
+        // 应用纪念日主题类
+        if (this.anniversaryMode.theme_class) {
+            body.classList.add(this.anniversaryMode.theme_class);
+        }
+        
+        // 应用滤镜效果
+        if (this.effectManager && this.anniversaryMode.filter_type) {
+            this.effectManager.applyFilter(this.anniversaryMode.filter_type);
+        }
+        
+        // 启动特效
+        if (this.effectManager && this.anniversaryMode.effects && this.anniversaryMode.effects.length > 0) {
+            this.effectManager.startEffect(this.anniversaryMode.effects);
+        }
+        
+        // 显示纪念日横幅
+        this.showAnniversaryBanner();
+    }
+
+    /**
+     * 显示纪念日横幅
+     */
+    showAnniversaryBanner() {
+        if (!this.anniversaryMode || this.anniversaryBanner) {
+            return;
+        }
+
+        this.anniversaryBanner = document.createElement('div');
+        this.anniversaryBanner.className = 'anniversary-banner';
+        this.anniversaryBanner.innerHTML = `
+            <span>${this.anniversaryMode.message || '纪念日氛围模式已启用'}</span>
+            <button class="close-btn" onclick="themeManager.hideAnniversaryBanner()">&times;</button>
+        `;
+        
+        document.body.appendChild(this.anniversaryBanner);
+        
+        // 调整页面内容位置
+        const mainContent = document.querySelector('main') || document.querySelector('.container');
+        if (mainContent) {
+            mainContent.style.paddingTop = '40px';
+        }
+    }
+
+    /**
+     * 隐藏纪念日横幅
+     */
+    hideAnniversaryBanner() {
+        if (this.anniversaryBanner) {
+            this.anniversaryBanner.remove();
+            this.anniversaryBanner = null;
+            
+            // 恢复页面内容位置
+            const mainContent = document.querySelector('main') || document.querySelector('.container');
+            if (mainContent) {
+                mainContent.style.paddingTop = '';
+            }
+        }
+    }
+
+    /**
+     * 停用纪念日模式
+     */
+    deactivateAnniversaryMode() {
+        if (this.anniversaryMode) {
+            // 停止特效
+            if (this.effectManager) {
+                this.effectManager.stopEffect();
+                this.effectManager.removeFilters();
+            }
+            
+            // 移除主题类
+            const body = document.body;
+            body.classList.remove('spring-festival-theme', 'cherry-blossom-theme', 'winter-theme', 'celebration-theme');
+            
+            // 隐藏横幅
+            this.hideAnniversaryBanner();
+            
+            this.anniversaryMode = null;
+            localStorage.removeItem('rewrz-anniversary-mode');
+            
+            // 重新应用普通主题
+            this.applyTheme();
+        }
+    }
+
+    /**
+     * 应用自定义主题
+     */
+    applyCustomTheme() {
+        if (!this.customTheme) return;
+        
+        const root = document.documentElement;
+        
+        // 应用CSS变量
+        Object.entries(this.customTheme.variables || {}).forEach(([key, value]) => {
+            root.style.setProperty(`--${key}`, value);
+        });
+    }
+
+    /**
+     * 设置自定义主题
+     */
+    setCustomTheme(themeData) {
+        this.customTheme = themeData;
+        this.applyCustomTheme();
+        localStorage.setItem('rewrz-custom-theme', JSON.stringify(themeData));
+    }
+
+    /**
+     * 绑定事件监听器
+     */
+    bindEvents() {
+        // 监听系统主题变化
+        if (window.matchMedia) {
+            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            mediaQuery.addEventListener('change', (e) => {
+                if (!this.anniversaryMode || !this.anniversaryMode.active) {
+                    this.currentTheme = e.matches ? 'dark' : 'light';
+                    this.applyTheme();
+                    this.saveThemeToStorage();
+                }
+            });
+        }
+
+        // 监听窗口大小变化，调整特效
+        window.addEventListener('resize', () => {
+            if (this.effectManager) {
+                // 重启特效以适应新的窗口大小
+                const activeEffects = this.effectManager.getActiveEffects();
+                if (activeEffects.length > 0) {
+                    this.effectManager.stopEffect();
+                    setTimeout(() => {
+                        this.effectManager.startEffect(activeEffects);
+                    }, 100);
+                }
+            }
+        });
+    }
+
+    /**
+     * 显示消息提示
+     */
+    showMessage(message, type = 'info') {
+        const messageEl = document.createElement('div');
+        messageEl.className = `fixed top-16 right-4 z-50 p-3 rounded-lg shadow-lg max-w-sm ${
+            type === 'error' ? 'bg-red-500 text-white' : 
+            type === 'success' ? 'bg-green-500 text-white' : 
+            'bg-blue-500 text-white'
+        }`;
+        messageEl.textContent = message;
+        
+        document.body.appendChild(messageEl);
+        
+        setTimeout(() => {
+            messageEl.remove();
+        }, 3000);
+    }
+
+    /**
+     * 获取当前主题信息
+     */
+    getCurrentTheme() {
+        return {
+            theme: this.currentTheme,
+            anniversaryMode: this.anniversaryMode,
+            customTheme: this.customTheme
+        };
+    }
+}
+
+// 创建全局实例
+window.themeManager = new EnhancedThemeManager();
+
+// 导出类供其他模块使用
+export default EnhancedThemeManager;

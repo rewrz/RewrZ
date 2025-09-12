@@ -168,7 +168,8 @@ async def update_admin_settings(
         "icp_beian": icp_beian,
         "gongan_beian": gongan_beian,
         "social_links": social_links,
-        "anniversaries": anniversaries,
+        "anniversaries_json": anniversaries_json,  # 保存原始JSON字符串
+        "anniversaries": anniversaries,  # 保存解析后的数据（向后兼容）
         "sitemap_enabled": sitemap_enabled,
         "noindex_site": noindex_site,
         "block_ai_crawlers": block_ai_crawlers,

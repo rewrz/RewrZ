@@ -1,0 +1,216 @@
+/**
+ * 纪念日氛围效果样式
+ * 包含各种滤镜效果和特效容器样式
+ */
+
+/* 追悼模式 - 全站灰白滤镜 */
+.memorial-filter {
+    filter: grayscale(100%) brightness(0.9) contrast(1.1);
+    transition: filter 0.5s ease;
+}
+
+.memorial-filter img,
+.memorial-filter video,
+.memorial-filter canvas {
+    filter: grayscale(100%) brightness(0.8);
+}
+
+/* 怀旧滤镜 */
+.sepia-filter {
+    filter: sepia(60%) brightness(1.1) contrast(1.2);
+    transition: filter 0.5s ease;
+}
+
+/* 温暖滤镜 */
+.warm-filter {
+    filter: hue-rotate(15deg) saturate(1.2) brightness(1.05);
+    transition: filter 0.5s ease;
+}
+
+/* 冷色滤镜 */
+.cool-filter {
+    filter: hue-rotate(-15deg) saturate(1.1) brightness(0.95);
+    transition: filter 0.5s ease;
+}
+
+/* 特效容器样式 */
+.effect-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+/* 纪念日横幅样式 */
+.anniversary-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.6));
+    color: white;
+    text-align: center;
+    padding: 8px 16px;
+    font-size: 14px;
+    z-index: 1001;
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    animation: slideDown 0.5s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.anniversary-banner .close-btn {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.anniversary-banner .close-btn:hover {
+    opacity: 1;
+}
+
+/* 春节主题样式 */
+.spring-festival-theme {
+    --primary-color: #dc2626;
+    --accent-color: #fbbf24;
+    --background-gradient: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+.spring-festival-theme .modern-navbar {
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.95), rgba(185, 28, 28, 0.95));
+}
+
+/* 樱花主题样式 */
+.cherry-blossom-theme {
+    --primary-color: #ec4899;
+    --accent-color: #f9a8d4;
+    --background-gradient: linear-gradient(135deg, #fce7f3, #fbcfe8);
+}
+
+.cherry-blossom-theme .modern-navbar {
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.95), rgba(249, 168, 212, 0.95));
+}
+
+/* 冬季主题样式 */
+.winter-theme {
+    --primary-color: #0ea5e9;
+    --accent-color: #7dd3fc;
+    --background-gradient: linear-gradient(135deg, #e0f2fe, #bae6fd);
+}
+
+.winter-theme .modern-navbar {
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.95), rgba(125, 211, 252, 0.95));
+}
+
+/* 庆祝主题样式 */
+.celebration-theme {
+    --primary-color: #7c3aed;
+    --accent-color: #fbbf24;
+    --background-gradient: linear-gradient(135deg, #7c3aed, #a855f7);
+}
+
+.celebration-theme .modern-navbar {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.95), rgba(168, 85, 247, 0.95));
+}
+
+/* 特效相关的动画 */
+@keyframes sparkle {
+    0%, 100% { opacity: 0; transform: scale(0); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes glow {
+    0%, 100% { box-shadow: 0 0 5px currentColor; }
+    50% { box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+}
+
+/* 特效元素基础样式 */
+.effect-element {
+    position: absolute;
+    pointer-events: none;
+    user-select: none;
+}
+
+.sparkle {
+    animation: sparkle 1s ease-in-out infinite;
+}
+
+.floating {
+    animation: float 3s ease-in-out infinite;
+}
+
+.glowing {
+    animation: glow 2s ease-in-out infinite;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .anniversary-banner {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+    
+    .anniversary-banner .close-btn {
+        right: 12px;
+        font-size: 16px;
+    }
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+    .memorial-filter {
+        filter: grayscale(100%) contrast(1.5);
+    }
+    
+    .anniversary-banner {
+        background: #000;
+        border-bottom: 2px solid #fff;
+    }
+}
+
+/* 减少动画模式支持 */
+@media (prefers-reduced-motion: reduce) {
+    .anniversary-banner {
+        animation: none;
+    }
+    
+    .sparkle,
+    .floating,
+    .glowing {
+        animation: none;
+    }
+    
+    .memorial-filter,
+    .sepia-filter,
+    .warm-filter,
+    .cool-filter {
+        transition: none;
+    }
+}
