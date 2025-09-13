@@ -13,11 +13,11 @@
         {{ post.featured_image_url | responsive_image(post.title, "w-full h-48 object-cover rounded-lg mb-4", "(max-width: 768px) 100vw, (max-width: 1200px) 600px, 800px", request.state.db) | safe }}
         {% endif %}
         <h2 class="text-2xl font-semibold text-gray-800 mb-2">
-            <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
+            <a href="{{ post | post_url }}" class="hover:text-indigo-600">{{ post.title }}</a>
         </h2>
         <p class="text-gray-600 text-sm mb-4">发布于 {{ post.published_at.strftime('%Y年%m月%d日') }}</p>
         <p class="text-gray-700">{{ post.excerpt }}</p>
-        <a href="/posts/{{ post.slug }}" class="inline-block mt-4 text-indigo-600 hover:underline">阅读更多 &rarr;</a>
+        <a href="{{ post | post_url }}" class="inline-block mt-4 text-indigo-600 hover:underline">阅读更多 &rarr;</a>
     </div>
     {% endfor %}
 </div>

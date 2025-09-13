@@ -2,6 +2,8 @@
 纪念日氛围模式 API 模块
 """
 
+import json
+import logging
 from datetime import datetime
 from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -9,6 +11,9 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..crud import setting as crud_setting
+from ..schemas.setting import SettingUpdate
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -20,12 +25,11 @@ async def get_anniversary_mode(db: Session = Depends(get_db)) -> Dict:
     try:
         # 获取纪念日设置
         anniversaries_setting = crud_setting.get_setting(db, key="anniversaries_json")
-        anniversaries_json = anniversaries_setting.value.get("value", "[]") if anniversaries_setting else "[]"
+        anniversaries_json = anniversaries_setting.value if anniversaries_setting else "[]"
         
         if not anniversaries_json or anniversaries_json == "[]":
             return {"active": False}
         
-        import json
         anniversaries = json.loads(anniversaries_json)
         
         # 获取当前日期
@@ -52,6 +56,13 @@ async def get_anniversary_mode(db: Session = Depends(get_db)) -> Dict:
         
     except Exception as e:
         return {"active": False, "error": str(e)}
+
+@router.get("/anniversary-mode/current")
+async def get_current_anniversary_mode(db: Session = Depends(get_db)) -> Dict:
+    """
+    获取当前纪念日氛围模式状态（兼容性端点）
+    """
+    return await get_anniversary_mode(db)
 
 def get_anniversary_effects(anniversary_type: str) -> List[str]:
     """
@@ -114,7 +125,7 @@ async def toggle_theme(theme_data: Dict, db: Session = Depends(get_db)) -> Dict:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/save")
+@router.post("/anniversary-mode/save")
 async def save_anniversaries(
     request: Request,
     db: Session = Depends(get_db)
@@ -139,17 +150,20 @@ async def save_anniversaries(
         anniversaries_json = json.dumps(anniversaries, ensure_ascii=False)
         
         # 检查设置是否存在
-        existing_setting = crud_setting.get_by_key(db, "anniversaries")
+        existing_setting = crud_setting.get_setting(db, key="anniversaries_json")
         if existing_setting:
             # 更新现有设置
-            existing_setting.value = anniversaries_json
-            db.commit()
+            crud_setting.update_setting(
+                db=db,
+                key="anniversaries_json",
+                setting_update=SettingUpdate(value={"value": anniversaries_json})
+            )
         else:
             # 创建新设置
             from ..models.setting import Setting
             new_setting = Setting(
-                key="anniversaries",
-                value=anniversaries_json,
+                key="anniversaries_json",
+                value={"value": anniversaries_json},
                 description="纪念日氛围模式设置"
             )
             db.add(new_setting)

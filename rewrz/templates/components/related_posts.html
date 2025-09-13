@@ -33,7 +33,7 @@
             
             <div class="p-4">
                 <h3 class="text-lg font-semibold text-gray-800 mb-2 line-clamp-2 leading-tight">
-                    <a href="/posts/{{ related_post.slug }}" class="hover:text-indigo-600 transition-colors duration-200">
+                    <a href="{{ related_post | post_url }}" class="hover:text-indigo-600 transition-colors duration-200">
                         {{ related_post.title }}
                     </a>
                 </h3>

@@ -51,15 +51,28 @@ class ThemeSync {
     applyThemeSettings(settings) {
         // 应用主题
         if (settings.theme && window.themeManager) {
-            window.themeManager.setTheme(settings.theme);
+            // 检查themeManager是否有setTheme方法，如果没有则使用applyTheme
+            if (typeof window.themeManager.setTheme === 'function') {
+                window.themeManager.setTheme(settings.theme);
+            } else if (typeof window.themeManager.applyTheme === 'function') {
+                window.themeManager.applyTheme(settings.theme);
+            }
         }
         
         // 应用氛围模式
         if (settings.atmosphere && window.themeManager) {
-            window.themeManager.setAtmosphere(
-                settings.atmosphere.value,
-                settings.atmosphere.effects || []
-            );
+            // 检查themeManager是否有setAtmosphere方法
+            if (typeof window.themeManager.setAtmosphere === 'function') {
+                window.themeManager.setAtmosphere(
+                    settings.atmosphere.value,
+                    settings.atmosphere.effects || []
+                );
+            }
+        }
+        
+        // 应用背景图片设置
+        if (settings.background) {
+            this.applyBackgroundSettings(settings.background);
         }
         
         // 应用主页模式
@@ -71,6 +84,28 @@ class ThemeSync {
         window.dispatchEvent(new CustomEvent('themeSync', {
             detail: settings
         }));
+    }
+    
+    applyBackgroundSettings(backgroundSettings) {
+        const body = document.body;
+        
+        // 移除现有的背景类
+        body.classList.remove('bg-none', 'bg-gradient', 'bg-custom');
+        
+        // 根据背景类型应用相应的样式
+        if (backgroundSettings.type === 'none') {
+            body.classList.add('bg-none');
+            body.style.backgroundImage = '';
+        } else if (backgroundSettings.type === 'gradient') {
+            body.classList.add('bg-gradient');
+            body.style.backgroundImage = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        } else if (backgroundSettings.type === 'custom' && backgroundSettings.custom_url) {
+            body.classList.add('bg-custom');
+            body.style.backgroundImage = `url('${backgroundSettings.custom_url}')`;
+            body.style.backgroundSize = 'cover';
+            body.style.backgroundPosition = 'center';
+            body.style.backgroundRepeat = 'no-repeat';
+        }
     }
     
     applyHomepageMode(mode) {
@@ -137,7 +172,7 @@ class ThemeSync {
     }
     
     // 手动触发同步
-    forcSync() {
+    forceSync() {
         return this.syncThemeSettings();
     }
     

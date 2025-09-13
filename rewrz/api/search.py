@@ -141,7 +141,7 @@ async def search_api(
             "excerpt": post.excerpt,
             "published_at": post.published_at.isoformat() if post.published_at else None,
             "featured_image_url": post.featured_image_url,
-            "url": f"/posts/{post.slug}",
+            "url": f"/{post.formats[0].slug if post.formats else 'article'}/{post.slug}",
             "categories": [{"name": cat.name, "slug": cat.slug} for cat in post.categories],
             "tags": [{"name": tag.name, "slug": tag.slug} for tag in post.tags],
             "formats": [{"name": fmt.name, "slug": fmt.slug} for fmt in post.formats]
@@ -184,7 +184,7 @@ async def search_suggestions(
         suggestions.append({
             "type": "post",
             "title": post.title,
-            "url": f"/posts/{post.slug}"
+            "url": f"/{post.formats[0].slug if post.formats else 'article'}/{post.slug}"
         })
     
     # 搜索匹配的分类

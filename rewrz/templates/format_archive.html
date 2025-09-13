@@ -14,13 +14,13 @@
         {% for post in posts %}
         <div class="break-inside-avoid bg-white rounded-lg shadow-md overflow-hidden mb-4">
             {% if post.featured_image_url %}
-            <a href="/posts/{{ post.slug }}">
+            <a href="{{ post | post_url }}">
                 {{ post.featured_image_url | responsive_image(post.title, "w-full h-auto object-cover", "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw", request.state.db) | safe }}
             </a>
             {% endif %}
             <div class="p-4">
                 <h2 class="text-lg font-semibold text-gray-800 mb-1">
-                    <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
+                    <a href="{{ post | post_url }}" class="hover:text-indigo-600">{{ post.title }}</a>
                 </h2>
                 <p class="text-gray-600 text-xs">{{ post.published_at.strftime('%Y年%m月%d日') }}</p>
             </div>
@@ -103,7 +103,7 @@
             </div>
             <div class="p-5">
                 <h2 class="text-xl font-bold text-gray-900 mb-2 line-clamp-2">
-                    <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
+                    <a href="{{ post | post_url }}" class="hover:text-indigo-600">{{ post.title }}</a>
                 </h2>
                 <p class="text-gray-600 text-sm mb-4 line-clamp-3">{{ post.excerpt }}</p>
                 <div class="flex items-center justify-between text-xs text-gray-500">
@@ -114,13 +114,13 @@
         </div>
         {% endfor %}
     </div>
-    {% elif format_slug == 'music' %}
-    <!-- 音乐格式：列表式布局 -->
+    {% elif format_slug == 'poetry-song' %}
+    <!-- 诗词歌赋格式：列表式布局 -->
     <div class="max-w-3xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
         <ul class="divide-y divide-gray-200">
             {% for post in posts %}
             <li class="hover:bg-gray-50 transition-colors duration-200">
-                <a href="/posts/{{ post.slug }}" class="block p-4">
+                <a href="{{ post | post_url }}" class="block p-4">
                     <div class="flex items-center">
                         <div class="flex-shrink-0 w-16 h-16 bg-gray-200 rounded-md flex items-center justify-center mr-4">
                             {% if post.featured_image_url %}
@@ -160,7 +160,7 @@
             {{ post.featured_image_url | responsive_image(post.title, "w-full h-48 object-cover rounded-lg mb-4", "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw", request.state.db) | safe }}
             {% endif %}
             <h2 class="text-xl font-semibold text-gray-800 mb-2">
-                <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
+                <a href="{{ post | post_url }}" class="hover:text-indigo-600">{{ post.title }}</a>
             </h2>
             <div class="flex items-center space-x-4 text-gray-600 text-sm mb-4">
                 <span>发布于 {{ post.published_at.strftime('%Y年%m月%d日') }}</span>
@@ -175,7 +175,7 @@
                 </span>
             </div>
             <p class="text-gray-700">{{ post.excerpt }}</p>
-            <a href="/posts/{{ post.slug }}" class="inline-block mt-4 text-indigo-600 hover:underline">阅读更多 &rarr;</a>
+            <a href="{{ post | post_url }}" class="inline-block mt-4 text-indigo-600 hover:underline">阅读更多 &rarr;</a>
         </div>
         {% endfor %}
     </div>

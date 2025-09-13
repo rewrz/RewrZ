@@ -1,297 +1,216 @@
 /**
- * 多格式内容交互功能
- * 支持微博、相册、视频、音乐等不同格式的专属交互
+ * 多格式内容交互系统
+ * 处理微博、相册、视频、诗词歌赋等多重身份内容的前端交互功能
  */
 
 class MultiFormatInteractions {
     constructor() {
-        this.lightbox = null;
-        this.mediaPlayers = new Map();
         this.init();
     }
 
     init() {
-        this.initImageLightbox();
+        this.initMicroPosts();
+        this.initPhotoAlbums();
+        this.initVideoPlayers();
+        this.initAudioPlayers();
         this.initMediaPlayers();
-        this.initWeiboInteractions();
         this.initLazyLoading();
         this.initInfiniteScroll();
+        this.initImageGallery();
+        this.initResponsiveGrid();
     }
 
     /**
-     * 初始化图片灯箱功能
+     * 初始化微博功能
      */
-    initImageLightbox() {
-        // 创建灯箱容器
-        this.createLightboxContainer();
-        
-        // 绑定图片点击事件
-        document.addEventListener('click', (e) => {
-            const img = e.target.closest('.photo-card img, .image-grid img');
-            if (img) {
-                e.preventDefault();
-                this.openLightbox(img);
-            }
-        });
-    }
-
-    createLightboxContainer() {
-        const lightbox = document.createElement('div');
-        lightbox.id = 'image-lightbox';
-        lightbox.className = 'fixed inset-0 z-50 hidden bg-black bg-opacity-90 flex items-center justify-center p-4';
-        lightbox.innerHTML = `
-            <div class="relative max-w-full max-h-full">
-                <img id="lightbox-image" class="max-w-full max-h-full object-contain rounded-lg">
-                <button id="lightbox-close" class="absolute top-4 right-4 text-white text-2xl hover:text-gray-300 transition-colors">
-                    <i class="fas fa-times"></i>
-                </button>
-                <button id="lightbox-prev" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-white text-2xl hover:text-gray-300 transition-colors">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-                <button id="lightbox-next" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-white text-2xl hover:text-gray-300 transition-colors">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-                <div id="lightbox-info" class="absolute bottom-4 left-4 right-4 text-white text-center">
-                    <p id="lightbox-title" class="text-lg font-semibold mb-1"></p>
-                    <p id="lightbox-description" class="text-sm opacity-75"></p>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(lightbox);
-        this.lightbox = lightbox;
-        
-        // 绑定关闭事件
-        lightbox.addEventListener('click', (e) => {
-            if (e.target === lightbox || e.target.id === 'lightbox-close') {
-                this.closeLightbox();
-            }
-        });
-        
-        // 键盘事件
-        document.addEventListener('keydown', (e) => {
-            if (this.lightbox && !this.lightbox.classList.contains('hidden')) {
-                switch (e.key) {
-                    case 'Escape':
-                        this.closeLightbox();
-                        break;
-                    case 'ArrowLeft':
-                        this.prevImage();
-                        break;
-                    case 'ArrowRight':
-                        this.nextImage();
-                        break;
-                }
-            }
-        });
-    }
-
-    openLightbox(img) {
-        const lightboxImg = document.getElementById('lightbox-image');
-        const lightboxTitle = document.getElementById('lightbox-title');
-        const lightboxDescription = document.getElementById('lightbox-description');
-        
-        lightboxImg.src = img.src;
-        lightboxTitle.textContent = img.alt || '';
-        lightboxDescription.textContent = img.dataset.description || '';
-        
-        this.lightbox.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-        
-        // 添加打开动画
-        this.lightbox.style.opacity = '0';
-        setTimeout(() => {
-            this.lightbox.style.opacity = '1';
-        }, 10);
-    }
-
-    closeLightbox() {
-        this.lightbox.style.opacity = '0';
-        setTimeout(() => {
-            this.lightbox.classList.add('hidden');
-            document.body.style.overflow = '';
-        }, 200);
-    }
-
-    /**
-     * 初始化媒体播放器
-     */
-    initMediaPlayers() {
-        const mediaCards = document.querySelectorAll('.media-card');
-        
-        mediaCards.forEach(card => {
-            const playButton = card.querySelector('.play-button');
-            if (playButton) {
-                playButton.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    this.handleMediaPlay(card);
+    initMicroPosts() {
+        // 微博展开/收起功能
+        document.querySelectorAll('.micro-post-content').forEach(content => {
+            const fullText = content.textContent.trim();
+            const shortText = fullText.substring(0, 140);
+            
+            if (fullText.length > 140) {
+                content.innerHTML = `
+                    <span class="short-text">${shortText}...</span>
+                    <span class="full-text hidden">${fullText}</span>
+                    <button class="expand-btn text-blue-500 hover:text-blue-700 text-sm mt-1">展开</button>
+                `;
+                
+                const expandBtn = content.querySelector('.expand-btn');
+                expandBtn.addEventListener('click', () => {
+                    const shortTextEl = content.querySelector('.short-text');
+                    const fullTextEl = content.querySelector('.full-text');
+                    const isExpanded = !shortTextEl.classList.contains('hidden');
+                    
+                    if (isExpanded) {
+                        shortTextEl.classList.add('hidden');
+                        fullTextEl.classList.remove('hidden');
+                        expandBtn.textContent = '收起';
+                    } else {
+                        shortTextEl.classList.remove('hidden');
+                        fullTextEl.classList.add('hidden');
+                        expandBtn.textContent = '展开';
+                    }
                 });
             }
         });
     }
 
-    handleMediaPlay(card) {
-        const format = card.dataset.format;
-        const postUrl = card.querySelector('a').href;
-        
-        if (format === 'video') {
-            this.playVideo(card, postUrl);
-        } else if (format === 'music') {
-            this.playMusic(card, postUrl);
-        }
-    }
-
-    playVideo(card, postUrl) {
-        // 创建视频播放器
-        const videoPlayer = document.createElement('div');
-        videoPlayer.className = 'absolute inset-0 bg-black flex items-center justify-center';
-        videoPlayer.innerHTML = `
-            <video controls autoplay class="w-full h-full object-contain">
-                <source src="${postUrl}/video" type="video/mp4">
-                您的浏览器不支持视频播放。
-            </video>
-            <button class="absolute top-4 right-4 text-white text-xl hover:text-gray-300">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
-        
-        card.appendChild(videoPlayer);
-        
-        // 绑定关闭事件
-        const closeBtn = videoPlayer.querySelector('button');
-        closeBtn.addEventListener('click', () => {
-            videoPlayer.remove();
-        });
-    }
-
-    playMusic(card, postUrl) {
-        // 创建音乐播放器
-        const musicPlayer = document.createElement('div');
-        musicPlayer.className = 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-4';
-        musicPlayer.innerHTML = `
-            <audio controls class="w-full">
-                <source src="${postUrl}/audio" type="audio/mpeg">
-                您的浏览器不支持音频播放。
-            </audio>
-        `;
-        
-        card.appendChild(musicPlayer);
-        
-        // 自动播放
-        const audio = musicPlayer.querySelector('audio');
-        audio.play().catch(e => {
-            console.log('自动播放被阻止:', e);
+    /**
+     * 初始化相册功能
+     */
+    initPhotoAlbums() {
+        // 相册网格布局
+        document.querySelectorAll('.photo-album-grid').forEach(grid => {
+            const photos = grid.querySelectorAll('.photo-item');
+            const photoCount = photos.length;
+            
+            // 根据照片数量调整网格布局
+            if (photoCount === 1) {
+                grid.classList.add('single-photo');
+            } else if (photoCount === 2) {
+                grid.classList.add('two-photos');
+            } else if (photoCount === 3) {
+                grid.classList.add('three-photos');
+            } else if (photoCount === 4) {
+                grid.classList.add('four-photos');
+            } else {
+                grid.classList.add('many-photos');
+            }
         });
     }
 
     /**
-     * 初始化微博交互功能
+     * 初始化视频播放器
      */
-    initWeiboInteractions() {
-        // 点赞功能
-        document.addEventListener('click', (e) => {
-            const likeBtn = e.target.closest('.weibo-card button[class*="fa-heart"]');
-            if (likeBtn) {
-                e.preventDefault();
-                this.handleLike(likeBtn);
+    initVideoPlayers() {
+        // 视频播放控制
+        document.querySelectorAll('.video-player').forEach(player => {
+            const video = player.querySelector('video');
+            const playBtn = player.querySelector('.play-btn');
+            const pauseBtn = player.querySelector('.pause-btn');
+            
+            if (video && playBtn) {
+                playBtn.addEventListener('click', () => {
+                    video.play();
+                    playBtn.classList.add('hidden');
+                    if (pauseBtn) pauseBtn.classList.remove('hidden');
+                });
+            }
+            
+            if (video && pauseBtn) {
+                pauseBtn.addEventListener('click', () => {
+                    video.pause();
+                    pauseBtn.classList.add('hidden');
+                    if (playBtn) playBtn.classList.remove('hidden');
+                });
             }
         });
-        
-        // 评论功能
-        document.addEventListener('click', (e) => {
-            const commentBtn = e.target.closest('.weibo-card button[class*="fa-comment"]');
-            if (commentBtn) {
-                e.preventDefault();
-                this.handleComment(commentBtn);
+    }
+
+    /**
+     * 初始化音频播放器
+     */
+    initAudioPlayers() {
+        // 音频播放控制
+        document.querySelectorAll('.audio-player').forEach(player => {
+            const audio = player.querySelector('audio');
+            const playBtn = player.querySelector('.play-btn');
+            const pauseBtn = player.querySelector('.pause-btn');
+            const progress = player.querySelector('.progress');
+            
+            if (audio && playBtn) {
+                playBtn.addEventListener('click', () => {
+                    audio.play();
+                    playBtn.classList.add('hidden');
+                    if (pauseBtn) pauseBtn.classList.remove('hidden');
+                });
+            }
+            
+            if (audio && pauseBtn) {
+                pauseBtn.addEventListener('click', () => {
+                    audio.pause();
+                    pauseBtn.classList.add('hidden');
+                    if (playBtn) playBtn.classList.remove('hidden');
+                });
+            }
+            
+            if (audio && progress) {
+                audio.addEventListener('timeupdate', () => {
+                    const percent = (audio.currentTime / audio.duration) * 100;
+                    progress.style.width = `${percent}%`;
+                });
             }
         });
     }
 
-    handleLike(button) {
-        const icon = button.querySelector('i');
-        const count = button.querySelector('span');
-        
-        if (icon.classList.contains('far')) {
-            // 点赞
-            icon.classList.remove('far');
-            icon.classList.add('fas');
-            button.classList.add('text-red-500');
-            count.textContent = parseInt(count.textContent) + 1;
+    /**
+     * 初始化媒体播放器（通用）
+     */
+    initMediaPlayers() {
+        // 媒体播放控制
+        document.querySelectorAll('.media-player').forEach(player => {
+            const media = player.querySelector('video, audio');
+            const playBtn = player.querySelector('.play-btn');
+            const pauseBtn = player.querySelector('.pause-btn');
+            const volumeBtn = player.querySelector('.volume-btn');
+            const muteBtn = player.querySelector('.mute-btn');
             
-            // 添加点赞动画
-            this.addLikeAnimation(button);
-        } else {
-            // 取消点赞
-            icon.classList.remove('fas');
-            icon.classList.add('far');
-            button.classList.remove('text-red-500');
-            count.textContent = parseInt(count.textContent) - 1;
-        }
-    }
-
-    addLikeAnimation(button) {
-        const heart = document.createElement('i');
-        heart.className = 'fas fa-heart absolute text-red-500 pointer-events-none';
-        heart.style.left = '50%';
-        heart.style.top = '50%';
-        heart.style.transform = 'translate(-50%, -50%)';
-        heart.style.fontSize = '20px';
-        heart.style.opacity = '1';
-        
-        button.style.position = 'relative';
-        button.appendChild(heart);
-        
-        // 动画效果
-        let scale = 1;
-        let opacity = 1;
-        let translateY = 0;
-        
-        const animate = () => {
-            scale += 0.1;
-            opacity -= 0.05;
-            translateY -= 2;
-            
-            heart.style.transform = `translate(-50%, -50%) translateY(${translateY}px) scale(${scale})`;
-            heart.style.opacity = opacity;
-            
-            if (opacity > 0) {
-                requestAnimationFrame(animate);
-            } else {
-                heart.remove();
+            if (media && playBtn) {
+                playBtn.addEventListener('click', () => {
+                    media.play();
+                    playBtn.classList.add('hidden');
+                    if (pauseBtn) pauseBtn.classList.remove('hidden');
+                });
             }
-        };
-        
-        requestAnimationFrame(animate);
-    }
-
-    handleComment(button) {
-        // 这里可以实现评论功能
-        console.log('评论功能待实现');
+            
+            if (media && pauseBtn) {
+                pauseBtn.addEventListener('click', () => {
+                    media.pause();
+                    pauseBtn.classList.add('hidden');
+                    if (playBtn) playBtn.classList.remove('hidden');
+                });
+            }
+            
+            if (media && volumeBtn && muteBtn) {
+                volumeBtn.addEventListener('click', () => {
+                    media.muted = true;
+                    volumeBtn.classList.add('hidden');
+                    muteBtn.classList.remove('hidden');
+                });
+                
+                muteBtn.addEventListener('click', () => {
+                    media.muted = false;
+                    muteBtn.classList.add('hidden');
+                    volumeBtn.classList.remove('hidden');
+                });
+            }
+        });
     }
 
     /**
      * 初始化懒加载
      */
     initLazyLoading() {
-        if ('IntersectionObserver' in window) {
-            const imageObserver = new IntersectionObserver((entries, observer) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const img = entry.target;
-                        if (img.dataset.src) {
-                            img.src = img.dataset.src;
-                            img.removeAttribute('data-src');
-                            img.classList.remove('lazy');
-                            observer.unobserve(img);
-                        }
-                    }
-                });
+        // 图片懒加载
+        const images = document.querySelectorAll('img[data-src]');
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                    observer.unobserve(img);
+                }
             });
-
-            document.querySelectorAll('img[data-src]').forEach(img => {
+        });
+        
+        images.forEach(img => {
+            // 检查元素是否存在再观察
+            if (img && typeof img.getBoundingClientRect === 'function') {
                 imageObserver.observe(img);
-            });
-        }
+            }
+        });
     }
 
     /**
@@ -303,6 +222,12 @@ class MultiFormatInteractions {
         
         const loadMoreContent = async () => {
             if (loading) return;
+            
+            // 检查是否已滚动到页面底部附近
+            if (window.innerHeight + window.scrollY < document.body.offsetHeight - 1000) {
+                return;
+            }
+            
             loading = true;
             
             try {
@@ -319,8 +244,11 @@ class MultiFormatInteractions {
         
         // 滚动监听
         window.addEventListener('scroll', () => {
-            if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 1000) {
-                loadMoreContent();
+            // 添加检查确保window和document对象存在
+            if (window && document && document.body) {
+                if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 1000) {
+                    loadMoreContent();
+                }
             }
         });
     }
@@ -348,10 +276,66 @@ class MultiFormatInteractions {
             <div class="card-body">
                 <h3 class="text-xl font-bold mb-2">${post.title}</h3>
                 <p class="text-gray-600 mb-4">${post.excerpt || ''}</p>
-                <a href="/posts/${post.slug}" class="text-blue-500 hover:text-blue-700">阅读更多</a>
+                <a href="/${post.format_slug}/${post.slug}" class="text-blue-500 hover:text-blue-700">阅读更多</a>
             </div>
         `;
         return div;
+    }
+
+    /**
+     * 初始化图片画廊
+     */
+    initImageGallery() {
+        // 图片点击放大功能
+        document.querySelectorAll('.gallery-image').forEach(img => {
+            img.addEventListener('click', () => {
+                // 创建模态框显示大图
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+                modal.innerHTML = `
+                    <div class="relative">
+                        <img src="${img.src}" class="max-w-full max-h-full" alt="放大图片">
+                        <button class="absolute top-4 right-4 text-white text-2xl">&times;</button>
+                    </div>
+                `;
+                
+                modal.querySelector('button').addEventListener('click', () => {
+                    modal.remove();
+                });
+                
+                document.body.appendChild(modal);
+            });
+        });
+    }
+
+    /**
+     * 初始化响应式网格
+     */
+    initResponsiveGrid() {
+        // 响应式网格调整
+        const adjustGrid = () => {
+            const grids = document.querySelectorAll('.responsive-grid');
+            grids.forEach(grid => {
+                const containerWidth = grid.offsetWidth;
+                let columns = 1;
+                
+                if (containerWidth > 1200) {
+                    columns = 4;
+                } else if (containerWidth > 900) {
+                    columns = 3;
+                } else if (containerWidth > 600) {
+                    columns = 2;
+                }
+                
+                grid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+            });
+        };
+        
+        // 初始调整
+        adjustGrid();
+        
+        // 窗口大小改变时调整
+        window.addEventListener('resize', adjustGrid);
     }
 
     /**
@@ -361,6 +345,9 @@ class MultiFormatInteractions {
         const imageGrids = document.querySelectorAll('.image-grid');
         
         imageGrids.forEach(grid => {
+            // 检查grid元素是否存在
+            if (!grid) return;
+            
             const imageCount = parseInt(grid.dataset.imageCount);
             const containerWidth = grid.offsetWidth;
             
@@ -380,7 +367,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 响应式调整
     window.addEventListener('resize', () => {
-        window.multiFormatInteractions.adjustImageGrid();
+        // 检查对象是否存在再调用方法
+        if (window.multiFormatInteractions && typeof window.multiFormatInteractions.adjustImageGrid === 'function') {
+            window.multiFormatInteractions.adjustImageGrid();
+        }
     });
 });
 

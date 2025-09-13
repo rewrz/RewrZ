@@ -333,6 +333,28 @@ def related_posts_filter(current_post, db, limit: int = 5) -> list:
         return []
 
 
+def post_url_filter(post) -> str:
+    """
+    生成文章URL的过滤器
+    
+    Args:
+        post: 文章对象，需要包含slug和formats属性
+        
+    Returns:
+        文章URL字符串，格式为 /{format_slug}/{post_slug}
+    """
+    if not post or not hasattr(post, 'slug'):
+        return "#"
+    
+    # 获取文章的主要格式slug
+    format_slug = "article"  # 默认格式
+    if hasattr(post, 'formats') and post.formats:
+        # 使用第一个格式的slug
+        format_slug = post.formats[0].slug
+    
+    return f"/{format_slug}/{post.slug}"
+
+
 def register_template_filters(app):
     """
     注册所有模板过滤器到FastAPI应用
@@ -388,5 +410,6 @@ def get_templates():
         _templates.env.filters['reading_stats'] = reading_stats_filter
         _templates.env.filters['related_posts'] = related_posts_filter
         _templates.env.filters['fa_compat'] = fa_compat_filter # 注册Font Awesome兼容过滤器
+        _templates.env.filters['post_url'] = post_url_filter # 注册文章URL生成过滤器
     
     return _templates

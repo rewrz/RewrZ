@@ -71,7 +71,7 @@
                         <div class="flex items-center">
                             <div>
                                 <div class="text-sm font-medium text-gray-900">
-                                    <a href="/posts/{{ post.slug }}" target="_blank" class="hover:text-blue-600">
+                                    <a href="{{ post | post_url }}" target="_blank" class="hover:text-blue-600">
                                         {{ post.title }}
                                     </a>
                                 </div>
@@ -130,7 +130,7 @@
                                class="text-blue-600 hover:text-blue-900">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <a href="/posts/{{ post.slug }}" target="_blank" 
+                            <a href="{{ post | post_url }}" target="_blank" 
                                class="text-green-600 hover:text-green-900">
                                 <i class="fas fa-eye"></i>
                             </a>

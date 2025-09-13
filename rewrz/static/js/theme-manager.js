@@ -35,6 +35,11 @@ class ThemeManager {
      * 创建主题切换按钮
      */
     createThemeToggle() {
+        // 检查是否已存在主题切换按钮
+        if (document.getElementById('theme-toggle')) {
+            return;
+        }
+        
         const toggleButton = document.createElement('button');
         toggleButton.id = 'theme-toggle';
         toggleButton.className = 'fixed top-4 right-4 z-50 p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700';
@@ -56,7 +61,7 @@ class ThemeManager {
      */
     async checkAnniversaryMode() {
         try {
-            const response = await fetch('/api/anniversary-mode');
+            const response = await fetch('/api/anniversary-mode/current');
             const data = await response.json();
             
             if (data.active) {
@@ -148,8 +153,14 @@ class ThemeManager {
      * 显示纪念日通知
      */
     showAnniversaryNotice(name, type) {
+        // 移除已存在的通知
+        const existingNotice = document.querySelector('.anniversary-notice');
+        if (existingNotice) {
+            existingNotice.remove();
+        }
+        
         const notice = document.createElement('div');
-        notice.className = `fixed top-20 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg ${
+        notice.className = `fixed top-20 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg anniversary-notice ${
             type === 'Mourn' ? 'bg-gray-800 text-white' : 'bg-red-600 text-white'
         } transition-all duration-500`;
         notice.innerHTML = `
@@ -282,15 +293,48 @@ class ThemeManager {
      * 显示消息提示
      */
     showMessage(message) {
+        // 移除已存在的消息
+        const existingToast = document.querySelector('.theme-toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+        
         const toast = document.createElement('div');
-        toast.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 bg-gray-800 text-white rounded-lg shadow-lg transition-all duration-300';
+        toast.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 bg-gray-800 text-white rounded-lg shadow-lg transition-all duration-300 theme-toast';
         toast.textContent = message;
         
         document.body.appendChild(toast);
         
         setTimeout(() => {
-            toast.remove();
+            if (toast.parentElement) {
+                toast.remove();
+            }
         }, 2000);
+    }
+
+    /**
+     * 设置主题（供外部调用）
+     */
+    setTheme(theme) {
+        this.currentTheme = theme;
+        this.applyTheme();
+        this.saveThemeToStorage();
+    }
+
+    /**
+     * 设置氛围模式（供外部调用）
+     */
+    setAtmosphere(atmosphere, effects = []) {
+        if (atmosphere) {
+            this.anniversaryMode = {
+                active: true,
+                type: atmosphere,
+                effects: effects
+            };
+        } else {
+            this.anniversaryMode = null;
+        }
+        this.applyTheme();
     }
 
     /**

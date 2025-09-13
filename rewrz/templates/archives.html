@@ -34,7 +34,7 @@
         <li class="flex items-center justify-between py-2">
             <div class="flex-1">
                 <span class="text-gray-500 text-sm">{{ post.published_at.strftime('%d日') }}</span> &mdash; 
-                <a href="/posts/{{ post.slug }}" class="text-indigo-600 hover:underline">{{ post.title }}</a>
+                <a href="{{ post | post_url }}" class="text-indigo-600 hover:underline">{{ post.title }}</a>
             </div>
             <div class="flex items-center space-x-3 text-xs text-gray-500">
                 <span class="flex items-center">

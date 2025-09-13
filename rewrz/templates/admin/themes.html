@@ -196,7 +196,7 @@
         </div>
         
         <div class="p-6">
-            <form id="theme-form" hx-post="{{ request.state.admin_path }}/themes/update" hx-trigger="change">
+            <form id="theme-form" hx-post="{{ request.state.admin_path }}/themes/update" hx-trigger="change" hx-swap="none">
                 <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -237,7 +237,7 @@
                     
                     <!-- 自动切换设置 -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-3">自动切换设置</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">高级设置</label>
                         <div class="space-y-4">
                             <div class="flex items-center p-4 border border-gray-200 rounded-lg">
                                 <input type="checkbox" name="auto_theme_enabled" 
@@ -247,6 +247,58 @@
                                     <div class="font-medium">启用主题调度</div>
                                     <div class="text-sm text-gray-500">根据时间段自动切换主题</div>
                                 </label>
+                            </div>
+                            
+                            <!-- 背景图片选择 -->
+                            <div class="p-4 border border-gray-200 rounded-lg">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">背景图片</label>
+                                <div class="space-y-3">
+                                    <div class="grid grid-cols-3 gap-3">
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="background_type" value="none" class="sr-only" {% if not background_settings or background_settings.type == 'none' %}checked{% endif %}>
+                                            <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300 bg-white">
+                                                <div class="text-2xl mb-1">🚫</div>
+                                                <div class="text-xs">无背景</div>
+                                            </div>
+                                        </label>
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="background_type" value="gradient1" class="sr-only" {% if background_settings and background_settings.type == 'gradient1' %}checked{% endif %}>
+                                            <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                                <div class="text-white text-xs">渐变1</div>
+                                            </div>
+                                        </label>
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="background_type" value="gradient2" class="sr-only" {% if background_settings and background_settings.type == 'gradient2' %}checked{% endif %}>
+                                            <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);">
+                                                <div class="text-white text-xs">渐变2</div>
+                                            </div>
+                                        </label>
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="background_type" value="gradient3" class="sr-only" {% if background_settings and background_settings.type == 'gradient3' %}checked{% endif %}>
+                                            <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
+                                                <div class="text-gray-700 text-xs">渐变3</div>
+                                            </div>
+                                        </label>
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="background_type" value="gradient4" class="sr-only" {% if background_settings and background_settings.type == 'gradient4' %}checked{% endif %}>
+                                            <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
+                                                <div class="text-gray-700 text-xs">渐变4</div>
+                                            </div>
+                                        </label>
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="background_type" value="custom" class="sr-only" {% if background_settings and background_settings.type == 'custom' %}checked{% endif %}>
+                                            <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300 bg-gray-50">
+                                                <div class="text-2xl mb-1">📁</div>
+                                                <div class="text-xs">自定义</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div id="custom-background-input" class="hidden">
+                                        <input type="url" name="custom_background_url" placeholder="输入背景图片URL" 
+                                               class="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                               {% if background_settings and background_settings.type == 'custom' and background_settings.custom_url %}value="{{ background_settings.custom_url }}"{% endif %}>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -654,11 +706,17 @@ async function saveAnniversaries() {
             body: JSON.stringify({ anniversaries })
         });
         
+        // 检查响应是否成功
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
+        
         const result = await response.json();
         if (result.success) {
             showNotification(`已保存 ${anniversaries.length} 个纪念日设置`, 'success');
         } else {
-            throw new Error(result.error || '保存失败');
+            throw new Error(result.message || '保存失败');
         }
     } catch (error) {
         console.error('保存纪念日设置错误:', error);
@@ -670,7 +728,7 @@ async function saveAnniversaries() {
 async function saveSchedule() {
     const schedules = [];
     document.querySelectorAll('.schedule-item').forEach(item => {
-        const inputs = item.querySelectorAll('input, select');
+        const inputs = item.querySelectorAll('input[type="date"], select');
         if (inputs.length >= 3) {
             const startDate = inputs[0].value;
             const endDate = inputs[1].value;
@@ -696,11 +754,17 @@ async function saveSchedule() {
             body: JSON.stringify({ schedules })
         });
         
+        // 检查响应是否成功
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
+        
         const result = await response.json();
         if (result.success) {
             showNotification(`已保存 ${schedules.length} 个主题调度规则`, 'success');
         } else {
-            throw new Error(result.error || '保存失败');
+            throw new Error(result.message || '保存失败');
         }
     } catch (error) {
         console.error('保存主题调度设置错误:', error);
@@ -734,9 +798,9 @@ function addScheduleItem() {
                 <label class="text-xs text-gray-500">氛围主题</label>
                 <select class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
                     <option value="">默认主题</option>
-                    {% for atmosphere_id, atmosphere_config in atmosphere_themes.items() %}
-                    <option value="{{ atmosphere_id }}">{{ atmosphere_config.name }}</option>
-                    {% endfor %}
+                    <option value="festive">🎉 节日氛围</option>
+                    <option value="memorial">🕯️ 纪念氛围</option>
+                    <option value="celebration">🎊 庆祝氛围</option>
                 </select>
             </div>
             <div class="flex space-x-2">
@@ -775,7 +839,7 @@ function attachScheduleEvents(item) {
     
     // 预览按钮
     item.querySelector('.preview-schedule').addEventListener('click', function() {
-        const inputs = item.querySelectorAll('input, select');
+        const inputs = item.querySelectorAll('input[type="date"], select');
         const startDate = inputs[0].value;
         const endDate = inputs[1].value;
         const atmosphere = inputs[2].value;
@@ -813,8 +877,72 @@ function showNotification(message, type = 'info') {
     
     // 自动移除通知
     setTimeout(() => {
-        notification.remove();
+        if (notification.parentNode) {
+            notification.remove();
+        }
     }, 4000);
+}
+
+// 保存背景图片设置
+async function saveBackgroundImage() {
+    const selectedValue = document.querySelector('input[name="background_type"]:checked')?.value || 'none';
+    const customUrl = document.querySelector('input[name="custom_background_url"]')?.value || '';
+    
+    try {
+        const formData = new FormData();
+        formData.append('background_type', selectedValue);
+        if (selectedValue === 'custom' && customUrl) {
+            formData.append('custom_background_url', customUrl);
+        }
+        formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+        
+        const response = await fetch('/api/admin/themes/background', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        if (result.success) {
+            // 应用背景图片到当前页面
+            const bodyStyle = document.body.style;
+            switch(selectedValue) {
+                case 'gradient1':
+                    bodyStyle.backgroundImage = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                    break;
+                case 'gradient2':
+                    bodyStyle.backgroundImage = 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)';
+                    break;
+                case 'gradient3':
+                    bodyStyle.backgroundImage = 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)';
+                    break;
+                case 'gradient4':
+                    bodyStyle.backgroundImage = 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)';
+                    break;
+                case 'custom':
+                    if (customUrl) {
+                        bodyStyle.backgroundImage = `url('${customUrl}')`;
+                    } else {
+                        bodyStyle.backgroundImage = 'none';
+                    }
+                    break;
+                default:
+                    bodyStyle.backgroundImage = 'none';
+                    break;
+            }
+            
+            showNotification('背景图片设置已保存并应用', 'success');
+        } else {
+            throw new Error(result.message || '保存失败');
+        }
+    } catch (error) {
+        console.error('保存背景图片设置错误:', error);
+        showNotification('保存背景图片设置失败: ' + error.message, 'error');
+    }
 }
 
 // 页面加载完成后初始化
@@ -842,12 +970,45 @@ document.addEventListener('DOMContentLoaded', function() {
     // 主题选择变化监听
     document.querySelectorAll('input[name="current_theme"]').forEach(radio => {
         radio.addEventListener('change', function() {
+            // 更新所有主题选项的样式
+            document.querySelectorAll('.theme-option label').forEach(label => {
+                label.classList.remove('border-blue-500', 'bg-blue-50');
+                label.classList.add('border-gray-200');
+            });
+            
+            // 为选中的主题添加高亮样式
             if (this.checked) {
-                showNotification(`已切换到 ${this.nextElementSibling.querySelector('.font-medium').textContent} 主题`, 'success');
+                const label = this.nextElementSibling;
+                label.classList.remove('border-gray-200');
+                label.classList.add('border-blue-500', 'bg-blue-50');
+                showNotification(`已切换到 ${label.querySelector('.font-medium').textContent} 主题`, 'success');
             }
         });
     });
+    
+    // 背景图片选择监听
+    document.querySelectorAll('input[name="background_type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                document.getElementById('custom-background-input').classList.remove('hidden');
+            } else {
+                document.getElementById('custom-background-input').classList.add('hidden');
+            }
+            // 自动保存背景图片设置
+            saveBackgroundImage();
+        });
+    });
+    
+    // 自定义背景URL输入监听
+    const customBackgroundInput = document.querySelector('input[name="custom_background_url"]');
+    if (customBackgroundInput) {
+        customBackgroundInput.addEventListener('blur', saveBackgroundImage);
+    }
+    
+    // 自动保存背景图片设置
+    document.querySelectorAll('input[name="background_type"]').forEach(radio => {
+        radio.addEventListener('change', saveBackgroundImage);
+    });
 });
 </script>
-
 {% endblock %}

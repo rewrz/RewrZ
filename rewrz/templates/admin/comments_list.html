@@ -84,13 +84,13 @@
                     <td class="px-6 py-4">
                         <div class="text-sm text-gray-900">
                             {% if comment.parent %}
-                                <a href="/posts/{{ comment.post.slug }}#comment-{{ comment.parent.id }}" class="text-indigo-600 font-semibold hover:underline">@{{ comment.parent.author_name }}</a>
+                                <a href="{{ comment.post | post_url }}#comment-{{ comment.parent.id }}" class="text-indigo-600 font-semibold hover:underline">@{{ comment.parent.author_name }}</a>
                             {% endif %}
                             {{ comment.content|truncate(100) }}
                         </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <a href="/posts/{{ comment.post.slug }}" target="_blank" class="text-sm text-blue-600 hover:underline">
+                        <a href="{{ comment.post | post_url }}" target="_blank" class="text-sm text-blue-600 hover:underline">
                             {{ comment.post.title|truncate(30) }}
                         </a>
                     </td>

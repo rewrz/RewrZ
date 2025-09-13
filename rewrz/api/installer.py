@@ -422,7 +422,7 @@ async def create_initial_content(
                     {"name": "微博", "slug": "micro-post", "description": "类似微博的短内容"},
                     {"name": "相册", "slug": "photo-album", "description": "图片展示格式"},
                     {"name": "视频", "slug": "video", "description": "视频内容格式"},
-                    {"name": "音乐", "slug": "music", "description": "音频内容格式"}
+                    {"name": "诗词歌赋", "slug": "poetry-song", "description": "诗词歌赋内容格式"}
                 ]
                 
                 for format_data in default_formats:

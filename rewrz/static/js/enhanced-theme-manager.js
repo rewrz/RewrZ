@@ -17,7 +17,7 @@ class EnhancedThemeManager {
     async init() {
         // 动态导入特效管理器
         try {
-            const { default: EffectManager } = await import('./effects/effect-manager.js');
+            const { default: EffectManager } = await import('./effects-manager.js');
             this.effectManager = new EffectManager();
         } catch (error) {
             console.warn('特效管理器加载失败:', error);
@@ -66,6 +66,11 @@ class EnhancedThemeManager {
      * 创建主题切换按钮
      */
     createThemeToggle() {
+        // 检查是否已存在主题切换按钮
+        if (document.getElementById('theme-toggle')) {
+            return;
+        }
+        
         const toggleButton = document.createElement('button');
         toggleButton.id = 'theme-toggle';
         toggleButton.className = 'fixed top-4 right-4 z-50 p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700';
@@ -103,7 +108,12 @@ class EnhancedThemeManager {
     /**
      * 应用主题
      */
-    applyTheme() {
+    applyTheme(theme = null) {
+        // 如果传入了主题参数，则使用该主题
+        if (theme) {
+            this.currentTheme = theme;
+        }
+        
         const html = document.documentElement;
         const body = document.body;
         
@@ -152,7 +162,7 @@ class EnhancedThemeManager {
      */
     async checkAnniversaryMode() {
         try {
-            const response = await fetch('/api/anniversary-mode');
+            const response = await fetch('/api/anniversary-mode/current');
             if (response.ok) {
                 const data = await response.json();
                 if (data.active) {
@@ -285,6 +295,31 @@ class EnhancedThemeManager {
     }
 
     /**
+     * 设置主题（供外部调用）
+     */
+    setTheme(theme) {
+        this.applyTheme(theme);
+        this.saveThemeToStorage();
+    }
+
+    /**
+     * 设置氛围模式（供外部调用）
+     */
+    setAtmosphere(atmosphere, effects = []) {
+        if (atmosphere) {
+            this.anniversaryMode = {
+                active: true,
+                theme_class: atmosphere,
+                effects: effects
+            };
+        } else {
+            this.anniversaryMode = null;
+        }
+        this.applyTheme();
+        this.saveThemeToStorage();
+    }
+
+    /**
      * 绑定事件监听器
      */
     bindEvents() {
@@ -303,13 +338,16 @@ class EnhancedThemeManager {
         // 监听窗口大小变化，调整特效
         window.addEventListener('resize', () => {
             if (this.effectManager) {
-                // 重启特效以适应新的窗口大小
-                const activeEffects = this.effectManager.getActiveEffects();
-                if (activeEffects.length > 0) {
-                    this.effectManager.stopEffect();
-                    setTimeout(() => {
-                        this.effectManager.startEffect(activeEffects);
-                    }, 100);
+                // 检查effectManager是否有getActiveEffects方法
+                if (typeof this.effectManager.getActiveEffects === 'function') {
+                    // 重启特效以适应新的窗口大小
+                    const activeEffects = this.effectManager.getActiveEffects();
+                    if (activeEffects.length > 0) {
+                        this.effectManager.stopEffect();
+                        setTimeout(() => {
+                            this.effectManager.startEffect(activeEffects);
+                        }, 100);
+                    }
                 }
             }
         });
@@ -319,8 +357,14 @@ class EnhancedThemeManager {
      * 显示消息提示
      */
     showMessage(message, type = 'info') {
+        // 移除已存在的消息
+        const existingMessage = document.querySelector('.theme-message');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+        
         const messageEl = document.createElement('div');
-        messageEl.className = `fixed top-16 right-4 z-50 p-3 rounded-lg shadow-lg max-w-sm ${
+        messageEl.className = `fixed top-16 right-4 z-50 p-3 rounded-lg shadow-lg max-w-sm theme-message ${
             type === 'error' ? 'bg-red-500 text-white' : 
             type === 'success' ? 'bg-green-500 text-white' : 
             'bg-blue-500 text-white'
@@ -330,7 +374,9 @@ class EnhancedThemeManager {
         document.body.appendChild(messageEl);
         
         setTimeout(() => {
-            messageEl.remove();
+            if (messageEl.parentElement) {
+                messageEl.remove();
+            }
         }, 3000);
     }
 

@@ -34,17 +34,22 @@ class ConfettiEffect {
             z-index: 9999;
         `;
         
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
-        this.ctx = this.canvas.getContext('2d');
-        
-        document.body.appendChild(this.canvas);
-        
-        // 监听窗口大小变化
-        window.addEventListener('resize', () => {
+        // 确保canvas存在再设置宽高
+        if (this.canvas) {
             this.canvas.width = window.innerWidth;
             this.canvas.height = window.innerHeight;
-        });
+            this.ctx = this.canvas.getContext('2d');
+            
+            document.body.appendChild(this.canvas);
+            
+            // 监听窗口大小变化
+            window.addEventListener('resize', () => {
+                if (this.canvas) {
+                    this.canvas.width = window.innerWidth;
+                    this.canvas.height = window.innerHeight;
+                }
+            });
+        }
     }
 
     generateConfetti() {

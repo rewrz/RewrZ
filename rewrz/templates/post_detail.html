@@ -102,8 +102,8 @@
 {% block content %}
 {% set format_slugs = post.formats | map(attribute='slug') | list %}
 
-{% if 'music' in format_slugs %}
-<!-- 音乐格式：沉浸式音乐播放器页面 -->
+{% if 'poetry-song' in format_slugs %}
+<!-- 诗词歌赋格式：诗词展示页面 -->
 <div class="fixed inset-0 z-0">
     {% if post.featured_image_url %}
     {{ post.featured_image_url | responsive_image(post.title, "w-full h-full object-cover blur-sm", "(max-width: 768px) 100vw, 100vw", request.state.db) | safe }}

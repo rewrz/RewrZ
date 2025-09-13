@@ -25,7 +25,7 @@
 
         {% if image_count == 1 %}
         <div class="mb-4">
-            <a href="/posts/{{ post.slug }}"><img src="{{ images[0] }}" alt="Image" class="rounded-lg w-full object-cover max-h-96"></a>
+            <a href="{{ post | post_url }}"><img src="{{ images[0] }}" alt="Image" class="rounded-lg w-full object-cover max-h-96"></a>
         </div>
         {% endif %}
 
@@ -37,7 +37,7 @@
         <div class="mt-4 grid gap-2 image-grid" data-image-count="{{ image_count if image_count < 3 else 3 }}">
             {% for image_url in images[:9] %}
             <div class="aspect-square overflow-hidden rounded-lg">
-                <a href="/posts/{{ post.slug }}"><img src="{{ image_url }}" alt="Image {{ loop.index }}" class="w-full h-full object-cover"></a>
+                <a href="{{ post | post_url }}"><img src="{{ image_url }}" alt="Image {{ loop.index }}" class="w-full h-full object-cover"></a>
             </div>
             {% endfor %}
         </div>
@@ -51,7 +51,7 @@
 {% elif 'photo-album' in format_slugs %}
     {# 相册样式 #}
     <div class="rounded-lg shadow-xl overflow-hidden relative arrow transition-transform duration-300 transform hover:scale-105 hover:shadow-2xl">
-        <a href="/posts/{{ post.slug }}">
+        <a href="{{ post | post_url }}">
             {{ post.featured_image_url | responsive_image(post.title, "w-full h-auto object-cover", "(max-width: 768px) 100vw, 800px", request.state.db) | safe }}
             <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-6">
                 <h2 class="text-2xl font-bold text-white mb-2 hover:underline">{{ post.title }}</h2>
@@ -59,10 +59,10 @@
             </div>
         </a>
     </div>
-{% elif 'video' in format_slugs or 'music' in format_slugs %}
-    {# 视频/音乐样式 #}
+{% elif 'video' in format_slugs or 'poetry-song' in format_slugs %}
+    {# 视频/诗词歌赋样式 #}
     <div class="bg-black rounded-lg shadow-xl overflow-hidden relative arrow transition-transform duration-300 transform hover:scale-105 hover:shadow-2xl">
-        <a href="/posts/{{ post.slug }}" class="block">
+        <a href="{{ post | post_url }}" class="block">
             <div class="relative">
                 {{ post.featured_image_url | responsive_image(post.title, "w-full h-auto object-cover rounded-lg", "(max-width: 768px) 100vw, 600px", request.state.db) | safe }}
                 <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40">
@@ -80,14 +80,14 @@
     <div class="bg-white p-6 rounded-lg shadow-xl flex flex-col relative arrow transition-transform duration-300 transform hover:scale-105 hover:shadow-2xl">
         {% if post.featured_image_url %}
         <div class="mb-4 -m-6 mt-0">
-            <a href="/posts/{{ post.slug }}">
+            <a href="{{ post | post_url }}">
                 {{ post.featured_image_url | responsive_image(post.title, "w-full h-auto object-cover rounded-t-lg", "(max-width: 768px) 100vw, 400px", request.state.db) | safe }}
             </a>
         </div>
         {% endif %}
         <div class="flex-grow pt-4">
             <h2 class="text-2xl font-bold text-gray-800 mb-2">
-                <a href="/posts/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
+                <a href="{{ post | post_url }}" class="hover:text-indigo-600">{{ post.title }}</a>
             </h2>
             <div class="flex items-center flex-wrap space-x-4 text-gray-600 text-sm mb-4">
                 <span class="flex items-center">
@@ -101,7 +101,7 @@
                 </span>
             </div>
             <p class="text-gray-700">{{ post.excerpt }}</p>
-            <a href="/posts/{{ post.slug }}" class="inline-block mt-4 text-indigo-600 hover:underline">阅读更多 &rarr;</a>
+            <a href="{{ post | post_url }}" class="inline-block mt-4 text-indigo-600 hover:underline">阅读更多 &rarr;</a>
         </div>
     </div>
 {% endif %}

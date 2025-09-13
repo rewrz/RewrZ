@@ -215,8 +215,8 @@
                 <button class="format-filter px-4 py-2 rounded-md text-sm font-medium transition-all" data-format="video">
                     视频
                 </button>
-                <button class="format-filter px-4 py-2 rounded-md text-sm font-medium transition-all" data-format="music">
-                    音乐
+                <button class="format-filter px-4 py-2 rounded-md text-sm font-medium transition-all" data-format="poetry-song">
+                    诗词歌赋
                 </button>
             </div>
         </div>
@@ -247,7 +247,7 @@
                             </div>
                             
                             <h2 class="text-xl font-bold mb-3 text-neutral-900 dark:text-neutral-100">
-                                <a href="/posts/{{ post.slug }}" class="hover:text-accent transition-colors">
+                                <a href="{{ post | post_url }}" class="hover:text-accent transition-colors">
                                     {{ post.title }}
                                 </a>
                             </h2>
@@ -266,7 +266,7 @@
                                     </span>
                                     {% endfor %}
                                 </div>
-                                <a href="/posts/{{ post.slug }}" class="text-accent hover:text-accent-dark font-medium text-sm">
+                                <a href="{{ post | post_url }}" class="text-accent hover:text-accent-dark font-medium text-sm">
                                     阅读更多 →
                                 </a>
                             </div>
@@ -329,7 +329,7 @@
                     </div>
                     
                     {# 视频/音乐卡片 #}
-                    {% elif primary_format in ['video', 'music'] %}
+                    {% elif primary_format in ['video', 'poetry-song'] %}
                     <div class="media-card">
                         {% if post.featured_image_url %}
                         <img src="{{ post.featured_image_url }}" alt="{{ post.title }}" class="w-full h-full object-cover">

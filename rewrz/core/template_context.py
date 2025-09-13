@@ -4,6 +4,9 @@
 提供构建模板渲染所需的通用基础上下文字段，避免在各路由中重复注入。
 """
 from fastapi import Request
+from sqlalchemy.orm import Session
+from ..core.database import get_db
+from ..crud import format as crud_format, post as crud_post
 
 # 主页个性化设置键常量，集中管理，避免魔法字符串分散各处
 HOMEPAGE_SETTING_KEYS = [
@@ -47,6 +50,15 @@ def build_base_template_context(request: Request) -> dict:
     """
     构建模板基础上下文字典，包含所有页面共享的全局字段
     """
+    # 获取数据库会话
+    db: Session = next(get_db())
+    
+    # 获取所有文章格式
+    post_formats = crud_format.get_formats(db)
+    
+    # 获取所有已发布的自定义页面
+    custom_pages = crud_post.get_posts(db, post_type="page", status="published")
+    
     return {
         "atmosphere_class": getattr(request.state, "atmosphere_class", ""),
         "site_title": getattr(request.state, "site_title", DEFAULT_BASE_SETTINGS["site_title"]),
@@ -64,4 +76,7 @@ def build_base_template_context(request: Request) -> dict:
         "gongan_beian": getattr(request.state, "gongan_beian", DEFAULT_BASE_SETTINGS["gongan_beian"]),
         "rss_enabled": getattr(request.state, "rss_enabled", DEFAULT_BASE_SETTINGS["rss_enabled"]),
         "copyright_info": getattr(request.state, "copyright_info", DEFAULT_BASE_SETTINGS["copyright_info"]),
+        # 新增：动态导航菜单数据
+        "post_formats": post_formats,
+        "custom_pages": custom_pages,
     }

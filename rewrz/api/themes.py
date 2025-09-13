@@ -29,24 +29,123 @@ DEFAULT_THEMES = {
         "name": "浅色主题",
         "variables": {
             "--color-primary": "#4f46e5",
+            "--color-primary-hover": "#4338ca",
             "--color-secondary": "#6b7280", 
-            "--color-background": "#f9fafb",
-            "--color-text": "#1f2937",
-            "--color-text-light": "#4b5563",
-            "--color-border": "#e5e7eb",
-            "--color-card-bg": "#ffffff"
+            "--color-background": "#ffffff",
+            "--color-background-alt": "#f8fafc",
+            "--color-text": "#1e293b",
+            "--color-text-light": "#64748b",
+            "--color-text-muted": "#94a3b8",
+            "--color-border": "#e2e8f0",
+            "--color-border-light": "#f1f5f9",
+            "--color-card-bg": "#ffffff",
+            "--color-card-shadow": "rgba(0, 0, 0, 0.1)",
+            "--color-nav-bg": "rgba(255, 255, 255, 0.8)",
+            "--color-footer-bg": "#f8fafc",
+            "--backdrop-blur": "blur(10px)"
+        }
+    },
+    "auto": {
+        "name": "自动切换",
+        "variables": {
+            "--color-primary": "#6366f1",
+            "--color-primary-hover": "#4f46e5",
+            "--color-secondary": "#94a3b8",
+            "--color-background": "#ffffff",
+            "--color-background-alt": "#f8fafc",
+            "--color-text": "#1e293b",
+            "--color-text-light": "#64748b",
+            "--color-text-muted": "#94a3b8",
+            "--color-border": "#e2e8f0",
+            "--color-border-light": "#f1f5f9",
+            "--color-card-bg": "#ffffff",
+            "--color-card-shadow": "rgba(0, 0, 0, 0.1)",
+            "--color-nav-bg": "rgba(255, 255, 255, 0.8)",
+            "--color-footer-bg": "#f8fafc",
+            "--backdrop-blur": "blur(10px)"
+        }
+    },
+    "ocean": {
+        "name": "海洋主题",
+        "variables": {
+            "--color-primary": "#0ea5e9",
+            "--color-primary-hover": "#0284c7",
+            "--color-secondary": "#64748b",
+            "--color-background": "#f0f9ff",
+            "--color-background-alt": "#e0f2fe",
+            "--color-text": "#0c4a6e",
+            "--color-text-light": "#0369a1",
+            "--color-text-muted": "#0284c7",
+            "--color-border": "#bae6fd",
+            "--color-border-light": "#e0f2fe",
+            "--color-card-bg": "#ffffff",
+            "--color-card-shadow": "rgba(14, 165, 233, 0.1)",
+            "--color-nav-bg": "rgba(240, 249, 255, 0.9)",
+            "--color-footer-bg": "#e0f2fe",
+            "--backdrop-blur": "blur(12px)",
+            "--background-image": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+        }
+    },
+    "forest": {
+        "name": "森林主题",
+        "variables": {
+            "--color-primary": "#059669",
+            "--color-primary-hover": "#047857",
+            "--color-secondary": "#6b7280",
+            "--color-background": "#f0fdf4",
+            "--color-background-alt": "#dcfce7",
+            "--color-text": "#14532d",
+            "--color-text-light": "#166534",
+            "--color-text-muted": "#22c55e",
+            "--color-border": "#bbf7d0",
+            "--color-border-light": "#dcfce7",
+            "--color-card-bg": "#ffffff",
+            "--color-card-shadow": "rgba(5, 150, 105, 0.1)",
+            "--color-nav-bg": "rgba(240, 253, 244, 0.9)",
+            "--color-footer-bg": "#dcfce7",
+            "--backdrop-blur": "blur(12px)",
+            "--background-image": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+        }
+    },
+    "sunset": {
+        "name": "日落主题",
+        "variables": {
+            "--color-primary": "#f59e0b",
+            "--color-primary-hover": "#d97706",
+            "--color-secondary": "#78716c",
+            "--color-background": "#fffbeb",
+            "--color-background-alt": "#fef3c7",
+            "--color-text": "#92400e",
+            "--color-text-light": "#b45309",
+            "--color-text-muted": "#f59e0b",
+            "--color-border": "#fed7aa",
+            "--color-border-light": "#fef3c7",
+            "--color-card-bg": "#ffffff",
+            "--color-card-shadow": "rgba(245, 158, 11, 0.1)",
+            "--color-nav-bg": "rgba(255, 251, 235, 0.9)",
+            "--color-footer-bg": "#fef3c7",
+            "--backdrop-blur": "blur(12px)",
+            "--background-image": "linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)"
         }
     },
     "dark": {
         "name": "深色主题",
         "variables": {
-            "--color-primary": "#818cf8",
-            "--color-secondary": "#9ca3af",
-            "--color-background": "#1f2937",
-            "--color-text": "#f9fafb", 
-            "--color-text-light": "#d1d5db",
-            "--color-border": "#374151",
-            "--color-card-bg": "#374151"
+            "--color-primary": "#6366f1",
+            "--color-primary-hover": "#4f46e5",
+            "--color-secondary": "#94a3b8",
+            "--color-background": "#0f172a",
+            "--color-background-alt": "#1e293b",
+            "--color-text": "#f1f5f9",
+            "--color-text-light": "#cbd5e1",
+            "--color-text-muted": "#94a3b8",
+            "--color-border": "#334155",
+            "--color-border-light": "#475569",
+            "--color-card-bg": "#1e293b",
+            "--color-card-shadow": "rgba(0, 0, 0, 0.3)",
+            "--color-nav-bg": "rgba(15, 23, 42, 0.8)",
+            "--color-footer-bg": "#1e293b",
+            "--backdrop-blur": "blur(10px)"
         }
     },
     "nature": {
@@ -128,25 +227,30 @@ async def admin_themes_page(request: Request, db: Session = Depends(get_db), cur
     atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
     auto_theme_setting = crud_setting.get_setting(db, key="auto_theme_enabled")
     theme_schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
+    background_setting = crud_setting.get_setting(db, key="background_image_settings")
     
     current_theme = theme_setting.value.get("value") if theme_setting else "light"
     custom_themes = custom_themes_setting.value.get("value") if custom_themes_setting else {}
     current_atmosphere = atmosphere_setting.value.get("value") if atmosphere_setting else None
     auto_theme_enabled = auto_theme_setting.value.get("value") if auto_theme_setting else False
     theme_schedule = theme_schedule_setting.value.get("value") if theme_schedule_setting else []
+    background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
     
     # 获取纪念日设置
-    anniversaries_setting = crud_setting.get_setting(db, key="anniversaries")
+    anniversaries_setting = crud_setting.get_setting(db, key="anniversaries_json")
     anniversaries = []
     if anniversaries_setting and anniversaries_setting.value:
         try:
-            import json
-            anniversaries = json.loads(anniversaries_setting.value) if isinstance(anniversaries_setting.value, str) else anniversaries_setting.value.get("value", [])
+            anniversaries_json = anniversaries_setting.value.get("value") if isinstance(anniversaries_setting.value, dict) else anniversaries_setting.value
+            anniversaries = json.loads(anniversaries_json) if isinstance(anniversaries_json, str) else anniversaries_json
         except:
             anniversaries = []
     
     # 创建settings对象
-    settings = type('Settings', (), {'anniversaries': anniversaries})()
+    settings = type('Settings', (), {
+        'anniversaries': anniversaries,
+        'background_image_settings': background_settings
+    })()
     
     return templates.TemplateResponse("admin/themes.html", {
         "request": request,
@@ -158,6 +262,7 @@ async def admin_themes_page(request: Request, db: Session = Depends(get_db), cur
         "current_atmosphere": current_atmosphere,
         "auto_theme_enabled": auto_theme_enabled,
         "theme_schedule": theme_schedule,
+        "background_settings": background_settings,
         "settings": settings
     })
 
@@ -210,7 +315,22 @@ async def update_theme_settings(
             category="theme"
         ))
     
-    return JSONResponse({"success": True, "message": "主题设置已更新"})
+    # 对于HTMX请求，返回空响应或者重新渲染部分页面
+    if request.headers.get("HX-Request"):
+        # 返回成功提示的HTML片段
+        return HTMLResponse("""
+        <div class="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50" 
+             style="animation: slideIn 0.3s ease-out;">
+            <i class="fas fa-check-circle mr-2"></i>主题设置已更新
+        </div>
+        <script>
+            setTimeout(() => {
+                document.querySelector('.fixed.top-4.right-4').remove();
+            }, 3000);
+        </script>
+        """)
+    else:
+        return JSONResponse({"success": True, "message": "主题设置已更新"})
 
 # 添加update_theme方法以兼容main.py中的调用
 async def update_theme(request: Request, db: Session, current_user: User):
@@ -317,6 +437,38 @@ async def update_theme_schedule(
     
     return JSONResponse({"success": True, "message": "主题调度已更新"})
 
+@router.post("/admin/themes/background")
+async def update_background_image(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    background_type: str = Form("none"),
+    custom_background_url: Optional[str] = Form(None),
+    csrf_token: str = Form(...)
+):
+    """更新背景图片设置"""
+    verify_csrf_token(request, csrf_token)
+    
+    # 构建背景设置数据
+    background_settings = {
+        "type": background_type,
+        "custom_url": custom_background_url
+    }
+    
+    # 保存到数据库
+    background_setting = crud_setting.get_setting(db, key="background_image_settings")
+    if background_setting:
+        crud_setting.update_setting(db, key="background_image_settings", setting_update=SettingUpdate(value={"value": background_settings}))
+    else:
+        crud_setting.create_setting(db, setting=SettingCreate(
+            key="background_image_settings",
+            value={"value": background_settings},
+            description="背景图片设置",
+            category="theme"
+        ))
+    
+    return JSONResponse({"success": True, "message": "背景图片设置已保存"})
+
 @router.get("/api/theme/current")
 async def get_current_theme(request: Request, db: Session = Depends(get_db)):
     """获取当前主题配置（前端API）"""
@@ -332,8 +484,14 @@ async def get_current_theme(request: Request, db: Session = Depends(get_db)):
     if current_atmosphere is None:
         current_atmosphere = check_scheduled_atmosphere(db)
     
+    # 获取背景图片设置
+    background_setting = crud_setting.get_setting(db, key="background_image_settings")
+    background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
+    
     # 构建主题配置
-    theme_config = {}
+    theme_config = {
+        "background": background_settings
+    }
     
     # 基础主题变量
     if current_theme in DEFAULT_THEMES:
@@ -359,6 +517,7 @@ async def get_current_theme(request: Request, db: Session = Depends(get_db)):
         "theme": current_theme,
         "atmosphere": current_atmosphere,
         "atmosphere_class": atmosphere_class,
+        "background": background_settings,
         "variables": theme_config
     })
 
@@ -426,9 +585,9 @@ async def update_theme_realtime(
     # 更新主题设置
     theme_setting = crud_setting.get_setting(db, key="current_theme")
     if theme_setting:
-        crud_setting.update_setting(db, theme_setting, SettingUpdate(value={"value": theme}))
+        crud_setting.update_setting(db, key="current_theme", setting_update=SettingUpdate(value={"value": theme}))
     else:
-        crud_setting.create_setting(db, SettingCreate(key="current_theme", value={"value": theme}))
+        crud_setting.create_setting(db, setting=SettingCreate(key="current_theme", value={"value": theme}))
     
     return JSONResponse({"success": True, "theme": theme})
 
@@ -457,9 +616,9 @@ async def update_atmosphere_realtime(
     }
     
     if atmosphere_setting:
-        crud_setting.update_setting(db, atmosphere_setting, SettingUpdate(value=atmosphere_data))
+        crud_setting.update_setting(db, key="current_atmosphere", setting_update=SettingUpdate(value=atmosphere_data))
     else:
-        crud_setting.create_setting(db, SettingCreate(key="current_atmosphere", value=atmosphere_data))
+        crud_setting.create_setting(db, setting=SettingCreate(key="current_atmosphere", value=atmosphere_data))
     
     return JSONResponse({"success": True, "atmosphere": atmosphere, "effects": effects})
 
@@ -472,15 +631,20 @@ async def sync_theme_settings(request: Request, db: Session = Depends(get_db)):
     
     # 获取当前氛围
     atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
-    current_atmosphere = atmosphere_setting.value if atmosphere_setting else None
+    current_atmosphere = atmosphere_setting.value.get("value") if atmosphere_setting else None
     
     # 获取主页设置
     homepage_setting = crud_setting.get_setting(db, key="homepage_mode")
     homepage_mode = homepage_setting.value.get("value") if homepage_setting else "default"
     
+    # 获取背景图片设置
+    background_setting = crud_setting.get_setting(db, key="background_image_settings")
+    background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
+    
     return JSONResponse({
         "theme": current_theme,
         "atmosphere": current_atmosphere,
         "homepage_mode": homepage_mode,
+        "background": background_settings,
         "timestamp": datetime.now().isoformat()
     })

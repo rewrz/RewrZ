@@ -51,6 +51,44 @@
         opacity: 1;
         transform: translateX(0);
     }
+    
+    /* 确保主要内容区域有正确的类名 */
+    .main-content {
+        transition: padding-top 0.3s ease;
+    }
+    
+    /* 背景图片样式 */
+    body.background-gradient1 {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    }
+    
+    body.background-gradient2 {
+        background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%) !important;
+    }
+    
+    body.background-gradient3 {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%) !important;
+    }
+    
+    body.background-gradient4 {
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%) !important;
+    }
+    
+    body.background-custom {
+        background-size: cover !important;
+        background-position: center !important;
+        background-attachment: fixed !important;
+    }
+    
+    /* 确保主要内容区域有适当的背景以保证可读性 */
+    .main-content {
+        background-color: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+    }
+    
+    .dark .main-content {
+        background-color: rgba(15, 23, 42, 0.9);
+    }
 </style>
 {% endblock %}
 
@@ -58,6 +96,33 @@
 {# 确保 settings 变量存在并提供默认值 #}
 {% set settings = settings or {} %}
 {% set homepage_mode = settings.get('homepage_mode') %}
+
+{# 应用背景图片设置 #}
+{% if settings.get('background_image_settings') %}
+    {% set bg_settings = settings.get('background_image_settings') %}
+    {% if bg_settings.type == 'gradient1' %}
+        <script>
+            document.body.classList.add('background-gradient1');
+        </script>
+    {% elif bg_settings.type == 'gradient2' %}
+        <script>
+            document.body.classList.add('background-gradient2');
+        </script>
+    {% elif bg_settings.type == 'gradient3' %}
+        <script>
+            document.body.classList.add('background-gradient3');
+        </script>
+    {% elif bg_settings.type == 'gradient4' %}
+        <script>
+            document.body.classList.add('background-gradient4');
+        </script>
+    {% elif bg_settings.type == 'custom' and bg_settings.custom_url %}
+        <script>
+            document.body.classList.add('background-custom');
+            document.body.style.backgroundImage = 'url("' + '{{ bg_settings.custom_url }}' + '")';
+        </script>
+    {% endif %}
+{% endif %}
 
 {# 1. Hero Section (Fullscreen Gallery or Video) #}
 {% if homepage_mode == 'fullscreen_gallery' %}
@@ -89,10 +154,28 @@
             {% if tagline %}<p class="text-xl md:text-2xl mb-8">{{ tagline }}</p>{% endif %}
             <div class="flex flex-wrap justify-center gap-4 mt-8">
                 <a href="/archives" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">归档</a>
-                <a href="/formats/photos" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">相册</a>
-                <a href="/formats/weibo" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">微博</a>
-                <a href="/formats/video" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">视频</a>
-                <a href="/formats/music" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">音乐</a>
+                
+                <!-- 动态格式导航 -->
+                {% if post_formats %}
+                {% for format in post_formats %}
+                <a href="/formats/{{ format.slug }}" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">{{ format.name }}</a>
+                {% endfor %}
+                {% endif %}
+                
+                <!-- 自定义页面下拉菜单 -->
+                {% if custom_pages and custom_pages|length > 0 %}
+                <div class="relative group">
+                    <button class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300 flex items-center">
+                        更多
+                        <i class="fas fa-chevron-down ml-2 text-sm"></i>
+                    </button>
+                    <div class="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
+                        {% for page in custom_pages %}
+                        <a href="/{{ page.slug }}" class="block px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">{{ page.title }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -115,10 +198,28 @@
             {% if tagline %}<p class="text-xl md:text-2xl mb-8">{{ tagline }}</p>{% endif %}
             <div class="flex flex-wrap justify-center gap-4 mt-8">
                 <a href="/archives" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">归档</a>
-                <a href="/formats/photos" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">相册</a>
-                <a href="/formats/weibo" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">微博</a>
-                <a href="/formats/video" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">视频</a>
-                <a href="/formats/music" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">音乐</a>
+                
+                <!-- 动态格式导航 -->
+                {% if post_formats %}
+                {% for format in post_formats %}
+                <a href="/formats/{{ format.slug }}" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">{{ format.name }}</a>
+                {% endfor %}
+                {% endif %}
+                
+                <!-- 自定义页面下拉菜单 -->
+                {% if custom_pages and custom_pages|length > 0 %}
+                <div class="relative group">
+                    <button class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300 flex items-center">
+                        更多
+                        <i class="fas fa-chevron-down ml-2 text-sm"></i>
+                    </button>
+                    <div class="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
+                        {% for page in custom_pages %}
+                        <a href="/{{ page.slug }}" class="block px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">{{ page.title }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -126,7 +227,7 @@
 {% endif %}
 
 {# 2. Timeline Section (Always rendered) #}
-<div class="bg-gray-50 dark:bg-gray-800 py-8">
+<div class="bg-gray-50 dark:bg-gray-800 py-8 main-content">
     <div class="container mx-auto w-full h-full">
         <div class="relative wrap overflow-hidden p-4 md:p-10 h-full">
             <div class="absolute h-full border-2 border-gray-200 dark:border-gray-700" style="left: 50%"></div>
@@ -143,45 +244,48 @@
                 {% elif 'photo-album' in format_slugs %}
                     {% set dot_class = "bg-purple-500" %}
                     {% set icon_class = "fas fa-images" %}
-                {% elif 'video' in format_slugs %}
+                {% elif 'weibo' in format_slugs %}
                     {% set dot_class = "bg-red-500" %}
-                    {% set icon_class = "fas fa-video" %}
-                {% elif 'music' in format_slugs %}
+                    {% set icon_class = "fab fa-weibo" %}
+                {% elif 'video' in format_slugs %}
                     {% set dot_class = "bg-green-500" %}
+                    {% set icon_class = "fas fa-video" %}
+                {% elif 'poetry-song' in format_slugs %}
+                    {% set dot_class = "bg-yellow-500" %}
                     {% set icon_class = "fas fa-music" %}
                 {% endif %}
 
-                {% if loop.index is even %}
-                <!-- Right Timeline Item -->
-                <div class="mb-8 flex justify-between items-center w-full right-timeline timeline-item">
-                    <div class="order-1 w-5/12"></div>
-                    <div class="z-20 flex items-center order-1 {{ dot_class }} shadow-xl w-10 h-10 rounded-full">
-                        <i class="{{ icon_class }} mx-auto text-white text-lg"></i>
-                    </div>
-                    <div class="order-1 w-5/12">
-                        <div class="p-1 text-right">
-                            <p class="text-sm text-gray-500 dark:text-gray-400">{% if post.published_at %}{{ post.published_at.strftime('%Y年%m月%d日') }}{% else %}未发布{% endif %}</p>
+                <!-- Timeline item -->
+                <div class="mb-8 flex {{ 'justify-start' if loop.index0 % 2 == 0 else 'justify-end' }}">
+                    <div class="timeline-item {{ 'left-timeline' if loop.index0 % 2 == 0 else 'right-timeline' }} flex items-center w-2/5 {{ 'flex-row-reverse' if loop.index0 % 2 != 0 }}">
+                        <div class="order-1 w-5/12"></div>
+                        <div class="z-20 flex items-center order-1 bg-gray-800 shadow-xl w-8 h-8 rounded-full">
+                            <h1 class="mx-auto text-white text-sm font-semibold">{{ loop.index }}</h1>
                         </div>
-                        {# Card Content #}
-                        {% include 'components/modern_timeline_card.html' %}
+                        <div class="order-1 bg-white dark:bg-gray-800 rounded-lg shadow-xl w-5/12 px-6 py-4">
+                            <div class="flex items-center mb-2">
+                                <span class="mr-2 text-xs font-semibold">{{ post.published_at.strftime('%Y-%m-%d') if post.published_at else post.created_at.strftime('%Y-%m-%d') }}</span>
+                                <span class="text-xs font-semibold px-2 py-1 rounded-full {{ dot_class.replace('bg-', 'bg-') }} text-white">
+                                    <i class="{{ icon_class }} mr-1"></i>
+                                    {{ post.formats[0].name if post.formats else '文章' }}
+                                </span>
+                            </div>
+                            <h3 class="font-bold text-gray-800 dark:text-white text-xl mb-2">
+                                <a href="{{ post.url }}" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                                    {{ post.title }}
+                                </a>
+                            </h3>
+                            <p class="text-gray-600 dark:text-gray-300 text-sm">
+                                {{ post.excerpt or post.content[:100] + '...' if post.content else '' }}
+                            </p>
+                            <div class="mt-3">
+                                <a href="{{ post.url }}" class="text-blue-600 dark:text-blue-400 hover:underline text-sm font-semibold">
+                                    阅读更多
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                {% else %}
-                <!-- Left Timeline Item -->
-                <div class="mb-8 flex justify-between flex-row-reverse items-center w-full left-timeline timeline-item">
-                    <div class="order-1 w-5/12"></div>
-                    <div class="z-20 flex items-center order-1 {{ dot_class }} shadow-xl w-10 h-10 rounded-full">
-                        <i class="{{ icon_class }} mx-auto text-white text-lg"></i>
-                    </div>
-                    <div class="order-1 w-5/12">
-                         <div class="p-1 text-left">
-                            <p class="text-sm text-gray-500 dark:text-gray-400">{% if post.published_at %}{{ post.published_at.strftime('%Y年%m月%d日') }}{% else %}未发布{% endif %}</p>
-                        </div>
-                        {# Card Content #}
-                        {% include 'components/timeline_card.html' %}
-                    </div>
-                </div>
-                {% endif %}
             {% endfor %}
         </div>
     </div>
@@ -189,38 +293,41 @@
 
 <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
 <script>
+    // Initialize Swiper if needed
     document.addEventListener('DOMContentLoaded', function() {
-        // Init Swiper for gallery
         if (document.getElementById('fullscreen-gallery-swiper')) {
-            new Swiper('#fullscreen-gallery-swiper', { loop: true, autoplay: { delay: 5000, disableOnInteraction: false }, pagination: { el: '.swiper-pagination', clickable: true }, navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' } });
-        }
-
-        // For image grids in micro-posts
-        const imageGrids = document.querySelectorAll('.image-grid');
-        imageGrids.forEach(grid => {
-            const imageCount = parseInt(grid.getAttribute('data-image-count'), 10);
-            if (!isNaN(imageCount) && imageCount > 0) {
-                let cols = imageCount;
-                if (imageCount > 2) { cols = 3; }
-                grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-            }
-        });
-
-        // For scroll animations
-        const timelineItems = document.querySelectorAll('.timeline-item');
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('is-visible');
+            new Swiper('#fullscreen-gallery-swiper', {
+                loop: true,
+                pagination: {
+                    el: '.swiper-pagination',
+                    clickable: true
+                },
+                navigation: {
+                    nextEl: '.swiper-button-next',
+                    prevEl: '.swiper-button-prev'
+                },
+                autoplay: {
+                    delay: 5000,
+                    disableOnInteraction: false
                 }
             });
-        }, {
-            threshold: 0.1
-        });
+        }
 
-        timelineItems.forEach(item => {
-            observer.observe(item);
-        });
+        // Timeline animation
+        function animateTimelineItems() {
+            const timelineItems = document.querySelectorAll('.timeline-item');
+            timelineItems.forEach(item => {
+                const itemPosition = item.getBoundingClientRect().top;
+                const screenPosition = window.innerHeight / 1.3;
+                if (itemPosition < screenPosition) {
+                    item.classList.add('is-visible');
+                }
+            });
+        }
+
+        // Run on scroll and initially
+        window.addEventListener('scroll', animateTimelineItems);
+        animateTimelineItems();
     });
 </script>
 {% endblock %}

@@ -56,7 +56,7 @@ def test_formats(db: Session):
         ("微博", "micro-post"), 
         ("相册", "photo-album"),
         ("视频", "video"),
-        ("音乐", "music"),
+        ("诗词歌赋", "poetry-song"),
     ]
     
     formats = []

@@ -34,7 +34,7 @@
         
         {% if image_count == 1 %}
         <div class="mb-4">
-            <a href="/posts/{{ post.slug }}">
+            <a href="{{ post | post_url }}">
                 <img src="{{ images[0] }}" alt="Image" class="rounded-lg w-full object-cover max-h-96 hover:opacity-90 transition-opacity">
             </a>
         </div>
@@ -42,7 +42,7 @@
         <div class="mb-4 grid gap-2 image-grid" data-image-count="{{ image_count if image_count < 3 else 3 }}">
             {% for image_url in images[:9] %}
             <div class="aspect-square overflow-hidden rounded-lg">
-                <a href="/posts/{{ post.slug }}">
+                <a href="{{ post | post_url }}">
                     <img src="{{ image_url }}" alt="Image {{ loop.index }}" class="w-full h-full object-cover hover:scale-105 transition-transform">
                 </a>
             </div>
@@ -64,7 +64,7 @@
                 <i class="far fa-comment"></i>
                 <span>{{ post.comments_count or 0 }}</span>
             </button>
-            <a href="/posts/{{ post.slug }}" class="flex items-center gap-1 hover:text-accent transition-colors">
+            <a href="{{ post | post_url }}" class="flex items-center gap-1 hover:text-accent transition-colors">
                 <i class="far fa-eye"></i>
                 <span>查看</span>
             </a>
@@ -75,7 +75,7 @@
 {# 相册格式 #}
 {% elif 'photo-album' in format_slugs %}
 <article class="modern-card photo-card" data-format="photo-album">
-    <a href="/posts/{{ post.slug }}" class="block">
+    <a href="{{ post | post_url }}" class="block">
         {% if post.featured_image_url %}
         <img src="{{ post.featured_image_url }}" alt="{{ post.title }}" loading="lazy" class="w-full h-full object-cover">
         <div class="overlay">
@@ -97,7 +97,7 @@
 {# 视频格式 #}
 {% elif 'video' in format_slugs %}
 <article class="modern-card media-card" data-format="video">
-    <a href="/posts/{{ post.slug }}" class="block">
+    <a href="{{ post | post_url }}" class="block">
         {% if post.featured_image_url %}
         <img src="{{ post.featured_image_url }}" alt="{{ post.title }}" class="w-full h-full object-cover">
         {% endif %}
@@ -121,9 +121,9 @@
 </article>
 
 {# 音乐格式 #}
-{% elif 'music' in format_slugs %}
-<article class="modern-card media-card" data-format="music">
-    <a href="/posts/{{ post.slug }}" class="block">
+{% elif 'poetry-song' in format_slugs %}
+<article class="modern-card media-card" data-format="poetry-song">
+    <a href="{{ post | post_url }}" class="block">
         {% if post.featured_image_url %}
         <img src="{{ post.featured_image_url }}" alt="{{ post.title }}" class="w-full h-full object-cover">
         {% endif %}
@@ -151,7 +151,7 @@
 <article class="modern-card article-card" data-format="article">
     {% if post.featured_image_url %}
     <div class="card-image">
-        <a href="/posts/{{ post.slug }}">
+        <a href="{{ post | post_url }}">
             <img src="{{ post.featured_image_url }}" alt="{{ post.title }}" loading="lazy">
         </a>
     </div>
@@ -168,7 +168,7 @@
         </div>
         
         <h2 class="text-xl font-bold mb-3 text-neutral-900 dark:text-neutral-100">
-            <a href="/posts/{{ post.slug }}" class="hover:text-accent transition-colors">
+            <a href="{{ post | post_url }}" class="hover:text-accent transition-colors">
                 {{ post.title }}
             </a>
         </h2>
@@ -192,7 +192,7 @@
                     <i class="fas fa-clock"></i>
                     {{ post.content_markdown | reading_time }}分钟
                 </span>
-                <a href="/posts/{{ post.slug }}" class="text-accent hover:text-accent-dark font-medium">
+                <a href="{{ post | post_url }}" class="text-accent hover:text-accent-dark font-medium">
                     阅读更多 →
                 </a>
             </div>

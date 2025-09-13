@@ -275,7 +275,7 @@ def generate_rss_xml(title: str, description: str, link: str, posts: List[Post],
     
     # 添加文章项
     for post in posts:
-        post_url = f'{site_info["base_url"]}/posts/{post.slug}'
+        post_url = f'{site_info["base_url"]}/{post.formats[0].slug if post.formats else "article"}/{post.slug}'
         pub_date = post.published_at or post.created_at
         
         xml_lines.extend([
@@ -322,7 +322,7 @@ def generate_atom_xml(title: str, subtitle: str, link: str, posts: List[Post], s
     
     # 添加文章项
     for post in posts:
-        post_url = f'{site_info["base_url"]}/posts/{post.slug}'
+        post_url = f'{site_info["base_url"]}/{post.formats[0].slug if post.formats else "article"}/{post.slug}'
         pub_date = post.published_at or post.created_at
         
         xml_lines.extend([

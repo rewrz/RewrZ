@@ -1,0 +1,355 @@
+/* 响应式导航系统样式 */
+
+/* 导航菜单容器 */
+.nav-menu {
+  position: relative;
+}
+
+/* 桌面端导航样式 */
+@media (min-width: 768px) {
+  .nav-menu {
+    display: flex !important;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  
+  .nav-content {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  
+  .mobile-nav-actions {
+    display: none !important;
+  }
+  
+  .desktop-search {
+    display: flex !important;
+  }
+}
+
+/* 移动端导航样式 */
+@media (max-width: 767px) {
+  .nav-menu {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 280px;
+    height: 100vh;
+    background: var(--card-bg);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+    transition: right 0.3s ease;
+    z-index: 1000;
+    display: flex !important;
+    flex-direction: column;
+    padding: 1rem 0;
+    overflow-y: auto;
+  }
+  
+  .nav-menu.nav-menu-open {
+    right: 0;
+  }
+  
+  .nav-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0 1rem;
+  }
+  
+  .mobile-nav-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    border-top: 1px solid var(--border-color);
+    margin-top: auto;
+  }
+  
+  .desktop-search {
+    display: none !important;
+  }
+  
+  /* 移动端搜索表单 */
+  .mobile-search-form {
+    display: flex;
+    gap: 0;
+  }
+  
+  .search-input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem 0 0 0.375rem;
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: 0.875rem;
+  }
+  
+  .search-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+  }
+  
+  .search-button {
+    padding: 0.5rem 0.75rem;
+    background: var(--primary);
+    color: white;
+    border: 1px solid var(--primary);
+    border-radius: 0 0.375rem 0.375rem 0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .search-button:hover {
+    background: var(--primary-dark);
+  }
+  
+  /* 移动端主题切换按钮 */
+  .theme-toggle-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background: var(--button-bg);
+    color: var(--text);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .theme-toggle-button:hover {
+    background: var(--button-hover-bg);
+    transform: scale(1.05);
+  }
+  
+  .theme-toggle-button .dark-icon {
+    display: none;
+  }
+  
+  .dark .theme-toggle-button .light-icon {
+    display: none;
+  }
+  
+  .dark .theme-toggle-button .dark-icon {
+    display: block;
+  }
+}
+
+/* 导航链接样式 */
+.nav-link {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-light);
+  text-decoration: none;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.nav-link:hover {
+  color: var(--primary);
+  background: var(--hover-bg);
+}
+
+.nav-link:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+}
+
+/* 移动端导航链接样式 */
+@media (max-width: 767px) {
+  .nav-link {
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+  }
+  
+  .nav-link:hover {
+    background: var(--hover-bg);
+  }
+}
+
+/* 下拉菜单样式 */
+.nav-dropdown {
+  position: relative;
+}
+
+.nav-dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-light);
+  background: none;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.nav-dropdown-toggle:hover {
+  color: var(--primary);
+  background: var(--hover-bg);
+}
+
+.nav-dropdown-toggle:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+}
+
+.nav-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 200px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 0.5rem;
+  z-index: 1000;
+  margin-top: 0.25rem;
+}
+
+.nav-dropdown-item {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  color: var(--text);
+  text-decoration: none;
+  border-radius: 0.25rem;
+  transition: all 0.2s;
+}
+
+.nav-dropdown-item:hover {
+  background: var(--hover-bg);
+  color: var(--primary);
+}
+
+/* 移动端下拉菜单样式 */
+@media (max-width: 767px) {
+  .nav-dropdown {
+    width: 100%;
+  }
+  
+  .nav-dropdown-toggle {
+    width: 100%;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+  }
+  
+  .nav-dropdown-menu {
+    position: static;
+    width: 100%;
+    min-width: auto;
+    border: none;
+    box-shadow: none;
+    margin-top: 0.5rem;
+    background: var(--dropdown-bg);
+  }
+  
+  .nav-dropdown-item {
+    padding: 0.5rem 1rem 0.5rem 2rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* 汉堡菜单动画 */
+.mobile-menu-toggle {
+  transition: transform 0.2s;
+}
+
+.mobile-menu-toggle:hover {
+  transform: scale(1.1);
+}
+
+/* 暗黑模式支持 */
+.dark .nav-dropdown-menu {
+  background: var(--dark-card-bg);
+  border-color: var(--dark-border-color);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.dark .nav-dropdown-item {
+  color: var(--dark-text);
+}
+
+.dark .nav-dropdown-item:hover {
+  background: var(--dark-hover-bg);
+  color: var(--primary);
+}
+
+/* 无障碍支持 */
+.nav-link:focus-visible,
+.nav-dropdown-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* 过渡动画 */
+.nav-menu,
+.nav-dropdown-menu,
+.nav-link,
+.nav-dropdown-toggle {
+  transition: all 0.2s ease;
+}
+
+/* 响应式断点调整 */
+@media (max-width: 640px) {
+  .nav-menu {
+    width: 100%;
+    right: -100%;
+  }
+  
+  .nav-menu.nav-menu-open {
+    right: 0;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .nav-content {
+    gap: 1rem;
+  }
+  
+  .nav-link {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .nav-link,
+  .nav-dropdown-toggle {
+    border: 1px solid transparent;
+  }
+  
+  .nav-link:hover,
+  .nav-dropdown-toggle:hover {
+    border-color: currentColor;
+  }
+  
+  .nav-dropdown-menu {
+    border: 2px solid var(--border-color);
+  }
+}
+
+/* 减少动画支持 */
+@media (prefers-reduced-motion: reduce) {
+  .nav-menu,
+  .nav-dropdown-menu,
+  .nav-link,
+  .nav-dropdown-toggle,
+  .mobile-menu-toggle {
+    transition: none;
+  }
+  
+  .nav-dropdown-toggle .fa-chevron-down {
+    transition: none;
+  }
+}

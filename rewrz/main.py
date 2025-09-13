@@ -12,6 +12,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.exceptions import RequestValidationError
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+import json
 from sqlalchemy.orm import Session
 from .core.template_filters import get_templates  # 导入带过滤器的模板系统
 from .core.template_context import build_base_template_context, HOMEPAGE_SETTING_KEYS, DEFAULT_HOMEPAGE_SETTINGS, DEFAULT_BASE_SETTINGS
@@ -42,6 +43,7 @@ from .api import categories as categories_api # 导入分类API路由
 from .api import tags as tags_api # 导入标签API路由
 from .api import captcha as captcha_api # 导入验证码API路由
 from .api import anniversary_mode as anniversary_api # 导入纪念日氛围模式API路由
+from .api import theme_schedule as theme_schedule_api # 导入主题调度API路由
 from .core.avatar import get_avatar_service
 from .crud import post as crud_post
 from .crud import category as crud_category
@@ -525,6 +527,8 @@ app.include_router(admin_dashboard_api.router)
 # 包含验证码API路由
 app.include_router(captcha_api.router)
 app.include_router(anniversary_api.router, prefix="/api")
+# 包含主题调度API路由  
+app.include_router(theme_schedule_api.router, prefix="/api")
 
 # 抽取：构建全局请求上下文（初始化默认值、读取设置、主题调度/纪念日、后台路径）
 def _populate_global_request_state(request: Request) -> None:
@@ -561,12 +565,8 @@ def _populate_global_request_state(request: Request) -> None:
         anniversary_atmosphere = None
         if anniversaries_setting and anniversaries_setting.value:
             try:
-                # 如果是JSON字符串，解析它
-                if isinstance(anniversaries_setting.value.get("value"), str):
-                    import json
-                    anniversaries = json.loads(anniversaries_setting.value.get("value", "[]"))
-                else:
-                    anniversaries = anniversaries_setting.value.get("value", [])
+                # 直接解析JSON字符串
+                anniversaries = json.loads(anniversaries_setting.value)
                 
                 today = date.today()
                 for anniversary in anniversaries:
@@ -722,8 +722,33 @@ async def homepage(request: Request, db: Session = Depends(get_db)):
         "settings": settings_dict,  # 传递设置字典给模板
     })
 
-@app.get("/posts/{post_slug}", response_class=HTMLResponse)
-async def read_post(request: Request, post_slug: str, db: Session = Depends(get_db)):
+# 聚合页面路由：/formats/photos, /formats/weibo, /formats/video, /formats/poetry-song
+@app.get("/formats/{format_slug}", response_class=HTMLResponse)
+async def format_page(request: Request, format_slug: str, db: Session = Depends(get_db)):
+    """
+    格式归档页面（多重身份内容系统）
+    
+    根据格式别名显示指定格式的所有文章，URL符合 /formats/{format_slug} 规范
+    """
+    format = crud_format.get_format_by_slug(db, slug=format_slug)
+    if format is None:
+        raise HTTPException(status_code=404, detail="Format not found")
+    posts = crud_post.get_posts_by_format(db, format_id=format.id)
+    
+    # 准备设置上下文 (包含主页个性化设置)
+    settings_dict = _load_homepage_settings_for_template(db, request)
+    
+    return templates.TemplateResponse("format_archive.html", {
+        "request": request, 
+        "format": format, 
+        "format_slug": format_slug,  # 将format_slug传递给模板
+        "posts": posts, 
+        **build_base_template_context(request),
+        "settings": settings_dict,  # 传递设置字典给模板
+    })
+
+@app.get("/{format_slug}/{post_slug}", response_class=HTMLResponse)
+async def read_post(request: Request, format_slug: str, post_slug: str, db: Session = Depends(get_db)):
     """
     文章详情页路由
     
@@ -732,6 +757,12 @@ async def read_post(request: Request, post_slug: str, db: Session = Depends(get_
     db_post = crud_post.get_post_by_slug(db, slug=post_slug)
     if db_post is None or db_post.status != "published":
         raise HTTPException(status_code=404, detail="Post not found")
+    
+    # 验证格式slug是否匹配
+    if db_post.formats and format_slug != db_post.formats[0].slug:
+        # 如果不匹配，重定向到正确的URL
+        correct_format_slug = db_post.formats[0].slug
+        return RedirectResponse(url=f"/{correct_format_slug}/{post_slug}", status_code=301)
     
     # 获取SEO元数据
     from .api.seo import _generate_post_seo_data
@@ -845,30 +876,6 @@ async def archives_page(request: Request, db: Session = Depends(get_db)):
         "settings": settings_dict,  # 传递设置字典给模板
     })
 
-# 聚合页面路由：/formats/photos, /formats/weibo, /formats/video, /formats/music
-@app.get("/formats/{format_slug}", response_class=HTMLResponse)
-async def format_page(request: Request, format_slug: str, db: Session = Depends(get_db)):
-    """
-    格式归档页面（多重身份内容系统）
-    
-    根据格式别名显示指定格式的所有文章，URL符合 /formats/{format_slug} 规范
-    """
-    format = crud_format.get_format_by_slug(db, slug=format_slug)
-    if format is None:
-        raise HTTPException(status_code=404, detail="Format not found")
-    posts = crud_post.get_posts_by_format(db, format_id=format.id)
-    
-    # 准备设置上下文 (包含主页个性化设置)
-    settings_dict = _load_homepage_settings_for_template(db, request)
-    
-    return templates.TemplateResponse("format_archive.html", {
-        "request": request, 
-        "format": format, 
-        "format_slug": format_slug,  # 将format_slug传递给模板
-        "posts": posts, 
-        **build_base_template_context(request),
-        "settings": settings_dict,  # 传递设置字典给模板
-    })
 
 # 动态页面路由处理器
 @app.get("/{page_slug}", response_class=HTMLResponse)
