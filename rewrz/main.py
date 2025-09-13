@@ -492,6 +492,77 @@ def register_admin_routes():
     # 动态注册标签API路由
     app.include_router(tags_api.router, prefix=admin_path)
 
+    @app.get("/{format_slug}/{post_slug}", response_class=HTMLResponse)
+    async def read_post(request: Request, format_slug: str, post_slug: str, db: Session = Depends(get_db)):
+        """
+        文章详情页路由
+        
+        根据文章别名显示单篇文章的详细内容，包含动态SEO元数据
+        """
+        db_post = crud_post.get_post_by_slug(db, slug=post_slug)
+        if db_post is None or db_post.status != "published":
+            raise HTTPException(status_code=404, detail="Post not found")
+        
+        # 验证格式slug是否匹配
+        if db_post.formats and format_slug != db_post.formats[0].slug:
+            # 如果不匹配，重定向到正确的URL
+            correct_format_slug = db_post.formats[0].slug
+            return RedirectResponse(url=f"/{correct_format_slug}/{post_slug}", status_code=301)
+        
+        # 获取SEO元数据
+        from .api.seo import _generate_post_seo_data
+        seo_data = _generate_post_seo_data(db_post, request, db)
+        
+        # 获取打赏配置
+        from .core.donation_system import get_donation_system
+        donation_system = get_donation_system(db)
+        donation_config = donation_system.settings
+        
+        # 准备设置上下文 (包含主页个性化设置)
+        settings_dict = _load_homepage_settings_for_template(db, request)
+        
+        return templates.TemplateResponse("post_detail.html", {
+            "request": request,
+            "post": db_post,
+            "seo_data": seo_data,
+            "donation_config": donation_config,
+            **build_base_template_context(request),
+            "settings": settings_dict,  # 传递设置字典给模板
+        })
+
+    # 动态页面路由处理器
+    @app.get("/{page_slug}", response_class=HTMLResponse)
+    async def read_page(request: Request, page_slug: str, db: Session = Depends(get_db)):
+        """
+        页面详情页路由
+        
+        根据页面别名显示单个页面的详细内容
+        """
+        # 首先检查是否是特殊路由（避免与现有路由冲突）
+        if page_slug in ["installer", "static", "api", "favicon.ico"]:
+            raise HTTPException(status_code=404, detail="Page not found")
+        
+        # 检查是否存在具有该别名的页面
+        db_page = crud_post.get_post_by_slug(db, slug=page_slug)
+        if db_page is None or db_page.post_type != "page" or (db_page.status != "published" and not hasattr(request.state, 'user')):
+            # 如果没有找到页面，检查是否是其他特殊路由
+            raise HTTPException(status_code=404, detail="Page not found")
+        
+        # 获取SEO元数据
+        from .api.seo import _generate_post_seo_data
+        seo_data = _generate_post_seo_data(db_page, request, db)
+        
+        # 准备设置上下文 (包含主页个性化设置)
+        settings_dict = _load_homepage_settings_for_template(db, request)
+        
+        return templates.TemplateResponse("page.html", {
+            "request": request, 
+            "post": db_page,
+            "seo_data": seo_data,
+            **build_base_template_context(request),
+            "settings": settings_dict,  # 传递设置字典给模板
+        })
+
 # 包含安装向导路由
 app.include_router(installer_api.router)
 # 包含文章路由
@@ -747,44 +818,6 @@ async def format_page(request: Request, format_slug: str, db: Session = Depends(
         "settings": settings_dict,  # 传递设置字典给模板
     })
 
-@app.get("/{format_slug}/{post_slug}", response_class=HTMLResponse)
-async def read_post(request: Request, format_slug: str, post_slug: str, db: Session = Depends(get_db)):
-    """
-    文章详情页路由
-    
-    根据文章别名显示单篇文章的详细内容，包含动态SEO元数据
-    """
-    db_post = crud_post.get_post_by_slug(db, slug=post_slug)
-    if db_post is None or db_post.status != "published":
-        raise HTTPException(status_code=404, detail="Post not found")
-    
-    # 验证格式slug是否匹配
-    if db_post.formats and format_slug != db_post.formats[0].slug:
-        # 如果不匹配，重定向到正确的URL
-        correct_format_slug = db_post.formats[0].slug
-        return RedirectResponse(url=f"/{correct_format_slug}/{post_slug}", status_code=301)
-    
-    # 获取SEO元数据
-    from .api.seo import _generate_post_seo_data
-    seo_data = _generate_post_seo_data(db_post, request, db)
-    
-    # 获取打赏配置
-    from .core.donation_system import get_donation_system
-    donation_system = get_donation_system(db)
-    donation_config = donation_system.settings
-    
-    # 准备设置上下文 (包含主页个性化设置)
-    settings_dict = _load_homepage_settings_for_template(db, request)
-    
-    return templates.TemplateResponse("post_detail.html", {
-        "request": request,
-        "post": db_post,
-        "seo_data": seo_data,
-        "donation_config": donation_config,
-        **build_base_template_context(request),
-        "settings": settings_dict,  # 传递设置字典给模板
-    })
-
 @app.get("/archives/by-category/{category_slug}", response_class=HTMLResponse)
 async def posts_by_category(request: Request, category_slug: str, db: Session = Depends(get_db)):
     """
@@ -872,40 +905,6 @@ async def archives_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("archives.html", {
         "request": request, 
         "posts": posts, 
-        **build_base_template_context(request),
-        "settings": settings_dict,  # 传递设置字典给模板
-    })
-
-
-# 动态页面路由处理器
-@app.get("/{page_slug}", response_class=HTMLResponse)
-async def read_page(request: Request, page_slug: str, db: Session = Depends(get_db)):
-    """
-    页面详情页路由
-    
-    根据页面别名显示单个页面的详细内容
-    """
-    # 首先检查是否是特殊路由（避免与现有路由冲突）
-    if page_slug in ["installer", "static", "api", "favicon.ico"]:
-        raise HTTPException(status_code=404, detail="Page not found")
-    
-    # 检查是否存在具有该别名的页面
-    db_page = crud_post.get_post_by_slug(db, slug=page_slug)
-    if db_page is None or db_page.post_type != "page" or (db_page.status != "published" and not hasattr(request.state, 'user')):
-        # 如果没有找到页面，检查是否是其他特殊路由
-        raise HTTPException(status_code=404, detail="Page not found")
-    
-    # 获取SEO元数据
-    from .api.seo import _generate_post_seo_data
-    seo_data = _generate_post_seo_data(db_page, request, db)
-    
-    # 准备设置上下文 (包含主页个性化设置)
-    settings_dict = _load_homepage_settings_for_template(db, request)
-    
-    return templates.TemplateResponse("page.html", {
-        "request": request, 
-        "post": db_page,
-        "seo_data": seo_data,
         **build_base_template_context(request),
         "settings": settings_dict,  # 传递设置字典给模板
     })
