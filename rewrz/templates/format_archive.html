@@ -3,154 +3,370 @@
 {% block title %}{{ format.name }} - {{ site_title }}{% endblock %}
 
 {% block content %}
-<div class="{{ atmosphere_class }}">
-    <h1 class="text-4xl font-bold text-gray-900 mb-8">{{ format.name }}</h1>
+<div class="container mx-auto px-4 py-8">
+    <!-- 格式页面头部 -->
+    <div class="text-center mb-12">
+        <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full mb-6 shadow-lg">
+            {% if format_slug == 'photo-album' %}
+                <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+                </svg>
+            {% elif format_slug == 'weibo' %}
+                <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
+                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
+                </svg>
+            {% elif format_slug == 'video' %}
+                <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2 6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path>
+                </svg>
+            {% elif format_slug == 'poetry-song' %}
+                <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"></path>
+                </svg>
+            {% else %}
+                <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            {% endif %}
+        </div>
+        
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">{{ format.name }}</h1>
+        
+        <div class="max-w-2xl mx-auto">
+            {% if format_slug == 'photo-album' %}
+                <p class="text-lg text-gray-600 mb-4">视觉优先的图片展示空间，记录生活中的美好瞬间</p>
+                <div class="inline-flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full text-sm font-medium">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+                    </svg>
+                    共 {{ posts|length }} 个相册
+                </div>
+            {% elif format_slug == 'weibo' %}
+                <p class="text-lg text-gray-600 mb-4">简短而精彩的生活片段，记录每一个值得分享的时刻</p>
+                <div class="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
+                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
+                    </svg>
+                    共 {{ posts|length }} 条动态
+                </div>
+            {% elif format_slug == 'video' %}
+                <p class="text-lg text-gray-600 mb-4">动态影像的世界，用视频讲述更生动的故事</p>
+                <div class="inline-flex items-center px-4 py-2 bg-red-50 text-red-700 rounded-full text-sm font-medium">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2 6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path>
+                    </svg>
+                    共 {{ posts|length }} 个视频
+                </div>
+            {% elif format_slug == 'poetry-song' %}
+                <p class="text-lg text-gray-600 mb-4">诗意与韵律的交融，用文字和音符编织情感</p>
+                <div class="inline-flex items-center px-4 py-2 bg-purple-50 text-purple-700 rounded-full text-sm font-medium">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"></path>
+                    </svg>
+                    共 {{ posts|length }} 首作品
+                </div>
+            {% else %}
+                <p class="text-lg text-gray-600 mb-4">{{ format.description or "探索不同类型的内容" }}</p>
+                <div class="inline-flex items-center px-4 py-2 bg-gray-50 text-gray-700 rounded-full text-sm font-medium">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    共 {{ posts|length }} 篇内容
+                </div>
+            {% endif %}
+        </div>
+    </div>
 
     {% if posts %}
     <!-- 根据URL中的format_slug使用不同的布局 -->
-    {% if format_slug == 'photos' %}
-    <!-- 相册格式：瀑布流布局 -->
-    <div class="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
+    {% if format_slug == 'photo-album' %}
+    <!-- 相册格式：瀑布流/网格画廊布局 -->
+    <div class="masonry-grid">
         {% for post in posts %}
-        <div class="break-inside-avoid bg-white rounded-lg shadow-md overflow-hidden mb-4">
-            {% if post.featured_image_url %}
-            <a href="{{ post | post_url }}">
+        <div class="masonry-item group cursor-pointer" onclick="window.location.href='{{ post | post_url }}'">
+            <div class="relative overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                {% if post.featured_image_url %}
                 {{ post.featured_image_url | responsive_image(post.title, "w-full h-auto object-cover", "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw", request.state.db) | safe }}
-            </a>
-            {% endif %}
-            <div class="p-4">
-                <h2 class="text-lg font-semibold text-gray-800 mb-1">
-                    <a href="{{ post | post_url }}" class="hover:text-indigo-600">{{ post.title }}</a>
-                </h2>
-                <p class="text-gray-600 text-xs">{{ post.published_at.strftime('%Y年%m月%d日') }}</p>
+                {% else %}
+                <div class="w-full h-64 bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+                    <svg class="w-16 h-16 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+                    </svg>
+                </div>
+                {% endif %}
+                
+                <!-- 悬停时显示的信息覆盖层 -->
+                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all duration-300 flex items-end">
+                    <div class="p-4 text-white transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                        {% if post.title %}
+                        <h3 class="font-semibold text-lg mb-1 line-clamp-2">{{ post.title }}</h3>
+                        {% endif %}
+                        {% if post.excerpt %}
+                        <p class="text-sm opacity-90 line-clamp-2">{{ post.excerpt }}</p>
+                        {% endif %}
+                        <p class="text-xs opacity-75 mt-2">{{ post.published_at.strftime('%Y年%m月%d日') }}</p>
+                    </div>
+                </div>
+                
+                <!-- 相册标识 -->
+                <div class="absolute top-2 left-2 bg-white bg-opacity-90 rounded-full p-1">
+                    <svg class="w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+                    </svg>
+                </div>
             </div>
         </div>
         {% endfor %}
     </div>
     {% elif format_slug == 'weibo' %}
+
     <!-- 微博格式：信息流布局 -->
-    <div class="max-w-2xl mx-auto space-y-6">
+    <div class="max-w-2xl mx-auto space-y-4">
         {% for post in posts %}
-        <div class="bg-white p-6 rounded-lg shadow-md">
-            <div class="flex items-center mb-4">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200">
+            <!-- 用户信息头部 -->
+            <div class="flex items-center p-4 pb-3">
                 <div class="flex-shrink-0 mr-3">
                     {% if post.author.avatar_url %}
-                        <img class="h-10 w-10 rounded-full" src="{{ post.author.avatar_url }}" alt="{{ post.author.username }}的头像">
+                        <img class="h-10 w-10 rounded-full ring-2 ring-gray-100" src="{{ post.author.avatar_url }}" alt="{{ post.author.username }}的头像">
                     {% else %}
                         {% set author_email_hash = post.author.email | md5 if post.author.email else '' %}
-                        <img class="h-10 w-10 rounded-full" 
+                        <img class="h-10 w-10 rounded-full ring-2 ring-gray-100" 
                              src="https://www.gravatar.com/avatar/{{ author_email_hash }}?s=40&d=identicon&r=g" 
                              alt="{{ post.author.username }}的头像"
                              onerror="this.src='/static/images/default-avatar.png'">
                     {% endif %}
                 </div>
-                <div>
-                    <h3 class="font-bold text-gray-900">{{ post.author.username }}</h3>
-                    <p class="text-gray-500 text-sm">{{ post.published_at.strftime('%Y年%m月%d日 %H:%M') }}</p>
+                <div class="flex-1">
+                    <h3 class="font-semibold text-gray-900 text-sm">{{ post.author.username }}</h3>
+                    <p class="text-gray-500 text-xs">{{ post.published_at.strftime('%m月%d日 %H:%M') }}</p>
+                </div>
+                <div class="text-xs text-gray-400">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
+                        <path d="M10 4a2 2 0 100-4 2 2 0 000 4z"></path>
+                        <path d="M10 20a2 2 0 100-4 2 2 0 000 4z"></path>
+                    </svg>
                 </div>
             </div>
             
-            <div class="prose prose-indigo max-w-none mb-4">
-                {{ post.content_html | safe }}
+            <!-- 文本内容 -->
+            <div class="px-4 pb-3">
+                <div class="prose prose-sm max-w-none text-gray-800 leading-relaxed">
+                    {{ post.content_html | safe }}
+                </div>
             </div>
             
-            {# 九宫格图片展示 #}
+            <!-- 九宫格图片展示 -->
             {% if post.all_image_urls and post.all_image_urls|length > 0 %}
             {% set image_count = post.all_image_urls|length %}
-            <div class="mt-4">
+            <div class="px-4 pb-3">
                 {% if image_count == 1 %}
-                    {# 单张图片 #}
-                    <img src="{{ post.all_image_urls[0] }}" alt="Image" class="rounded-lg w-full object-cover max-h-96">
+                    <!-- 单张图片 -->
+                    <div class="rounded-lg overflow-hidden">
+                        <img src="{{ post.all_image_urls[0] }}" alt="Image" class="w-full object-cover max-h-80 cursor-pointer hover:opacity-95 transition-opacity">
+                    </div>
                 {% else %}
-                    {# 多张图片，九宫格布局 #}
-                    <div class="grid gap-2 image-grid" data-image-count="{{ image_count if image_count < 3 else 3 }}">
-                        {% for image_url in post.all_image_urls[:9] %} {# 最多显示9张 #}
-                        <div class="aspect-square overflow-hidden rounded-lg">
+                    <!-- 多张图片九宫格 -->
+                    <div class="weibo-image-grid grid-cols-{{ 3 if image_count >= 3 else image_count }} gap-1">
+                        {% for image_url in post.all_image_urls[:9] %}
+                        <div class="aspect-square overflow-hidden rounded-md bg-gray-100">
                             <img src="{{ image_url }}" alt="Image {{ loop.index }}" 
-                                 class="w-full h-full object-cover">
+                                 class="w-full h-full object-cover cursor-pointer hover:opacity-95 transition-opacity">
                         </div>
                         {% endfor %}
                     </div>
-                    {# 如果图片超过9张，显示计数 #}
                     {% if image_count > 9 %}
-                    <div class="mt-2 text-sm text-gray-500">
+                    <div class="mt-2 text-xs text-gray-500">
                         共 {{ image_count }} 张图片
                     </div>
                     {% endif %}
                 {% endif %}
             </div>
             {% endif %}
+            
+            <!-- 底部操作栏 -->
+            <div class="flex items-center justify-between px-4 py-3 border-t border-gray-50 text-gray-500">
+                <div class="flex items-center space-x-6 text-xs">
+                    <button class="flex items-center space-x-1 hover:text-red-500 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                        </svg>
+                        <span>赞</span>
+                    </button>
+                    <button class="flex items-center space-x-1 hover:text-blue-500 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        <span>评论</span>
+                    </button>
+                    <button class="flex items-center space-x-1 hover:text-green-500 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path>
+                        </svg>
+                        <span>转发</span>
+                    </button>
+                </div>
+                <a href="{{ post | post_url }}" class="text-xs text-indigo-600 hover:text-indigo-800">查看详情</a>
+            </div>
         </div>
         {% endfor %}
     </div>
+
     {% elif format_slug == 'video' %}
-    <!-- 视频格式：卡片式布局 -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- 视频格式：卡片式布局（类似B站/YouTube） -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {% for post in posts %}
-        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-            <div class="relative">
+        <div class="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden group">
+            <!-- 视频缩略图区域 -->
+            <div class="relative aspect-video bg-gray-900 overflow-hidden">
                 {% if post.featured_image_url %}
-                {{ post.featured_image_url | responsive_image(post.title, "w-full h-48 object-cover", "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw", request.state.db) | safe }}
-                {% endif %}
-                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
-                    <svg class="w-12 h-12 text-white opacity-90 hover:opacity-100 transition-opacity" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path>
+                {{ post.featured_image_url | responsive_image(post.title, "w-full h-full object-cover group-hover:scale-105 transition-transform duration-300", "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw", request.state.db) | safe }}
+                {% else %}
+                <div class="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+                    <svg class="w-16 h-16 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2 6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path>
                     </svg>
                 </div>
-                <div class="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                {% endif %}
+                
+                <!-- 播放按钮覆盖层 -->
+                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300">
+                    <div class="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center transform scale-90 group-hover:scale-100 transition-transform duration-300 shadow-lg">
+                        <svg class="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path>
+                        </svg>
+                    </div>
+                </div>
+                
+                <!-- 时长标签 -->
+                <div class="absolute bottom-2 right-2 bg-black bg-opacity-80 text-white text-xs px-2 py-1 rounded font-medium">
+                    {{ post.content_markdown | reading_time }}
+                </div>
+                
+                <!-- 视频标识 -->
+                <div class="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full font-medium">
                     视频
                 </div>
             </div>
-            <div class="p-5">
-                <h2 class="text-xl font-bold text-gray-900 mb-2 line-clamp-2">
-                    <a href="{{ post | post_url }}" class="hover:text-indigo-600">{{ post.title }}</a>
-                </h2>
-                <p class="text-gray-600 text-sm mb-4 line-clamp-3">{{ post.excerpt }}</p>
-                <div class="flex items-center justify-between text-xs text-gray-500">
+            
+            <!-- 视频信息区域 -->
+            <div class="p-4">
+                <h3 class="font-semibold text-gray-900 text-sm leading-tight mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">
+                    <a href="{{ post | post_url }}">{{ post.title }}</a>
+                </h3>
+                
+                <!-- 作者和发布信息 -->
+                <div class="flex items-center text-xs text-gray-500 mb-2">
+                    <div class="flex items-center mr-4">
+                        {% if post.author.avatar_url %}
+                            <img class="h-5 w-5 rounded-full mr-2" src="{{ post.author.avatar_url }}" alt="{{ post.author.username }}">
+                        {% else %}
+                            {% set author_email_hash = post.author.email | md5 if post.author.email else '' %}
+                            <img class="h-5 w-5 rounded-full mr-2" 
+                                 src="https://www.gravatar.com/avatar/{{ author_email_hash }}?s=20&d=identicon&r=g" 
+                                 alt="{{ post.author.username }}">
+                        {% endif %}
+                        <span class="font-medium">{{ post.author.username }}</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center justify-between text-xs text-gray-400">
                     <span>{{ post.published_at.strftime('%Y年%m月%d日') }}</span>
-                    <span>{{ post.content_markdown | reading_time }}阅读</span>
+                    <div class="flex items-center space-x-3">
+                        <span class="flex items-center">
+                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
+                                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path>
+                            </svg>
+                            观看
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
         {% endfor %}
     </div>
+
     {% elif format_slug == 'poetry-song' %}
-    <!-- 诗词歌赋格式：列表式布局 -->
-    <div class="max-w-3xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
-        <ul class="divide-y divide-gray-200">
+    <!-- 诗词歌赋格式：音乐播放器式布局 -->
+    <div class="max-w-4xl mx-auto">
+        <!-- 播放列表头部 -->
+        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-t-xl p-6 text-white">
+            <div class="flex items-center">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-4">
+                    <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold">诗词歌赋</h2>
+                    <p class="text-purple-100">共 {{ posts|length }} 首作品</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 播放列表 -->
+        <div class="bg-white rounded-b-xl shadow-lg overflow-hidden">
             {% for post in posts %}
-            <li class="hover:bg-gray-50 transition-colors duration-200">
-                <a href="{{ post | post_url }}" class="block p-4">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0 w-16 h-16 bg-gray-200 rounded-md flex items-center justify-center mr-4">
-                            {% if post.featured_image_url %}
-                            {{ post.featured_image_url | responsive_image(post.title, "w-full h-full object-cover rounded-md", "(max-width: 768px) 64px, 64px", request.state.db) | safe }}
-                            {% else %}
-                            <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"></path>
-                            </svg>
-                            {% endif %}
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <h3 class="text-lg font-semibold text-gray-900 truncate">{{ post.title }}</h3>
-                            <p class="text-gray-600 text-sm truncate">{{ post.excerpt }}</p>
-                            <div class="flex items-center mt-1 text-xs text-gray-500">
-                                <span>{{ post.published_at.strftime('%Y年%m月%d日') }}</span>
-                                <span class="mx-2">•</span>
-                                <span>{{ post.content_markdown | reading_time }}阅读</span>
-                            </div>
-                        </div>
-                        <div class="flex-shrink-0 ml-4">
-                            <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM15 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4z"></path>
-                            </svg>
-                        </div>
+            <div class="flex items-center p-4 hover:bg-gray-50 transition-colors duration-200 border-b border-gray-100 group cursor-pointer" onclick="window.location.href='{{ post | post_url }}'">
+                <!-- 序号/播放按钮 -->
+                <div class="flex-shrink-0 w-12 h-12 flex items-center justify-center mr-4">
+                    <div class="w-10 h-10 bg-gray-100 group-hover:bg-indigo-600 rounded-full flex items-center justify-center transition-colors duration-200">
+                        <span class="text-sm font-medium text-gray-600 group-hover:hidden">{{ loop.index }}</span>
+                        <svg class="w-4 h-4 text-white hidden group-hover:block" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path>
+                        </svg>
                     </div>
-                </a>
-            </li>
+                </div>
+                
+                <!-- 专辑封面 -->
+                <div class="flex-shrink-0 w-14 h-14 mr-4">
+                    {% if post.featured_image_url %}
+                    {{ post.featured_image_url | responsive_image(post.title, "w-full h-full object-cover rounded-lg shadow-sm", "(max-width: 768px) 56px, 56px", request.state.db) | safe }}
+                    {% else %}
+                    <div class="w-full h-full bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- 歌曲信息 -->
+                <div class="flex-1 min-w-0">
+                    <h3 class="font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{{ post.title }}</h3>
+                    <p class="text-sm text-gray-500 truncate">{{ post.author.username }}</p>
+                </div>
+                
+                <!-- 专辑/分类 -->
+                <div class="hidden md:block flex-shrink-0 w-32 px-4">
+                    <p class="text-sm text-gray-500 truncate">{{ post.excerpt or "诗词歌赋" }}</p>
+                </div>
+                
+                <!-- 发布时间 -->
+                <div class="flex-shrink-0 w-24 text-right">
+                    <p class="text-sm text-gray-500">{{ post.published_at.strftime('%m月%d日') }}</p>
+                </div>
+                
+                <!-- 时长/操作 -->
+                <div class="flex-shrink-0 w-16 text-right">
+                    <div class="flex items-center justify-end space-x-2">
+                        <span class="text-sm text-gray-400">{{ post.content_markdown | reading_time }}</span>
+                        <button class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded">
+                            <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
             {% endfor %}
-        </ul>
+        </div>
     </div>
+
     {% else %}
     <!-- 其他格式：标准网格布局 -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -188,16 +404,95 @@
     {% endif %}
 </div>
 
+<style>
+/* 相册瀑布流布局 */
+.masonry-grid {
+    columns: 1;
+    column-gap: 1rem;
+    margin: 0;
+}
+
+@media (min-width: 640px) {
+    .masonry-grid {
+        columns: 2;
+    }
+}
+
+@media (min-width: 1024px) {
+    .masonry-grid {
+        columns: 3;
+    }
+}
+
+@media (min-width: 1280px) {
+    .masonry-grid {
+        columns: 4;
+    }
+}
+
+.masonry-item {
+    display: inline-block;
+    width: 100%;
+    margin-bottom: 1rem;
+    break-inside: avoid;
+}
+
+/* 微博九宫格图片布局 */
+.weibo-image-grid {
+    display: grid;
+    gap: 0.25rem;
+    max-width: 300px;
+}
+
+.weibo-image-grid.grid-cols-1 {
+    grid-template-columns: 1fr;
+}
+
+.weibo-image-grid.grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.weibo-image-grid.grid-cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+/* 文本截断 */
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+</style>
+
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // 为微博卡片中的图片九宫格动态设置列数
-        const imageGrids = document.querySelectorAll('.image-grid');
-        imageGrids.forEach(grid => {
-            const imageCount = parseInt(grid.getAttribute('data-image-count'), 10);
-            if (!isNaN(imageCount) && imageCount > 0) {
-                grid.style.gridTemplateColumns = `repeat(${imageCount}, minmax(0, 1fr))`;
-            }
+document.addEventListener('DOMContentLoaded', function() {
+    // 图片点击预览功能
+    const images = document.querySelectorAll('.weibo-image-grid img, .masonry-item img');
+    images.forEach(img => {
+        img.addEventListener('click', function(e) {
+            e.preventDefault();
+            // 这里可以添加图片预览功能
+            console.log('Image clicked:', this.src);
         });
     });
+    
+    // 视频卡片悬停效果
+    const videoCards = document.querySelectorAll('.group');
+    videoCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            // 可以添加视频预览功能
+        });
+    });
+});
 </script>
 {% endblock %}
