@@ -1,202 +1,80 @@
-{# 现代化时间轴卡片组件 - 支持多格式内容差异化布局 #}
+{# 时间轴卡片组件 - 简化版本适配时间轴布局 #}
 
 {% set format_slugs = post.formats | map(attribute='slug') | list %}
 {% set primary_format = format_slugs[0] if format_slugs else 'article' %}
 
-{# 微博格式 #}
-{% if 'micro-post' in format_slugs %}
-<div class="modern-card weibo-card" data-format="micro-post">
-    <div class="card-body">
-        <div class="user-info">
-            {% if post.author.avatar_url %}
-                <img src="{{ post.author.avatar_url }}" alt="{{ post.author.username }}的头像" class="avatar">
-            {% else %}
-                {% set author_email_hash = post.author.email | md5 if post.author.email else '' %}
-                <img class="avatar" 
-                     src="https://www.gravatar.com/avatar/{{ author_email_hash }}?s=40&d=identicon&r=g" 
-                     alt="{{ post.author.username }}的头像"
-                     onerror="this.src='/static/images/default-avatar.png'">
-            {% endif %}
-            <div>
-                <div class="font-medium text-neutral-900 dark:text-neutral-100">{{ post.author.username }}</div>
-                <time class="text-xs text-neutral-500">
-                    {{ post.published_at.strftime('%m月%d日 %H:%M') if post.published_at else '未发布' }}
-                </time>
-            </div>
-        </div>
-        
-        <div class="text-neutral-800 dark:text-neutral-200 mb-4 prose prose-sm max-w-none">
-            {{ post.content_html | safe }}
-        </div>
-        
-        {% set images = post.all_image_urls or [] %}
-        {% set image_count = images|length %}
-        
-        {% if image_count == 1 %}
-        <div class="mb-4">
-            <a href="{{ post | post_url }}">
-                <img src="{{ images[0] }}" alt="Image" class="rounded-lg w-full object-cover max-h-96 hover:opacity-90 transition-opacity">
-            </a>
-        </div>
-        {% elif image_count > 1 %}
-        <div class="mb-4 grid gap-2 image-grid" data-image-count="{{ image_count if image_count < 3 else 3 }}">
-            {% for image_url in images[:9] %}
-            <div class="aspect-square overflow-hidden rounded-lg">
-                <a href="{{ post | post_url }}">
-                    <img src="{{ image_url }}" alt="Image {{ loop.index }}" class="w-full h-full object-cover hover:scale-105 transition-transform">
-                </a>
-            </div>
+{# 格式标识 #}
+<div class="flex items-center mb-2 md:mb-3">
+    {% if 'micro-post' in format_slugs %}
+        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+            <i class="fas fa-comment-dots mr-1"></i>微博
+        </span>
+    {% elif 'photo-album' in format_slugs %}
+        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+            <i class="fas fa-images mr-1"></i>相册
+        </span>
+    {% elif 'video' in format_slugs %}
+        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+            <i class="fas fa-video mr-1"></i>视频
+        </span>
+    {% elif 'poetry-song' in format_slugs %}
+        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+            <i class="fas fa-music mr-1"></i>音乐
+        </span>
+    {% else %}
+        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+            <i class="fas fa-pen mr-1"></i>文章
+        </span>
+    {% endif %}
+</div>
+
+{# 标题 #}
+<h3 class="text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-2 leading-tight">
+    <a href="{{ post | post_url }}" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+        {{ post.title }}
+    </a>
+</h3>
+
+{# 特色图片 #}
+{% if post.featured_image_url %}
+<div class="mb-2 md:mb-3">
+    <a href="{{ post | post_url }}">
+        <img src="{{ post.featured_image_url }}" alt="{{ post.title }}" 
+             class="w-full h-32 md:h-48 object-cover rounded-lg hover:opacity-90 transition-opacity">
+    </a>
+</div>
+{% endif %}
+
+{# 摘要内容 #}
+{% if post.excerpt %}
+<p class="text-gray-600 dark:text-gray-300 text-xs md:text-sm mb-2 md:mb-3 line-clamp-2 md:line-clamp-3">
+    {{ post.excerpt }}
+</p>
+{% elif post.content %}
+<p class="text-gray-600 dark:text-gray-300 text-xs md:text-sm mb-2 md:mb-3 line-clamp-2 md:line-clamp-3">
+    {{ post.content[:100] }}...
+</p>
+{% endif %}
+
+{# 底部信息 #}
+<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
+    <div class="flex items-center space-x-2">
+        {% if post.tags %}
+        <div class="flex items-center space-x-1">
+            <i class="fas fa-tags text-xs"></i>
+            {% for tag in post.tags[:2] %}
+            <span class="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-xs">{{ tag.name }}</span>
             {% endfor %}
         </div>
         {% endif %}
-        {% if image_count > 9 %}
-        <div class="text-sm text-neutral-500">
-            共 {{ image_count }} 张图片
-        </div>
-        {% endif %}
-        
-        <div class="flex items-center justify-between text-neutral-500 text-sm pt-4 border-t border-neutral-200 dark:border-neutral-700">
-            <button class="flex items-center gap-1 hover:text-accent transition-colors">
-                <i class="far fa-heart"></i>
-                <span>{{ post.likes_count or 0 }}</span>
-            </button>
-            <button class="flex items-center gap-1 hover:text-accent transition-colors">
-                <i class="far fa-comment"></i>
-                <span>{{ post.comments_count or 0 }}</span>
-            </button>
-            <a href="{{ post | post_url }}" class="flex items-center gap-1 hover:text-accent transition-colors">
-                <i class="far fa-eye"></i>
-                <span>查看</span>
-            </a>
-        </div>
     </div>
-</div>
-
-{# 相册格式 #}
-{% elif 'photo-album' in format_slugs %}
-<div class="modern-card photo-card" data-format="photo-album">
-    <a href="{{ post | post_url }}" class="block">
-        {% if post.featured_image_url %}
-        <img src="{{ post.featured_image_url }}" alt="{{ post.title }}" loading="lazy" class="w-full h-full object-cover">
-        <div class="overlay">
-            <div class="text-white">
-                <h3 class="font-bold mb-2">{{ post.title }}</h3>
-                <p class="text-sm opacity-90">
-                    {% set image_count = post.all_image_urls|length if post.all_image_urls else 1 %}
-                    {{ image_count }} 张照片
-                </p>
-                {% if post.excerpt %}
-                <p class="text-xs opacity-75 mt-1 line-clamp-2">{{ post.excerpt }}</p>
-                {% endif %}
-            </div>
+    <div class="flex items-center justify-between md:justify-end space-x-2 md:space-x-3">
+        <div class="flex items-center space-x-2">
+            <span class="flex items-center"><i class="far fa-eye mr-1"></i>{{ post.views_count or 0 }}</span>
+            <span class="flex items-center"><i class="far fa-heart mr-1"></i>{{ post.likes_count or 0 }}</span>
         </div>
-        {% endif %}
-    </a>
-</div>
-
-{# 视频格式 #}
-{% elif 'video' in format_slugs %}
-<div class="modern-card media-card" data-format="video">
-    <a href="{{ post | post_url }}" class="block">
-        {% if post.featured_image_url %}
-        <img src="{{ post.featured_image_url }}" alt="{{ post.title }}" class="w-full h-full object-cover">
-        {% endif %}
-        
-        <div class="play-button">
-            <i class="fas fa-play"></i>
-        </div>
-        
-        <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/50 to-transparent text-white">
-            <h3 class="font-bold mb-1">{{ post.title }}</h3>
-            <p class="text-sm opacity-90 mb-2">视频内容</p>
-            {% if post.excerpt %}
-            <p class="text-xs opacity-75 line-clamp-2">{{ post.excerpt }}</p>
-            {% endif %}
-            <div class="flex items-center gap-4 mt-2 text-xs opacity-75">
-                <span><i class="far fa-clock mr-1"></i>{{ post.content_markdown | reading_time }}分钟</span>
-                <span><i class="far fa-eye mr-1"></i>{{ post.views_count or 0 }}</span>
-            </div>
-        </div>
-    </a>
-</div>
-
-{# 诗词歌赋音乐格式 #}
-{% elif 'poetry-song' in format_slugs %}
-<div class="modern-card media-card" data-format="poetry-song">
-    <a href="{{ post | post_url }}" class="block">
-        {% if post.featured_image_url %}
-        <img src="{{ post.featured_image_url }}" alt="{{ post.title }}" class="w-full h-full object-cover">
-        {% endif %}
-        
-        <div class="play-button">
-            <i class="fas fa-music"></i>
-        </div>
-        
-        <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/50 to-transparent text-white">
-            <h3 class="font-bold mb-1">{{ post.title }}</h3>
-            <p class="text-sm opacity-90 mb-2">音乐分享</p>
-            {% if post.excerpt %}
-            <p class="text-xs opacity-75 line-clamp-2">{{ post.excerpt }}</p>
-            {% endif %}
-            <div class="flex items-center gap-4 mt-2 text-xs opacity-75">
-                <span><i class="fas fa-headphones mr-1"></i>音频</span>
-                <span><i class="far fa-heart mr-1"></i>{{ post.likes_count or 0 }}</span>
-            </div>
-        </div>
-    </a>
-</div>
-
-{# 标准文章格式 #}
-{% else %}
-<div class="modern-card article-card" data-format="article">
-    {% if post.featured_image_url %}
-    <div class="card-image">
-        <a href="{{ post | post_url }}">
-            <img src="{{ post.featured_image_url }}" alt="{{ post.title }}" loading="lazy">
+        <a href="{{ post | post_url }}" class="text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap">
+            阅读更多 →
         </a>
     </div>
-    {% endif %}
-    
-    <div class="card-body">
-        <div class="flex items-center gap-2 mb-3">
-            <span class="px-2 py-1 bg-primary text-white text-xs rounded-full">
-                {% if post.categories %}{{ post.categories[0].name }}{% else %}文章{% endif %}
-            </span>
-            <time class="text-sm text-neutral-500">
-                {{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else '未发布' }}
-            </time>
-        </div>
-        
-        <h2 class="text-xl font-bold mb-3 text-neutral-900 dark:text-neutral-100">
-            <a href="{{ post | post_url }}" class="hover:text-accent transition-colors">
-                {{ post.title }}
-            </a>
-        </h2>
-        
-        {% if post.excerpt %}
-        <p class="text-neutral-600 dark:text-neutral-400 mb-4 line-clamp-3">
-            {{ post.excerpt }}
-        </p>
-        {% endif %}
-        
-        <div class="flex items-center justify-between">
-            <div class="flex gap-2">
-                {% for tag in post.tags[:3] %}
-                <span class="px-2 py-1 bg-neutral-200 dark:bg-neutral-700 text-xs rounded hover:bg-accent hover:text-white transition-colors">
-                    {{ tag.name }}
-                </span>
-                {% endfor %}
-            </div>
-            <div class="flex items-center gap-4 text-sm text-neutral-500">
-                <span class="flex items-center gap-1">
-                    <i class="fas fa-clock"></i>
-                    {{ post.content_markdown | reading_time }}分钟
-                </span>
-                <a href="{{ post | post_url }}" class="text-accent hover:text-accent-dark font-medium">
-                    阅读更多 →
-                </a>
-            </div>
-        </div>
-    </div>
 </div>
-{% endif %}

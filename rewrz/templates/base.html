@@ -10,12 +10,42 @@
     {% else %}
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     {% endif %}
+    <!-- Tailwind CSS CDN with JIT -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['SourceHanSansCN', 'Microsoft YaHei', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    },
+                    animation: {
+                        'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
+                        'slide-in-right': 'slideInRight 0.6s ease-out forwards',
+                        'slide-in-left': 'slideInLeft 0.6s ease-out forwards',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- HTMX for dynamic interactions -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    
     <!-- FontAwesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-     <!-- SEO Meta Tags -->
-     <meta name="description" content="{% block meta_description %}{{ tagline if tagline else site_title }}{% endblock %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="{% block meta_description %}{{ tagline if tagline else site_title }}{% endblock %}">
     <meta property="og:title" content="{% block og_title %}{{ title if title else site_title }}{% endblock %}">
     <meta property="og:description" content="{% block og_description %}{{ tagline if tagline else site_title }}{% endblock %}">
     <meta property="og:type" content="website">
@@ -26,404 +56,35 @@
     <meta name="twitter:description" content="{% block twitter_description %}{{ tagline if tagline else site_title }}{% endblock %}">
     {% if featured_image_url %}<meta name="twitter:image" content="{{ featured_image_url }}">{% endif %}
     {% if noindex_site %}<meta name="robots" content="noindex, nofollow">{% endif %}
+    
     {% block head %}{% endblock %}
-    <!-- highlight.js for code highlighting -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+    
+    <!-- Code highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
     <!-- 动态主题CSS变量 -->
     <link rel="stylesheet" href="/api/theme/variables.css">
-    <!-- 现代化UI样式 -->
-    <link rel="stylesheet" href="{{ url_for('static', path='css/modern-ui.css') }}">
-    <!-- 纪念日氛围特效样式 -->
-    <link rel="stylesheet" href="{{ url_for('static', path='css/anniversary-effects.css') }}">
-    <!-- 多格式内容布局样式 -->
-    <link rel="stylesheet" href="{{ url_for('static', path='css/multi-format-layout.css') }}">
-    <!-- 响应式移动端样式 -->
-    <link rel="stylesheet" href="{{ url_for('static', path='css/responsive-mobile.css') }}">
     
-    <!-- 响应式导航系统样式 -->
-    <link rel="stylesheet" href="{{ url_for('static', path='css/responsive-navigation.css') }}">
-    
-    <!-- 动画效果和交互细节 -->
-    <link rel="stylesheet" href="{{ url_for('static', path='css/animations.css') }}">
+    <!-- 优化后的统一样式系统 -->
+    <link rel="stylesheet" href="{{ url_for('static', path='css/tailwind-optimized.css') }}">
     
     <style>
-        /* 定义自定义字体 */
+        /* 自定义字体定义 */
         @font-face {
             font-family: 'SourceHanSansCN';
             src: url('/static/fonts/SourceHanSansCN-Medium.otf') format('opentype');
             font-weight: normal;
             font-style: normal;
         }
-        
-        /* 设置全局字体 */
-        body {
-            font-family: 'SourceHanSansCN', 'Microsoft YaHei', sans-serif;
-        }
-        /* 基础样式和CSS变量应用 */
-        .bg-primary { background-color: var(--color-primary); }
-        .text-primary { color: var(--color-primary); }
-        .border-primary { border-color: var(--color-primary); }
-        .bg-background { background-color: var(--color-background); }
-        .text-text { color: var(--color-text); }
-        .text-text-light { color: var(--color-text-light); }
-        .border-border { border-color: var(--color-border); }
-        .bg-card-bg { background-color: var(--color-card-bg); }
-        
-        /* 过渡动画 */
-        * {
-            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-        }
-        
-        /* 氛围主题样式 */
-        .atmosphere-festive {
-            position: relative;
-        }
-        
-        .atmosphere-festive::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(45deg, rgba(239, 68, 68, 0.05) 0%, rgba(251, 191, 36, 0.05) 100%);
-            pointer-events: none;
-            z-index: -1;
-        }
-        
-        .atmosphere-memorial {
-            filter: saturate(0.3);
-        }
-        
-        .atmosphere-memorial * {
-            transition: filter 0.5s ease;
-        }
-        
-        .atmosphere-celebration {
-            position: relative;
-        }
-        
-        .atmosphere-celebration::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
-            pointer-events: none;
-            z-index: -1;
-        }
-        
-        /* 响应式主题切换按钮 */
-        .theme-toggle {
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .theme-toggle .light-icon,
-        .theme-toggle .dark-icon {
-            transition: transform 0.3s ease, opacity 0.3s ease;
-        }
-        
-        .dark .theme-toggle .light-icon {
-            transform: rotate(180deg);
-            opacity: 0;
-        }
-        
-        .dark .theme-toggle .dark-icon {
-            transform: rotate(0deg);
-            opacity: 1;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-        
-        :not(.dark) .theme-toggle .dark-icon {
-            transform: rotate(-180deg);
-            opacity: 0;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-180deg);
-        }
-        
-        /* 版权声明样式 */
-        .article-license {
-            margin: 2rem 0;
-            padding: 1.5rem;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-left: 4px solid #6c757d;
-            border-radius: 8px;
-            font-size: 0.9rem;
-        }
-        
-        .license-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 1rem;
-            font-weight: 600;
-            color: #495057;
-        }
-        
-        .license-header i::before {
-            content: '©';
-            margin-right: 0.5rem;
-            font-size: 1.1em;
-        }
-        
-        .license-content {
-            color: #6c757d;
-            line-height: 1.6;
-        }
-        
-        .license-content p {
-            margin: 0.5rem 0;
-        }
-        
-        .license-icon {
-            margin-right: 1rem;
-            vertical-align: middle;
-            max-height: 31px;
-        }
-        
-        .license-content a {
-            color: #007bff;
-            text-decoration: none;
-        }
-        
-        .license-content a:hover {
-            text-decoration: underline;
-        }
-        
-        /* 打赏组件样式 */
-        .donation-widget {
-            margin: 2rem 0;
-            text-align: center;
-        }
-        
-        /* 优雅风格 */
-        .donation-widget.elegant-style {
-            background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 50%, #fff5f5 100%);
-            border: 2px solid #fed7d7;
-            border-radius: 16px;
-            padding: 2rem;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .donation-widget.elegant-style::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255, 192, 203, 0.1) 0%, transparent 70%);
-            animation: gentle-pulse 4s ease-in-out infinite;
-        }
-        
-        @keyframes gentle-pulse {
-            0%, 100% { transform: scale(1); opacity: 0.5; }
-            50% { transform: scale(1.1); opacity: 0.8; }
-        }
-        
-        .donation-header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 1rem;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .heart-icon {
-            width: 24px;
-            height: 24px;
-            fill: #e53e3e;
-            margin-right: 0.5rem;
-            animation: heart-beat 1.5s ease-in-out infinite;
-        }
-        
-        @keyframes heart-beat {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-        
-        .donation-title {
-            margin: 0;
-            color: #2d3748;
-            font-size: 1.2em;
-            font-weight: 600;
-        }
-        
-        .donation-description {
-            color: #4a5568;
-            margin-bottom: 1.5rem;
-            font-style: italic;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .donation-methods {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1rem;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .donation-qr {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        
-        .qr-code {
-            width: 120px;
-            height: 120px;
-            border: 3px solid #fff;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
-        }
-        
-        .qr-code:hover {
-            transform: scale(1.05);
-        }
-        
-        .qr-hint {
-            margin-top: 0.5rem;
-            font-size: 0.9em;
-            color: #718096;
-        }
-        
-        .donation-button {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.75rem 1.5rem;
-            background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
-            color: white;
-            text-decoration: none;
-            border-radius: 25px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
-        }
-        
-        .donation-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(229, 62, 62, 0.4);
-            text-decoration: none;
-            color: white;
-        }
-        
-        /* 简洁风格 */
-        .donation-widget.minimal-style {
-            background: #f7fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 1.5rem;
-        }
-        
-        .minimal-style .donation-title {
-            font-size: 1.1em;
-            color: #2d3748;
-            margin-bottom: 1rem;
-        }
-        
-        .minimal-style .qr-code {
-            width: 100px;
-            height: 100px;
-            border: 2px solid #e2e8f0;
-        }
-        
-        .minimal-style .donation-button {
-            background: #4299e1;
-            border-radius: 6px;
-            font-size: 0.9em;
-        }
-        
-        .minimal-style .donation-button:hover {
-            background: #3182ce;
-        }
-        
-        /* 卡片风格 */
-        .donation-widget.card-style {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-        
-        .donation-card {
-            padding: 0;
-        }
-        
-        .card-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1.5rem;
-            text-align: center;
-        }
-        
-        .card-header .donation-title {
-            color: white;
-            margin-bottom: 0.5rem;
-        }
-        
-        .card-header .donation-description {
-            color: rgba(255, 255, 255, 0.9);
-            margin: 0;
-        }
-        
-        .card-body {
-            padding: 1.5rem;
-        }
-        
-        .card-style .qr-code {
-            width: 100px;
-            height: 100px;
-            border: 2px solid #e2e8f0;
-        }
-        
-        .card-style .donation-button {
-            background: #667eea;
-            border-radius: 8px;
-        }
-        
-        .card-style .donation-button:hover {
-            background: #5a67d8;
-        }
-        
-        /* 响应式设计 */
-        @media (max-width: 768px) {
-            .donation-widget.elegant-style {
-                padding: 1.5rem;
-                margin: 1.5rem 0;
-            }
-            
-            .qr-code {
-                width: 100px;
-                height: 100px;
-            }
-            
-            .donation-title {
-                font-size: 1.1em;
-            }
-        }
     </style>
 </head>
-<body class="bg-background text-text {{ atmosphere_class if atmosphere_class else '' }}">
+<body class="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300 {{ atmosphere_class if atmosphere_class else '' }}">
     <script>
         // 动态主题系统
         let currentThemeConfig = null;
         let atmosphereClass = '';
-        
+
         // 加载服务器端主题配置
         async function loadThemeConfig() {
             try {
@@ -432,10 +93,7 @@
                 currentThemeConfig = config;
                 atmosphereClass = config.atmosphere_class || '';
                 
-                // 应用主题配置
                 applyThemeConfig(config);
-                
-                // 应用氛围主题
                 applyAtmosphere(config.atmosphere_class);
                 
             } catch (error) {
@@ -447,12 +105,10 @@
         function applyThemeConfig(config) {
             const root = document.documentElement;
             
-            // 应用CSS变量
             Object.entries(config.variables).forEach(([name, value]) => {
                 root.style.setProperty(name, value);
             });
             
-            // 保存当前主题
             localStorage.setItem('current_theme', config.theme);
             if (config.atmosphere) {
                 localStorage.setItem('current_atmosphere', config.atmosphere);
@@ -464,17 +120,13 @@
         // 应用氛围主题
         function applyAtmosphere(className) {
             const body = document.body;
-            
-            // 清除之前的氛围类
             body.className = body.className.replace(/atmosphere-\w+/g, '');
-            
-            // 添加新的氛围类
             if (className) {
                 body.classList.add(className);
             }
         }
         
-        // 主题切换逻辑（保留用户手动切换功能）
+        // 主题切换逻辑
         function applyTheme(theme) {
             if (theme === 'dark') {
                 document.documentElement.classList.add('dark');
@@ -485,7 +137,7 @@
             }
         }
 
-        // 检查用户偏好，然后系统偏好
+        // 初始化主题
         function initializeTheme() {
             const savedUserTheme = localStorage.getItem('user_theme_preference');
             if (savedUserTheme) {
@@ -497,23 +149,94 @@
             }
         }
 
-        // 初始化高亮显示
+        // 移动端菜单切换功能（修正后）
+        function initMobileMenu() {
+            const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+            const mobileNavMenu = document.getElementById('mobile-nav-menu');
+            const menuIcon = document.getElementById('menu-icon');
+            
+            if (mobileMenuToggle && mobileNavMenu && menuIcon) {
+                mobileMenuToggle.addEventListener('click', function() {
+                    const isHidden = mobileNavMenu.classList.contains('hidden');
+                    
+                    if (isHidden) {
+                        mobileNavMenu.classList.remove('hidden');
+                        menuIcon.classList.remove('fa-bars');
+                        menuIcon.classList.add('fa-times');
+                    } else {
+                        mobileNavMenu.classList.add('hidden');
+                        menuIcon.classList.remove('fa-times');
+                        menuIcon.classList.add('fa-bars');
+                    }
+                });
+                
+                const menuLinks = mobileNavMenu.querySelectorAll('a');
+                menuLinks.forEach(link => {
+                    link.addEventListener('click', function() {
+                        mobileNavMenu.classList.add('hidden');
+                        menuIcon.classList.remove('fa-times');
+                        menuIcon.classList.add('fa-bars');
+                    });
+                });
+            }
+            
+            // 移动端页面菜单折叠功能
+            const mobilePagesToggle = document.getElementById('mobile-pages-toggle');
+            const mobilePagesMenu = document.getElementById('mobile-pages-menu');
+            const mobilePagesIcon = document.getElementById('mobile-pages-icon');
+            
+            if (mobilePagesToggle && mobilePagesMenu && mobilePagesIcon) {
+                mobilePagesToggle.addEventListener('click', function(event) {
+                    // 阻止事件冒泡，防止点击时关闭整个导航菜单
+                    event.stopPropagation();
+                    const isHidden = mobilePagesMenu.classList.contains('hidden');
+                    
+                    if (isHidden) {
+                        mobilePagesMenu.classList.remove('hidden');
+                        mobilePagesIcon.classList.remove('fa-chevron-down');
+                        mobilePagesIcon.classList.add('fa-chevron-up');
+                    } else {
+                        mobilePagesMenu.classList.add('hidden');
+                        mobilePagesIcon.classList.remove('fa-chevron-up');
+                        mobilePagesIcon.classList.add('fa-chevron-down');
+                    }
+                });
+            }
+        }
+        
+        // 主题切换按钮事件
+        function initThemeToggle() {
+            const desktopToggle = document.getElementById('desktop-theme-toggle');
+            const mobileToggle = document.getElementById('mobile-theme-toggle');
+            
+            if (desktopToggle) {
+                desktopToggle.addEventListener('click', toggleTheme);
+            }
+            
+            if (mobileToggle) {
+                mobileToggle.addEventListener('click', toggleTheme);
+            }
+        }
+        
+        // 主题切换函数
+        function toggleTheme() {
+            const currentTheme = localStorage.getItem('user_theme_preference');
+            applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+        }
+
+        // DOM加载完成后执行初始化
         document.addEventListener('DOMContentLoaded', async function() {
-            // 初始化用户主题偏好
             initializeTheme();
-            
-            // 加载服务器端主题配置
             await loadThemeConfig();
-            
-            // 初始化代码高亮
+            initMobileMenu();
+            initThemeToggle();
             hljs.highlightAll();
         });
 
-        // 重新高亮通过HTMX加载的内容
+        // HTMX内容加载后重新高亮代码
         document.body.addEventListener('htmx:afterSwap', function(event) {
             if (event.detail.target) {
                 event.detail.target.querySelectorAll('pre code').forEach((block) => {
-                    // 检查元素是否存在再执行高亮
                     if (block && block.textContent) {
                         hljs.highlightElement(block);
                     }
@@ -523,118 +246,192 @@
             }
         });
 
-        // 主题切换函数（用户手动切换）
-        function toggleTheme() {
-            const currentTheme = localStorage.getItem('user_theme_preference');
-            applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
-        }
-        
-        // 定期检查主题更新（每5分钟）
+        // 定期检查主题更新
         setInterval(loadThemeConfig, 5 * 60 * 1000);
     </script>
-    <header class="modern-navbar bg-card-bg shadow-sm sticky top-0 z-40 backdrop-blur-md bg-opacity-90">
-        <div class="container mx-auto px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
-            <!-- 品牌Logo -->
-            <a href="/" class="nav-brand flex items-center space-x-3 group">
-                {% set logo_src = site_logo_light if site_logo_light else (site_logo_dark if site_logo_dark else '') %}
-                {% if logo_src %}
-                <img src="{{ logo_src }}" alt="{{ site_title }}" class="h-8 w-auto object-contain transition-transform duration-200 group-hover:scale-105" loading="eager">
-                {% endif %}
-                <span class="text-xl md:text-2xl font-bold text-primary">{{ site_title }}</span>
-            </a>
-            
-            <!-- 移动端汉堡菜单按钮 -->
-            <button class="mobile-menu-toggle md:hidden p-2 text-text-light hover:text-primary transition-colors" id="mobile-menu-toggle" aria-label="切换菜单">
-                <i class="fas fa-bars text-xl" id="menu-icon"></i>
-            </button>
+    <header class="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
+        <div class="container mx-auto px-3 md:px-6 py-3 md:py-4">
+            <div class="flex justify-between items-center">
+                <!-- 品牌Logo -->
+                <a href="/" class="flex items-center space-x-2 group">
+                    {% set logo_src = site_logo_light if site_logo_light else (site_logo_dark if site_logo_dark else '') %}
+                    {% if logo_src %}
+                    <img src="{{ logo_src }}" alt="{{ site_title }}" class="h-6 md:h-8 w-auto object-contain transition-transform duration-200 group-hover:scale-105" loading="eager">
+                    {% endif %}
+                    <span class="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">{{ site_title }}</span>
+                </a>
+                
+                <!-- 移动端汉堡菜单按钮 -->
+                <button class="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+                        id="mobile-menu-toggle" 
+                        aria-label="切换菜单">
+                    <i class="fas fa-bars text-lg text-gray-700 dark:text-gray-300" id="menu-icon"></i>
+                </button>
 
-            <!-- 统一响应式导航菜单 -->
-            <nav class="nav-menu" id="main-nav-menu">
-                <div class="nav-content">
-                    <a href="/" class="nav-link text-text-light hover:text-primary transition-colors {% if request.url.path == '/' %}text-primary font-medium{% endif %}">
-                        <i class="fas fa-home md:hidden mr-2"></i>首页
+                <!-- 桌面端导航菜单 -->
+                <nav class="hidden md:flex items-center space-x-1 lg:space-x-2">
+                    <a href="/" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 {% if request.url.path == '/' %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                        首页
                     </a>
                     
                     {% if categories %}
-                    <div class="nav-dropdown relative">
-                        <button class="nav-dropdown-toggle flex items-center text-text-light hover:text-primary transition-colors" aria-expanded="false">
-                            <i class="fas fa-folder md:hidden mr-2"></i>
+                    <div class="relative group">
+                        <button class="px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center space-x-1">
                             <span>分类</span>
-                            <i class="fas fa-chevron-down ml-1 text-xs transition-transform duration-200"></i>
+                            <i class="fas fa-chevron-down text-xs transition-transform duration-200 group-hover:rotate-180"></i>
                         </button>
-                        <div class="nav-dropdown-menu">
+                        <div class="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                             {% for category in categories %}
-                            <a href="/category/{{ category.slug }}" class="nav-dropdown-item">
-                                {{ category.name }}
-                                <span class="text-xs opacity-75">({{ category.posts_count or 0 }})</span>
+                            <a href="/category/{{ category.slug }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>{{ category.name }}</span>
+                                    <span class="text-xs text-gray-400">({{ category.posts_count or 0 }})</span>
+                                </div>
                             </a>
                             {% endfor %}
                         </div>
                     </div>
                     {% endif %}
                     
-                    <a href="/archives" class="nav-link text-text-light hover:text-primary transition-colors {% if request.url.path == '/archives' %}text-primary font-medium{% endif %}">
-                        <i class="fas fa-archive md:hidden mr-2"></i>归档
+                    <a href="/archives" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 {% if request.url.path == '/archives' %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                        归档
                     </a>
                     
-                    <!-- 动态导航菜单 - 文章格式和自定义页面 -->
+                    <!-- 动态导航菜单 - 文章格式 -->
                     {% if post_formats %}
                     {% for format in post_formats %}
-                    <a href="/formats/{{ format.slug }}" class="nav-link text-text-light hover:text-primary transition-colors {% if request.url.path == '/formats/' + format.slug %}text-primary font-medium{% endif %}">
-                        <i class="fas fa-file-alt md:hidden mr-2"></i>{{ format.name }}
+                    <a href="/formats/{{ format.slug }}" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 {% if request.url.path == '/formats/' + format.slug %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                        {{ format.name }}
                     </a>
                     {% endfor %}
                     {% endif %}
                     
-                    <!-- 自定义页面导航 -->
+                    <!-- 自定义页面导航 - 下拉菜单 -->
                     {% if custom_pages %}
-                    {% for page in custom_pages %}
-                    <a href="/{{ page.slug }}" class="nav-link text-text-light hover:text-primary transition-colors {% if request.url.path == '/' + page.slug %}text-primary font-medium{% endif %}">
-                        <i class="fas fa-file md:hidden mr-2"></i>{{ page.title }}
+                    <div class="relative group">
+                        <button class="px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center space-x-1">
+                            <span>页面</span>
+                            <i class="fas fa-chevron-down text-xs transition-transform duration-200 group-hover:rotate-180"></i>
+                        </button>
+                        <div class="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            {% for page in custom_pages %}
+                            <a href="/{{ page.slug }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg {% if request.url.path == '/' + page.slug %}bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300{% endif %}">
+                                <div class="flex items-center">
+                                    <i class="fas fa-file mr-2 text-gray-400 text-xs"></i>
+                                    <span>{{ page.title }}</span>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </nav>
+                
+                <!-- 桌面端搜索和主题切换 -->
+                <div class="hidden md:flex items-center space-x-3">
+                    <form action="/search" method="GET" class="relative">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                            <input type="text" 
+                                   name="q" 
+                                   placeholder="搜索..." 
+                                   class="pl-10 pr-4 py-2 w-48 lg:w-64 text-sm bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                        </div>
+                    </form>
+                    
+                    <button id="desktop-theme-toggle" 
+                            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+                            aria-label="切换主题">
+                        <i class="fas fa-sun text-gray-700 dark:text-gray-300 dark:hidden"></i>
+                        <i class="fas fa-moon text-gray-700 dark:text-gray-300 hidden dark:inline"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 移动端导航菜单 -->
+            <nav class="md:hidden mt-4 pb-4 border-t border-gray-200 dark:border-gray-700 hidden" id="mobile-nav-menu">
+                <div class="pt-4 space-y-2">
+                    <a href="/" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 {% if request.url.path == '/' %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                        <i class="fas fa-home mr-3 w-4"></i>首页
+                    </a>
+                    
+                    {% if categories %}
+                    <div class="space-y-1">
+                        <div class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">分类</div>
+                        {% for category in categories %}
+                        <a href="/category/{{ category.slug }}" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>{{ category.name }}</span>
+                            <span class="text-xs text-gray-400">({{ category.posts_count or 0 }})</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <a href="/archives" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 {% if request.url.path == '/archives' %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                        <i class="fas fa-archive mr-3 w-4"></i>归档
+                    </a>
+                    
+                    <!-- 动态导航菜单 - 文章格式 -->
+                    {% if post_formats %}
+                    {% for format in post_formats %}
+                    <a href="/formats/{{ format.slug }}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 {% if request.url.path == '/formats/' + format.slug %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                        <i class="fas fa-file-alt mr-3 w-4"></i>{{ format.name }}
                     </a>
                     {% endfor %}
+                    {% endif %}
+                    
+                    <!-- 自定义页面导航 - 移动端折叠菜单 -->
+                    {% if custom_pages %}
+                    <div class="space-y-1">
+                        <button id="mobile-pages-toggle" class="flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+                            <div class="flex items-center">
+                                <i class="fas fa-folder mr-3 w-4"></i>
+                                页面
+                            </div>
+                            <i id="mobile-pages-icon" class="fas fa-chevron-down text-xs transition-transform"></i>
+                        </button>
+                        
+                        <!-- 折叠菜单内容 -->
+                        <div id="mobile-pages-menu" class="hidden pl-6 space-y-1">
+                            {% for page in custom_pages %}
+                            <a href="/{{ page.slug }}" class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 {% if request.url.path == '/' + page.slug %}bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300{% else %}text-gray-600 dark:text-gray-400{% endif %}">
+                                <i class="fas fa-file mr-3 w-4 text-gray-400"></i>
+                                {{ page.title }}
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
                     {% endif %}
                 </div>
                 
                 <!-- 移动端搜索和主题切换 -->
-                <div class="mobile-nav-actions md:hidden">
-                    <form action="/search" method="GET" class="mobile-search-form">
+                <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                    <form action="/search" method="GET" class="flex space-x-2">
                         <input type="text" 
                                name="q" 
                                placeholder="搜索..." 
-                               class="search-input">
-                        <button type="submit" class="search-button">
+                               class="flex-1 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                             <i class="fas fa-search"></i>
                         </button>
                     </form>
                     
-                    <button id="mobile-theme-toggle" class="theme-toggle-button" aria-label="切换主题">
-                        <i class="fas fa-sun light-icon"></i>
-                        <i class="fas fa-moon dark-icon"></i>
+                    <button id="mobile-theme-toggle" 
+                            class="w-full flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+                            aria-label="切换主题">
+                        <i class="fas fa-sun mr-2 dark:hidden"></i>
+                        <i class="fas fa-moon mr-2 hidden dark:inline"></i>
+                        <span class="dark:hidden">切换到暗色模式</span>
+                        <span class="hidden dark:inline">切换到亮色模式</span>
                     </button>
                 </div>
             </nav>
-            
-            <!-- 桌面端搜索 -->
-            <div class="desktop-search hidden md:flex items-center">
-                <form action="/search" method="GET" class="flex items-center">
-                    <input type="text" 
-                           name="q" 
-                           placeholder="搜索..." 
-                           class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-card-bg text-text transition-colors"
-                           style="width: 200px;">
-                    <button type="submit" class="ml-2 p-2 text-text-light hover:text-primary transition-colors">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </form>
-            </div>
-            
         </div>
     </header>
 
 
 
-    <main class="container mx-auto px-6 py-8 main-content">
+    <main class="pt-20 md:pt-24">
         {% block content %}{% endblock %}
     </main>
 
@@ -711,10 +508,10 @@
     </script>
     {% endif %}
 
-    <footer class="bg-card-bg mt-12 py-6 border-t border-border">
-        <div class="container mx-auto px-6">
-            <div class="flex flex-col md:flex-row justify-between items-center">
-                <div class="text-center md:text-left text-text-light mb-4 md:mb-0 space-y-1">
+    <footer class="glass-effect mt-16 py-8 border-t border-slate-200/50 dark:border-slate-700/50">
+        <div class="container mx-auto px-4 lg:px-6">
+            <div class="flex flex-col lg:flex-row justify-between items-center gap-6">
+                <div class="text-center lg:text-left text-slate-600 dark:text-slate-400 space-y-2">
                     {% if copyright_info %}
                         <p class="text-sm">{{ copyright_info | safe }}</p>
                     {% else %}
@@ -726,7 +523,7 @@
                     {% if icp_beian or gongan_beian %}
                         <p class="text-xs">
                             {% if icp_beian %}
-                                <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" class="hover:text-primary">{{ icp_beian }}</a>
+                                <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{{ icp_beian }}</a>
                             {% endif %}
                             {% if gongan_beian %}
                                 <span class="ml-2">{{ gongan_beian }}</span>
@@ -734,33 +531,40 @@
                         </p>
                     {% endif %}
                 </div>
-                <div class="flex items-center space-x-4">
+                
+                <div class="flex items-center gap-4">
                     {% if social_links and social_links | length > 0 %}
-                        {% for link in social_links %}
-                            <a href="{{ link.url }}" class="text-text-light hover:text-primary" target="_blank" rel="noopener" title="{{ link.url }}">
-                                {% if link.icon %}
-                                    <i class="{{ link.icon | fa_compat }} text-lg"></i>
-                                {% else %}
-                                    <i class="fas fa-link text-lg"></i>
-                                {% endif %}
-                            </a>
-                        {% endfor %}
-                        <span class="w-px h-5 bg-border mx-2 hidden md:inline-block"></span>
+                        <div class="flex items-center gap-3">
+                            {% for link in social_links %}
+                                <a href="{{ link.url }}" 
+                                   class="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all duration-200" 
+                                   target="_blank" 
+                                   rel="noopener" 
+                                   title="{{ link.url }}">
+                                    {% if link.icon %}
+                                        <i class="{{ link.icon | fa_compat }} text-lg"></i>
+                                    {% else %}
+                                        <i class="fas fa-link text-lg"></i>
+                                    {% endif %}
+                                </a>
+                            {% endfor %}
+                        </div>
+                        <div class="w-px h-6 bg-slate-300 dark:bg-slate-600 hidden lg:block"></div>
                     {% endif %}
+                    
                     {% if rss_enabled %}
-                        <a href="/feed.xml" class="text-text-light hover:text-primary" title="RSS订阅">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M3.429 2.429c0.377 0 0.682 0.305 0.682 0.682s-0.305 0.682-0.682 0.682-0.682-0.305-0.682-0.682 0.305-0.682 0.682-0.682zM3.429 1.714c-0.754 0-1.365 0.611-1.365 1.365s0.611 1.365 1.365 1.365 1.365-0.611 1.365-1.365-0.611-1.365-1.365-1.365z"></path>
-                                <path d="M1.714 6.857c0-0.946 0.768-1.714 1.714-1.714s1.714 0.768 1.714 1.714-0.768 1.714-1.714 1.714-1.714-0.768-1.714-1.714zM3.429 5.857c-0.553 0-1 0.447-1 1s0.447 1 1 1 1-0.447 1-1-0.447-1-1-1z"></path>
-                                <path d="M1.714 14.857c6.446 0 11.714-5.268 11.714-11.714h-1.714c0 5.522-4.478 10-10 10v1.714z"></path>
-                                <path d="M1.714 10.857c2.946 0 5.714-2.768 5.714-5.714h-1.714c0 2.054-1.946 4-4 4v1.714z"></path>
-                            </svg>
-                        </a>
-                        <a href="/atom.xml" class="text-text-light hover:text-primary" title="Atom订阅">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M4 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zM4 7a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 4 7zm0 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"></path>
-                            </svg>
-                        </a>
+                        <div class="flex items-center gap-2">
+                            <a href="/feed.xml" 
+                               class="p-2 text-slate-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all duration-200" 
+                               title="RSS订阅">
+                                <i class="fas fa-rss text-lg"></i>
+                            </a>
+                            <a href="/atom.xml" 
+                               class="p-2 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all duration-200" 
+                               title="Atom订阅">
+                                <i class="fas fa-atom text-lg"></i>
+                            </a>
+                        </div>
                     {% endif %}
                 </div>
             </div>
@@ -775,15 +579,15 @@
              }
          })();
      </script>
-     <!-- 前端主题切换器 -->
-     <script src="{{ url_for('static', path='js/theme-switcher.js') }}"></script>
      <!-- 主题管理器 -->
      <script type="module" src="{{ url_for('static', path='js/enhanced-theme-manager.js') }}"></script>
      <script type="module" src="{{ url_for('static', path='js/multi-format-interactions.js') }}"></script>
-     <script type="module" src="{{ url_for('static', path='js/responsive-navigation.js') }}"></script>
+
      <script type="module" src="{{ url_for('static', path='js/theme-sync.js') }}"></script>
      <script type="module" src="{{ url_for('static', path='js/ui-enhancements.js') }}"></script>
      <!-- 特效管理器 -->
      <script type="module" src="{{ url_for('static', path='js/effects-manager.js') }}"></script>
+     
+     {% block scripts %}{% endblock %}
  </body>
  </html>

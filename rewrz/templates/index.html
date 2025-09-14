@@ -9,256 +9,107 @@
     {% include "components/seo_meta.html" %}
 {% endif %}
 <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css">
-<style>
-    /* 现代化时间轴动画 */
-    .timeline-item {
-        opacity: 0;
-        transform: translateY(30px);
-        transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    .timeline-item.is-visible {
-        opacity: 1;
-        transform: translateY(0);
-    }
-    
-    .timeline-item:nth-child(even) {
-        transform: translateX(50px);
-    }
-    
-    .timeline-item:nth-child(odd) {
-        transform: translateX(-50px);
-    }
-    
-    .timeline-item.is-visible:nth-child(even),
-    .timeline-item.is-visible:nth-child(odd) {
-        transform: translateX(0);
-    }
-
-    /* 粒子背景动画 */
-    @keyframes particle-float {
-        0%, 100% { 
-            transform: translateY(0px) rotate(0deg); 
-            opacity: 0.3;
-        }
-        50% { 
-            transform: translateY(-20px) rotate(180deg); 
-            opacity: 0.8;
-        }
-    }
-    
-    .particle {
-        animation: particle-float 6s ease-in-out infinite;
-    }
-    
-    /* 英雄区域渐变动画 */
-    @keyframes gradient-shift {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    
-    .hero-gradient {
-        background: linear-gradient(-45deg, var(--color-primary), var(--color-primary-light), var(--color-accent), var(--color-primary-dark));
-        background-size: 400% 400%;
-        animation: gradient-shift 15s ease infinite;
-    }
-</style>
 {% endblock %}
 
 {% block content %}
-{# 确保 settings 变量存在并提供默认值 #}
-{% set settings = settings or {} %}
-{% set homepage_mode = settings.get('homepage_mode') %}
-
-{# 应用背景图片设置 #}
-{% if settings.get('background_image_settings') %}
-    {% set bg_settings = settings.get('background_image_settings') %}
-    {% if bg_settings.type == 'gradient1' %}
-        <script>
-            document.body.classList.add('background-gradient1');
-        </script>
-    {% elif bg_settings.type == 'gradient2' %}
-        <script>
-            document.body.classList.add('background-gradient2');
-        </script>
-    {% elif bg_settings.type == 'gradient3' %}
-        <script>
-            document.body.classList.add('background-gradient3');
-        </script>
-    {% elif bg_settings.type == 'gradient4' %}
-        <script>
-            document.body.classList.add('background-gradient4');
-        </script>
-    {% elif bg_settings.type == 'custom' and bg_settings.custom_url %}
-        <script>
-            document.body.classList.add('background-custom');
-            document.body.style.backgroundImage = 'url("' + '{{ bg_settings.custom_url }}' + '")';
-        </script>
-    {% endif %}
-{% endif %}
-
-{# 1. Hero Section (Fullscreen Gallery or Video) #}
-{% if homepage_mode == 'fullscreen_gallery' %}
-<div class="relative h-screen w-full overflow-hidden">
-    <!-- Background Swiper -->
-    <div class="absolute inset-0 z-0">
-        <div id="fullscreen-gallery-swiper" class="swiper h-full w-full">
-            <div class="swiper-wrapper">
-                {% if settings.homepage_background_image_url %}
-                    {% set images = settings.homepage_background_image_url.split('\n') %}
-                    {% for image_url in images %}
-                        {% if image_url.strip() %}
-                        <div class="swiper-slide">
-                            <img src="{{ image_url.strip() }}" alt="Background Image" class="w-full h-full object-cover">
-                        </div>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-            </div>
-            <div class="swiper-pagination"></div>
-            <div class="swiper-button-prev"></div>
-            <div class="swiper-button-next"></div>
-        </div>
-    </div>
-    <!-- Overlay Content -->
-    <div class="relative z-10 flex flex-col items-center justify-center h-full text-white bg-black bg-opacity-40">
-        <div class="text-center p-8 bg-black bg-opacity-50 rounded-lg backdrop-blur-sm">
-            <h1 class="text-5xl md:text-6xl font-bold mb-4">{{ site_title }}</h1>
-            {% if tagline %}<p class="text-xl md:text-2xl mb-8">{{ tagline }}</p>{% endif %}
-            <div class="flex flex-wrap justify-center gap-4 mt-8">
-                <a href="/archives" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">归档</a>
-                
-                <!-- 动态格式导航 -->
-                {% if post_formats %}
-                {% for format in post_formats %}
-                <a href="/formats/{{ format.slug }}" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">{{ format.name }}</a>
-                {% endfor %}
-                {% endif %}
-                
-                <!-- 自定义页面下拉菜单 -->
-                {% if custom_pages and custom_pages|length > 0 %}
-                <div class="relative group">
-                    <button class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300 flex items-center">
-                        更多
-                        <i class="fas fa-chevron-down ml-2 text-sm"></i>
-                    </button>
-                    <div class="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
-                        {% for page in custom_pages %}
-                        <a href="/{{ page.slug }}" class="block px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">{{ page.title }}</a>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-{% elif homepage_mode == 'fullscreen_video' %}
-<div class="relative h-screen w-full overflow-hidden">
-    <!-- Background Video -->
-    <div class="absolute inset-0 z-0">
-        {% if settings.homepage_background_video_url %}
-        <video autoplay muted loop playsinline class="w-full h-full object-cover">
-            <source src="{{ settings.homepage_background_video_url }}" type="video/mp4">
-            您的浏览器不支持视频播放。
-        </video>
-        {% endif %}
-    </div>
-    <!-- Overlay Content -->
-    <div class="relative z-10 flex flex-col items-center justify-center h-full text-white bg-black bg-opacity-40">
-        <div class="text-center p-8 bg-black bg-opacity-50 rounded-lg backdrop-blur-sm">
-            <h1 class="text-5xl md:text-6xl font-bold mb-4">{{ site_title }}</h1>
-            {% if tagline %}<p class="text-xl md:text-2xl mb-8">{{ tagline }}</p>{% endif %}
-            <div class="flex flex-wrap justify-center gap-4 mt-8">
-                <a href="/archives" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">归档</a>
-                
-                <!-- 动态格式导航 -->
-                {% if post_formats %}
-                {% for format in post_formats %}
-                <a href="/formats/{{ format.slug }}" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300">{{ format.name }}</a>
-                {% endfor %}
-                {% endif %}
-                
-                <!-- 自定义页面下拉菜单 -->
-                {% if custom_pages and custom_pages|length > 0 %}
-                <div class="relative group">
-                    <button class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition duration-300 flex items-center">
-                        更多
-                        <i class="fas fa-chevron-down ml-2 text-sm"></i>
-                    </button>
-                    <div class="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
-                        {% for page in custom_pages %}
-                        <a href="/{{ page.slug }}" class="block px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">{{ page.title }}</a>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-{# 2. Timeline Section (Always rendered) #}
-<div class="bg-gray-50 dark:bg-gray-800 py-8 main-content">
-    <div class="container mx-auto w-full h-full">
-        <div class="relative wrap overflow-hidden p-4 md:p-10 h-full">
-            <div class="absolute h-full border-2 border-gray-200 dark:border-gray-700" style="left: 50%"></div>
+<!-- 时间轴内容区域 -->
+<div class="bg-gray-50 dark:bg-gray-900 py-4 md:py-8 min-h-screen">
+    <div class="container mx-auto px-2 md:px-4">
+        {% if posts %}
+        <!-- 时间轴容器 -->
+        <div class="relative">
+            <!-- 时间轴中心线 - 桌面版 -->
+            <div class="hidden md:block absolute left-1/2 transform -translate-x-1/2 w-0.5 bg-gray-300 dark:bg-gray-600 h-full"></div>
+            <!-- 时间轴左侧线 - 移动版 -->
+            <div class="md:hidden absolute left-4 top-0 w-0.5 bg-gray-300 dark:bg-gray-600 h-full"></div>
             
             {% for post in posts %}
-                {% set is_even = loop.index0 % 2 == 0 %}
-                <div class="mb-8 flex {{ 'justify-start' if is_even else 'justify-end' }}">
-                    <div class="timeline-item {{ 'left-timeline' if is_even else 'right-timeline' }} flex items-center w-2/5 {{ 'flex-row-reverse' if not is_even }}">
-                        <div class="order-1"></div>
-                        <div class="z-20 flex items-center order-1 bg-gray-800 shadow-xl w-8 h-8 rounded-full">
-                            <h1 class="mx-auto text-white text-sm font-semibold">{{ loop.index }}</h1>
+            <!-- 时间轴项目 -->
+            <div class="relative mb-6 md:mb-8">
+                <!-- 桌面版布局 -->
+                <div class="hidden md:flex items-center {{ 'justify-start' if loop.index0 % 2 == 0 else 'justify-end' }}">
+                    <!-- 时间轴节点 -->
+                    <div class="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-blue-500 rounded-full border-4 border-white dark:border-gray-900 z-10"></div>
+                    
+                    <!-- 卡片容器 -->
+                    <div class="w-5/12 {{ 'pr-8' if loop.index0 % 2 == 0 else 'pl-8' }}">
+                        <!-- 时间标签 -->
+                        <div class="text-sm text-gray-500 dark:text-gray-400 mb-2 {{ 'text-right' if loop.index0 % 2 != 0 else 'text-left' }}">
+                            {{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}
                         </div>
+                        
+                        <!-- 卡片内容 -->
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 relative">
+                            <!-- 箭头指示器 -->
+                            <div class="absolute top-6 {{ 'left-full' if loop.index0 % 2 == 0 else 'right-full' }} w-0 h-0 
+                                        {{ 'border-l-8 border-l-white dark:border-l-gray-800 border-y-8 border-y-transparent' if loop.index0 % 2 == 0 
+                                           else 'border-r-8 border-r-white dark:border-r-gray-800 border-y-8 border-y-transparent' }}">
+                            </div>
+                            
                             {% include "components/timeline_card.html" %}
+                        </div>
                     </div>
                 </div>
+                
+                <!-- 移动版布局 -->
+                <div class="md:hidden flex items-start">
+                    <!-- 时间轴节点 -->
+                    <div class="absolute left-4 transform -translate-x-1/2 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-900 z-10 mt-2"></div>
+                    
+                    <!-- 卡片容器 -->
+                    <div class="ml-8 flex-1">
+                        <!-- 时间标签 -->
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                            {{ post.published_at.strftime('%m月%d日') if post.published_at else post.created_at.strftime('%m月%d日') }}
+                        </div>
+                        
+                        <!-- 卡片内容 -->
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 relative">
+                            <!-- 左侧箭头指示器 -->
+                            <div class="absolute right-full top-4 w-0 h-0 border-r-6 border-r-white dark:border-r-gray-800 border-y-6 border-y-transparent"></div>
+                            
+                            {% include "components/timeline_card.html" %}
+                        </div>
+                    </div>
+                </div>
+            </div>
             {% endfor %}
         </div>
+        {% else %}
+        <div class="text-center py-12">
+            <p class="text-gray-500 text-lg">暂无内容</p>
+        </div>
+        {% endif %}
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
+{{ super() }}
 <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
 <script>
-    // Initialize Swiper if needed
-    document.addEventListener('DOMContentLoaded', function() {
-        if (document.getElementById('fullscreen-gallery-swiper')) {
-            new Swiper('#fullscreen-gallery-swiper', {
-                loop: true,
-                pagination: {
-                    el: '.swiper-pagination',
-                    clickable: true
-                },
-                navigation: {
-                    nextEl: '.swiper-button-next',
-                    prevEl: '.swiper-button-prev'
-                },
-                autoplay: {
-                    delay: 5000,
-                    disableOnInteraction: false
-                }
-            });
-        }
-
-        // Timeline animation
-        function animateTimelineItems() {
-            const timelineItems = document.querySelectorAll('.timeline-item');
-            timelineItems.forEach(item => {
-                const itemPosition = item.getBoundingClientRect().top;
-                const screenPosition = window.innerHeight / 1.3;
-                if (itemPosition < screenPosition) {
-                    item.classList.add('is-visible');
-                }
-            });
-        }
-
-        // Run on scroll and initially
-        window.addEventListener('scroll', animateTimelineItems);
-        animateTimelineItems();
+// 时间轴动画效果
+document.addEventListener('DOMContentLoaded', function() {
+    const timelineItems = document.querySelectorAll('.relative.flex.items-center');
+    
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
     });
+    
+    timelineItems.forEach(item => {
+        item.style.opacity = '0';
+        item.style.transform = 'translateY(20px)';
+        item.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        observer.observe(item);
+    });
+});
 </script>
 {% endblock %}

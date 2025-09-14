@@ -15,7 +15,6 @@ class ThemeManager {
 
     init() {
         this.loadThemeFromStorage();
-        this.createThemeToggle();
         this.checkAnniversaryMode();
         this.applyTheme();
         this.bindEvents();
@@ -29,31 +28,6 @@ class ThemeManager {
         if (savedTheme) {
             this.currentTheme = savedTheme;
         }
-    }
-
-    /**
-     * 创建主题切换按钮
-     */
-    createThemeToggle() {
-        // 检查是否已存在主题切换按钮
-        if (document.getElementById('theme-toggle')) {
-            return;
-        }
-        
-        const toggleButton = document.createElement('button');
-        toggleButton.id = 'theme-toggle';
-        toggleButton.className = 'fixed top-4 right-4 z-50 p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700';
-        toggleButton.innerHTML = `
-            <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
-            </svg>
-        `;
-        
-        document.body.appendChild(toggleButton);
-        
-        toggleButton.addEventListener('click', () => {
-            this.toggleTheme();
-        });
     }
 
     /**

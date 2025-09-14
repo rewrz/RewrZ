@@ -1,54 +1,363 @@
 {% extends "base.html" %}
 
-{% block title %}文章归档 - RewrZ{% endblock %}
+{% block title %}文章归档 - {{ site_name or 'RewrZ' }}{% endblock %}
 
 {% block content %}
-<h1 class="text-4xl font-bold text-gray-900 mb-8">文章归档</h1>
-
-{% if posts %}
-<div class="space-y-8">
-    {% set current_year = "" %}
-    {% set current_month = "" %}
-    {% for post in posts %}
-        {% set post_year = post.published_at.strftime('%Y') %}
-        {% set post_month = post.published_at.strftime('%m') %}
-
-        {% if post_year != current_year %}
-            {% if not loop.first %}
-                </ul>
-            {% endif %}
-            <h2 class="text-3xl font-bold text-gray-800 mt-8 mb-4">{{ post_year }}</h2>
-            {% set current_year = post_year %}
-            {% set current_month = "" %} {# Reset month for new year #}
+<div class="container mx-auto px-4 lg:px-6 py-8 max-w-4xl">
+    <!-- 页面标题 -->
+    <div class="text-center mb-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            <i class="fas fa-archive mr-3 text-blue-600 dark:text-blue-400"></i>
+            文章归档
+        </h1>
+        <p class="text-gray-600 dark:text-gray-300">
+            记录时光，见证成长的每一个瞬间
+        </p>
+        {% if posts %}
+        <div class="mt-4 text-sm text-gray-500 dark:text-gray-400">
+            共收录 <span class="font-semibold text-blue-600 dark:text-blue-400">{{ posts | length }}</span> 篇文章
+        </div>
         {% endif %}
+    </div>
 
-        {% if post_month != current_month %}
-            {% if not loop.first and current_month != "" %}
-                </ul>
-            {% endif %}
-            <h3 class="text-2xl font-semibold text-gray-700 mt-6 mb-3"><a href="/archives/{{ post_year }}/{{ post_month }}" class="hover:text-indigo-600">{{ post.published_at.strftime('%B') }}</a></h3>
-            <ul class="list-disc list-inside space-y-2">
-            {% set current_month = post_month %}
-        {% endif %}
+    {% if posts %}
+    <!-- 归档模式切换 -->
+    <div class="flex justify-center mb-8">
+        <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-1 flex">
+            <button id="yearly-mode" class="archive-mode-btn active px-4 py-2 rounded-md text-sm font-medium transition-all">
+                <i class="fas fa-calendar-alt mr-2"></i>按年归档
+            </button>
+            <button id="monthly-mode" class="archive-mode-btn px-4 py-2 rounded-md text-sm font-medium transition-all">
+                <i class="fas fa-calendar mr-2"></i>按月归档
+            </button>
+        </div>
+    </div>
 
-        <li class="flex items-center justify-between py-2">
-            <div class="flex-1">
-                <span class="text-gray-500 text-sm">{{ post.published_at.strftime('%d日') }}</span> &mdash; 
-                <a href="{{ post | post_url }}" class="text-indigo-600 hover:underline">{{ post.title }}</a>
+    <!-- 时间轴容器 -->
+    <div class="relative">
+        <!-- 时间轴主线 -->
+        <div class="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-400 via-purple-500 to-pink-500"></div>
+
+        <!-- 按年归档视图 -->
+        <div id="yearly-view" class="archive-view">
+            {% set posts_by_year = {} %}
+            {% for post in posts %}
+                {% set year = post.published_at.strftime('%Y') %}
+                {% if year not in posts_by_year %}
+                    {% set _ = posts_by_year.update({year: []}) %}
+                {% endif %}
+                {% set _ = posts_by_year[year].append(post) %}
+            {% endfor %}
+
+            <div class="space-y-8">
+                {% for year, year_posts in posts_by_year.items() | sort(reverse=True) %}
+                <!-- 年份节点和标题 -->
+                <div class="relative flex items-center mb-6">
+                    <!-- 年份节点 -->
+                    <div class="absolute left-4 transform -translate-x-1/2 z-10">
+                        <div class="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full shadow-lg flex items-center justify-center">
+                            <i class="fas fa-calendar-alt text-white text-xs"></i>
+                        </div>
+                    </div>
+                    
+                    <!-- 年份标题 -->
+                    <div class="ml-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-6 py-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+                                {{ year }}
+                            </h2>
+                            <span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm font-medium">
+                                {{ year_posts | length }} 篇文章
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 该年份的文章列表 -->
+                <div class="ml-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-8">
+                    <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                        {% for post in year_posts | sort(attribute='published_at', reverse=True) %}
+                        <div class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-4 flex-1">
+                                    <!-- 日期 -->
+                                    <div class="text-sm text-gray-500 dark:text-gray-400 font-mono min-w-[5rem]">
+                                        {{ post.published_at.strftime('%m-%d') }}
+                                    </div>
+                                    
+                                    <!-- 格式图标 -->
+                                    {% if post.formats %}
+                                        {% set format_slugs = post.formats | map(attribute='slug') | list %}
+                                        {% if 'weibo' in format_slugs %}
+                                            <i class="fas fa-comment-dots text-blue-500" title="微博"></i>
+                                        {% elif 'photo-album' in format_slugs %}
+                                            <i class="fas fa-images text-purple-500" title="相册"></i>
+                                        {% elif 'video' in format_slugs %}
+                                            <i class="fas fa-video text-green-500" title="视频"></i>
+                                        {% elif 'poetry-song' in format_slugs %}
+                                            <i class="fas fa-feather-alt text-yellow-500" title="诗词歌赋"></i>
+                                        {% elif 'article' in format_slugs %}
+                                            <i class="fas fa-file-alt text-gray-600" title="标准文章"></i>
+                                        {% else %}
+                                            <i class="fas fa-pen-alt text-gray-600" title="帖子"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-pen text-gray-600" title="帖子"></i>
+                                    {% endif %}
+                                    
+                                    <!-- 标题 -->
+                                    <div class="flex-1">
+                                        <a href="{{ post | post_url }}" 
+                                           class="text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                                            {% if post.title and post.title.strip() %}
+                                                {{ post.title }}
+                                            {% elif post.excerpt %}
+                                                {{ post.excerpt[:50] }}{% if post.excerpt|length > 50 %}...{% endif %}
+                                            {% else %}
+                                                无标题文章
+                                            {% endif %}
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <!-- 统计信息 -->
+                                <div class="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                                    <span class="flex items-center">
+                                        <i class="fas fa-clock mr-1"></i>
+                                        {{ post.content_markdown | reading_time }}
+                                    </span>
+                                    {% set stats = post.content_markdown | reading_stats(post) %}
+                                    <span class="hidden sm:flex items-center">
+                                        <i class="fas fa-file-alt mr-1"></i>
+                                        {{ stats.word_count }}字
+                                    </span>
+                                    <span class="hidden md:flex items-center">
+                                        <i class="far fa-eye mr-1"></i>
+                                        {{ post.views_count or 0 }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
             </div>
-            <div class="flex items-center space-x-3 text-xs text-gray-500">
-                <span class="flex items-center">
-                    <i class="fas fa-clock mr-1"></i>
-                    {{ post.content_markdown | reading_time }}
-                </span>
-                {% set stats = post.content_markdown | reading_stats(post) %}
-                <span>{{ stats.word_count }}字</span>
+        </div>
+
+        <!-- 按月归档视图 -->
+        <div id="monthly-view" class="archive-view hidden">
+            {% set posts_by_month = {} %}
+            {% for post in posts %}
+                {% set year_month = post.published_at.strftime('%Y-%m') %}
+                {% if year_month not in posts_by_month %}
+                    {% set _ = posts_by_month.update({year_month: []}) %}
+                {% endif %}
+                {% set _ = posts_by_month[year_month].append(post) %}
+            {% endfor %}
+
+            <div class="space-y-6">
+                {% for year_month, month_posts in posts_by_month.items() | sort(reverse=True) %}
+                {% set year, month = year_month.split('-') %}
+                {% set month_name = month_posts[0].published_at.strftime('%B') %}
+                {% set month_zh = {
+                    'January': '一月', 'February': '二月', 'March': '三月', 'April': '四月',
+                    'May': '五月', 'June': '六月', 'July': '七月', 'August': '八月',
+                    'September': '九月', 'October': '十月', 'November': '十一月', 'December': '十二月'
+                }[month_name] %}
+                
+                <!-- 月份节点和标题 -->
+                <div class="relative flex items-center mb-4">
+                    <!-- 月份节点 -->
+                    <div class="absolute left-4 transform -translate-x-1/2 z-10">
+                        <div class="w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-lg flex items-center justify-center">
+                            <i class="fas fa-calendar text-white text-xs"></i>
+                        </div>
+                    </div>
+                    
+                    <!-- 月份标题 -->
+                    <div class="ml-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-6 py-3">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+                                {{ year }} 年 {{ month_zh }}
+                            </h3>
+                            <span class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full text-sm font-medium">
+                                {{ month_posts | length }} 篇文章
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 该月份的文章列表 -->
+                <div class="ml-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+                    <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                        {% for post in month_posts | sort(attribute='published_at', reverse=True) %}
+                        <div class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-4 flex-1">
+                                    <!-- 日期 -->
+                                    <div class="text-sm text-gray-500 dark:text-gray-400 font-mono min-w-[3rem]">
+                                        {{ post.published_at.strftime('%d日') }}
+                                    </div>
+                                    
+                                    <!-- 格式图标 -->
+                                    {% if post.formats %}
+                                        {% set format_slugs = post.formats | map(attribute='slug') | list %}
+                                        {% if 'weibo' in format_slugs %}
+                                            <i class="fas fa-comment-dots text-blue-500" title="微博"></i>
+                                        {% elif 'photo-album' in format_slugs %}
+                                            <i class="fas fa-images text-purple-500" title="相册"></i>
+                                        {% elif 'video' in format_slugs %}
+                                            <i class="fas fa-video text-green-500" title="视频"></i>
+                                        {% elif 'poetry-song' in format_slugs %}
+                                            <i class="fas fa-feather-alt text-yellow-500" title="诗词歌赋"></i>
+                                        {% elif 'article' in format_slugs %}
+                                            <i class="fas fa-file-alt text-gray-600" title="标准文章"></i>
+                                        {% else %}
+                                            <i class="fas fa-pen-alt text-gray-600" title="帖子"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-pen text-gray-600" title="帖子"></i>
+                                    {% endif %}
+                                    
+                                    <!-- 标题 -->
+                                    <div class="flex-1">
+                                        <a href="{{ post | post_url }}" 
+                                           class="text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                                            {% if post.title and post.title.strip() %}
+                                                {{ post.title }}
+                                            {% elif post.excerpt %}
+                                                {{ post.excerpt[:50] }}{% if post.excerpt|length > 50 %}...{% endif %}
+                                            {% else %}
+                                                无标题文章
+                                            {% endif %}
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <!-- 统计信息 -->
+                                <div class="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                                    <span class="flex items-center">
+                                        <i class="fas fa-clock mr-1"></i>
+                                        {{ post.content_markdown | reading_time }}
+                                    </span>
+                                    {% set stats = post.content_markdown | reading_stats(post) %}
+                                    <span class="hidden sm:flex items-center">
+                                        <i class="fas fa-file-alt mr-1"></i>
+                                        {{ stats.word_count }}字
+                                    </span>
+                                    <span class="hidden md:flex items-center">
+                                        <i class="far fa-eye mr-1"></i>
+                                        {{ post.views_count or 0 }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
             </div>
-        </li>
-    {% endfor %}
-    </ul> {# Close the last ul #}
+        </div>
+
+        <!-- 时间轴结束 -->
+        <div class="relative flex items-center justify-start mt-8">
+            <div class="absolute left-4 transform -translate-x-1/2">
+                <div class="w-4 h-4 bg-gradient-to-r from-pink-400 to-red-500 rounded-full shadow-lg flex items-center justify-center">
+                    <i class="fas fa-heart text-white text-xs"></i>
+                </div>
+            </div>
+            <div class="ml-12">
+                <p class="text-gray-500 dark:text-gray-400 text-sm italic">
+                    — 时光荏苒，文字永恒 —
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    {% else %}
+    <!-- 空状态 -->
+    <div class="text-center py-16">
+        <div class="w-24 h-24 mx-auto mb-6 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+            <i class="fas fa-archive text-3xl text-gray-400 dark:text-gray-500"></i>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">暂无文章</h3>
+        <p class="text-gray-600 dark:text-gray-300 mb-6">还没有发布任何文章，开始创作吧！</p>
+        <a href="/admin" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+            <i class="fas fa-plus mr-2"></i>
+            创建文章
+        </a>
+    </div>
+    {% endif %}
 </div>
-{% else %}
-<p class="text-gray-600">暂无文章可供归档。</p>
-{% endif %}
+
+<!-- JavaScript 控制切换 -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const yearlyBtn = document.getElementById('yearly-mode');
+    const monthlyBtn = document.getElementById('monthly-mode');
+    const yearlyView = document.getElementById('yearly-view');
+    const monthlyView = document.getElementById('monthly-view');
+    
+    function switchMode(mode) {
+        // 更新按钮状态
+        document.querySelectorAll('.archive-mode-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // 更新视图显示
+        if (mode === 'yearly') {
+            yearlyBtn.classList.add('active');
+            yearlyView.classList.remove('hidden');
+            monthlyView.classList.add('hidden');
+            localStorage.setItem('archive_mode', 'yearly');
+        } else {
+            monthlyBtn.classList.add('active');
+            monthlyView.classList.remove('hidden');
+            yearlyView.classList.add('hidden');
+            localStorage.setItem('archive_mode', 'monthly');
+        }
+    }
+    
+    // 绑定事件
+    yearlyBtn.addEventListener('click', () => switchMode('yearly'));
+    monthlyBtn.addEventListener('click', () => switchMode('monthly'));
+    
+    // 恢复用户偏好
+    const savedMode = localStorage.getItem('archive_mode') || 'yearly';
+    switchMode(savedMode);
+});
+</script>
+
+<!-- 样式 -->
+<style>
+.archive-mode-btn {
+    color: #4b5563; /* Corresponds to text-gray-600 */
+}
+
+.dark .archive-mode-btn {
+    color: #d1d5db; /* Corresponds to dark:text-gray-300 */
+}
+
+.archive-mode-btn.active {
+    background-color: #ffffff; /* Corresponds to bg-white */
+    color: #2563eb; /* Corresponds to text-blue-600 */
+    --tw-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow); /* Corresponds to shadow-sm */
+}
+
+.dark .archive-mode-btn.active {
+    background-color: #374151; /* Corresponds to dark:bg-gray-700 */
+    color: #60a5fa; /* Corresponds to dark:text-blue-400 */
+}
+
+.archive-mode-btn:hover:not(.active) {
+    color: #111827; /* Corresponds to text-gray-900 */
+}
+
+.dark .archive-mode-btn:hover:not(.active) {
+    color: #ffffff; /* Corresponds to dark:text-white */
+}
+</style>
 {% endblock %}
