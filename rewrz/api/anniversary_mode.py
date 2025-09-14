@@ -25,12 +25,53 @@ async def get_anniversary_mode(db: Session = Depends(get_db)) -> Dict:
     try:
         # 获取纪念日设置
         anniversaries_setting = crud_setting.get_setting(db, key="anniversaries_json")
-        anniversaries_json = anniversaries_setting.value if anniversaries_setting else "[]"
         
-        if not anniversaries_json or anniversaries_json == "[]":
+        if not anniversaries_setting or not anniversaries_setting.value:
             return {"active": False}
         
-        anniversaries = json.loads(anniversaries_json)
+        # 处理不同的数据格式
+        anniversaries_data = anniversaries_setting.value
+        
+        # 调试：记录原始数据
+        logger.info(f"原始数据类型: {type(anniversaries_data)}")
+        logger.info(f"原始数据内容: {anniversaries_data}")
+        
+        if isinstance(anniversaries_data, str):
+            # 如果是字符串，直接解析
+            anniversaries = json.loads(anniversaries_data)
+        elif isinstance(anniversaries_data, dict):
+            if "value" in anniversaries_data:
+                # 如果是包含value字段的字典
+                value_data = anniversaries_data["value"]
+                if isinstance(value_data, str):
+                    anniversaries = json.loads(value_data)
+                else:
+                    anniversaries = value_data
+            else:
+                # 如果字典本身就是数据
+                anniversaries = [anniversaries_data]
+        elif isinstance(anniversaries_data, list):
+            # 如果直接是列表
+            anniversaries = anniversaries_data
+        else:
+            # 其他情况，尝试转换为字符串再解析
+            try:
+                anniversaries = json.loads(str(anniversaries_data))
+            except:
+                logger.error(f"无法解析数据: {anniversaries_data}")
+                return {"active": False, "error": f"无法解析数据格式: {type(anniversaries_data)}"}
+        
+        if not anniversaries:
+            return {"active": False}
+        
+        # 调试：记录解析后的数据类型和内容
+        logger.info(f"解析后的纪念日数据类型: {type(anniversaries)}")
+        logger.info(f"解析后的纪念日数据内容: {anniversaries}")
+        
+        # 确保 anniversaries 是列表
+        if not isinstance(anniversaries, list):
+            logger.error(f"纪念日数据不是列表格式: {type(anniversaries)}")
+            return {"active": False, "error": f"数据格式错误: 期望列表，得到 {type(anniversaries)}"}
         
         # 获取当前日期
         today = datetime.now()
@@ -39,11 +80,16 @@ async def get_anniversary_mode(db: Session = Depends(get_db)) -> Dict:
         
         # 检查是否有匹配的纪念日
         for anniversary in anniversaries:
+            # 确保每个纪念日项是字典
+            if not isinstance(anniversary, dict):
+                logger.warning(f"跳过非字典格式的纪念日项: {anniversary} (类型: {type(anniversary)})")
+                continue
+                
             if (anniversary.get("month") == current_month and 
                 anniversary.get("day") == current_day):
                 
-                # 获取特效配置
-                effects = get_anniversary_effects(anniversary.get("type", "Festive"))
+                # 直接使用数据库中存储的特效配置
+                effects = anniversary.get("effects", [])
                 
                 return {
                     "active": True,
@@ -63,27 +109,6 @@ async def get_current_anniversary_mode(db: Session = Depends(get_db)) -> Dict:
     获取当前纪念日氛围模式状态（兼容性端点）
     """
     return await get_anniversary_mode(db)
-
-def get_anniversary_effects(anniversary_type: str) -> List[str]:
-    """
-    根据纪念日类型获取对应的特效列表
-    """
-    if anniversary_type == "Mourn":
-        return []  # 追悼模式不需要特效，只需要灰白滤镜
-    
-    # 喜庆模式的特效配置
-    festive_effects = {
-        "春节": ["fireworks", "lanterns"],
-        "国庆节": ["fireworks"],
-        "中秋节": ["lanterns"],
-        "樱花节": ["sakura"],
-        "新年": ["fireworks"],
-        "元宵节": ["lanterns"],
-        "default": ["fireworks"]
-    }
-    
-    # 这里可以根据纪念日名称或日期进一步细化特效选择
-    return festive_effects.get("default", ["fireworks"])
 
 @router.get("/custom-theme")
 async def get_custom_theme(db: Session = Depends(get_db)) -> Dict:

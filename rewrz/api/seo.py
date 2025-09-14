@@ -96,7 +96,7 @@ async def generate_robots_txt(request: Request, db: Session = Depends(get_db)):
     noindex_site = noindex_setting.value.get("value") if noindex_setting and noindex_setting.value else DEFAULT_BASE_SETTINGS["noindex_site"]
     block_ai_crawlers = block_ai_crawlers_setting.value.get("value") if block_ai_crawlers_setting and block_ai_crawlers_setting.value else DEFAULT_BASE_SETTINGS["block_ai_crawlers"]
     base_url = site_url_setting.value.get("value") if site_url_setting else str(request.base_url).rstrip('/')
-
+    
     robots_content = []
     
     if noindex_site:
@@ -108,9 +108,9 @@ async def generate_robots_txt(request: Request, db: Session = Depends(get_db)):
         ])
     else:
         # 允许搜索引擎，但阻止一些目录
+        # 注意：不在 robots.txt 中暴露真实的后台路径，这是安全最佳实践
         robots_content.extend([
             "User-agent: *",
-            "Disallow: /admin/",
             "Disallow: /api/",
             "Disallow: /auth/",
             "Disallow: /installer",

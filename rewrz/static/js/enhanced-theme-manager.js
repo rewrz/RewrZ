@@ -9,7 +9,7 @@ class EnhancedThemeManager {
         this.anniversaryMode = null;
         this.customTheme = null;
         this.effectManager = null;
-        this.anniversaryBanner = null;
+        this.effectsStarted = false; // 防止重复启动特效
         
         this.init();
     }
@@ -17,15 +17,16 @@ class EnhancedThemeManager {
     async init() {
         // 动态导入特效管理器
         try {
-            const { default: EffectManager } = await import('./effects-manager.js');
-            this.effectManager = new EffectManager();
+            await import('./effects/effect-manager.js');
+            // 使用全局实例
+            this.effectManager = window.effectManager;
         } catch (error) {
             console.warn('特效管理器加载失败:', error);
         }
 
         this.loadThemeFromStorage();
-        this.checkAnniversaryMode();
-        this.applyTheme();
+        await this.checkAnniversaryMode();
+        await this.applyTheme();
         this.bindEvents();
     }
 
@@ -79,7 +80,7 @@ class EnhancedThemeManager {
     /**
      * 应用主题
      */
-    applyTheme(theme = null) {
+    async applyTheme(theme = null) {
         // 如果传入了主题参数，则使用该主题
         if (theme) {
             this.currentTheme = theme;
@@ -94,7 +95,7 @@ class EnhancedThemeManager {
         
         // 应用纪念日氛围模式（最高优先级）
         if (this.anniversaryMode && this.anniversaryMode.active) {
-            this.applyAnniversaryMode();
+            await this.applyAnniversaryMode();
             return;
         }
         
@@ -138,7 +139,7 @@ class EnhancedThemeManager {
                 const data = await response.json();
                 if (data.active) {
                     this.anniversaryMode = data;
-                    this.applyAnniversaryMode();
+                    await this.applyAnniversaryMode();
                 }
             }
         } catch (error) {
@@ -149,7 +150,7 @@ class EnhancedThemeManager {
     /**
      * 应用纪念日氛围模式
      */
-    applyAnniversaryMode() {
+    async applyAnniversaryMode() {
         if (!this.anniversaryMode || !this.anniversaryMode.active) {
             return;
         }
@@ -167,78 +168,38 @@ class EnhancedThemeManager {
             this.effectManager.applyFilter(this.anniversaryMode.filter_type);
         }
         
-        // 启动特效
-        if (this.effectManager && this.anniversaryMode.effects && this.anniversaryMode.effects.length > 0) {
-            this.effectManager.startEffect(this.anniversaryMode.effects);
-        }
-        
-        // 显示纪念日横幅
-        this.showAnniversaryBanner();
-    }
-
-    /**
-     * 显示纪念日横幅
-     */
-    showAnniversaryBanner() {
-        if (!this.anniversaryMode || this.anniversaryBanner) {
-            return;
-        }
-
-        this.anniversaryBanner = document.createElement('div');
-        this.anniversaryBanner.className = 'anniversary-banner';
-        this.anniversaryBanner.innerHTML = `
-            <span>${this.anniversaryMode.message || '纪念日氛围模式已启用'}</span>
-            <button class="close-btn" onclick="themeManager.hideAnniversaryBanner()">&times;</button>
-        `;
-        
-        document.body.appendChild(this.anniversaryBanner);
-        
-        // 调整页面内容位置
-        const mainContent = document.querySelector('main') || document.querySelector('.container');
-        if (mainContent) {
-            mainContent.style.paddingTop = '40px';
-        }
-    }
-
-    /**
-     * 隐藏纪念日横幅
-     */
-    hideAnniversaryBanner() {
-        if (this.anniversaryBanner) {
-            this.anniversaryBanner.remove();
-            this.anniversaryBanner = null;
-            
-            // 恢复页面内容位置
-            const mainContent = document.querySelector('main') || document.querySelector('.container');
-            if (mainContent) {
-                mainContent.style.paddingTop = '';
+        // 启动特效（防止重复启动）
+        if (this.effectManager && this.anniversaryMode.effects && this.anniversaryMode.effects.length > 0 && !this.effectsStarted) {
+            // 逐个启动特效
+            for (const effect of this.anniversaryMode.effects) {
+                await this.effectManager.startEffect(effect);
             }
+            this.effectsStarted = true;
         }
     }
 
     /**
      * 停用纪念日模式
      */
-    deactivateAnniversaryMode() {
+    async deactivateAnniversaryMode() {
         if (this.anniversaryMode) {
             // 停止特效
             if (this.effectManager) {
                 this.effectManager.stopEffect();
-                this.effectManager.removeFilters();
+                // 移除滤镜效果
+                this.effectManager.disableGrayscale();
             }
             
             // 移除主题类
             const body = document.body;
-            body.classList.remove('spring-festival-theme', 'cherry-blossom-theme', 'winter-theme', 'celebration-theme');
-            
-            // 隐藏横幅
-            this.hideAnniversaryBanner();
+            body.classList.remove('spring-festival-theme', 'cherry-blossom-theme', 'winter-theme', 'celebration-theme', 'grayscale-effect');
             
             this.anniversaryMode = null;
+            this.effectsStarted = false; // 重置特效启动标志
             localStorage.removeItem('rewrz-anniversary-mode');
             
             // 重新应用普通主题
-            this.applyTheme();
+            await this.applyTheme();
         }
     }
 
@@ -314,13 +275,43 @@ class EnhancedThemeManager {
                     // 重启特效以适应新的窗口大小
                     const activeEffects = this.effectManager.getActiveEffects();
                     if (activeEffects.length > 0) {
-                        this.effectManager.stopEffect();
+                        this.effectManager.stopAll();
                         setTimeout(() => {
-                            this.effectManager.startEffect(activeEffects);
+                            // 逐个启动每个特效
+                            activeEffects.forEach(effect => {
+                                this.effectManager.startEffect(effect);
+                            });
                         }, 100);
                     }
                 }
             }
+        });
+        
+        // 监听DOM变化，为新添加的元素应用灰度效果
+        const observer = new MutationObserver((mutations) => {
+            if (this.effectManager && document.documentElement.style.filter.includes('grayscale')) {
+                // 检查是否有新添加的节点
+                let hasNewNodes = false;
+                for (const mutation of mutations) {
+                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                        hasNewNodes = true;
+                        break;
+                    }
+                }
+                
+                // 如果有新添加的节点，应用灰度效果
+                if (hasNewNodes) {
+                    setTimeout(() => {
+                        this.effectManager.applyGrayscaleToNewElements();
+                    }, 0);
+                }
+            }
+        });
+        
+        // 开始观察DOM变化
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
         });
     }
 

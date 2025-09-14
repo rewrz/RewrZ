@@ -199,11 +199,28 @@ def register_admin_routes():
     
     @app.post(f"{admin_path}/themes/update")
     async def dynamic_update_theme(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-        return await themes_api.update_theme(request, db, current_user)
+        form_data = await request.form()
+        return await themes_api.update_theme_settings(
+            request=request,
+            db=db,
+            current_user=current_user,
+            current_theme=form_data.get("current_theme", "light"),
+            current_atmosphere=form_data.get("current_atmosphere"),
+            auto_theme_enabled=bool(form_data.get("auto_theme_enabled")),
+            csrf_token=form_data.get("csrf_token", "")
+        )
     
     @app.post(f"{admin_path}/themes/custom")
     async def dynamic_create_custom_theme(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-        return await themes_api.create_custom_theme(request, db, current_user)
+        form_data = await request.form()
+        return await themes_api.create_custom_theme(
+            request=request,
+            db=db,
+            current_user=current_user,
+            theme_name=form_data.get("theme_name", ""),
+            theme_data=form_data.get("theme_data", ""),
+            csrf_token=form_data.get("csrf_token", "")
+        )
     
     @app.delete(f"{admin_path}/themes/custom/{{theme_name}}")
     async def dynamic_delete_custom_theme(theme_name: str, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -211,7 +228,14 @@ def register_admin_routes():
     
     @app.post(f"{admin_path}/themes/schedule")
     async def dynamic_schedule_themes(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-        return await themes_api.schedule_themes(request, db, current_user)
+        form_data = await request.form()
+        return await themes_api.schedule_themes(
+            request=request,
+            db=db,
+            current_user=current_user,
+            schedule_data=form_data.get("schedule_data", ""),
+            csrf_token=form_data.get("csrf_token", "")
+        )
     
     # 注册后台文章页面
     @app.get(f"{admin_path}/posts/new", response_class=HTMLResponse)

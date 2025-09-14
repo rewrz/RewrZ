@@ -58,17 +58,5 @@ async def login_for_access_token_impl(response: Response, form_data: OAuth2Passw
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
-# 以下路由已移至main.py中的动态路由注册系统
-# Admin login page (HTML)
-# @router.get("/admin/login", response_class=HTMLResponse)
-# async def admin_login_page(request: Request):
-#     from fastapi.templating import Jinja2Templates
-#     templates = Jinja2Templates(directory="rewrz/templates")
-#     return templates.TemplateResponse("admin/login.html", {"request": request})
-
-# Admin dashboard (protected)
-# @router.get("/admin/dashboard", response_class=HTMLResponse)
-# async def admin_dashboard_page(request: Request, current_user: User = Depends(get_current_user)):
-#     from fastapi.templating import Jinja2Templates
-#     templates = Jinja2Templates(directory="rewrz/templates")
-#     return templates.TemplateResponse("admin/dashboard.html", {"request": request, "user": current_user})
+# 后台登录和仪表盘路由已完全移至 main.py 中的动态路由注册系统
+# 这样可以根据 ADMIN_PATH 配置动态生成路由，提高安全性

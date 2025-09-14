@@ -126,27 +126,141 @@
             }
         }
         
-        // 主题切换逻辑
-        function applyTheme(theme) {
-            if (theme === 'dark') {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('user_theme_preference', 'dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('user_theme_preference', 'light');
+        // 可用主题列表（与后端保持一致）
+        const AVAILABLE_THEMES = ['light', 'dark'];
+        let currentThemeIndex = 0;
+        
+        // 立即应用主题（避免闪烁）
+        function applyThemeImmediately(theme) {
+            const html = document.documentElement;
+            html.classList.remove('light', 'dark');
+            html.classList.add(theme);
+            
+            // 同步到body（兼容某些组件）
+            document.body.classList.remove('light', 'dark');
+            document.body.classList.add(theme);
+        }
+        
+        // 与后端同步主题设置
+        async function syncThemeWithBackend(theme) {
+            try {
+                const formData = new FormData();
+                formData.append('theme', theme);
+                
+                const response = await fetch('/api/theme/update', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    console.log(`主题已同步到后端: ${theme}`);
+                } else {
+                    console.warn('主题同步失败，但前端已应用');
+                }
+            } catch (error) {
+                console.warn('主题同步请求失败:', error);
             }
         }
-
-        // 初始化主题
-        function initializeTheme() {
-            const savedUserTheme = localStorage.getItem('user_theme_preference');
-            if (savedUserTheme) {
-                applyTheme(savedUserTheme);
-            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                applyTheme('dark');
-            } else {
-                applyTheme('light');
+        
+        // 获取当前主题索引
+        function getCurrentThemeIndex(theme) {
+            const index = AVAILABLE_THEMES.indexOf(theme);
+            return index >= 0 ? index : 0;
+        }
+        
+        // 循环切换主题
+        async function toggleTheme() {
+            // 计算下一个主题
+            currentThemeIndex = (currentThemeIndex + 1) % AVAILABLE_THEMES.length;
+            const newTheme = AVAILABLE_THEMES[currentThemeIndex];
+            
+            // 立即应用主题（避免闪烁）
+            applyThemeImmediately(newTheme);
+            
+            // 保存到localStorage
+            localStorage.setItem('rewrz-theme', newTheme);
+            localStorage.setItem('user_theme_preference', newTheme);
+            
+            // 异步同步到后端
+            await syncThemeWithBackend(newTheme);
+            
+            // 触发事件通知其他组件
+            window.dispatchEvent(new CustomEvent('themeChanged', {
+                detail: { theme: newTheme }
+            }));
+            
+            // 显示切换提示
+            showThemeToast(`已切换到${newTheme === 'dark' ? '深色' : '浅色'}主题`);
+        }
+        
+        // 显示主题切换提示
+        function showThemeToast(message) {
+            // 移除已存在的提示
+            const existingToast = document.querySelector('.theme-toast');
+            if (existingToast) {
+                existingToast.remove();
             }
+            
+            const toast = document.createElement('div');
+            toast.className = 'theme-toast fixed top-20 right-4 z-50 px-4 py-2 bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-800 rounded-lg shadow-lg transition-all duration-300';
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 2000);
+        }
+        
+        // 从后端获取当前主题
+        async function loadCurrentThemeFromBackend() {
+            try {
+                const response = await fetch('/api/theme/sync');
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.theme || 'light';
+                }
+            } catch (error) {
+                console.warn('无法从后端获取主题设置:', error);
+            }
+            return null;
+        }
+        
+        // 初始化主题
+        async function initializeTheme() {
+            // 优先从后端获取主题
+            let theme = await loadCurrentThemeFromBackend();
+            
+            // 如果后端获取失败，从localStorage获取
+            if (!theme) {
+                theme = localStorage.getItem('rewrz-theme') || 
+                       localStorage.getItem('user_theme_preference') || 
+                       'light';
+            }
+            
+            // 如果localStorage也没有，使用系统偏好
+            if (!theme) {
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                theme = prefersDark ? 'dark' : 'light';
+            }
+            
+            // 设置当前主题索引
+            currentThemeIndex = getCurrentThemeIndex(theme);
+            
+            // 立即应用主题
+            applyThemeImmediately(theme);
+            
+            // 保存到localStorage
+            localStorage.setItem('rewrz-theme', theme);
+            localStorage.setItem('user_theme_preference', theme);
+            
+            // 加载其他主题配置
+            loadThemeConfig();
         }
 
         // 移动端菜单切换功能（修正后）
@@ -216,12 +330,6 @@
             if (mobileToggle) {
                 mobileToggle.addEventListener('click', toggleTheme);
             }
-        }
-        
-        // 主题切换函数
-        function toggleTheme() {
-            const currentTheme = localStorage.getItem('user_theme_preference');
-            applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
         }
 
         // DOM加载完成后执行初始化
@@ -579,15 +687,42 @@
              }
          })();
      </script>
-     <!-- 主题管理器 -->
+     <!-- 主题管理器 - 与后端联动的统一系统 -->
+     <script>
+         // 暴露全局主题接口
+         window.themeManager = {
+             toggleTheme: toggleTheme,
+             getCurrentTheme: () => AVAILABLE_THEMES[currentThemeIndex],
+             setTheme: (theme) => {
+                 const index = getCurrentThemeIndex(theme);
+                 if (index >= 0) {
+                     currentThemeIndex = index;
+                     applyThemeImmediately(theme);
+                     localStorage.setItem('rewrz-theme', theme);
+                     syncThemeWithBackend(theme);
+                 }
+             }
+         };
+         
+         // 监听外部主题管理器的事件
+         document.addEventListener('DOMContentLoaded', function() {
+             // 延迟处理外部主题管理器
+             setTimeout(function() {
+                 // 监听外部主题变化事件
+                 window.addEventListener('themeChanged', function(event) {
+                     if (event.detail && event.detail.theme && 
+                         event.detail.theme !== AVAILABLE_THEMES[currentThemeIndex]) {
+                         // 同步外部主题变化
+                         window.themeManager.setTheme(event.detail.theme);
+                     }
+                 });
+             }, 100);
+         });
+     </script>
      <script type="module" src="{{ url_for('static', path='js/enhanced-theme-manager.js') }}"></script>
      <script type="module" src="{{ url_for('static', path='js/multi-format-interactions.js') }}"></script>
-
      <script type="module" src="{{ url_for('static', path='js/theme-sync.js') }}"></script>
      <script type="module" src="{{ url_for('static', path='js/ui-enhancements.js') }}"></script>
-     <!-- 特效管理器 -->
-     <script type="module" src="{{ url_for('static', path='js/effects-manager.js') }}"></script>
-     
      {% block scripts %}{% endblock %}
  </body>
  </html>

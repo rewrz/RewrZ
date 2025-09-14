@@ -29,9 +29,18 @@ class EffectManager {
             return true;
         }
 
+        // 检查是否已经存在相同的脚本标签
+        const existingScript = document.querySelector(`script[src*="${effectName}.js"]`);
+        if (existingScript) {
+            this.loadedScripts.add(effectName);
+            console.log(`特效 ${effectName} 已存在，跳过重复加载`);
+            return true;
+        }
+
         try {
             const script = document.createElement('script');
             script.src = `/static/js/effects/${effectName}.js?v=${Date.now()}`;
+            script.setAttribute('data-effect', effectName);
             
             document.head.appendChild(script);
             
@@ -72,9 +81,21 @@ class EffectManager {
             return false;
         }
 
-        // 获取特效类
+        // 获取特效类，添加等待机制
         const effectClassName = this.effectClasses[effectName];
-        if (!effectClassName || !window[effectClassName]) {
+        if (!effectClassName) {
+            console.error(`特效类名未定义: ${effectName}`);
+            return false;
+        }
+
+        // 等待类加载完成，最多等待3秒
+        let attempts = 0;
+        while (!window[effectClassName] && attempts < 30) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+
+        if (!window[effectClassName]) {
             console.error(`特效类不存在: ${effectClassName}`);
             return false;
         }
@@ -144,12 +165,38 @@ class EffectManager {
 
     // 特殊效果：灰度滤镜（用于纪念日）
     enableGrayscale() {
+        // 在HTML元素上应用滤镜
         document.documentElement.style.filter = 'grayscale(100%)';
+        
+        // 在body元素上添加CSS类以确保完全覆盖
+        if (document.body) {
+            document.body.classList.add('grayscale-effect');
+        }
+        
+        // 在所有现有元素上添加类
+        const allElements = document.querySelectorAll('*');
+        allElements.forEach(element => {
+            element.classList.add('grayscale-effect');
+        });
+        
         console.log('灰度滤镜已启用');
     }
 
     disableGrayscale() {
+        // 移除HTML元素上的滤镜
         document.documentElement.style.filter = '';
+        
+        // 移除body元素上的CSS类
+        if (document.body) {
+            document.body.classList.remove('grayscale-effect');
+        }
+        
+        // 移除所有元素上的类
+        const allElements = document.querySelectorAll('*');
+        allElements.forEach(element => {
+            element.classList.remove('grayscale-effect');
+        });
+        
         console.log('灰度滤镜已禁用');
     }
 
@@ -220,6 +267,22 @@ class EffectManager {
         } catch (error) {
             console.error('特效脚本预加载失败:', error);
             return false;
+        }
+    }
+
+    /**
+     * 为新添加的元素应用灰度效果
+     */
+    applyGrayscaleToNewElements() {
+        // 检查是否已启用灰度效果
+        if (document.documentElement.style.filter.includes('grayscale')) {
+            // 为新添加的元素添加灰度类
+            const allElements = document.querySelectorAll('*');
+            allElements.forEach(element => {
+                if (!element.classList.contains('grayscale-effect')) {
+                    element.classList.add('grayscale-effect');
+                }
+            });
         }
     }
 }

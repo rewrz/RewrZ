@@ -24,11 +24,11 @@ router = APIRouter()
 templates = get_templates()
 
 
-@router.get("/admin/comments/settings", response_class=HTMLResponse)
+# 评论设置页面已移至 main.py 中的动态路由注册系统
 async def comment_settings_page(
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session,
+    current_user: User
 ):
     """
     评论设置页面
@@ -88,11 +88,11 @@ async def comment_settings_page(
     })
 
 
-@router.post("/admin/api/comments/settings")
+# 评论设置更新路由已移至 main.py 中的动态路由注册系统
 async def update_comment_settings(
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Session,
+    current_user: User,
     
     # 第一层：无感防御设置
     honeypot_enabled: bool = Form(True),
@@ -217,11 +217,11 @@ async def update_comment_settings(
         }, status_code=500)
 
 
-@router.get("/admin/api/comments/test-akismet")
+# Akismet测试路由已移至 main.py 中的动态路由注册系统
 async def test_akismet_key(
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Session,
+    current_user: User,
     api_key: str = "",
 ):
     """

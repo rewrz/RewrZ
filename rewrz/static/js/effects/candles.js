@@ -1,5 +1,5 @@
 /**
- * 蜡烛摇曳特效
+ * 精美蜡烛摇曳特效
  * 用于纪念日、哀悼等肃穆场合
  */
 
@@ -9,14 +9,15 @@ class CandlesEffect {
         this.ctx = null;
         this.candles = [];
         this.animationId = null;
-        this.flames = [];
+        this.waxDrops = [];
+        this.particles = [];
+        this.time = 0;
     }
 
     init() {
         this.createCanvas();
         this.generateCandles();
         this.animate();
-        this.addAmbientLight();
     }
 
     createCanvas() {
@@ -30,7 +31,7 @@ class CandlesEffect {
             height: 100%;
             pointer-events: none;
             z-index: 9999;
-            background: rgba(0, 0, 0, 0.1);
+            background: transparent;
         `;
         
         this.canvas.width = window.innerWidth;
@@ -49,36 +50,116 @@ class CandlesEffect {
 
     generateCandles() {
         this.candles = [];
-        const count = Math.floor(this.canvas.width / 200) + 1;
+        this.waxDrops = [];
         
-        for (let i = 0; i < count; i++) {
+        // 只在左右两侧放置蜡烛，每侧2-3根
+        const leftCandles = 2;
+        const rightCandles = 2;
+        
+        // 左侧蜡烛
+        for (let i = 0; i < leftCandles; i++) {
             this.candles.push({
-                x: (i + 0.5) * (this.canvas.width / count),
-                y: this.canvas.height - 100,
+                x: 30 + i * 40 + Math.random() * 20,
+                y: this.canvas.height - 60 - Math.random() * 40,
                 height: 60 + Math.random() * 40,
-                width: 8 + Math.random() * 4,
+                width: 10 + Math.random() * 6,
                 flameHeight: 15 + Math.random() * 10,
+                flameWidth: 6 + Math.random() * 3,
                 flameOffset: 0,
-                flickerSpeed: 0.02 + Math.random() * 0.03
+                flickerSpeed: 0.015 + Math.random() * 0.02,
+                flickerIntensity: 0.8 + Math.random() * 0.4,
+                baseFlameHeight: 15 + Math.random() * 10,
+                waxColor: this.getRandomWaxColor(),
+                lastWaxDrop: 0
+            });
+        }
+        
+        // 右侧蜡烛
+        for (let i = 0; i < rightCandles; i++) {
+            this.candles.push({
+                x: this.canvas.width - 30 - i * 40 - Math.random() * 20,
+                y: this.canvas.height - 60 - Math.random() * 40,
+                height: 60 + Math.random() * 40,
+                width: 10 + Math.random() * 6,
+                flameHeight: 15 + Math.random() * 10,
+                flameWidth: 6 + Math.random() * 3,
+                flameOffset: 0,
+                flickerSpeed: 0.015 + Math.random() * 0.02,
+                flickerIntensity: 0.8 + Math.random() * 0.4,
+                baseFlameHeight: 15 + Math.random() * 10,
+                waxColor: this.getRandomWaxColor(),
+                lastWaxDrop: 0
             });
         }
     }
 
-    addAmbientLight() {
-        // 添加暖色调滤镜
-        document.body.style.filter = 'sepia(0.3) brightness(0.8) contrast(1.1)';
+    getRandomWaxColor() {
+        const colors = [
+            { r: 255, g: 248, b: 220 }, // 象牙白
+            { r: 245, g: 222, b: 179 }, // 小麦色
+            { r: 255, g: 239, b: 213 }, // 杏仁白
+            { r: 250, g: 235, b: 215 }, // 古董白
+            { r: 255, g: 228, b: 196 }  // 俾斯麦棕
+        ];
+        return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    createWaxDrop(candle) {
+        if (Math.random() < 0.002 && Date.now() - candle.lastWaxDrop > 3000) {
+            this.waxDrops.push({
+                x: candle.x + (Math.random() - 0.5) * candle.width,
+                y: candle.y - candle.height + 5,
+                speed: 0.5 + Math.random() * 0.5,
+                size: 2 + Math.random() * 3,
+                color: candle.waxColor,
+                life: 1.0
+            });
+            candle.lastWaxDrop = Date.now();
+        }
+    }
+
+    createFlameParticles(candle) {
+        if (Math.random() < 0.3) {
+            const flameX = candle.x + candle.flameOffset;
+            const flameY = candle.y - candle.height - candle.flameHeight;
+            
+            this.particles.push({
+                x: flameX + (Math.random() - 0.5) * 6,
+                y: flameY + Math.random() * 10,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: -0.5 - Math.random() * 1.5,
+                size: 1 + Math.random() * 2,
+                life: 1.0,
+                decay: 0.02 + Math.random() * 0.03,
+                color: Math.random() > 0.7 ? '#fff3a0' : '#ff6b35'
+            });
+        }
     }
 
     animate() {
+        this.time += 0.016;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // 绘制蜡烛和火焰
+        // 更新和绘制蜡烛
         this.candles.forEach(candle => {
-            // 更新火焰摇曳
-            candle.flameOffset = Math.sin(Date.now() * candle.flickerSpeed) * 3;
+            // 复杂的火焰摇曳动画
+            const flicker1 = Math.sin(this.time * candle.flickerSpeed * 60) * candle.flickerIntensity;
+            const flicker2 = Math.sin(this.time * candle.flickerSpeed * 80 + 1.5) * candle.flickerIntensity * 0.7;
+            const flicker3 = Math.sin(this.time * candle.flickerSpeed * 100 + 3) * candle.flickerIntensity * 0.5;
             
-            // 绘制蜡烛主体
-            this.ctx.fillStyle = '#f4f1de';
+            candle.flameOffset = (flicker1 + flicker2 + flicker3) * 2;
+            candle.flameHeight = candle.baseFlameHeight + (flicker1 + flicker2) * 3;
+            
+            // 绘制蜡烛主体（带渐变）
+            const candleGradient = this.ctx.createLinearGradient(
+                candle.x - candle.width/2, candle.y - candle.height,
+                candle.x + candle.width/2, candle.y - candle.height
+            );
+            candleGradient.addColorStop(0, `rgba(${candle.waxColor.r - 20}, ${candle.waxColor.g - 20}, ${candle.waxColor.b - 20}, 1)`);
+            candleGradient.addColorStop(0.5, `rgba(${candle.waxColor.r}, ${candle.waxColor.g}, ${candle.waxColor.b}, 1)`);
+            candleGradient.addColorStop(1, `rgba(${candle.waxColor.r - 15}, ${candle.waxColor.g - 15}, ${candle.waxColor.b - 15}, 1)`);
+            
+            this.ctx.fillStyle = candleGradient;
             this.ctx.fillRect(
                 candle.x - candle.width/2, 
                 candle.y - candle.height, 
@@ -86,49 +167,112 @@ class CandlesEffect {
                 candle.height
             );
             
-            // 绘制蜡烛顶部
-            this.ctx.fillStyle = '#e9c46a';
+            // 绘制蜡烛顶部（稍暗）
+            this.ctx.fillStyle = `rgba(${candle.waxColor.r - 30}, ${candle.waxColor.g - 30}, ${candle.waxColor.b - 30}, 1)`;
             this.ctx.fillRect(
                 candle.x - candle.width/2, 
                 candle.y - candle.height, 
                 candle.width, 
-                5
+                6
             );
             
-            // 绘制火焰
+            // 绘制烛芯
+            this.ctx.fillStyle = '#2c1810';
+            this.ctx.fillRect(
+                candle.x - 0.5, 
+                candle.y - candle.height - 3, 
+                1, 
+                8
+            );
+            
+            // 绘制复杂的火焰
             const flameX = candle.x + candle.flameOffset;
             const flameY = candle.y - candle.height - candle.flameHeight;
             
-            // 火焰外层（橙色）
+            this.ctx.save();
+            this.ctx.translate(flameX, flameY);
+            
+            // 火焰外层（深橙色）
             this.ctx.beginPath();
-            this.ctx.ellipse(flameX, flameY, 6, candle.flameHeight, 0, 0, Math.PI * 2);
-            this.ctx.fillStyle = '#ff6b35';
+            this.ctx.ellipse(0, 0, candle.flameWidth, candle.flameHeight, 0, 0, Math.PI * 2);
+            const outerGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, candle.flameHeight);
+            outerGradient.addColorStop(0, '#ff8c42');
+            outerGradient.addColorStop(0.7, '#ff6b35');
+            outerGradient.addColorStop(1, '#d63031');
+            this.ctx.fillStyle = outerGradient;
             this.ctx.fill();
             
-            // 火焰内层（黄色）
+            // 火焰中层（橙黄色）
             this.ctx.beginPath();
-            this.ctx.ellipse(flameX, flameY + 3, 3, candle.flameHeight * 0.6, 0, 0, Math.PI * 2);
-            this.ctx.fillStyle = '#f7931e';
+            this.ctx.ellipse(0, 2, candle.flameWidth * 0.7, candle.flameHeight * 0.8, 0, 0, Math.PI * 2);
+            const middleGradient = this.ctx.createRadialGradient(0, 2, 0, 0, 2, candle.flameHeight * 0.8);
+            middleGradient.addColorStop(0, '#ffd93d');
+            middleGradient.addColorStop(0.6, '#ff8c42');
+            middleGradient.addColorStop(1, 'rgba(255, 107, 53, 0.8)');
+            this.ctx.fillStyle = middleGradient;
             this.ctx.fill();
             
-            // 火焰核心（白色）
+            // 火焰核心（亮黄色）
             this.ctx.beginPath();
-            this.ctx.ellipse(flameX, flameY + 5, 1, candle.flameHeight * 0.3, 0, 0, Math.PI * 2);
-            this.ctx.fillStyle = '#fff3a0';
+            this.ctx.ellipse(0, 4, candle.flameWidth * 0.4, candle.flameHeight * 0.6, 0, 0, Math.PI * 2);
+            const coreGradient = this.ctx.createRadialGradient(0, 4, 0, 0, 4, candle.flameHeight * 0.6);
+            coreGradient.addColorStop(0, '#fff3a0');
+            coreGradient.addColorStop(0.5, '#ffd93d');
+            coreGradient.addColorStop(1, 'rgba(255, 217, 61, 0.6)');
+            this.ctx.fillStyle = coreGradient;
             this.ctx.fill();
             
-            // 绘制光晕
-            const gradient = this.ctx.createRadialGradient(
+            this.ctx.restore();
+            
+            // 绘制大范围光晕
+            const glowGradient = this.ctx.createRadialGradient(
                 flameX, flameY, 0, 
-                flameX, flameY, 50
+                flameX, flameY, 120
             );
-            gradient.addColorStop(0, 'rgba(255, 107, 53, 0.3)');
-            gradient.addColorStop(1, 'rgba(255, 107, 53, 0)');
+            glowGradient.addColorStop(0, 'rgba(255, 140, 66, 0.15)');
+            glowGradient.addColorStop(0.3, 'rgba(255, 107, 53, 0.08)');
+            glowGradient.addColorStop(1, 'rgba(255, 107, 53, 0)');
             
-            this.ctx.fillStyle = gradient;
+            this.ctx.fillStyle = glowGradient;
             this.ctx.beginPath();
-            this.ctx.arc(flameX, flameY, 50, 0, Math.PI * 2);
+            this.ctx.arc(flameX, flameY, 120, 0, Math.PI * 2);
             this.ctx.fill();
+            
+            // 创建蜡滴和火焰粒子
+            this.createWaxDrop(candle);
+            this.createFlameParticles(candle);
+        });
+        
+        // 更新和绘制蜡滴
+        this.waxDrops = this.waxDrops.filter(drop => {
+            drop.y += drop.speed;
+            drop.life -= 0.005;
+            
+            if (drop.life > 0 && drop.y < this.canvas.height) {
+                this.ctx.fillStyle = `rgba(${drop.color.r}, ${drop.color.g}, ${drop.color.b}, ${drop.life})`;
+                this.ctx.beginPath();
+                this.ctx.arc(drop.x, drop.y, drop.size, 0, Math.PI * 2);
+                this.ctx.fill();
+                return true;
+            }
+            return false;
+        });
+        
+        // 更新和绘制火焰粒子
+        this.particles = this.particles.filter(particle => {
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.life -= particle.decay;
+            particle.vy -= 0.01; // 重力效果
+            
+            if (particle.life > 0) {
+                this.ctx.fillStyle = particle.color.replace('1)', `${particle.life})`);
+                this.ctx.beginPath();
+                this.ctx.arc(particle.x, particle.y, particle.size * particle.life, 0, Math.PI * 2);
+                this.ctx.fill();
+                return true;
+            }
+            return false;
         });
         
         this.animationId = requestAnimationFrame(() => this.animate());
@@ -149,6 +293,8 @@ class CandlesEffect {
         document.body.style.filter = '';
         
         this.candles = [];
+        this.waxDrops = [];
+        this.particles = [];
     }
 }
 

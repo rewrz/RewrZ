@@ -217,9 +217,10 @@ ATMOSPHERE_THEMES = {
     }
 }
 
-@router.get("/admin/themes", response_class=HTMLResponse)
-async def admin_themes_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """主题管理页面"""
+# 主题管理页面已移至 main.py 中的动态路由注册系统
+# 这样可以根据 ADMIN_PATH 配置动态生成路由，提高安全性
+async def admin_themes_page(request: Request, db: Session, current_user: User):
+    """主题管理页面 - 供 main.py 动态路由调用"""
     templates = get_templates()
     # 获取当前主题设置
     theme_setting = crud_setting.get_setting(db, key="current_theme")
@@ -266,15 +267,15 @@ async def admin_themes_page(request: Request, db: Session = Depends(get_db), cur
         "settings": settings
     })
 
-@router.post("/admin/themes/update")
+# 主题更新路由已移至 main.py 中的动态路由注册系统
 async def update_theme_settings(
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    current_theme: str = Form(...),
-    current_atmosphere: Optional[str] = Form(None),
-    auto_theme_enabled: bool = Form(False),
-    csrf_token: str = Form(...)
+    db: Session,
+    current_user: User,
+    current_theme: str,
+    current_atmosphere: Optional[str],
+    auto_theme_enabled: bool,
+    csrf_token: str
 ):
     """更新主题设置"""
     verify_csrf_token(request, csrf_token)
@@ -332,28 +333,18 @@ async def update_theme_settings(
     else:
         return JSONResponse({"success": True, "message": "主题设置已更新"})
 
-# 添加update_theme方法以兼容main.py中的调用
-async def update_theme(request: Request, db: Session, current_user: User):
-    """兼容性方法 - 重定向到update_theme_settings"""
-    form_data = await request.form()
-    return await update_theme_settings(
-        request=request,
-        db=db,
-        current_user=current_user,
-        current_theme=form_data.get("current_theme", "light"),
-        current_atmosphere=form_data.get("current_atmosphere"),
-        auto_theme_enabled=bool(form_data.get("auto_theme_enabled")),
-        csrf_token=form_data.get("csrf_token", "")
-    )
 
-@router.post("/admin/themes/custom")
+
+
+
+# 自定义主题创建路由已移至 main.py 中的动态路由注册系统
 async def create_custom_theme(
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    theme_name: str = Form(...),
-    theme_data: str = Form(...),
-    csrf_token: str = Form(...)
+    db: Session,
+    current_user: User,
+    theme_name: str,
+    theme_data: str,
+    csrf_token: str
 ):
     """创建自定义主题"""
     verify_csrf_token(request, csrf_token)
@@ -387,12 +378,12 @@ async def create_custom_theme(
     
     return JSONResponse({"success": True, "message": "自定义主题已创建"})
 
-@router.delete("/admin/themes/custom/{theme_name}")
+# 自定义主题删除路由已移至 main.py 中的动态路由注册系统
 async def delete_custom_theme(
     theme_name: str,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session,
+    current_user: User
 ):
     """删除自定义主题"""
     custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
@@ -408,13 +399,13 @@ async def delete_custom_theme(
     
     return JSONResponse({"success": True, "message": "主题已删除"})
 
-@router.post("/admin/themes/schedule")
-async def update_theme_schedule(
+# 主题调度路由已移至 main.py 中的动态路由注册系统
+async def schedule_themes(
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    schedule_data: str = Form(...),
-    csrf_token: str = Form(...)
+    db: Session,
+    current_user: User,
+    schedule_data: str,
+    csrf_token: str
 ):
     """更新主题调度设置"""
     verify_csrf_token(request, csrf_token)
@@ -437,14 +428,14 @@ async def update_theme_schedule(
     
     return JSONResponse({"success": True, "message": "主题调度已更新"})
 
-@router.post("/admin/themes/background")
+# 背景图片更新路由已移至 main.py 中的动态路由注册系统
 async def update_background_image(
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    background_type: str = Form("none"),
-    custom_background_url: Optional[str] = Form(None),
-    csrf_token: str = Form(...)
+    db: Session,
+    current_user: User,
+    background_type: str,
+    custom_background_url: Optional[str],
+    csrf_token: str
 ):
     """更新背景图片设置"""
     verify_csrf_token(request, csrf_token)

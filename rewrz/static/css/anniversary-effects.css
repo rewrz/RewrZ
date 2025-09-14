@@ -4,15 +4,25 @@
  */
 
 /* 追悼模式 - 全站灰白滤镜 */
-.memorial-filter {
-    filter: grayscale(100%) brightness(0.9) contrast(1.1);
+.memorial-filter,
+.grayscale-effect {
+    filter: grayscale(100%) !important;
     transition: filter 0.5s ease;
 }
 
 .memorial-filter img,
 .memorial-filter video,
-.memorial-filter canvas {
-    filter: grayscale(100%) brightness(0.8);
+.memorial-filter canvas,
+.grayscale-effect img,
+.grayscale-effect video,
+.grayscale-effect canvas {
+    filter: grayscale(100%) brightness(0.8) !important;
+}
+
+/* 全局灰度效果 - 确保覆盖所有元素 */
+.grayscale-effect * {
+    filter: grayscale(100%) !important;
+    transition: filter 0.5s ease;
 }
 
 /* 怀旧滤镜 */
@@ -43,52 +53,6 @@
     pointer-events: none;
     z-index: 1000;
     overflow: hidden;
-}
-
-/* 纪念日横幅样式 */
-.anniversary-banner {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.6));
-    color: white;
-    text-align: center;
-    padding: 8px 16px;
-    font-size: 14px;
-    z-index: 1001;
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    animation: slideDown 0.5s ease-out;
-}
-
-@keyframes slideDown {
-    from {
-        transform: translateY(-100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-.anniversary-banner .close-btn {
-    position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: white;
-    font-size: 18px;
-    cursor: pointer;
-    opacity: 0.7;
-    transition: opacity 0.2s;
-}
-
-.anniversary-banner .close-btn:hover {
-    opacity: 1;
 }
 
 /* 春节主题样式 */
@@ -168,49 +132,4 @@
 
 .glowing {
     animation: glow 2s ease-in-out infinite;
-}
-
-/* 响应式调整 */
-@media (max-width: 768px) {
-    .anniversary-banner {
-        font-size: 12px;
-        padding: 6px 12px;
-    }
-    
-    .anniversary-banner .close-btn {
-        right: 12px;
-        font-size: 16px;
-    }
-}
-
-/* 高对比度模式支持 */
-@media (prefers-contrast: high) {
-    .memorial-filter {
-        filter: grayscale(100%) contrast(1.5);
-    }
-    
-    .anniversary-banner {
-        background: #000;
-        border-bottom: 2px solid #fff;
-    }
-}
-
-/* 减少动画模式支持 */
-@media (prefers-reduced-motion: reduce) {
-    .anniversary-banner {
-        animation: none;
-    }
-    
-    .sparkle,
-    .floating,
-    .glowing {
-        animation: none;
-    }
-    
-    .memorial-filter,
-    .sepia-filter,
-    .warm-filter,
-    .cool-filter {
-        transition: none;
-    }
 }

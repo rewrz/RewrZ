@@ -62,13 +62,26 @@
                             
                             <!-- 氛围类型 -->
                             <div>
-                                <select class="w-full px-3 py-2 border border-gray-300 rounded">
-                                    <option value="festive" {% if anniversary.type == 'festive' %}selected{% endif %}>
-                                        🎉 喜庆节日
-                                    </option>
-                                    <option value="mourn" {% if anniversary.type == 'mourn' %}selected{% endif %}>
-                                        🕯️ 纪念悼念
-                                    </option>
+                                <select class="w-full px-3 py-2 border border-gray-300 rounded anniversary-type-select">
+                                    <option value="festive" {% if anniversary.type == 'festive' %}selected{% endif %}>🎉 喜庆节日</option>
+                                    <option value="mourn" {% if anniversary.type == 'mourn' %}selected{% endif %}>🕯️ 纪念悼念</option>
+                                    <option value="spring_festival" {% if anniversary.type == 'spring_festival' %}selected{% endif %}>🏮 春节</option>
+                                    <option value="new_year" {% if anniversary.type == 'new_year' %}selected{% endif %}>🎆 新年</option>
+                                    <option value="cherry_blossom" {% if anniversary.type == 'cherry_blossom' %}selected{% endif %}>🌸 樱花节</option>
+                                    <option value="winter" {% if anniversary.type == 'winter' %}selected{% endif %}>❄️ 冬季</option>
+                                    <option value="autumn" {% if anniversary.type == 'autumn' %}selected{% endif %}>🍂 秋季</option>
+                                    <option value="celebration" {% if anniversary.type == 'celebration' %}selected{% endif %}>🎊 庆祝</option>
+                                    <option value="memorial" {% if anniversary.type == 'memorial' %}selected{% endif %}>🕊️ 追悼</option>
+                                    <option value="valentine" {% if anniversary.type == 'valentine' %}selected{% endif %}>💖 情人节</option>
+                                    <option value="christmas" {% if anniversary.type == 'christmas' %}selected{% endif %}>🎄 圣诞节</option>
+                                    <option value="national_day" {% if anniversary.type == 'national_day' %}selected{% endif %}>🇨🇳 国庆节</option>
+                                    <option value="rainy_day" {% if anniversary.type == 'rainy_day' %}selected{% endif %}>🌧️ 雨天</option>
+                                    <option value="stormy" {% if anniversary.type == 'stormy' %}selected{% endif %}>⛈️ 暴风雨</option>
+                                    <option value="sunny" {% if anniversary.type == 'sunny' %}selected{% endif %}>☀️ 晴天</option>
+                                    <option value="cloudy" {% if anniversary.type == 'cloudy' %}selected{% endif %}>☁️ 多云</option>
+                                    <option value="spring" {% if anniversary.type == 'spring' %}selected{% endif %}>🌱 春天</option>
+                                    <option value="summer" {% if anniversary.type == 'summer' %}selected{% endif %}>😎 夏天</option>
+                                    <option value="thunderstorm" {% if anniversary.type == 'thunderstorm' %}selected{% endif %}>⚡ 雷雨</option>
                                 </select>
                             </div>
                             
@@ -491,9 +504,26 @@ function addAnniversaryItem() {
                        placeholder="节日名称（如：国庆节）">
             </div>
             <div>
-                <select class="w-full px-3 py-2 border border-gray-300 rounded">
+                <select class="w-full px-3 py-2 border border-gray-300 rounded anniversary-type-select">
                     <option value="festive">🎉 喜庆节日</option>
                     <option value="mourn">🕯️ 纪念悼念</option>
+                    <option value="spring_festival">🏮 春节</option>
+                    <option value="new_year">🎆 新年</option>
+                    <option value="cherry_blossom">🌸 樱花节</option>
+                    <option value="winter">❄️ 冬季</option>
+                    <option value="autumn">🍂 秋季</option>
+                    <option value="celebration">🎊 庆祝</option>
+                    <option value="memorial">🕊️ 追悼</option>
+                    <option value="valentine">💖 情人节</option>
+                    <option value="christmas">🎄 圣诞节</option>
+                    <option value="national_day">🇨🇳 国庆节</option>
+                    <option value="rainy_day">🌧️ 雨天</option>
+                    <option value="stormy">⛈️ 暴风雨</option>
+                    <option value="sunny">☀️ 晴天</option>
+                    <option value="cloudy">☁️ 多云</option>
+                    <option value="spring">🌱 春天</option>
+                    <option value="summer">😎 夏天</option>
+                    <option value="thunderstorm">⚡ 雷雨</option>
                 </select>
             </div>
             <div>
@@ -798,9 +828,25 @@ function addScheduleItem() {
                 <label class="text-xs text-gray-500">氛围主题</label>
                 <select class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
                     <option value="">默认主题</option>
-                    <option value="festive">🎉 节日氛围</option>
-                    <option value="memorial">🕯️ 纪念氛围</option>
-                    <option value="celebration">🎊 庆祝氛围</option>
+                    <option value="festive">🎉 喜庆节日</option>
+                    <option value="mourn">🕯️ 纪念悼念</option>
+                    <option value="spring_festival">🏮 春节</option>
+                    <option value="new_year">🎆 新年</option>
+                    <option value="cherry_blossom">🌸 樱花节</option>
+                    <option value="winter">❄️ 冬季</option>
+                    <option value="autumn">🍂 秋季</option>
+                    <option value="celebration">🎊 庆祝</option>
+                    <option value="memorial">🕊️ 追悼</option>
+                    <option value="valentine">💖 情人节</option>
+                    <option value="christmas">🎄 圣诞节</option>
+                    <option value="national_day">🇨🇳 国庆节</option>
+                    <option value="rainy_day">🌧️ 雨天</option>
+                    <option value="stormy">⛈️ 暴风雨</option>
+                    <option value="sunny">☀️ 晴天</option>
+                    <option value="cloudy">☁️ 多云</option>
+                    <option value="spring">🌱 春天</option>
+                    <option value="summer">😎 夏天</option>
+                    <option value="thunderstorm">⚡ 雷雨</option>
                 </select>
             </div>
             <div class="flex space-x-2">
@@ -1008,6 +1054,48 @@ document.addEventListener('DOMContentLoaded', function() {
     // 自动保存背景图片设置
     document.querySelectorAll('input[name="background_type"]').forEach(radio => {
         radio.addEventListener('change', saveBackgroundImage);
+    });
+
+    // --- 自动勾选特效 ---
+    const effectCombinations = {
+        'festive': ['fireworks', 'confetti', 'lanterns'],
+        'mourn': ['grayscale', 'candles'],
+        'spring_festival': ['lanterns', 'firecrackers'],
+        'new_year': ['fireworks', 'confetti'],
+        'cherry_blossom': ['sakura', 'petals'],
+        'winter': ['snow', 'clouds'],
+        'autumn': ['leaves'],
+        'celebration': ['fireworks', 'confetti'],
+        'memorial': ['grayscale', 'candles'],
+        'valentine': ['sakura', 'petals'],
+        'christmas': ['snow', 'fireworks'],
+        'national_day': ['fireworks', 'lanterns'],
+        'rainy_day': ['rain', 'clouds'],
+        'stormy': ['rain', 'thunder', 'clouds'],
+        'sunny': ['sunshine'],
+        'cloudy': ['clouds'],
+        'spring': ['sakura', 'petals', 'sunshine'],
+        'summer': ['sunshine'],
+        'thunderstorm': ['thunder', 'rain']
+    };
+
+    function updateEffectCheckboxes(anniversaryItem, selectedType) {
+        const effects = effectCombinations[selectedType] || [];
+        const checkboxes = anniversaryItem.querySelectorAll('.effect-checkbox');
+
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = effects.includes(checkbox.value);
+        });
+    }
+
+    // 使用事件委托处理现有和新增的纪念日项目
+    document.getElementById('anniversaries-container').addEventListener('change', function(event) {
+        if (event.target.classList.contains('anniversary-type-select')) {
+            const anniversaryItem = event.target.closest('.anniversary-item');
+            if (anniversaryItem) {
+                updateEffectCheckboxes(anniversaryItem, event.target.value);
+            }
+        }
     });
 });
 </script>

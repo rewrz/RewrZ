@@ -138,13 +138,13 @@ class LanternsEffect {
         // 绘制装饰条纹
         this.ctx.strokeStyle = '#FFD700';
         this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
         for (let i = 0; i < 3; i++) {
             const y = lantern.y + (i + 1) * lantern.height / 4;
-            this.ctx.beginPath();
             this.ctx.moveTo(currentX - lantern.width/2 * 0.8, y);
             this.ctx.lineTo(currentX + lantern.width/2 * 0.8, y);
-            this.ctx.stroke();
         }
+        this.ctx.stroke();
         
         // 绘制中央文字区域
         this.ctx.fillStyle = '#FFD700';
@@ -155,13 +155,13 @@ class LanternsEffect {
         // 绘制流苏
         this.ctx.strokeStyle = '#FFD700';
         this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
         for (let i = 0; i < 5; i++) {
             const tassleX = currentX - lantern.width/4 + (i * lantern.width/8);
-            this.ctx.beginPath();
             this.ctx.moveTo(tassleX, lantern.y + lantern.height + 10);
             this.ctx.lineTo(tassleX + Math.sin(lantern.swingAngle + i) * 3, lantern.y + lantern.height + 30);
-            this.ctx.stroke();
         }
+        this.ctx.stroke();
         
         // 绘制光晕效果
         const glowGradient = this.ctx.createRadialGradient(
