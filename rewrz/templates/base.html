@@ -616,6 +616,11 @@
     </script>
     {% endif %}
 
+    <!-- 返回顶部按钮 -->
+    <button id="back-to-top" onclick="scrollToTop()" class="back-to-top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
     <footer class="glass-effect mt-16 py-8 border-t border-slate-200/50 dark:border-slate-700/50">
         <div class="container mx-auto px-4 lg:px-6">
             <div class="flex flex-col lg:flex-row justify-between items-center gap-6">
@@ -686,6 +691,13 @@
                  el.textContent = new Date().getFullYear();
              }
          })();
+         // 返回顶部按钮功能
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
      </script>
      <!-- 主题管理器 - 与后端联动的统一系统 -->
      <script>

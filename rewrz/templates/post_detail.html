@@ -186,7 +186,54 @@
     
     <!-- 打赏功能 -->
     {% if donation_config and donation_config.enabled %}
-    {% include "components/donation_widget.html" %}
+    <div class="px-6 py-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-t border-gray-200 dark:border-gray-600">
+        <div class="text-center">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                <i class="fas fa-coffee mr-2 text-yellow-500"></i>
+                支持作者
+            </h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">如果觉得文章对您有帮助，欢迎打赏支持</p>
+            
+            <div class="flex justify-center space-x-4">
+                {% if donation_config.alipay_qr %}
+                <button onclick="showQRCode('alipay')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    <i class="fab fa-alipay mr-2"></i>
+                    支付宝
+                </button>
+                {% endif %}
+                
+                {% if donation_config.wechat_qr %}
+                <button onclick="showQRCode('wechat')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    <i class="fab fa-weixin mr-2"></i>
+                    微信
+                </button>
+                {% endif %}
+                
+                {% if donation_config.paypal_link %}
+                <a href="{{ donation_config.paypal_link }}" target="_blank" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    <i class="fab fa-paypal mr-2"></i>
+                    PayPal
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- 二维码弹窗 -->
+    <div id="qr-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white" id="qr-title"></h3>
+                <button onclick="closeQRModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="text-center">
+                <img id="qr-image" src="" alt="QR Code" class="w-48 h-48 mx-auto mb-4">
+                <p class="text-sm text-gray-600 dark:text-gray-400">请使用手机扫描二维码</p>
+            </div>
+        </div>
+    </div>
     {% endif %}
     
     <!-- 相关文章推荐 -->
@@ -366,11 +413,6 @@
 </div>
 {% endif %}
 
-<!-- 返回顶部按钮 -->
-<button id="back-to-top" onclick="scrollToTop()" class="back-to-top">
-    <i class="fas fa-arrow-up"></i>
-</button>
-
 <script>
     // 代码高亮
     document.addEventListener('DOMContentLoaded', (event) => {
@@ -432,14 +474,6 @@
             cancelAnimationFrame(progressRafId);
         }
         progressRafId = requestAnimationFrame(updateReadingProgress);
-    }
-    
-    // 返回顶部按钮功能
-    function scrollToTop() {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
     }
     
     function toggleBackToTopButton() {

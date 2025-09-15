@@ -157,9 +157,9 @@ class UIEnhancements {
         // 显示/隐藏按钮
         window.addEventListener('scroll', () => {
             if (window.scrollY > 300) {
-                backToTopBtn.classList.add('show');
+                backToTopBtn.classList.add('visible');
             } else {
-                backToTopBtn.classList.remove('show');
+                backToTopBtn.classList.remove('visible');
             }
         });
         
