@@ -13,7 +13,7 @@
         </div>
 
         <form id="error-settings-form" method="POST" class="space-y-8">
-            <input type="hidden" name="csrf_token" value="{{ request.session.csrf_token }}">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
 
             <!-- 自定义错误页面设置 -->
             <div class="border border-gray-200 rounded-lg p-6">

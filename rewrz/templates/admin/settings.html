@@ -609,56 +609,6 @@
         socialLinksContainer.querySelectorAll('input').forEach(input => input.addEventListener('input', updateSocialLinksJson));
         updateSocialLinksJson(); // Initial update
 
-        // Anniversaries Management
-        const anniversariesContainer = document.getElementById('anniversaries-container');
-        const addAnniversaryBtn = document.getElementById('add-anniversary');
-        const anniversariesJsonInput = document.getElementById('anniversaries-json');
-
-        function updateAnniversariesJson() {
-            const anniversaries = [];
-            anniversariesContainer.querySelectorAll('.anniversary-item').forEach(item => {
-                const month = parseInt(item.children[0].value);
-                const day = parseInt(item.children[1].value);
-                const name = item.children[2].value;
-                const type = item.children[3].value;
-                if (month && day && name && type) {
-                    anniversaries.push({ month: month, day: day, name: name, type: type });
-                }
-            });
-            anniversariesJsonInput.value = JSON.stringify(anniversaries);
-        }
-
-        addAnniversaryBtn.addEventListener('click', () => {
-            const newItem = document.createElement('div');
-            newItem.classList.add('flex', 'items-center', 'space-x-4', 'anniversary-item');
-            newItem.innerHTML = `
-                <input type="number" class="w-20 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="月" min="1" max="12">
-                <input type="number" class="w-20 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="日" min="1" max="31">
-                <input type="text" class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="名称 (如 国庆节)">
-                <select class="px-3 py-2 border border-gray-300 rounded-md shadow-sm">
-                    <option value="Festive">喜庆 Festive</option>
-                    <option value="Mourn">悼念 Mourn</option>
-                </select>
-                <button type="button" class="remove-anniversary px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">移除</button>
-            `;
-            anniversariesContainer.appendChild(newItem);
-            newItem.querySelector('.remove-anniversary').addEventListener('click', (e) => {
-                e.target.closest('.anniversary-item').remove();
-                updateAnniversariesJson();
-            });
-            newItem.querySelectorAll('input, select').forEach(input => input.addEventListener('input', updateAnniversariesJson));
-            updateAnniversariesJson();
-        });
-
-        anniversariesContainer.querySelectorAll('.remove-anniversary').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.target.closest('.anniversary-item').remove();
-                updateAnniversariesJson();
-            });
-        });
-        anniversariesContainer.querySelectorAll('input, select').forEach(input => input.addEventListener('input', updateAnniversariesJson));
-        updateAnniversariesJson(); // Initial update
-
         // 后台路径配置管理
         const generateRandomPathBtn = document.getElementById('generate-random-path');
         const customizePathBtn = document.getElementById('customize-path');

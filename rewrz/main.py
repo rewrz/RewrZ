@@ -55,6 +55,7 @@ from typing import List, Optional
 from datetime import date, datetime # 导入date和datetime用于纪念日检查和主题调度
 from starlette.middleware.sessions import SessionMiddleware # 导入会话中间件
 from .core.security import generate_csrf_token # 导入CSRF令牌生成函数
+from .core.settings_middleware import SettingsMiddleware # 导入设置中间件
 
 # 全局状态，用于标记后台路由是否已注册
 ADMIN_ROUTES_REGISTERED = False
@@ -161,6 +162,12 @@ def register_admin_routes():
         donation_link_url: Optional[str] = Form(None),
         donation_style_theme: str = Form('elegant'),
         donation_show_position: str = Form('article_end'),
+        # 主页个性化设置相关参数
+        homepage_mode: str = Form(DEFAULT_HOMEPAGE_SETTINGS["homepage_mode"]),
+        homepage_background_image_url: Optional[str] = Form(None),
+        homepage_background_video_url: Optional[str] = Form(None),
+        homepage_background_music_url: Optional[str] = Form(None),
+        homepage_music_autoplay: bool = Form(DEFAULT_HOMEPAGE_SETTINGS["homepage_music_autoplay"]),
         csrf_token: str = Form(...),
     ):
         return await settings_api.update_admin_settings(
@@ -174,6 +181,9 @@ def register_admin_routes():
             donation_enabled, donation_title, donation_description,
             donation_qr_code_url, donation_link_text, donation_link_url,
             donation_style_theme, donation_show_position,
+            # 主页个性化设置
+            homepage_mode, homepage_background_image_url, homepage_background_video_url,
+            homepage_background_music_url, homepage_music_autoplay,
             csrf_token
         )
     
@@ -542,17 +552,15 @@ def register_admin_routes():
         donation_system = get_donation_system(db)
         donation_config = donation_system.settings
         
-        # 准备设置上下文 (包含主页个性化设置)
-        settings_dict = _load_homepage_settings_for_template(db, request)
-        
-        return templates.TemplateResponse("post_detail.html", {
-            "request": request,
+        # 构建模板上下文（现在包含统一的设置数据）
+        context = build_base_template_context(request)
+        context.update({
             "post": db_post,
             "seo_data": seo_data,
             "donation_config": donation_config,
-            **build_base_template_context(request),
-            "settings": settings_dict,  # 传递设置字典给模板
         })
+        
+        return templates.TemplateResponse("post_detail.html", context)
 
     # 动态页面路由处理器
     @app.get("/{page_slug}", response_class=HTMLResponse)
@@ -576,16 +584,14 @@ def register_admin_routes():
         from .api.seo import _generate_post_seo_data
         seo_data = _generate_post_seo_data(db_page, request, db)
         
-        # 准备设置上下文 (包含主页个性化设置)
-        settings_dict = _load_homepage_settings_for_template(db, request)
-        
-        return templates.TemplateResponse("page.html", {
-            "request": request, 
+        # 构建模板上下文（现在包含统一的设置数据）
+        context = build_base_template_context(request)
+        context.update({
             "post": db_page,
             "seo_data": seo_data,
-            **build_base_template_context(request),
-            "settings": settings_dict,  # 传递设置字典给模板
         })
+        
+        return templates.TemplateResponse("page.html", context)
 
 # 包含安装向导路由
 app.include_router(installer_api.router)
@@ -778,17 +784,7 @@ async def favicon():
     return FileResponse("rewrz/static/favicon.ico")
 
 
-def _load_homepage_settings_for_template(db: Session, request: Request) -> dict:
-    homepage_settings = crud_setting.get_settings_by_keys(db, HOMEPAGE_SETTING_KEYS)
-    settings_dict = {}
-    for key in HOMEPAGE_SETTING_KEYS:
-        if key in homepage_settings and homepage_settings.get(key) is not None:
-            # 直接使用批量查询返回的值
-            settings_dict[key] = homepage_settings[key]
-        else:
-            # 回退到 request.state 中的默认值（已由 _populate_global_request_state 设置）
-            settings_dict[key] = getattr(request.state, key, "")
-    return settings_dict
+
 
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request, db: Session = Depends(get_db)):
@@ -806,16 +802,14 @@ async def homepage(request: Request, db: Session = Depends(get_db)):
     from .api.seo import _generate_homepage_seo_data
     seo_data = _generate_homepage_seo_data(request, db)
     
-    # 准备设置上下文 (包含主页个性化设置)
-    settings_dict = _load_homepage_settings_for_template(db, request)
-    
-    return templates.TemplateResponse("index.html", {
-        "request": request, 
-        "posts": posts, 
+    # 构建模板上下文（现在包含统一的设置数据）
+    context = build_base_template_context(request)
+    context.update({
+        "posts": posts,
         "seo_data": seo_data,
-        **build_base_template_context(request),
-        "settings": settings_dict,  # 传递设置字典给模板
     })
+    
+    return templates.TemplateResponse("index.html", context)
 
 # 聚合页面路由：/formats/photos, /formats/weibo, /formats/video, /formats/poetry-song
 @app.get("/formats/{format_slug}", response_class=HTMLResponse)
@@ -830,17 +824,15 @@ async def format_page(request: Request, format_slug: str, db: Session = Depends(
         raise HTTPException(status_code=404, detail="Format not found")
     posts = crud_post.get_posts_by_format(db, format_id=format.id)
     
-    # 准备设置上下文 (包含主页个性化设置)
-    settings_dict = _load_homepage_settings_for_template(db, request)
-    
-    return templates.TemplateResponse("format_archive.html", {
-        "request": request, 
-        "format": format, 
+    # 构建模板上下文（现在包含统一的设置数据）
+    context = build_base_template_context(request)
+    context.update({
+        "format": format,
         "format_slug": format_slug,  # 将format_slug传递给模板
-        "posts": posts, 
-        **build_base_template_context(request),
-        "settings": settings_dict,  # 传递设置字典给模板
+        "posts": posts,
     })
+    
+    return templates.TemplateResponse("format_archive.html", context)
 
 @app.get("/archives/by-category/{category_slug}", response_class=HTMLResponse)
 async def posts_by_category(request: Request, category_slug: str, db: Session = Depends(get_db)):
@@ -854,16 +846,14 @@ async def posts_by_category(request: Request, category_slug: str, db: Session = 
         raise HTTPException(status_code=404, detail="Category not found")
     posts = crud_post.get_posts_by_category(db, category_id=category.id)
     
-    # 准备设置上下文 (包含主页个性化设置)
-    settings_dict = _load_homepage_settings_for_template(db, request)
-    
-    return templates.TemplateResponse("category_archive.html", {
-        "request": request, 
-        "category": category, 
-        "posts": posts, 
-        **build_base_template_context(request),
-        "settings": settings_dict,  # 传递设置字典给模板
+    # 构建模板上下文（现在包含统一的设置数据）
+    context = build_base_template_context(request)
+    context.update({
+        "category": category,
+        "posts": posts,
     })
+    
+    return templates.TemplateResponse("category_archive.html", context)
 
 @app.get("/archives/by-tag/{tag_slug}", response_class=HTMLResponse)
 async def posts_by_tag(request: Request, tag_slug: str, db: Session = Depends(get_db)):
@@ -877,16 +867,14 @@ async def posts_by_tag(request: Request, tag_slug: str, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="Tag not found")
     posts = crud_post.get_posts_by_tag(db, tag_id=tag.id)
     
-    # 准备设置上下文 (包含主页个性化设置)
-    settings_dict = _load_homepage_settings_for_template(db, request)
-    
-    return templates.TemplateResponse("tag_archive.html", {
-        "request": request, 
-        "tag": tag, 
-        "posts": posts, 
-        **build_base_template_context(request),
-        "settings": settings_dict,  # 传递设置字典给模板
+    # 构建模板上下文（现在包含统一的设置数据）
+    context = build_base_template_context(request)
+    context.update({
+        "tag": tag,
+        "posts": posts,
     })
+    
+    return templates.TemplateResponse("tag_archive.html", context)
 
 # 占位符路由：/archives/2025/08/
 @app.get("/archives/{year}/{month}", response_class=HTMLResponse)
@@ -900,17 +888,15 @@ async def posts_by_month(request: Request, year: int, month: int, db: Session = 
     archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
     posts = crud_post.get_posts(db, skip=0, limit=archive_posts_limit) # 使用配置的文章数量
     
-    # 准备设置上下文 (包含主页个性化设置)
-    settings_dict = _load_homepage_settings_for_template(db, request)
-    
-    return templates.TemplateResponse("monthly_archive.html", {
-        "request": request, 
-        "year": year, 
-        "month": month, 
-        "posts": posts, 
-        **build_base_template_context(request),
-        "settings": settings_dict,  # 传递设置字典给模板
+    # 构建模板上下文（现在包含统一的设置数据）
+    context = build_base_template_context(request)
+    context.update({
+        "year": year,
+        "month": month,
+        "posts": posts,
     })
+    
+    return templates.TemplateResponse("monthly_archive.html", context)
 
 # 占位符路由：/archives
 @app.get("/archives", response_class=HTMLResponse)
@@ -923,18 +909,19 @@ async def archives_page(request: Request, db: Session = Depends(get_db)):
     archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
     posts = crud_post.get_posts(db, skip=0, limit=archive_posts_limit) # 使用配置的文章数量
     
-    # 准备主页个性化设置上下文 (包含主页个性化设置)
-    settings_dict = _load_homepage_settings_for_template(db, request)
-    
-    return templates.TemplateResponse("archives.html", {
-        "request": request, 
-        "posts": posts, 
-        **build_base_template_context(request),
-        "settings": settings_dict,  # 传递设置字典给模板
+    # 构建模板上下文（现在包含统一的设置数据）
+    context = build_base_template_context(request)
+    context.update({
+        "posts": posts,
     })
+    
+    return templates.TemplateResponse("archives.html", context)
 
 # 统一注册全局异常处理器（集中管理，降低重复与维护成本）
 error_handler.register_error_handlers(app)
 
 # 为CSRF保护添加会话中间件
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+
+# 添加设置加载中间件（在会话中间件之后）
+app.add_middleware(SettingsMiddleware)
