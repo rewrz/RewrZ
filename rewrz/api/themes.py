@@ -10,7 +10,7 @@
 import json
 import os
 from datetime import datetime, date
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -23,109 +23,26 @@ from ..schemas import Setting, SettingCreate, SettingUpdate, User
 
 router = APIRouter()
 
-# 预定义主题配置
+# 预定义主题配置（统一为 5 种预设，兼容旧键名）
 DEFAULT_THEMES = {
     "light": {
         "name": "浅色主题",
         "variables": {
             "--color-primary": "#4f46e5",
             "--color-primary-hover": "#4338ca",
-            "--color-secondary": "#6b7280", 
-            "--color-background": "#ffffff",
-            "--color-background-alt": "#f8fafc",
-            "--color-text": "#1e293b",
-            "--color-text-light": "#64748b",
-            "--color-text-muted": "#94a3b8",
-            "--color-border": "#e2e8f0",
-            "--color-border-light": "#f1f5f9",
-            "--color-card-bg": "#ffffff",
-            "--color-card-shadow": "rgba(0, 0, 0, 0.1)",
-            "--color-nav-bg": "rgba(255, 255, 255, 0.8)",
-            "--color-footer-bg": "#f8fafc",
-            "--backdrop-blur": "blur(10px)"
-        }
-    },
-    "auto": {
-        "name": "自动切换",
-        "variables": {
-            "--color-primary": "#6366f1",
-            "--color-primary-hover": "#4f46e5",
-            "--color-secondary": "#94a3b8",
-            "--color-background": "#ffffff",
-            "--color-background-alt": "#f8fafc",
-            "--color-text": "#1e293b",
-            "--color-text-light": "#64748b",
-            "--color-text-muted": "#94a3b8",
-            "--color-border": "#e2e8f0",
-            "--color-border-light": "#f1f5f9",
-            "--color-card-bg": "#ffffff",
-            "--color-card-shadow": "rgba(0, 0, 0, 0.1)",
-            "--color-nav-bg": "rgba(255, 255, 255, 0.8)",
-            "--color-footer-bg": "#f8fafc",
-            "--backdrop-blur": "blur(10px)"
-        }
-    },
-    "ocean": {
-        "name": "海洋主题",
-        "variables": {
-            "--color-primary": "#0ea5e9",
-            "--color-primary-hover": "#0284c7",
-            "--color-secondary": "#64748b",
-            "--color-background": "#f0f9ff",
-            "--color-background-alt": "#e0f2fe",
-            "--color-text": "#0c4a6e",
-            "--color-text-light": "#0369a1",
-            "--color-text-muted": "#0284c7",
-            "--color-border": "#bae6fd",
-            "--color-border-light": "#e0f2fe",
-            "--color-card-bg": "#ffffff",
-            "--color-card-shadow": "rgba(14, 165, 233, 0.1)",
-            "--color-nav-bg": "rgba(240, 249, 255, 0.9)",
-            "--color-footer-bg": "#e0f2fe",
-            "--backdrop-blur": "blur(12px)",
-            "--background-image": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-        }
-    },
-    "forest": {
-        "name": "森林主题",
-        "variables": {
-            "--color-primary": "#059669",
-            "--color-primary-hover": "#047857",
             "--color-secondary": "#6b7280",
-            "--color-background": "#f0fdf4",
-            "--color-background-alt": "#dcfce7",
-            "--color-text": "#14532d",
-            "--color-text-light": "#166534",
-            "--color-text-muted": "#22c55e",
-            "--color-border": "#bbf7d0",
-            "--color-border-light": "#dcfce7",
+            "--color-background": "#ffffff",
+            "--color-background-alt": "#f8fafc",
+            "--color-text": "#1e293b",
+            "--color-text-light": "#64748b",
+            "--color-text-muted": "#94a3b8",
+            "--color-border": "#e2e8f0",
+            "--color-border-light": "#f1f5f9",
             "--color-card-bg": "#ffffff",
-            "--color-card-shadow": "rgba(5, 150, 105, 0.1)",
-            "--color-nav-bg": "rgba(240, 253, 244, 0.9)",
-            "--color-footer-bg": "#dcfce7",
-            "--backdrop-blur": "blur(12px)",
-            "--background-image": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-        }
-    },
-    "sunset": {
-        "name": "日落主题",
-        "variables": {
-            "--color-primary": "#f59e0b",
-            "--color-primary-hover": "#d97706",
-            "--color-secondary": "#78716c",
-            "--color-background": "#fffbeb",
-            "--color-background-alt": "#fef3c7",
-            "--color-text": "#92400e",
-            "--color-text-light": "#b45309",
-            "--color-text-muted": "#f59e0b",
-            "--color-border": "#fed7aa",
-            "--color-border-light": "#fef3c7",
-            "--color-card-bg": "#ffffff",
-            "--color-card-shadow": "rgba(245, 158, 11, 0.1)",
-            "--color-nav-bg": "rgba(255, 251, 235, 0.9)",
-            "--color-footer-bg": "#fef3c7",
-            "--backdrop-blur": "blur(12px)",
-            "--background-image": "linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)"
+            "--color-card-shadow": "rgba(0, 0, 0, 0.1)",
+            "--color-nav-bg": "rgba(255, 255, 255, 0.8)",
+            "--color-footer-bg": "#f8fafc",
+            "--backdrop-blur": "blur(10px)"
         }
     },
     "dark": {
@@ -151,39 +68,69 @@ DEFAULT_THEMES = {
     "nature": {
         "name": "自然主题",
         "variables": {
-            "--color-primary": "#10b981",
+            "--color-primary": "#059669",
+            "--color-primary-hover": "#047857",
             "--color-secondary": "#6b7280",
             "--color-background": "#f0fdf4",
-            "--color-text": "#1f2937",
-            "--color-text-light": "#4b5563",
-            "--color-border": "#d1fae5",
-            "--color-card-bg": "#ffffff"
+            "--color-background-alt": "#dcfce7",
+            "--color-text": "#14532d",
+            "--color-text-light": "#166534",
+            "--color-text-muted": "#22c55e",
+            "--color-border": "#bbf7d0",
+            "--color-border-light": "#dcfce7",
+            "--color-card-bg": "#ffffff",
+            "--color-card-shadow": "rgba(5, 150, 105, 0.1)",
+            "--color-nav-bg": "rgba(240, 253, 244, 0.9)",
+            "--color-footer-bg": "#dcfce7",
+            "--backdrop-blur": "blur(12px)"
         }
     },
     "ocean": {
         "name": "海洋主题",
         "variables": {
             "--color-primary": "#0ea5e9",
-            "--color-secondary": "#6b7280",
+            "--color-primary-hover": "#0284c7",
+            "--color-secondary": "#64748b",
             "--color-background": "#f0f9ff",
-            "--color-text": "#1f2937",
-            "--color-text-light": "#4b5563",
+            "--color-background-alt": "#e0f2fe",
+            "--color-text": "#0c4a6e",
+            "--color-text-light": "#0369a1",
+            "--color-text-muted": "#0284c7",
             "--color-border": "#bae6fd",
-            "--color-card-bg": "#ffffff"
+            "--color-border-light": "#e0f2fe",
+            "--color-card-bg": "#ffffff",
+            "--color-card-shadow": "rgba(14, 165, 233, 0.1)",
+            "--color-nav-bg": "rgba(240, 249, 255, 0.9)",
+            "--color-footer-bg": "#e0f2fe",
+            "--backdrop-blur": "blur(12px)"
         }
     },
     "sunset": {
         "name": "夕阳主题",
         "variables": {
-            "--color-primary": "#f97316",
-            "--color-secondary": "#6b7280",
-            "--color-background": "#fff7ed",
-            "--color-text": "#1f2937",
-            "--color-text-light": "#4b5563",
+            "--color-primary": "#f59e0b",
+            "--color-primary-hover": "#d97706",
+            "--color-secondary": "#78716c",
+            "--color-background": "#fffbeb",
+            "--color-background-alt": "#fef3c7",
+            "--color-text": "#92400e",
+            "--color-text-light": "#b45309",
+            "--color-text-muted": "#f59e0b",
             "--color-border": "#fed7aa",
-            "--color-card-bg": "#ffffff"
+            "--color-border-light": "#fef3c7",
+            "--color-card-bg": "#ffffff",
+            "--color-card-shadow": "rgba(245, 158, 11, 0.1)",
+            "--color-nav-bg": "rgba(255, 251, 235, 0.9)",
+            "--color-footer-bg": "#fef3c7",
+            "--backdrop-blur": "blur(12px)"
         }
     }
+}
+
+# 历史主题键兼容映射
+BACKWARD_COMPAT_THEME_ALIASES = {
+    "auto": "light",
+    "forest": "nature"
 }
 
 # 氛围主题配置
@@ -192,6 +139,7 @@ ATMOSPHERE_THEMES = {
         "name": "节日氛围",
         "description": "春节、圣诞节等节日主题",
         "css_class": "atmosphere-festive",
+        "effects": ["fireworks", "confetti", "lanterns"],
         "variables": {
             "--color-primary": "#ef4444",
             "--color-secondary": "#fbbf24"
@@ -201,6 +149,7 @@ ATMOSPHERE_THEMES = {
         "name": "纪念氛围", 
         "description": "纪念日、哀悼日等肃穆主题",
         "css_class": "atmosphere-memorial",
+        "effects": ["grayscale", "candles"],
         "variables": {
             "--color-primary": "#6b7280",
             "--color-secondary": "#9ca3af"
@@ -210,12 +159,141 @@ ATMOSPHERE_THEMES = {
         "name": "庆祝氛围",
         "description": "生日、周年等庆祝主题",
         "css_class": "atmosphere-celebration", 
+        "effects": ["fireworks", "confetti"],
         "variables": {
             "--color-primary": "#8b5cf6",
             "--color-secondary": "#f59e0b"
         }
     }
 }
+
+# 氛围别名：将扩展类型映射到基础氛围样式
+ATMOSPHERE_THEME_ALIASES = {
+    "mourn": "memorial",
+    "spring_festival": "festive",
+    "new_year": "celebration",
+    "cherry_blossom": "celebration",
+    "winter": "memorial",
+    "autumn": "celebration",
+    "valentine": "celebration",
+    "christmas": "festive",
+    "national_day": "festive",
+    "rainy_day": "memorial",
+    "stormy": "memorial",
+    "sunny": "celebration",
+    "cloudy": "memorial",
+    "spring": "celebration",
+    "summer": "celebration",
+    "thunderstorm": "memorial"
+}
+
+# 扩展氛围默认特效映射（与前端 effect-manager 保持一致）
+ATMOSPHERE_EFFECT_PRESETS = {
+    "festive": ["fireworks", "confetti", "lanterns"],
+    "mourn": ["grayscale", "candles"],
+    "spring_festival": ["lanterns", "firecrackers"],
+    "new_year": ["fireworks", "confetti"],
+    "cherry_blossom": ["sakura", "petals"],
+    "winter": ["snow", "clouds"],
+    "autumn": ["leaves"],
+    "celebration": ["fireworks", "confetti"],
+    "memorial": ["grayscale", "candles"],
+    "valentine": ["sakura", "petals"],
+    "christmas": ["snow", "fireworks"],
+    "national_day": ["fireworks", "lanterns"],
+    "rainy_day": ["rain", "clouds"],
+    "stormy": ["rain", "thunder", "clouds"],
+    "sunny": ["sunshine"],
+    "cloudy": ["clouds"],
+    "spring": ["sakura", "petals", "sunshine"],
+    "summer": ["sunshine"],
+    "thunderstorm": ["thunder", "rain"]
+}
+
+
+def _extract_setting_value(setting: Optional[Setting], default: Any = None) -> Any:
+    if not setting or setting.value is None:
+        return default
+    if isinstance(setting.value, dict):
+        return setting.value.get("value", default)
+    return setting.value
+
+
+def parse_atmosphere_setting(setting: Optional[Setting]) -> Tuple[Optional[str], List[str]]:
+    if not setting or setting.value is None:
+        return None, []
+
+    raw_value = setting.value
+    atmosphere = None
+    effects: List[str] = []
+
+    if isinstance(raw_value, dict):
+        atmosphere = raw_value.get("value")
+        if isinstance(atmosphere, dict):
+            atmosphere = atmosphere.get("value")
+        raw_effects = raw_value.get("effects", [])
+        if isinstance(raw_effects, list):
+            effects = raw_effects
+    elif isinstance(raw_value, str):
+        atmosphere = raw_value
+
+    if atmosphere is not None:
+        atmosphere = str(atmosphere).strip().lower() or None
+
+    return atmosphere, effects
+
+
+def normalize_theme_name(theme_name: Optional[str]) -> str:
+    if not theme_name:
+        return "light"
+
+    normalized = str(theme_name).strip().lower()
+    normalized = BACKWARD_COMPAT_THEME_ALIASES.get(normalized, normalized)
+    return normalized if normalized in DEFAULT_THEMES else "light"
+
+
+def resolve_theme_name(theme_name: Optional[str], custom_themes: Optional[Dict[str, Any]] = None) -> str:
+    raw_theme = str(theme_name).strip() if theme_name else ""
+    if not raw_theme:
+        return "light"
+
+    normalized_default = BACKWARD_COMPAT_THEME_ALIASES.get(raw_theme.lower(), raw_theme.lower())
+    if normalized_default in DEFAULT_THEMES:
+        return normalized_default
+
+    if custom_themes:
+        if raw_theme in custom_themes:
+            return raw_theme
+        if raw_theme.lower() in custom_themes:
+            return raw_theme.lower()
+
+    return "light"
+
+
+def normalize_atmosphere_name(atmosphere: Optional[str]) -> Optional[str]:
+    if not atmosphere:
+        return None
+
+    normalized = str(atmosphere).strip().lower()
+    return ATMOSPHERE_THEME_ALIASES.get(normalized, normalized)
+
+
+def get_atmosphere_effects(atmosphere: Optional[str], explicit_effects: Optional[List[str]] = None) -> List[str]:
+    if explicit_effects:
+        return explicit_effects
+
+    if not atmosphere:
+        return []
+
+    atmosphere_key = str(atmosphere).strip().lower()
+    if atmosphere_key in ATMOSPHERE_EFFECT_PRESETS:
+        return ATMOSPHERE_EFFECT_PRESETS[atmosphere_key]
+
+    normalized = normalize_atmosphere_name(atmosphere_key)
+    if normalized in ATMOSPHERE_THEMES:
+        return ATMOSPHERE_THEMES[normalized].get("effects", [])
+
+    return []
 
 # 主题管理页面已移至 main.py 中的动态路由注册系统
 # 这样可以根据 ADMIN_PATH 配置动态生成路由，提高安全性
@@ -230,10 +308,10 @@ async def admin_themes_page(request: Request, db: Session, current_user: User):
     theme_schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
     background_setting = crud_setting.get_setting(db, key="background_image_settings")
     
-    current_theme = theme_setting.value.get("value") if theme_setting else "light"
+    current_theme = normalize_theme_name(_extract_setting_value(theme_setting, "light"))
     custom_themes = custom_themes_setting.value.get("value") if custom_themes_setting else {}
-    current_atmosphere = atmosphere_setting.value.get("value") if atmosphere_setting else None
-    auto_theme_enabled = auto_theme_setting.value.get("value") if auto_theme_setting else False
+    current_atmosphere, _ = parse_atmosphere_setting(atmosphere_setting)
+    auto_theme_enabled = bool(_extract_setting_value(auto_theme_setting, False))
     theme_schedule = theme_schedule_setting.value.get("value") if theme_schedule_setting else []
     background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
     
@@ -280,14 +358,16 @@ async def update_theme_settings(
     """更新主题设置"""
     verify_csrf_token(request, csrf_token)
     
+    normalized_current_theme = normalize_theme_name(current_theme)
+
     # 更新当前主题
     theme_setting = crud_setting.get_setting(db, key="current_theme")
     if theme_setting:
-        crud_setting.update_setting(db, key="current_theme", setting_update=SettingUpdate(value={"value": current_theme}))
+        crud_setting.update_setting(db, key="current_theme", setting_update=SettingUpdate(value={"value": normalized_current_theme}))
     else:
         crud_setting.create_setting(db, setting=SettingCreate(
             key="current_theme", 
-            value={"value": current_theme}, 
+            value={"value": normalized_current_theme}, 
             description="当前使用的主题",
             category="theme"
         ))
@@ -465,51 +545,53 @@ async def get_current_theme(request: Request, db: Session = Depends(get_db)):
     """获取当前主题配置（前端API）"""
     # 获取当前主题设置
     theme_setting = crud_setting.get_setting(db, key="current_theme")
-    current_theme = theme_setting.value.get("value") if theme_setting else "light"
+    stored_theme = _extract_setting_value(theme_setting, "light")
     
     # 获取氛围主题
-    atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere") 
-    current_atmosphere = atmosphere_setting.value.get("value") if atmosphere_setting else None
+    atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
+    current_atmosphere, current_effects = parse_atmosphere_setting(atmosphere_setting)
     
     # 检查是否有自动调度的主题
     if current_atmosphere is None:
         current_atmosphere = check_scheduled_atmosphere(db)
+    normalized_atmosphere = normalize_atmosphere_name(current_atmosphere)
+    current_effects = get_atmosphere_effects(current_atmosphere, current_effects)
     
     # 获取背景图片设置
     background_setting = crud_setting.get_setting(db, key="background_image_settings")
     background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
     
     # 构建主题配置
-    theme_config = {
-        "background": background_settings
-    }
+    theme_variables: Dict[str, Any] = {}
+    custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
+    custom_themes = custom_themes_setting.value.get("value") if custom_themes_setting else {}
+    current_theme = resolve_theme_name(stored_theme, custom_themes)
     
     # 基础主题变量
     if current_theme in DEFAULT_THEMES:
-        theme_config.update(DEFAULT_THEMES[current_theme]["variables"])
+        theme_variables.update(DEFAULT_THEMES[current_theme]["variables"])
     else:
-        # 检查自定义主题
-        custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
-        custom_themes = custom_themes_setting.value.get("value") if custom_themes_setting else {}
         if current_theme in custom_themes:
-            theme_config.update(custom_themes[current_theme]["variables"])
+            theme_variables.update(custom_themes[current_theme]["variables"])
         else:
             # 默认回退到浅色主题
-            theme_config.update(DEFAULT_THEMES["light"]["variables"])
+            theme_variables.update(DEFAULT_THEMES["light"]["variables"])
     
     # 氛围主题覆盖
     atmosphere_class = ""
-    if current_atmosphere and current_atmosphere in ATMOSPHERE_THEMES:
-        atmosphere_config = ATMOSPHERE_THEMES[current_atmosphere]
-        theme_config.update(atmosphere_config["variables"])
+    if normalized_atmosphere and normalized_atmosphere in ATMOSPHERE_THEMES:
+        atmosphere_config = ATMOSPHERE_THEMES[normalized_atmosphere]
+        theme_variables.update(atmosphere_config["variables"])
         atmosphere_class = atmosphere_config["css_class"]
     
     return JSONResponse({
         "theme": current_theme,
         "atmosphere": current_atmosphere,
+        "normalized_atmosphere": normalized_atmosphere,
         "atmosphere_class": atmosphere_class,
+        "atmosphere_effects": current_effects,
         "background": background_settings,
-        "variables": theme_config
+        "variables": theme_variables
     })
 
 def check_scheduled_atmosphere(db: Session) -> Optional[str]:
@@ -518,15 +600,23 @@ def check_scheduled_atmosphere(db: Session) -> Optional[str]:
     if not schedule_setting:
         return None
         
-    schedule = schedule_setting.value.get("value", [])
+    schedule = schedule_setting.value.get("value", []) if isinstance(schedule_setting.value, dict) else []
     today = date.today()
     
     for item in schedule:
-        start_date = datetime.strptime(item["start_date"], "%Y-%m-%d").date()
-        end_date = datetime.strptime(item["end_date"], "%Y-%m-%d").date()
-        
+        if not isinstance(item, dict):
+            continue
+
+        try:
+            start_date = datetime.strptime(item["start_date"], "%Y-%m-%d").date()
+            end_date = datetime.strptime(item["end_date"], "%Y-%m-%d").date()
+        except (KeyError, ValueError, TypeError):
+            continue
+
         if start_date <= today <= end_date:
-            return item.get("atmosphere")
+            atmosphere = item.get("atmosphere")
+            if atmosphere:
+                return str(atmosphere).strip().lower()
     
     return None
 
@@ -567,20 +657,24 @@ async def update_theme_realtime(
         raise HTTPException(status_code=403, detail="需要管理员权限")
     
     # 验证主题是否存在
-    if theme not in DEFAULT_THEMES:
+    normalized_default_theme = BACKWARD_COMPAT_THEME_ALIASES.get(str(theme).strip().lower(), str(theme).strip().lower())
+    if normalized_default_theme not in DEFAULT_THEMES:
         custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
         custom_themes = custom_themes_setting.value.get("value") if custom_themes_setting else {}
         if theme not in custom_themes:
             raise HTTPException(status_code=400, detail="主题不存在")
+        theme_to_save = theme
+    else:
+        theme_to_save = normalized_default_theme
     
     # 更新主题设置
     theme_setting = crud_setting.get_setting(db, key="current_theme")
     if theme_setting:
-        crud_setting.update_setting(db, key="current_theme", setting_update=SettingUpdate(value={"value": theme}))
+        crud_setting.update_setting(db, key="current_theme", setting_update=SettingUpdate(value={"value": theme_to_save}))
     else:
-        crud_setting.create_setting(db, setting=SettingCreate(key="current_theme", value={"value": theme}))
+        crud_setting.create_setting(db, setting=SettingCreate(key="current_theme", value={"value": theme_to_save}))
     
-    return JSONResponse({"success": True, "theme": theme})
+    return JSONResponse({"success": True, "theme": theme_to_save})
 
 @router.post("/api/atmosphere/update")
 async def update_atmosphere_realtime(
@@ -618,11 +712,25 @@ async def sync_theme_settings(request: Request, db: Session = Depends(get_db)):
     """同步主题设置 - 用于前端实时获取最新配置"""
     # 获取当前主题
     theme_setting = crud_setting.get_setting(db, key="current_theme")
-    current_theme = theme_setting.value.get("value") if theme_setting else "light"
+    custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
+    custom_themes = custom_themes_setting.value.get("value") if custom_themes_setting else {}
+    current_theme = resolve_theme_name(_extract_setting_value(theme_setting, "light"), custom_themes)
     
     # 获取当前氛围
     atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
-    current_atmosphere = atmosphere_setting.value.get("value") if atmosphere_setting else None
+    current_atmosphere, current_effects = parse_atmosphere_setting(atmosphere_setting)
+    if current_atmosphere is None:
+        current_atmosphere = check_scheduled_atmosphere(db)
+    current_effects = get_atmosphere_effects(current_atmosphere, current_effects)
+    normalized_atmosphere = normalize_atmosphere_name(current_atmosphere)
+
+    atmosphere_payload = None
+    if current_atmosphere:
+        atmosphere_payload = {
+            "value": current_atmosphere,
+            "normalized": normalized_atmosphere,
+            "effects": current_effects
+        }
     
     # 获取主页设置
     homepage_setting = crud_setting.get_setting(db, key="homepage_mode")
@@ -634,7 +742,7 @@ async def sync_theme_settings(request: Request, db: Session = Depends(get_db)):
     
     return JSONResponse({
         "theme": current_theme,
-        "atmosphere": current_atmosphere,
+        "atmosphere": atmosphere_payload,
         "homepage_mode": homepage_mode,
         "background": background_settings,
         "timestamp": datetime.now().isoformat()

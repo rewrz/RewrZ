@@ -127,8 +127,48 @@
         }
         
         // 可用主题列表（与后端保持一致）
-        const AVAILABLE_THEMES = ['light', 'dark'];
+        const AVAILABLE_THEMES = ['light', 'dark', 'nature', 'ocean', 'sunset'];
+        const THEME_UI_META = {
+            light: { name: '浅色', icon: 'fa-sun' },
+            dark: { name: '深色', icon: 'fa-moon' },
+            nature: { name: '自然', icon: 'fa-leaf' },
+            ocean: { name: '海洋', icon: 'fa-water' },
+            sunset: { name: '夕阳', icon: 'fa-cloud-sun' }
+        };
         let currentThemeIndex = 0;
+
+        function getThemeMeta(theme) {
+            return THEME_UI_META[theme] || { name: theme || '浅色', icon: 'fa-palette' };
+        }
+
+        function getNextTheme(theme) {
+            const currentIndex = getCurrentThemeIndex(theme);
+            const nextIndex = (currentIndex + 1) % AVAILABLE_THEMES.length;
+            return AVAILABLE_THEMES[nextIndex];
+        }
+
+        function updateThemeToggleUI(theme) {
+            const currentMeta = getThemeMeta(theme);
+            const nextTheme = getNextTheme(theme);
+            const nextMeta = getThemeMeta(nextTheme);
+
+            const desktopToggle = document.getElementById('desktop-theme-toggle');
+            const desktopIcon = document.getElementById('desktop-theme-icon');
+            if (desktopToggle && desktopIcon) {
+                desktopIcon.className = `fas ${currentMeta.icon} text-gray-700 dark:text-gray-300`;
+                desktopToggle.title = `当前：${currentMeta.name}主题，点击切换到${nextMeta.name}主题`;
+                desktopToggle.setAttribute('aria-label', `当前${currentMeta.name}主题，点击切换到${nextMeta.name}主题`);
+            }
+
+            const mobileToggle = document.getElementById('mobile-theme-toggle');
+            const mobileIcon = document.getElementById('mobile-theme-icon');
+            const mobileLabel = document.getElementById('mobile-theme-label');
+            if (mobileToggle && mobileIcon && mobileLabel) {
+                mobileIcon.className = `fas ${currentMeta.icon} mr-2`;
+                mobileLabel.textContent = `当前：${currentMeta.name}主题，切换到${nextMeta.name}主题`;
+                mobileToggle.setAttribute('aria-label', `当前${currentMeta.name}主题，点击切换到${nextMeta.name}主题`);
+            }
+        }
         
         // 立即应用主题（避免闪烁）
         function applyThemeImmediately(theme) {
@@ -139,6 +179,9 @@
             // 同步到body（兼容某些组件）
             document.body.classList.remove('light', 'dark');
             document.body.classList.add(theme);
+
+            // 同步主题切换按钮UI
+            updateThemeToggleUI(theme);
         }
         
         // 与后端同步主题设置
@@ -191,7 +234,7 @@
             }));
             
             // 显示切换提示
-            showThemeToast(`已切换到${newTheme === 'dark' ? '深色' : '浅色'}主题`);
+            showThemeToast(`已切换到${getThemeMeta(newTheme).name}主题`);
         }
         
         // 显示主题切换提示
@@ -449,9 +492,9 @@
                     
                     <button id="desktop-theme-toggle" 
                             class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
-                            aria-label="切换主题">
-                        <i class="fas fa-sun text-gray-700 dark:text-gray-300 dark:hidden"></i>
-                        <i class="fas fa-moon text-gray-700 dark:text-gray-300 hidden dark:inline"></i>
+                            aria-label="切换主题"
+                            title="切换主题">
+                        <i id="desktop-theme-icon" class="fas fa-sun text-gray-700 dark:text-gray-300"></i>
                     </button>
                 </div>
             </div>
@@ -527,10 +570,8 @@
                     <button id="mobile-theme-toggle" 
                             class="w-full flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
                             aria-label="切换主题">
-                        <i class="fas fa-sun mr-2 dark:hidden"></i>
-                        <i class="fas fa-moon mr-2 hidden dark:inline"></i>
-                        <span class="dark:hidden">切换到暗色模式</span>
-                        <span class="hidden dark:inline">切换到亮色模式</span>
+                        <i id="mobile-theme-icon" class="fas fa-sun mr-2"></i>
+                        <span id="mobile-theme-label">切换主题</span>
                     </button>
                 </div>
             </nav>
@@ -721,15 +762,18 @@
              // 延迟处理外部主题管理器
              setTimeout(function() {
                  // 监听外部主题变化事件
-                 window.addEventListener('themeChanged', function(event) {
-                     if (event.detail && event.detail.theme && 
-                         event.detail.theme !== AVAILABLE_THEMES[currentThemeIndex]) {
-                         // 同步外部主题变化
-                         window.themeManager.setTheme(event.detail.theme);
-                     }
-                 });
-             }, 100);
-         });
+                window.addEventListener('themeChanged', function(event) {
+                    if (event.detail && event.detail.theme && 
+                        event.detail.theme !== AVAILABLE_THEMES[currentThemeIndex]) {
+                        const nextTheme = event.detail.theme;
+                        currentThemeIndex = getCurrentThemeIndex(nextTheme);
+                        applyThemeImmediately(nextTheme);
+                        localStorage.setItem('rewrz-theme', nextTheme);
+                        localStorage.setItem('user_theme_preference', nextTheme);
+                    }
+                });
+            }, 100);
+        });
      </script>
      <script type="module" src="{{ url_for('static', path='js/enhanced-theme-manager.js') }}"></script>
      <script type="module" src="{{ url_for('static', path='js/multi-format-interactions.js') }}"></script>

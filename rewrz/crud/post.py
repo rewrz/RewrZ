@@ -14,6 +14,17 @@ from ..core.security import get_password_hash, verify_password
 
 from typing import Optional, List
 
+
+def _normalize_featured_image_url(url: Optional[str]) -> Optional[str]:
+    if url is None:
+        return None
+
+    normalized = str(url).strip()
+    if not normalized or normalized.lower() == "none":
+        return None
+
+    return normalized
+
 def get_post(db: Session, post_id: int):
     """根据文章ID获取文章信息，包含关联的格式、分类、标签和评论"""
     from sqlalchemy.orm import selectinload
@@ -139,7 +150,7 @@ def create_post(db: Session, post: PostCreate, author_id: int, tag_names: Option
         content_markdown=post.content_markdown,
         content_html=content_html,
         excerpt=excerpt,
-        featured_image_url=str(post.featured_image_url) if post.featured_image_url else None,
+        featured_image_url=_normalize_featured_image_url(post.featured_image_url),
         post_type=post.post_type,
         status=post.status,
         visibility=post.visibility,
@@ -155,8 +166,12 @@ def create_post(db: Session, post: PostCreate, author_id: int, tag_names: Option
         categories = db.execute(select(Category).filter(Category.id.in_(post.category_ids))).scalars().all()
         db_post.categories.extend(categories)
 
-    # 如果指定了标签名称，则创建或获取标签并关联
-    if tag_names:
+    # 如果指定了标签ID，则关联对应的标签
+    if post.tag_ids is not None:
+        tags = db.execute(select(Tag).filter(Tag.id.in_(post.tag_ids))).scalars().all()
+        db_post.tags.extend(tags)
+    # 兼容旧调用：通过标签名关联
+    elif tag_names:
         for tag_name in tag_names:
             tag = db.execute(select(Tag).filter(Tag.name == tag_name)).scalar_one_or_none()
             if not tag:
@@ -165,9 +180,10 @@ def create_post(db: Session, post: PostCreate, author_id: int, tag_names: Option
                 db.flush() # 确保tag有ID
             db_post.tags.append(tag)
     
+    resolved_format_ids = format_ids if format_ids is not None else post.format_ids
     # 如果指定了格式ID，则关联对应的格式（多重身份内容系统）
-    if format_ids:
-        formats = db.execute(select(Format).filter(Format.id.in_(format_ids))).scalars().all()
+    if resolved_format_ids is not None:
+        formats = db.execute(select(Format).filter(Format.id.in_(resolved_format_ids))).scalars().all()
         db_post.formats.extend(formats)
 
     db.add(db_post)
@@ -194,6 +210,9 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
                 db_post.version_snapshots.pop()
 
         update_data = post.model_dump(exclude_unset=True)
+        incoming_title = update_data.pop("title", None)
+        incoming_slug = update_data.pop("slug", None)
+        incoming_status = update_data.get("status")
         
         # 单独处理密码哈希
         if 'password' in update_data and update_data['password']:
@@ -209,42 +228,59 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
 
         # 确保featured_image_url字段被处理
         if hasattr(post, 'featured_image_url') and post.featured_image_url is not None:
-            db_post.featured_image_url = post.featured_image_url
+            db_post.featured_image_url = _normalize_featured_image_url(post.featured_image_url)
         elif hasattr(post, 'featured_image_url') and post.featured_image_url is None:
             db_post.featured_image_url = None
+
+        if incoming_title is not None:
+            db_post.title = incoming_title
+
+        if incoming_slug is not None:
+            base_slug = slugify(incoming_slug)
+            slug = base_slug
+            i = 1
+            while db.execute(select(Post).filter(Post.slug == slug, Post.id != db_post.id)).scalar_one_or_none():
+                slug = f"{base_slug}-{i}"
+                i += 1
+            db_post.slug = slug
+        elif incoming_title is not None:
+            base_slug = slugify(incoming_title)
+            slug = base_slug
+            i = 1
+            while db.execute(select(Post).filter(Post.slug == slug, Post.id != db_post.id)).scalar_one_or_none():
+                slug = f"{base_slug}-{i}"
+                i += 1
+            db_post.slug = slug
 
         for key, value in update_data.items():
             if key == "content_markdown":
                 db_post.content_markdown = value # 添加这一行来更新 content_markdown
                 db_post.content_html = markdown(value)
-            elif key == "title": # 如果标题发生变化，更新别名并确保唯一性
-                base_slug = slugify(value)
-                slug = base_slug
-                i = 1
-                # 检查别名是否已存在，如果存在则添加数字后缀
-                while db.execute(select(Post).filter(Post.slug == slug)).scalar_one_or_none():
-                    slug = f"{base_slug}-{i}"
-                    i += 1
-                db_post.slug = slug
             elif key == "excerpt" and not value and db_post.content_markdown: # 如果内容变化且摘要为空，则自动生成摘要
                 db_post.excerpt = db_post.content_markdown[:120]
             # 跳过featured_image_url，因为它已经在上面处理过了
-            elif key != "featured_image_url":
+            elif key not in {"featured_image_url", "category_ids", "tag_ids", "format_ids"}:
                 setattr(db_post, key, value)
         
         # 如果状态变为已发布，更新发布时间
-        if post.status == "published" and db_post.published_at is None:
+        if incoming_status == "published" and db_post.published_at is None:
             db_post.published_at = datetime.now()
-        elif post.status != "published" and db_post.published_at is not None:
+        elif incoming_status is not None and incoming_status != "published" and db_post.published_at is not None:
             db_post.published_at = None # 或者保持不变，取决于具体取消发布的需求
 
-        if post.category_ids:
+        if post.category_ids is not None:
             db_post.categories.clear()
-            categories = db.execute(select(Category).filter(Category.id.in_(post.category_ids))).scalars().all()
-            db_post.categories.extend(categories)
+            if post.category_ids:
+                categories = db.execute(select(Category).filter(Category.id.in_(post.category_ids))).scalars().all()
+                db_post.categories.extend(categories)
 
-        # 更新标签
-        if tag_names is not None:
+        # 更新标签（优先按ID）
+        if post.tag_ids is not None:
+            db_post.tags.clear()
+            if post.tag_ids:
+                tags = db.execute(select(Tag).filter(Tag.id.in_(post.tag_ids))).scalars().all()
+                db_post.tags.extend(tags)
+        elif tag_names is not None:
             db_post.tags.clear()
             for tag_name in tag_names:
                 tag = db.execute(select(Tag).filter(Tag.name == tag_name)).scalar_one_or_none()
@@ -255,10 +291,12 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
                 db_post.tags.append(tag)
 
         # 更新内容格式
-        if format_ids is not None:
+        resolved_format_ids = format_ids if format_ids is not None else post.format_ids
+        if resolved_format_ids is not None:
             db_post.formats.clear()
-            formats = db.execute(select(Format).filter(Format.id.in_(format_ids))).scalars().all()
-            db_post.formats.extend(formats)
+            if resolved_format_ids:
+                formats = db.execute(select(Format).filter(Format.id.in_(resolved_format_ids))).scalars().all()
+                db_post.formats.extend(formats)
 
         # 确保 updated_at 设置为当前时间
         import time

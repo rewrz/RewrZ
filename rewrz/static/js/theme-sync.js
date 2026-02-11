@@ -51,12 +51,20 @@ class ThemeSync {
     applyThemeSettings(settings) {
         // 应用主题
         if (settings.theme && window.themeManager) {
+            localStorage.setItem('rewrz-theme', settings.theme);
+            localStorage.setItem('user_theme_preference', settings.theme);
+
             // 检查themeManager是否有setTheme方法，如果没有则使用applyTheme
             if (typeof window.themeManager.setTheme === 'function') {
                 window.themeManager.setTheme(settings.theme);
             } else if (typeof window.themeManager.applyTheme === 'function') {
                 window.themeManager.applyTheme(settings.theme);
             }
+
+            // 主动广播主题变化，确保基础模板里的按钮 UI 同步更新
+            window.dispatchEvent(new CustomEvent('themeChanged', {
+                detail: { theme: settings.theme, source: 'theme-sync' }
+            }));
         }
         
         // 应用氛围模式

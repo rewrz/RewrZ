@@ -31,9 +31,14 @@ class SettingsMiddleware(BaseHTTPMiddleware):
         """
         中间件主要逻辑：加载设置数据到 request.state
         """
+        db_gen = None
         try:
             # 获取数据库会话
-            db: Session = next(get_db())
+            db_gen = get_db()
+            db: Session = next(db_gen)
+
+            if db is None:
+                raise RuntimeError("Database session is unavailable")
             
             # 定义需要加载的所有设置键
             all_setting_keys = [
@@ -154,6 +159,13 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                 setattr(request.state, key, default_value)
             for key, default_value in DEFAULT_HOMEPAGE_SETTINGS.items():
                 setattr(request.state, key, default_value)
+        finally:
+            # 确保通过 get_db() 打开的会话被正确关闭，避免连接池泄漏
+            if db_gen is not None:
+                try:
+                    db_gen.close()
+                except Exception:
+                    pass
         
         # 继续处理请求
         response = await call_next(request)

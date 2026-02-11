@@ -812,6 +812,24 @@ function addScheduleItem() {
         emptyState.remove();
     }
     
+    const scheduleOptionsHtml = (() => {
+        const sourceSelect = document.querySelector('#schedule-container .schedule-item select');
+        if (sourceSelect) {
+            return sourceSelect.innerHTML;
+        }
+
+        const fallbackOptions = [
+            { value: '', label: '默认主题' },
+            { value: 'festive', label: '🎉 节日氛围' },
+            { value: 'memorial', label: '🕯️ 纪念氛围' },
+            { value: 'celebration', label: '🎊 庆祝氛围' }
+        ];
+
+        return fallbackOptions
+            .map(item => `<option value="${item.value}">${item.label}</option>`)
+            .join('');
+    })();
+
     const newItem = document.createElement('div');
     newItem.className = 'schedule-item bg-gray-50 rounded-lg p-4 border border-gray-200';
     newItem.innerHTML = `
@@ -827,26 +845,7 @@ function addScheduleItem() {
             <div class="space-y-2">
                 <label class="text-xs text-gray-500">氛围主题</label>
                 <select class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
-                    <option value="">默认主题</option>
-                    <option value="festive">🎉 喜庆节日</option>
-                    <option value="mourn">🕯️ 纪念悼念</option>
-                    <option value="spring_festival">🏮 春节</option>
-                    <option value="new_year">🎆 新年</option>
-                    <option value="cherry_blossom">🌸 樱花节</option>
-                    <option value="winter">❄️ 冬季</option>
-                    <option value="autumn">🍂 秋季</option>
-                    <option value="celebration">🎊 庆祝</option>
-                    <option value="memorial">🕊️ 追悼</option>
-                    <option value="valentine">💖 情人节</option>
-                    <option value="christmas">🎄 圣诞节</option>
-                    <option value="national_day">🇨🇳 国庆节</option>
-                    <option value="rainy_day">🌧️ 雨天</option>
-                    <option value="stormy">⛈️ 暴风雨</option>
-                    <option value="sunny">☀️ 晴天</option>
-                    <option value="cloudy">☁️ 多云</option>
-                    <option value="spring">🌱 春天</option>
-                    <option value="summer">😎 夏天</option>
-                    <option value="thunderstorm">⚡ 雷雨</option>
+                    ${scheduleOptionsHtml}
                 </select>
             </div>
             <div class="flex space-x-2">

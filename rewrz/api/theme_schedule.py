@@ -13,6 +13,8 @@ from ..core.database import get_db
 from ..crud import setting as crud_setting
 from ..core.security import get_current_user
 from ..schemas import User, SettingUpdate  # 这里已经正确导入了SettingUpdate
+from ..schemas import SettingCreate
+from .themes import normalize_atmosphere_name
 
 router = APIRouter()
 
@@ -61,12 +63,23 @@ async def save_theme_schedule(
             except KeyError as e:
                 raise HTTPException(status_code=400, detail=f"缺少必要字段: {str(e)}")
         
-        # 保存到数据库
-        crud_setting.update_setting(
-            db=db,
-            key="theme_schedule",
-            setting_update=SettingUpdate(value={"value": validated_schedules})  # 这里使用了SettingUpdate
-        )
+        # 保存到数据库（首次创建与更新都支持）
+        existing = crud_setting.get_setting(db, key="theme_schedule")
+        if existing:
+            crud_setting.update_setting(
+                db=db,
+                key="theme_schedule",
+                setting_update=SettingUpdate(value={"value": validated_schedules})
+            )
+        else:
+            crud_setting.create_setting(
+                db=db,
+                setting=SettingCreate(
+                    key="theme_schedule",
+                    value={"value": validated_schedules},
+                    description="主题自动调度配置"
+                )
+            )
         
         return {
             "success": True,
@@ -87,7 +100,11 @@ async def get_current_theme_schedule(
     """获取当前生效的主题调度"""
     try:
         # 获取所有调度规则
-        schedules = crud_setting.get_setting_value(db, "theme_schedule", [])
+        schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
+        if schedule_setting and isinstance(schedule_setting.value, dict):
+            schedules = schedule_setting.value.get("value", [])
+        else:
+            schedules = []
         
         if not schedules:
             return {"current_schedule": None, "message": "没有设置主题调度"}
@@ -103,7 +120,10 @@ async def get_current_theme_schedule(
                 end_date = datetime.strptime(schedule['end_date'], '%Y-%m-%d').date()
                 
                 if start_date <= today <= end_date:
-                    current_schedule = schedule
+                    current_schedule = {
+                        **schedule,
+                        "normalized_atmosphere": normalize_atmosphere_name(schedule.get("atmosphere"))
+                    }
                     break
             except (ValueError, KeyError):
                 continue
@@ -126,12 +146,22 @@ async def clear_theme_schedule(
 ):
     """清除所有主题调度设置"""
     try:
-        # 这里也有问题，需要修复
-        crud_setting.update_setting(
-            db=db,
-            key="theme_schedule",
-            setting_update=SettingUpdate(value={"value": []})  # 修复：使用SettingUpdate
-        )
+        existing = crud_setting.get_setting(db, key="theme_schedule")
+        if existing:
+            crud_setting.update_setting(
+                db=db,
+                key="theme_schedule",
+                setting_update=SettingUpdate(value={"value": []})
+            )
+        else:
+            crud_setting.create_setting(
+                db=db,
+                setting=SettingCreate(
+                    key="theme_schedule",
+                    value={"value": []},
+                    description="主题自动调度配置"
+                )
+            )
         
         return {
             "success": True,

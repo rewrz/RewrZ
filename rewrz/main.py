@@ -645,7 +645,10 @@ def _populate_global_request_state(request: Request) -> None:
     for k, v in DEFAULT_HOMEPAGE_SETTINGS.items():
         setattr(request.state, k, v)
 
-    db = next(get_db())
+    db_gen = get_db()
+    db = next(db_gen)
+    if db is None:
+        return
     try:
         # 获取并设置所有全局上下文
         settings_keys = dict(DEFAULT_BASE_SETTINGS)
@@ -666,19 +669,26 @@ def _populate_global_request_state(request: Request) -> None:
         anniversary_atmosphere = None
         if anniversaries_setting and anniversaries_setting.value:
             try:
-                # 直接解析JSON字符串
-                anniversaries = json.loads(anniversaries_setting.value)
+                anniversaries_raw = anniversaries_setting.value
+                if isinstance(anniversaries_raw, dict):
+                    anniversaries_raw = anniversaries_raw.get("value", anniversaries_raw)
+                if isinstance(anniversaries_raw, str):
+                    anniversaries = json.loads(anniversaries_raw)
+                elif isinstance(anniversaries_raw, list):
+                    anniversaries = anniversaries_raw
+                else:
+                    anniversaries = []
                 
                 today = date.today()
                 for anniversary in anniversaries:
                     if isinstance(anniversary, dict) and "month" in anniversary and "day" in anniversary and "type" in anniversary:
                         try:
                             if anniversary["month"] == today.month and anniversary["day"] == today.day:
-                                anniversary_atmosphere = anniversary['type'].lower()
+                                anniversary_atmosphere = themes_api.normalize_atmosphere_name(anniversary['type'])
                                 break
                         except (KeyError, TypeError):
                             continue
-            except (json.JSONDecodeError, KeyError, TypeError):
+            except (json.JSONDecodeError, KeyError, TypeError, ValueError):
                 # 如果解析失败，忽略纪念日设置
                 pass
         
@@ -703,7 +713,7 @@ def _populate_global_request_state(request: Request) -> None:
                             end_date = datetime.strptime(item["end_date"], "%Y-%m-%d").date()
                             
                             if start_date <= today <= end_date:
-                                scheduled_atmosphere = item.get("atmosphere")
+                                scheduled_atmosphere = themes_api.normalize_atmosphere_name(item.get("atmosphere"))
                                 break
                         except (ValueError, KeyError):
                             continue
@@ -712,7 +722,10 @@ def _populate_global_request_state(request: Request) -> None:
             if scheduled_atmosphere:
                 request.state.atmosphere_class = f"atmosphere-{scheduled_atmosphere}"
     finally:
-        db.close() # 关闭会话
+        try:
+            db_gen.close()  # 关闭 get_db() 生成器，确保会话释放到连接池
+        except Exception:
+            pass
 
 # 抽取：确保 CSRF 令牌存在（优先使用会话，否则生成临时令牌）
 def _ensure_csrf_token(request: Request) -> None:
