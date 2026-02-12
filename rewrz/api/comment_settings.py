@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from ..core.database import get_db
 from ..core.security import get_current_user, generate_csrf_token # 导入 generate_csrf_token
+from ..core.config import settings
 from ..core.template_filters import get_templates
 from ..crud import setting as crud_setting
 from ..schemas import User, SettingCreate, SettingUpdate
@@ -66,7 +67,7 @@ async def comment_settings_page(
             # 提供默认值
             default_values = {
                 'honeypot_enabled': True,
-                'time_threshold': 3,
+                'time_threshold': 5,
                 'max_links': 2,
                 'keyword_filter': True,
                 'keywords': ["优惠", "促销", "打折", "免费", "赚钱", "兼职", "代刷", "加QQ", "加微信"],
@@ -88,15 +89,17 @@ async def comment_settings_page(
     })
 
 
-# 评论设置更新路由已移至 main.py 中的动态路由注册系统
+# 评论设置更新路由
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/comments/settings")
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/comments/settings")
 async def update_comment_settings(
     request: Request,
-    db: Session,
-    current_user: User,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     
     # 第一层：无感防御设置
     honeypot_enabled: bool = Form(True),
-    time_threshold: int = Form(3),
+    time_threshold: int = Form(5),
     
     # 第二层：内容分析设置
     max_links: int = Form(2),
@@ -217,11 +220,13 @@ async def update_comment_settings(
         }, status_code=500)
 
 
-# Akismet测试路由已移至 main.py 中的动态路由注册系统
+# Akismet测试路由
+@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/comments/test-akismet")
+@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/comments/test-akismet")
 async def test_akismet_key(
     request: Request,
-    db: Session,
-    current_user: User,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     api_key: str = "",
 ):
     """

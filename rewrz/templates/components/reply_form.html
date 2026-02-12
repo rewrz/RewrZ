@@ -1,7 +1,23 @@
-<div class="reply-form bg-gray-100 p-4 rounded-lg mt-4">
-    <h4 class="text-lg font-semibold mb-3">回复 @{{ crud_comment.get_comment(db=request.state.db, comment_id=parent_id).author_name }}</h4>
+<div id="comment-form-{{ parent_id }}" class="reply-form bg-gray-100 p-4 rounded-lg mt-4">
+    <h4 class="text-lg font-semibold mb-3">回复 @{{ parent_author_name }}</h4>
     <form hx-post="/api/v1/comments/{{ post_id }}" hx-target="#comments-list" hx-swap="beforeend" hx-on::after-request="this.reset(); document.getElementById('comment-form-{{ parent_id }}').innerHTML = '';">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <input type="hidden" name="parent_id" value="{{ parent_id }}">
+        <input type="hidden" name="ft" value="{{ form_timestamp_token }}">
+
+        <!-- HoneyPot 字段：对人类不可见，机器人常会误填 -->
+        <div class="absolute -left-[9999px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+            <label for="reply-hp-field-{{ parent_id }}">请勿填写</label>
+            <input
+                type="text"
+                id="reply-hp-field-{{ parent_id }}"
+                name="hp_field"
+                tabindex="-1"
+                autocomplete="off"
+                value=""
+            >
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
                 <label for="reply_author_name_{{ parent_id }}" class="block text-sm font-medium text-gray-700">昵称 <span class="text-red-500">*</span></label>
@@ -24,6 +40,23 @@
             <textarea id="reply_content_{{ parent_id }}" name="content" rows="3" required
                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></textarea>
         </div>
+        {% if captcha_enabled %}
+        <div class="mb-4">
+            <label for="reply_captcha_{{ parent_id }}" class="block text-sm font-medium text-gray-700 mb-1">验证码</label>
+            <div class="flex items-center space-x-3">
+                <input
+                    type="text"
+                    id="reply_captcha_{{ parent_id }}"
+                    name="captcha"
+                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="请输入验证码"
+                >
+                <div class="captcha-image">
+                    <img src="/api/v1/captcha" alt="Captcha" onclick="this.src='/api/v1/captcha?t=' + new Date().getTime()">
+                </div>
+            </div>
+        </div>
+        {% endif %}
         <div class="flex justify-end space-x-2">
             <button type="button" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
                     hx-on:click="document.getElementById('comment-form-{{ parent_id }}').innerHTML = '';">

@@ -164,7 +164,7 @@ function applyBulkAction() {
     }
 
     if (confirm(`确定要对选中的 ${selectedIds.length} 条评论执行 "${action}" 操作吗？`)) {
-        fetch(`/api/comments/bulk-action`, {
+        fetch(`/api/v1/comments/bulk-action`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -192,7 +192,7 @@ function applyBulkAction() {
 
 function approveComment(commentId) {
     if (confirm('确定要批准这条评论吗？')) {
-        fetch(`/api/comments/${commentId}/approve`, {
+        fetch(`/api/v1/comments/${commentId}/approve`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -240,7 +240,7 @@ document.getElementById('send-reply').addEventListener('click', function() {
         return;
     }
 
-    fetch(`/api/comments/${currentReplyCommentId}/reply`, {
+    fetch(`/api/v1/comments/${currentReplyCommentId}/reply`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -268,7 +268,7 @@ document.getElementById('send-reply').addEventListener('click', function() {
 
 function deleteComment(commentId) {
     if (confirm('确定要删除这条评论吗？')) {
-        fetch(`/api/comments/${commentId}`, {
+        fetch(`/api/v1/comments/${commentId}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',

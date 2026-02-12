@@ -7,10 +7,21 @@
           hx-swap="beforeend"
           hx-on="htmx:afterRequest: this.reset()">
         
-        <!-- 防垃圾评论隐藏字段 -->
-        <input type="hidden" name="hp_field" value="">
-        <input type="hidden" name="ft" value="{{ form_timestamp }}">
-        <input type="hidden" name="captcha" value="">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <input type="hidden" name="ft" value="{{ form_timestamp_token }}">
+
+        <!-- HoneyPot 字段：对人类不可见，机器人常会误填 -->
+        <div class="absolute -left-[9999px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+            <label for="hp-field-{{ post.id }}">请勿填写</label>
+            <input
+                type="text"
+                id="hp-field-{{ post.id }}"
+                name="hp_field"
+                tabindex="-1"
+                autocomplete="off"
+                value=""
+            >
+        </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <!-- 姓名输入框，带头像预览 -->

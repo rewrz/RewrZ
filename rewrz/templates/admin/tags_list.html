@@ -163,8 +163,8 @@ function saveTag() {
     const tagId = document.getElementById('tagId').value;
     
     const url = tagId ? 
-        `{{ request.state.admin_path }}/api/tags/${tagId}` : 
-        `{{ request.state.admin_path }}/api/tags`;
+        `{{ request.state.admin_path }}/api/v1/tags/${tagId}` : 
+        `{{ request.state.admin_path }}/api/v1/tags`;
     
     const method = tagId ? 'PUT' : 'POST';
     
@@ -188,7 +188,7 @@ function saveTag() {
 
 function deleteTag(id, name) {
     if (confirm(`确定要删除标签"${name}"吗？`)) {
-        fetch(`{{ request.state.admin_path }}/api/tags/${id}`, {
+        fetch(`{{ request.state.admin_path }}/api/v1/tags/${id}`, {
             method: 'DELETE'
         })
         .then(response => response.json())

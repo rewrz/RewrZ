@@ -5,7 +5,9 @@ RewrZ 博客系统主应用模块
 反垃圾评论、版本快照等功能。采用HTMX + Tailwind CSS前端技术栈。
 """
 import os
-from fastapi import FastAPI, Depends, HTTPException, Request, Response, Form, UploadFile, File
+import hashlib
+import secrets
+from fastapi import FastAPI, Depends, HTTPException, Request, Response, Form, UploadFile, File, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.security import OAuth2PasswordRequestForm
@@ -20,7 +22,7 @@ from .core.database import get_db, create_all_tables
 from .core.config import settings  # 导入settings实例
 from .schemas import UserCreate, User, PostCreate, PostUpdate
 from .crud import user as crud_user
-from .core.security import get_current_user  # 导入get_current_user函数
+from .core.security import get_current_user, verify_password, decode_access_token  # 导入安全函数
 from .api import auth as auth_api
 from .api import installer as installer_api
 from .api import posts as posts_api
@@ -37,6 +39,7 @@ from .api import rss as rss_api # 导入RSS路由
 from .api import data_import_export as data_api # 导入数据导入导出路由
 from .api import media_settings as media_settings_api # 导入媒体设置路由
 from .api import comment_settings as comment_settings_api # 导入评论设置路由
+from .api import security_center as security_center_api # 导入安全中心页面逻辑
 from .api import error_config as error_config_api # 导入错误处理配置路由
 from .api import admin_dashboard as admin_dashboard_api # 导入仪表盘API路由
 from .api import categories as categories_api # 导入分类API路由
@@ -56,6 +59,12 @@ from datetime import date, datetime # 导入date和datetime用于纪念日检查
 from starlette.middleware.sessions import SessionMiddleware # 导入会话中间件
 from .core.security import generate_csrf_token # 导入CSRF令牌生成函数
 from .core.settings_middleware import SettingsMiddleware # 导入设置中间件
+from .core.content_access import (
+    has_hide_blocks,
+    get_comment_unlock_cookie_name,
+    render_markdown_with_hide_blocks,
+)
+from .core.toc import build_toc_from_html
 
 # 全局状态，用于标记后台路由是否已注册
 ADMIN_ROUTES_REGISTERED = False
@@ -90,6 +99,67 @@ app.mount("/media", StaticFiles(directory=settings.MEDIA_UPLOAD_DIR), name="medi
 # 配置Jinja2模板引擎（带自定义过滤器）
 templates = get_templates()
 
+
+def _get_post_access_cookie_name(post_id: int) -> str:
+    return f"post_access_{post_id}"
+
+
+def _build_post_access_cookie_value(post_id: int, hashed_password: str) -> str:
+    payload = f"{post_id}:{hashed_password}:{settings.SECRET_KEY}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _is_admin_authenticated(request: Request, db: Session) -> bool:
+    token = request.cookies.get("access_token")
+    if not token:
+        return False
+
+    payload = decode_access_token(token)
+    if not payload:
+        return False
+
+    user_id = payload.get("sub")
+    if user_id is None:
+        return False
+
+    try:
+        return crud_user.get_user(db, user_id=int(user_id)) is not None
+    except (TypeError, ValueError):
+        return False
+
+
+def _has_valid_password_cookie(request: Request, post_obj) -> bool:
+    if not post_obj.password:
+        return False
+
+    cookie_value = request.cookies.get(_get_post_access_cookie_name(post_obj.id))
+    if not cookie_value:
+        return False
+
+    expected = _build_post_access_cookie_value(post_obj.id, post_obj.password)
+    return secrets.compare_digest(cookie_value, expected)
+
+
+FORMAT_SLUG_ALIASES = {
+    "weibo": "micro-post",
+    "photos": "photo-album",
+    "music": "poetry-song",
+}
+
+
+def _resolve_format_by_slug(db: Session, format_slug: str):
+    db_format = crud_format.get_format_by_slug(db, slug=format_slug)
+    if db_format is not None:
+        return db_format, format_slug
+
+    mapped_slug = FORMAT_SLUG_ALIASES.get(format_slug)
+    if mapped_slug:
+        db_format = crud_format.get_format_by_slug(db, slug=mapped_slug)
+        if db_format is not None:
+            return db_format, mapped_slug
+
+    return None, None
+
 # 包含部分身份验证路由（保留用户信息端点，移除登录端点）
 app.include_router(auth_api.router)
 
@@ -107,17 +177,33 @@ def register_admin_routes():
     
     # 注册后台登录端点（关键安全修复）
     @app.post(f"{admin_path}/auth")
-    async def dynamic_admin_login(response: Response, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    async def dynamic_admin_login(
+        request: Request,
+        response: Response,
+        background_tasks: BackgroundTasks,
+        form_data: OAuth2PasswordRequestForm = Depends(),
+        db: Session = Depends(get_db),
+    ):
         """
         动态后台登录端点
         这是真正的安全登录入口，路径随 ADMIN_PATH 动态变化
         """
-        return await auth_api.login_for_access_token_impl(response, form_data, db)
+        return await auth_api.login_for_access_token_impl(
+            response,
+            form_data,
+            db,
+            request,
+            background_tasks,
+        )
     
     # 注册后台仪表盘
     @app.get(f"{admin_path}/dashboard", response_class=HTMLResponse)
-    async def dynamic_admin_dashboard_page(request: Request, current_user: User = Depends(get_current_user)):
-        return templates.TemplateResponse("admin/dashboard.html", {"request": request, "user": current_user, "admin_path": admin_path})
+    async def dynamic_admin_dashboard_page(
+        request: Request,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+    ):
+        return await admin_dashboard_api.dashboard_page(request, db, current_user)
     
     # 注册后台设置页面
     @app.get(f"{admin_path}/settings", response_class=HTMLResponse)
@@ -188,6 +274,7 @@ def register_admin_routes():
         )
     
     # 注册后台路径更新API端点
+    @app.post(f"{admin_path}/api/v1/update-admin-path")
     @app.post(f"{admin_path}/api/update-admin-path")
     async def dynamic_update_admin_path(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         return await settings_api.update_admin_path(request, db, current_user)
@@ -292,6 +379,7 @@ def register_admin_routes():
         })
     
     # 注册获取分类选项的API端点
+    @app.get(f"{admin_path}/api/v1/categories/options")
     @app.get(f"{admin_path}/api/categories/options")
     async def dynamic_get_category_options(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         categories = crud_category.get_categories(db)
@@ -309,6 +397,8 @@ def register_admin_routes():
         excerpt: Optional[str] = Form(None),
         featured_image_url: Optional[str] = Form(None),
         status: str = Form("draft"),
+        visibility: str = Form("public"),
+        password: Optional[str] = Form(None),
         allow_comments: bool = Form(True),
         category_ids: Optional[List[int]] = Form(None),
         tags: Optional[str] = Form(None),
@@ -318,7 +408,25 @@ def register_admin_routes():
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
     ):
-        return await posts_api.create_post_api(request, title, content, slug, excerpt, featured_image_url, status,allow_comments, category_ids, tags, format_ids, license_type, csrf_token, db, current_user)
+        return await posts_api.create_post_api(
+            request,
+            title,
+            content,
+            slug,
+            excerpt,
+            featured_image_url,
+            status,
+            visibility,
+            password,
+            allow_comments,
+            category_ids,
+            tags,
+            format_ids,
+            license_type,
+            csrf_token,
+            db,
+            current_user,
+        )
     
     @app.post(f"{admin_path}/posts/{{post_id}}")
     async def dynamic_update_post(
@@ -330,6 +438,8 @@ def register_admin_routes():
         excerpt: Optional[str] = Form(None),
         featured_image_url: Optional[str] = Form(None),
         status: str = Form("draft"),
+        visibility: str = Form("public"),
+        password: Optional[str] = Form(None),
         allow_comments: bool = Form(True),
         category_ids: Optional[List[int]] = Form(None),
         tags: Optional[str] = Form(None),
@@ -339,7 +449,26 @@ def register_admin_routes():
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
     ):
-        return await posts_api.update_post_api(request, post_id, title, content, slug, excerpt, featured_image_url, status, allow_comments, category_ids, tags, format_ids, license_type, csrf_token, db, current_user)
+        return await posts_api.update_post_api(
+            request,
+            post_id,
+            title,
+            content,
+            slug,
+            excerpt,
+            featured_image_url,
+            status,
+            visibility,
+            password,
+            allow_comments,
+            category_ids,
+            tags,
+            format_ids,
+            license_type,
+            csrf_token,
+            db,
+            current_user,
+        )
     
     # 注册后台分类管理页面
     @app.get(f"{admin_path}/categories", response_class=HTMLResponse)
@@ -419,13 +548,30 @@ def register_admin_routes():
         excerpt: Optional[str] = Form(None),
         featured_image_url: Optional[str] = Form(None),
         status: str = Form("draft"),
+        visibility: str = Form("public"),
+        password: Optional[str] = Form(None),
         allow_comments: bool = Form(True),
         license_type: str = Form("cc_by_nc_sa_4"),
         csrf_token: str = Form(...),
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
     ):
-        return await posts_api.create_page_api(request, title, content, slug, excerpt, featured_image_url, status, allow_comments, license_type, csrf_token, db, current_user)
+        return await posts_api.create_page_api(
+            request,
+            title,
+            content,
+            slug,
+            excerpt,
+            featured_image_url,
+            status,
+            visibility,
+            password,
+            allow_comments,
+            license_type,
+            csrf_token,
+            db,
+            current_user,
+        )
     
     @app.post(f"{admin_path}/pages/{{page_id}}")
     async def dynamic_update_page(
@@ -437,13 +583,31 @@ def register_admin_routes():
         excerpt: Optional[str] = Form(None),
         featured_image_url: Optional[str] = Form(None),
         status: str = Form("draft"),
+        visibility: str = Form("public"),
+        password: Optional[str] = Form(None),
         allow_comments: bool = Form(True),
         license_type: str = Form("cc_by_nc_sa_4"),
         csrf_token: str = Form(...),
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
     ):
-        return await posts_api.update_page_api(request, page_id, title, content, slug, excerpt, featured_image_url, status, allow_comments, license_type, csrf_token, db, current_user)
+        return await posts_api.update_page_api(
+            request,
+            page_id,
+            title,
+            content,
+            slug,
+            excerpt,
+            featured_image_url,
+            status,
+            visibility,
+            password,
+            allow_comments,
+            license_type,
+            csrf_token,
+            db,
+            current_user,
+        )
     
     # 注册后台系统信息页面
     @app.get(f"{admin_path}/system-info", response_class=HTMLResponse)
@@ -451,7 +615,9 @@ def register_admin_routes():
         from .api import system_info as system_info_api
         return await system_info_api.system_info_page(request, db, current_user)
     
+    @app.get(f"{admin_path}/api/v1/system-info")
     @app.get(f"{admin_path}/api/system-info")
+    @app.get(f"{admin_path}/api/system/info")
     async def dynamic_get_system_info_api(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         from .api import system_info as system_info_api
         return await system_info_api.get_system_info_api(db, current_user)
@@ -466,6 +632,37 @@ def register_admin_routes():
     async def dynamic_admin_comment_settings_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
         return await comment_settings_api.comment_settings_page(request, db, current_user)
 
+    # 注册安全中心页面
+    @app.get(f"{admin_path}/security-center", response_class=HTMLResponse)
+    async def dynamic_admin_security_center_page(
+        request: Request,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+    ):
+        return await security_center_api.security_center_page(request, db, current_user)
+
+    @app.post(f"{admin_path}/security-center", response_class=HTMLResponse)
+    async def dynamic_update_security_center(
+        request: Request,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+        login_max_attempts: int = Form(3),
+        login_ban_minutes: int = Form(15),
+        new_ip_login_alert_enabled: bool = Form(False),
+        comment_rate_limit_per_min: int = Form(30),
+        csrf_token: str = Form(...),
+    ):
+        return await security_center_api.update_security_center(
+            request=request,
+            db=db,
+            current_user=current_user,
+            login_max_attempts=login_max_attempts,
+            login_ban_minutes=login_ban_minutes,
+            new_ip_login_alert_enabled=new_ip_login_alert_enabled,
+            comment_rate_limit_per_min=comment_rate_limit_per_min,
+            csrf_token=csrf_token,
+        )
+
     # 注册数据管理页面
     @app.get(f"{admin_path}/data-management", response_class=HTMLResponse)
     async def dynamic_admin_data_management_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -475,10 +672,45 @@ def register_admin_routes():
     app.include_router(data_api.router, prefix=admin_path)
     
     # 注册数据统计API
+    @app.get(f"{admin_path}/api/v1/dashboard/stats")
     @app.get(f"{admin_path}/api/dashboard/stats")
-    async def dynamic_get_dashboard_stats(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    async def dynamic_get_dashboard_stats(
+        request: Request,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+    ):
         from .api import admin_dashboard as admin_dashboard_api
-        return await admin_dashboard_api.get_dashboard_stats(request, db)
+        return await admin_dashboard_api.get_dashboard_stats(request, db, current_user)
+
+    @app.get(f"{admin_path}/api/v1/dashboard/site-health")
+    @app.get(f"{admin_path}/api/dashboard/site-health")
+    async def dynamic_get_dashboard_site_health(
+        request: Request,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+    ):
+        from .api import admin_dashboard as admin_dashboard_api
+        return await admin_dashboard_api.get_site_health(request, db, current_user)
+
+    @app.post(f"{admin_path}/api/v1/dashboard/quick-draft")
+    @app.post(f"{admin_path}/api/dashboard/quick-draft")
+    async def dynamic_quick_draft(
+        request: Request,
+        title: str = Form(""),
+        content: str = Form(""),
+        csrf_token: str = Form(...),
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+    ):
+        from .api import admin_dashboard as admin_dashboard_api
+        return await admin_dashboard_api.create_quick_draft(
+            request=request,
+            title=title,
+            content=content,
+            csrf_token=csrf_token,
+            db=db,
+            current_user=current_user,
+        )
 
     """
     动态注册错误处理配置页面
@@ -520,11 +752,13 @@ def register_admin_routes():
             reading_time_cache_duration, csrf_token
         )
     
-    # 动态注册分类API路由
+    # 动态注册分类API路由（v1 + 兼容旧路径）
     app.include_router(categories_api.router, prefix=admin_path)
+    app.include_router(categories_api.legacy_router, prefix=admin_path)
     
-    # 动态注册标签API路由
+    # 动态注册标签API路由（v1 + 兼容旧路径）
     app.include_router(tags_api.router, prefix=admin_path)
+    app.include_router(tags_api.legacy_router, prefix=admin_path)
 
     @app.get("/{format_slug}/{post_slug}", response_class=HTMLResponse)
     async def read_post(request: Request, format_slug: str, post_slug: str, db: Session = Depends(get_db)):
@@ -534,14 +768,40 @@ def register_admin_routes():
         根据文章别名显示单篇文章的详细内容，包含动态SEO元数据
         """
         db_post = crud_post.get_post_by_slug(db, slug=post_slug)
-        if db_post is None or db_post.status != "published":
+        is_admin = _is_admin_authenticated(request, db)
+
+        if db_post is None or db_post.post_type == "page" or (db_post.status != "published" and not is_admin):
             raise HTTPException(status_code=404, detail="Post not found")
+
+        # 私密内容仅管理员可访问
+        if db_post.visibility == "private" and not is_admin:
+            raise HTTPException(status_code=404, detail="Post not found")
+
+        # 密码保护内容：未通过验证时展示密码输入页
+        if db_post.visibility == "password" and not is_admin and not _has_valid_password_cookie(request, db_post):
+            context = build_base_template_context(request)
+            context.update({
+                "post": db_post,
+                "next_url": request.url.path,
+                "error_message": None,
+            })
+            return templates.TemplateResponse("password_protected.html", context, status_code=401)
         
         # 验证格式slug是否匹配
-        if db_post.formats and format_slug != db_post.formats[0].slug:
-            # 如果不匹配，重定向到正确的URL
-            correct_format_slug = db_post.formats[0].slug
-            return RedirectResponse(url=f"/{correct_format_slug}/{post_slug}", status_code=301)
+        if db_post.formats:
+            canonical_format_slug = db_post.formats[0].slug
+            accepted_slugs = {canonical_format_slug}
+            if canonical_format_slug == "micro-post":
+                accepted_slugs.add("weibo")
+            elif canonical_format_slug == "photo-album":
+                accepted_slugs.add("photos")
+            elif canonical_format_slug == "poetry-song":
+                accepted_slugs.add("music")
+
+            if format_slug not in accepted_slugs:
+                # 如果不匹配，重定向到正确的URL
+                correct_format_slug = canonical_format_slug
+                return RedirectResponse(url=f"/{correct_format_slug}/{post_slug}", status_code=301)
         
         # 获取SEO元数据
         from .api.seo import _generate_post_seo_data
@@ -551,13 +811,28 @@ def register_admin_routes():
         from .core.donation_system import get_donation_system
         donation_system = get_donation_system(db)
         donation_config = donation_system.settings
-        
+
+        # 处理评论后可见内容
+        can_view_hidden = is_admin or request.cookies.get(get_comment_unlock_cookie_name(db_post.id)) == "true"
+        display_content_html = db_post.content_html
+        if has_hide_blocks(db_post.content_markdown):
+            display_content_html = render_markdown_with_hide_blocks(
+                db_post.content_markdown,
+                db_post.id,
+                can_view_hidden=can_view_hidden,
+            )
+
+        # 自动目录（TOC）：达到阈值时生成
+        display_content_html, toc_items = build_toc_from_html(display_content_html, min_headings=3)
+
         # 构建模板上下文（现在包含统一的设置数据）
         context = build_base_template_context(request)
         context.update({
             "post": db_post,
             "seo_data": seo_data,
             "donation_config": donation_config,
+            "display_content_html": display_content_html,
+            "toc_items": toc_items,
         })
         
         return templates.TemplateResponse("post_detail.html", context)
@@ -574,21 +849,51 @@ def register_admin_routes():
         if page_slug in ["installer", "static", "api", "favicon.ico"]:
             raise HTTPException(status_code=404, detail="Page not found")
         
+        is_admin = _is_admin_authenticated(request, db)
+
         # 检查是否存在具有该别名的页面
         db_page = crud_post.get_post_by_slug(db, slug=page_slug)
-        if db_page is None or db_page.post_type != "page" or (db_page.status != "published" and not hasattr(request.state, 'user')):
+        if db_page is None or db_page.post_type != "page" or (db_page.status != "published" and not is_admin):
             # 如果没有找到页面，检查是否是其他特殊路由
             raise HTTPException(status_code=404, detail="Page not found")
+
+        # 私密页面仅管理员可访问
+        if db_page.visibility == "private" and not is_admin:
+            raise HTTPException(status_code=404, detail="Page not found")
+
+        # 密码保护页面：未验证则返回密码输入页
+        if db_page.visibility == "password" and not is_admin and not _has_valid_password_cookie(request, db_page):
+            context = build_base_template_context(request)
+            context.update({
+                "post": db_page,
+                "next_url": request.url.path,
+                "error_message": None,
+            })
+            return templates.TemplateResponse("password_protected.html", context, status_code=401)
         
         # 获取SEO元数据
         from .api.seo import _generate_post_seo_data
         seo_data = _generate_post_seo_data(db_page, request, db)
+
+        # 处理评论后可见内容
+        can_view_hidden = is_admin or request.cookies.get(get_comment_unlock_cookie_name(db_page.id)) == "true"
+        display_content_html = db_page.content_html
+        if has_hide_blocks(db_page.content_markdown):
+            display_content_html = render_markdown_with_hide_blocks(
+                db_page.content_markdown,
+                db_page.id,
+                can_view_hidden=can_view_hidden,
+            )
+
+        display_content_html, toc_items = build_toc_from_html(display_content_html, min_headings=3)
         
         # 构建模板上下文（现在包含统一的设置数据）
         context = build_base_template_context(request)
         context.update({
             "post": db_page,
             "seo_data": seo_data,
+            "display_content_html": display_content_html,
+            "toc_items": toc_items,
         })
         
         return templates.TemplateResponse("page.html", context)
@@ -627,8 +932,10 @@ app.include_router(error_config_api.router)
 app.include_router(admin_dashboard_api.router)
 # 包含验证码API路由
 app.include_router(captcha_api.router)
+app.include_router(anniversary_api.router, prefix="/api/v1")
 app.include_router(anniversary_api.router, prefix="/api")
 # 包含主题调度API路由  
+app.include_router(theme_schedule_api.router, prefix="/api/v1")
 app.include_router(theme_schedule_api.router, prefix="/api")
 
 # 抽取：构建全局请求上下文（初始化默认值、读取设置、主题调度/纪念日、后台路径）
@@ -645,8 +952,11 @@ def _populate_global_request_state(request: Request) -> None:
     for k, v in DEFAULT_HOMEPAGE_SETTINGS.items():
         setattr(request.state, k, v)
 
-    db_gen = get_db()
-    db = next(db_gen)
+    db = getattr(request.state, "db", None)
+    db_gen = None
+    if db is None:
+        db_gen = get_db()
+        db = next(db_gen)
     if db is None:
         return
     try:
@@ -723,7 +1033,8 @@ def _populate_global_request_state(request: Request) -> None:
                 request.state.atmosphere_class = f"atmosphere-{scheduled_atmosphere}"
     finally:
         try:
-            db_gen.close()  # 关闭 get_db() 生成器，确保会话释放到连接池
+            if db_gen is not None:
+                db_gen.close()  # 关闭 get_db() 生成器，确保会话释放到连接池
         except Exception:
             pass
 
@@ -754,6 +1065,10 @@ async def add_global_context(request: Request, call_next):
         register_admin_routes()
         ADMIN_ROUTES_REGISTERED = True
 
+    # 安装完成后，不再暴露 installer 路径，避免通过重定向等方式泄露后台入口信息
+    if settings.installation_complete and request.url.path.startswith("/installer"):
+        return RedirectResponse(url="/")
+
     # 检查.env文件并重定向到安装向导
     if not settings.installation_complete and \
        not request.url.path.startswith("/installer") and \
@@ -761,12 +1076,27 @@ async def add_global_context(request: Request, call_next):
        not request.url.path.startswith("/api"):
         return RedirectResponse(url="/installer")
 
-    # 构建全局上下文并确保 CSRF 令牌
-    _populate_global_request_state(request)
-    _ensure_csrf_token(request)
+    # 复用一个 request 级数据库会话给模板层（如响应式图片、相关文章过滤器）
+    request_db_gen = None
+    try:
+        request_db_gen = get_db()
+        request.state.db = next(request_db_gen)
+    except Exception:
+        request.state.db = None
 
-    response = await call_next(request)
-    return response
+    try:
+        # 构建全局上下文并确保 CSRF 令牌
+        _populate_global_request_state(request)
+        _ensure_csrf_token(request)
+
+        response = await call_next(request)
+        return response
+    finally:
+        if request_db_gen is not None:
+            try:
+                request_db_gen.close()
+            except Exception:
+                pass
 
 def get_page_config(db: Session, config_key: str, default_value: int) -> int:
     """
@@ -791,6 +1121,55 @@ def get_admin_path() -> str:
         后台路径
     """
     return settings.ADMIN_PATH.rstrip('/')
+
+
+@app.post("/api/v1/posts/{post_id}/unlock")
+async def unlock_password_protected_post(
+    request: Request,
+    post_id: int,
+    password: str = Form(...),
+    next_url: str = Form("/"),
+    db: Session = Depends(get_db),
+):
+    """
+    验证密码保护内容访问密码并设置访问 Cookie
+    """
+    db_post = crud_post.get_post(db, post_id=post_id)
+    if db_post is None or db_post.visibility != "password" or not db_post.password:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    safe_next_url = next_url if next_url and next_url.startswith("/") else "/"
+
+    if not verify_password(password, db_post.password):
+        context = build_base_template_context(request)
+        context.update({
+            "post": db_post,
+            "next_url": safe_next_url,
+            "error_message": "访问密码错误，请重试。",
+        })
+        return templates.TemplateResponse("password_protected.html", context, status_code=403)
+
+    if safe_next_url == "/":
+        if db_post.post_type == "page":
+            safe_next_url = f"/{db_post.slug}"
+        else:
+            format_slug = db_post.formats[0].slug if db_post.formats else "article"
+            format_slug = {
+                "micro-post": "weibo",
+                "photo-album": "photos",
+                "poetry-song": "music",
+            }.get(format_slug, format_slug)
+            safe_next_url = f"/{format_slug}/{db_post.slug}"
+
+    response = RedirectResponse(url=safe_next_url, status_code=303)
+    response.set_cookie(
+        key=_get_post_access_cookie_name(post_id),
+        value=_build_post_access_cookie_value(post_id, db_post.password),
+        httponly=True,
+        samesite="lax",
+    )
+    return response
+
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
@@ -824,7 +1203,8 @@ async def homepage(request: Request, db: Session = Depends(get_db)):
     
     return templates.TemplateResponse("index.html", context)
 
-# 聚合页面路由：/formats/photos, /formats/weibo, /formats/video, /formats/poetry-song
+# 聚合页面路由：统一使用 /formats/{format_slug}
+# 注意：不要新增 /photos 等一级短路由，否则会与 /{page_slug} 动态页面路由冲突。
 @app.get("/formats/{format_slug}", response_class=HTMLResponse)
 async def format_page(request: Request, format_slug: str, db: Session = Depends(get_db)):
     """
@@ -832,7 +1212,7 @@ async def format_page(request: Request, format_slug: str, db: Session = Depends(
     
     根据格式别名显示指定格式的所有文章，URL符合 /formats/{format_slug} 规范
     """
-    format = crud_format.get_format_by_slug(db, slug=format_slug)
+    format, resolved_slug = _resolve_format_by_slug(db, format_slug)
     if format is None:
         raise HTTPException(status_code=404, detail="Format not found")
     posts = crud_post.get_posts_by_format(db, format_id=format.id)
@@ -841,7 +1221,7 @@ async def format_page(request: Request, format_slug: str, db: Session = Depends(
     context = build_base_template_context(request)
     context.update({
         "format": format,
-        "format_slug": format_slug,  # 将format_slug传递给模板
+        "format_slug": resolved_slug or format_slug,  # 将实际slug传递给模板
         "posts": posts,
     })
     
@@ -889,7 +1269,6 @@ async def posts_by_tag(request: Request, tag_slug: str, db: Session = Depends(ge
     
     return templates.TemplateResponse("tag_archive.html", context)
 
-# 占位符路由：/archives/2025/08/
 @app.get("/archives/{year}/{month}", response_class=HTMLResponse)
 async def posts_by_month(request: Request, year: int, month: int, db: Session = Depends(get_db)):
     """
@@ -897,9 +1276,10 @@ async def posts_by_month(request: Request, year: int, month: int, db: Session = 
     
     显示指定年月的所有文章
     """
-    # 这需要更复杂的CRUD函数来按年/月过滤
-    archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
-    posts = crud_post.get_posts(db, skip=0, limit=archive_posts_limit) # 使用配置的文章数量
+    if month < 1 or month > 12:
+        raise HTTPException(status_code=404, detail="Invalid month")
+
+    posts = crud_post.get_posts_by_year_month(db, year=year, month=month)
     
     # 构建模板上下文（现在包含统一的设置数据）
     context = build_base_template_context(request)
@@ -911,7 +1291,6 @@ async def posts_by_month(request: Request, year: int, month: int, db: Session = 
     
     return templates.TemplateResponse("monthly_archive.html", context)
 
-# 占位符路由：/archives
 @app.get("/archives", response_class=HTMLResponse)
 async def archives_page(request: Request, db: Session = Depends(get_db)):
     """
@@ -919,8 +1298,7 @@ async def archives_page(request: Request, db: Session = Depends(get_db)):
     
     显示所有文章的归档列表
     """
-    archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
-    posts = crud_post.get_posts(db, skip=0, limit=archive_posts_limit) # 使用配置的文章数量
+    posts = crud_post.get_archive_posts(db)
     
     # 构建模板上下文（现在包含统一的设置数据）
     context = build_base_template_context(request)

@@ -17,7 +17,7 @@ DEFAULT_ANTI_SPAM_SETTINGS = [
     },
     {
         "key": "anti_spam_time_threshold", 
-        "value": {"value": 3},
+        "value": {"value": 5},
         "description": "最小提交时间阈值（秒）",
         "category": "anti_spam",
         "type": "integer"

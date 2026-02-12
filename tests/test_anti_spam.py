@@ -45,7 +45,7 @@ class TestAntiSpamEngine:
         )
         
         assert result.is_spam == True
-        assert result.action == "block"
+        assert result.action == "silent_drop"
         assert result.layer == 1
         assert "蜜罐陷阱" in result.reason
     
@@ -61,11 +61,11 @@ class TestAntiSpamEngine:
             ip_address="192.168.1.1",
             user_agent="Mozilla/5.0 Test",
             honeypot_field=None,
-            form_timestamp=time.time() - 1  # 只有1秒，低于3秒阈值
+            form_timestamp=time.time() - 1  # 只有1秒，低于5秒阈值
         )
         
         assert result.is_spam == True
-        assert result.action == "block"
+        assert result.action == "too_fast"
         assert result.layer == 1
         assert "提交时间过短" in result.reason
     
@@ -244,6 +244,21 @@ class TestAntiSpamEngine:
         assert len(token) == 32  # MD5哈希长度
         assert token.isalnum()  # 只包含字母和数字
 
+    def test_signed_timestamp_token_roundtrip(self):
+        """测试签名时间戳令牌生成与解析"""
+        token = self.anti_spam.generate_form_timestamp_token()
+        parsed = self.anti_spam.parse_form_timestamp(token)
+        assert parsed is not None
+        assert parsed > 0
+
+    def test_signed_timestamp_token_rejects_tampering(self):
+        """测试篡改后的签名时间戳会被拒绝"""
+        token = self.anti_spam.generate_form_timestamp_token()
+        ts_part, sig_part = token.split(".", 1)
+        tampered = f"{ts_part}.{sig_part[:-1]}{'0' if sig_part[-1] != '0' else '1'}"
+        parsed = self.anti_spam.parse_form_timestamp(tampered)
+        assert parsed is None
+
 
 class TestAntiSpamIntegration:
     """反垃圾系统集成测试"""
@@ -256,7 +271,7 @@ class TestAntiSpamIntegration:
         
         # 验证默认设置已正确加载
         assert anti_spam.honeypot_enabled == True
-        assert anti_spam.time_threshold == 3
+        assert anti_spam.time_threshold == 5
         assert anti_spam.max_links == 2
         assert anti_spam.keyword_filter_enabled == True
         assert len(anti_spam.spam_keywords) > 0

@@ -35,7 +35,7 @@ class ThemeManager {
      */
     async checkAnniversaryMode() {
         try {
-            const response = await fetch('/api/anniversary-mode/current');
+            const response = await fetch('/api/v1/anniversary-mode/current');
             const data = await response.json();
             
             if (data.active) {
@@ -244,7 +244,7 @@ class ThemeManager {
      */
     async loadCustomTheme() {
         try {
-            const response = await fetch('/api/custom-theme');
+            const response = await fetch('/api/v1/custom-theme');
             const theme = await response.json();
             
             if (theme.active) {

@@ -11,7 +11,7 @@
                 <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
                 </svg>
-            {% elif format_slug == 'weibo' %}
+            {% elif format_slug in ['weibo', 'micro-post'] %}
                 <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
                     <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
@@ -20,7 +20,7 @@
                 <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M2 6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path>
                 </svg>
-            {% elif format_slug == 'poetry-song' %}
+            {% elif format_slug in ['poetry-song', 'music'] %}
                 <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"></path>
                 </svg>
@@ -42,7 +42,7 @@
                     </svg>
                     共 {{ posts|length }} 个相册
                 </div>
-            {% elif format_slug == 'weibo' %}
+            {% elif format_slug in ['weibo', 'micro-post'] %}
                 <p class="text-lg text-gray-600 mb-4">简短而精彩的生活片段，记录每一个值得分享的时刻</p>
                 <div class="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
                     <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -59,7 +59,7 @@
                     </svg>
                     共 {{ posts|length }} 个视频
                 </div>
-            {% elif format_slug == 'poetry-song' %}
+            {% elif format_slug in ['poetry-song', 'music'] %}
                 <p class="text-lg text-gray-600 mb-4">诗意与韵律的交融，用文字和音符编织情感</p>
                 <div class="inline-flex items-center px-4 py-2 bg-purple-50 text-purple-700 rounded-full text-sm font-medium">
                     <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -120,7 +120,7 @@
         </div>
         {% endfor %}
     </div>
-    {% elif format_slug == 'weibo' %}
+    {% elif format_slug in ['weibo', 'micro-post'] %}
 
     <!-- 微博格式：信息流布局 -->
     <div class="max-w-2xl mx-auto space-y-4">
@@ -290,7 +290,7 @@
         {% endfor %}
     </div>
 
-    {% elif format_slug == 'poetry-song' %}
+    {% elif format_slug in ['poetry-song', 'music'] %}
     <!-- 诗词歌赋格式：音乐播放器式布局 -->
     <div class="max-w-4xl mx-auto">
         <!-- 播放列表头部 -->

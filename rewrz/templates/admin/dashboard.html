@@ -5,20 +5,265 @@
 {% block page_title %}<i class="fas fa-tachometer-alt text-blue-600 mr-3"></i>仪表盘{% endblock %}
 
 {% block content %}
-<div>
-    <div id="stats-container" 
-         hx-get="{{ request.state.admin_path }}/api/dashboard/stats" 
-         hx-trigger="load, every 30s" 
-         hx-swap="innerHTML">
-        <!-- 初始加载状态 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {% for i in range(6) %}
-            <div class="bg-white p-6 rounded-lg shadow animate-pulse">
-                <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div class="h-8 bg-gray-300 rounded w-1/2"></div>
+<style>
+.dashboard-widget.dragging {
+    opacity: 0.55;
+}
+
+.dashboard-widget.drop-target {
+    outline: 2px dashed #2563eb;
+    outline-offset: 4px;
+}
+</style>
+
+<div class="space-y-4">
+    <div class="flex justify-end">
+        <button
+            type="button"
+            class="px-3 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-sm"
+            onclick="resetDashboardLayout()"
+        >
+            重置布局
+        </button>
+    </div>
+
+    <div id="dashboard-widgets" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <section class="dashboard-widget bg-white rounded-lg shadow-md p-6" data-widget-id="stats" draggable="true">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">统计概览</h2>
+                <span class="text-xs text-gray-500">每 30 秒自动刷新</span>
             </div>
-            {% endfor %}
-        </div>
+            <div
+                id="stats-container"
+                hx-get="{{ request.state.admin_path }}/api/v1/dashboard/stats"
+                hx-trigger="load, every 30s"
+                hx-swap="innerHTML"
+            >
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for i in range(4) %}
+                    <div class="bg-gray-100 p-4 rounded animate-pulse h-20"></div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="dashboard-widget bg-white rounded-lg shadow-md p-6" data-widget-id="site-health" draggable="true">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">站点健康</h2>
+                <span class="text-xs text-gray-500">每 60 秒自动刷新</span>
+            </div>
+            <div
+                id="site-health-container"
+                hx-get="{{ request.state.admin_path }}/api/v1/dashboard/site-health"
+                hx-trigger="load, every 60s"
+                hx-swap="innerHTML"
+            >
+                <div class="bg-gray-100 p-4 rounded animate-pulse h-36"></div>
+            </div>
+        </section>
+
+        <section class="dashboard-widget bg-white rounded-lg shadow-md p-6" data-widget-id="quick-draft" draggable="true">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">快速草稿</h2>
+            </div>
+            <form id="quick-draft-form" class="space-y-3">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <div>
+                    <label for="quick-draft-title" class="text-sm text-gray-600">标题</label>
+                    <input
+                        id="quick-draft-title"
+                        name="title"
+                        type="text"
+                        maxlength="120"
+                        placeholder="输入标题后可一键生成草稿"
+                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                </div>
+                <div>
+                    <label for="quick-draft-content" class="text-sm text-gray-600">内容</label>
+                    <textarea
+                        id="quick-draft-content"
+                        name="content"
+                        rows="4"
+                        placeholder="留空会自动生成占位内容"
+                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                    ></textarea>
+                </div>
+                <div class="flex items-center justify-between">
+                    <button type="submit" class="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white">
+                        创建草稿
+                    </button>
+                    <span id="quick-draft-message" class="text-sm text-gray-500"></span>
+                </div>
+            </form>
+        </section>
+
+        <section class="dashboard-widget bg-white rounded-lg shadow-md p-6" data-widget-id="recent-comments" draggable="true">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">最新评论快捷操作</h2>
+                <a href="{{ request.state.admin_path }}/comments" class="text-sm text-blue-600 hover:underline">进入评论管理</a>
+            </div>
+
+            <div class="space-y-3">
+                {% for comment in recent_comments %}
+                <div class="border border-gray-200 rounded-md p-3">
+                    <div class="flex justify-between items-center">
+                        <div class="text-sm text-gray-700">
+                            <strong>{{ comment.author_name }}</strong>
+                            <span class="text-gray-500"> · {{ comment.created_at.strftime('%m-%d %H:%M') if comment.created_at else '-' }}</span>
+                        </div>
+                        <div class="text-xs">
+                            {% if comment.status == 'pending' %}
+                            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">待审核</span>
+                            {% elif comment.status == 'approved' %}
+                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full">已通过</span>
+                            {% else %}
+                            <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded-full">{{ comment.status }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2">{{ comment.content|striptags|truncate(80, True) }}</p>
+                    <div class="mt-3 flex items-center justify-between">
+                        <a href="{{ (comment.post | post_url) if comment.post else '#' }}" target="_blank" class="text-xs text-gray-500 hover:underline">
+                            {{ comment.post.title if comment.post else '已删除文章' }}
+                        </a>
+                        <div class="space-x-2">
+                            {% if comment.status == 'pending' %}
+                            <button type="button" class="text-xs px-2 py-1 rounded bg-green-600 text-white" onclick="approveDashboardComment({{ comment.id }})">
+                                批准
+                            </button>
+                            {% endif %}
+                            <button type="button" class="text-xs px-2 py-1 rounded bg-red-600 text-white" onclick="deleteDashboardComment({{ comment.id }})">
+                                删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-sm text-gray-500">暂无评论数据</div>
+                {% endfor %}
+            </div>
+        </section>
     </div>
 </div>
+
+<script>
+const widgetContainer = document.getElementById("dashboard-widgets");
+const csrfToken = "{{ request.state.csrf_token }}";
+const adminPath = "{{ request.state.admin_path }}";
+const layoutStorageKey = "rewrz_dashboard_layout_v1";
+
+function saveDashboardLayout() {
+    const ids = Array.from(widgetContainer.querySelectorAll(".dashboard-widget"))
+        .map(node => node.dataset.widgetId);
+    localStorage.setItem(layoutStorageKey, JSON.stringify(ids));
+}
+
+function restoreDashboardLayout() {
+    const saved = localStorage.getItem(layoutStorageKey);
+    if (!saved) return;
+
+    let order = [];
+    try {
+        order = JSON.parse(saved);
+    } catch (e) {
+        return;
+    }
+    if (!Array.isArray(order)) return;
+
+    const map = new Map(
+        Array.from(widgetContainer.querySelectorAll(".dashboard-widget")).map(node => [node.dataset.widgetId, node])
+    );
+
+    order.forEach((id) => {
+        const node = map.get(id);
+        if (node) widgetContainer.appendChild(node);
+    });
+}
+
+function resetDashboardLayout() {
+    localStorage.removeItem(layoutStorageKey);
+    window.location.reload();
+}
+
+let draggingEl = null;
+widgetContainer.querySelectorAll(".dashboard-widget").forEach((widget) => {
+    widget.addEventListener("dragstart", () => {
+        draggingEl = widget;
+        widget.classList.add("dragging");
+    });
+
+    widget.addEventListener("dragend", () => {
+        widget.classList.remove("dragging");
+        widgetContainer.querySelectorAll(".dashboard-widget").forEach(el => el.classList.remove("drop-target"));
+        saveDashboardLayout();
+    });
+
+    widget.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        if (widget === draggingEl) return;
+        widget.classList.add("drop-target");
+    });
+
+    widget.addEventListener("dragleave", () => {
+        widget.classList.remove("drop-target");
+    });
+
+    widget.addEventListener("drop", (event) => {
+        event.preventDefault();
+        widget.classList.remove("drop-target");
+        if (!draggingEl || widget === draggingEl) return;
+
+        const allWidgets = Array.from(widgetContainer.querySelectorAll(".dashboard-widget"));
+        const draggingIndex = allWidgets.indexOf(draggingEl);
+        const targetIndex = allWidgets.indexOf(widget);
+
+        if (draggingIndex < targetIndex) {
+            widget.after(draggingEl);
+        } else {
+            widget.before(draggingEl);
+        }
+    });
+});
+
+document.getElementById("quick-draft-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const msg = document.getElementById("quick-draft-message");
+    msg.textContent = "创建中...";
+
+    const formData = new FormData(form);
+    const res = await fetch(`${adminPath}/api/v1/dashboard/quick-draft`, {
+        method: "POST",
+        body: formData,
+    });
+    const data = await res.json();
+    if (res.ok && data.success && data.redirect_url) {
+        msg.textContent = "创建成功，正在跳转...";
+        window.location.href = data.redirect_url;
+        return;
+    }
+
+    msg.textContent = (data && data.detail) ? data.detail : "创建失败";
+});
+
+async function approveDashboardComment(commentId) {
+    const res = await fetch(`/api/v1/comments/${commentId}/approve`, {
+        method: "POST",
+        headers: { "X-CSRF-Token": csrfToken },
+    });
+    if (res.ok) window.location.reload();
+}
+
+async function deleteDashboardComment(commentId) {
+    if (!confirm("确认删除该评论？")) return;
+    const res = await fetch(`/api/v1/comments/${commentId}`, {
+        method: "DELETE",
+        headers: { "X-CSRF-Token": csrfToken },
+    });
+    if (res.ok) window.location.reload();
+}
+
+restoreDashboardLayout();
+</script>
 {% endblock %}

@@ -5,7 +5,7 @@
 {% block content %}
 <div class="bg-white p-6 rounded-lg shadow-md">
     
-    <form method="post" action="{{ admin_path }}/api/comments/settings" id="comment-settings-form">
+    <form method="post" action="{{ admin_path }}/api/v1/comments/settings" id="comment-settings-form">
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         
         <!-- 第一层：无感防御 -->
@@ -28,7 +28,7 @@
                     <label for="time_threshold" class="block text-sm font-medium text-gray-700">最短提交时间（秒）</label>
                     <input type="number" id="time_threshold" name="time_threshold" 
                            min="1" max="60" step="1"
-                           value="{{ settings.time_threshold if settings.time_threshold else 3 }}"
+                           value="{{ settings.time_threshold if settings.time_threshold else 5 }}"
                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                     <p class="text-sm text-gray-500 mt-1">低于此时间的提交将被视为机器人行为</p>
                 </div>
@@ -257,7 +257,7 @@ document.addEventListener('DOMContentLoaded', function() {
         testAkismetBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>测试中...';
         
         try {
-            const response = await fetch(`{{ admin_path }}/api/comments/test-akismet?api_key=${encodeURIComponent(apiKey)}`);
+            const response = await fetch(`{{ admin_path }}/api/v1/comments/test-akismet?api_key=${encodeURIComponent(apiKey)}`);
             const result = await response.json();
             
             testResult.classList.remove('hidden');

@@ -216,6 +216,7 @@ async def update_admin_settings(
         "admin_path": getattr(request.state, 'admin_path', os.getenv('ADMIN_PATH', '/admin'))
     })
 
+@router.post("/api/v1/update-admin-path")
 @router.post("/api/update-admin-path")
 async def update_admin_path(
     request: Request,

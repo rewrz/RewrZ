@@ -65,7 +65,11 @@ def get_posts(db: Session, skip: int = 0, limit: int = 100, status: Optional[str
         else:
             query = query.filter(Post.status == status)
     if post_type:
-        query = query.filter(Post.post_type == post_type)
+        # 兼容历史数据：article 与 post 均视为文章
+        if post_type in {"post", "article"}:
+            query = query.filter(Post.post_type.in_(["post", "article"]))
+        else:
+            query = query.filter(Post.post_type == post_type)
     # 默认按发布时间降序排列
     query = query.order_by(Post.published_at.desc())
     return db.execute(query.offset(skip).limit(limit)).unique().scalars().all()
@@ -97,11 +101,15 @@ def count_posts_by_status(db: Session, status: str) -> int:
     return db.execute(select(func.count(Post.id)).filter(Post.status == status)).scalar_one()
 
 def get_posts_by_category(db: Session, category_id: int, skip: int = 0, limit: int = 100):
-    """根据分类ID获取文章列表"""
+    """根据分类ID获取已发布文章列表"""
     return db.execute(
         select(Post)
         .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
         .filter(Post.categories.any(id=category_id))
+        .filter(Post.status == "published")
+        .filter(Post.published_at.isnot(None))
+        .filter(Post.post_type.in_(["post", "article"]))
+        .order_by(Post.published_at.desc())
         .offset(skip)
         .limit(limit)
     ).unique().scalars().all()
@@ -113,6 +121,24 @@ def get_posts_by_format(db: Session, format_id: int, skip: int = 0, limit: int =
         .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
         .filter(Post.formats.any(id=format_id))
         .filter(Post.status == "published")
+        .filter(Post.published_at.isnot(None))
+        .filter(Post.post_type.in_(["post", "article"]))
+        .order_by(Post.published_at.desc())
+        .offset(skip)
+        .limit(limit)
+    ).unique().scalars().all()
+
+
+def get_posts_by_tag(db: Session, tag_id: int, skip: int = 0, limit: int = 100):
+    """根据标签ID获取已发布文章列表"""
+    return db.execute(
+        select(Post)
+        .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
+        .filter(Post.tags.any(id=tag_id))
+        .filter(Post.status == "published")
+        .filter(Post.published_at.isnot(None))
+        .filter(Post.post_type.in_(["post", "article"]))
+        .order_by(Post.published_at.desc())
         .offset(skip)
         .limit(limit)
     ).unique().scalars().all()
@@ -213,18 +239,16 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
         incoming_title = update_data.pop("title", None)
         incoming_slug = update_data.pop("slug", None)
         incoming_status = update_data.get("status")
+        incoming_visibility = update_data.get("visibility")
+        incoming_password = update_data.pop("password", None)
         
-        # 单独处理密码哈希
-        if 'password' in update_data and update_data['password']:
-            # 仅在密码实际发生变化时才进行哈希
-            new_password = update_data['password']
-            # 检查新密码是否与当前密码不同（明文 vs 哈希值）
-            if not db_post.password or not verify_password(new_password, db_post.password):
-                print(f"Hashing password: {new_password}")
-                hashed_password = get_password_hash(new_password)
-                print(f"Hashed password: {hashed_password}")
-                db_post.password = hashed_password
-            del update_data['password']  # 从更新数据中移除，避免重复设置
+        # 可见性为 public/private 时，清空访问密码
+        if incoming_visibility and incoming_visibility != "password":
+            db_post.password = None
+        # 处理密码哈希更新（仅在提供了新密码时）
+        elif incoming_password:
+            if not db_post.password or not verify_password(incoming_password, db_post.password):
+                db_post.password = get_password_hash(incoming_password)
 
         # 确保featured_image_url字段被处理
         if hasattr(post, 'featured_image_url') and post.featured_image_url is not None:
@@ -299,12 +323,54 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
                 db_post.formats.extend(formats)
 
         # 确保 updated_at 设置为当前时间
-        import time
-        time.sleep(0.001)  # 添加小延迟以确保 updated_at 与之前的时间不同
         db_post.updated_at = datetime.now()
         db.commit()
         db.refresh(db_post)
     return db_post
+
+
+def get_posts_by_year_month(
+    db: Session,
+    year: int,
+    month: int,
+    limit: Optional[int] = None,
+) -> List[Post]:
+    """按年/月获取已发布文章（不包含页面）"""
+    if month < 1 or month > 12:
+        return []
+
+    start = datetime(year, month, 1)
+    if month == 12:
+        end = datetime(year + 1, 1, 1)
+    else:
+        end = datetime(year, month + 1, 1)
+
+    query = (
+        select(Post)
+        .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
+        .filter(Post.status == "published")
+        .filter(Post.published_at.isnot(None))
+        .filter(Post.published_at >= start, Post.published_at < end)
+        .filter(Post.post_type.in_(["post", "article"]))
+        .order_by(Post.published_at.desc())
+    )
+    if limit is not None:
+        query = query.limit(limit)
+
+    return db.execute(query).unique().scalars().all()
+
+
+def get_archive_posts(db: Session) -> List[Post]:
+    """获取归档页使用的全部已发布文章（不包含页面）"""
+    query = (
+        select(Post)
+        .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
+        .filter(Post.status == "published")
+        .filter(Post.published_at.isnot(None))
+        .filter(Post.post_type.in_(["post", "article"]))
+        .order_by(Post.published_at.desc())
+    )
+    return db.execute(query).unique().scalars().all()
 
 def delete_post(db: Session, post_id: int):
     """删除文章

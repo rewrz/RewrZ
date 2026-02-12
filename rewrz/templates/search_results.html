@@ -8,7 +8,15 @@
     <div class="bg-white p-6 rounded-lg shadow-md mb-8">
         <h1 class="text-3xl font-bold text-gray-900 mb-6">全站搜索</h1>
         
-        <form method="GET" action="/search" class="space-y-4">
+        <form
+            id="search-form"
+            method="GET"
+            action="/search"
+            class="space-y-4"
+            hx-get="/search"
+            hx-target="#search-panel"
+            hx-push-url="true"
+        >
             <div class="flex space-x-4">
                 <div class="flex-1 relative">
                     <input type="text" 
@@ -90,133 +98,9 @@
         </form>
     </div>
     
-    <!-- 搜索结果 -->
-    {% if search_info.query %}
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <div class="flex justify-between items-center mb-6">
-            <div>
-                <h2 class="text-xl font-semibold text-gray-800">
-                    搜索关键词: "<span class="text-indigo-600" id="query-text">{{ search_info.query }}</span>"
-                </h2>
-                <p class="text-gray-600 mt-1">
-                    找到 {{ search_info.total_count }} 个结果
-                    {% if search_info.total_pages > 1 %}
-                    （第 {{ search_info.page }} / {{ search_info.total_pages }} 页）
-                    {% endif %}
-                </p>
-            </div>
-        </div>
-        
-        {% if results %}
-        <div class="space-y-6" id="results-container">
-            {% for post in results %}
-            <div class="border-b border-gray-200 pb-6 last:border-b-0">
-                <div class="flex space-x-4">
-                    {% if post.featured_image_url %}
-                    <div class="flex-shrink-0">
-                        {{ post.featured_image_url | responsive_image(post.title, "w-24 h-24 object-cover rounded-lg", "96px", request.state.db) | safe }}
-                    </div>
-                    {% endif %}
-                    
-                    <div class="flex-1">
-                        <h3 class="text-xl font-semibold text-gray-900 mb-2">
-                            <a href="{{ post | post_url }}" class="hover:text-indigo-600 result-title">{{ post.title }}</a>
-                        </h3>
-                        
-                        <p class="text-gray-700 mb-3 result-excerpt">{{ post.excerpt or (post.content_html[:200] + '...' if post.content_html|length > 200 else post.content_html) }}</p>
-                        
-                        <div class="flex items-center space-x-4 text-sm text-gray-500">
-                            <span>
-                                <i class="fas fa-calendar mr-1"></i>
-                                {{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else '未发布' }}
-                            </span>
-                            
-                            {% if post.categories %}
-                            <span>
-                                <i class="fas fa-folder mr-1"></i>
-                                {% for category in post.categories %}
-                                <a href="/archives/by-category/{{ category.slug }}" class="hover:text-indigo-600">
-                                    {{ category.name }}
-                                </a>{% if not loop.last %}, {% endif %}
-                                {% endfor %}
-                            </span>
-                            {% endif %}
-                            
-                            {% if post.tags %}
-                            <span>
-                                <i class="fas fa-tags mr-1"></i>
-                                {% for tag in post.tags %}
-                                <a href="/archives/by-tag/{{ tag.slug }}" class="hover:text-indigo-600">
-                                    {{ tag.name }}
-                                </a>{% if not loop.last %}, {% endif %}
-                                {% endfor %}
-                            </span>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        
-        <!-- 分页 -->
-        {% if search_info.total_pages > 1 %}
-        <div class="mt-8 flex justify-center">
-            <div class="flex space-x-2" id="pagination">
-                {% if search_info.page > 1 %}
-                <a href="?q={{ search_info.query }}&category={{ search_info.category or '' }}&tag={{ search_info.tag or '' }}&format={{ search_info.format or '' }}&sort={{ search_info.sort }}&page={{ search_info.page - 1 }}" 
-                   class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
-                    上一页
-                </a>
-                {% endif %}
-                
-                {% for page_num in range(1, search_info.total_pages + 1) %}
-                {% if page_num == search_info.page %}
-                <span class="px-3 py-2 bg-indigo-600 text-white rounded-md">{{ page_num }}</span>
-                {% elif page_num <= 3 or page_num > search_info.total_pages - 3 or (page_num >= search_info.page - 2 and page_num <= search_info.page + 2) %}
-                <a href="?q={{ search_info.query }}&category={{ search_info.category or '' }}&tag={{ search_info.tag or '' }}&format={{ search_info.format or '' }}&sort={{ search_info.sort }}&page={{ page_num }}" 
-                   class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
-                    {{ page_num }}
-                </a>
-                {% elif page_num == 4 or page_num == search_info.total_pages - 3 %}
-                <span class="px-3 py-2">...</span>
-                {% endif %}
-                {% endfor %}
-                
-                {% if search_info.page < search_info.total_pages %}
-                <a href="?q={{ search_info.query }}&category={{ search_info.category or '' }}&tag={{ search_info.tag or '' }}&format={{ search_info.format or '' }}&sort={{ search_info.sort }}&page={{ search_info.page + 1 }}" 
-                   class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
-                    下一页
-                </a>
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
-        
-        {% else %}
-        <div class="text-center py-12">
-            <i class="fas fa-search text-6xl text-gray-300 mb-4"></i>
-            <h3 class="text-xl font-medium text-gray-900 mb-2">没有找到匹配的结果</h3>
-            <p class="text-gray-600 mb-6">尝试使用不同的关键词或筛选条件</p>
-            <div class="text-sm text-gray-500">
-                <p class="mb-2">搜索建议：</p>
-                <ul class="space-y-1">
-                    <li>• 检查拼写是否正确</li>
-                    <li>• 尝试使用不同的关键词</li>
-                    <li>• 使用更通用的搜索词</li>
-                    <li>• 清除筛选条件</li>
-                </ul>
-            </div>
-        </div>
-        {% endif %}
+    <div id="search-panel">
+        {% include "components/search_results_panel.html" %}
     </div>
-    {% else %}
-    <div class="bg-white p-6 rounded-lg shadow-md text-center">
-        <i class="fas fa-search text-6xl text-gray-300 mb-4"></i>
-        <h2 class="text-2xl font-semibold text-gray-800 mb-2">开始搜索</h2>
-        <p class="text-gray-600">在上方输入搜索关键词，探索网站内容</p>
-    </div>
-    {% endif %}
 </div>
 
 <script>
@@ -224,6 +108,7 @@
 const searchInput = document.getElementById('search-input');
 const suggestionsContainer = document.getElementById('search-suggestions');
 const suggestionError = document.getElementById('suggestion-error');
+const searchForm = document.getElementById('search-form');
 let suggestionsTimeout;
 
 searchInput.addEventListener('input', function() {
@@ -249,9 +134,18 @@ searchInput.addEventListener('blur', function() {
     setTimeout(hideSuggestions, 200);
 });
 
+// 筛选/排序切换后自动触发无刷新搜索
+if (searchForm) {
+    searchForm.querySelectorAll('select, input[type="radio"]').forEach((control) => {
+        control.addEventListener('change', () => {
+            searchForm.requestSubmit();
+        });
+    });
+}
+
 async function fetchSuggestions(query) {
     try {
-        const response = await fetch(`/api/search/suggestions?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`/api/v1/search/suggestions?q=${encodeURIComponent(query)}`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -314,7 +208,7 @@ function hideSuggestionError() {
 }
 
 // 关键词高亮：支持空格/中文分词（与后端一致的简单规则）
-(function highlightResults(){
+function highlightResults() {
     const queryTextEl = document.getElementById('query-text');
     if (!queryTextEl) return;
     const q = queryTextEl.textContent || '';
@@ -336,10 +230,10 @@ function hideSuggestionError() {
 
     document.querySelectorAll('.result-title').forEach(wrapHighlight);
     document.querySelectorAll('.result-excerpt').forEach(wrapHighlight);
-})();
+}
 
 // 分页URL可读性优化：使用 URLSearchParams 维护参数
-(function enhancePagination(){
+function enhancePagination() {
     const container = document.getElementById('pagination');
     if (!container) return;
     const currentParams = new URLSearchParams(window.location.search);
@@ -357,7 +251,7 @@ function hideSuggestionError() {
         ['q','category','tag','format','sort','page'].forEach(k => { if (newParams.has(k)) ordered.set(k, newParams.get(k)); });
         a.href = `/search?${ordered.toString()}`;
     });
-})();
+}
 
 // 简单的HTML转义，避免建议标题插入风险
 function escapeHtml(str) {
@@ -368,6 +262,19 @@ function escapeHtml(str) {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
 }
+
+// 初始化与 HTMX 局部刷新后重绑定
+function initSearchEnhancements() {
+    highlightResults();
+    enhancePagination();
+}
+
+document.addEventListener('DOMContentLoaded', initSearchEnhancements);
+document.body.addEventListener('htmx:afterSwap', function(event) {
+    if (event.target && event.target.id === 'search-panel') {
+        initSearchEnhancements();
+    }
+});
 </script>
 
 {% endblock %}

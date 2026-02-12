@@ -40,10 +40,9 @@ async def installer_page(request: Request):
     
     检查系统是否已安装，如果已安装则重定向到管理后台
     """
-    # 如果 .env 文件存在，说明已经安装过了，重定向到动态后台登录页面
+    # 如果 .env 文件存在，说明已经安装过了，不返回后台路径相关信息
     if os.path.exists(".env"):
-        admin_path = settings.ADMIN_PATH.rstrip('/')
-        return RedirectResponse(url=f"{admin_path}/login")
+        return RedirectResponse(url="/")
     
     # 初始化 CSRF 令牌
     csrf_token = generate_csrf_token()
@@ -661,6 +660,7 @@ async def run_installer(
     
     一步完成基础安装，包括创建管理员和基础配置
     """
+    env_created = False
     try:
         # 验证 CSRF 令牌
         # verify_csrf_token(request, csrf_token)
@@ -681,6 +681,7 @@ MEDIA_UPLOAD_DIR="media_uploads"
 '''
         with open(".env", "w") as f:
             f.write(env_content.strip())
+        env_created = True
 
         # 2. 初始化数据库
         # 创建数据目录（如果不存在）
@@ -726,7 +727,9 @@ MEDIA_UPLOAD_DIR="media_uploads"
         # 重定向到动态后台登录页面
         return RedirectResponse(url=f"{admin_path}/login", status_code=303)
         
+    except HTTPException:
+        raise
     except Exception as e:
-        if os.path.exists(".env"):
-            os.remove(".env")  # 清理失败的安装
+        if env_created and os.path.exists(".env"):
+            os.remove(".env")  # 仅清理当前安装流程新建的 .env，避免误删已部署配置
         raise HTTPException(status_code=500, detail=f"安装失败: {str(e)}")

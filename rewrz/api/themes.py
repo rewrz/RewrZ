@@ -540,6 +540,27 @@ async def update_background_image(
     
     return JSONResponse({"success": True, "message": "背景图片设置已保存"})
 
+@router.post("/api/v1/admin/themes/background")
+@router.post("/api/admin/themes/background")
+async def update_background_image_api(
+    request: Request,
+    background_type: str = Form(...),
+    custom_background_url: Optional[str] = Form(None),
+    csrf_token: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await update_background_image(
+        request=request,
+        db=db,
+        current_user=current_user,
+        background_type=background_type,
+        custom_background_url=custom_background_url,
+        csrf_token=csrf_token,
+    )
+
+
+@router.get("/api/v1/theme/current")
 @router.get("/api/theme/current")
 async def get_current_theme(request: Request, db: Session = Depends(get_db)):
     """获取当前主题配置（前端API）"""
@@ -620,6 +641,7 @@ def check_scheduled_atmosphere(db: Session) -> Optional[str]:
     
     return None
 
+@router.get("/api/v1/theme/variables.css")
 @router.get("/api/theme/variables.css")
 async def theme_variables_css(request: Request, db: Session = Depends(get_db)):
     """动态生成CSS变量文件"""
@@ -645,6 +667,7 @@ async def theme_variables_css(request: Request, db: Session = Depends(get_db)):
     
     return Response(content=css_content, media_type="text/css")
 
+@router.post("/api/v1/theme/update")
 @router.post("/api/theme/update")
 async def update_theme_realtime(
     request: Request,
@@ -676,6 +699,7 @@ async def update_theme_realtime(
     
     return JSONResponse({"success": True, "theme": theme_to_save})
 
+@router.post("/api/v1/atmosphere/update")
 @router.post("/api/atmosphere/update")
 async def update_atmosphere_realtime(
     request: Request,
@@ -707,6 +731,7 @@ async def update_atmosphere_realtime(
     
     return JSONResponse({"success": True, "atmosphere": atmosphere, "effects": effects})
 
+@router.get("/api/v1/theme/sync")
 @router.get("/api/theme/sync")
 async def sync_theme_settings(request: Request, db: Session = Depends(get_db)):
     """同步主题设置 - 用于前端实时获取最新配置"""

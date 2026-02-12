@@ -34,7 +34,7 @@ class ThemeSync {
     
     async syncThemeSettings() {
         try {
-            const response = await fetch('/api/theme/sync');
+            const response = await fetch('/api/v1/theme/sync');
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }

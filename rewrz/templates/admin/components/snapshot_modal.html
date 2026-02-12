@@ -1,0 +1,189 @@
+<div id="snapshot-modal" class="fixed inset-0 z-50 hidden bg-gray-900/50 p-4">
+    <div class="mx-auto mt-8 w-full max-w-6xl rounded-lg bg-white shadow-xl">
+        <div class="flex items-center justify-between border-b px-5 py-4">
+            <h3 class="text-lg font-semibold text-gray-900">历史快照</h3>
+            <button type="button" id="snapshot-close-btn" class="rounded p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                </svg>
+            </button>
+        </div>
+
+        <div class="grid gap-0 md:grid-cols-3">
+            <div class="border-r border-gray-200 p-4">
+                <div id="snapshot-list" class="max-h-[65vh] space-y-2 overflow-y-auto">
+                    <p class="text-sm text-gray-500">加载中...</p>
+                </div>
+            </div>
+            <div class="md:col-span-2 p-4">
+                <p id="snapshot-preview-title" class="mb-3 text-sm font-medium text-gray-700">选择左侧快照进行预览</p>
+                <div id="snapshot-preview" class="prose max-w-none max-h-[65vh] overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-4 text-sm"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(() => {
+    const modal = document.getElementById("snapshot-modal");
+    if (!modal) return;
+
+    const elements = {
+        closeBtn: document.getElementById("snapshot-close-btn"),
+        list: document.getElementById("snapshot-list"),
+        previewTitle: document.getElementById("snapshot-preview-title"),
+        preview: document.getElementById("snapshot-preview"),
+    };
+
+    const state = {
+        postId: null,
+        editor: null,
+        snapshots: [],
+        currentContent: "",
+    };
+
+    function escapeHtml(text) {
+        return (text || "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll("\"", "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    function markdownToHtml(markdown) {
+        const escaped = escapeHtml(markdown || "");
+        return escaped
+            .replace(/^### (.*)$/gim, "<h3>$1</h3>")
+            .replace(/^## (.*)$/gim, "<h2>$1</h2>")
+            .replace(/^# (.*)$/gim, "<h1>$1</h1>")
+            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+            .replace(/\*(.*?)\*/g, "<em>$1</em>")
+            .replace(/`(.*?)`/g, "<code>$1</code>")
+            .replace(/\n/g, "<br>");
+    }
+
+    function renderPreview(title, content) {
+        elements.previewTitle.textContent = title;
+        elements.preview.innerHTML = markdownToHtml(content);
+    }
+
+    async function restoreSnapshot(snapshotIndex, formattedTime) {
+        const confirmed = window.confirm(`确定恢复到该快照吗？\n${formattedTime}\n\n当前内容会自动存为新快照。`);
+        if (!confirmed) return;
+
+        const response = await fetch(`/api/v1/posts/${state.postId}/snapshots/${snapshotIndex}/restore`, {
+            method: "POST",
+            credentials: "same-origin",
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            window.alert(`恢复失败：${result.detail || response.statusText}`);
+            return;
+        }
+
+        if (state.editor && typeof state.editor.setMarkdown === "function") {
+            state.editor.setMarkdown(result.new_content || "");
+        }
+        renderPreview(`已恢复：${formattedTime}`, result.new_content || "");
+        window.alert("快照已恢复到编辑器，请继续编辑后保存。");
+        close();
+    }
+
+    function renderList() {
+        const rows = [];
+        rows.push(`
+            <div class="rounded-md border border-green-200 bg-green-50 p-3">
+                <div class="mb-2 text-xs font-medium text-green-700">当前内容</div>
+                <div class="mb-2 line-clamp-3 text-xs text-gray-700">${escapeHtml(state.currentContent || "").slice(0, 120) || "（空）"}</div>
+                <button type="button" data-current="1" class="snapshot-preview-current rounded bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-700">预览当前</button>
+            </div>
+        `);
+
+        if (!state.snapshots.length) {
+            rows.push(`<div class="rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500">暂无历史快照</div>`);
+        } else {
+            state.snapshots.forEach((item, index) => {
+                const preview = escapeHtml(item.content || "").slice(0, 100);
+                rows.push(`
+                    <div class="rounded-md border border-gray-200 p-3">
+                        <div class="mb-1 text-xs font-medium text-gray-800">快照 ${index + 1}</div>
+                        <div class="mb-2 text-xs text-gray-500">${escapeHtml(item.formatted_time || "")}</div>
+                        <div class="mb-3 line-clamp-3 text-xs text-gray-600">${preview || "（空）"}</div>
+                        <div class="flex gap-2">
+                            <button type="button" data-preview="${index}" class="snapshot-preview-btn rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700">预览</button>
+                            <button type="button" data-restore="${index}" class="snapshot-restore-btn rounded bg-emerald-600 px-2 py-1 text-xs text-white hover:bg-emerald-700">恢复</button>
+                        </div>
+                    </div>
+                `);
+            });
+        }
+
+        elements.list.innerHTML = rows.join("");
+
+        elements.list.querySelector(".snapshot-preview-current")?.addEventListener("click", () => {
+            renderPreview("当前内容", state.currentContent || "");
+        });
+
+        elements.list.querySelectorAll(".snapshot-preview-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const index = Number(btn.dataset.preview);
+                const snapshot = state.snapshots[index];
+                if (!snapshot) return;
+                renderPreview(`快照 ${index + 1} - ${snapshot.formatted_time || ""}`, snapshot.content || "");
+            });
+        });
+
+        elements.list.querySelectorAll(".snapshot-restore-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const index = Number(btn.dataset.restore);
+                const snapshot = state.snapshots[index];
+                if (!snapshot) return;
+                restoreSnapshot(index, snapshot.formatted_time || "未知时间");
+            });
+        });
+    }
+
+    async function open(options) {
+        state.postId = options?.postId;
+        state.editor = options?.editor || null;
+        if (!state.postId) return;
+
+        modal.classList.remove("hidden");
+        elements.list.innerHTML = `<p class="text-sm text-gray-500">加载中...</p>`;
+        elements.previewTitle.textContent = "选择左侧快照进行预览";
+        elements.preview.innerHTML = "";
+
+        try {
+            const response = await fetch(`/api/v1/posts/${state.postId}/snapshots/json`, {
+                credentials: "same-origin",
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || response.statusText);
+            }
+            state.snapshots = data.snapshots || [];
+            state.currentContent = data.current_content || "";
+            renderList();
+            renderPreview("当前内容", state.currentContent);
+        } catch (error) {
+            elements.list.innerHTML = `<p class="text-sm text-red-600">快照加载失败：${error.message}</p>`;
+        }
+    }
+
+    function close() {
+        modal.classList.add("hidden");
+        state.postId = null;
+        state.editor = null;
+        state.snapshots = [];
+        state.currentContent = "";
+    }
+
+    elements.closeBtn.addEventListener("click", close);
+    modal.addEventListener("click", (event) => {
+        if (event.target === modal) close();
+    });
+
+    window.RewrzSnapshotModal = { open, close };
+})();
+</script>

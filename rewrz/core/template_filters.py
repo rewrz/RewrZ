@@ -8,13 +8,16 @@ Jinja2模板过滤器
 """
 
 import hashlib
+import re
 from datetime import datetime
 from typing import Optional
+from pathlib import Path
 from jinja2 import Environment
 from .license_manager import render_license, LicenseManager
 from .donation_system import render_donation_widget
 from .blog_enhancements import calculate_reading_time, get_related_posts, get_post_statistics
 from ..core.config import settings # 导入settings
+from ..core.database import get_db
 
 
 def md5_filter(text: str) -> str:
@@ -142,6 +145,40 @@ def truncate_html_filter(html_content: str, length: int = 100) -> str:
         return html_content[:length] + "..."
 
 
+def extract_image_urls_filter(content_html: str, featured_image_url: Optional[str] = None) -> list:
+    """
+    浠嶢TML鍐呭涓彁鍙栧浘鐗囬摼鎺ワ紝鐢ㄤ簬鏃堕棿杞村崱鐗囩殑涔濆鏍煎睍绀?
+
+    Args:
+        content_html: 鏂囩珷娓叉煋鍚庣殑 HTML
+        featured_image_url: 鐗硅壊鍥剧墖 URL锛堝彲閫夛級锛岀敤浜庢帓闄ら噸澶?
+
+    Returns:
+        鍘婚噸鍚庣殑鍥剧墖 URL 鍒楄〃锛堟渶澶?20 寮犱互闃叉瀬绔儏鍐碉級
+    """
+    if not content_html:
+        return []
+
+    image_urls = []
+    seen = set()
+    featured_normalized = (featured_image_url or "").strip()
+
+    for match in re.finditer(r'<img[^>]+src=["\\\']([^"\\\']+)["\\\']', content_html, re.IGNORECASE):
+        src = (match.group(1) or "").strip()
+        if not src:
+            continue
+        if featured_normalized and src == featured_normalized:
+            continue
+        if src in seen:
+            continue
+        seen.add(src)
+        image_urls.append(src)
+        if len(image_urls) >= 20:
+            break
+
+    return image_urls
+
+
 def license_html_filter(license_type: str, author: str, site_url: str = "") -> str:
     """
     生成版权声明HTML的过滤器
@@ -163,7 +200,17 @@ def url_filter(filepath: str) -> str:
     """
     if not filepath:
         return ""
-    return filepath.replace(settings.MEDIA_UPLOAD_DIR, '/media')
+
+    try:
+        upload_root = Path(settings.MEDIA_UPLOAD_DIR).resolve()
+        relative = Path(filepath).resolve().relative_to(upload_root).as_posix()
+        return f"/media/{relative}"
+    except Exception:
+        normalized_path = str(filepath).replace("\\", "/")
+        normalized_root = str(settings.MEDIA_UPLOAD_DIR).replace("\\", "/").rstrip("/")
+        if normalized_path.startswith(normalized_root):
+            return normalized_path.replace(normalized_root, "/media", 1)
+        return normalized_path
 
 
 def get_license_options_filter(selected_license: str = "cc_by_nc_sa_4") -> str:
@@ -323,14 +370,26 @@ def related_posts_filter(current_post, db, limit: int = 5) -> list:
     Returns:
         相关文章列表
     """
-    if not current_post or not db:
+    if not current_post:
         return []
-    
+
+    db_gen = None
+    effective_db = db
+    if effective_db is None:
+        db_gen = get_db()
+        effective_db = next(db_gen)
+
     try:
-        return get_related_posts(db, current_post, limit)
+        return get_related_posts(effective_db, current_post, limit)
     except Exception as e:
         print(f"获取相关文章失败: {e}")
         return []
+    finally:
+        if db_gen is not None:
+            try:
+                db_gen.close()
+            except Exception:
+                pass
 
 
 def post_url_filter(post) -> str:
@@ -351,6 +410,14 @@ def post_url_filter(post) -> str:
     if hasattr(post, 'formats') and post.formats:
         # 使用第一个格式的slug
         format_slug = post.formats[0].slug
+
+    # 统一对外友好路径别名
+    alias_map = {
+        "micro-post": "weibo",
+        "photo-album": "photos",
+        "poetry-song": "music",
+    }
+    format_slug = alias_map.get(format_slug, format_slug)
     
     return f"/{format_slug}/{post.slug}"
 
@@ -372,6 +439,7 @@ def register_template_filters(app):
     templates.env.filters['avatar_url'] = avatar_url_filter
     templates.env.filters['time_ago'] = time_ago_filter
     templates.env.filters['truncate_html'] = truncate_html_filter
+    templates.env.filters['extract_image_urls'] = extract_image_urls_filter
     templates.env.filters['date'] = date_filter
     templates.env.filters['license_html'] = license_html_filter
     templates.env.filters['license_options'] = get_license_options_filter
@@ -399,6 +467,7 @@ def get_templates():
         _templates.env.filters['avatar_url'] = avatar_url_filter
         _templates.env.filters['time_ago'] = time_ago_filter
         _templates.env.filters['truncate_html'] = truncate_html_filter
+        _templates.env.filters['extract_image_urls'] = extract_image_urls_filter
         _templates.env.filters['date'] = date_filter
         _templates.env.filters['license_html'] = license_html_filter
         _templates.env.filters['license_options'] = get_license_options_filter

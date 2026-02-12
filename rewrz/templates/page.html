@@ -5,6 +5,7 @@
 {% block content %}
 {# 确保 settings 变量存在并提供默认值 #}
 {% set settings = settings or {} %}
+{% set rendered_content = display_content_html if display_content_html is defined else (post.content_html if post else content) %}
 
 {% if post and post.status == "published" %}
     {% if post.featured_image_url %}
@@ -34,7 +35,19 @@
         </div>
         
         <div class="prose prose-indigo max-w-none mb-8">
-            {{ post.content_html | safe }}
+            {% if toc_items %}
+            <nav class="mb-6 rounded-lg border border-blue-100 bg-blue-50 p-4" aria-label="页面目录">
+                <h2 class="mb-3 text-sm font-semibold text-blue-800">页面目录</h2>
+                <ul class="space-y-2">
+                    {% for item in toc_items %}
+                    <li class="{% if item.level == 'h3' %}ml-4{% endif %}">
+                        <a href="#{{ item.id }}" class="text-sm text-blue-700 hover:text-blue-900">{{ item.title }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+            {% endif %}
+            {{ rendered_content | safe }}
         </div>
         
         <!-- 版权声明 -->
@@ -109,7 +122,19 @@
             {% endif %}
         </div>
         <div class="prose prose-indigo max-w-none mb-8">
-            {{ post.content_html | safe }}
+            {% if toc_items %}
+            <nav class="mb-6 rounded-lg border border-blue-100 bg-blue-50 p-4" aria-label="页面目录">
+                <h2 class="mb-3 text-sm font-semibold text-blue-800">页面目录</h2>
+                <ul class="space-y-2">
+                    {% for item in toc_items %}
+                    <li class="{% if item.level == 'h3' %}ml-4{% endif %}">
+                        <a href="#{{ item.id }}" class="text-sm text-blue-700 hover:text-blue-900">{{ item.title }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+            {% endif %}
+            {{ rendered_content | safe }}
         </div>
     </article>
 {% else %}

@@ -86,7 +86,7 @@
 <script>
 function deletePage(pageId) {
     if (confirm('确定要删除这个页面吗？')) {
-        fetch(`{{ request.state.admin_path }}/api/pages/${pageId}`, {
+        fetch(`{{ request.state.admin_path }}/api/v1/pages/${pageId}`, {
             method: 'DELETE',
         })
         .then(response => response.json())

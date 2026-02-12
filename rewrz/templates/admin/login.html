@@ -44,10 +44,21 @@
 
         document.body.addEventListener('htmx:responseError', function(evt) {
             // 显示错误消息
-            if (evt.detail.xhr.status === 401) {
+            const xhr = evt.detail.xhr;
+            let errorDetail = '';
+            try {
+                const payload = JSON.parse(xhr.responseText || '{}');
+                errorDetail = payload.detail || '';
+            } catch (e) {
+                errorDetail = '';
+            }
+
+            if (xhr.status === 401) {
                 document.getElementById('login-message').textContent = '用户名或密码错误';
+            } else if (xhr.status === 429) {
+                document.getElementById('login-message').textContent = errorDetail || '登录尝试过于频繁，请稍后重试';
             } else {
-                document.getElementById('login-message').textContent = '登录失败，请稍后重试';
+                document.getElementById('login-message').textContent = errorDetail || '登录失败，请稍后重试';
             }
         });
     </script>

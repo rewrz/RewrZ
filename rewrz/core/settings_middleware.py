@@ -33,9 +33,11 @@ class SettingsMiddleware(BaseHTTPMiddleware):
         """
         db_gen = None
         try:
-            # 获取数据库会话
-            db_gen = get_db()
-            db: Session = next(db_gen)
+            # 优先复用 request 级数据库会话
+            db: Session = getattr(request.state, "db", None)
+            if db is None:
+                db_gen = get_db()
+                db = next(db_gen)
 
             if db is None:
                 raise RuntimeError("Database session is unavailable")

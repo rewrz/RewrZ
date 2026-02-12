@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from ..core.database import get_db
 from ..core.security import get_current_user
+from ..core.config import settings
 from ..core.template_filters import get_templates
 from ..core.media_config import get_media_settings_schema
 from ..crud import setting as crud_setting
@@ -53,11 +54,13 @@ async def media_settings_page(
     })
 
 
-# 媒体设置更新路由已移至 main.py 中的动态路由注册系统
+# 媒体设置更新路由
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/settings")
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/settings")
 async def update_media_settings(
     request: Request,
-    db: Session,
-    current_user: User,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     # 图像处理设置
     media_image_quality: int = Form(85),
     media_max_image_size: int = Form(2048),
@@ -183,10 +186,12 @@ async def update_media_settings(
         }, status_code=500)
 
 
-# 获取当前媒体设置路由已移至 main.py 中的动态路由注册系统
+# 获取当前媒体设置路由
+@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/settings/current")
+@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/settings/current")
 async def get_current_media_settings(
-    db: Session,
-    current_user: User
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     获取当前媒体设置

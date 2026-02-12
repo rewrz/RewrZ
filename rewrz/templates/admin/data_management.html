@@ -197,7 +197,7 @@ function switchTab(tabName) {
 // 加载数据统计
 async function loadDataStats() {
     try {
-        const response = await fetch('{{ admin_path }}/api/data/stats');
+        const response = await fetch('{{ admin_path }}/api/v1/data/stats');
         const data = await response.json();
         
         document.getElementById('posts-count').textContent = data.posts;
@@ -216,8 +216,8 @@ async function exportData(type) {
     
     try {
         const url = type === 'json' ? 
-            '{{ admin_path }}/api/export/json' : 
-            '{{ admin_path }}/api/export/backup';
+            '{{ admin_path }}/api/v1/export/json' : 
+            '{{ admin_path }}/api/v1/export/backup';
         
         // 创建下载链接
         const link = document.createElement('a');
@@ -242,7 +242,7 @@ document.getElementById('wordpress-import-form').addEventListener('submit', asyn
     showOperationStatus();
     
     try {
-        const response = await fetch('{{ admin_path }}/api/import/wordpress', {
+        const response = await fetch('{{ admin_path }}/api/v1/import/wordpress', {
             method: 'POST',
             body: formData
         });
@@ -269,7 +269,7 @@ document.getElementById('rewrz-import-form').addEventListener('submit', async fu
     showOperationStatus();
     
     try {
-        const response = await fetch('{{ admin_path }}/api/import/rewrz', {
+        const response = await fetch('{{ admin_path }}/api/v1/import/rewrz', {
             method: 'POST',
             body: formData
         });
@@ -300,7 +300,7 @@ document.getElementById('backup-restore-form').addEventListener('submit', async 
     showOperationStatus();
     
     try {
-        const response = await fetch('{{ admin_path }}/api/import/backup', {
+        const response = await fetch('{{ admin_path }}/api/v1/import/backup', {
             method: 'POST',
             body: formData
         });

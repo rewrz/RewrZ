@@ -458,6 +458,27 @@ server {
 }
 ```
 
+### 后台路径 IP 白名单（建议生产环境启用）
+
+将下面的 `location` 路径替换为你在 `.env` 中配置的 `ADMIN_PATH`，并把 `allow` 改成你自己的固定出口 IP。
+
+```nginx
+# 仅允许特定 IP 访问后台
+location ^~ /rewrz-admin-a1b2c3d4/ {
+    allow 203.0.113.10;   # 办公网/家宽固定 IP
+    allow 127.0.0.1;
+    deny all;
+
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+如果你的服务前面还有一层 CDN/SLB，请先正确配置 `real_ip_header` 与 `set_real_ip_from`，否则 Nginx 看到的可能是上游节点 IP，而不是客户端真实 IP。
+
 ---
 
 ## 🛠️ 开发最佳实践

@@ -447,7 +447,7 @@ async function refreshSystemInfo() {
     refreshBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin mr-2"></i>更新中...';
     
     try {
-        const response = await fetch('{{ admin_path }}/api/system/info');
+        const response = await fetch('{{ admin_path }}/api/v1/system-info');
         const result = await response.json();
         
         if (result.success) {

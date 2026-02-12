@@ -1,0 +1,33 @@
+<div class="space-y-4">
+    <div class="flex items-center justify-between">
+        <div class="text-sm text-gray-600">状态</div>
+        {% if health.status == "healthy" %}
+        <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">健康</span>
+        {% else %}
+        <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">需关注</span>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+        <div class="rounded-md bg-gray-50 p-3">
+            <div class="text-gray-500">数据库连接</div>
+            <div class="font-semibold {% if health.database_ok %}text-green-700{% else %}text-red-700{% endif %}">
+                {{ "正常" if health.database_ok else "异常" }}
+            </div>
+        </div>
+        <div class="rounded-md bg-gray-50 p-3">
+            <div class="text-gray-500">待审核评论</div>
+            <div class="font-semibold text-gray-800">{{ health.pending_comments }}</div>
+        </div>
+        <div class="rounded-md bg-gray-50 p-3">
+            <div class="text-gray-500">24h 登录失败</div>
+            <div class="font-semibold text-gray-800">{{ health.failed_logins_24h }}</div>
+        </div>
+        <div class="rounded-md bg-gray-50 p-3">
+            <div class="text-gray-500">媒体库体积</div>
+            <div class="font-semibold text-gray-800">{{ health.media_total_mb }} MB / {{ health.media_file_count }} 文件</div>
+        </div>
+    </div>
+
+    <div class="text-xs text-gray-500">检查时间：{{ health.checked_at }}</div>
+</div>

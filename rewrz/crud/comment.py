@@ -67,6 +67,9 @@ def create_comment(db: Session, comment: CommentCreate, ip_address: str = "", us
     # 将HttpUrl转换为字符串
     author_url_str = str(comment.author_url) if comment.author_url else None
     
+    resolved_ip = ip_address or comment.ip_address or ""
+    resolved_user_agent = user_agent or comment.user_agent or ""
+
     db_comment = Comment(
         post_id=comment.post_id,
         parent_id=comment.parent_id,
@@ -74,8 +77,8 @@ def create_comment(db: Session, comment: CommentCreate, ip_address: str = "", us
         author_email=comment.author_email,
         author_url=author_url_str,
         content=comment.content,
-        ip_address=ip_address,
-        user_agent=user_agent,
+        ip_address=resolved_ip,
+        user_agent=resolved_user_agent,
         status=comment.status,  # 使用传入的状态
         created_at=datetime.now()
     )

@@ -4,7 +4,7 @@
 提供评论的创建、回复功能，集成反垃圾评论三层防护系统。
 包含XSS防护、内容净化、垃圾检测等安全功能。
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Form
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Request, Form, Query, Header
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from ..core.database import get_db
@@ -12,18 +12,28 @@ from ..crud import comment as crud_comment
 from ..crud import post as crud_post
 from ..crud import setting as crud_setting
 from ..schemas import CommentCreate, Comment, User
-from ..core.security import get_current_user
+from ..core.security import get_current_user, verify_csrf_token
 from pydantic import BaseModel
 from typing import List
 import bleach # 导入bleach用于HTML净化
 from markdown import markdown
-from ..core.config import settings # 反垃圾设置
 from ..core.anti_spam import get_anti_spam_engine # 导入反垃圾引擎
 from ..core.avatar import get_avatar_service # 导入头像服务
 from ..core.template_filters import get_templates # 导入模板函数
-import time
+from ..core.content_access import extract_hide_block, get_comment_unlock_cookie_name
+from ..core.admin_security import check_comment_rate_limit, get_admin_email, get_client_ip
+from ..core.notification_email import send_new_comment_notification
 
 router = APIRouter()
+
+
+def _set_comment_unlock_cookie(response: HTMLResponse, post_id: int) -> None:
+    response.set_cookie(
+        key=get_comment_unlock_cookie_name(post_id),
+        value="true",
+        max_age=30 * 24 * 60 * 60,  # 30天
+        samesite="lax",
+    )
 
 class BulkAction(BaseModel):
     action: str
@@ -36,9 +46,10 @@ class AdminReply(BaseModel):
 ALLOWED_TAGS = ['a', 'strong', 'em', 'code', 'p', 'br']
 ALLOWED_ATTRIBUTES = {'a': ['href', 'title']}
 
-@router.post("/api/v1/comments/{post_id}", response_model=Comment)
+@router.post("/api/v1/comments/{post_id}", response_class=HTMLResponse)
 async def create_comment_api(
     request: Request,
+    background_tasks: BackgroundTasks,
     post_id: int,
     author_name: str = Form(...),
     author_email: str = Form(...),
@@ -46,8 +57,9 @@ async def create_comment_api(
     author_url: str = Form(None),
     parent_id: int = Form(None),
     honeypot_field: str = Form(None, alias="hp_field"),  # 蜜罐字段
-    form_timestamp: float = Form(None, alias="ft"),  # 表单时间戳
+    form_timestamp: str = Form(None, alias="ft"),  # 表单时间戳令牌
     captcha_response: str = Form(None, alias="captcha"),  # 验证码响应
+    csrf_token: str = Form(...),
     db: Session = Depends(get_db)
 ):
     """
@@ -58,6 +70,8 @@ async def create_comment_api(
     2. 内容分析：链接数量 + 关键词过滤 + Akismet
     3. 主动验证：验证码确认
     """
+    verify_csrf_token(request, csrf_token)
+
     # 检查文章是否存在且允许评论
     db_post = crud_post.get_post(db, post_id=post_id)
     if db_post is None:
@@ -65,12 +79,21 @@ async def create_comment_api(
     if not db_post.allow_comments:
         raise HTTPException(status_code=403, detail="Comments are not allowed on this post.")
 
+    # 获取客户端信息
+    ip_address = get_client_ip(request)
+    user_agent = request.headers.get("User-Agent", "")
+
+    # 评论提交 API 速率限制（按IP）
+    allowed, retry_after = check_comment_rate_limit(db, ip_address)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="评论提交过于频繁，请稍后再试",
+            headers={"Retry-After": str(retry_after)},
+        )
+
     # 反垃圾三层防护系统检查
     anti_spam = get_anti_spam_engine(db)
-    
-    # 获取客户端信息
-    ip_address = request.client.host if request.client else "unknown"
-    user_agent = request.headers.get("User-Agent", "")
     
     # 执行垃圾检测
     spam_result = await anti_spam.check_comment(
@@ -85,13 +108,19 @@ async def create_comment_api(
     )
     
     # 处理垃圾检测结果
-    if spam_result.action == "block":
-        # 静默丢弃，返回成功响应但不保存评论
+    if spam_result.action in {"silent_drop", "block"}:
+        # 静默丢弃：返回成功响应但不保存评论，也不写入解锁Cookie
         print(f"垃圾评论被阻止: {spam_result.reason} (IP: {ip_address})")
         return HTMLResponse(
             content="<div class='alert alert-success'>评论提交成功！</div>",
             status_code=200
         )
+
+    if spam_result.action == "too_fast":
+        raise HTTPException(status_code=429, detail="提交过快，请稍后重试")
+
+    if spam_result.action == "expired":
+        raise HTTPException(status_code=400, detail="表单已过期，请刷新页面后重试")
     
     elif spam_result.action == "captcha":
         # 需要验证码确认
@@ -128,6 +157,21 @@ async def create_comment_api(
         status=comment_status  # 根据垃圾检测结果设置状态
     )
     db_comment = crud_comment.create_comment(db=db, comment=comment_create)
+
+    # 新评论异步通知管理员
+    admin_email = get_admin_email(db)
+    if admin_email:
+        review_url = f"{request.url.scheme}://{request.url.netloc}{request.state.admin_path}/comments?status=pending"
+        comment_preview = " ".join((content or "").strip().split())[:160]
+        background_tasks.add_task(
+            send_new_comment_notification,
+            admin_email,
+            db_post.title or "(untitled)",
+            author_name,
+            author_email,
+            comment_preview,
+            review_url,
+        )
     
     # 记录反垃圾检测日志
     print(f"评论创建成功 - ID: {db_comment.id}, 状态: {comment_status}, "
@@ -146,13 +190,15 @@ async def create_comment_api(
     
     # 如果需要审核，返回提示信息
     if comment_status == "pending":
-        return HTMLResponse(
+        pending_response = HTMLResponse(
             content="<div class='alert alert-warning'>评论已提交，正在等待审核。</div>",
             status_code=200
         )
+        _set_comment_unlock_cookie(pending_response, post_id)
+        return pending_response
     
     # 返回评论组件，包含头像信息
-    return templates.TemplateResponse(
+    approved_response = templates.TemplateResponse(
         "components/comment_item.html", 
         {
             "request": request, 
@@ -160,6 +206,45 @@ async def create_comment_api(
             "post": db_post,
             "avatar_url": comment_avatar_url
         }
+    )
+    _set_comment_unlock_cookie(approved_response, post_id)
+    return approved_response
+
+
+@router.post("/api/v1/reveal/{post_id}", response_class=HTMLResponse)
+async def reveal_hidden_content(
+    post_id: int,
+    request: Request,
+    index: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """
+    评论后可见内容揭示接口
+
+    仅当访客已拥有当前文章评论 Cookie 时，返回 [hide] 块渲染结果。
+    """
+    db_post = crud_post.get_post(db, post_id=post_id)
+    if db_post is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    unlock_cookie_name = get_comment_unlock_cookie_name(post_id)
+    if request.cookies.get(unlock_cookie_name) != "true":
+        return HTMLResponse(
+            content="<div class='text-sm text-red-600'>请先发表评论后再查看隐藏内容。</div>",
+            status_code=403,
+        )
+
+    hidden_markdown = extract_hide_block(db_post.content_markdown, index)
+    if hidden_markdown is None:
+        raise HTTPException(status_code=404, detail="Hidden block not found")
+
+    return HTMLResponse(
+        content=(
+            '<div class="my-4 rounded-lg border border-green-300 bg-green-50 p-4">'
+            f"{markdown(hidden_markdown)}"
+            "</div>"
+        ),
+        status_code=200,
     )
 
 @router.get("/api/v1/comments/reply_form/{post_id}/{parent_id}", response_class=HTMLResponse)
@@ -177,9 +262,10 @@ async def get_reply_form(request: Request, post_id: int, parent_id: int, db: Ses
     
     # 生成防垃圾字段
     anti_spam = get_anti_spam_engine(db)
-    honeypot_field_name = anti_spam.generate_honeypot_field_name()
-    form_token = anti_spam.generate_form_token()
-    form_timestamp = time.time()
+    form_timestamp_token = anti_spam.generate_form_timestamp_token()
+    parent_comment = crud_comment.get_comment(db, comment_id=parent_id)
+    if parent_comment is None:
+        raise HTTPException(status_code=404, detail="Parent comment not found")
     
     return templates.TemplateResponse(
         "components/reply_form.html", 
@@ -188,9 +274,9 @@ async def get_reply_form(request: Request, post_id: int, parent_id: int, db: Ses
             "post_id": post_id, 
             "parent_id": parent_id, 
             "post": db_post,
-            "honeypot_field_name": honeypot_field_name,
-            "form_token": form_token,
-            "form_timestamp": form_timestamp
+            "parent_author_name": parent_comment.author_name,
+            "form_timestamp_token": form_timestamp_token,
+            "captcha_enabled": anti_spam.captcha_enabled,
         }
     )
 
@@ -215,9 +301,7 @@ async def get_comment_form(request: Request, post_id: int, db: Session = Depends
     
     # 生成防垃圾字段
     anti_spam = get_anti_spam_engine(db)
-    honeypot_field_name = anti_spam.generate_honeypot_field_name()
-    form_token = anti_spam.generate_form_token()
-    form_timestamp = time.time()
+    form_timestamp_token = anti_spam.generate_form_timestamp_token()
     
     return templates.TemplateResponse(
         "components/comment_form.html", 
@@ -225,36 +309,42 @@ async def get_comment_form(request: Request, post_id: int, db: Session = Depends
             "request": request, 
             "post_id": post_id, 
             "post": db_post,
-            "honeypot_field_name": honeypot_field_name,
-            "form_token": form_token,
-            "form_timestamp": form_timestamp,
+            "form_timestamp_token": form_timestamp_token,
             "captcha_enabled": anti_spam.captcha_enabled
         }
     )
 
+@router.post("/api/v1/comments/{comment_id}/approve", status_code=status.HTTP_200_OK)
 @router.post("/api/comments/{comment_id}/approve", status_code=status.HTTP_200_OK)
 async def approve_comment_api(
+    request: Request,
     comment_id: int,
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     批准评论
     """
+    verify_csrf_token(request, csrf_token)
     db_comment = crud_comment.update_comment_status(db, comment_id=comment_id, status="approved")
     if db_comment is None:
         raise HTTPException(status_code=404, detail="Comment not found")
     return {"success": True, "message": "Comment approved successfully"}
 
+@router.delete("/api/v1/comments/{comment_id}", status_code=status.HTTP_200_OK)
 @router.delete("/api/comments/{comment_id}", status_code=status.HTTP_200_OK)
 async def delete_comment_api(
+    request: Request,
     comment_id: int,
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     删除评论
     """
+    verify_csrf_token(request, csrf_token)
     db_comment = crud_comment.delete_comment(db, comment_id=comment_id)
     if db_comment is None:
         raise HTTPException(status_code=404, detail="Comment not found")
@@ -262,8 +352,10 @@ async def delete_comment_api(
 
 @router.post("/api/v1/admin/comments/{comment_id}/moderate")
 async def moderate_comment(
+    request: Request,
     comment_id: int,
     action: str = Form(...),  # approve, reject, spam
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -274,6 +366,7 @@ async def moderate_comment(
         comment_id: 评论ID
         action: 审核动作 (approve/reject/spam)
     """
+    verify_csrf_token(request, csrf_token)
     if action not in ["approve", "reject", "spam"]:
         raise HTTPException(status_code=400, detail="Invalid action")
     
@@ -293,15 +386,19 @@ async def moderate_comment(
     
     return {"message": f"Comment {action}d successfully", "comment_id": comment_id}
 
+@router.post("/api/v1/comments/bulk-action", status_code=status.HTTP_200_OK)
 @router.post("/api/comments/bulk-action", status_code=status.HTTP_200_OK)
 async def bulk_action_api(
+    request: Request,
     bulk_action: BulkAction,
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     批量操作评论
     """
+    verify_csrf_token(request, csrf_token)
     if bulk_action.action == "approve":
         crud_comment.bulk_update_comment_status(db, comment_ids=bulk_action.comment_ids, status="approved")
         message = "Comments approved successfully"
@@ -313,16 +410,20 @@ async def bulk_action_api(
         
     return {"success": True, "message": message}
 
+@router.post("/api/v1/comments/{comment_id}/reply", response_model=Comment, status_code=status.HTTP_201_CREATED)
 @router.post("/api/comments/{comment_id}/reply", response_model=Comment, status_code=status.HTTP_201_CREATED)
 async def admin_reply_to_comment(
+    request: Request,
     comment_id: int,
     reply: AdminReply,
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     管理员回复评论
     """
+    verify_csrf_token(request, csrf_token)
     # 获取被回复的评论
     original_comment = crud_comment.get_comment(db, comment_id=comment_id)
     if not original_comment:
@@ -370,6 +471,13 @@ async def get_pending_comments(
     """
     获取待审核的评论列表
     """
-    # TODO: 实现获取待审核评论的CRUD函数
-    
-    return {"message": "Pending comments endpoint - to be implemented"}
+    pending_comments = crud_comment.get_comments(
+        db=db,
+        status="pending",
+        sort_by_latest=True,
+        limit=100,
+    )
+    return {
+        "count": len(pending_comments),
+        "comments": pending_comments,
+    }

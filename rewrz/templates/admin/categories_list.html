@@ -233,8 +233,8 @@ function saveCategory() {
     const categoryId = document.getElementById('categoryId').value;
     
     const url = categoryId ? 
-        `{{ request.state.admin_path }}/api/categories/${categoryId}` : 
-        `{{ request.state.admin_path }}/api/categories`;
+        `{{ request.state.admin_path }}/api/v1/categories/${categoryId}` : 
+        `{{ request.state.admin_path }}/api/v1/categories`;
     
     const method = categoryId ? 'PUT' : 'POST';
     
@@ -258,7 +258,7 @@ function saveCategory() {
 
 function deleteCategory(id, name) {
     if (confirm(`确定要删除分类"${name}"吗？\n\n注意：如果该分类下有文章，删除操作将失败。请先将文章移至其他分类。`)) {
-        fetch(`{{ request.state.admin_path }}/api/categories/${id}`, {
+        fetch(`{{ request.state.admin_path }}/api/v1/categories/${id}`, {
             method: 'DELETE'
         })
         .then(response => response.json())

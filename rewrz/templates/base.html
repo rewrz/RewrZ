@@ -64,7 +64,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     
     <!-- 动态主题CSS变量 -->
-    <link rel="stylesheet" href="/api/theme/variables.css">
+    <link rel="stylesheet" href="/api/v1/theme/variables.css">
     
     <!-- 优化后的统一样式系统 -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/tailwind-optimized.css') }}">
@@ -88,7 +88,7 @@
         // 加载服务器端主题配置
         async function loadThemeConfig() {
             try {
-                const response = await fetch('/api/theme/current');
+                const response = await fetch('/api/v1/theme/current');
                 const config = await response.json();
                 currentThemeConfig = config;
                 atmosphereClass = config.atmosphere_class || '';
@@ -190,7 +190,7 @@
                 const formData = new FormData();
                 formData.append('theme', theme);
                 
-                const response = await fetch('/api/theme/update', {
+                const response = await fetch('/api/v1/theme/update', {
                     method: 'POST',
                     body: formData,
                     credentials: 'include'
@@ -263,7 +263,7 @@
         // 从后端获取当前主题
         async function loadCurrentThemeFromBackend() {
             try {
-                const response = await fetch('/api/theme/sync');
+                const response = await fetch('/api/v1/theme/sync');
                 if (response.ok) {
                     const data = await response.json();
                     return data.theme || 'light';

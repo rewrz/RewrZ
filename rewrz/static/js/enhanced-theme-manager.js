@@ -134,7 +134,7 @@ class EnhancedThemeManager {
      */
     async checkAnniversaryMode() {
         try {
-            const response = await fetch('/api/anniversary-mode/current');
+            const response = await fetch('/api/v1/anniversary-mode/current');
             if (response.ok) {
                 const data = await response.json();
                 if (data.active) {

@@ -1,43 +1,93 @@
-"""
-媒体管理API模块
+from __future__ import annotations
 
-提供媒体文件的上传、管理、处理功能。
-集成图像处理、缩略图生成、元数据提取等增强功能。
-"""
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request, Header
-from fastapi.responses import HTMLResponse, JSONResponse, Response
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select
-from typing import List, Optional
-from pathlib import Path
-import shutil
 import os
-from datetime import datetime # 导入datetime
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile, status
+from fastapi.responses import HTMLResponse, Response
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.orm import Session, joinedload
+
+from ..core.config import settings
 from ..core.database import get_db
+from ..core.media_processor import get_media_processor
 from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..crud import media as crud_media
+from ..models.media import Media as MediaModel
 from ..schemas import Media, MediaCreate, MediaUpdate, User
-from ..core.config import settings
-from ..core.media_processor import get_media_processor  # 导入媒体处理器
 
 router = APIRouter()
+templates = get_templates()
 
-# 确保媒体上传目录存在
-os.makedirs(settings.MEDIA_UPLOAD_DIR, exist_ok=True)
-# 缩略图目录将动态创建在年/月子文件夹中，无需在此处预创建
+class MediaBulkDeleteRequest(BaseModel):
+    media_ids: List[int] = Field(default_factory=list)
+
+
+UPLOAD_ROOT = Path(settings.MEDIA_UPLOAD_DIR).resolve()
+os.makedirs(UPLOAD_ROOT, exist_ok=True)
+
+
+def _media_url_from_filepath(filepath: str) -> str:
+    if not filepath:
+        return ""
+    try:
+        relative_path = Path(filepath).resolve().relative_to(UPLOAD_ROOT).as_posix()
+    except Exception:
+        return ""
+    return f"/media/{relative_path}"
+
+
+def _attach_media_url(media_obj: MediaModel) -> MediaModel:
+    media_obj.url = _media_url_from_filepath(media_obj.filepath)
+    return media_obj
+
+
+def _safe_unlink(path: Path) -> None:
+    try:
+        if path.exists() and path.is_file():
+            path.unlink()
+    except OSError:
+        pass
+
+
+def _delete_media_files(db_media: MediaModel) -> None:
+    original_path = Path(db_media.filepath)
+    _safe_unlink(original_path)
+
+    # Thumbnail files are generated under the same month directory: /YYYY/MM/thumbnails/
+    thumbnails_dir = original_path.parent / "thumbnails"
+    if thumbnails_dir.exists():
+        for thumb_file in thumbnails_dir.glob(f"{original_path.stem}_*"):
+            _safe_unlink(thumb_file)
+
+    _safe_unlink(original_path.with_suffix(".webp"))
+
 
 @router.get(f"{settings.ADMIN_PATH.rstrip('/')}/media", response_class=HTMLResponse)
-async def media_library_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """
-    媒体库管理页面
-    
-    显示所有上传的媒体文件，支持搜索、筛选、批量操作
-    """
-    templates = get_templates()
-    media_items = crud_media.get_all_media(db=db) # 从请求状态获取数据库会话
-    return templates.TemplateResponse("admin/media.html", {"request": request, "user": current_user, "media_items": media_items})
+async def media_library_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    media_items = crud_media.get_all_media(db=db)
+    for item in media_items:
+        _attach_media_url(item)
 
+    return templates.TemplateResponse(
+        "admin/media.html",
+        {
+            "request": request,
+            "user": current_user,
+            "media_items": media_items,
+        },
+    )
+
+
+@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media", response_model=List[Media])
 @router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/media", response_model=List[Media])
 async def get_media_items_api(
     request: Request,
@@ -45,229 +95,186 @@ async def get_media_items_api(
     limit: int = 12,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
-    """
-    获取媒体文件列表的API端点，支持分页和搜索
-    """
     skip = (page - 1) * limit
     media_items = crud_media.get_all_media(db=db, skip=skip, limit=limit, search=search)
-    
-    # 为每个媒体项计算并添加可访问的URL
     for item in media_items:
-        if item.filepath:
-            relative_filepath = Path(item.filepath).relative_to(settings.MEDIA_UPLOAD_DIR).as_posix()
-            item.url = f"/media/{relative_filepath}"
-        else:
-            item.url = "" # 或者设置一个默认的空URL
-            
+        _attach_media_url(item)
     return media_items
+
 
 @router.post(f"{settings.ADMIN_PATH.rstrip('/')}/media/upload", response_model=Media)
 async def upload_media(
-    request: Request, # 添加request参数
+    request: Request,
     file: UploadFile = File(...),
     title: Optional[str] = Form(None),
     alt_text: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
-    auto_process: bool = Form(True),  # 是否自动处理图像
-    generate_thumbnails: bool = Form(True),  # 是否生成缩略图
+    auto_process: bool = Form(True),
+    generate_thumbnails: bool = Form(True),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    csrf_token: str = Header(..., alias="X-CSRF-Token") # 从请求头获取CSRF令牌
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
-    verify_csrf_token(request, csrf_token) # 验证CSRF令牌
-    """
-    上传媒体文件
-    
-    支持图像自动处理、缩略图生成、元数据提取等功能
-    """
-    # 获取媒体处理器
+    verify_csrf_token(request, csrf_token)
     media_processor = get_media_processor(db)
-    
-    # 验证文件
+
+    original_name = Path(file.filename or "upload.bin").name
     file_content = await file.read()
     file_size = len(file_content)
-    
+
     is_valid, error_msg = media_processor.validate_upload_file(
-        file.filename, file_size, file.content_type
+        original_name,
+        file_size,
+        file.content_type,
     )
     if not is_valid:
         raise HTTPException(status_code=400, detail=error_msg)
-    
-    # 获取当前日期，创建年/月子文件夹
+
     now = datetime.now()
-    year_month_dir = now.strftime("%Y/%m")
-    
-    # 构建完整的上传目录路径
-    full_upload_dir = os.path.join(settings.MEDIA_UPLOAD_DIR, year_month_dir)
-    os.makedirs(full_upload_dir, exist_ok=True) # 确保年/月目录存在
+    sub_dir = Path(now.strftime("%Y")) / now.strftime("%m")
+    target_dir = UPLOAD_ROOT / sub_dir
+    target_dir.mkdir(parents=True, exist_ok=True)
 
-    # 生成唯一文件名
-    filename = f"{os.urandom(8).hex()}_{file.filename}"
-    filepath = os.path.join(full_upload_dir, filename) # 文件路径包含年/月子文件夹
-    
-    # 保存原始文件
+    unique_name = f"{os.urandom(8).hex()}_{original_name}"
+    filepath = target_dir / unique_name
+
     try:
-        with open(filepath, "wb") as buffer:
-            buffer.write(file_content)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"文件保存失败：{str(e)}")
-    
-    # 获取文件信息
-    file_info = media_processor.get_file_info(filepath)
-    
-    # 处理图像文件
-    processed_info = {}
-    thumbnails = {}
-    
-    if file_info['file_type'] == 'image' and auto_process:
+        filepath.write_bytes(file_content)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {exc}") from exc
+
+    file_info = media_processor.get_file_info(str(filepath))
+
+    if file_info.get("file_type") == "image" and auto_process:
         try:
-            # 提取图像元数据
-            image_metadata = media_processor.extract_image_metadata(filepath)
-            processed_info['metadata'] = image_metadata
-            
-            # 优化原始图像
+            media_processor.extract_image_metadata(str(filepath))
             if media_processor.auto_compress:
-                optimization_result = media_processor.optimize_image(filepath)
-                processed_info['optimization'] = optimization_result
-            
-            # 生成缩略图
+                media_processor.optimize_image(str(filepath))
             if generate_thumbnails:
-                # 缩略图目录也应在年/月子文件夹中
-                thumbnail_sub_dir = os.path.join(full_upload_dir, "thumbnails")
-                os.makedirs(thumbnail_sub_dir, exist_ok=True)
-                thumbnails = media_processor.generate_thumbnails(filepath, thumbnail_sub_dir)
-                processed_info['thumbnails'] = thumbnails
-            
-            # 生成WebP版本
+                thumb_dir = target_dir / "thumbnails"
+                thumb_dir.mkdir(parents=True, exist_ok=True)
+                media_processor.generate_thumbnails(str(filepath), str(thumb_dir))
             if media_processor.enable_webp:
-                webp_path = media_processor.generate_webp_version(filepath, full_upload_dir) # WebP也在年/月子文件夹中
-                if webp_path:
-                    processed_info['webp_version'] = webp_path
-            
-        except Exception as e:
-            print(f"图像处理失败: {e}")
-            processed_info['processing_error'] = str(e)
+                media_processor.generate_webp_version(str(filepath), str(target_dir))
+        except Exception:
+            # Processing failures should not block upload persistence.
+            pass
 
-    # 确定文件类型和MIME类型
-    mime_type = file.content_type or file_info.get('mime_type', 'application/octet-stream')
-    file_type = file_info['file_type']
-    
-    # 创建媒体数据库记录
     media_create = MediaCreate(
-        filename=file.filename,
-        filepath=filepath, # 使用新的包含年/月子文件夹的路径
-        file_type=file_type,
-        mime_type=mime_type,
-        title=title or Path(file.filename).stem,
+        filename=original_name,
+        filepath=str(filepath),
+        file_type=file_info.get("file_type", "other"),
+        mime_type=file.content_type or file_info.get("mime_type") or "application/octet-stream",
+        title=title or Path(original_name).stem,
         alt_text=alt_text,
-        description=description
+        description=description,
     )
-    
-    # 保存到数据库
-    db_media = crud_media.create_media(
-        db=db, 
-        media=media_create, 
-        uploaded_by_id=current_user.id
-    )
-    
-    # 返回包含处理信息的响应
-    response_data = db_media.__dict__.copy()
-    if processed_info:
-        response_data['processing_info'] = processed_info
-    # 为新创建的媒体项计算并添加可访问的URL
-    if db_media.filepath:
-        relative_filepath = Path(db_media.filepath).relative_to(settings.MEDIA_UPLOAD_DIR).as_posix()
-        db_media.url = f"/media/{relative_filepath}"
-    else:
-        db_media.url = "" # 或者设置一个默认的空URL
-    
-    # 返回包含处理信息的响应
-    response_data = db_media.__dict__.copy()
-    if processed_info:
-        response_data['processing_info'] = processed_info
-    
-    return response_data
 
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/{{media_id}}", response_model=Media) # 修改路由路径以避免冲突
-def get_media_item(media_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)): # 添加 current_user 依赖以确保认证
-    """
-    获取媒体文件详情
-    
-    包含文件信息、处理状态、缩略图等完整信息
-    """
-    db_media = db.execute(
-        select(crud_media.Media).filter(crud_media.Media.id == media_id).options(joinedload(crud_media.Media.uploaded_by))
-    ).scalar_one_or_none()
-    
-    if db_media is None:
-        raise HTTPException(status_code=404, detail="媒体文件不存在")
-    
-    # 计算并添加可访问的URL
-    # 确保路径分隔符是正斜杠，并构建完整的相对URL
-    relative_filepath = Path(db_media.filepath).relative_to(settings.MEDIA_UPLOAD_DIR).as_posix()
-    db_media.url = f"/media/{relative_filepath}"
-    
+    db_media = crud_media.create_media(db=db, media=media_create, uploaded_by_id=current_user.id)
+    _attach_media_url(db_media)
     return db_media
 
-@router.put(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/{{media_id}}", response_model=Media) # 修改路由路径以避免冲突
+
+@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/{{media_id}}", response_model=Media)
+@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/{{media_id}}", response_model=Media)
+def get_media_item(
+    media_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    db_media = db.execute(
+        select(MediaModel)
+        .filter(MediaModel.id == media_id)
+        .options(joinedload(MediaModel.uploaded_by))
+    ).scalar_one_or_none()
+
+    if db_media is None:
+        raise HTTPException(status_code=404, detail="Media file not found")
+
+    _attach_media_url(db_media)
+    return db_media
+
+
+@router.put(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/{{media_id}}", response_model=Media)
+@router.put(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/{{media_id}}", response_model=Media)
 def update_media_item(
+    request: Request,
     media_id: int,
     media_update: MediaUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
-    """
-    更新媒体文件信息
-    
-    允许更新标题、替代文本、描述等元数据
-    """
+    verify_csrf_token(request, csrf_token)
+
     db_media = crud_media.get_media(db, media_id=media_id)
     if db_media is None:
-        raise HTTPException(status_code=404, detail="媒体文件不存在")
-    # 检查用户权限
+        raise HTTPException(status_code=404, detail="Media file not found")
     if db_media.uploaded_by_id != current_user.id:
-        raise HTTPException(status_code=403, detail="无权限修改此媒体文件")
-    
+        raise HTTPException(status_code=403, detail="Not authorized to update this media file")
+
     updated_media = crud_media.update_media(db=db, media_id=media_id, media_update=media_update)
-    # 重新计算并添加可访问的URL
-    updated_media.url = f"/media/{Path(updated_media.filepath).relative_to(settings.MEDIA_UPLOAD_DIR).as_posix()}"
+    _attach_media_url(updated_media)
     return updated_media
 
-@router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/{{media_id}}", status_code=status.HTTP_204_NO_CONTENT) # 修改路由路径以避免冲突
-def delete_media_item(media_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """
-    删除媒体文件
-    
-    同时删除原文件、缩略图和WebP版本
-    """
+
+@router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/{{media_id}}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/{{media_id}}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_media_item(
+    request: Request,
+    media_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
+):
+    verify_csrf_token(request, csrf_token)
+
     db_media = crud_media.get_media(db, media_id=media_id)
     if db_media is None:
-        raise HTTPException(status_code=404, detail="媒体文件不存在")
+        raise HTTPException(status_code=404, detail="Media file not found")
     if db_media.uploaded_by_id != current_user.id:
-        raise HTTPException(status_code=403, detail="无权限删除此媒体文件")
-    
-    # 删除主文件
-    if os.path.exists(db_media.filepath):
-        os.remove(db_media.filepath)
-    
-    # 删除相关的缩略图和处理文件
-    file_stem = Path(db_media.filepath).stem
-    
-    # 删除缩略图
-    thumbnail_dir = os.path.join(settings.MEDIA_UPLOAD_DIR, "thumbnails")
-    if os.path.exists(thumbnail_dir):
-        for thumbnail_file in os.listdir(thumbnail_dir):
-            if thumbnail_file.startswith(file_stem):
-                thumbnail_path = os.path.join(thumbnail_dir, thumbnail_file)
-                if os.path.exists(thumbnail_path):
-                    os.remove(thumbnail_path)
-    
-    # 删除WebP版本
-    webp_path = os.path.join(settings.MEDIA_UPLOAD_DIR, f"{file_stem}.webp")
-    if os.path.exists(webp_path):
-        os.remove(webp_path)
-    
-    # 从数据库删除记录
+        raise HTTPException(status_code=403, detail="Not authorized to delete this media file")
+
+    _delete_media_files(db_media)
     crud_media.delete_media(db=db, media_id=media_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/bulk-delete")
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/bulk-delete")
+def bulk_delete_media_items(
+    request: Request,
+    payload: MediaBulkDeleteRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
+):
+    verify_csrf_token(request, csrf_token)
+    media_ids = list(dict.fromkeys(payload.media_ids or []))
+    if not media_ids:
+        raise HTTPException(status_code=400, detail="No media IDs provided")
+
+    deleted_ids: List[int] = []
+    skipped: List[dict] = []
+
+    for media_id in media_ids:
+        db_media = crud_media.get_media(db, media_id=media_id)
+        if db_media is None:
+            skipped.append({"id": media_id, "reason": "not_found"})
+            continue
+        if db_media.uploaded_by_id != current_user.id:
+            skipped.append({"id": media_id, "reason": "forbidden"})
+            continue
+
+        _delete_media_files(db_media)
+        crud_media.delete_media(db=db, media_id=media_id)
+        deleted_ids.append(media_id)
+
+    return {
+        "requested_count": len(media_ids),
+        "deleted_count": len(deleted_ids),
+        "deleted_ids": deleted_ids,
+        "skipped": skipped,
+    }

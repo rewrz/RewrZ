@@ -12,7 +12,6 @@ import json
 from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func, desc, case
 # 新增：引入正则用于分词
@@ -87,7 +86,7 @@ async def search_page(
         for key in HOMEPAGE_SETTING_KEYS
     }
     
-    return templates.TemplateResponse("search_results.html", {
+    context = {
         "request": request,
         "results": results,
         "search_info": search_info,
@@ -96,8 +95,13 @@ async def search_page(
         "formats": formats,
         "settings": settings_dict,
         **build_base_template_context(request),
-    })
+    }
 
+    if request.headers.get("HX-Request") == "true":
+        return templates.TemplateResponse("components/search_results_panel.html", context)
+    return templates.TemplateResponse("search_results.html", context)
+
+@router.get("/api/v1/search")
 @router.get("/api/search")
 async def search_api(
     q: str = Query(..., description="搜索关键词"),
@@ -156,6 +160,7 @@ async def search_api(
         "per_page": per_page
     })
 
+@router.get("/api/v1/search/suggestions")
 @router.get("/api/search/suggestions")
 async def search_suggestions(
     q: str = Query(..., description="搜索关键词"),

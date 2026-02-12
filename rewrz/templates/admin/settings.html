@@ -835,7 +835,7 @@
             this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>正在更新...';
             
             // 发送更新请求
-            fetch('{{ admin_path }}/api/update-admin-path', {
+            fetch('{{ admin_path }}/api/v1/update-admin-path', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

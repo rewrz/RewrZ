@@ -61,6 +61,21 @@ def test_create_comment(db: Session, test_post: Post):
     assert comment.content == "This is a test comment."
     assert comment.status == "pending" # Default status
 
+
+def test_create_comment_persists_ip_and_user_agent(db: Session, test_post: Post):
+    comment_data = CommentCreate(
+        post_id=test_post.id,
+        author_name="Commenter With Meta",
+        author_email="commenter-meta@example.com",
+        content="Testing metadata persistence.",
+        ip_address="203.0.113.77",
+        user_agent="pytest-agent/1.0",
+    )
+    comment = crud_comment.create_comment(db, comment_data)
+
+    assert comment.ip_address == "203.0.113.77"
+    assert comment.user_agent == "pytest-agent/1.0"
+
 def test_create_nested_comment(db: Session, test_post: Post):
     parent_comment_data = CommentCreate(
         post_id=test_post.id,

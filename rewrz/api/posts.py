@@ -39,7 +39,7 @@ async def edit_post_page(post_id: int, request: Request, db: Session = Depends(g
     显示编辑文章页面
     """
     post = crud_post.get_post(db, post_id=post_id)
-    if not post or post.post_type != "post":
+    if not post or post.post_type not in {"post", "article"}:
         raise HTTPException(status_code=404, detail="Post not found or is not an article")
     
     categories = crud_category.get_categories(db)
@@ -65,6 +65,8 @@ async def create_post_api(
     excerpt: Optional[str] = Form(None),
     featured_image_url: Optional[str] = Form(None),
     status: str = Form("draft"),
+    visibility: str = Form("public"),
+    password: Optional[str] = Form(None),
     allow_comments: bool = Form(True),
     category_ids: Optional[List[int]] = Form(None),
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
@@ -78,6 +80,9 @@ async def create_post_api(
     创建新文章的API端点
     """
     verify_csrf_token(request, csrf_token)
+    normalized_password = (password or "").strip() or None
+    if visibility == "password" and not normalized_password:
+        raise HTTPException(status_code=400, detail="密码保护内容必须设置访问密码")
     
     post_create_data = PostCreate(
         title=title,
@@ -86,6 +91,8 @@ async def create_post_api(
         excerpt=excerpt,
         featured_image_url=featured_image_url,
         status=status,
+        visibility=visibility,
+        password=normalized_password,
         allow_comments=allow_comments,
         category_ids=category_ids if category_ids else [],
         license_type=license_type,
@@ -118,6 +125,8 @@ async def update_post_api(
     excerpt: Optional[str] = Form(None),
     featured_image_url: Optional[str] = Form(None),
     status: str = Form("draft"),
+    visibility: str = Form("public"),
+    password: Optional[str] = Form(None),
     allow_comments: bool = Form(True),
     category_ids: Optional[List[int]] = Form(None),
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
@@ -137,8 +146,11 @@ async def update_post_api(
         raise HTTPException(status_code=404, detail="Post not found")
     
     # 确保文章类型不被修改
-    if db_post.post_type != "post":
+    if db_post.post_type not in {"post", "article"}:
         raise HTTPException(status_code=400, detail="Cannot update non-article type via this endpoint")
+    normalized_password = (password or "").strip() or None
+    if visibility == "password" and not normalized_password and not db_post.password:
+        raise HTTPException(status_code=400, detail="密码保护内容必须设置访问密码")
 
     post_update_data = PostUpdate(
         title=title,
@@ -147,6 +159,8 @@ async def update_post_api(
         excerpt=excerpt,
         featured_image_url=featured_image_url,
         status=status,
+        visibility=visibility,
+        password=normalized_password,
         allow_comments=allow_comments,
         category_ids=category_ids if category_ids else [],
         license_type=license_type,
@@ -169,6 +183,7 @@ async def update_post_api(
     response.headers["HX-Redirect"] = f"{settings.ADMIN_PATH.rstrip('/')}/posts"
     return response
 
+@router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/posts/{{post_id}}")
 @router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/posts/{{post_id}}")
 async def delete_post_api(post_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
@@ -184,6 +199,7 @@ async def delete_post_api(post_id: int, db: Session = Depends(get_db), current_u
     crud_post.delete_post(db, post_id=post_id)
     return {"success": True, "message": "文章删除成功"}
 
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/posts/batch-publish", response_model=dict)
 @router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/posts/batch-publish", response_model=dict)
 async def batch_publish_posts(
     request: Request,
@@ -210,6 +226,7 @@ async def batch_publish_posts(
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "error": f"批量发布失败: {str(e)}"})
 
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/posts/batch-draft", response_model=dict)
 @router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/posts/batch-draft", response_model=dict)
 async def batch_draft_posts(
     request: Request,
@@ -236,6 +253,7 @@ async def batch_draft_posts(
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "error": f"批量移至草稿失败: {str(e)}"})
 
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/posts/batch-delete", response_model=dict)
 @router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/posts/batch-delete", response_model=dict)
 async def batch_delete_posts(
     request: Request,
@@ -304,6 +322,8 @@ async def create_page_api(
     excerpt: Optional[str] = Form(None),
     featured_image_url: Optional[str] = Form(None),
     status: str = Form("draft"),
+    visibility: str = Form("public"),
+    password: Optional[str] = Form(None),
     allow_comments: bool = Form(True),
     license_type: str = Form("cc_by_nc_sa_4"),
     csrf_token: str = Form(...),
@@ -314,6 +334,9 @@ async def create_page_api(
     创建新页面的API端点
     """
     verify_csrf_token(request, csrf_token)
+    normalized_password = (password or "").strip() or None
+    if visibility == "password" and not normalized_password:
+        raise HTTPException(status_code=400, detail="密码保护内容必须设置访问密码")
     
     page_create_data = PostCreate(
         title=title,
@@ -322,6 +345,8 @@ async def create_page_api(
         excerpt=excerpt,
         featured_image_url=featured_image_url,
         status=status,
+        visibility=visibility,
+        password=normalized_password,
         allow_comments=allow_comments,
         license_type=license_type,
         post_type="page" # 确保文章类型为 'page'
@@ -348,6 +373,8 @@ async def update_page_api(
     excerpt: Optional[str] = Form(None),
     featured_image_url: Optional[str] = Form(None),
     status: str = Form("draft"),
+    visibility: str = Form("public"),
+    password: Optional[str] = Form(None),
     allow_comments: bool = Form(True),
     license_type: str = Form("cc_by_nc_sa_4"),
     csrf_token: str = Form(...),
@@ -366,6 +393,9 @@ async def update_page_api(
     # 确保文章类型不被修改
     if db_page.post_type != "page":
         raise HTTPException(status_code=400, detail="Cannot update non-page type via this endpoint")
+    normalized_password = (password or "").strip() or None
+    if visibility == "password" and not normalized_password and not db_page.password:
+        raise HTTPException(status_code=400, detail="密码保护内容必须设置访问密码")
 
     page_update_data = PostUpdate(
         title=title,
@@ -374,6 +404,8 @@ async def update_page_api(
         excerpt=excerpt,
         featured_image_url=featured_image_url,
         status=status,
+        visibility=visibility,
+        password=normalized_password,
         allow_comments=allow_comments,
         license_type=license_type,
         post_type="page" # 确保文章类型不被修改
@@ -390,6 +422,7 @@ async def update_page_api(
     response.headers["HX-Redirect"] = f"{settings.ADMIN_PATH.rstrip('/')}/pages"
     return response
 
+@router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/pages/{{page_id}}")
 @router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/pages/{{page_id}}")
 async def delete_page_api(page_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """

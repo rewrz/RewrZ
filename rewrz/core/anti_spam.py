@@ -11,12 +11,14 @@ import re
 import hashlib
 import time
 import asyncio
+import hmac
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from sqlalchemy.orm import Session
 from ..crud import setting as crud_setting
 from .akismet_client import get_akismet_client
+from .config import settings
 
 
 @dataclass
@@ -32,6 +34,8 @@ class SpamCheckResult:
 class AntiSpamEngine:
     """反垃圾评论引擎"""
     
+    _FORM_TS_PURPOSE = "comment-form-ts-v1"
+
     def __init__(self, db: Session):
         self.db = db
         self.load_settings()
@@ -40,7 +44,8 @@ class AntiSpamEngine:
         """从数据库加载反垃圾设置"""
         # 第一层设置
         self.honeypot_enabled = self._get_setting_bool("anti_spam_honeypot_enabled", True)
-        self.time_threshold = self._get_setting_int("anti_spam_time_threshold", 3)  # 最少3秒提交时间
+        self.time_threshold = self._get_setting_int("anti_spam_time_threshold", 5)  # 最少5秒提交时间
+        self.form_max_age_seconds = self._get_setting_int("anti_spam_form_max_age_seconds", 3 * 60 * 60)
         
         # 第二层设置
         self.max_links = self._get_setting_int("anti_spam_max_links", 2)  # 最多2个链接
@@ -101,7 +106,7 @@ class AntiSpamEngine:
                      ip_address: str,
                      user_agent: str,
                      honeypot_field: Optional[str] = None,
-                     form_timestamp: Optional[float] = None) -> SpamCheckResult:
+                     form_timestamp: Optional[str] = None) -> SpamCheckResult:
         """
         综合检查评论是否为垃圾评论
         
@@ -154,7 +159,7 @@ class AntiSpamEngine:
     
     def layer1_passive_defense(self, 
                               honeypot_field: Optional[str],
-                              form_timestamp: Optional[float],
+                              form_timestamp: Optional[str],
                               ip_address: str,
                               user_agent: str) -> SpamCheckResult:
         """
@@ -169,19 +174,46 @@ class AntiSpamEngine:
                 is_spam=True,
                 confidence=1.0,
                 reason="触发蜜罐陷阱",
-                action="block",
+                action="silent_drop",
                 layer=1
             )
         
-        # 时间戳检查
-        if form_timestamp:
-            time_diff = time.time() - form_timestamp
+        # 时间戳检查（必须包含签名令牌，兼容旧版纯时间戳）
+        if self.time_threshold > 0:
+            if not form_timestamp:
+                return SpamCheckResult(
+                    is_spam=True,
+                    confidence=0.95,
+                    reason="缺少表单时间戳",
+                    action="silent_drop",
+                    layer=1
+                )
+
+            parsed_timestamp = self.parse_form_timestamp(form_timestamp)
+            if parsed_timestamp is None:
+                return SpamCheckResult(
+                    is_spam=True,
+                    confidence=0.95,
+                    reason="表单时间戳无效",
+                    action="silent_drop",
+                    layer=1
+                )
+
+            time_diff = time.time() - parsed_timestamp
             if time_diff < self.time_threshold:
                 return SpamCheckResult(
                     is_spam=True,
                     confidence=0.9,
                     reason=f"提交时间过短：{time_diff:.1f}秒",
-                    action="block",
+                    action="too_fast",
+                    layer=1
+                )
+            if time_diff > self.form_max_age_seconds:
+                return SpamCheckResult(
+                    is_spam=True,
+                    confidence=0.6,
+                    reason="表单令牌已过期",
+                    action="expired",
                     layer=1
                 )
         
@@ -307,7 +339,7 @@ class AntiSpamEngine:
                                  author_email: str,
                                  author_url: str,
                                  ip_address: str,
-                                 user_agent: str) -> Dict[str, any]:
+                                 user_agent: str) -> Dict[str, Any]:
         """
         使用Akismet API检查评论
         
@@ -355,7 +387,53 @@ class AntiSpamEngine:
         """生成蜜罐字段名称"""
         timestamp = str(int(time.time()))
         return hashlib.md5(f"honeypot_{timestamp}".encode()).hexdigest()[:8]
-    
+
+    def generate_form_timestamp_token(self) -> str:
+        """生成签名时间戳令牌，防止客户端伪造提交时间。"""
+        timestamp = str(int(time.time()))
+        payload = f"{timestamp}:{self._FORM_TS_PURPOSE}".encode("utf-8")
+        signature = hmac.new(
+            settings.SECRET_KEY.encode("utf-8"),
+            payload,
+            hashlib.sha256,
+        ).hexdigest()
+        return f"{timestamp}.{signature}"
+
+    def parse_form_timestamp(self, token: str) -> Optional[float]:
+        """
+        解析表单时间戳令牌。
+
+        支持格式：
+        1. 新版签名令牌：<timestamp>.<hmac_sha256>
+        2. 旧版明文时间戳（向后兼容）
+        """
+        value = str(token or "").strip()
+        if not value:
+            return None
+
+        # 旧版：纯时间戳（兼容历史页面）
+        if re.fullmatch(r"\d+(\.\d+)?", value):
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
+        # 新版：签名令牌
+        if "." in value:
+            ts_part, signature = value.split(".", 1)
+            if ts_part.isdigit() and signature:
+                payload = f"{ts_part}:{self._FORM_TS_PURPOSE}".encode("utf-8")
+                expected = hmac.new(
+                    settings.SECRET_KEY.encode("utf-8"),
+                    payload,
+                    hashlib.sha256,
+                ).hexdigest()
+                if hmac.compare_digest(signature, expected):
+                    return float(ts_part)
+                return None
+
+        return None
+
     def generate_form_token(self) -> str:
         """生成表单令牌"""
         timestamp = str(time.time())

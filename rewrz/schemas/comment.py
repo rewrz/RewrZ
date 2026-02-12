@@ -12,6 +12,8 @@ class CommentBase(BaseModel):
 
 class CommentCreate(CommentBase):
     status: str = "pending"
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
 
 class Comment(CommentBase):
     id: int

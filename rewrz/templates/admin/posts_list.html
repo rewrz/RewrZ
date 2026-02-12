@@ -35,7 +35,7 @@
         </div>
         <div>
             <select id="category-filter" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
-                    hx-get="{{ request.state.admin_path }}/api/categories/options" 
+                    hx-get="{{ request.state.admin_path }}/api/v1/categories/options" 
                     hx-trigger="load" 
                     hx-target="this"
                     hx-on--after-request="setSelectedCategory(this)">
@@ -205,7 +205,7 @@ function refreshPostsList() {
 function deletePost(postId) {
     if (confirm('确定要删除这篇文章吗？此操作不可撤销。')) {
         // 实现删除逻辑
-        fetch(`{{ request.state.admin_path }}/api/posts/${postId}`, {
+        fetch(`{{ request.state.admin_path }}/api/v1/posts/${postId}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
@@ -234,7 +234,7 @@ function batchPublish() {
     
     if (confirm(`确定要发布选中的 ${selected.length} 篇文章吗？`)) {
         // 实现批量发布逻辑
-        fetch(`{{ request.state.admin_path }}/api/posts/batch-publish`, {
+        fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-publish`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -265,7 +265,7 @@ function batchDraft() {
     
     if (confirm(`确定要将选中的 ${selected.length} 篇文章移至草稿吗？`)) {
         // 实现批量移至草稿逻辑
-        fetch(`{{ request.state.admin_path }}/api/posts/batch-draft`, {
+        fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-draft`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -296,7 +296,7 @@ function batchDelete() {
     
     if (confirm(`确定要删除选中的 ${selected.length} 篇文章吗？此操作不可撤销。`)) {
         // 实现批量删除逻辑
-        fetch(`{{ request.state.admin_path }}/api/posts/batch-delete`, {
+        fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-delete`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -52,12 +52,16 @@ def build_base_template_context(request: Request) -> dict:
     
     现在使用中间件提供的统一设置数据，同时保持向后兼容性
     """
-    # 获取数据库会话
-    db: Session = next(get_db())
+    # 优先复用 request.state.db，避免重复创建会话
+    db: Session = getattr(request.state, "db", None)
+    db_gen = None
+    if db is None:
+        db_gen = get_db()
+        db = next(db_gen)
     
     # 获取所有文章格式
     post_formats = crud_format.get_formats(db)
-    
+
     # 获取所有已发布的自定义页面
     custom_pages = crud_post.get_posts(db, post_type="page", status="published")
     
@@ -94,4 +98,10 @@ def build_base_template_context(request: Request) -> dict:
         "custom_pages": custom_pages,
     }
     
+    if db_gen is not None:
+        try:
+            db_gen.close()
+        except Exception:
+            pass
+
     return context

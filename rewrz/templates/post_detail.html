@@ -24,6 +24,7 @@
 
 {% block content %}
 {% set format_slugs = post.formats | map(attribute='slug') | list %}
+{% set rendered_content = display_content_html if display_content_html is defined else post.content_html %}
 
 {% if 'poetry-song' in format_slugs %}
 <!-- 诗词歌赋格式：诗词展示页面 -->
@@ -64,7 +65,7 @@
         <!-- 歌词/文章内容 -->
         <div class="poetry-content">
             <div class="prose prose-invert max-w-none mx-auto">
-                {{ post.content_html | safe }}
+                {{ rendered_content | safe }}
             </div>
         </div>
         
@@ -147,7 +148,7 @@
     <!-- 视频信息和内容 -->
     <div class="video-content-wrapper">
         <div class="post-content">
-            {{ post.content_html | safe }}
+            {{ rendered_content | safe }}
         </div>
     </div>
     
@@ -303,11 +304,30 @@
                     {{ post.featured_image_url | responsive_image(post.title, "w-full rounded-lg shadow-md", "(max-width: 768px) 100vw, 800px", request.state.db) | safe }}
                 </div>
                 {% endif %}
+
+                {% if toc_items %}
+                <nav class="mb-6 rounded-lg border border-blue-100 bg-blue-50 p-4" aria-label="文章目录">
+                    <h2 class="mb-3 text-sm font-semibold text-blue-800">文章目录</h2>
+                    <ul class="space-y-2">
+                        {% for item in toc_items %}
+                        <li class="{% if item.level == 'h3' %}ml-4{% endif %}">
+                            <a
+                                href="#{{ item.id }}"
+                                data-toc-link="{{ item.id }}"
+                                class="toc-link text-sm text-blue-700 hover:text-blue-900"
+                            >
+                                {{ item.title }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </nav>
+                {% endif %}
             </header>
             
             <div class="px-6 py-8">
                 <div class="prose prose-lg dark:prose-invert max-w-none">
-                    {{ post.content_html | safe }}
+                    {{ rendered_content | safe }}
                 </div>
             </div>
     
@@ -510,6 +530,43 @@
         if (progressRafId) {
             cancelAnimationFrame(progressRafId);
         }
+    });
+
+    // TOC 高亮（仅存在目录时生效）
+    document.addEventListener('DOMContentLoaded', function() {
+        const tocLinks = document.querySelectorAll('[data-toc-link]');
+        if (!tocLinks.length) return;
+
+        const headings = Array.from(tocLinks)
+            .map(link => document.getElementById(link.dataset.tocLink))
+            .filter(Boolean);
+
+        const activate = (id) => {
+            tocLinks.forEach(link => {
+                if (link.dataset.tocLink === id) {
+                    link.classList.add('font-semibold', 'text-blue-900');
+                } else {
+                    link.classList.remove('font-semibold', 'text-blue-900');
+                }
+            });
+        };
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const visible = entries
+                    .filter(entry => entry.isIntersecting)
+                    .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+                if (visible.length) {
+                    activate(visible[0].target.id);
+                }
+            },
+            {
+                rootMargin: '0px 0px -70% 0px',
+                threshold: 0.1,
+            }
+        );
+
+        headings.forEach(h => observer.observe(h));
     });
 </script>
 
