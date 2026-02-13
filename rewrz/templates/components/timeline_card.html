@@ -1,9 +1,9 @@
-﻿{# 鏃堕棿杞村崱鐗囩粍浠?- 鏍规嵁鏍煎紡韬唤缁勫悎鍐冲畾鏍峰紡 #}
+{# 时间轴卡片组件 - 根据格式身份组合决定样式 #}
 
-{# 鑾峰彇鏍煎紡鏍囪瘑 #}
+{# 获取格式标识 #}
 {% set format_slugs = post.formats | map(attribute='slug') | list if post.formats else [] %}
 
-{# 鍒ゆ柇鏍煎紡浼樺厛绾?#}
+{# 判断格式优先级 #}
 {% set is_micro_post = ('weibo' in format_slugs) or ('micro-post' in format_slugs) %}
 {% set is_photo_album = 'photo-album' in format_slugs %}
 {% set is_video = 'video' in format_slugs %}
@@ -13,17 +13,17 @@
 
 {% set content_images = (post.content_html | extract_image_urls(post.featured_image_url)) if post.content_html else [] %}
 
-{# 1. 寰崥鏍煎紡 - 鏈€楂樹紭鍏堢骇 #}
+{# 1. 微博格式 - 最高优先级 #}
 {% if is_micro_post %}
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-all duration-300">
-    <!-- 寰崥澶撮儴 -->
+    <!-- 微博头部 -->
     <div class="flex items-center justify-between mb-3">
         <div class="flex items-center space-x-2">
             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                <i class="fas fa-comment-dots mr-1"></i>寰崥
+                <i class="fas fa-comment-dots mr-1"></i>微博
             </span>
             <span class="text-sm text-gray-500 dark:text-gray-400">
-                {{ post.published_at.strftime('%m鏈?d鏃?%H:%M') }}
+                {{ post.published_at.strftime('%m月%d日 %H:%M') }}
             </span>
         </div>
         <div class="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
@@ -32,17 +32,17 @@
         </div>
     </div>
 
-    <!-- 鐗硅壊鍥剧墖锛堝鏋滄湁锛?-->
+    <!-- 特色图片（如果有） -->
     {% if has_featured_image %}
     <div class="mb-3">
         <a href="{{ post | post_url }}">
-            <img src="{{ post.featured_image_url }}" alt="{{ post.title or '寰崥鍥剧墖' }}" 
+            <img src="{{ post.featured_image_url }}" alt="{{ post.title or '微博图片' }}" 
                  class="w-full h-48 object-cover rounded-lg hover:opacity-90 transition-opacity">
         </a>
     </div>
     {% endif %}
 
-    <!-- 寰崥鍐呭 -->
+    <!-- 微博内容 -->
     <div class="mb-3">
         {% if post.title and post.title.strip() %}
         <h3 class="font-medium text-gray-900 dark:text-white mb-2 leading-tight">
@@ -80,7 +80,7 @@
     </div>
     {% endif %}
 
-    <!-- 寰崥搴曢儴 -->
+    <!-- 微博底部 -->
     <div class="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
         <div class="flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-400">
             {% if post.tags %}
@@ -90,30 +90,30 @@
             {% endif %}
         </div>
         <a href="{{ post | post_url }}" class="text-blue-600 dark:text-blue-400 hover:underline text-xs">
-            鏌ョ湅璇︽儏
+            查看详情
         </a>
     </div>
 </div>
 
-{# 2. 鐩稿唽鏍煎紡锛堥潪寰崥锛?- 绗簩浼樺厛绾?#}
+{# 2. 相册格式（非微博） - 第二优先级 #}
 {% elif is_photo_album %}
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all duration-300">
-    <!-- 鐩稿唽涓诲浘 -->
+    <!-- 相册主图 -->
     {% if has_featured_image %}
     <div class="relative h-64 md:h-80 overflow-hidden group">
         <a href="{{ post | post_url }}">
-            <img src="{{ post.featured_image_url }}" alt="{{ post.title or '鐩稿唽' }}" 
+            <img src="{{ post.featured_image_url }}" alt="{{ post.title or '相册' }}" 
                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
         </a>
         
-        <!-- 鐩稿唽鏍囪瘑 -->
+        <!-- 相册标识 -->
         <div class="absolute top-3 left-3">
             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 backdrop-blur-sm">
-                <i class="fas fa-images mr-1"></i>鐩稿唽
+                <i class="fas fa-images mr-1"></i>相册
             </span>
         </div>
         
-        <!-- 鍐呭钂欏眰 -->
+        <!-- 内容蒙层 -->
         <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
             <div class="absolute bottom-0 left-0 right-0 p-4 text-white">
                 {% if post.title and post.title.strip() %}
@@ -131,7 +131,7 @@
                 {% endif %}
                 
                 <div class="flex items-center justify-between text-xs text-gray-300">
-                    <span>{{ post.published_at.strftime('%Y骞?m鏈?d鏃?) }}</span>
+                    <span>{{ post.published_at.strftime('%Y年%m月%d日') }}</span>
                     <div class="flex items-center space-x-3">
                         <span><i class="far fa-eye mr-1"></i>{{ post.views_count or 0 }}</span>
                         <span><i class="far fa-heart mr-1"></i>{{ post.likes_count or 0 }}</span>
@@ -141,11 +141,11 @@
         </div>
     </div>
     {% else %}
-    <!-- 鏃犲浘鐗囩殑鐩稿唽鍗＄墖 -->
+    <!-- 无图片的相册卡片 -->
     <div class="p-4">
         <div class="flex items-center mb-3">
             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                <i class="fas fa-images mr-1"></i>鐩稿唽
+                <i class="fas fa-images mr-1"></i>相册
             </span>
         </div>
         
@@ -164,7 +164,7 @@
         {% endif %}
         
         <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span>{{ post.published_at.strftime('%Y骞?m鏈?d鏃?) }}</span>
+            <span>{{ post.published_at.strftime('%Y年%m月%d日') }}</span>
             <div class="flex items-center space-x-3">
                 <span><i class="far fa-eye mr-1"></i>{{ post.views_count or 0 }}</span>
                 <span><i class="far fa-heart mr-1"></i>{{ post.likes_count or 0 }}</span>
@@ -174,18 +174,18 @@
     {% endif %}
 </div>
 
-{# 3. 瑙嗛鎴栬瘲璇嶆瓕璧嬫牸寮?- 绗笁浼樺厛绾?#}
+{# 3. 视频或诗词歌赋格式 - 第三优先级 #}
 {% elif is_video or is_poetry_song %}
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all duration-300">
-    <!-- 瑙嗛/闊抽棰勮鍖哄煙 -->
+    <!-- 视频/音频预览区域 -->
     {% if has_featured_image %}
     <div class="relative h-48 md:h-56 overflow-hidden group">
         <a href="{{ post | post_url }}">
-            <img src="{{ post.featured_image_url }}" alt="{{ post.title or '濯掍綋鍐呭' }}" 
+            <img src="{{ post.featured_image_url }}" alt="{{ post.title or '媒体内容' }}" 
                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
         </a>
         
-        <!-- 鎾斁鎸夐挳瑕嗙洊灞?-->
+        <!-- 播放按钮覆盖层 -->
         <div class="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
             <div class="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                 {% if is_video %}
@@ -196,38 +196,38 @@
             </div>
         </div>
         
-        <!-- 鏍煎紡鏍囪瘑 -->
+        <!-- 格式标识 -->
         <div class="absolute top-3 left-3">
             {% if is_video %}
             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 backdrop-blur-sm">
-                <i class="fas fa-video mr-1"></i>瑙嗛
+                <i class="fas fa-video mr-1"></i>视频
             </span>
             {% else %}
             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 backdrop-blur-sm">
-                <i class="fas fa-feather-alt mr-1"></i>璇楄瘝姝岃祴
+                <i class="fas fa-feather-alt mr-1"></i>诗词歌赋
             </span>
             {% endif %}
         </div>
     </div>
     {% endif %}
     
-    <!-- 鍐呭鍖哄煙 -->
+    <!-- 内容区域 -->
     <div class="p-4">
         <div class="flex items-center justify-between mb-3">
             <div class="flex items-center space-x-2">
                 {% if not has_featured_image %}
                 {% if is_video %}
                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                    <i class="fas fa-video mr-1"></i>瑙嗛
+                    <i class="fas fa-video mr-1"></i>视频
                 </span>
                 {% else %}
                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                    <i class="fas fa-feather-alt mr-1"></i>璇楄瘝姝岃祴
+                    <i class="fas fa-feather-alt mr-1"></i>诗词歌赋
                 </span>
                 {% endif %}
                 {% endif %}
                 <span class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ post.published_at.strftime('%Y骞?m鏈?d鏃?) }}
+                    {{ post.published_at.strftime('%Y年%m月%d日') }}
                 </span>
             </div>
         </div>
@@ -262,26 +262,26 @@
     </div>
 </div>
 
-{# 4. 鏍囧噯鏂囩珷鎴栭粯璁ゆ牸寮?- 鏈€浣庝紭鍏堢骇 #}
+{# 4. 标准文章或默认格式 - 最低优先级 #}
 {% else %}
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all duration-300">
-    <!-- 鏍囧噯鏂囩珷甯冨眬 -->
+    <!-- 标准文章布局 -->
     {% if has_featured_image %}
-    <!-- 鏈夊浘鐗囷細宸﹀浘鍙虫枃甯冨眬锛堟闈㈢锛? 涓婂浘涓嬫枃甯冨眬锛堢Щ鍔ㄧ锛?-->
+    <!-- 有图片：左图右文布局（桌面端）/ 上图下文布局（移动端） -->
     <div class="md:flex">
         <div class="md:w-1/3 lg:w-2/5">
             <a href="{{ post | post_url }}">
-                <img src="{{ post.featured_image_url }}" alt="{{ post.title or '鏂囩珷閰嶅浘' }}" 
+                <img src="{{ post.featured_image_url }}" alt="{{ post.title or '文章配图' }}" 
                      class="w-full h-48 md:h-full object-cover hover:opacity-90 transition-opacity">
             </a>
         </div>
         <div class="md:w-2/3 lg:w-3/5 p-4">
             <div class="flex items-center mb-3">
                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                    <i class="fas fa-file-alt mr-1"></i>鏂囩珷
+                    <i class="fas fa-file-alt mr-1"></i>文章
                 </span>
                 <span class="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                    {{ post.published_at.strftime('%Y骞?m鏈?d鏃?) }}
+                    {{ post.published_at.strftime('%Y年%m月%d日') }}
                 </span>
             </div>
             
@@ -311,21 +311,21 @@
                     <span><i class="far fa-eye mr-1"></i>{{ post.views_count or 0 }}</span>
                     <span><i class="far fa-heart mr-1"></i>{{ post.likes_count or 0 }}</span>
                     <a href="{{ post | post_url }}" class="text-blue-600 dark:text-blue-400 hover:underline">
-                        闃呰鏇村 鈫?
+                        阅读更多 →
                     </a>
                 </div>
             </div>
         </div>
     </div>
     {% else %}
-    <!-- 鏃犲浘鐗囷細绾枃鏈竷灞€ -->
+    <!-- 无图片：纯文本布局 -->
     <div class="p-4">
         <div class="flex items-center mb-3">
             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                <i class="fas fa-file-alt mr-1"></i>鏂囩珷
+                <i class="fas fa-file-alt mr-1"></i>文章
             </span>
             <span class="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                {{ post.published_at.strftime('%Y骞?m鏈?d鏃?) }}
+                {{ post.published_at.strftime('%Y年%m月%d日') }}
             </span>
         </div>
         
@@ -355,7 +355,7 @@
                 <span><i class="far fa-eye mr-1"></i>{{ post.views_count or 0 }}</span>
                 <span><i class="far fa-heart mr-1"></i>{{ post.likes_count or 0 }}</span>
                 <a href="{{ post | post_url }}" class="text-blue-600 dark:text-blue-400 hover:underline">
-                    闃呰鏇村 鈫?
+                    阅读更多 →
                 </a>
             </div>
         </div>
@@ -364,7 +364,7 @@
 </div>
 {% endif %}
 
-<!-- 娣诲姞鏍峰紡 -->
+<!-- 添加样式 -->
 <style>
 .line-clamp-2 {
     display: -webkit-box;
@@ -387,4 +387,3 @@
     overflow: hidden;
 }
 </style>
-

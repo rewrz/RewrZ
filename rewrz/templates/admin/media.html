@@ -1,7 +1,7 @@
-﻿{% extends "admin/base.html" %}
+{% extends "admin/base.html" %}
 
-{% block title %}濯掍綋搴?- RewrZ 绠＄悊鍚庡彴{% endblock %}
-{% block page_title %}<i class="fas fa-th-large text-blue-600 mr-3"></i>濯掍綋搴搟% endblock %}
+{% block title %}媒体库 - RewrZ 管理后台{% endblock %}
+{% block page_title %}<i class="fas fa-th-large text-blue-600 mr-3"></i>媒体库{% endblock %}
 {% block head %}
 {{ super() }}
 <style>
@@ -49,10 +49,10 @@
                 <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                涓婁紶鏂囦欢
+                上传文件
             </button>
             <a href="{{ request.state.admin_path }}/media/settings" class="inline-flex items-center justify-center px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors">
-                濯掍綋璁剧疆
+                媒体设置
             </a>
         </div>
     </header>
@@ -61,10 +61,10 @@
     <div id="upload-drop-zone" class="hidden upload-drop-zone mt-4 p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-center transition-colors duration-300">
         <div class="flex flex-col items-center justify-center">
             <svg class="w-16 h-16 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v5a4 4 0 01-4 4H7z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-            <p class="mt-4 text-lg font-semibold text-gray-700 dark:text-gray-200">灏嗘枃浠舵嫋鎷藉埌姝ゅ</p>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">鎴?/p>
+            <p class="mt-4 text-lg font-semibold text-gray-700 dark:text-gray-200">将文件拖拽到此处</p>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">或</p>
             <label for="file-input" class="mt-2 cursor-pointer px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-gray-50 dark:hover:bg-gray-600">
-                閫夋嫨鏂囦欢
+                选择文件
             </label>
             <input type="file" id="file-input" multiple class="hidden">
         </div>
@@ -93,8 +93,8 @@
             </div>
             <div id="batch-actions-toolbar" class="hidden items-center space-x-2">
                 <span id="selected-count" class="text-sm font-medium text-gray-700 dark:text-gray-200"></span>
-                <button id="batch-delete-button" class="px-3 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700">鍒犻櫎閫変腑</button>
-                <button id="clear-selection-button" class="px-3 py-2 text-sm font-semibold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">鍙栨秷</button>
+                <button id="batch-delete-button" class="px-3 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700">删除选中</button>
+                <button id="clear-selection-button" class="px-3 py-2 text-sm font-semibold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">取消</button>
             </div>
         </div>
     </div>
@@ -127,15 +127,15 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ media.uploaded_at.strftime('%Y-%m-%d') }}</p>
                 </div>
                 <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button class="text-white font-semibold" onclick="showMediaDetails('{{ media.id }}', event)">鏌ョ湅璇︽儏</button>
+                    <button class="text-white font-semibold" onclick="showMediaDetails('{{ media.id }}', event)">查看详情</button>
                 </div>
             </div>
             {% endfor %}
         {% else %}
             <div class="col-span-full text-center py-16">
                 <svg class="mx-auto h-16 w-16 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-gray-200">濯掍綋搴撲负绌?/h3>
-                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">鐐瑰嚮鈥滀笂浼犳枃浠垛€濆紑濮嬫坊鍔犲唴瀹广€?/p>
+                <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-gray-200">媒体库为空</h3>
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">点击“上传文件”开始添加内容。</p>
             </div>
         {% endif %}
     </div>
@@ -146,7 +146,7 @@
     <div class="modal-backdrop absolute inset-0 bg-black bg-opacity-60" onclick="closeModal()"></div>
     <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl m-4 max-w-3xl w-full relative max-h-[90vh] flex flex-col">
         <div class="flex justify-between items-center p-4 border-b dark:border-gray-700">
-            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">濯掍綋璇︽儏</h3>
+            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100">媒体详情</h3>
             <button onclick="closeModal()" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
                 <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
