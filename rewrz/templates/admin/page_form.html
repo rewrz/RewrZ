@@ -6,45 +6,178 @@
 <!-- Toast UI Editor -->
 <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" />
 <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+<style>
+    .editor-hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(130deg, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 56%), color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+    }
+    .editor-hero::after {
+        content: '';
+        position: absolute;
+        right: -26px;
+        top: -24px;
+        width: 130px;
+        height: 130px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+    }
+    .editor-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+        background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+        padding: 0.26rem 0.72rem;
+        font-size: 0.76rem;
+        font-weight: 600;
+    }
+    .editor-input {
+        width: 100%;
+        border-radius: 0.75rem;
+        border: 1px solid var(--ui-border);
+        padding: 0.62rem 0.82rem;
+        font-size: 0.93rem;
+    }
+    .editor-toolbar {
+        border: 1px solid var(--ui-border);
+        border-radius: 0.9rem;
+        padding: 0.72rem;
+        background: color-mix(in srgb, var(--color-background-alt) 82%, transparent);
+    }
+    .editor-surface {
+        border-radius: 1rem;
+        border: 1px solid var(--ui-border);
+        overflow: hidden;
+        background: color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+    }
+    .editor-surface .toastui-editor-defaultUI {
+        border: 0;
+    }
+    .editor-surface .toastui-editor-mode-switch {
+        display: block !important;
+    }
+    .editor-scroll-list {
+        max-height: 13rem;
+        overflow-y: auto;
+        padding-right: 0.1rem;
+    }
+    .editor-check-item {
+        display: flex;
+        align-items: center;
+        gap: 0.58rem;
+        border: 1px solid var(--ui-border);
+        border-radius: 0.72rem;
+        padding: 0.48rem 0.62rem;
+        background: color-mix(in srgb, var(--color-background-alt) 78%, transparent);
+    }
+    .feature-image-shell {
+        min-height: 138px;
+        border: 1px dashed color-mix(in srgb, var(--color-primary) 36%, var(--color-border) 64%);
+        border-radius: 0.86rem;
+        background: color-mix(in srgb, var(--color-background-alt) 72%, transparent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .feature-image-shell img {
+        width: 100%;
+        max-height: 190px;
+        object-fit: cover;
+    }
+    .editor-actionbar {
+        position: sticky;
+        bottom: 0.75rem;
+        z-index: 35;
+        backdrop-filter: blur(10px);
+    }
+</style>
 
 <form id="page-form" hx-post="{% if post %}{{ request.state.admin_path }}/pages/{{ post.id }}{% else %}{{ request.state.admin_path }}/pages/new{% endif %}" hx-target="#admin-content" hx-swap="outerHTML" class="space-y-6">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
     {% if post %}
     <input type="hidden" name="_method" value="PUT">
     {% endif %}
+    <section class="admin-panel editor-hero p-5 md:p-6">
+        <div class="relative z-10 flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <div class="editor-status-pill mb-2">
+                    <i class="fas fa-file-alt"></i>
+                    {% if post %}正在编辑页面 #{{ post.id }}{% else %}新的页面草稿{% endif %}
+                </div>
+                <h2 class="text-xl md:text-2xl font-semibold tracking-tight">页面内容编辑区</h2>
+                <p class="mt-1.5 text-sm text-gray-600">聚焦结构化内容创作，支持快捷保存与离开提醒。</p>
+            </div>
+            <div class="text-sm text-gray-600 space-y-1">
+                <div id="editor-wording">字数统计: 0 字</div>
+                <div id="editor-chars">字符统计: 0 字符</div>
+            </div>
+        </div>
+    </section>
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <!-- Main Editor -->
         <div class="xl:col-span-8 space-y-6">
             <div class="admin-panel p-4 md:p-6">
                 <div class="mb-4">
                     <label for="title" class="block text-sm font-medium text-gray-700">标题</label>
-                    <input type="text" id="title" name="title" value="{% if post %}{{ post.title }}{% endif %}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required>
+                    <input type="text" id="title" name="title" value="{% if post %}{{ post.title }}{% endif %}" class="editor-input" required>
+                    <p class="mt-2 text-xs text-gray-500">建议使用清晰的页面标题，便于导航与索引。</p>
                 </div>
-                <div class="mb-3 flex justify-end gap-2">
+                <div class="editor-toolbar mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div class="text-sm text-gray-600">
+                        快捷键: <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200">Ctrl/Cmd + S</kbd>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
                     <input type="file" id="direct-upload-input" class="hidden" multiple>
-                    <button type="button" id="direct-upload-button" class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700">
+                    <button type="button" id="direct-upload-button" class="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">
                         <i class="fas fa-upload mr-2"></i>上传文件
                     </button>
                     <button type="button" id="insert-media-button" class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700">
                         <i class="fas fa-paperclip mr-2"></i>插入媒体
                     </button>
+                    </div>
                 </div>
-                <div id="editor">
+                <div id="editor" class="editor-surface">
                     <!-- 编辑器内容将由JavaScript初始化 -->
                 </div>
             </div>
-            <div class="admin-panel p-4 md:p-6">
-                    <div class="flex justify-between items-center">
-                        <div class="space-x-2">
+            <div class="admin-panel editor-actionbar p-4 md:p-6">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <label class="inline-flex items-center gap-2 text-sm">
+                                <span class="text-gray-600">状态</span>
+                                <select name="status" class="px-2.5 py-1.5 border border-gray-300 rounded-md text-sm">
+                                    <option value="draft" {% if post and post.status == "draft" %}selected{% endif %}>草稿</option>
+                                    <option value="published" {% if post and post.status == "published" %}selected{% endif %}>已发布</option>
+                                </select>
+                            </label>
+                            <label class="inline-flex items-center gap-2 px-2.5 py-1.5 border border-gray-300 rounded-md text-sm">
+                                <input type="checkbox" name="allow_comments" {% if post is none or post.allow_comments %}checked{% endif %} class="form-checkbox">
+                                <span class="text-gray-700">允许评论</span>
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm">
+                                <span class="text-gray-600">版权</span>
+                                <select name="license_type" class="px-2.5 py-1.5 border border-gray-300 rounded-md text-sm max-w-[13rem]">
+                                    {{ license_options(post.license_type if post else 'cc_by_nc_sa_4') | safe }}
+                                </select>
+                            </label>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
                             <a href="{{ request.state.admin_path }}/pages" 
                                 class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
                                 <i class="fas fa-arrow-left mr-2"></i>返回列表
                             </a>
-                            <button type="submit"
+                            <button type="submit" id="save-page-button"
                                 class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
                                 <i class="fas fa-save mr-2"></i>保存
                             </button>
                         </div>
+                    </div>
+                    <div class="mt-2 text-sm text-gray-600">
+                        <span id="dirty-indicator" class="hidden text-amber-600"><i class="fas fa-circle text-[0.55rem] mr-1"></i>有未保存更改</span>
+                        <span id="saved-indicator" class="text-emerald-600"><i class="fas fa-check-circle mr-1"></i>已同步到当前表单</span>
                     </div>
             </div>
         </div>
@@ -54,29 +187,8 @@
             <div class="admin-panel p-4 md:p-6 space-y-6 xl:sticky xl:top-24">
                 <div>
                     <h3 class="text-lg font-semibold mb-2">URL 别名 (Slug)</h3>
-                    <input type="text" name="slug" value="{% if post %}{{ post.slug }}{% endif %}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold mb-2">特色图片</h3>
-                    <input type="hidden" name="featured_image_url" id="feature-image-url-input" value="{% if post %}{{ post.featured_image_url }}{% endif %}">
-                    <div id="feature-image-preview" class="mb-2 {% if not post or not post.featured_image_url or post.featured_image_url == 'None' %}hidden{% endif %}">
-                        {% if post and post.featured_image_url and post.featured_image_url != 'None' %}
-                        <img src="{{ post.featured_image_url }}" alt="特色图片预览" class="max-w-full h-auto rounded-md">
-                        {% endif %}
-                    </div>
-                    <button type="button" class="w-full py-2 border-dashed border-2 border-gray-300 rounded-md hover:bg-gray-50" id="feature-image-upload-button">选择或上传图片</button>
-                    <button type="button" class="w-full mt-2 py-2 border-dashed border-2 border-red-300 text-red-600 rounded-md hover:bg-red-50 {% if not post or not post.featured_image_url %}hidden{% endif %}" id="remove-feature-image-button">移除图片</button>
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold mb-2">摘要</h3>
-                    <textarea name="excerpt" rows="4" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">{% if post %}{{ post.excerpt }}{% endif %}</textarea>
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold mb-2">状态</h3>
-                    <select name="status" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="draft" {% if post and post.status == "draft" %}selected{% endif %}>草稿</option>
-                        <option value="published" {% if post and post.status == "published" %}selected{% endif %}>已发布</option>
-                    </select>
+                    <input type="text" id="slug-input" name="slug" value="{% if post %}{{ post.slug }}{% endif %}" class="editor-input">
+                    <p class="mt-1 text-xs text-gray-500">预览链接: <span id="slug-preview" class="font-mono"></span></p>
                 </div>
                 <div>
                     <h3 class="text-lg font-semibold mb-2">可见性</h3>
@@ -96,18 +208,19 @@
                     </div>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold mb-2">评论设置</h3>
-                    <label class="inline-flex items-center">
-                        <input type="checkbox" name="allow_comments" {% if post is none or post.allow_comments %}checked{% endif %} class="form-checkbox">
-                        <span class="ml-2 text-gray-700">允许评论</span>
-                    </label>
+                    <h3 class="text-lg font-semibold mb-2">特色图片</h3>
+                    <input type="hidden" name="featured_image_url" id="feature-image-url-input" value="{% if post %}{{ post.featured_image_url }}{% endif %}">
+                    <div id="feature-image-preview" class="feature-image-shell mb-2 {% if not post or not post.featured_image_url or post.featured_image_url == 'None' %}hidden{% endif %}">
+                        {% if post and post.featured_image_url and post.featured_image_url != 'None' %}
+                        <img src="{{ post.featured_image_url }}" alt="特色图片预览">
+                        {% endif %}
+                    </div>
+                    <button type="button" class="w-full py-2 border-dashed border-2 border-gray-300 rounded-md hover:bg-gray-50" id="feature-image-upload-button">选择或上传图片</button>
+                    <button type="button" class="w-full mt-2 py-2 border-dashed border-2 border-red-300 text-red-600 rounded-md hover:bg-red-50 {% if not post or not post.featured_image_url %}hidden{% endif %}" id="remove-feature-image-button">移除图片</button>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold mb-2">版权声明</h3>
-                    <select name="license_type" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                        {{ license_options(post.license_type if post else 'cc_by_nc_sa_4') | safe }}
-                    </select>
-                    <p class="text-xs text-gray-500 mt-1">选择适合的版权协议保护您的作品</p>
+                    <h3 class="text-lg font-semibold mb-2">摘要</h3>
+                    <textarea name="excerpt" rows="4" class="editor-input">{% if post %}{{ post.excerpt }}{% endif %}</textarea>
                 </div>
                 {% if post %}
                 <div>
@@ -129,13 +242,107 @@
 <script>
     const editor = new toastui.Editor({
         el: document.querySelector('#editor'),
-        height: '1200px',
+        height: '70vh',
         initialEditType: 'markdown',
+        hideModeSwitch: false,
         previewStyle: 'vertical',
         initialValue: {% if post %}{{ post.content_markdown|tojson }}{% else %}""{% endif %}
     });
 
-    document.getElementById('page-form').addEventListener('htmx:configRequest', function (event) {
+    const pageForm = document.getElementById('page-form');
+    const savePageButton = document.getElementById('save-page-button');
+    const dirtyIndicator = document.getElementById('dirty-indicator');
+    const savedIndicator = document.getElementById('saved-indicator');
+    const editorWording = document.getElementById('editor-wording');
+    const editorChars = document.getElementById('editor-chars');
+    const titleInput = document.getElementById('title');
+    const slugInput = document.getElementById('slug-input');
+    const slugPreview = document.getElementById('slug-preview');
+    let isDirty = false;
+    let isSubmitting = false;
+    let slugTouched = Boolean(slugInput && slugInput.value.trim());
+
+    function updateDirtyUI() {
+        if (!dirtyIndicator || !savedIndicator) return;
+        dirtyIndicator.classList.toggle('hidden', !isDirty);
+        savedIndicator.classList.toggle('hidden', isDirty);
+    }
+
+    function markDirty() {
+        if (!isDirty) {
+            isDirty = true;
+            updateDirtyUI();
+        }
+    }
+
+    function updateEditorStats() {
+        const markdown = editor.getMarkdown();
+        const plain = markdown
+            .replace(/```[\s\S]*?```/g, ' ')
+            .replace(/`[^`]*`/g, ' ')
+            .replace(/!\[[^\]]*\]\([^)]+\)/g, ' ')
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+            .replace(/[#>*_~\-]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        const compactText = plain ? plain.replace(/\s/g, '') : '';
+        const wordTokens = plain
+            ? (plain.match(/[\u3400-\u9FFF]|[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*/g) || [])
+            : [];
+        const wordCount = wordTokens.length;
+        const charCount = compactText.length;
+        if (editorWording) editorWording.textContent = `字数统计: ${wordCount} 字`;
+        if (editorChars) editorChars.textContent = `字符统计: ${charCount} 字符`;
+    }
+
+    function normalizeSlug(value) {
+        return String(value || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}\s-]/gu, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    }
+
+    function updateSlugPreview() {
+        if (!slugPreview) return;
+        const slugValue = slugInput ? slugInput.value.trim() : '';
+        slugPreview.textContent = slugValue ? `/${slugValue}` : '/';
+    }
+
+    if (titleInput) {
+        titleInput.addEventListener('input', () => {
+            markDirty();
+            if (!slugInput || slugTouched) return;
+            slugInput.value = normalizeSlug(titleInput.value);
+            updateSlugPreview();
+        });
+    }
+    if (slugInput) {
+        slugInput.addEventListener('input', () => {
+            slugTouched = true;
+            slugInput.value = normalizeSlug(slugInput.value);
+            updateSlugPreview();
+            markDirty();
+        });
+        updateSlugPreview();
+    }
+
+    pageForm.addEventListener('input', markDirty);
+    pageForm.addEventListener('change', markDirty);
+    try {
+        editor.on('change', () => {
+            markDirty();
+            updateEditorStats();
+        });
+    } catch (error) {
+        console.warn('Unable to bind editor change event:', error);
+    }
+    updateEditorStats();
+    updateDirtyUI();
+
+    pageForm.addEventListener('htmx:configRequest', function (event) {
         event.detail.parameters.content = editor.getMarkdown();
     });
 
@@ -240,6 +447,7 @@
 
         if (insertSnippets.length) {
             insertEditorText(`\n${insertSnippets.join('\n')}\n`);
+            markDirty();
         }
         if (failedUploads.length) {
             alert(`以下文件上传失败：\n${failedUploads.join('\n')}`);
@@ -274,6 +482,7 @@
                     const snippet = buildMediaInsertSnippet(item);
                     if (snippet) {
                         insertEditorText(`\n${snippet}\n`);
+                        markDirty();
                     }
                 },
             });
@@ -285,27 +494,40 @@
     const featureImageUrlInput = document.getElementById('feature-image-url-input');
     const featureImagePreview = document.getElementById('feature-image-preview');
 
-    featureImageUploadButton.addEventListener('click', () => {
-        if (!window.RewrzMediaLibrary) {
-            console.error('RewrzMediaLibrary is not available');
+    function renderFeatureImage(url, altText) {
+        if (!featureImagePreview || !featureImageRemoveButton) return;
+        if (!url) {
+            featureImagePreview.innerHTML = '';
+            featureImagePreview.classList.add('hidden');
+            featureImageRemoveButton.classList.add('hidden');
             return;
         }
-        window.RewrzMediaLibrary.open({
-            onSelect: (item) => {
-                featureImageUrlInput.value = item.url;
-                featureImagePreview.innerHTML = `<img src="${item.url}" alt="${item.alt_text || item.title || item.filename}" class="max-w-full h-auto rounded-md">`;
-                featureImagePreview.classList.remove('hidden');
-                featureImageRemoveButton.classList.remove('hidden');
-            },
-        });
-    });
+        featureImagePreview.innerHTML = `<img src="${url}" alt="${escapeHtml(altText || '特色图片预览')}">`;
+        featureImagePreview.classList.remove('hidden');
+        featureImageRemoveButton.classList.remove('hidden');
+    }
 
-    featureImageRemoveButton.addEventListener('click', () => {
-        featureImageUrlInput.value = '';
-        featureImagePreview.innerHTML = '';
-        featureImagePreview.classList.add('hidden');
-        featureImageRemoveButton.classList.add('hidden');
-    });
+    if (featureImageUploadButton && featureImageRemoveButton && featureImageUrlInput && featureImagePreview) {
+        featureImageUploadButton.addEventListener('click', () => {
+            if (!window.RewrzMediaLibrary) {
+                console.error('RewrzMediaLibrary is not available');
+                return;
+            }
+            window.RewrzMediaLibrary.open({
+                onSelect: (item) => {
+                    featureImageUrlInput.value = item.url;
+                    renderFeatureImage(item.url, item.alt_text || item.title || item.filename);
+                    markDirty();
+                },
+            });
+        });
+
+        featureImageRemoveButton.addEventListener('click', () => {
+            featureImageUrlInput.value = '';
+            renderFeatureImage('', '');
+            markDirty();
+        });
+    }
 
     const visibilitySelect = document.getElementById('visibility-select');
     const passwordField = document.getElementById('password-field');
@@ -320,6 +542,43 @@
         visibilitySelect.addEventListener('change', togglePasswordField);
         togglePasswordField();
     }
+
+    const beforeUnloadHandler = (event) => {
+        if (!isDirty || isSubmitting) return;
+        event.preventDefault();
+        event.returnValue = '';
+    };
+    if (window.__rewrzPageBeforeUnloadHandler) {
+        window.removeEventListener('beforeunload', window.__rewrzPageBeforeUnloadHandler);
+    }
+    window.__rewrzPageBeforeUnloadHandler = beforeUnloadHandler;
+    window.addEventListener('beforeunload', beforeUnloadHandler);
+
+    const saveShortcutHandler = (event) => {
+        const isSaveKey = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
+        if (!isSaveKey) return;
+        event.preventDefault();
+        if (savePageButton) {
+            savePageButton.focus();
+            pageForm.requestSubmit();
+        }
+    };
+    if (window.__rewrzPageSaveShortcutHandler) {
+        document.removeEventListener('keydown', window.__rewrzPageSaveShortcutHandler);
+    }
+    window.__rewrzPageSaveShortcutHandler = saveShortcutHandler;
+    document.addEventListener('keydown', saveShortcutHandler);
+
+    pageForm.addEventListener('submit', () => {
+        isSubmitting = true;
+        isDirty = false;
+        updateDirtyUI();
+        if (savePageButton) {
+            savePageButton.disabled = true;
+            savePageButton.classList.add('opacity-70', 'cursor-not-allowed');
+            savePageButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>保存中...';
+        }
+    });
 
     {% if post %}
     const snapshotHistoryButton = document.getElementById('snapshot-history-button');
