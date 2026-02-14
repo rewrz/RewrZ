@@ -20,6 +20,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 # 新增导入：FastAPI 与 RequestValidationError
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from .database import get_db
+from ..crud import setting as setting_crud
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -28,6 +30,69 @@ logger.setLevel(logging.INFO)
 # 创建错误处理模块的模板目录
 TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "templates")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+DEFAULT_ERROR_HANDLING_CONFIG = {
+    "enable_custom_error_pages": False,
+    "error_page_template": "default",
+    "custom_error_messages": {
+        "404": {"title": "页面未找到", "message": "抱歉，您访问的页面不存在。"},
+        "500": {"title": "服务器内部错误", "message": "抱歉，服务器遇到了一些问题，请稍后再试。"},
+        "403": {"title": "访问被禁止", "message": "抱歉，您没有权限访问此页面。"},
+        "400": {"title": "请求错误", "message": "抱歉，您的请求存在问题，请检查后重试。"},
+        "422": {"title": "参数验证失败", "message": "请求参数验证失败，请检查输入后重试。"},
+    },
+    "enable_error_caching": True,
+    "error_cache_duration": 3600,
+    "enable_error_logging": True,
+    "log_level": "INFO",
+}
+
+
+def _load_error_handling_config_from_request(request: Request) -> dict:
+    """从数据库加载错误处理配置，加载失败时回退默认值。"""
+    config = dict(DEFAULT_ERROR_HANDLING_CONFIG)
+    db = getattr(request.state, "db", None)
+    db_gen = None
+
+    try:
+        if db is None:
+            db_gen = get_db()
+            db = next(db_gen)
+        if db is None:
+            return config
+
+        setting = setting_crud.get_setting(db, key="error_handling_config")
+        if not setting or not setting.value:
+            return config
+
+        saved = setting.value.get("value", {})
+        if not isinstance(saved, dict):
+            return config
+
+        for key, value in saved.items():
+            if key == "custom_error_messages" and isinstance(value, dict):
+                merged_messages = dict(config["custom_error_messages"])
+                for status_code, msg_data in value.items():
+                    if not isinstance(msg_data, dict):
+                        continue
+                    base_msg = merged_messages.get(status_code, {"title": "", "message": ""})
+                    merged_messages[status_code] = {
+                        "title": msg_data.get("title", base_msg.get("title", "")),
+                        "message": msg_data.get("message", base_msg.get("message", "")),
+                    }
+                config["custom_error_messages"] = merged_messages
+            else:
+                config[key] = value
+
+        return config
+    except Exception:
+        return config
+    finally:
+        if db_gen is not None:
+            try:
+                db_gen.close()
+            except Exception:
+                pass
 
 
 class BlogHTTPException(HTTPException):
@@ -174,40 +239,59 @@ async def _handle_html_response(request: Request, exc: Exception):
     Returns:
         HTMLResponse: HTML格式错误响应
     """
-    print(f"DEBUG: Handling exception {type(exc).__name__}: {exc}")
-    print(f"DEBUG: exc type module: {type(exc).__module__}")
-    print(f"DEBUG: HTTPException type: {HTTPException}")
-    print(f"DEBUG: StarletteHTTPException type: {StarletteHTTPException}")
-    print(f"DEBUG: HTTPException type module: {HTTPException.__module__}")
-    print(f"DEBUG: isinstance(exc, HTTPException): {isinstance(exc, HTTPException)}")
-    print(f"DEBUG: isinstance(exc, StarletteHTTPException): {isinstance(exc, StarletteHTTPException)}")
+    error_config = _load_error_handling_config_from_request(request)
+
     # 根据异常类型选择不同的错误页面
     if isinstance(exc, BlogHTTPException):
         status_code = exc.status_code
         error_message = exc.detail
         error_code = exc.error_code
-        print(f"DEBUG: BlogHTTPException - status_code={status_code}, error_message={error_message}, error_code={error_code}")
     elif isinstance(exc, (HTTPException, StarletteHTTPException)):
         status_code = exc.status_code
         error_message = exc.detail
         error_code = getattr(exc, 'error_code', 'HTTP_ERROR')
-        print(f"DEBUG: HTTPException - status_code={status_code}, error_message={error_message}, error_code={error_code}")
     else:
         status_code = 500
         error_message = "服务器内部错误"
         error_code = "INTERNAL_ERROR"
-        print(f"DEBUG: Other exception - status_code={status_code}, error_message={error_message}, error_code={error_code}")
     
     # 尝试获取自定义错误消息
     custom_message = await _get_custom_error_message(request, status_code)
     if custom_message:
         error_message = custom_message.get("message", error_message)
-        # 可以在这里使用自定义标题等
-    
+
+    custom_title = custom_message.get("title") if custom_message else None
+    error_title = custom_title or f"{status_code} 错误"
+    headers = None
+    if error_config.get("enable_error_caching", True):
+        try:
+            cache_duration = max(60, min(int(error_config.get("error_cache_duration", 3600)), 86400))
+            headers = {"Cache-Control": f"public, max-age={cache_duration}"}
+        except (TypeError, ValueError):
+            headers = {"Cache-Control": "public, max-age=3600"}
+
+    # 启用自定义错误页面时，统一使用可配置模板
+    if error_config.get("enable_custom_error_pages", False):
+        template_variant = error_config.get("error_page_template", "default")
+        return templates.TemplateResponse(
+            request,
+            "errors/error.html",
+            {
+                "request": request,
+                "status_code": status_code,
+                "error_title": error_title,
+                "error_message": error_message,
+                "error_code": error_code,
+                "error_page_template": template_variant,
+                "site_title": getattr(request.state, "site_title", "RewrZ"),
+            },
+            status_code=status_code,
+            headers=headers,
+        )
+
     # 尝试渲染对应的错误页面模板
     template_name = f"errors/{status_code}.html"
     template_path = os.path.join(TEMPLATES_DIR, template_name)
-    print(f"DEBUG: Template path {template_path} exists: {os.path.exists(template_path)}")
     
     # 如果特定状态码的模板不存在，使用通用模板
     if not os.path.exists(template_path):
@@ -216,30 +300,34 @@ async def _handle_html_response(request: Request, exc: Exception):
         template_path = os.path.join(TEMPLATES_DIR, template_name)
         if not os.path.exists(template_path):
             # 如果连通用模板都不存在，返回简单的错误信息
-            print(f"DEBUG: No template found, returning simple HTML response")
             return HTMLResponse(
                 content=f"<h1>错误 {status_code}</h1><p>{error_message}</p>",
-                status_code=status_code
+                status_code=status_code,
+                headers=headers,
             )
     
     try:
-        print(f"DEBUG: Rendering template {template_name} with status_code={status_code}")
         return templates.TemplateResponse(
             request,
             template_name,
             {
+                "request": request,
                 "status_code": status_code,
+                "error_title": error_title,
                 "error_message": error_message,
-                "error_code": error_code
+                "error_code": error_code,
+                "site_title": getattr(request.state, "site_title", "RewrZ"),
             },
-            status_code=status_code
+            status_code=status_code,
+            headers=headers,
         )
     except Exception as template_exc:
         # 如果模板渲染也失败，返回简单的错误信息
         logger.error(f"模板渲染失败: {str(template_exc)}")
         return HTMLResponse(
             content=f"<h1>错误 {status_code}</h1><p>{error_message}</p>",
-            status_code=status_code
+            status_code=status_code,
+            headers=headers,
         )
 
 
@@ -255,11 +343,12 @@ async def _get_custom_error_message(request: Request, status_code: int) -> Optio
         dict: 自定义错误消息，如果未找到则返回None
     """
     try:
-        # 尝试从数据库获取自定义错误配置
-        # 这里需要访问数据库会话，但我们没有直接的访问权限
-        # 在实际应用中，可以通过request.state.db访问数据库会话
-        # 为了简化，我们返回None
-        return None
+        config = _load_error_handling_config_from_request(request)
+        if not config.get("enable_custom_error_pages", False):
+            return None
+        custom_messages = config.get("custom_error_messages", {})
+        message = custom_messages.get(str(status_code))
+        return message if isinstance(message, dict) else None
     except Exception as e:
         logger.error(f"获取自定义错误消息失败: {str(e)}")
         return None
@@ -273,6 +362,15 @@ def log_error(request: Request, exc: Exception):
         request: 请求对象
         exc: 异常对象
     """
+    config = _load_error_handling_config_from_request(request)
+    if not config.get("enable_error_logging", True):
+        return
+
+    # 依据配置更新日志级别
+    log_level_name = str(config.get("log_level", "INFO")).upper()
+    log_level_value = getattr(logging, log_level_name, logging.INFO)
+    logger.setLevel(log_level_value)
+
     # 获取请求相关信息
     url = str(request.url)
     method = request.method
@@ -292,7 +390,7 @@ def log_error(request: Request, exc: Exception):
     )
     
     # 记录堆栈跟踪（仅在开发环境中）
-    if os.getenv("ENVIRONMENT", "production") == "development":
+    if os.getenv("ENVIRONMENT", "production") == "development" or log_level_name == "DEBUG":
         logger.error(f"详细堆栈信息:\n{traceback.format_exc()}")
 
 
@@ -369,21 +467,5 @@ def register_error_handlers(app: FastAPI) -> None:
                 }
             )
         else:
-            # 尝试渲染422错误页面
-            try:
-                return templates.TemplateResponse(
-                    request,
-                    "errors/422.html",
-                    {
-                        "status_code": 422,
-                        "error_message": "请求参数验证失败",
-                        "error_code": "VALIDATION_ERROR"
-                    },
-                    status_code=422
-                )
-            except Exception:
-                # 如果模板渲染失败，返回简单的错误信息
-                return HTMLResponse(
-                    content="<h1>422 验证错误</h1><p>请求参数验证失败</p>",
-                    status_code=422
-                )
+            # HTML 响应统一走可配置错误页逻辑，确保模板风格/缓存策略一致
+            return await _handle_html_response(request, ValidationError("请求参数验证失败"))

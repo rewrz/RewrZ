@@ -3,12 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>错误 - {{ status_code }} - {{ site_title }}</title>
+    <title>{{ error_title or ('错误 - ' ~ status_code) }} - {{ site_title }}</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        {% set variant = error_page_template or 'default' %}
         body {
+            {% if variant == 'minimal' %}
+            background: #f5f7fb;
+            {% elif variant == 'friendly' %}
+            background: linear-gradient(135deg, #7dd3fc 0%, #a78bfa 100%);
+            {% elif variant == 'detailed' %}
+            background: linear-gradient(135deg, #475569 0%, #0f172a 100%);
+            {% else %}
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            {% endif %}
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -33,10 +42,20 @@
 <body>
     <div class="error-container p-8 max-w-2xl w-full mx-4 text-center">
         <div class="error-icon text-6xl mb-6 text-red-500">
+            {% if variant == 'friendly' %}
+            <i class="fas fa-face-smile-beam"></i>
+            {% elif status_code == 404 %}
+            <i class="fas fa-question-circle"></i>
+            {% elif status_code == 403 %}
+            <i class="fas fa-ban"></i>
+            {% elif status_code == 400 %}
+            <i class="fas fa-circle-exclamation"></i>
+            {% else %}
             <i class="fas fa-exclamation-triangle"></i>
+            {% endif %}
         </div>
         
-        <h1 class="text-4xl font-bold text-gray-800 mb-4">{{ status_code }} 错误</h1>
+        <h1 class="text-4xl font-bold text-gray-800 mb-4">{{ error_title or (status_code ~ ' 错误') }}</h1>
         
         <p class="text-xl text-gray-600 mb-6">
             {% if error_message %}
@@ -53,6 +72,11 @@
             <p class="text-sm text-gray-600 mt-1">
                 <strong>请求路径:</strong> {{ request.url.path }}
             </p>
+            {% if variant == 'detailed' %}
+            <p class="text-sm text-gray-600 mt-1">
+                <strong>请求方法:</strong> {{ request.method }}
+            </p>
+            {% endif %}
         </div>
         
         <div class="flex flex-col sm:flex-row justify-center gap-4">

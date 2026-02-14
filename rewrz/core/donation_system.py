@@ -64,7 +64,8 @@ class DonationSystem:
     def _render_elegant_style(self) -> str:
         """优雅风格的打赏组件"""
         has_qr = bool(self.settings['qr_code_url'])
-        has_link = bool(self.settings['link_text'] and self.settings['link_url'])
+        has_link = bool(self.settings['link_url'])
+        link_text = self.settings['link_text'] or '支持作者'
         
         if not has_qr and not has_link:
             return ''  # 没有配置任何打赏方式
@@ -95,7 +96,7 @@ class DonationSystem:
             html += f'''
                 <div class="donation-link">
                     <a href="{self.settings['link_url']}" target="_blank" rel="noopener" class="donation-button">
-                        <span>{self.settings['link_text']}</span>
+                        <span>{link_text}</span>
                     </a>
                 </div>
             '''
@@ -106,7 +107,8 @@ class DonationSystem:
     def _render_minimal_style(self) -> str:
         """简洁风格的打赏组件"""
         has_qr = bool(self.settings['qr_code_url'])
-        has_link = bool(self.settings['link_text'] and self.settings['link_url'])
+        has_link = bool(self.settings['link_url'])
+        link_text = self.settings['link_text'] or '支持作者'
         
         if not has_qr and not has_link:
             return ''
@@ -128,7 +130,7 @@ class DonationSystem:
             html += f'''
                 <div class="donation-link">
                     <a href="{self.settings['link_url']}" target="_blank" rel="noopener" class="donation-button">
-                        {self.settings['link_text']}
+                        {link_text}
                     </a>
                 </div>
             '''
@@ -139,7 +141,8 @@ class DonationSystem:
     def _render_card_style(self) -> str:
         """卡片风格的打赏组件"""
         has_qr = bool(self.settings['qr_code_url'])
-        has_link = bool(self.settings['link_text'] and self.settings['link_url'])
+        has_link = bool(self.settings['link_url'])
+        link_text = self.settings['link_text'] or '支持作者'
         
         if not has_qr and not has_link:
             return ''
@@ -166,7 +169,7 @@ class DonationSystem:
             html += f'''
                     <div class="donation-link">
                         <a href="{self.settings['link_url']}" target="_blank" rel="noopener" class="donation-button">
-                            {self.settings['link_text']}
+                            {link_text}
                         </a>
                     </div>
             '''

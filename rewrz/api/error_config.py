@@ -7,21 +7,90 @@
 3. 错误日志设置
 """
 
+from copy import deepcopy
 from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from ..core.template_filters import get_templates
 from ..core.database import get_db
-from ..schemas import User
-from ..core.security import get_current_user
+from ..schemas import User, SettingCreate, SettingUpdate
+from ..core.security import get_current_user, verify_csrf_token
 from ..crud import setting as setting_crud
 from ..core.config import settings
-from typing import Optional
-import json
+from typing import Optional, Dict, Any
 
 router = APIRouter()
 templates = get_templates()
+
+DEFAULT_ERROR_CONFIG: Dict[str, Any] = {
+    "enable_custom_error_pages": False,
+    "error_page_template": "default",
+    "custom_error_messages": {
+        "404": {"title": "页面未找到", "message": "抱歉，您访问的页面不存在。"},
+        "500": {"title": "服务器内部错误", "message": "抱歉，服务器遇到了一些问题，请稍后再试。"},
+        "403": {"title": "访问被禁止", "message": "抱歉，您没有权限访问此页面。"},
+        "400": {"title": "请求错误", "message": "抱歉，您的请求存在问题，请检查后重试。"},
+    },
+    "enable_error_caching": True,
+    "error_cache_duration": 3600,
+    "enable_error_logging": True,
+    "log_level": "INFO",
+    "enable_performance_optimization": True,
+    "related_posts_cache_strategy": "aggressive",
+    "reading_time_cache_duration": 7200,
+}
+
+ALLOWED_ERROR_PAGE_TEMPLATES = {"default", "minimal", "detailed", "friendly"}
+ALLOWED_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+ALLOWED_CACHE_STRATEGIES = {"aggressive", "moderate", "conservative"}
+
+
+def _merge_error_config(saved_config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """深度合并错误处理配置，确保模板渲染所需字段完整。"""
+    merged = deepcopy(DEFAULT_ERROR_CONFIG)
+    if not isinstance(saved_config, dict):
+        return merged
+
+    for key, value in saved_config.items():
+        if key == "custom_error_messages" and isinstance(value, dict):
+            for status_code, msg_data in value.items():
+                if status_code not in merged["custom_error_messages"] or not isinstance(msg_data, dict):
+                    continue
+                merged["custom_error_messages"][status_code].update({
+                    "title": msg_data.get("title", merged["custom_error_messages"][status_code]["title"]),
+                    "message": msg_data.get("message", merged["custom_error_messages"][status_code]["message"]),
+                })
+        else:
+            merged[key] = value
+    return merged
+
+
+def _normalize_error_config(config_data: Dict[str, Any]) -> Dict[str, Any]:
+    """校验并规范化配置值，避免非法参数写入数据库。"""
+    normalized = _merge_error_config(config_data)
+
+    if normalized["error_page_template"] not in ALLOWED_ERROR_PAGE_TEMPLATES:
+        normalized["error_page_template"] = DEFAULT_ERROR_CONFIG["error_page_template"]
+
+    normalized["log_level"] = str(normalized.get("log_level", "INFO")).upper()
+    if normalized["log_level"] not in ALLOWED_LOG_LEVELS:
+        normalized["log_level"] = DEFAULT_ERROR_CONFIG["log_level"]
+
+    if normalized["related_posts_cache_strategy"] not in ALLOWED_CACHE_STRATEGIES:
+        normalized["related_posts_cache_strategy"] = DEFAULT_ERROR_CONFIG["related_posts_cache_strategy"]
+
+    try:
+        normalized["error_cache_duration"] = max(60, min(int(normalized["error_cache_duration"]), 86400))
+    except (TypeError, ValueError):
+        normalized["error_cache_duration"] = DEFAULT_ERROR_CONFIG["error_cache_duration"]
+
+    try:
+        normalized["reading_time_cache_duration"] = max(60, min(int(normalized["reading_time_cache_duration"]), 86400))
+    except (TypeError, ValueError):
+        normalized["reading_time_cache_duration"] = DEFAULT_ERROR_CONFIG["reading_time_cache_duration"]
+
+    return normalized
 
 
 @router.get("/error-settings", response_class=HTMLResponse)
@@ -36,40 +105,14 @@ async def error_settings_page(
     # 获取当前错误处理配置
     error_config_setting = setting_crud.get_setting(db, key="error_handling_config")
     saved_config = error_config_setting.value.get("value", {}) if error_config_setting and error_config_setting.value else {}
-    
-    # 提供一个完整的默认配置，以防止模板渲染错误
-    default_config = {
-        "enable_custom_error_pages": False,
-        "error_page_template": "default",
-        "custom_error_messages": {
-            "404": {"title": "页面未找到", "message": "抱歉，您访问的页面不存在。"},
-            "500": {"title": "服务器内部错误", "message": "抱歉，服务器遇到了一些问题，请稍后再试。"},
-            "403": {"title": "访问被禁止", "message": "抱歉，您没有权限访问此页面。"},
-            "400": {"title": "请求错误", "message": "抱歉，您的请求存在问题，请检查后重试。"}
-        },
-        "enable_error_caching": True,
-        "error_cache_duration": 3600,
-        "enable_error_logging": True,
-        "log_level": "INFO",
-        "enable_performance_optimization": True,
-        "related_posts_cache_strategy": "aggressive",
-        "reading_time_cache_duration": 7200
-    }
-    
-    # 使用保存的配置更新默认配置
-    # 注意：这里需要一个深度合并策略，但为了简单起见，我们只合并顶层键和 custom_error_messages
-    config = default_config.copy()
-    for key, value in saved_config.items():
-        if key == "custom_error_messages" and isinstance(value, dict):
-            config[key].update(value)
-        else:
-            config[key] = value
+    config = _normalize_error_config(saved_config)
 
     return templates.TemplateResponse("admin/error_settings.html", {
         "request": request,
         "user": current_user,
-        "admin_path": settings.ADMIN_PATH.rstrip('/'),
-        "error_config": config
+        "admin_path": getattr(request.state, "admin_path", settings.ADMIN_PATH.rstrip('/')),
+        "error_config": config,
+        "message": None,
     })
 
 
@@ -88,11 +131,11 @@ async def update_error_settings(
     custom_error_403_message: str = Form("抱歉，您没有权限访问此页面。"),
     custom_error_400_title: str = Form("请求错误"),
     custom_error_400_message: str = Form("抱歉，您的请求存在问题，请检查后重试。"),
-    enable_error_caching: bool = Form(True),
+    enable_error_caching: bool = Form(False),
     error_cache_duration: int = Form(3600),
-    enable_error_logging: bool = Form(True),
+    enable_error_logging: bool = Form(False),
     log_level: str = Form("INFO"),
-    enable_performance_optimization: bool = Form(True),
+    enable_performance_optimization: bool = Form(False),
     related_posts_cache_strategy: str = Form("aggressive"),
     reading_time_cache_duration: int = Form(7200),
     csrf_token: str = Form(...)
@@ -100,12 +143,10 @@ async def update_error_settings(
     """
     更新错误处理设置
     """
-    # 验证CSRF令牌
-    if not csrf_token or csrf_token != request.session.get("csrf_token"):
-        raise HTTPException(status_code=403, detail="Invalid CSRF token")
+    verify_csrf_token(request, csrf_token)
     
     # 构建配置数据
-    config_data = {
+    config_data = _normalize_error_config({
         "enable_custom_error_pages": enable_custom_error_pages,
         "error_page_template": error_page_template,
         "custom_error_messages": {
@@ -133,16 +174,33 @@ async def update_error_settings(
         "enable_performance_optimization": enable_performance_optimization,
         "related_posts_cache_strategy": related_posts_cache_strategy,
         "reading_time_cache_duration": reading_time_cache_duration
-    }
-    
-    # 保存配置
-    setting_crud.update_setting(
-        db, 
-        key="error_handling_config", 
-        value={"value": config_data}
-    )
-    
-    return {"message": "错误处理配置已更新", "config": config_data}
+    })
+
+    # 保存配置（不存在则创建）
+    existing_setting = setting_crud.get_setting(db, key="error_handling_config")
+    if existing_setting:
+        setting_crud.update_setting(
+            db=db,
+            key="error_handling_config",
+            setting_update=SettingUpdate(value={"value": config_data}),
+        )
+    else:
+        setting_crud.create_setting(
+            db=db,
+            setting=SettingCreate(
+                key="error_handling_config",
+                value={"value": config_data},
+                description="错误处理配置",
+            ),
+        )
+
+    return templates.TemplateResponse("admin/error_settings.html", {
+        "request": request,
+        "user": current_user,
+        "admin_path": getattr(request.state, "admin_path", settings.ADMIN_PATH.rstrip('/')),
+        "error_config": config_data,
+        "message": "错误处理设置已保存",
+    })
 
 
 def get_error_handling_config(db: Session) -> dict:
@@ -156,7 +214,8 @@ def get_error_handling_config(db: Session) -> dict:
         dict: 错误处理配置
     """
     config = setting_crud.get_setting(db, key="error_handling_config")
-    return config.value.get("value", {}) if config and config.value else {}
+    raw = config.value.get("value", {}) if config and config.value else {}
+    return _normalize_error_config(raw)
 
 
 def is_custom_error_pages_enabled(db: Session) -> bool:

@@ -1,15 +1,38 @@
 {% extends "admin/base.html" %}
 
-{% block title_text %}网站设置{% endblock %}
+{% block title_text %}常规设置{% endblock %}
 {% block page_title %}<i class="fas fa-globe text-blue-600 mr-3"></i>常规设置{% endblock %}
 {% block content %}
 
 
-<form hx-post="{{ request.state.admin_path }}/settings" hx-target="#admin-content" hx-swap="outerHTML" hx-select="#admin-content" class="space-y-8">
+<form hx-post="{{ request.state.admin_path }}/settings" hx-target="#admin-content" hx-swap="outerHTML" hx-select="#admin-content" class="space-y-6">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-lg p-5">
+        <h2 class="text-lg font-semibold text-gray-900">设置说明</h2>
+        <p class="mt-1 text-sm text-gray-600">此页面用于管理站点公共配置。建议按从上到下顺序配置，最后统一点击“保存所有设置”。</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-6 items-start">
+        <aside class="bg-white rounded-lg border border-gray-200 p-4 shadow-sm lg:sticky lg:top-6">
+            <h3 class="text-sm font-semibold text-gray-900 mb-3">快速导航</h3>
+            <nav class="space-y-2 text-sm">
+                <a href="#section-site" class="block px-3 py-2 rounded hover:bg-gray-50 text-gray-700">站点基础信息</a>
+                <a href="#section-footer" class="block px-3 py-2 rounded hover:bg-gray-50 text-gray-700">页脚与备案</a>
+                <a href="#section-social" class="block px-3 py-2 rounded hover:bg-gray-50 text-gray-700">社交入口</a>
+                <a href="#section-seo" class="block px-3 py-2 rounded hover:bg-gray-50 text-gray-700">SEO 可见性</a>
+                <a href="#section-rss" class="block px-3 py-2 rounded hover:bg-gray-50 text-gray-700">RSS/Atom 订阅</a>
+                <a href="#section-display" class="block px-3 py-2 rounded hover:bg-gray-50 text-gray-700">列表与阅读数量</a>
+                <a href="#section-donation" class="block px-3 py-2 rounded hover:bg-gray-50 text-gray-700">赞赏组件</a>
+                <a href="#section-admin-path" class="block px-3 py-2 rounded hover:bg-gray-50 text-gray-700">后台访问路径</a>
+                <a href="#section-homepage" class="block px-3 py-2 rounded hover:bg-gray-50 text-gray-700">首页展示模式</a>
+            </nav>
+        </aside>
+
+        <div class="space-y-8">
     <!-- 通用设置 -->
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-4">通用设置</h2>
+    <div id="section-site" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-1">站点基础信息</h2>
+        <p class="text-sm text-gray-500 mb-4">影响站点标题、访问地址、品牌图标等全局展示内容。</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
                 <label for="site_title" class="block text-sm font-medium text-gray-700">网站主标题</label>
@@ -50,8 +73,9 @@
     </div>
 
     <!-- 页脚设置 -->
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-4">页脚设置</h2>
+    <div id="section-footer" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-1">页脚与备案</h2>
+        <p class="text-sm text-gray-500 mb-4">配置版权信息、备案号及页脚补充说明。</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
                 <label for="copyright_info" class="block text-sm font-medium text-gray-700">版权信息</label>
@@ -77,8 +101,9 @@
     </div>
 
     <!-- 社交链接管理 -->
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-4">社交链接管理</h2>
+    <div id="section-social" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-1">社交与联系入口</h2>
+        <p class="text-sm text-gray-500 mb-4">配置前台页脚的社交图标链接，建议仅保留常用平台。</p>
         <div id="social-links-container" class="space-y-4 mb-4">
             {% for link in settings.social_links %}
             <div class="flex items-center space-x-4 social-link-item">
@@ -94,8 +119,9 @@
     </div>
 
     <!-- SEO 管理 -->
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-4">SEO 管理</h2>
+    <div id="section-seo" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-1">搜索引擎可见性</h2>
+        <p class="text-sm text-gray-500 mb-4">控制站点是否被索引、是否生成站点地图和爬虫访问策略。</p>
         <div class="space-y-4">
             <div>
                 <label class="inline-flex items-center">
@@ -119,8 +145,9 @@
     </div>
 
     <!-- RSS 订阅管理 -->
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-4">RSS 订阅管理</h2>
+    <div id="section-rss" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-1">RSS/Atom 订阅</h2>
+        <p class="text-sm text-gray-500 mb-4">控制订阅源开关、缓存与输出条数。</p>
         <div class="space-y-4">
             <div>
                 <label class="inline-flex items-center">
@@ -174,8 +201,9 @@
     </div>
 
     <!-- 页面显示配置 -->
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-4">页面显示配置</h2>
+    <div id="section-display" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-1">列表与阅读数量</h2>
+        <p class="text-sm text-gray-500 mb-4">调整首页、归档、搜索和相关文章的展示数量，平衡信息密度与性能。</p>
         <div class="space-y-4">
             <p class="text-sm text-gray-600 mb-4">配置各个页面显示的文章数量</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -232,11 +260,12 @@
     </div>
 
     <!-- 打赏功能配置 -->
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+    <div id="section-donation" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-1">
             <i class="fas fa-heart text-red-500 mr-2"></i>
-            打赏功能配置
+            赞赏组件
         </h2>
+        <p class="text-sm text-gray-500 mb-4">可配置二维码和跳转链接，至少填写一种方式即可展示。</p>
         <div class="space-y-6">
             <!-- 打赏功能开关 -->
             <div>
@@ -278,11 +307,12 @@
                         <p class="text-sm text-gray-500 mt-1">如微信收款码、支付宝收款码等</p>
                     </div>
                     <div>
-                        <label for="donation_link_text" class="block text-sm font-medium text-gray-700">打赏链接文字</label>
+                        <label for="donation_link_text" class="block text-sm font-medium text-gray-700">打赏链接按钮文字（可选）</label>
                         <input type="text" id="donation_link_text" name="donation_link_text" 
                                value="{{ settings.donation_link_text if settings.donation_link_text else '' }}"
                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                                placeholder="如：支持作者">
+                        <p class="text-sm text-gray-500 mt-1">不填写时将使用默认按钮文案“支持作者”。</p>
                     </div>
                     <div>
                         <label for="donation_link_url" class="block text-sm font-medium text-gray-700">打赏链接地址</label>
@@ -335,11 +365,12 @@
         </div>
 
     <!-- 后台路径配置 -->
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+    <div id="section-admin-path" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-1">
             <i class="fas fa-shield-alt text-gray-600 mr-2"></i>
-            后台路径配置
+            后台访问路径
         </h2>
+        <p class="text-sm text-gray-500 mb-4">可定期更换后台地址以提高安全性。修改后请使用新地址登录。</p>
         <div class="space-y-4">
             <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
                 <div class="flex items-center mb-2">
@@ -467,11 +498,12 @@
     </div>
 
     <!-- 主页个性化设置 -->
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+    <div id="section-homepage" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-1">
             <i class="fas fa-home text-indigo-600 mr-2"></i>
-            主页个性化设置
+            首页展示模式
         </h2>
+        <p class="text-sm text-gray-500 mb-4">可选择默认时间线、全屏相册或全屏视频模式。</p>
         <div class="space-y-6">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">主页模式</label>
@@ -551,7 +583,9 @@
     </div>
 
     <!-- 保存按钮 -->
-    <div class="bg-white p-4 rounded-lg shadow-md mt-8 sticky bottom-4 z-10 flex justify-end items-center space-x-4">
+    <div class="bg-white p-4 rounded-lg shadow-md mt-8 sticky bottom-4 z-10 flex flex-col gap-3 md:flex-row md:justify-between md:items-center">
+        <p class="text-sm text-gray-500">提示：修改后请点击保存。部分设置（如后台路径）可能需要重新登录或刷新页面。</p>
+        <div class="flex items-center space-x-4">
         {% if message %}
         <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded relative" role="alert">
             <strong class="font-bold">成功!</strong>
@@ -562,6 +596,9 @@
             <i class="fas fa-save mr-2"></i>
             保存所有设置
         </button>
+        </div>
+    </div>
+    </div>
     </div>
 </form>
 

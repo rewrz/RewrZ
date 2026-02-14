@@ -1,273 +1,220 @@
 {% extends "admin/base.html" %}
 
-{% block title_text %}错误处理设置{% endblock %}
-{% block page_title %}<i class="fas fa-exclamation-circle text-red-500 mr-3"></i>错误处理设置{% endblock %}
+{% block title_text %}错误处理{% endblock %}
+{% block page_title %}<i class="fas fa-exclamation-triangle text-red-500 mr-3"></i>错误处理{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <div class="flex items-center justify-between mb-6">
-            <button type="submit" form="error-settings-form" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200">
-                保存设置
-            </button>
-        </div>
+<form id="error-settings-form" method="POST" class="space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
 
-        <form id="error-settings-form" method="POST" class="space-y-8">
-            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <div class="bg-gradient-to-r from-red-50 to-amber-50 border border-red-100 rounded-lg p-5">
+        <h2 class="text-lg font-semibold text-gray-900">配置说明</h2>
+        <p class="mt-1 text-sm text-gray-600">用于配置错误页文案、日志和缓存策略。建议先设置错误页开关，再配置详细文案。</p>
+    </div>
 
-            <!-- 自定义错误页面设置 -->
-            <div class="border border-gray-200 rounded-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">自定义错误页面</h2>
-                
+    <div class="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-6 items-start">
+        <aside class="bg-white rounded-lg border border-gray-200 p-4 shadow-sm lg:sticky lg:top-6">
+            <h3 class="text-sm font-semibold text-gray-900 mb-3">快速导航</h3>
+            <nav class="space-y-2 text-sm">
+                <a href="#section-custom" class="block px-3 py-2 rounded hover:bg-gray-50 text-gray-700">错误页面开关</a>
+                <a href="#section-messages" class="block px-3 py-2 rounded hover:bg-gray-50 text-gray-700">状态码文案</a>
+                <a href="#section-cache" class="block px-3 py-2 rounded hover:bg-gray-50 text-gray-700">错误页缓存</a>
+                <a href="#section-logging" class="block px-3 py-2 rounded hover:bg-gray-50 text-gray-700">日志记录</a>
+                <a href="#section-performance" class="block px-3 py-2 rounded hover:bg-gray-50 text-gray-700">性能策略</a>
+            </nav>
+        </aside>
+
+        <div class="space-y-8">
+            <section id="section-custom" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+                <h2 class="text-xl font-semibold text-gray-800 mb-1">错误页面开关</h2>
+                <p class="text-sm text-gray-500 mb-4">开启后将使用你配置的标题、文案和模板风格。</p>
                 <div class="space-y-4">
-                    <div class="flex items-center">
-                        <input type="checkbox" id="enable_custom_error_pages" name="enable_custom_error_pages" 
-                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                               {% if error_config.enable_custom_error_pages %}checked{% endif %}>
-                        <label for="enable_custom_error_pages" class="ml-2 block text-sm text-gray-700">
-                            启用自定义错误页面
-                        </label>
-                    </div>
-                    
-                    <div class="ml-6">
-                        <label for="error_page_template" class="block text-sm font-medium text-gray-700 mb-2">
-                            错误页面模板
-                        </label>
-                        <select id="error_page_template" name="error_page_template" 
-                                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                            <option value="default" {% if error_config.error_page_template == 'default' %}selected{% endif %}>默认模板</option>
-                            <option value="minimal" {% if error_config.error_page_template == 'minimal' %}selected{% endif %}>简约模板</option>
-                            <option value="detailed" {% if error_config.error_page_template == 'detailed' %}selected{% endif %}>详细模板</option>
-                            <option value="friendly" {% if error_config.error_page_template == 'friendly' %}selected{% endif %}>友好模板</option>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" id="enable_custom_error_pages" name="enable_custom_error_pages" class="form-checkbox" {% if error_config.enable_custom_error_pages %}checked{% endif %}>
+                        <span class="ml-2 text-gray-700">启用自定义错误页面</span>
+                    </label>
+                    <div id="error-template-wrapper" class="p-4 bg-gray-50 rounded-lg">
+                        <label for="error_page_template" class="block text-sm font-medium text-gray-700 mb-2">错误页面模板风格</label>
+                        <select id="error_page_template" name="error_page_template" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                            <option value="default" {% if error_config.error_page_template == 'default' %}selected{% endif %}>默认模板（平衡）</option>
+                            <option value="minimal" {% if error_config.error_page_template == 'minimal' %}selected{% endif %}>简约模板（信息精简）</option>
+                            <option value="detailed" {% if error_config.error_page_template == 'detailed' %}selected{% endif %}>详细模板（更多调试信息）</option>
+                            <option value="friendly" {% if error_config.error_page_template == 'friendly' %}selected{% endif %}>友好模板（更温和提示）</option>
                         </select>
-                        <p class="mt-1 text-sm text-gray-500">选择错误页面的显示样式</p>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- 自定义错误消息设置 -->
-            <div class="border border-gray-200 rounded-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">自定义错误消息</h2>
-                
-                <div class="space-y-6">
-                    <!-- 404错误 -->
-                    <div class="border border-gray-100 rounded-lg p-4">
-                        <h3 class="font-medium text-gray-700 mb-3">404 页面未找到</h3>
+            <section id="section-messages" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+                <h2 class="text-xl font-semibold text-gray-800 mb-1">状态码文案</h2>
+                <p class="text-sm text-gray-500 mb-4">仅在启用“自定义错误页面”后生效。</p>
+                <div class="space-y-5">
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h3 class="font-medium text-gray-800 mb-3">404 页面未找到</h3>
                         <div class="space-y-3">
                             <div>
                                 <label for="custom_error_404_title" class="block text-sm font-medium text-gray-700">标题</label>
-                                <input type="text" id="custom_error_404_title" name="custom_error_404_title" 
-                                       value="{{ error_config.custom_error_messages['404'].title or '页面未找到' }}"
-                                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <input type="text" id="custom_error_404_title" name="custom_error_404_title" value="{{ error_config.custom_error_messages['404'].title }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
                             </div>
                             <div>
-                                <label for="custom_error_404_message" class="block text-sm font-medium text-gray-700">消息</label>
-                                <textarea id="custom_error_404_message" name="custom_error_404_message" rows="2"
-                                          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{ error_config.custom_error_messages['404'].message or '抱歉，您访问的页面不存在。' }}</textarea>
+                                <label for="custom_error_404_message" class="block text-sm font-medium text-gray-700">提示文案</label>
+                                <textarea id="custom_error_404_message" name="custom_error_404_message" rows="2" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">{{ error_config.custom_error_messages['404'].message }}</textarea>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- 500错误 -->
-                    <div class="border border-gray-100 rounded-lg p-4">
-                        <h3 class="font-medium text-gray-700 mb-3">500 服务器内部错误</h3>
+
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h3 class="font-medium text-gray-800 mb-3">500 服务器内部错误</h3>
                         <div class="space-y-3">
                             <div>
                                 <label for="custom_error_500_title" class="block text-sm font-medium text-gray-700">标题</label>
-                                <input type="text" id="custom_error_500_title" name="custom_error_500_title" 
-                                       value="{{ error_config.custom_error_messages['500'].title or '服务器内部错误' }}"
-                                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <input type="text" id="custom_error_500_title" name="custom_error_500_title" value="{{ error_config.custom_error_messages['500'].title }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
                             </div>
                             <div>
-                                <label for="custom_error_500_message" class="block text-sm font-medium text-gray-700">消息</label>
-                                <textarea id="custom_error_500_message" name="custom_error_500_message" rows="2"
-                                          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{ error_config.custom_error_messages['500'].message or '抱歉，服务器遇到了一些问题，请稍后再试。' }}</textarea>
+                                <label for="custom_error_500_message" class="block text-sm font-medium text-gray-700">提示文案</label>
+                                <textarea id="custom_error_500_message" name="custom_error_500_message" rows="2" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">{{ error_config.custom_error_messages['500'].message }}</textarea>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- 403错误 -->
-                    <div class="border border-gray-100 rounded-lg p-4">
-                        <h3 class="font-medium text-gray-700 mb-3">403 访问被禁止</h3>
+
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h3 class="font-medium text-gray-800 mb-3">403 访问被禁止</h3>
                         <div class="space-y-3">
                             <div>
                                 <label for="custom_error_403_title" class="block text-sm font-medium text-gray-700">标题</label>
-                                <input type="text" id="custom_error_403_title" name="custom_error_403_title" 
-                                       value="{{ error_config.custom_error_messages['403'].title or '访问被禁止' }}"
-                                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <input type="text" id="custom_error_403_title" name="custom_error_403_title" value="{{ error_config.custom_error_messages['403'].title }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
                             </div>
                             <div>
-                                <label for="custom_error_403_message" class="block text-sm font-medium text-gray-700">消息</label>
-                                <textarea id="custom_error_403_message" name="custom_error_403_message" rows="2"
-                                          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{ error_config.custom_error_messages['403'].message or '抱歉，您没有权限访问此页面。' }}</textarea>
+                                <label for="custom_error_403_message" class="block text-sm font-medium text-gray-700">提示文案</label>
+                                <textarea id="custom_error_403_message" name="custom_error_403_message" rows="2" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">{{ error_config.custom_error_messages['403'].message }}</textarea>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- 400错误 -->
-                    <div class="border border-gray-100 rounded-lg p-4">
-                        <h3 class="font-medium text-gray-700 mb-3">400 请求错误</h3>
+
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h3 class="font-medium text-gray-800 mb-3">400 请求错误</h3>
                         <div class="space-y-3">
                             <div>
                                 <label for="custom_error_400_title" class="block text-sm font-medium text-gray-700">标题</label>
-                                <input type="text" id="custom_error_400_title" name="custom_error_400_title" 
-                                       value="{{ error_config.custom_error_messages['400'].title or '请求错误' }}"
-                                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <input type="text" id="custom_error_400_title" name="custom_error_400_title" value="{{ error_config.custom_error_messages['400'].title }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
                             </div>
                             <div>
-                                <label for="custom_error_400_message" class="block text-sm font-medium text-gray-700">消息</label>
-                                <textarea id="custom_error_400_message" name="custom_error_400_message" rows="2"
-                                          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{ error_config.custom_error_messages['400'].message or '抱歉，您的请求存在问题，请检查后重试。' }}</textarea>
+                                <label for="custom_error_400_message" class="block text-sm font-medium text-gray-700">提示文案</label>
+                                <textarea id="custom_error_400_message" name="custom_error_400_message" rows="2" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">{{ error_config.custom_error_messages['400'].message }}</textarea>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- 错误缓存设置 -->
-            <div class="border border-gray-200 rounded-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">错误缓存</h2>
-                
+            <section id="section-cache" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+                <h2 class="text-xl font-semibold text-gray-800 mb-1">错误页缓存</h2>
+                <p class="text-sm text-gray-500 mb-4">用于控制错误页的缓存头，降低高频重复错误请求开销。</p>
                 <div class="space-y-4">
-                    <div class="flex items-center">
-                        <input type="checkbox" id="enable_error_caching" name="enable_error_caching" 
-                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                               {% if error_config.enable_error_caching %}checked{% endif %}>
-                        <label for="enable_error_caching" class="ml-2 block text-sm text-gray-700">
-                            启用错误页面缓存
-                        </label>
-                    </div>
-                    
-                    <div class="ml-6">
-                        <label for="error_cache_duration" class="block text-sm font-medium text-gray-700 mb-2">
-                            缓存持续时间（秒）
-                        </label>
-                        <input type="number" id="error_cache_duration" name="error_cache_duration" 
-                               value="{{ error_config.error_cache_duration or 3600 }}"
-                               class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        <p class="mt-1 text-sm text-gray-500">设置错误页面的缓存时间，以提高性能</p>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" id="enable_error_caching" name="enable_error_caching" class="form-checkbox" {% if error_config.enable_error_caching %}checked{% endif %}>
+                        <span class="ml-2 text-gray-700">启用错误页面缓存</span>
+                    </label>
+                    <div id="error-cache-options" class="p-4 bg-gray-50 rounded-lg">
+                        <label for="error_cache_duration" class="block text-sm font-medium text-gray-700 mb-2">缓存时间（秒）</label>
+                        <input type="number" id="error_cache_duration" name="error_cache_duration" value="{{ error_config.error_cache_duration }}" min="60" max="86400" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                        <p class="mt-1 text-sm text-gray-500">建议 300-3600 秒；值越大，错误页缓存越久。</p>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- 错误日志设置 -->
-            <div class="border border-gray-200 rounded-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">错误日志</h2>
-                
+            <section id="section-logging" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+                <h2 class="text-xl font-semibold text-gray-800 mb-1">日志记录</h2>
+                <p class="text-sm text-gray-500 mb-4">用于控制是否记录错误日志，以及日志输出级别。</p>
                 <div class="space-y-4">
-                    <div class="flex items-center">
-                        <input type="checkbox" id="enable_error_logging" name="enable_error_logging" 
-                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                               {% if error_config.enable_error_logging %}checked{% endif %}>
-                        <label for="enable_error_logging" class="ml-2 block text-sm text-gray-700">
-                            启用错误日志记录
-                        </label>
-                    </div>
-                    
-                    <div class="ml-6">
-                        <label for="log_level" class="block text-sm font-medium text-gray-700 mb-2">
-                            日志级别
-                        </label>
-                        <select id="log_level" name="log_level" 
-                                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                            <option value="DEBUG" {% if error_config.log_level == 'DEBUG' %}selected{% endif %}>DEBUG</option>
-                            <option value="INFO" {% if error_config.log_level == 'INFO' %}selected{% endif %}>INFO</option>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" id="enable_error_logging" name="enable_error_logging" class="form-checkbox" {% if error_config.enable_error_logging %}checked{% endif %}>
+                        <span class="ml-2 text-gray-700">启用错误日志记录</span>
+                    </label>
+                    <div id="error-log-options" class="p-4 bg-gray-50 rounded-lg">
+                        <label for="log_level" class="block text-sm font-medium text-gray-700 mb-2">日志级别</label>
+                        <select id="log_level" name="log_level" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                            <option value="DEBUG" {% if error_config.log_level == 'DEBUG' %}selected{% endif %}>DEBUG（最详细）</option>
+                            <option value="INFO" {% if error_config.log_level == 'INFO' %}selected{% endif %}>INFO（默认）</option>
                             <option value="WARNING" {% if error_config.log_level == 'WARNING' %}selected{% endif %}>WARNING</option>
                             <option value="ERROR" {% if error_config.log_level == 'ERROR' %}selected{% endif %}>ERROR</option>
                             <option value="CRITICAL" {% if error_config.log_level == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
                         </select>
-                        <p class="mt-1 text-sm text-gray-500">选择记录错误日志的详细程度</p>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- 性能优化设置 -->
-            <div class="border border-gray-200 rounded-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">性能优化</h2>
-                
+            <section id="section-performance" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+                <h2 class="text-xl font-semibold text-gray-800 mb-1">性能策略</h2>
+                <p class="text-sm text-gray-500 mb-4">控制相关文章推荐缓存策略与阅读时间缓存时长。</p>
                 <div class="space-y-4">
-                    <div class="flex items-center">
-                        <input type="checkbox" id="enable_performance_optimization" name="enable_performance_optimization" 
-                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                               {% if error_config.enable_performance_optimization %}checked{% endif %}>
-                        <label for="enable_performance_optimization" class="ml-2 block text-sm text-gray-700">
-                            启用性能优化
-                        </label>
-                    </div>
-                    
-                    <div class="ml-6 space-y-4">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" id="enable_performance_optimization" name="enable_performance_optimization" class="form-checkbox" {% if error_config.enable_performance_optimization %}checked{% endif %}>
+                        <span class="ml-2 text-gray-700">启用性能优化策略</span>
+                    </label>
+                    <div id="performance-options" class="p-4 bg-gray-50 rounded-lg space-y-4">
                         <div>
-                            <label for="related_posts_cache_strategy" class="block text-sm font-medium text-gray-700 mb-2">
-                                相关文章缓存策略
-                            </label>
-                            <select id="related_posts_cache_strategy" name="related_posts_cache_strategy" 
-                                    class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                                <option value="aggressive" {% if error_config.related_posts_cache_strategy == 'aggressive' %}selected{% endif %}>积极缓存</option>
-                                <option value="moderate" {% if error_config.related_posts_cache_strategy == 'moderate' %}selected{% endif %}>中等缓存</option>
-                                <option value="conservative" {% if error_config.related_posts_cache_strategy == 'conservative' %}selected{% endif %}>保守缓存</option>
+                            <label for="related_posts_cache_strategy" class="block text-sm font-medium text-gray-700 mb-2">相关文章缓存策略</label>
+                            <select id="related_posts_cache_strategy" name="related_posts_cache_strategy" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                                <option value="aggressive" {% if error_config.related_posts_cache_strategy == 'aggressive' %}selected{% endif %}>积极缓存（性能优先）</option>
+                                <option value="moderate" {% if error_config.related_posts_cache_strategy == 'moderate' %}selected{% endif %}>中等缓存（平衡）</option>
+                                <option value="conservative" {% if error_config.related_posts_cache_strategy == 'conservative' %}selected{% endif %}>保守缓存（实时优先）</option>
                             </select>
-                            <p class="mt-1 text-sm text-gray-500">选择相关文章推荐的缓存策略</p>
                         </div>
-                        
                         <div>
-                            <label for="reading_time_cache_duration" class="block text-sm font-medium text-gray-700 mb-2">
-                                阅读时间缓存持续时间（秒）
-                            </label>
-                            <input type="number" id="reading_time_cache_duration" name="reading_time_cache_duration" 
-                                   value="{{ error_config.reading_time_cache_duration or 7200 }}"
-                                   class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                            <p class="mt-1 text-sm text-gray-500">设置文章阅读时间计算结果的缓存时间</p>
+                            <label for="reading_time_cache_duration" class="block text-sm font-medium text-gray-700 mb-2">阅读时间缓存时长（秒）</label>
+                            <input type="number" id="reading_time_cache_duration" name="reading_time_cache_duration" value="{{ error_config.reading_time_cache_duration }}" min="60" max="86400" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- 提交按钮 -->
-            <div class="flex justify-end">
-                <button type="submit" class="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200 flex items-center">
-                    <i class="fas fa-save mr-2"></i>
-                    保存设置
-                </button>
+            <div class="bg-white p-4 rounded-lg shadow-md sticky bottom-4 z-10 flex flex-col gap-3 md:flex-row md:justify-between md:items-center">
+                <p class="text-sm text-gray-500">提示：修改后立即生效，建议保存后用无痕窗口测试错误页显示。</p>
+                <div class="flex items-center gap-3">
+                    {% if message %}
+                    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded relative" role="alert">
+                        <strong class="font-bold">成功!</strong>
+                        <span class="sm:inline">{{ message }}</span>
+                    </div>
+                    {% endif %}
+                    <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200">
+                        <i class="fas fa-save mr-2"></i>保存错误处理设置
+                    </button>
+                </div>
             </div>
-        </form>
+        </div>
     </div>
-</div>
+</form>
 
 <script>
-    // 表单提交处理
-    document.getElementById('error-settings-form').addEventListener('submit', function(e) {
-        // 可以添加客户端验证逻辑
-    });
-    
-    // 根据复选框状态启用/禁用相关设置
-    document.getElementById('enable_custom_error_pages').addEventListener('change', function() {
-        const templateSelect = document.getElementById('error_page_template');
-        templateSelect.disabled = !this.checked;
-    });
-    
-    document.getElementById('enable_error_caching').addEventListener('change', function() {
-        const cacheDuration = document.getElementById('error_cache_duration');
-        cacheDuration.disabled = !this.checked;
-    });
-    
-    document.getElementById('enable_error_logging').addEventListener('change', function() {
-        const logLevel = document.getElementById('log_level');
-        logLevel.disabled = !this.checked;
-    });
-    
-    document.getElementById('enable_performance_optimization').addEventListener('change', function() {
-        const relatedPostsStrategy = document.getElementById('related_posts_cache_strategy');
-        const readingTimeCache = document.getElementById('reading_time_cache_duration');
-        relatedPostsStrategy.disabled = !this.checked;
-        readingTimeCache.disabled = !this.checked;
-    });
-    
-    // 初始化表单元素状态
-    document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('enable_custom_error_pages').dispatchEvent(new Event('change'));
-        document.getElementById('enable_error_caching').dispatchEvent(new Event('change'));
-        document.getElementById('enable_error_logging').dispatchEvent(new Event('change'));
-        document.getElementById('enable_performance_optimization').dispatchEvent(new Event('change'));
-    });
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleVisibility = (checkboxId, targetId) => {
+        const checkbox = document.getElementById(checkboxId);
+        const target = document.getElementById(targetId);
+        if (!checkbox || !target) {
+            return;
+        }
+        if (checkbox.checked) {
+            target.classList.remove('opacity-50', 'pointer-events-none');
+        } else {
+            target.classList.add('opacity-50', 'pointer-events-none');
+        }
+    };
+
+    const bindToggle = (checkboxId, targetId) => {
+        const checkbox = document.getElementById(checkboxId);
+        if (!checkbox) {
+            return;
+        }
+        checkbox.addEventListener('change', () => toggleVisibility(checkboxId, targetId));
+        toggleVisibility(checkboxId, targetId);
+    };
+
+    bindToggle('enable_custom_error_pages', 'error-template-wrapper');
+    bindToggle('enable_error_caching', 'error-cache-options');
+    bindToggle('enable_error_logging', 'error-log-options');
+    bindToggle('enable_performance_optimization', 'performance-options');
+});
 </script>
 {% endblock %}

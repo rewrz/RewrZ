@@ -18,7 +18,8 @@ from sqlalchemy import and_, or_, func
 from ..models.post import Post
 from ..models.tag import Tag
 from ..models.category import Category
-from .cache import cache_get, cache_set  # 导入缓存功能
+from .database import get_db
+from ..crud import setting as setting_crud
 
 
 class BlogEnhancementEngine:
@@ -31,6 +32,76 @@ class BlogEnhancementEngine:
         self.english_reading_speed = 225  # 词/分钟
         # 缓存过期时间（秒）
         self.cache_ttl = 3600  # 1小时
+        # 运行时缓存（支持按键自定义TTL）
+        self._runtime_cache: Dict[str, Dict[str, Any]] = {}
+        # 性能配置缓存，降低每次过滤器调用的数据库访问
+        self._perf_config_cache: Dict[str, Any] = {}
+        self._perf_config_expires_at = 0.0
+
+    def _cache_get(self, key: str) -> Optional[Any]:
+        cached = self._runtime_cache.get(key)
+        if not cached:
+            return None
+        if cached["expires_at"] <= time.time():
+            self._runtime_cache.pop(key, None)
+            return None
+        return cached["value"]
+
+    def _cache_set(self, key: str, value: Any, ttl: int) -> None:
+        safe_ttl = max(30, int(ttl))
+        self._runtime_cache[key] = {
+            "value": value,
+            "expires_at": time.time() + safe_ttl,
+        }
+
+    def _load_performance_config(self) -> Dict[str, Any]:
+        """
+        读取性能配置（来自 error_handling_config），并进行短期缓存。
+        """
+        now = time.time()
+        if self._perf_config_cache and now < self._perf_config_expires_at:
+            return self._perf_config_cache
+
+        config = {
+            "enable_performance_optimization": True,
+            "related_posts_cache_strategy": "aggressive",
+            "reading_time_cache_duration": 7200,
+        }
+
+        db_gen = None
+        try:
+            db_gen = get_db()
+            db = next(db_gen)
+            if db is None:
+                self._perf_config_cache = config
+                self._perf_config_expires_at = now + 60
+                return config
+
+            setting = setting_crud.get_setting(db, key="error_handling_config")
+            if setting and setting.value:
+                saved = setting.value.get("value", {})
+                if isinstance(saved, dict):
+                    config["enable_performance_optimization"] = bool(saved.get("enable_performance_optimization", True))
+                    strategy = saved.get("related_posts_cache_strategy", "aggressive")
+                    if strategy in {"aggressive", "moderate", "conservative"}:
+                        config["related_posts_cache_strategy"] = strategy
+                    try:
+                        duration = int(saved.get("reading_time_cache_duration", 7200))
+                        config["reading_time_cache_duration"] = max(60, min(duration, 86400))
+                    except (TypeError, ValueError):
+                        config["reading_time_cache_duration"] = 7200
+        except Exception:
+            pass
+        finally:
+            if db_gen is not None:
+                try:
+                    db_gen.close()
+                except Exception:
+                    pass
+
+        self._perf_config_cache = config
+        self._perf_config_expires_at = now + 60
+        return config
     
     def calculate_reading_time(self, content_markdown: str, content_html: str = None) -> Dict[str, Any]:
         """
@@ -46,11 +117,15 @@ class BlogEnhancementEngine:
         # 生成内容的哈希值作为缓存键
         content_hash = hashlib.md5(content_markdown.encode('utf-8')).hexdigest()
         cache_key = f"reading_time_{content_hash}"
+        performance_config = self._load_performance_config()
+        enable_perf_optimization = performance_config.get("enable_performance_optimization", True)
+        reading_cache_ttl = performance_config.get("reading_time_cache_duration", self.cache_ttl)
         
         # 尝试从缓存获取结果
-        cached_result = cache_get(cache_key)
-        if cached_result:
-            return cached_result
+        if enable_perf_optimization:
+            cached_result = self._cache_get(cache_key)
+            if cached_result:
+                return cached_result
         
         # 清理markdown内容，移除格式标记
         clean_content = self._clean_markdown_content(content_markdown)
@@ -83,7 +158,8 @@ class BlogEnhancementEngine:
         }
         
         # 将结果存入缓存
-        cache_set(cache_key, result, self.cache_ttl)
+        if enable_perf_optimization:
+            self._cache_set(cache_key, result, reading_cache_ttl)
         
         return result
     
@@ -140,23 +216,39 @@ class BlogEnhancementEngine:
         """
         # 生成缓存键
         cache_key = f"related_posts_{current_post.id}_{limit}"
+        performance_config = self._load_performance_config()
+        enable_perf_optimization = performance_config.get("enable_performance_optimization", True)
+        strategy = performance_config.get("related_posts_cache_strategy", "aggressive")
+        if not enable_perf_optimization:
+            strategy = "conservative"
+        strategy_multiplier = {
+            "aggressive": 3,
+            "moderate": 2,
+            "conservative": 1,
+        }.get(strategy, 2)
+        related_cache_ttl = {
+            "aggressive": 7200,
+            "moderate": 3600,
+            "conservative": 900,
+        }.get(strategy, 3600)
         
         # 尝试从缓存获取结果
-        cached_result = cache_get(cache_key)
-        if cached_result:
-            # 从缓存中获取文章ID列表，然后查询完整文章对象
-            post_ids = cached_result
-            if post_ids:
-                from sqlalchemy import select
-                related_posts = db.execute(
-                    select(Post)
-                    .filter(Post.id.in_(post_ids))
-                    .filter(Post.status == "published")
-                ).scalars().all()
-                # 按缓存中的顺序排序
-                post_map = {post.id: post for post in related_posts}
-                return [post_map[post_id] for post_id in post_ids if post_id in post_map]
-            return []
+        if enable_perf_optimization:
+            cached_result = self._cache_get(cache_key)
+            if cached_result:
+                # 从缓存中获取文章ID列表，然后查询完整文章对象
+                post_ids = cached_result
+                if post_ids:
+                    from sqlalchemy import select
+                    related_posts = db.execute(
+                        select(Post)
+                        .filter(Post.id.in_(post_ids))
+                        .filter(Post.status == "published")
+                    ).scalars().all()
+                    # 按缓存中的顺序排序
+                    post_map = {post.id: post for post in related_posts}
+                    return [post_map[post_id] for post_id in post_ids if post_id in post_map]
+                return []
         
         related_posts = []
         
@@ -174,7 +266,7 @@ class BlogEnhancementEngine:
                         Post.status == "published"
                     )
                 )
-                .limit(limit * 2)
+                .limit(max(limit * strategy_multiplier, limit))
             ).scalars().all()
             related_posts.extend(tag_related)
         
@@ -191,7 +283,7 @@ class BlogEnhancementEngine:
                         Post.status == "published"
                     )
                 )
-                .limit(limit * 2)
+                .limit(max(limit * strategy_multiplier, limit))
             ).scalars().all()
             
             # 添加不重复的文章
@@ -215,7 +307,7 @@ class BlogEnhancementEngine:
                         Post.status == "published"
                     )
                 )
-                .limit(limit * 2)
+                .limit(max(limit * strategy_multiplier, limit))
             ).scalars().all()
             
             # 添加不重复的文章
@@ -234,7 +326,7 @@ class BlogEnhancementEngine:
                     )
                 )
                 .order_by(Post.published_at.desc())
-                .limit(limit * 2)
+                .limit(max(limit * strategy_multiplier, limit))
             ).scalars().all()
             
             # 添加不重复的文章
@@ -279,7 +371,8 @@ class BlogEnhancementEngine:
         
         # 将文章ID列表存入缓存
         post_ids = [post.id for post in result_posts]
-        cache_set(cache_key, post_ids, self.cache_ttl)
+        if enable_perf_optimization:
+            self._cache_set(cache_key, post_ids, related_cache_ttl)
         
         return result_posts
     
