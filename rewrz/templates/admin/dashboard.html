@@ -1,8 +1,7 @@
 {% extends "admin/base.html" %}
 
 {% block title %}仪表盘 - {{ site_title }} 后台管理{% endblock %}
-
-{% block page_title %}<i class="fas fa-tachometer-alt text-blue-600 mr-3"></i>仪表盘{% endblock %}
+{% block page_title %}<i class="fas fa-tachometer-alt"></i> 仪表盘{% endblock %}
 
 {% block content %}
 <style>
@@ -11,13 +10,17 @@
 }
 
 .dashboard-widget.drop-target {
-    outline: 2px dashed #2563eb;
+    outline: 2px dashed color-mix(in srgb, var(--color-primary) 70%, transparent);
     outline-offset: 4px;
 }
 </style>
 
 <div class="space-y-4">
-    <div class="flex justify-end">
+    <div class="admin-panel p-4 md:p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h2 class="text-lg font-semibold text-gray-800">后台总览</h2>
+            <p class="text-sm text-gray-500">可拖动卡片排序，布局保存在本地浏览器。</p>
+        </div>
         <button
             type="button"
             class="px-3 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-sm"
@@ -28,7 +31,7 @@
     </div>
 
     <div id="dashboard-widgets" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <section class="dashboard-widget bg-white rounded-lg shadow-md p-6" data-widget-id="stats" draggable="true">
+        <section class="dashboard-widget admin-panel p-5" data-widget-id="stats" draggable="true">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-semibold text-gray-800">统计概览</h2>
                 <span class="text-xs text-gray-500">每 30 秒自动刷新</span>
@@ -47,7 +50,7 @@
             </div>
         </section>
 
-        <section class="dashboard-widget bg-white rounded-lg shadow-md p-6" data-widget-id="site-health" draggable="true">
+        <section class="dashboard-widget admin-panel p-5" data-widget-id="site-health" draggable="true">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-semibold text-gray-800">站点健康</h2>
                 <span class="text-xs text-gray-500">每 60 秒自动刷新</span>
@@ -62,7 +65,7 @@
             </div>
         </section>
 
-        <section class="dashboard-widget bg-white rounded-lg shadow-md p-6" data-widget-id="quick-draft" draggable="true">
+        <section class="dashboard-widget admin-panel p-5" data-widget-id="quick-draft" draggable="true">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-semibold text-gray-800">快速草稿</h2>
             </div>
@@ -89,7 +92,7 @@
                         class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
                     ></textarea>
                 </div>
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-3">
                     <button type="submit" class="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white">
                         创建草稿
                     </button>
@@ -98,7 +101,7 @@
             </form>
         </section>
 
-        <section class="dashboard-widget bg-white rounded-lg shadow-md p-6" data-widget-id="recent-comments" draggable="true">
+        <section class="dashboard-widget admin-panel p-5" data-widget-id="recent-comments" draggable="true">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-semibold text-gray-800">最新评论快捷操作</h2>
                 <a href="{{ request.state.admin_path }}/comments" class="text-sm text-blue-600 hover:underline">进入评论管理</a>

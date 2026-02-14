@@ -1,86 +1,73 @@
-<aside class="w-64 bg-gray-900 text-white min-h-screen p-4">
-    <div class="mb-8 flex items-center space-x-3">
-        <a href="{{ request.state.admin_path }}/dashboard" class="flex items-center space-x-3">
-            {% if request.state.site_logo_light %}
-                <img src="{{ request.state.site_logo_light }}" alt="{{ request.state.site_title or '后台' }}" class="h-8 w-auto object-contain">
-            {% elif request.state.site_logo_dark %}
-                <img src="{{ request.state.site_logo_dark }}" alt="{{ request.state.site_title or '后台' }}" class="h-8 w-auto object-contain">
-            {% endif %}
-            <span class="text-2xl font-bold truncate">{{ request.state.site_title or 'RewrZ 后台管理' }}</span>
-        </a>
-    </div>
-    <nav>
-        <a href="{{ request.state.admin_path }}/dashboard" class="flex items-center px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-            <i class="fas fa-tachometer-alt w-6"></i>
-            <span>仪表盘</span>
-        </a>
-        
-        <div class="mt-4">
-            <h3 class="px-4 text-xs text-gray-500 uppercase font-bold">内容管理</h3>
-            <a href="{{ request.state.admin_path }}/posts/new" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-                <i class="fas fa-plus w-6"></i>
-                <span>新建文章</span>
-            </a>
-            <a href="{{ request.state.admin_path }}/posts" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-                <i class="fas fa-file-alt w-6"></i>
-                <span>文章管理</span>
-            </a>
-            <a href="{{ request.state.admin_path }}/pages" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-                <i class="fas fa-file w-6"></i>
-                <span>页面管理</span>
-            </a>
-            <a href="{{ request.state.admin_path }}/comments" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-                <i class="fas fa-comments w-6"></i>
-                <span>评论管理</span>
-            </a>
-            <a href="{{ request.state.admin_path }}/media" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-                <i class="fas fa-images w-6"></i>
-                <span>媒体库</span>
-            </a>
+{% set admin_root = request.state.admin_path %}
+{% set current_path = request.url.path %}
+<aside class="admin-sidebar-shell">
+    <a href="{{ admin_root }}/dashboard" class="flex items-center gap-3 px-2 py-2 rounded-xl mb-3 hover:bg-white/40 transition-colors">
+        {% if request.state.site_logo_light %}
+            <img src="{{ request.state.site_logo_light }}" alt="{{ request.state.site_title or '后台' }}" class="h-10 w-auto object-contain rounded-md">
+        {% elif request.state.site_logo_dark %}
+            <img src="{{ request.state.site_logo_dark }}" alt="{{ request.state.site_title or '后台' }}" class="h-10 w-auto object-contain rounded-md">
+        {% else %}
+            <span class="h-10 w-10 rounded-xl bg-indigo-500/80 text-white inline-flex items-center justify-center text-lg">
+                <i class="fas fa-feather-alt"></i>
+            </span>
+        {% endif %}
+        <div class="min-w-0">
+            <p class="font-semibold truncate">{{ request.state.site_title or 'RewrZ' }}</p>
+            <p class="text-xs admin-muted truncate">管理控制台</p>
         </div>
+    </a>
 
-        <div class="mt-4">
-            <h3 class="px-4 text-xs text-gray-500 uppercase font-bold">分类标签</h3>
-            <a href="{{ request.state.admin_path }}/categories" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-                <i class="fas fa-folder w-6"></i>
-                <span>分类管理</span>
-            </a>
-            <a href="{{ request.state.admin_path }}/tags" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-                <i class="fas fa-tags w-6"></i>
-                <span>标签管理</span>
-            </a>
-        </div>
+    <nav class="space-y-1 text-sm">
+        <a href="{{ admin_root }}/dashboard" class="admin-nav-link {% if current_path.startswith(admin_root + '/dashboard') %}active{% endif %}">
+            <i class="fas fa-chart-line w-5 text-center"></i>仪表盘
+        </a>
 
-        <div class="mt-4">
-            <h3 class="px-4 text-xs text-gray-500 uppercase font-bold">系统管理</h3>
-            <a href="{{ request.state.admin_path }}/settings" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-                <i class="fas fa-cog w-6"></i>
-                 <span>常规设置</span>
-             </a>
-            <a href="{{ request.state.admin_path }}/comment-settings" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-                <i class="fas fa-comment-dots w-6"></i>
-                <span>评论设置</span>
-            </a>
-            <a href="{{ request.state.admin_path }}/data-management" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-                <i class="fas fa-database w-6"></i>
-                <span>数据管理</span>
-            </a>
-            <a href="{{ request.state.admin_path }}/themes" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-                <i class="fas fa-palette w-6"></i>
-                <span>主题管理</span>
-            </a>
-            <a href="{{ request.state.admin_path }}/security-center" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-                <i class="fas fa-shield-alt w-6"></i>
-                <span>安全中心</span>
-            </a>
-            <a href="{{ request.state.admin_path }}/error-settings" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-                <i class="fas fa-exclamation-triangle w-6"></i>
-                <span>错误处理</span>
-            </a>
-            <a href="{{ request.state.admin_path }}/system-info" class="flex items-center mt-2 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md">
-                <i class="fas fa-info-circle w-6"></i>
-                <span>系统信息</span>
-            </a>
-        </div>
+        <div class="admin-nav-group-title">内容管理</div>
+        <a href="{{ admin_root }}/posts/new" class="admin-nav-link {% if current_path == admin_root + '/posts/new' %}active{% endif %}">
+            <i class="fas fa-pen-nib w-5 text-center"></i>新建文章
+        </a>
+        <a href="{{ admin_root }}/posts" class="admin-nav-link {% if current_path.startswith(admin_root + '/posts') and not current_path.endswith('/new') %}active{% endif %}">
+            <i class="fas fa-newspaper w-5 text-center"></i>文章管理
+        </a>
+        <a href="{{ admin_root }}/pages" class="admin-nav-link {% if current_path.startswith(admin_root + '/pages') %}active{% endif %}">
+            <i class="fas fa-file-alt w-5 text-center"></i>页面管理
+        </a>
+        <a href="{{ admin_root }}/comments" class="admin-nav-link {% if current_path.startswith(admin_root + '/comments') %}active{% endif %}">
+            <i class="fas fa-comments w-5 text-center"></i>评论管理
+        </a>
+        <a href="{{ admin_root }}/media" class="admin-nav-link {% if current_path.startswith(admin_root + '/media') and not current_path.startswith(admin_root + '/media/settings') %}active{% endif %}">
+            <i class="fas fa-photo-video w-5 text-center"></i>媒体库
+        </a>
+
+        <div class="admin-nav-group-title">结构与标签</div>
+        <a href="{{ admin_root }}/categories" class="admin-nav-link {% if current_path.startswith(admin_root + '/categories') %}active{% endif %}">
+            <i class="fas fa-folder-open w-5 text-center"></i>分类管理
+        </a>
+        <a href="{{ admin_root }}/tags" class="admin-nav-link {% if current_path.startswith(admin_root + '/tags') %}active{% endif %}">
+            <i class="fas fa-tags w-5 text-center"></i>标签管理
+        </a>
+
+        <div class="admin-nav-group-title">系统设置</div>
+        <a href="{{ admin_root }}/settings" class="admin-nav-link {% if current_path.startswith(admin_root + '/settings') %}active{% endif %}">
+            <i class="fas fa-cogs w-5 text-center"></i>常规设置
+        </a>
+        <a href="{{ admin_root }}/themes" class="admin-nav-link {% if current_path.startswith(admin_root + '/themes') %}active{% endif %}">
+            <i class="fas fa-palette w-5 text-center"></i>主题管理
+        </a>
+        <a href="{{ admin_root }}/comment-settings" class="admin-nav-link {% if current_path.startswith(admin_root + '/comment-settings') %}active{% endif %}">
+            <i class="fas fa-comment-dots w-5 text-center"></i>评论策略
+        </a>
+        <a href="{{ admin_root }}/data-management" class="admin-nav-link {% if current_path.startswith(admin_root + '/data-management') %}active{% endif %}">
+            <i class="fas fa-database w-5 text-center"></i>数据管理
+        </a>
+        <a href="{{ admin_root }}/security-center" class="admin-nav-link {% if current_path.startswith(admin_root + '/security-center') %}active{% endif %}">
+            <i class="fas fa-shield-alt w-5 text-center"></i>安全中心
+        </a>
+        <a href="{{ admin_root }}/error-settings" class="admin-nav-link {% if current_path.startswith(admin_root + '/error-settings') %}active{% endif %}">
+            <i class="fas fa-exclamation-triangle w-5 text-center"></i>错误处理
+        </a>
+        <a href="{{ admin_root }}/system-info" class="admin-nav-link {% if current_path.startswith(admin_root + '/system-info') %}active{% endif %}">
+            <i class="fas fa-info-circle w-5 text-center"></i>系统信息
+        </a>
     </nav>
 </aside>

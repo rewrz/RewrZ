@@ -1027,9 +1027,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 label.classList.remove('border-gray-200');
                 label.classList.add('border-blue-500', 'bg-blue-50');
                 showNotification(`已切换到 ${label.querySelector('.font-medium').textContent} 主题`, 'success');
+                window.dispatchEvent(new Event('adminThemeRefreshRequested'));
+                if (window.adminThemeSync && typeof window.adminThemeSync.syncNow === 'function') {
+                    setTimeout(() => window.adminThemeSync.syncNow(), 120);
+                }
             }
         });
     });
+
+    const themeForm = document.getElementById('theme-form');
+    if (themeForm) {
+        themeForm.addEventListener('htmx:afterRequest', function() {
+            window.dispatchEvent(new Event('adminThemeRefreshRequested'));
+            if (window.adminThemeSync && typeof window.adminThemeSync.syncNow === 'function') {
+                setTimeout(() => window.adminThemeSync.syncNow(), 80);
+            }
+        });
+    }
     
     // 背景图片选择监听
     document.querySelectorAll('input[name="background_type"]').forEach(radio => {

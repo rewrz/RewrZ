@@ -5,93 +5,92 @@
 {% block head %}
 {{ super() }}
 {% if seo_data %}
-    <!-- Dynamic SEO Meta Tags -->
     {% include "components/seo_meta.html" %}
 {% endif %}
-<link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css">
 {% endblock %}
 
 {% block content %}
-<!-- 时间轴内容区域 -->
-<div class="bg-gray-50 dark:bg-gray-900 py-4 md:py-8 min-h-screen">
-    <div class="container mx-auto px-2 md:px-4">
-        {% if posts %}
-        <!-- 时间轴容器 -->
-        <div class="relative">
-            <!-- 时间轴中心线 - 桌面版 -->
-            <div class="hidden md:block absolute left-1/2 transform -translate-x-1/2 w-0.5 bg-gray-300 dark:bg-gray-600 h-full"></div>
-            <!-- 时间轴左侧线 - 移动版 -->
-            <div class="md:hidden absolute left-4 top-0 w-0.5 bg-gray-300 dark:bg-gray-600 h-full"></div>
-            
-            {% for post in posts %}
-            <!-- 时间轴项目 -->
-            <div class="relative mb-6 md:mb-8">
-                <!-- 桌面版布局 -->
-                <div class="hidden md:flex items-center {{ 'justify-start' if loop.index0 % 2 == 0 else 'justify-end' }}">
-                    <!-- 时间轴节点 -->
-                    <div class="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-blue-500 rounded-full border-4 border-white dark:border-gray-900 z-10"></div>
-                    
-                    <!-- 卡片容器 -->
-                    <div class="w-5/12 {{ 'pr-8' if loop.index0 % 2 == 0 else 'pl-8' }}">
-                        <!-- 时间标签 -->
-                        <div class="text-sm text-gray-500 dark:text-gray-400 mb-2 {{ 'text-right' if loop.index0 % 2 != 0 else 'text-left' }}">
-                            {{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}
-                        </div>
-                        
-                        <!-- 卡片内容 -->
-                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 relative">
-                            <!-- 箭头指示器 -->
-                            <div class="absolute top-6 {{ 'left-full' if loop.index0 % 2 == 0 else 'right-full' }} w-0 h-0 
-                                        {{ 'border-l-8 border-l-white dark:border-l-gray-800 border-y-8 border-y-transparent' if loop.index0 % 2 == 0 
-                                           else 'border-r-8 border-r-white dark:border-r-gray-800 border-y-8 border-y-transparent' }}">
-                            </div>
-                            
-                            {% include "components/timeline_card.html" %}
-                        </div>
+<section class="px-3 pb-8 pt-6 md:px-6 md:pt-10">
+    <div class="container mx-auto max-w-6xl space-y-6">
+        <div class="hero-surface p-4 md:p-7">
+            <div class="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+                <div class="space-y-4">
+                    <div class="flex flex-wrap gap-2">
+                        <span class="anime-chip"><i class="fas fa-magic"></i> 主题联动</span>
+                        <span class="anime-chip"><i class="fas fa-bolt"></i> HTMX 驱动</span>
+                        <span class="anime-chip"><i class="fas fa-heart"></i> 二次元美学</span>
+                    </div>
+                    <h2 class="font-display text-3xl font-bold leading-tight md:text-5xl">
+                        {{ site_title }}
+                    </h2>
+                    <p class="text-sm md:text-base text-gray-600 dark:text-gray-300 max-w-2xl">
+                        {{ tagline or '记录生活、灵感与创作瞬间。' }}
+                    </p>
+                    <div class="flex flex-wrap items-center gap-3 text-xs md:text-sm">
+                        <span class="px-3 py-1.5 rounded-full bg-white/70 dark:bg-slate-700/70 border border-gray-200 dark:border-slate-600">
+                            当前时间线共 {{ posts|length if posts else 0 }} 条内容
+                        </span>
+                        <a href="/archives" class="px-3 py-1.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
+                            浏览归档
+                        </a>
                     </div>
                 </div>
-                
-                <!-- 移动版布局 -->
-                <div class="md:hidden flex items-start">
-                    <!-- 时间轴节点 -->
-                    <div class="absolute left-4 transform -translate-x-1/2 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-900 z-10 mt-2"></div>
-                    
-                    <!-- 卡片容器 -->
-                    <div class="ml-8 flex-1">
-                        <!-- 时间标签 -->
-                        <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                            {{ post.published_at.strftime('%m月%d日') if post.published_at else post.created_at.strftime('%m月%d日') }}
-                        </div>
-                        
-                        <!-- 卡片内容 -->
-                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 relative">
-                            <!-- 左侧箭头指示器 -->
-                            <div class="absolute right-full top-4 w-0 h-0 border-r-6 border-r-white dark:border-r-gray-800 border-y-6 border-y-transparent"></div>
-                            
-                            {% include "components/timeline_card.html" %}
-                        </div>
-                    </div>
+                <div class="relative">
+                    <img src="/static/images/bg/1.jpg" alt="二次元装饰图" class="hero-anime-thumb w-full object-cover max-h-[290px]">
+                    <img src="/static/images/bg/2.jpg" alt="二次元装饰图" class="absolute -bottom-4 -right-3 h-20 w-20 rounded-2xl object-cover border border-white/70 shadow-xl md:h-28 md:w-28">
                 </div>
             </div>
-            {% endfor %}
+        </div>
+
+        {% if posts %}
+        <div class="timeline-shell px-3 py-4 md:px-6 md:py-7">
+            <div class="relative">
+                <div class="hidden md:block absolute left-1/2 top-0 h-full w-0.5 timeline-axis opacity-55"></div>
+                <div class="md:hidden absolute left-4 top-0 h-full w-0.5 timeline-axis opacity-55"></div>
+
+                {% for post in posts %}
+                <article class="timeline-reveal relative mb-6 md:mb-8">
+                    <div class="hidden md:flex items-center {{ 'justify-start' if loop.index0 % 2 == 0 else 'justify-end' }}">
+                        <div class="timeline-node absolute left-1/2 z-10 h-4 w-4 -translate-x-1/2 rounded-full border-4 border-white dark:border-slate-900"></div>
+                        <div class="w-5/12 {{ 'pr-8' if loop.index0 % 2 == 0 else 'pl-8' }}">
+                            <div class="mb-2 text-sm text-gray-500 dark:text-gray-400 {{ 'text-right' if loop.index0 % 2 != 0 else 'text-left' }}">
+                                {{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}
+                            </div>
+                            <div class="timeline-card-shell p-4 md:p-5">
+                                {% include "components/timeline_card.html" %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:hidden flex items-start">
+                        <div class="timeline-node absolute left-4 mt-2 h-3 w-3 -translate-x-1/2 rounded-full border-2 border-white dark:border-slate-900"></div>
+                        <div class="ml-8 flex-1">
+                            <div class="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                                {{ post.published_at.strftime('%m月%d日') if post.published_at else post.created_at.strftime('%m月%d日') }}
+                            </div>
+                            <div class="timeline-card-shell p-3.5">
+                                {% include "components/timeline_card.html" %}
+                            </div>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
         </div>
         {% else %}
-        <div class="text-center py-12">
-            <p class="text-gray-500 text-lg">暂无内容</p>
+        <div class="hero-surface p-10 text-center">
+            <p class="text-lg text-gray-600 dark:text-gray-300">暂无内容，先去后台发布第一篇吧。</p>
         </div>
         {% endif %}
     </div>
-</div>
+</section>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-<script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
 <script>
-// 时间轴动画效果
 document.addEventListener('DOMContentLoaded', function() {
-    const timelineItems = document.querySelectorAll('.relative.flex.items-center');
-    
+    const timelineItems = document.querySelectorAll('.timeline-reveal');
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -100,14 +99,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }, {
-        threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px'
+        threshold: 0.12,
+        rootMargin: '0px 0px -65px 0px'
     });
-    
+
     timelineItems.forEach(item => {
         item.style.opacity = '0';
-        item.style.transform = 'translateY(20px)';
-        item.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        item.style.transform = 'translateY(22px)';
+        item.style.transition = 'opacity 0.55s ease, transform 0.55s ease';
         observer.observe(item);
     });
 });

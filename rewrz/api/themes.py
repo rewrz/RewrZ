@@ -42,6 +42,9 @@ DEFAULT_THEMES = {
             "--color-card-shadow": "rgba(0, 0, 0, 0.1)",
             "--color-nav-bg": "rgba(255, 255, 255, 0.8)",
             "--color-footer-bg": "#f8fafc",
+            "--font-family-base": "'SourceHanSansCN', 'Noto Sans SC', 'Microsoft YaHei', sans-serif",
+            "--font-family-heading": "'Noto Serif SC', 'SourceHanSansCN', 'STSong', serif",
+            "--font-family-decorative": "'KaiTi', 'STKaiti', serif",
             "--backdrop-blur": "blur(10px)"
         }
     },
@@ -62,6 +65,9 @@ DEFAULT_THEMES = {
             "--color-card-shadow": "rgba(0, 0, 0, 0.3)",
             "--color-nav-bg": "rgba(15, 23, 42, 0.8)",
             "--color-footer-bg": "#1e293b",
+            "--font-family-base": "'SourceHanSansCN', 'PingFang SC', 'Microsoft YaHei', sans-serif",
+            "--font-family-heading": "'Trebuchet MS', 'SourceHanSansCN', sans-serif",
+            "--font-family-decorative": "'Georgia', 'SourceHanSansCN', serif",
             "--backdrop-blur": "blur(10px)"
         }
     },
@@ -82,6 +88,9 @@ DEFAULT_THEMES = {
             "--color-card-shadow": "rgba(5, 150, 105, 0.1)",
             "--color-nav-bg": "rgba(240, 253, 244, 0.9)",
             "--color-footer-bg": "#dcfce7",
+            "--font-family-base": "'SourceHanSansCN', 'Noto Sans SC', 'Microsoft YaHei', sans-serif",
+            "--font-family-heading": "'KaiTi', 'STKaiti', 'SourceHanSansCN', serif",
+            "--font-family-decorative": "'FangSong', 'STFangsong', serif",
             "--backdrop-blur": "blur(12px)"
         }
     },
@@ -102,6 +111,9 @@ DEFAULT_THEMES = {
             "--color-card-shadow": "rgba(14, 165, 233, 0.1)",
             "--color-nav-bg": "rgba(240, 249, 255, 0.9)",
             "--color-footer-bg": "#e0f2fe",
+            "--font-family-base": "'SourceHanSansCN', 'Noto Sans SC', 'Microsoft YaHei', sans-serif",
+            "--font-family-heading": "'Segoe UI', 'SourceHanSansCN', sans-serif",
+            "--font-family-decorative": "'Times New Roman', 'SourceHanSansCN', serif",
             "--backdrop-blur": "blur(12px)"
         }
     },
@@ -122,6 +134,9 @@ DEFAULT_THEMES = {
             "--color-card-shadow": "rgba(245, 158, 11, 0.1)",
             "--color-nav-bg": "rgba(255, 251, 235, 0.9)",
             "--color-footer-bg": "#fef3c7",
+            "--font-family-base": "'SourceHanSansCN', 'Noto Sans SC', 'Microsoft YaHei', sans-serif",
+            "--font-family-heading": "'Georgia', 'SourceHanSansCN', serif",
+            "--font-family-decorative": "'KaiTi', 'STKaiti', serif",
             "--backdrop-blur": "blur(12px)"
         }
     }

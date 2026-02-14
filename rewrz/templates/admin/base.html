@@ -11,71 +11,94 @@
     {% else %}
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     {% endif %}
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <style>
-        /* Custom styles for modern look and feel */
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .nav-item {
-            display: flex;
-            align-items: center;
-            padding: 0.625rem 1rem; /* 10px 16px */
-            margin-top: 0.5rem; /* 8px */
-            color: #D1D5DB; /* gray-300 */
-            border-radius: 0.375rem; /* rounded-md */
-            transition: background-color 0.2s, color 0.2s;
-        }
-        .nav-item:hover {
-            background-color: #374151; /* gray-700 */
-            color: #FFFFFF;
-        }
-        .nav-item.active {
-            background-color: #4F46E5; /* indigo-600 */
-            color: #FFFFFF;
-        }
-        .nav-item i {
-            width: 1.5rem; /* w-6 */
-            margin-right: 0.5rem; /* mr-2 */
-        }
-        .nav-group-title {
-            padding-left: 1rem; /* px-4 */
-            font-size: 0.75rem; /* text-xs */
-            color: #9CA3AF; /* gray-500 */
-            text-transform: uppercase;
-            font-weight: 700; /* font-bold */
-            margin-top: 1rem; /* mt-4 */
-            margin-bottom: 0.5rem; /* mb-2 */
-        }
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            aside {
-                width: 100%;
-                height: auto;
-                position: relative;
-            }
-            #admin-content {
-                margin-left: 0;
-            }
-        }
-    </style>
-</head>
-<body class="bg-gray-100 min-h-screen flex flex-col md:flex-row {{ atmosphere_class if atmosphere_class else '' }}">
-    {% include 'admin/components/sidebar.html' %}
 
-    <!-- Main Content -->
-    <div id="admin-content" class="flex-1 p-4 md:p-10">
-        <header class="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 md:pb-6 border-b border-gray-200 mb-4 md:mb-6">
-            <h1 class="text-2xl md:text-3xl font-semibold text-gray-800 mb-2 md:mb-0">{% block page_title %}{% endblock %}</h1>
-            <div class="flex items-center space-x-4">
-                <span class="text-gray-700">欢迎, {{ user.username }}!</span>
-                <a href="/auth/logout" class="text-indigo-600 hover:underline">退出</a>
-            </div>
-        </header>
-        {% block content %}{% endblock %}
+    <link id="admin-theme-variables" rel="stylesheet" href="/api/v1/theme/variables.css">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/unified-theme.css') }}">
+</head>
+<body class="admin-app {{ atmosphere_class if atmosphere_class else '' }}">
+    <div class="admin-shell">
+        {% include 'admin/components/sidebar.html' %}
+
+        <div id="admin-content" class="admin-main-shell">
+            <header class="admin-topbar flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <h1 class="admin-page-title text-2xl md:text-3xl font-semibold">{% block page_title %}{% endblock %}</h1>
+                <div class="flex flex-wrap items-center gap-3 md:gap-4 text-sm">
+                    <span class="admin-chip"><i class="fas fa-user-circle"></i> {{ user.username }}</span>
+                    <a href="/" target="_blank" class="admin-chip" title="访问前台">
+                        <i class="fas fa-external-link-alt"></i> 前台
+                    </a>
+                    <a href="/auth/logout" class="admin-chip" title="退出登录">
+                        <i class="fas fa-sign-out-alt"></i> 退出
+                    </a>
+                </div>
+            </header>
+
+            <section class="space-y-6">
+                {% block content %}{% endblock %}
+            </section>
+        </div>
     </div>
+
+    <div class="admin-anime-float" aria-hidden="true"></div>
+
+    <script>
+        const ADMIN_THEME_NAMES = ['light', 'dark', 'nature', 'ocean', 'sunset'];
+
+        async function syncAdminTheme(forceReloadCss = false) {
+            try {
+                const response = await fetch('/api/v1/theme/current', {
+                    credentials: 'include',
+                    cache: 'no-store'
+                });
+                if (!response.ok) return;
+
+                const config = await response.json();
+                const themeName = config.theme || 'light';
+                const root = document.documentElement;
+                const body = document.body;
+
+                root.classList.remove(...ADMIN_THEME_NAMES);
+                body.classList.remove(...ADMIN_THEME_NAMES);
+                root.classList.add(themeName);
+                body.classList.add(themeName);
+
+                body.className = body.className.replace(/atmosphere-\w+/g, '').trim();
+                if (config.atmosphere_class) {
+                    body.classList.add(config.atmosphere_class);
+                }
+
+                if (config.variables) {
+                    Object.entries(config.variables).forEach(([name, value]) => {
+                        root.style.setProperty(name, value);
+                    });
+                }
+
+                if (forceReloadCss) {
+                    const cssLink = document.getElementById('admin-theme-variables');
+                    if (cssLink) {
+                        cssLink.href = `/api/v1/theme/variables.css?t=${Date.now()}`;
+                    }
+                }
+            } catch (error) {
+                console.warn('admin theme sync failed:', error);
+            }
+        }
+
+        window.adminThemeSync = {
+            syncNow: () => syncAdminTheme(true)
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            syncAdminTheme(true);
+            setInterval(() => syncAdminTheme(false), 30000);
+        });
+
+        window.addEventListener('focus', () => syncAdminTheme(false));
+        window.addEventListener('adminThemeRefreshRequested', () => syncAdminTheme(true));
+    </script>
 </body>
 </html>

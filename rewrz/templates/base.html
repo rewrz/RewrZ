@@ -68,6 +68,7 @@
     
     <!-- 优化后的统一样式系统 -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/tailwind-optimized.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/unified-theme.css') }}">
     
     <style>
         /* 自定义字体定义 */
@@ -79,7 +80,7 @@
         }
     </style>
 </head>
-<body class="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300 {{ atmosphere_class if atmosphere_class else '' }}">
+<body class="site-shell min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300 {{ atmosphere_class if atmosphere_class else '' }}">
     <script>
         // 动态主题系统
         let currentThemeConfig = null;

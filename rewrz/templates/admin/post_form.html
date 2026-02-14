@@ -12,10 +12,10 @@
             {% if post %}
             <input type="hidden" name="_method" value="PUT">
             {% endif %}
-            <div class="grid grid-cols-12 gap-6">
+            <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
                 <!-- Main Editor -->
-                <div class="col-span-9">
-                    <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="xl:col-span-8 space-y-6">
+                    <div class="admin-panel p-4 md:p-6">
                         <div class="mb-4">
                             <label for="title" class="block text-sm font-medium text-gray-700">标题</label>
                             <input type="text" id="title" name="title" value="{% if post %}{{ post.title }}{% endif %}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
@@ -32,11 +32,12 @@
                         <div id="editor">
                             <!-- 编辑器内容将由JavaScript初始化 -->
                         </div>
-                        <div class="bg-white rounded-lg shadow-md p-6">
-                            <div class="flex justify-between items-center mb-6">
+                    </div>
+                    <div class="admin-panel p-4 md:p-6">
+                            <div class="flex flex-wrap justify-between items-center gap-3">
                                 <div class="space-x-2">
                                     <a href="{{ request.state.admin_path }}/posts" 
-                                        class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                                        class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors inline-block">
                                         <i class="fas fa-arrow-left mr-2"></i>返回列表
                                     </a>
                                     <button type="submit"
@@ -45,13 +46,12 @@
                                     </button>
                                 </div>
                             </div>
-                        </div>
                     </div>
                 </div>
 
                 <!-- Sidebar -->
-                <div class="col-span-3">
-                    <div class="bg-white p-6 rounded-lg shadow-md space-y-6">
+                <div class="xl:col-span-4">
+                    <div class="admin-panel p-4 md:p-6 space-y-6 xl:sticky xl:top-24">
                         <div>
                             <h3 class="text-lg font-semibold mb-2">URL 别名 (Slug)</h3>
                             <input type="text" name="slug" value="{% if post %}{{ post.slug }}{% endif %}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
@@ -234,10 +234,10 @@
 
         function escapeHtml(text) {
             return String(text ?? '')
-                .replaceAll('&', '&')
-                .replaceAll('<', '<')
-                .replaceAll('>', '>')
-                .replaceAll('"', '"')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
                 .replaceAll("'", '&#39;');
         }
 

@@ -1,0 +1,345 @@
+:root {
+    --font-family-base: 'SourceHanSansCN', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+    --font-family-heading: 'Noto Serif SC', 'SourceHanSansCN', serif;
+    --font-family-decorative: 'KaiTi', 'STKaiti', serif;
+    --ui-radius-lg: 1rem;
+    --ui-radius-xl: 1.25rem;
+    --ui-shadow-soft: 0 14px 35px -20px rgba(15, 23, 42, 0.45);
+    --ui-shadow-card: 0 20px 45px -24px rgba(30, 41, 59, 0.35);
+    --ui-ring: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent);
+    --ui-border: color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+
+html,
+body {
+    font-family: var(--font-family-base);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-display {
+    font-family: var(--font-family-heading);
+}
+
+/* ===== Frontend ===== */
+body.site-shell {
+    color: var(--color-text);
+    background:
+        radial-gradient(circle at 85% -10%, color-mix(in srgb, var(--color-primary) 22%, transparent) 0%, transparent 38%),
+        radial-gradient(circle at -10% 20%, color-mix(in srgb, var(--color-primary) 12%, white) 0%, transparent 42%),
+        var(--color-background);
+}
+
+body.site-shell::before {
+    content: '';
+    position: fixed;
+    right: min(2vw, 18px);
+    bottom: 1.25rem;
+    width: clamp(150px, 20vw, 230px);
+    aspect-ratio: 1;
+    border-radius: 1.2rem;
+    background: linear-gradient(155deg, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0.03)), url('/static/images/bg/1.jpg') center/cover;
+    box-shadow: var(--ui-shadow-card);
+    opacity: 0.28;
+    filter: saturate(1.08);
+    transform: rotate(-3deg);
+    z-index: 1;
+    pointer-events: none;
+}
+
+body.site-shell > header {
+    border-color: var(--ui-border) !important;
+    background: color-mix(in srgb, var(--color-nav-bg) 86%, transparent) !important;
+    backdrop-filter: blur(14px);
+}
+
+body.site-shell main,
+body.site-shell footer {
+    position: relative;
+    z-index: 2;
+}
+
+.theme-toast {
+    border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+    background: color-mix(in srgb, var(--color-card-bg) 94%, transparent) !important;
+    color: var(--color-text) !important;
+}
+
+.timeline-shell {
+    position: relative;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-xl);
+    background: color-mix(in srgb, var(--color-card-bg) 88%, transparent);
+    box-shadow: var(--ui-shadow-soft);
+    overflow: hidden;
+}
+
+.timeline-shell::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(130deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 45%);
+    pointer-events: none;
+}
+
+.timeline-node,
+.timeline-axis {
+    background-color: var(--color-primary) !important;
+}
+
+.timeline-card-shell {
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-lg);
+    background: color-mix(in srgb, var(--color-card-bg) 94%, transparent);
+    box-shadow: var(--ui-shadow-soft);
+    backdrop-filter: blur(4px);
+}
+
+.anime-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.35rem 0.72rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 40%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: color-mix(in srgb, var(--color-text) 70%, var(--color-primary) 30%);
+    font-size: 0.76rem;
+}
+
+.hero-surface {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border) 72%);
+    border-radius: 1.3rem;
+    background:
+        linear-gradient(120deg, color-mix(in srgb, var(--color-primary) 17%, transparent), transparent 58%),
+        color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+    box-shadow: var(--ui-shadow-card);
+    overflow: hidden;
+}
+
+.hero-anime-thumb {
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+    box-shadow: var(--ui-shadow-soft);
+}
+
+/* ===== Admin ===== */
+body.admin-app {
+    min-height: 100vh;
+    color: var(--color-text);
+    background:
+        radial-gradient(circle at 88% 4%, color-mix(in srgb, var(--color-primary) 20%, transparent) 0%, transparent 30%),
+        radial-gradient(circle at 0% 95%, color-mix(in srgb, var(--color-primary) 9%, transparent) 0%, transparent 36%),
+        var(--color-background-alt);
+}
+
+.admin-shell {
+    width: 100%;
+    display: flex;
+    align-items: stretch;
+}
+
+.admin-sidebar-shell {
+    width: 278px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    padding: 1rem 1rem 1.2rem;
+    border-right: 1px solid var(--ui-border);
+    background:
+        linear-gradient(150deg, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 38%),
+        color-mix(in srgb, var(--color-card-bg) 94%, transparent);
+    backdrop-filter: blur(14px);
+    overflow-y: auto;
+}
+
+.admin-main-shell {
+    flex: 1;
+    min-width: 0;
+    padding: 1rem;
+}
+
+.admin-topbar {
+    position: sticky;
+    top: 0.75rem;
+    z-index: 40;
+    padding: 0.95rem 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-lg);
+    background: color-mix(in srgb, var(--color-card-bg) 92%, transparent);
+    box-shadow: var(--ui-shadow-soft);
+    backdrop-filter: blur(12px);
+}
+
+.admin-page-title {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin: 0;
+    color: var(--color-text);
+}
+
+.admin-panel {
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-lg);
+    background: color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+    box-shadow: var(--ui-shadow-soft);
+}
+
+.admin-muted {
+    color: var(--color-text-light);
+}
+
+.admin-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.58rem 0.76rem;
+    border-radius: 0.7rem;
+    color: color-mix(in srgb, var(--color-text-light) 82%, white 18%);
+    transition: all 180ms ease;
+}
+
+.admin-nav-link:hover {
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.admin-nav-link.active {
+    color: color-mix(in srgb, var(--color-primary) 75%, var(--color-text) 25%);
+    background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 36%, transparent);
+}
+
+.admin-nav-group-title {
+    margin-top: 1rem;
+    margin-bottom: 0.55rem;
+    padding-left: 0.4rem;
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.admin-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.58rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 34%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%);
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    font-size: 0.76rem;
+}
+
+.admin-app .bg-white {
+    background-color: color-mix(in srgb, var(--color-card-bg) 96%, transparent) !important;
+}
+
+.admin-app .bg-gray-50,
+.admin-app .bg-gray-100 {
+    background-color: color-mix(in srgb, var(--color-background-alt) 94%, transparent) !important;
+}
+
+.admin-app .text-gray-900,
+.admin-app .text-gray-800,
+.admin-app .text-gray-700 {
+    color: var(--color-text) !important;
+}
+
+.admin-app .text-gray-600,
+.admin-app .text-gray-500,
+.admin-app .text-gray-400 {
+    color: var(--color-text-light) !important;
+}
+
+.admin-app .border-gray-100,
+.admin-app .border-gray-200,
+.admin-app .border-gray-300,
+.admin-app .divide-gray-200 {
+    border-color: var(--ui-border) !important;
+}
+
+.admin-app input[type='text'],
+.admin-app input[type='email'],
+.admin-app input[type='number'],
+.admin-app input[type='password'],
+.admin-app input[type='search'],
+.admin-app input[type='date'],
+.admin-app textarea,
+.admin-app select {
+    color: var(--color-text);
+    border-color: var(--ui-border);
+    background: color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+}
+
+.admin-app input:focus,
+.admin-app textarea:focus,
+.admin-app select:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--color-primary) 72%, var(--color-border) 28%) !important;
+    box-shadow: var(--ui-ring) !important;
+}
+
+.admin-app table {
+    border-color: var(--ui-border) !important;
+}
+
+.admin-app thead {
+    background: color-mix(in srgb, var(--color-background-alt) 86%, transparent) !important;
+}
+
+.admin-anime-float {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: clamp(95px, 12vw, 140px);
+    aspect-ratio: 1;
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0.03)), url('/static/images/bg/2.jpg') center/cover;
+    box-shadow: var(--ui-shadow-card);
+    opacity: 0.2;
+    z-index: 10;
+    pointer-events: none;
+}
+
+@media (max-width: 1024px) {
+    .admin-sidebar-shell {
+        width: 244px;
+    }
+}
+
+@media (max-width: 900px) {
+    .admin-shell {
+        flex-direction: column;
+    }
+
+    .admin-sidebar-shell {
+        width: 100%;
+        height: auto;
+        position: relative;
+        border-right: none;
+        border-bottom: 1px solid var(--ui-border);
+    }
+
+    .admin-main-shell {
+        padding: 0.9rem;
+    }
+
+    body.site-shell::before,
+    .admin-anime-float {
+        opacity: 0.14;
+        width: 92px;
+        right: 10px;
+        bottom: 10px;
+    }
+}

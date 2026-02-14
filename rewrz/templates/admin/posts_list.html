@@ -3,7 +3,7 @@
 {% block title %}文章管理 - RewrZ 管理后台{% endblock %}
 {% block page_title %}<i class="fas fa-newspaper text-blue-600 mr-3"></i>文章管理{% endblock %}
 {% block content %}
-<div class="bg-white rounded-lg shadow-md p-6">
+<div class="admin-panel p-4 md:p-6">
     <div class="flex justify-between items-center mb-6">
         <div class="flex space-x-3">
             <a href="{{ request.state.admin_path }}/posts/new" 
@@ -18,7 +18,7 @@
     </div>
 
     <!-- 筛选和搜索 -->
-    <div class="mb-6 flex flex-wrap gap-4 items-center bg-gray-50 p-4 rounded-lg">
+    <div class="mb-6 flex flex-wrap gap-4 items-center bg-gray-50 p-4 rounded-lg border border-gray-200">
         <div class="flex-1 min-w-64">
             <input type="text" 
                    id="search-input" 
@@ -45,8 +45,8 @@
     </div>
 
     <!-- 文章列表 -->
-    <div class="overflow-x-auto">
-        <table class="min-w-full bg-white border border-gray-200">
+    <div class="overflow-x-auto rounded-lg border border-gray-200">
+        <table class="min-w-full bg-white">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">

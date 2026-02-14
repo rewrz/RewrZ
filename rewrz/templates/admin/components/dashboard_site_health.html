@@ -9,21 +9,21 @@
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-        <div class="rounded-md bg-gray-50 p-3">
+        <div class="admin-panel p-3">
             <div class="text-gray-500">数据库连接</div>
             <div class="font-semibold {% if health.database_ok %}text-green-700{% else %}text-red-700{% endif %}">
                 {{ "正常" if health.database_ok else "异常" }}
             </div>
         </div>
-        <div class="rounded-md bg-gray-50 p-3">
+        <div class="admin-panel p-3">
             <div class="text-gray-500">待审核评论</div>
             <div class="font-semibold text-gray-800">{{ health.pending_comments }}</div>
         </div>
-        <div class="rounded-md bg-gray-50 p-3">
+        <div class="admin-panel p-3">
             <div class="text-gray-500">24h 登录失败</div>
             <div class="font-semibold text-gray-800">{{ health.failed_logins_24h }}</div>
         </div>
-        <div class="rounded-md bg-gray-50 p-3">
+        <div class="admin-panel p-3">
             <div class="text-gray-500">媒体库体积</div>
             <div class="font-semibold text-gray-800">{{ health.media_total_mb }} MB / {{ health.media_file_count }} 文件</div>
         </div>
