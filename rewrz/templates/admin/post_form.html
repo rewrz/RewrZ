@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 
-{% block title %}{% if post %}缂栬緫鏂囩珷{% else %}鏂板缓鏂囩珷{% endif %} - RewrZ 绠＄悊鍚庡彴{% endblock %}
-{% block page_title %}{% if post %}<i class="fas fa-edit text-yellow-600 mr-3"></i>缂栬緫鏂囩珷{% else %}<i class="fas fa-plus-circle text-green-600 mr-3"></i>鏂板缓鏂囩珷{% endif %}{% endblock %}
+{% block title %}{% if post %}编辑文章{% else %}新建文章{% endif %} - RewrZ 管理后台{% endblock %}
+{% block page_title %}{% if post %}<i class="fas fa-edit text-yellow-600 mr-3"></i>编辑文章{% else %}<i class="fas fa-plus-circle text-green-600 mr-3"></i>新建文章{% endif %}{% endblock %}
 {% block content %}
 <!-- Toast UI Editor -->
 <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" />
@@ -17,7 +17,7 @@
                 <div class="col-span-9">
                     <div class="bg-white p-6 rounded-lg shadow-md">
                         <div class="mb-4">
-                            <label for="title" class="block text-sm font-medium text-gray-700">鏍囬</label>
+                            <label for="title" class="block text-sm font-medium text-gray-700">标题</label>
                             <input type="text" id="title" name="title" value="{% if post %}{{ post.title }}{% endif %}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                         </div>
                         <div class="mb-3 flex justify-end gap-2">
@@ -26,22 +26,22 @@
                                 <i class="fas fa-upload mr-2"></i>上传文件
                             </button>
                             <button type="button" id="insert-media-button" class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700">
-                                <i class="fas fa-paperclip mr-2"></i>鎻掑叆濯掍綋
+                                <i class="fas fa-paperclip mr-2"></i>插入媒体
                             </button>
                         </div>
                         <div id="editor">
-                            <!-- 缂栬緫鍣ㄥ唴瀹瑰皢鐢盝avaScript鍒濆鍖?-->
+                            <!-- 编辑器内容将由JavaScript初始化 -->
                         </div>
                         <div class="bg-white rounded-lg shadow-md p-6">
                             <div class="flex justify-between items-center mb-6">
                                 <div class="space-x-2">
                                     <a href="{{ request.state.admin_path }}/posts" 
                                         class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
-                                        <i class="fas fa-arrow-left mr-2"></i>杩斿洖鍒楄〃
+                                        <i class="fas fa-arrow-left mr-2"></i>返回列表
                                     </a>
                                     <button type="submit"
                                         class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-                                        <i class="fas fa-save mr-2"></i>淇濆瓨
+                                        <i class="fas fa-save mr-2"></i>保存
                                     </button>
                                 </div>
                             </div>
@@ -53,11 +53,11 @@
                 <div class="col-span-3">
                     <div class="bg-white p-6 rounded-lg shadow-md space-y-6">
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">URL 鍒悕 (Slug)</h3>
+                            <h3 class="text-lg font-semibold mb-2">URL 别名 (Slug)</h3>
                             <input type="text" name="slug" value="{% if post %}{{ post.slug }}{% endif %}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">鍒嗙被</h3>
+                            <h3 class="text-lg font-semibold mb-2">分类</h3>
                             <div class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
                                 {% for category in categories %}
                                 <label class="inline-flex items-center">
@@ -68,8 +68,8 @@
                             </div>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">鏍囩</h3>
-                            <input type="text" id="tag-input" placeholder="娣诲姞鏍囩..." class="w-full px-3 py-2 border rounded-md">
+                            <h3 class="text-lg font-semibold mb-2">标签</h3>
+                            <input type="text" id="tag-input" placeholder="添加标签..." class="w-full px-3 py-2 border rounded-md">
                             <div id="tag-container" class="mt-2 flex flex-wrap gap-2">
                                 {% if post %}
                                     {% for tag in post.tags %}
@@ -80,22 +80,22 @@
                             <input type="hidden" name="tags" id="tags-hidden-input" value="{% if post %}{{ post.tags|map(attribute='name')|join(',') }}{% endif %}">
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">鐗硅壊鍥剧墖</h3>
+                            <h3 class="text-lg font-semibold mb-2">特色图片</h3>
                             <input type="hidden" name="featured_image_url" id="feature-image-url-input" value="{% if post %}{{ post.featured_image_url }}{% endif %}">
                             <div id="feature-image-preview" class="mb-2 {% if not post or not post.featured_image_url or post.featured_image_url == 'None' %}hidden{% endif %}">
                                 {% if post and post.featured_image_url and post.featured_image_url != 'None' %}
-                                <img src="{{ post.featured_image_url }}" alt="鐗硅壊鍥剧墖棰勮" class="max-w-full h-auto rounded-md">
+                                <img src="{{ post.featured_image_url }}" alt="特色图片预览" class="max-w-full h-auto rounded-md">
                                 {% endif %}
                             </div>
-                            <button type="button" class="w-full py-2 border-dashed border-2 border-gray-300 rounded-md hover:bg-gray-50" id="feature-image-upload-button">閫夋嫨鎴栦笂浼犲浘鐗?/button>
-                            <button type="button" class="w-full mt-2 py-2 border-dashed border-2 border-red-300 text-red-600 rounded-md hover:bg-red-50 {% if not post or not post.featured_image_url %}hidden{% endif %}" id="remove-feature-image-button">绉婚櫎鍥剧墖</button>
+                            <button type="button" class="w-full py-2 border-dashed border-2 border-gray-300 rounded-md hover:bg-gray-50" id="feature-image-upload-button">选择或上传图片</button>
+                            <button type="button" class="w-full mt-2 py-2 border-dashed border-2 border-red-300 text-red-600 rounded-md hover:bg-red-50 {% if not post or not post.featured_image_url %}hidden{% endif %}" id="remove-feature-image-button">移除图片</button>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">鎽樿</h3>
+                            <h3 class="text-lg font-semibold mb-2">摘要</h3>
                             <textarea name="excerpt" rows="4" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">{% if post %}{{ post.excerpt }}{% endif %}</textarea>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">鍐呭鏍煎紡</h3>
+                            <h3 class="text-lg font-semibold mb-2">内容格式</h3>
                             <div class="space-y-2">
                                 {% for format in formats %}
                                 <label class="inline-flex items-center">
@@ -106,46 +106,46 @@
                             </div>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">鐘舵€?/h3>
+                            <h3 class="text-lg font-semibold mb-2">状态</h3>
                             <select name="status" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                                <option value="draft" {% if post and post.status == "draft" %}selected{% endif %}>鑽夌</option>
-                                <option value="published" {% if post and post.status == "published" %}selected{% endif %}>宸插彂甯?/option>
+                                <option value="draft" {% if post and post.status == "draft" %}selected{% endif %}>草稿</option>
+                                <option value="published" {% if post and post.status == "published" %}selected{% endif %}>已发布</option>
                             </select>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">鍙鎬?/h3>
+                            <h3 class="text-lg font-semibold mb-2">可见性</h3>
                             <select id="visibility-select" name="visibility" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                                <option value="public" {% if not post or post.visibility == "public" %}selected{% endif %}>鍏紑</option>
-                                <option value="private" {% if post and post.visibility == "private" %}selected{% endif %}>绉佸瘑锛堜粎绠＄悊鍛橈級</option>
-                                <option value="password" {% if post and post.visibility == "password" %}selected{% endif %}>瀵嗙爜淇濇姢</option>
+                                <option value="public" {% if not post or post.visibility == "public" %}selected{% endif %}>公开</option>
+                                <option value="private" {% if post and post.visibility == "private" %}selected{% endif %}>私密（仅管理员）</option>
+                                <option value="password" {% if post and post.visibility == "password" %}selected{% endif %}>密码保护</option>
                             </select>
                             <div id="password-field" class="mt-3 {% if not post or post.visibility != 'password' %}hidden{% endif %}">
                                 <input
                                     type="password"
                                     name="password"
                                     class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                                    placeholder="{% if post and post.visibility == 'password' %}鐣欑┖淇濇寔鍘熷瘑鐮亄% else %}璇疯緭鍏ヨ闂瘑鐮亄% endif %}"
+                                    placeholder="{% if post and post.visibility == 'password' %}留空保持原密码{% else %}请输入访问密码{% endif %}"
                                 >
-                                <p class="mt-1 text-xs text-gray-500">浠呭湪閫夋嫨鈥滃瘑鐮佷繚鎶も€濇椂鐢熸晥銆?/p>
+                                <p class="mt-1 text-xs text-gray-500">仅在选择"密码保护"时生效。</p>
                             </div>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">璇勮璁剧疆</h3>
+                            <h3 class="text-lg font-semibold mb-2">评论设置</h3>
                             <label class="inline-flex items-center">
                                 <input type="checkbox" name="allow_comments" {% if post is none or post.allow_comments %}checked{% endif %} class="form-checkbox">
-                                <span class="ml-2 text-gray-700">鍏佽璇勮</span>
+                                <span class="ml-2 text-gray-700">允许评论</span>
                             </label>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">鐗堟潈澹版槑</h3>
+                            <h3 class="text-lg font-semibold mb-2">版权声明</h3>
                             <select name="license_type" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                                 {{ post.license_type | license_options | safe }}
                             </select>
-                            <p class="text-xs text-gray-500 mt-1">閫夋嫨閫傚悎鐨勭増鏉冨崗璁繚鎶ゆ偍鐨勪綔鍝?/p>
+                            <p class="text-xs text-gray-500 mt-1">选择适合的版权协议保护您的作品</p>
                         </div>
                         {% if post %}
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">鐗堟湰蹇収</h3>
+                            <h3 class="text-lg font-semibold mb-2">版本快照</h3>
                             <button
                                 type="button"
                                 id="snapshot-history-button"
@@ -234,10 +234,10 @@
 
         function escapeHtml(text) {
             return String(text ?? '')
-                .replaceAll('&', '&amp;')
-                .replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;')
-                .replaceAll('"', '&quot;')
+                .replaceAll('&', '&')
+                .replaceAll('<', '<')
+                .replaceAll('>', '>')
+                .replaceAll('"', '"')
                 .replaceAll("'", '&#39;');
         }
 
@@ -401,5 +401,3 @@
     {% include 'admin/components/media_library_modal.html' %}
     {% include 'admin/components/snapshot_modal.html' %}
 {% endblock %}
-
-

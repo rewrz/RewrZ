@@ -147,14 +147,14 @@ def truncate_html_filter(html_content: str, length: int = 100) -> str:
 
 def extract_image_urls_filter(content_html: str, featured_image_url: Optional[str] = None) -> list:
     """
-    浠嶢TML鍐呭涓彁鍙栧浘鐗囬摼鎺ワ紝鐢ㄤ簬鏃堕棿杞村崱鐗囩殑涔濆鏍煎睍绀?
+    从HTML内容中提取图片链接，用于时间轴卡片的九宫格展示
 
     Args:
-        content_html: 鏂囩珷娓叉煋鍚庣殑 HTML
-        featured_image_url: 鐗硅壊鍥剧墖 URL锛堝彲閫夛級锛岀敤浜庢帓闄ら噸澶?
+        content_html: 文章渲染后的 HTML
+        featured_image_url: 特色图片 URL（可选），用于排除重复
 
     Returns:
-        鍘婚噸鍚庣殑鍥剧墖 URL 鍒楄〃锛堟渶澶?20 寮犱互闃叉瀬绔儏鍐碉級
+        去重后的图片 URL 列表（最多 20 张以防极端情况）
     """
     if not content_html:
         return []
