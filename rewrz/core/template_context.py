@@ -92,6 +92,17 @@ def build_base_template_context(request: Request) -> dict:
         "gongan_beian": settings.get("site", {}).get("gongan_beian") or getattr(request.state, "gongan_beian", DEFAULT_BASE_SETTINGS["gongan_beian"]),
         "rss_enabled": settings.get("rss", {}).get("enabled") if settings.get("rss", {}).get("enabled") is not None else getattr(request.state, "rss_enabled", DEFAULT_BASE_SETTINGS["rss_enabled"]),
         "copyright_info": settings.get("site", {}).get("copyright_info") or getattr(request.state, "copyright_info", DEFAULT_BASE_SETTINGS["copyright_info"]),
+        # 主页个性化设置（为模板提供平铺字段，兼容旧模板访问方式）
+        "homepage_mode": settings.get("homepage", {}).get("mode") or getattr(request.state, "homepage_mode", DEFAULT_HOMEPAGE_SETTINGS["homepage_mode"]),
+        "homepage_background_image_url": settings.get("homepage", {}).get("background_image_url") or getattr(request.state, "homepage_background_image_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_image_url"]),
+        "homepage_background_video_url": settings.get("homepage", {}).get("background_video_url") or getattr(request.state, "homepage_background_video_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_video_url"]),
+        "homepage_background_music_url": settings.get("homepage", {}).get("background_music_url") or getattr(request.state, "homepage_background_music_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_music_url"]),
+        "homepage_music_autoplay": settings.get("homepage", {}).get("music_autoplay") if settings.get("homepage", {}).get("music_autoplay") is not None else getattr(request.state, "homepage_music_autoplay", DEFAULT_HOMEPAGE_SETTINGS["homepage_music_autoplay"]),
+        # 分页配置（供归档/相关文章等模板使用）
+        "homepage_posts_limit": settings.get("pagination", {}).get("homepage_posts_limit") if settings.get("pagination", {}).get("homepage_posts_limit") is not None else getattr(request.state, "homepage_posts_limit", 10),
+        "archive_posts_limit": settings.get("pagination", {}).get("archive_posts_limit") if settings.get("pagination", {}).get("archive_posts_limit") is not None else getattr(request.state, "archive_posts_limit", 20),
+        "search_results_limit": settings.get("pagination", {}).get("search_results_limit") if settings.get("pagination", {}).get("search_results_limit") is not None else getattr(request.state, "search_results_limit", 15),
+        "related_posts_limit": settings.get("pagination", {}).get("related_posts_limit") if settings.get("pagination", {}).get("related_posts_limit") is not None else getattr(request.state, "related_posts_limit", 5),
         
         # 动态导航菜单数据
         "post_formats": post_formats,

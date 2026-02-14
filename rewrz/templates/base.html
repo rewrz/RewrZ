@@ -586,11 +586,11 @@
     </main>
 
     <!-- 全局背景音乐播放器 -->
-    {% if settings.homepage_background_music_url %}
+    {% if homepage_background_music_url %}
     <div class="fixed bottom-4 right-4 z-50">
         <audio id="global-bg-music" 
-               src="{{ settings.homepage_background_music_url }}" 
-               {% if settings.homepage_music_autoplay %}autoplay{% endif %} 
+               src="{{ homepage_background_music_url }}" 
+               {% if homepage_music_autoplay %}autoplay{% endif %} 
                loop 
                preload="none">
             您的浏览器不支持音频播放。

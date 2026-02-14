@@ -678,45 +678,17 @@
         </div>
         {% endif %}
 
-        {% if donation_config and donation_config.enabled %}
-        <div class="rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-gray-200 dark:border-gray-700 p-5 md:p-6">
-            <div class="text-center">
-                <h3 class="text-lg font-semibold mb-2"><i class="fas fa-coffee mr-2 text-yellow-500"></i>支持作者</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">如果这篇内容对你有帮助，欢迎打赏。</p>
-                <div class="flex flex-wrap justify-center gap-3">
-                    {% if donation_config.alipay_qr %}
-                    <button onclick="showQRCode('alipay')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
-                        <i class="fab fa-alipay mr-2"></i>支付宝
-                    </button>
-                    {% endif %}
-                    {% if donation_config.wechat_qr %}
-                    <button onclick="showQRCode('wechat')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors">
-                        <i class="fab fa-weixin mr-2"></i>微信
-                    </button>
-                    {% endif %}
-                    {% if donation_config.paypal_link %}
-                    <a href="{{ donation_config.paypal_link }}" target="_blank" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors">
-                        <i class="fab fa-paypal mr-2"></i>PayPal
-                    </a>
-                    {% endif %}
+        {% set donation_widget_html = (request.state.db | donation_widget) if request.state.db else '' %}
+        {% if donation_config and donation_config.enabled and donation_widget_html %}
+            {% if donation_config.show_position == 'sidebar' %}
+            <aside class="lg:ml-auto lg:max-w-sm">
+                <div class="lg:sticky lg:top-24">
+                    {{ donation_widget_html | safe }}
                 </div>
-            </div>
-        </div>
-
-        <div id="qr-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-            <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-sm">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold" id="qr-title"></h3>
-                    <button onclick="closeQRModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="text-center">
-                    <img id="qr-image" src="" alt="QR Code" class="w-52 h-52 object-contain mx-auto mb-4">
-                    <p class="text-sm text-gray-600 dark:text-gray-400">请使用手机扫描二维码</p>
-                </div>
-            </div>
-        </div>
+            </aside>
+            {% else %}
+            {{ donation_widget_html | safe }}
+            {% endif %}
         {% endif %}
 
         {% include "components/related_posts.html" %}
@@ -781,48 +753,10 @@ async function shareMicroPost() {
     await copyCurrentUrl();
 }
 
-function showQRCode(type) {
-    const modal = document.getElementById('qr-modal');
-    const title = document.getElementById('qr-title');
-    const image = document.getElementById('qr-image');
-    if (!modal || !title || !image) {
-        return;
-    }
-
-    if (type === 'alipay') {
-        title.textContent = '支付宝打赏';
-        image.src = '{{ donation_config.alipay_qr if donation_config and donation_config.alipay_qr else "" }}';
-    } else if (type === 'wechat') {
-        title.textContent = '微信打赏';
-        image.src = '{{ donation_config.wechat_qr if donation_config and donation_config.wechat_qr else "" }}';
-    }
-
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-}
-
-function closeQRModal() {
-    const modal = document.getElementById('qr-modal');
-    if (!modal) {
-        return;
-    }
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-}
-
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('pre code').forEach((el) => {
         hljs.highlightElement(el);
     });
-
-    const qrModal = document.getElementById('qr-modal');
-    if (qrModal) {
-        qrModal.addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeQRModal();
-            }
-        });
-    }
 });
 </script>
 {% endblock %}

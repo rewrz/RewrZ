@@ -118,12 +118,20 @@ class ThemeSync {
     
     applyHomepageMode(mode) {
         const body = document.body;
-        
-        // 移除现有的主页模式类
-        body.classList.remove('homepage-default', 'homepage-gallery', 'homepage-video');
-        
+
+        const modeClassMap = {
+            default: 'homepage-default',
+            fullscreen_gallery: 'homepage-fullscreen-gallery',
+            fullscreen_video: 'homepage-fullscreen-video'
+        };
+
+        // 清理已知的主页模式类
+        Object.values(modeClassMap).forEach((cls) => body.classList.remove(cls));
+        body.classList.remove('homepage-gallery', 'homepage-video');
+
         // 添加新的主页模式类
-        body.classList.add(`homepage-${mode}`);
+        const normalizedClass = modeClassMap[mode] || `homepage-${String(mode || 'default').replace(/_/g, '-')}`;
+        body.classList.add(normalizedClass);
         
         // 如果在主页，重新加载内容
         if (window.location.pathname === '/' || window.location.pathname === '/index') {

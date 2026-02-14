@@ -9,7 +9,8 @@
 - db: 数据库会话（通过 request.state.db）
 -->
 
-{% set related_articles = post | related_posts(request.state.db, 5) %}
+{% set related_limit = related_posts_limit if related_posts_limit else 5 %}
+{% set related_articles = post | related_posts(request.state.db, related_limit) %}
 {% if related_articles %}
 <section class="bg-gradient-to-br from-blue-50 to-indigo-100 p-6 rounded-xl mb-8 border border-blue-200">
     <div class="text-center mb-6">

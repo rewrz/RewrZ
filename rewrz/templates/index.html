@@ -7,9 +7,75 @@
 {% if seo_data %}
     {% include "components/seo_meta.html" %}
 {% endif %}
+<style>
+.homepage-hero {
+    position: relative;
+    min-height: calc(100vh - 5rem);
+    overflow: hidden;
+}
+
+.hero-gallery-slide {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+}
+
+.hero-gallery-slide.is-active {
+    opacity: 1;
+}
+</style>
 {% endblock %}
 
 {% block content %}
+{% set current_homepage_mode = homepage_mode or 'default' %}
+{% set gallery_images = homepage_background_image_url.split('\n') if homepage_background_image_url else [] %}
+{% set gallery_images = gallery_images | map('trim') | reject('equalto', '') | list %}
+
+<div class="main-content">
+{% if current_homepage_mode == 'fullscreen_gallery' %}
+<section class="homepage-hero">
+    <div class="absolute inset-0">
+        {% if gallery_images %}
+            {% for image_url in gallery_images %}
+            <div class="hero-gallery-slide {% if loop.first %}is-active{% endif %}" style="background-image: url('{{ image_url }}');"></div>
+            {% endfor %}
+        {% else %}
+            <div class="hero-gallery-slide is-active" style="background-image: url('/static/images/bg/1.jpg');"></div>
+        {% endif %}
+    </div>
+    <div class="relative z-10 flex min-h-[calc(100vh-5rem)] items-center justify-center bg-black/45 px-4">
+        <div class="text-center text-white">
+            <h1 class="text-4xl font-bold md:text-6xl">{{ site_title }}</h1>
+            <p class="mt-3 text-base md:text-xl">{{ tagline or '记录生活、灵感与创作瞬间。' }}</p>
+            <a href="/archives" class="mt-8 inline-flex rounded-full bg-white/20 px-6 py-3 text-sm backdrop-blur hover:bg-white/30">浏览归档</a>
+        </div>
+    </div>
+</section>
+{% elif current_homepage_mode == 'fullscreen_video' %}
+<section class="homepage-hero">
+    <div class="absolute inset-0">
+        {% if homepage_background_video_url %}
+        <video autoplay muted loop playsinline class="h-full w-full object-cover">
+            <source src="{{ homepage_background_video_url }}" type="video/mp4">
+            您的浏览器不支持视频播放。
+        </video>
+        {% else %}
+        <div class="h-full w-full bg-gradient-to-br from-slate-700 to-slate-900"></div>
+        {% endif %}
+    </div>
+    <div class="relative z-10 flex min-h-[calc(100vh-5rem)] items-center justify-center bg-black/45 px-4">
+        <div class="text-center text-white">
+            <h1 class="text-4xl font-bold md:text-6xl">{{ site_title }}</h1>
+            <p class="mt-3 text-base md:text-xl">{{ tagline or '记录生活、灵感与创作瞬间。' }}</p>
+            <a href="/archives" class="mt-8 inline-flex rounded-full bg-white/20 px-6 py-3 text-sm backdrop-blur hover:bg-white/30">浏览归档</a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
 <section class="px-3 pb-8 pt-6 md:px-6 md:pt-10">
     <div class="container mx-auto max-w-6xl space-y-6">
         <div class="hero-surface p-4 md:p-7">
@@ -84,12 +150,23 @@
         {% endif %}
     </div>
 </section>
+</div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const homepageMode = '{{ current_homepage_mode }}';
+    document.body.classList.remove('homepage-default', 'homepage-fullscreen-gallery', 'homepage-fullscreen-video');
+    if (homepageMode === 'fullscreen_gallery') {
+        document.body.classList.add('homepage-fullscreen-gallery');
+    } else if (homepageMode === 'fullscreen_video') {
+        document.body.classList.add('homepage-fullscreen-video');
+    } else {
+        document.body.classList.add('homepage-default');
+    }
+
     const timelineItems = document.querySelectorAll('.timeline-reveal');
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -109,6 +186,16 @@ document.addEventListener('DOMContentLoaded', function() {
         item.style.transition = 'opacity 0.55s ease, transform 0.55s ease';
         observer.observe(item);
     });
+
+    const gallerySlides = document.querySelectorAll('.hero-gallery-slide');
+    if (gallerySlides.length > 1) {
+        let current = 0;
+        setInterval(() => {
+            gallerySlides[current].classList.remove('is-active');
+            current = (current + 1) % gallerySlides.length;
+            gallerySlides[current].classList.add('is-active');
+        }, 5000);
+    }
 });
 </script>
 {% endblock %}

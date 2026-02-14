@@ -270,7 +270,7 @@ def generate_rss_xml(title: str, description: str, link: str, posts: List[Post],
         f'<atom:link href="{site_info["base_url"]}/feed.xml" rel="self" type="application/rss+xml" />',
         f'<managingEditor>{site_info["admin_email"]} ({title})</managingEditor>',
         f'<webMaster>{site_info["admin_email"]}</webMaster>',
-+        f'<generator>{html.escape(DEFAULT_BASE_SETTINGS["site_title"])}</generator>',
+        f'<generator>{html.escape(DEFAULT_BASE_SETTINGS["site_title"])}</generator>',
     ]
     
     # 添加文章项
@@ -317,7 +317,7 @@ def generate_atom_xml(title: str, subtitle: str, link: str, posts: List[Post], s
         f'<name>{html.escape(title)}</name>',
         f'<email>{site_info["admin_email"]}</email>',
         '</author>',
-+        f'<generator>{html.escape(DEFAULT_BASE_SETTINGS["site_title"])}</generator>',
+        f'<generator>{html.escape(DEFAULT_BASE_SETTINGS["site_title"])}</generator>',
     ]
     
     # 添加文章项

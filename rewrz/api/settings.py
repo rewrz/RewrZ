@@ -27,6 +27,24 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
             return setting.value["value"]
         return default
 
+    def parse_json_list(raw_value: Any, default: Optional[list] = None) -> Any:
+        """Parse a setting value into a list, accepting JSON string or list."""
+        fallback = default if default is not None else []
+        if isinstance(raw_value, list):
+            return raw_value
+        if isinstance(raw_value, str):
+            try:
+                parsed = json.loads(raw_value)
+                return parsed if isinstance(parsed, list) else fallback
+            except json.JSONDecodeError:
+                return fallback
+        return fallback
+
+    social_links = parse_json_list(get_setting_value("social_links", []), [])
+    anniversaries = parse_json_list(get_setting_value("anniversaries", None), None)
+    if not anniversaries:
+        anniversaries = parse_json_list(get_setting_value("anniversaries_json", "[]"), [])
+
     settings_data = {
         "site_title": get_setting_value("site_title", DEFAULT_BASE_SETTINGS["site_title"]),
         "tagline": get_setting_value("tagline", DEFAULT_BASE_SETTINGS["tagline"]),
@@ -39,8 +57,8 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "custom_footer_text": get_setting_value("custom_footer_text", ""),
         "icp_beian": get_setting_value("icp_beian", ""),
         "gongan_beian": get_setting_value("gongan_beian", ""),
-        "social_links": get_setting_value("social_links", []),
-        "anniversaries": get_setting_value("anniversaries", []),
+        "social_links": social_links,
+        "anniversaries": anniversaries,
         "sitemap_enabled": get_setting_value("sitemap_enabled", False),
         "noindex_site": get_setting_value("noindex_site", DEFAULT_BASE_SETTINGS["noindex_site"]),
         "block_ai_crawlers": get_setting_value("block_ai_crawlers", DEFAULT_BASE_SETTINGS["block_ai_crawlers"]),
@@ -225,6 +243,13 @@ async def update_admin_path(
 ):
     """更新后台路径API端点"""
     try:
+        from ..core.security import verify_csrf_token
+
+        csrf_token = request.headers.get("X-CSRFToken") or request.headers.get("X-CSRF-Token")
+        if not csrf_token:
+            return JSONResponse({"success": False, "error": "CSRF token missing"}, status_code=403)
+        verify_csrf_token(request, csrf_token)
+
         # 解析JSON请求体
         body = await request.json()
         path_type = body.get("path_type", "random")
@@ -290,6 +315,8 @@ async def update_admin_path(
         else:
             return JSONResponse({"success": False, "error": ".env文件不存在"})
             
+    except HTTPException as e:
+        return JSONResponse({"success": False, "error": str(e.detail)}, status_code=e.status_code)
     except json.JSONDecodeError:
         return JSONResponse({"success": False, "error": "无效的JSON数据"})
     except Exception as e:

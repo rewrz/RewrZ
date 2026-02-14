@@ -1238,6 +1238,8 @@ async def format_page(request: Request, format_slug: str, db: Session = Depends(
     if format is None:
         raise HTTPException(status_code=404, detail="Format not found")
     posts = crud_post.get_posts_by_format(db, format_id=format.id)
+    archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
+    posts = posts[:archive_posts_limit]
     
     # 构建模板上下文（现在包含统一的设置数据）
     context = build_base_template_context(request)
@@ -1260,6 +1262,8 @@ async def posts_by_category(request: Request, category_slug: str, db: Session = 
     if category is None:
         raise HTTPException(status_code=404, detail="Category not found")
     posts = crud_post.get_posts_by_category(db, category_id=category.id)
+    archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
+    posts = posts[:archive_posts_limit]
     
     # 构建模板上下文（现在包含统一的设置数据）
     context = build_base_template_context(request)
@@ -1281,6 +1285,8 @@ async def posts_by_tag(request: Request, tag_slug: str, db: Session = Depends(ge
     if tag is None:
         raise HTTPException(status_code=404, detail="Tag not found")
     posts = crud_post.get_posts_by_tag(db, tag_id=tag.id)
+    archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
+    posts = posts[:archive_posts_limit]
     
     # 构建模板上下文（现在包含统一的设置数据）
     context = build_base_template_context(request)
@@ -1302,6 +1308,8 @@ async def posts_by_month(request: Request, year: int, month: int, db: Session = 
         raise HTTPException(status_code=404, detail="Invalid month")
 
     posts = crud_post.get_posts_by_year_month(db, year=year, month=month)
+    archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
+    posts = posts[:archive_posts_limit]
     
     # 构建模板上下文（现在包含统一的设置数据）
     context = build_base_template_context(request)
