@@ -109,7 +109,7 @@
                 </div>
                 <div class="relative w-full aspect-w-1 aspect-h-1 bg-gray-100 dark:bg-gray-700 rounded-t-lg overflow-hidden">
                     {% if media.file_type.startswith('image') %}
-                        <img src="{{ media.filepath | url }}" alt="{{ media.alt_text or media.title }}" class="w-full h-full object-cover" loading="lazy">
+                        <img src="{{ media.url or (media.filepath | url) }}" alt="{{ media.alt_text or media.title }}" class="w-full h-full object-cover" loading="lazy">
                     {% else %}
                         <div class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
                             {% if media.file_type.startswith('video') %}

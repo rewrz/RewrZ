@@ -5,6 +5,8 @@ class SettingBase(BaseModel):
     key: str
     value: Dict[str, Any] = Field(default_factory=dict)
     description: Optional[str] = None
+    category: Optional[str] = None
+    type: Optional[str] = None
 
 class SettingCreate(SettingBase):
     pass
@@ -12,6 +14,8 @@ class SettingCreate(SettingBase):
 class SettingUpdate(BaseModel):
     value: Optional[Dict[str, Any]] = Field(default_factory=dict)
     description: Optional[str] = None
+    category: Optional[str] = None
+    type: Optional[str] = None
 
 class Setting(SettingBase):
     id: int

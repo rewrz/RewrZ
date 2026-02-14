@@ -146,6 +146,12 @@ async def update_media_settings(
         format_errors.append("文件大小限制不能小于1MB")
     elif media_max_file_size > 500 * 1024 * 1024:  # 最大500MB
         format_errors.append("文件大小限制不能超过500MB")
+
+    if media_watermark_opacity < 0.0 or media_watermark_opacity > 1.0:
+        format_errors.append("水印透明度必须在 0.0 到 1.0 之间")
+
+    if media_cleanup_days < 1 or media_cleanup_days > 365:
+        format_errors.append("清理天数必须在 1 到 365 之间")
     
     if format_errors:
         return JSONResponse({
@@ -160,8 +166,12 @@ async def update_media_settings(
             setting = crud_setting.get_setting(db, key)
             if setting:
                 # 更新现有设置
-                setting_update = SettingUpdate(value={"value": value})
-                crud_setting.update_setting(db, setting.id, setting_update)
+                setting_update = SettingUpdate(
+                    value={"value": value},
+                    category="media",
+                    type=_get_setting_type(value)
+                )
+                crud_setting.update_setting(db, key, setting_update)
             else:
                 # 创建新设置
                 setting_create = SettingCreate(

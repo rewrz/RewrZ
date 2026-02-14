@@ -12,7 +12,7 @@
 import os
 import hashlib
 from typing import Dict, List, Optional, Tuple, Union
-from PIL import Image, ImageOps, ExifTags
+from PIL import Image, ImageOps, ExifTags, ImageDraw, ImageFont
 from PIL.ExifTags import TAGS
 import mimetypes
 from datetime import datetime
@@ -65,6 +65,13 @@ class MediaProcessor:
         # 安全设置
         self.extract_exif = self._get_setting_bool("media_extract_exif", True)
         self.remove_exif = self._get_setting_bool("media_remove_exif", False)
+
+        # 高级与输出设置
+        self.enable_watermark = self._get_setting_bool("media_enable_watermark", False)
+        self.watermark_text = self._get_setting_str("media_watermark_text", "")
+        self.watermark_opacity = self._get_setting_float("media_watermark_opacity", 0.5)
+        self.enable_responsive = self._get_setting_bool("media_enable_responsive", True)
+        self.progressive_jpeg = self._get_setting_bool("media_progressive_jpeg", True)
         
         # 重新加载支持的文件格式（在设置加载后）
         self.load_supported_formats()
@@ -81,6 +88,13 @@ class MediaProcessor:
         setting = crud_setting.get_setting(self.db, key)
         if setting and "value" in setting.value:
             return int(setting.value["value"])
+        return default
+
+    def _get_setting_float(self, key: str, default: float) -> float:
+        """获取浮点类型设置"""
+        setting = crud_setting.get_setting(self.db, key)
+        if setting and "value" in setting.value:
+            return float(setting.value["value"])
         return default
     
     def _get_setting_str(self, key: str, default: str) -> str:
@@ -253,6 +267,9 @@ class MediaProcessor:
                     else:
                         background.paste(processed_img)
                     processed_img = background
+
+                # 应用文本水印（仅在配置启用且有文字时）
+                processed_img = self._apply_text_watermark(processed_img)
                 
                 # 确保输出目录存在
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -261,6 +278,10 @@ class MediaProcessor:
                 save_kwargs = {'quality': quality, 'optimize': True}
                 if remove_exif:
                     save_kwargs['exif'] = b''
+
+                effective_format = (format or Path(output_path).suffix.lstrip(".")).upper()
+                if effective_format in ("JPG", "JPEG") and self.progressive_jpeg:
+                    save_kwargs['progressive'] = True
                 
                 if format:
                     save_kwargs['format'] = format
@@ -319,6 +340,43 @@ class MediaProcessor:
                 print(f"生成缩略图失败 {size_name}: {e}")
         
         return thumbnails
+
+    def _apply_text_watermark(self, image: Image.Image) -> Image.Image:
+        """按当前配置给图像叠加文字水印。"""
+        if not self.enable_watermark or not self.watermark_text:
+            return image
+
+        opacity = max(0.0, min(1.0, self.watermark_opacity))
+        if opacity <= 0:
+            return image
+
+        try:
+            original_mode = image.mode
+            base = image.convert("RGBA")
+            overlay = Image.new("RGBA", base.size, (255, 255, 255, 0))
+            draw = ImageDraw.Draw(overlay)
+            font = ImageFont.load_default()
+
+            text = self.watermark_text.strip()
+            if not text:
+                return image
+
+            text_bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = max(1, text_bbox[2] - text_bbox[0])
+            text_height = max(1, text_bbox[3] - text_bbox[1])
+
+            margin = max(12, int(min(base.width, base.height) * 0.02))
+            x = max(margin, base.width - text_width - margin)
+            y = max(margin, base.height - text_height - margin)
+
+            alpha = int(255 * opacity)
+            draw.text((x, y), text, fill=(255, 255, 255, alpha), font=font)
+            composited = Image.alpha_composite(base, overlay)
+            if original_mode in ("RGB", "L"):
+                return composited.convert(original_mode)
+            return composited
+        except Exception:
+            return image
     
     def generate_webp_version(self, input_path: str, output_dir: str) -> Optional[str]:
         """
@@ -369,6 +427,9 @@ class MediaProcessor:
             'srcset': [],
             'srcset_webp': []
         }
+
+        if not self.enable_responsive:
+            return responsive_info
         
         # 生成缩略图
         thumbnails = self.generate_thumbnails(input_path, output_dir)
@@ -417,6 +478,9 @@ class MediaProcessor:
         """
         if not image_url:
             return ""
+
+        if not self.enable_responsive:
+            return f'<img src="{image_url}" alt="{alt_text}" class="{css_classes}" loading="lazy">'
         
         # 对于直接 URL 没有生成的缩略图，返回简单的 img 标签
         if not image_url.startswith('/media/'):
@@ -553,4 +617,7 @@ def get_media_processor(db: Session) -> MediaProcessor:
     global _media_processor
     if _media_processor is None:
         _media_processor = MediaProcessor(db)
+    else:
+        _media_processor.db = db
+        _media_processor.load_settings()
     return _media_processor

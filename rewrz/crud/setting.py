@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from ..models import Setting
 from ..schemas import SettingCreate, SettingUpdate
 from ..core.cache import cache_settings, clear_cache, cache_key_for_setting, cache # Import cache functions
@@ -41,7 +41,13 @@ def get_settings_by_keys(db: Session, keys: List[str]) -> Dict[str, Any]:
     return {setting.key: setting.value.get("value") for setting in results if setting.value}
 
 def create_setting(db: Session, setting: SettingCreate) -> Setting:
-    db_setting = Setting(key=setting.key, value=setting.value, description=setting.description)
+    db_setting = Setting(
+        key=setting.key,
+        value=setting.value,
+        description=setting.description,
+        category=setting.category,
+        type=setting.type,
+    )
     db.add(db_setting)
     db.commit()
     db.refresh(db_setting)
@@ -49,15 +55,18 @@ def create_setting(db: Session, setting: SettingCreate) -> Setting:
     clear_cache(cache_key_for_setting(setting.key))
     return db_setting
 
-def update_setting(db: Session, key: str, setting_update: SettingUpdate) -> Optional[Setting]:
-    db_setting = db.execute(select(Setting).filter(Setting.key == key)).scalar_one_or_none()
+def update_setting(db: Session, key: Union[str, int], setting_update: SettingUpdate) -> Optional[Setting]:
+    if isinstance(key, int):
+        db_setting = db.execute(select(Setting).filter(Setting.id == key)).scalar_one_or_none()
+    else:
+        db_setting = db.execute(select(Setting).filter(Setting.key == key)).scalar_one_or_none()
+
     if db_setting:
         for field, value in setting_update.model_dump(exclude_unset=True).items():
             setattr(db_setting, field, value)
         db.commit()
         db.refresh(db_setting)
-        # Clear cache for this setting after update
-        clear_cache(cache_key_for_setting(key))
+        clear_cache(cache_key_for_setting(db_setting.key))
     return db_setting
 
 def delete_setting(db: Session, key: str) -> Optional[Setting]:

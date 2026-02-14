@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional, Set
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, Response
@@ -16,6 +16,7 @@ from ..core.database import get_db
 from ..core.media_processor import get_media_processor
 from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
+from ..crud import setting as crud_setting
 from ..crud import media as crud_media
 from ..models.media import Media as MediaModel
 from ..schemas import Media, MediaCreate, MediaUpdate, User
@@ -31,18 +32,43 @@ UPLOAD_ROOT = Path(settings.MEDIA_UPLOAD_DIR).resolve()
 os.makedirs(UPLOAD_ROOT, exist_ok=True)
 
 
-def _media_url_from_filepath(filepath: str) -> str:
+THUMBNAIL_SIZE_NAMES = ("thumbnail", "small", "medium", "large", "cover")
+
+
+def _get_setting_value(db: Session, key: str, default):
+    setting = crud_setting.get_setting(db, key)
+    if setting and setting.value:
+        return setting.value.get("value", default)
+    return default
+
+
+def _get_media_cdn_base(db: Session) -> Optional[str]:
+    enabled = bool(_get_setting_value(db, "media_enable_cdn", False))
+    if not enabled:
+        return None
+
+    cdn_url = str(_get_setting_value(db, "media_cdn_url", "") or "").strip().rstrip("/")
+    if not cdn_url:
+        return None
+    if not cdn_url.startswith(("http://", "https://")):
+        return None
+    return cdn_url
+
+
+def _media_url_from_filepath(filepath: str, cdn_base: Optional[str] = None) -> str:
     if not filepath:
         return ""
     try:
         relative_path = Path(filepath).resolve().relative_to(UPLOAD_ROOT).as_posix()
     except Exception:
         return ""
+    if cdn_base:
+        return f"{cdn_base}/{relative_path}"
     return f"/media/{relative_path}"
 
 
-def _attach_media_url(media_obj: MediaModel) -> MediaModel:
-    media_obj.url = _media_url_from_filepath(media_obj.filepath)
+def _attach_media_url(media_obj: MediaModel, cdn_base: Optional[str] = None) -> MediaModel:
+    media_obj.url = _media_url_from_filepath(media_obj.filepath, cdn_base=cdn_base)
     return media_obj
 
 
@@ -67,6 +93,69 @@ def _delete_media_files(db_media: MediaModel) -> None:
     _safe_unlink(original_path.with_suffix(".webp"))
 
 
+def _cleanup_orphan_media_files(db: Session, cleanup_days: int) -> int:
+    if cleanup_days < 1:
+        return 0
+
+    tracked_files = db.execute(select(MediaModel.filepath)).scalars().all()
+    tracked_paths: Set[str] = set()
+    tracked_stems_by_dir: Dict[str, Set[str]] = {}
+    for filepath in tracked_files:
+        try:
+            resolved = Path(filepath).resolve()
+        except Exception:
+            continue
+        tracked_paths.add(str(resolved))
+        dir_key = str(resolved.parent)
+        if dir_key not in tracked_stems_by_dir:
+            tracked_stems_by_dir[dir_key] = set()
+        tracked_stems_by_dir[dir_key].add(resolved.stem)
+
+    cutoff = datetime.now() - timedelta(days=cleanup_days)
+    deleted_count = 0
+
+    for candidate in UPLOAD_ROOT.rglob("*"):
+        if not candidate.is_file():
+            continue
+
+        try:
+            resolved = candidate.resolve()
+        except Exception:
+            continue
+
+        resolved_str = str(resolved)
+        if resolved_str in tracked_paths:
+            continue
+
+        candidate_dir_key = str(resolved.parent)
+        if resolved.suffix.lower() == ".webp" and resolved.stem in tracked_stems_by_dir.get(candidate_dir_key, set()):
+            continue
+
+        if resolved.parent.name == "thumbnails":
+            original_stem = None
+            for size_name in THUMBNAIL_SIZE_NAMES:
+                suffix = f"_{size_name}"
+                if resolved.stem.endswith(suffix):
+                    original_stem = resolved.stem[: -len(suffix)]
+                    break
+            if original_stem:
+                parent_dir_key = str(resolved.parent.parent)
+                if original_stem in tracked_stems_by_dir.get(parent_dir_key, set()):
+                    continue
+
+        try:
+            modified_at = datetime.fromtimestamp(resolved.stat().st_mtime)
+        except OSError:
+            continue
+        if modified_at > cutoff:
+            continue
+
+        _safe_unlink(resolved)
+        deleted_count += 1
+
+    return deleted_count
+
+
 @router.get(f"{settings.ADMIN_PATH.rstrip('/')}/media", response_class=HTMLResponse)
 async def media_library_page(
     request: Request,
@@ -74,8 +163,9 @@ async def media_library_page(
     current_user: User = Depends(get_current_user),
 ):
     media_items = crud_media.get_all_media(db=db)
+    cdn_base = _get_media_cdn_base(db)
     for item in media_items:
-        _attach_media_url(item)
+        _attach_media_url(item, cdn_base=cdn_base)
 
     return templates.TemplateResponse(
         "admin/media.html",
@@ -99,8 +189,9 @@ async def get_media_items_api(
 ):
     skip = (page - 1) * limit
     media_items = crud_media.get_all_media(db=db, skip=skip, limit=limit, search=search)
+    cdn_base = _get_media_cdn_base(db)
     for item in media_items:
-        _attach_media_url(item)
+        _attach_media_url(item, cdn_base=cdn_base)
     return media_items
 
 
@@ -173,7 +264,19 @@ async def upload_media(
     )
 
     db_media = crud_media.create_media(db=db, media=media_create, uploaded_by_id=current_user.id)
-    _attach_media_url(db_media)
+    cdn_base = _get_media_cdn_base(db)
+    _attach_media_url(db_media, cdn_base=cdn_base)
+
+    auto_cleanup = bool(_get_setting_value(db, "media_auto_cleanup", False))
+    if auto_cleanup:
+        try:
+            cleanup_days = int(_get_setting_value(db, "media_cleanup_days", 30))
+        except (TypeError, ValueError):
+            cleanup_days = 30
+        try:
+            _cleanup_orphan_media_files(db, cleanup_days)
+        except Exception:
+            pass
     return db_media
 
 
@@ -193,7 +296,8 @@ def get_media_item(
     if db_media is None:
         raise HTTPException(status_code=404, detail="Media file not found")
 
-    _attach_media_url(db_media)
+    cdn_base = _get_media_cdn_base(db)
+    _attach_media_url(db_media, cdn_base=cdn_base)
     return db_media
 
 
@@ -216,7 +320,8 @@ def update_media_item(
         raise HTTPException(status_code=403, detail="Not authorized to update this media file")
 
     updated_media = crud_media.update_media(db=db, media_id=media_id, media_update=media_update)
-    _attach_media_url(updated_media)
+    cdn_base = _get_media_cdn_base(db)
+    _attach_media_url(updated_media, cdn_base=cdn_base)
     return updated_media
 
 
