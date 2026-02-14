@@ -67,14 +67,15 @@ class ThemeSync {
             }));
         }
         
-        // 应用氛围模式
-        if (settings.atmosphere && window.themeManager) {
-            // 检查themeManager是否有setAtmosphere方法
-            if (typeof window.themeManager.setAtmosphere === 'function') {
+        // 应用氛围模式（无数据时也要主动清理前端残留状态）
+        if (window.themeManager && typeof window.themeManager.setAtmosphere === 'function') {
+            if (settings.atmosphere) {
                 window.themeManager.setAtmosphere(
                     settings.atmosphere.value,
                     settings.atmosphere.effects || []
                 );
+            } else {
+                window.themeManager.setAtmosphere(null, []);
             }
         }
         

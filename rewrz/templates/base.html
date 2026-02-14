@@ -124,6 +124,27 @@
             body.className = body.className.replace(/atmosphere-\w+/g, '');
             if (className) {
                 body.classList.add(className);
+            } else {
+                // 后端无氛围时，强制清理前端残留纪念日状态/特效
+                try {
+                    const html = document.documentElement;
+                    html.className = html.className.replace(/anniversary-\w+/g, '').trim();
+                    html.style.filter = '';
+                    body.className = body.className.replace(/anniversary-\w+/g, '').trim();
+                    const legacyMournStyle = document.getElementById('mourn-mode-styles');
+                    if (legacyMournStyle) {
+                        legacyMournStyle.remove();
+                    }
+                    localStorage.removeItem('rewrz-anniversary-mode');
+                    if (window.effectManager && typeof window.effectManager.stopAll === 'function') {
+                        window.effectManager.stopAll();
+                    }
+                    if (window.themeManager && typeof window.themeManager.setAtmosphere === 'function') {
+                        window.themeManager.setAtmosphere(null, []);
+                    }
+                } catch (error) {
+                    console.warn('清理残留氛围状态失败:', error);
+                }
             }
         }
         
@@ -776,9 +797,9 @@
             }, 100);
         });
      </script>
-     <script type="module" src="{{ url_for('static', path='js/enhanced-theme-manager.js') }}"></script>
+     <script type="module" src="{{ url_for('static', path='js/enhanced-theme-manager.js') }}?v=20260214-2"></script>
      <script type="module" src="{{ url_for('static', path='js/multi-format-interactions.js') }}"></script>
-     <script type="module" src="{{ url_for('static', path='js/theme-sync.js') }}"></script>
+     <script type="module" src="{{ url_for('static', path='js/theme-sync.js') }}?v=20260214-2"></script>
      <script type="module" src="{{ url_for('static', path='js/ui-enhancements.js') }}"></script>
      {% block scripts %}{% endblock %}
  </body>

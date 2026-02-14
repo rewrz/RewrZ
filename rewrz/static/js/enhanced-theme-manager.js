@@ -138,8 +138,16 @@ class EnhancedThemeManager {
             if (response.ok) {
                 const data = await response.json();
                 if (data.active) {
-                    this.anniversaryMode = data;
+                    const normalizedType = data.type ? String(data.type).trim().toLowerCase() : '';
+                    this.anniversaryMode = {
+                        ...data,
+                        theme_class: data.theme_class || (normalizedType ? `atmosphere-${normalizedType}` : null),
+                    };
+                    this.effectsStarted = false;
+                    this.saveThemeToStorage();
                     await this.applyAnniversaryMode();
+                } else {
+                    await this.deactivateAnniversaryMode();
                 }
             }
         } catch (error) {
@@ -155,7 +163,6 @@ class EnhancedThemeManager {
             return;
         }
 
-        const html = document.documentElement;
         const body = document.body;
         
         // 应用纪念日主题类
@@ -182,25 +189,24 @@ class EnhancedThemeManager {
      * 停用纪念日模式
      */
     async deactivateAnniversaryMode() {
-        if (this.anniversaryMode) {
-            // 停止特效
-            if (this.effectManager) {
-                this.effectManager.stopEffect();
-                // 移除滤镜效果
-                this.effectManager.disableGrayscale();
-            }
-            
-            // 移除主题类
-            const body = document.body;
-            body.classList.remove('spring-festival-theme', 'cherry-blossom-theme', 'winter-theme', 'celebration-theme', 'grayscale-effect');
-            
-            this.anniversaryMode = null;
-            this.effectsStarted = false; // 重置特效启动标志
-            localStorage.removeItem('rewrz-anniversary-mode');
-            
-            // 重新应用普通主题
-            await this.applyTheme();
+        // 停止特效和滤镜
+        if (this.effectManager) {
+            this.effectManager.stopAll();
         }
+
+        // 清理页面上的氛围类
+        const body = document.body;
+        body.classList.remove('spring-festival-theme', 'cherry-blossom-theme', 'winter-theme', 'celebration-theme', 'grayscale-effect');
+        Array.from(body.classList)
+            .filter((className) => className.startsWith('atmosphere-'))
+            .forEach((className) => body.classList.remove(className));
+        
+        this.anniversaryMode = null;
+        this.effectsStarted = false;
+        localStorage.removeItem('rewrz-anniversary-mode');
+        
+        // 重新应用普通主题
+        await this.applyTheme();
     }
 
     /**
@@ -239,16 +245,22 @@ class EnhancedThemeManager {
      */
     setAtmosphere(atmosphere, effects = []) {
         if (atmosphere) {
+            const normalizedAtmosphere = String(atmosphere).trim().toLowerCase();
+            const normalizedThemeClass = normalizedAtmosphere.startsWith('atmosphere-')
+                ? normalizedAtmosphere
+                : `atmosphere-${normalizedAtmosphere}`;
+
             this.anniversaryMode = {
                 active: true,
-                theme_class: atmosphere,
+                theme_class: normalizedThemeClass,
                 effects: effects
             };
+            this.effectsStarted = false;
+            this.applyTheme();
+            this.saveThemeToStorage();
         } else {
-            this.anniversaryMode = null;
+            this.deactivateAnniversaryMode();
         }
-        this.applyTheme();
-        this.saveThemeToStorage();
     }
 
     /**
