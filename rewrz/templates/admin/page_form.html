@@ -1,6 +1,6 @@
 {% extends "admin/base.html" %}
 
-{% block title %}{% if post %}编辑页面{% else %}新建页面{% endif %} - RewrZ 管理后台{% endblock %}
+{% block title_text %}{% if post %}编辑页面{% else %}新建页面{% endif %}{% endblock %}
 {% block page_title %}{% if post %}<i class="fas fa-edit text-yellow-600 mr-3"></i>编辑页面{% else %}<i class="fas fa-plus-circle text-green-600 mr-3"></i>新建页面{% endif %}{% endblock %}
 {% block content %}
 <!-- Toast UI Editor -->

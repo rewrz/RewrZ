@@ -1,9 +1,22 @@
 /**
  * 多格式内容差异化布局样式
  * 支持微博、相册、视频、音乐、标准文章等不同格式的专属布局
+ * Version 2.0 - 增强版
  */
 
-/* 现代化卡片基础样式 */
+/* ==================== 全局变量 ==================== */
+:root {
+    --format-micro-primary: #f97316;
+    --format-micro-secondary: #f43f5e;
+    --format-photo-primary: #10b981;
+    --format-photo-secondary: #14b8a6;
+    --format-video-primary: #ef4444;
+    --format-video-secondary: #f43f5e;
+    --format-poetry-primary: #8b5cf6;
+    --format-poetry-secondary: #6366f1;
+}
+
+/* ==================== 现代化卡片基础样式 ==================== */
 .modern-card {
     background: var(--color-card-bg, #ffffff);
     border-radius: 16px;
@@ -377,5 +390,350 @@
     
     .tag {
         border: 1px solid var(--color-text, #000);
+    }
+}
+
+/* ==================== 微博详情页增强样式 ==================== */
+.micro-detail-card {
+    transition: all 0.3s ease;
+}
+
+.micro-action-btn {
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.micro-tag {
+    transition: all 0.2s ease;
+}
+
+.micro-gallery .micro-main-image {
+    transition: all 0.3s ease;
+}
+
+.micro-image-grid {
+    overflow: hidden;
+}
+
+.micro-grid-item {
+    transition: all 0.3s ease;
+}
+
+/* 表情反应系统 */
+.reaction-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border-radius: 20px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+}
+
+.reaction-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    transform: scale(1.1);
+}
+
+.dark .reaction-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.reaction-btn.active {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.reaction-emoji {
+    font-size: 16px;
+    transition: transform 0.2s ease;
+}
+
+.reaction-btn:hover .reaction-emoji {
+    transform: scale(1.2);
+}
+
+.reaction-count {
+    font-size: 12px;
+    color: #6b7280;
+    min-width: 16px;
+}
+
+/* ==================== 相册详情页增强样式 ==================== */
+.photo-album-section .photo-hero {
+    transition: all 0.5s ease;
+}
+
+.photo-masonry-grid {
+    column-gap: 16px;
+}
+
+.photo-masonry-item {
+    transition: all 0.3s ease;
+}
+
+.photo-tag {
+    transition: all 0.2s ease;
+}
+
+.photo-action-btn {
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+}
+
+.photo-action-btn:hover {
+    background: rgba(16, 185, 129, 0.1);
+}
+
+/* 全屏画廊模式 */
+.gallery-fullscreen-mode {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 100 !important;
+    background: rgba(0, 0, 0, 0.95) !important;
+    padding: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* ==================== 视频详情页增强样式 ==================== */
+.video-article.is-theater-mode {
+    max-width: 100% !important;
+    border-radius: 0 !important;
+    margin: -32px -32px 0 -32px;
+}
+
+.video-play-button {
+    transition: all 0.3s ease;
+}
+
+.video-play-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 40px rgba(239, 68, 68, 0.4);
+}
+
+.video-tag {
+    transition: all 0.2s ease;
+}
+
+.video-action-btn {
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+}
+
+.video-action-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* 影院模式背景 */
+body.video-theater-mode {
+    background: #000 !important;
+}
+
+body.video-theater-mode .video-article {
+    box-shadow: none;
+    border: none;
+}
+
+/* ==================== 诗词歌赋详情页增强样式 ==================== */
+.poetry-section .poetry-bg {
+    transition: opacity 0.5s ease;
+}
+
+/* 粒子动画 */
+.poetry-particles .particle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: rgba(139, 92, 246, 0.3);
+    border-radius: 50%;
+    animation: float 6s ease-in-out infinite;
+}
+
+.poetry-particles .particle-1 {
+    left: 10%;
+    top: 20%;
+    animation-delay: 0s;
+}
+
+.poetry-particles .particle-2 {
+    left: 30%;
+    top: 60%;
+    animation-delay: 1s;
+    width: 8px;
+    height: 8px;
+}
+
+.poetry-particles .particle-3 {
+    left: 70%;
+    top: 30%;
+    animation-delay: 2s;
+    width: 12px;
+    height: 12px;
+}
+
+.poetry-particles .particle-4 {
+    left: 85%;
+    top: 70%;
+    animation-delay: 3s;
+}
+
+.poetry-particles .particle-5 {
+    left: 50%;
+    top: 80%;
+    animation-delay: 4s;
+    width: 6px;
+    height: 6px;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 0.3;
+    }
+    50% {
+        transform: translateY(-20px) rotate(180deg);
+        opacity: 0.6;
+    }
+}
+
+/* 字体主题 */
+.poetry-content[data-font="serif"] {
+    font-family: "Noto Serif SC", "Source Han Serif SC", serif;
+}
+
+.poetry-content[data-font="kai"] {
+    font-family: "KaiTi", "STKaiti", "楷体", serif;
+}
+
+.poetry-content[data-font="sans"] {
+    font-family: inherit;
+}
+
+/* 诗词控制按钮 */
+.poetry-control-btn {
+    transition: all 0.2s ease;
+}
+
+.poetry-tag {
+    transition: all 0.2s ease;
+}
+
+/* 朗诵状态 */
+.poetry-content.is-speaking {
+    animation: speakingPulse 1s ease-in-out infinite;
+}
+
+@keyframes speakingPulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}
+
+/* ==================== 骨架屏加载效果 ==================== */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite;
+}
+
+.dark .skeleton {
+    background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+    background-size: 200% 100%;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-card {
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.skeleton-image {
+    aspect-ratio: 16/9;
+}
+
+.skeleton-text {
+    height: 16px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.skeleton-text.short {
+    width: 60%;
+}
+
+.skeleton-text.medium {
+    width: 80%;
+}
+
+.skeleton-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
+
+/* ==================== 阅读进度条 ==================== */
+#reading-progress-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: transparent;
+    z-index: 9999;
+}
+
+#reading-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    transform-origin: left;
+    transform: scaleX(0);
+    transition: transform 0.1s linear;
+}
+
+/* ==================== 响应式优化 ==================== */
+@media (max-width: 640px) {
+    .poetry-controls {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .poetry-font-selector {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .reaction-btn {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+    
+    .reaction-emoji {
+        font-size: 14px;
     }
 }

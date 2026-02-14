@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ site_title | default(request.state.site_title, true) }} 后台管理{% endblock %}</title>
+    {% set admin_site_title = site_title | default(request.state.site_title, true) | default('RewrZ', true) %}
+    {% set admin_title_text %}{% block title_text %}{{ self.page_title() | striptags | trim }}{% endblock %}{% endset %}
+    <title>{% block title %}{% if admin_title_text | trim %}{{ admin_title_text | trim }} - {% endif %}{{ admin_site_title }} 后台管理{% endblock %}</title>
     {% if request.state.favicon %}
     <link rel="icon" type="image/x-icon" href="{{ request.state.favicon }}">
     {% elif favicon %}

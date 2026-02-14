@@ -1,10 +1,14 @@
 /**
  * 多格式内容交互系统
  * 处理微博、相册、视频、诗词歌赋等多重身份内容的前端交互功能
+ * Version 2.0 - 增强版
  */
 
 class MultiFormatInteractions {
     constructor() {
+        this.reactionStorage = this.getStorage('reactions');
+        this.speechSynthesis = window.speechSynthesis || null;
+        this.speaking = false;
         this.init();
     }
 
@@ -18,6 +22,37 @@ class MultiFormatInteractions {
         this.initInfiniteScroll();
         this.initImageGallery();
         this.initResponsiveGrid();
+        this.adjustImageGrid();
+        this.initReactionSystem();
+        this.initPoetryFeatures();
+        this.initGalleryFeatures();
+        this.initVideoFeatures();
+        this.initLightboxFromDataset();
+        this.initMicroDetailActions();
+        this.initPoetryAutoScroll();
+        this.initVideoTheaterMode();
+        this.initReadingProgress();
+        this.initTocHighlight();
+        this.initKeyboardNavigation();
+        window.addEventListener('resize', () => this.adjustImageGrid(), { passive: true });
+    }
+
+    // ==================== 存储工具 ====================
+    getStorage(key) {
+        try {
+            const data = localStorage.getItem(`rewrz_${key}`);
+            return data ? JSON.parse(data) : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    setStorage(key, data) {
+        try {
+            localStorage.setItem(`rewrz_${key}`, JSON.stringify(data));
+        } catch (e) {
+            // 忽略存储错误
+        }
     }
 
     /**
@@ -345,13 +380,11 @@ class MultiFormatInteractions {
         const imageGrids = document.querySelectorAll('.image-grid');
         
         imageGrids.forEach(grid => {
-            // 检查grid元素是否存在
             if (!grid) return;
             
             const imageCount = parseInt(grid.dataset.imageCount);
             const containerWidth = grid.offsetWidth;
             
-            // 根据容器宽度调整网格布局
             if (containerWidth < 400 && imageCount > 2) {
                 grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
             } else if (containerWidth < 300 && imageCount > 1) {
@@ -359,19 +392,575 @@ class MultiFormatInteractions {
             }
         });
     }
+
+    // ==================== 表情反应系统 ====================
+    initReactionSystem() {
+        const container = document.getElementById('reaction-container');
+        if (!container) return;
+
+        const postId = document.body.dataset.postId || window.location.pathname;
+        const buttons = container.querySelectorAll('.reaction-btn');
+        const summaryEl = document.getElementById('reaction-summary');
+
+        // 加载已保存的反应
+        const savedReactions = this.reactionStorage[postId] || {};
+        let totalCount = 0;
+
+        buttons.forEach(btn => {
+            const reaction = btn.dataset.reaction;
+            const countEl = btn.querySelector('.reaction-count');
+            const saved = savedReactions[reaction] || { count: 0, active: false };
+            
+            if (countEl) countEl.textContent = saved.count;
+            if (saved.active) btn.classList.add('active');
+            totalCount += saved.count;
+
+            btn.addEventListener('click', () => {
+                const isActive = btn.classList.toggle('active');
+                const currentCount = parseInt(countEl.textContent || '0');
+                const newCount = isActive ? currentCount + 1 : Math.max(0, currentCount - 1);
+                
+                if (countEl) countEl.textContent = newCount;
+                
+                // 保存状态
+                if (!this.reactionStorage[postId]) this.reactionStorage[postId] = {};
+                this.reactionStorage[postId][reaction] = { count: newCount, active: isActive };
+                this.setStorage('reactions', this.reactionStorage);
+
+                // 更新总结
+                this.updateReactionSummary(container, summaryEl);
+                
+                // 添加动画效果
+                btn.style.transform = 'scale(1.2)';
+                setTimeout(() => btn.style.transform = '', 200);
+            });
+        });
+
+        this.updateReactionSummary(container, summaryEl);
+    }
+
+    updateReactionSummary(container, summaryEl) {
+        if (!summaryEl || !container) return;
+        
+        let total = 0;
+        container.querySelectorAll('.reaction-count').forEach(el => {
+            total += parseInt(el.textContent || '0');
+        });
+
+        if (total === 0) {
+            summaryEl.textContent = '还没有人表态，快来抢沙发！';
+        } else if (total < 5) {
+            summaryEl.textContent = `${total} 人表态`;
+        } else {
+            summaryEl.textContent = `🔥 ${total} 人觉得赞`;
+        }
+    }
+
+    // ==================== 诗词功能 ====================
+    initPoetryFeatures() {
+        this.initPoetryFontSelector();
+        this.initPoetrySpeak();
+    }
+
+    initPoetryFontSelector() {
+        const fontBtns = document.querySelectorAll('.font-btn');
+        const contentEl = document.getElementById('poetry-lyrics-content');
+        
+        if (!contentEl) return;
+
+        fontBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const font = btn.dataset.font;
+                
+                // 更新按钮状态
+                fontBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // 更新字体
+                contentEl.dataset.font = font;
+                contentEl.style.fontFamily = font === 'serif' ? '"Noto Serif SC", serif' :
+                                              font === 'kai' ? '"KaiTi", "STKaiti", serif' : '';
+            });
+        });
+    }
+
+    initPoetrySpeak() {
+        const speakBtn = document.getElementById('poetry-speak-btn');
+        const contentEl = document.getElementById('poetry-lyrics-content');
+        
+        if (!speakBtn || !contentEl || !this.speechSynthesis) return;
+
+        speakBtn.addEventListener('click', () => {
+            if (this.speaking) {
+                this.speechSynthesis.cancel();
+                this.speaking = false;
+                speakBtn.innerHTML = '<i class="fas fa-volume-up mr-1"></i>朗诵';
+                contentEl.classList.remove('is-speaking');
+                return;
+            }
+
+            const text = contentEl.textContent.trim();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-CN';
+            utterance.rate = 0.8;
+            utterance.pitch = 1;
+
+            utterance.onstart = () => {
+                this.speaking = true;
+                speakBtn.innerHTML = '<i class="fas fa-stop mr-1"></i>停止';
+                contentEl.classList.add('is-speaking');
+            };
+
+            utterance.onend = () => {
+                this.speaking = false;
+                speakBtn.innerHTML = '<i class="fas fa-volume-up mr-1"></i>朗诵';
+                contentEl.classList.remove('is-speaking');
+            };
+
+            this.speechSynthesis.speak(utterance);
+        });
+    }
+
+    // ==================== 画廊功能 ====================
+    initGalleryFeatures() {
+        const fullscreenBtn = document.getElementById('gallery-fullscreen-btn');
+        const slideshowBtn = document.getElementById('gallery-slideshow-btn');
+        const gallery = document.getElementById('photo-gallery');
+
+        if (fullscreenBtn && gallery) {
+            fullscreenBtn.addEventListener('click', () => {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                } else {
+                    gallery.requestFullscreen().catch(() => {});
+                }
+            });
+        }
+
+        if (slideshowBtn && gallery) {
+            let slideshowInterval = null;
+            
+            slideshowBtn.addEventListener('click', () => {
+                if (slideshowInterval) {
+                    clearInterval(slideshowInterval);
+                    slideshowInterval = null;
+                    slideshowBtn.innerHTML = '<i class="fas fa-play mr-1"></i>幻灯片';
+                    return;
+                }
+
+                slideshowBtn.innerHTML = '<i class="fas fa-pause mr-1"></i>暂停';
+                const images = gallery.querySelectorAll('[data-lightbox-image]');
+                let currentIndex = 0;
+
+                const showNext = () => {
+                    if (images.length === 0) return;
+                    currentIndex = (currentIndex + 1) % images.length;
+                    images[currentIndex].click();
+                };
+
+                showNext();
+                slideshowInterval = setInterval(showNext, 4000);
+            });
+        }
+    }
+
+    // ==================== 视频功能 ====================
+    initVideoFeatures() {
+        const pipBtn = document.getElementById('video-pip-btn');
+        
+        if (pipBtn) {
+            const pipSupported =
+                'pictureInPictureEnabled' in document &&
+                typeof document.pictureInPictureEnabled === 'boolean' &&
+                'requestPictureInPicture' in HTMLVideoElement.prototype;
+
+            if (!pipSupported) {
+                pipBtn.classList.add('opacity-60', 'cursor-not-allowed');
+                pipBtn.setAttribute('aria-disabled', 'true');
+                pipBtn.title = '当前浏览器不支持画中画';
+                return;
+            }
+
+            const setPipButtonState = (active) => {
+                pipBtn.innerHTML = active
+                    ? '<i class="fas fa-compress mr-1"></i>退出画中画'
+                    : '<i class="fas fa-clone mr-1"></i>画中画';
+            };
+
+            setPipButtonState(false);
+
+            pipBtn.addEventListener('click', async () => {
+                const video = document.querySelector('video');
+                if (!video) {
+                    this.showToast('暂无视频内容');
+                    return;
+                }
+
+                try {
+                    if (document.pictureInPictureElement) {
+                        await document.exitPictureInPicture();
+                        setPipButtonState(false);
+                    } else if (video.readyState >= 1) {
+                        await video.requestPictureInPicture();
+                        setPipButtonState(true);
+                    } else {
+                        this.showToast('视频尚未加载完成');
+                    }
+                } catch (error) {
+                    this.showToast('画中画暂不可用');
+                    console.error('画中画操作失败:', error);
+                }
+            });
+
+            document.addEventListener('leavepictureinpicture', () => {
+                setPipButtonState(false);
+            });
+        }
+    }
+
+    initLightboxFromDataset() {
+        if (document.getElementById('format-lightbox')) return;
+
+        const lightboxButtons = Array.from(document.querySelectorAll('[data-lightbox-image]'));
+        if (!lightboxButtons.length) return;
+
+        const lightboxGroups = new Map();
+        lightboxButtons.forEach((btn, index) => {
+            const groupName = btn.dataset.lightboxGroup || `__single_${index}`;
+            const position = Number.isNaN(Number(btn.dataset.lightboxPosition))
+                ? (lightboxGroups.get(groupName)?.length || 0)
+                : Number(btn.dataset.lightboxPosition);
+            if (!lightboxGroups.has(groupName)) {
+                lightboxGroups.set(groupName, []);
+            }
+            lightboxGroups.get(groupName)[position] = {
+                src: btn.dataset.lightboxImage || '',
+                title: btn.dataset.lightboxTitle || '',
+            };
+            btn.dataset.lightboxGroup = groupName;
+            btn.dataset.lightboxPosition = String(position);
+        });
+
+        let activeLightbox = null;
+        const closeLightbox = () => {
+            if (!activeLightbox) return;
+            activeLightbox.modal.remove();
+            document.removeEventListener('keydown', activeLightbox.onKeydown);
+            activeLightbox = null;
+            document.body.classList.remove('overflow-hidden');
+        };
+
+        const renderLightboxState = (state) => {
+            const groups = lightboxGroups.get(state.group) || [];
+            const current = groups[state.index];
+            if (!current || !current.src) return;
+
+            state.imageEl.src = current.src;
+            state.imageEl.alt = current.title || '';
+            state.titleEl.textContent = current.title || '';
+            state.counterEl.textContent = `${state.index + 1} / ${groups.length}`;
+            state.prevEl.style.visibility = groups.length > 1 ? 'visible' : 'hidden';
+            state.nextEl.style.visibility = groups.length > 1 ? 'visible' : 'hidden';
+        };
+
+        const openLightbox = (group, index) => {
+            const groups = lightboxGroups.get(group) || [];
+            if (!groups.length) return;
+            const normalizedIndex = Math.max(0, Math.min(index, groups.length - 1));
+
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 z-[70] bg-black/90 flex items-center justify-center p-4';
+            modal.innerHTML = `
+                <button type="button" class="absolute top-4 right-6 text-white text-4xl leading-none" data-close-lightbox>&times;</button>
+                <button type="button" class="absolute left-3 md:left-6 text-white text-3xl px-3 py-2 bg-black/35 rounded-lg" data-lightbox-prev><i class="fas fa-chevron-left"></i></button>
+                <div class="relative max-w-6xl w-full">
+                    <img data-lightbox-img class="max-h-[84vh] w-full object-contain rounded-lg" />
+                    <div class="mt-3 text-center text-sm text-white/80" data-lightbox-title></div>
+                    <div class="mt-1 text-center text-xs text-white/60" data-lightbox-counter></div>
+                </div>
+                <button type="button" class="absolute right-3 md:right-6 text-white text-3xl px-3 py-2 bg-black/35 rounded-lg" data-lightbox-next><i class="fas fa-chevron-right"></i></button>
+            `;
+            document.body.appendChild(modal);
+            document.body.classList.add('overflow-hidden');
+
+            const state = {
+                modal,
+                group,
+                index: normalizedIndex,
+                imageEl: modal.querySelector('[data-lightbox-img]'),
+                titleEl: modal.querySelector('[data-lightbox-title]'),
+                counterEl: modal.querySelector('[data-lightbox-counter]'),
+                prevEl: modal.querySelector('[data-lightbox-prev]'),
+                nextEl: modal.querySelector('[data-lightbox-next]'),
+                onKeydown: null,
+            };
+
+            const move = (step) => {
+                const items = lightboxGroups.get(group) || [];
+                if (items.length <= 1) return;
+                state.index = (state.index + step + items.length) % items.length;
+                renderLightboxState(state);
+            };
+
+            state.prevEl.addEventListener('click', () => move(-1));
+            state.nextEl.addEventListener('click', () => move(1));
+            modal.querySelector('[data-close-lightbox]').addEventListener('click', closeLightbox);
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) closeLightbox();
+            });
+
+            state.onKeydown = (event) => {
+                if (!activeLightbox) return;
+                if (event.key === 'Escape') {
+                    closeLightbox();
+                } else if (event.key === 'ArrowLeft') {
+                    move(-1);
+                } else if (event.key === 'ArrowRight') {
+                    move(1);
+                }
+            };
+            document.addEventListener('keydown', state.onKeydown);
+
+            activeLightbox = state;
+            renderLightboxState(state);
+        };
+
+        lightboxButtons.forEach((btn) => {
+            btn.addEventListener('click', function() {
+                const group = this.dataset.lightboxGroup;
+                const position = Number(this.dataset.lightboxPosition || '0');
+                openLightbox(group, Number.isNaN(position) ? 0 : position);
+            });
+        });
+    }
+
+    initMicroDetailActions() {
+        const microLikeBtn = document.getElementById('micro-like-btn');
+        if (microLikeBtn) {
+            microLikeBtn.addEventListener('click', function() {
+                const liked = this.dataset.liked === '1';
+                this.dataset.liked = liked ? '0' : '1';
+                this.classList.toggle('text-rose-500', !liked);
+                this.innerHTML = liked
+                    ? '<i class="far fa-heart mr-1"></i>喜欢'
+                    : '<i class="fas fa-heart mr-1"></i>已喜欢';
+            });
+        }
+
+        const microFocusBtn = document.getElementById('micro-focus-btn');
+        const microArticle = document.getElementById('micro-post-article');
+        if (microFocusBtn && microArticle) {
+            microFocusBtn.addEventListener('click', function() {
+                microArticle.classList.toggle('scale-[1.01]');
+                microArticle.classList.toggle('shadow-2xl');
+                this.classList.toggle('text-indigo-600');
+            });
+        }
+    }
+
+    initPoetryAutoScroll() {
+        const poetryScrollToggle = document.getElementById('poetry-scroll-toggle');
+        const poetryLyricsContent = document.getElementById('poetry-lyrics-content');
+        if (!poetryScrollToggle || !poetryLyricsContent) return;
+
+        let poetryTimer = null;
+        poetryScrollToggle.addEventListener('click', function() {
+            const running = this.dataset.running === '1';
+            if (running) {
+                this.dataset.running = '0';
+                this.innerHTML = '<i class="fas fa-wave-square mr-1"></i>自动滚动';
+                clearInterval(poetryTimer);
+                poetryTimer = null;
+                return;
+            }
+
+            this.dataset.running = '1';
+            this.innerHTML = '<i class="fas fa-pause mr-1"></i>暂停滚动';
+            poetryTimer = setInterval(() => {
+                const maxScroll = poetryLyricsContent.scrollHeight - poetryLyricsContent.clientHeight;
+                if (poetryLyricsContent.scrollTop >= maxScroll) {
+                    poetryLyricsContent.scrollTop = 0;
+                    return;
+                }
+                poetryLyricsContent.scrollTop += 1;
+            }, 28);
+        });
+    }
+
+    initVideoTheaterMode() {
+        const videoTheaterToggle = document.getElementById('video-theater-toggle');
+        const videoPostShell = document.getElementById('video-post-shell');
+        if (!videoTheaterToggle || !videoPostShell) return;
+
+        videoTheaterToggle.addEventListener('click', function() {
+            const theater = this.dataset.theater === '1';
+            if (theater) {
+                this.dataset.theater = '0';
+                this.innerHTML = '<i class="fas fa-film mr-1"></i>影院模式';
+                document.body.classList.remove('bg-black');
+                videoPostShell.classList.remove('ring-2', 'ring-indigo-500/50');
+                return;
+            }
+
+            this.dataset.theater = '1';
+            this.innerHTML = '<i class="fas fa-compress mr-1"></i>退出影院';
+            document.body.classList.add('bg-black');
+            videoPostShell.classList.add('ring-2', 'ring-indigo-500/50');
+        });
+    }
+
+    initReadingProgress() {
+        const detailPageMarkers = [
+            '#micro-post-article',
+            '.photo-album-article',
+            '#video-post-shell',
+            '#poetry-lyrics-content',
+            'nav[aria-label="文章目录"]',
+            '.prose.prose-lg',
+        ];
+        const isDetailPage = detailPageMarkers.some((selector) => document.querySelector(selector));
+        if (!isDetailPage) return;
+
+        if (document.getElementById('reading-progress-container')) return;
+
+        const progressContainer = document.createElement('div');
+        progressContainer.id = 'reading-progress-container';
+        progressContainer.innerHTML = '<div id="reading-progress-bar"></div>';
+        document.body.appendChild(progressContainer);
+
+        let progressRafId = null;
+        const updateReadingProgress = () => {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const progress = Math.max(0, Math.min(100, (scrollTop / Math.max(scrollHeight, 1)) * 100));
+            const progressBar = document.getElementById('reading-progress-bar');
+            if (progressBar) {
+                progressBar.style.transform = `scaleX(${progress / 100})`;
+            }
+        };
+
+        const handleScroll = () => {
+            if (progressRafId) {
+                cancelAnimationFrame(progressRafId);
+            }
+            progressRafId = requestAnimationFrame(updateReadingProgress);
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        window.addEventListener('resize', handleScroll, { passive: true });
+        updateReadingProgress();
+    }
+
+    initTocHighlight() {
+        const tocLinks = document.querySelectorAll('[data-toc-link]');
+        if (!tocLinks.length) return;
+
+        const headings = Array.from(tocLinks)
+            .map((link) => document.getElementById(link.dataset.tocLink))
+            .filter(Boolean);
+        if (!headings.length) return;
+
+        const activate = (id) => {
+            tocLinks.forEach((link) => {
+                if (link.dataset.tocLink === id) {
+                    link.classList.add('font-semibold', 'text-blue-900');
+                } else {
+                    link.classList.remove('font-semibold', 'text-blue-900');
+                }
+            });
+        };
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const visible = entries
+                    .filter((entry) => entry.isIntersecting)
+                    .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+                if (visible.length) {
+                    activate(visible[0].target.id);
+                }
+            },
+            {
+                rootMargin: '0px 0px -70% 0px',
+                threshold: 0.1,
+            }
+        );
+
+        headings.forEach((h) => observer.observe(h));
+    }
+
+    // ==================== 键盘导航 ====================
+    initKeyboardNavigation() {
+        document.addEventListener('keydown', (event) => {
+            const tagName = (event.target && event.target.tagName) || '';
+            const isTypingTarget =
+                ['INPUT', 'TEXTAREA', 'SELECT'].includes(tagName) ||
+                (event.target && event.target.isContentEditable);
+            if (isTypingTarget) return;
+
+            if (event.key === 'k') {
+                const firstMedia = document.querySelector('video, audio');
+                if (!firstMedia) return;
+                event.preventDefault();
+                if (firstMedia.paused) {
+                    firstMedia.play().catch(() => {});
+                } else {
+                    firstMedia.pause();
+                }
+            }
+
+            if (event.key === 'm') {
+                const firstMedia = document.querySelector('video, audio');
+                if (!firstMedia) return;
+                firstMedia.muted = !firstMedia.muted;
+                this.showToast(firstMedia.muted ? '已静音' : '已取消静音', 'info', 1200);
+            }
+        });
+    }
+
+    showToast(message, type = 'info', duration = 1800) {
+        const toast = document.createElement('div');
+        toast.className = `multi-format-toast multi-format-toast-${type}`;
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            top: 1.25rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            padding: 0.6rem 1rem;
+            border-radius: 999px;
+            color: #fff;
+            font-size: 0.82rem;
+            font-weight: 600;
+            background: rgba(15, 23, 42, 0.92);
+            box-shadow: 0 8px 25px rgba(2, 6, 23, 0.35);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+        `;
+
+        if (type === 'error') {
+            toast.style.background = 'rgba(185, 28, 28, 0.95)';
+        } else if (type === 'success') {
+            toast.style.background = 'rgba(22, 163, 74, 0.95)';
+        }
+
+        document.body.appendChild(toast);
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+        });
+
+        window.setTimeout(() => {
+            toast.style.opacity = '0';
+            window.setTimeout(() => toast.remove(), 220);
+        }, Math.max(800, duration));
+    }
 }
 
-// 初始化多格式交互功能
 document.addEventListener('DOMContentLoaded', () => {
-    window.multiFormatInteractions = new MultiFormatInteractions();
-    
-    // 响应式调整
-    window.addEventListener('resize', () => {
-        // 检查对象是否存在再调用方法
-        if (window.multiFormatInteractions && typeof window.multiFormatInteractions.adjustImageGrid === 'function') {
-            window.multiFormatInteractions.adjustImageGrid();
-        }
-    });
+    if (!window.multiFormatInteractions) {
+        window.multiFormatInteractions = new MultiFormatInteractions();
+    }
 });
 
 export default MultiFormatInteractions;

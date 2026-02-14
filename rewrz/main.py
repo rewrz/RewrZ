@@ -787,21 +787,37 @@ def register_admin_routes():
             })
             return templates.TemplateResponse("password_protected.html", context, status_code=401)
         
-        # 验证格式slug是否匹配
+        # 验证格式slug是否匹配，并确定当前详情页展示格式
+        active_format_slug = "article"
         if db_post.formats:
-            canonical_format_slug = db_post.formats[0].slug
-            accepted_slugs = {canonical_format_slug}
-            if canonical_format_slug == "micro-post":
-                accepted_slugs.add("weibo")
-            elif canonical_format_slug == "photo-album":
-                accepted_slugs.add("photos")
-            elif canonical_format_slug == "poetry-song":
-                accepted_slugs.add("music")
+            post_format_slugs = [fmt.slug for fmt in db_post.formats if getattr(fmt, "slug", None)]
+            if post_format_slugs:
+                requested_format_slug = FORMAT_SLUG_ALIASES.get(format_slug, format_slug)
+                accepted_slugs = set(post_format_slugs)
+                for slug in post_format_slugs:
+                    if slug == "micro-post":
+                        accepted_slugs.add("weibo")
+                    elif slug == "photo-album":
+                        accepted_slugs.add("photos")
+                    elif slug == "poetry-song":
+                        accepted_slugs.add("music")
 
-            if format_slug not in accepted_slugs:
-                # 如果不匹配，重定向到正确的URL
-                correct_format_slug = canonical_format_slug
-                return RedirectResponse(url=f"/{correct_format_slug}/{post_slug}", status_code=301)
+                if format_slug not in accepted_slugs and requested_format_slug not in post_format_slugs:
+                    # 路由不匹配时，重定向到文章的首选展示格式（优先使用对外友好别名）
+                    preferred_slug = post_format_slugs[0]
+                    preferred_alias = {
+                        "micro-post": "weibo",
+                        "photo-album": "photos",
+                        "poetry-song": "music",
+                    }.get(preferred_slug, preferred_slug)
+                    return RedirectResponse(url=f"/{preferred_alias}/{post_slug}", status_code=301)
+
+                if requested_format_slug in post_format_slugs:
+                    active_format_slug = requested_format_slug
+                elif format_slug in post_format_slugs:
+                    active_format_slug = format_slug
+                else:
+                    active_format_slug = post_format_slugs[0]
         
         # 获取SEO元数据
         from .api.seo import _generate_post_seo_data
@@ -833,6 +849,7 @@ def register_admin_routes():
             "donation_config": donation_config,
             "display_content_html": display_content_html,
             "toc_items": toc_items,
+            "active_format_slug": active_format_slug,
         })
         
         return templates.TemplateResponse("post_detail.html", context)
@@ -1153,7 +1170,12 @@ async def unlock_password_protected_post(
         if db_post.post_type == "page":
             safe_next_url = f"/{db_post.slug}"
         else:
-            format_slug = db_post.formats[0].slug if db_post.formats else "article"
+            available_slugs = [fmt.slug for fmt in db_post.formats if getattr(fmt, "slug", None)] if db_post.formats else []
+            if available_slugs:
+                priority = ["micro-post", "photo-album", "video", "poetry-song", "article"]
+                format_slug = next((slug for slug in priority if slug in available_slugs), available_slugs[0])
+            else:
+                format_slug = "article"
             format_slug = {
                 "micro-post": "weibo",
                 "photo-album": "photos",

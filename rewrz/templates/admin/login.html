@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>用户登录 - {{ request.state.site_title }}</title>
+    <title>用户登录 - {{ request.state.site_title | default('RewrZ', true) }} 后台管理</title>
     {% if request.state.favicon %}
     <link rel="icon" type="image/x-icon" href="{{ request.state.favicon }}">
     {% else %}

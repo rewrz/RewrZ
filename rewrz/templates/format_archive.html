@@ -85,7 +85,7 @@
     <!-- 相册格式：瀑布流/网格画廊布局 -->
     <div class="masonry-grid">
         {% for post in posts %}
-        <div class="masonry-item group cursor-pointer" onclick="window.location.href='{{ post | post_url }}'">
+        <div class="masonry-item group cursor-pointer" onclick="window.location.href='/{{ format_slug }}/{{ post.slug }}'">
             <div class="relative overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                 {% if post.featured_image_url %}
                 {{ post.featured_image_url | responsive_image(post.title, "w-full h-auto object-cover", "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw", request.state.db) | safe }}
@@ -116,6 +116,20 @@
                         <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
                     </svg>
                 </div>
+                {% if post.featured_image_url %}
+                <button
+                    type="button"
+                    class="album-preview-trigger absolute top-2 right-2 bg-black/60 text-white rounded-full w-8 h-8 inline-flex items-center justify-center hover:bg-black/80 transition-colors"
+                    data-lightbox-group="format-album"
+                    data-lightbox-index="{{ loop.index0 }}"
+                    data-lightbox-image="{{ post.featured_image_url }}"
+                    data-lightbox-title="{{ post.title }}"
+                    onclick="event.stopPropagation();"
+                    aria-label="预览图片"
+                >
+                    <i class="fas fa-search-plus text-xs"></i>
+                </button>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
@@ -154,7 +168,7 @@
             
             <!-- 文本内容 -->
             <div class="px-4 pb-3">
-                <div class="prose prose-sm max-w-none text-gray-800 leading-relaxed">
+                <div class="prose prose-sm max-w-none text-gray-800 leading-relaxed weibo-content-body" data-max-chars="180">
                     {{ post.content_html | safe }}
                 </div>
             </div>
@@ -190,26 +204,26 @@
             <!-- 底部操作栏 -->
             <div class="flex items-center justify-between px-4 py-3 border-t border-gray-50 text-gray-500">
                 <div class="flex items-center space-x-6 text-xs">
-                    <button class="flex items-center space-x-1 hover:text-red-500 transition-colors">
+                    <button class="weibo-action-btn flex items-center space-x-1 hover:text-red-500 transition-colors" data-action="like" data-like-key="weibo_like_{{ post.id }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
                         </svg>
-                        <span>赞</span>
+                        <span>赞</span><span class="weibo-action-count">0</span>
                     </button>
-                    <button class="flex items-center space-x-1 hover:text-blue-500 transition-colors">
+                    <a href="/{{ format_slug }}/{{ post.slug }}#comments-section" class="flex items-center space-x-1 hover:text-blue-500 transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                         </svg>
                         <span>评论</span>
-                    </button>
-                    <button class="flex items-center space-x-1 hover:text-green-500 transition-colors">
+                    </a>
+                    <button class="weibo-action-btn flex items-center space-x-1 hover:text-green-500 transition-colors" data-action="repost" data-share-url="/{{ format_slug }}/{{ post.slug }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path>
                         </svg>
-                        <span>转发</span>
+                        <span>转发</span><span class="weibo-action-count">0</span>
                     </button>
                 </div>
-                <a href="{{ post | post_url }}" class="text-xs text-indigo-600 hover:text-indigo-800">查看详情</a>
+                <a href="/{{ format_slug }}/{{ post.slug }}" class="text-xs text-indigo-600 hover:text-indigo-800">查看详情</a>
             </div>
         </div>
         {% endfor %}
@@ -219,11 +233,11 @@
     <!-- 视频格式：卡片式布局（类似B站/YouTube） -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {% for post in posts %}
-        <div class="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden group">
+        <div class="video-preview-card bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden group">
             <!-- 视频缩略图区域 -->
             <div class="relative aspect-video bg-gray-900 overflow-hidden">
                 {% if post.featured_image_url %}
-                {{ post.featured_image_url | responsive_image(post.title, "w-full h-full object-cover group-hover:scale-105 transition-transform duration-300", "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw", request.state.db) | safe }}
+                {{ post.featured_image_url | responsive_image(post.title, "video-thumb w-full h-full object-cover group-hover:scale-105 transition-transform duration-300", "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw", request.state.db) | safe }}
                 {% else %}
                 <div class="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
                     <svg class="w-16 h-16 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
@@ -234,7 +248,7 @@
                 
                 <!-- 播放按钮覆盖层 -->
                 <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300">
-                    <div class="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center transform scale-90 group-hover:scale-100 transition-transform duration-300 shadow-lg">
+                    <div class="video-play-bubble w-16 h-16 bg-red-600 rounded-full flex items-center justify-center transform scale-90 group-hover:scale-100 transition-transform duration-300 shadow-lg">
                         <svg class="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path>
                         </svg>
@@ -242,9 +256,10 @@
                 </div>
                 
                 <!-- 时长标签 -->
-                <div class="absolute bottom-2 right-2 bg-black bg-opacity-80 text-white text-xs px-2 py-1 rounded font-medium">
+                <div class="absolute bottom-2 right-2 bg-black bg-opacity-80 text-white text-xs px-2 py-1 rounded font-medium" data-video-badge>
                     {{ post.content_markdown | reading_time }}
                 </div>
+                <div class="video-preview-progress absolute bottom-0 left-0 h-1 bg-red-500/90 w-0"></div>
                 
                 <!-- 视频标识 -->
                 <div class="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full font-medium">
@@ -255,7 +270,7 @@
             <!-- 视频信息区域 -->
             <div class="p-4">
                 <h3 class="font-semibold text-gray-900 text-sm leading-tight mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">
-                    <a href="{{ post | post_url }}">{{ post.title }}</a>
+                    <a href="/{{ format_slug }}/{{ post.slug }}">{{ post.title }}</a>
                 </h3>
                 
                 <!-- 作者和发布信息 -->
@@ -311,7 +326,7 @@
         <!-- 播放列表 -->
         <div class="bg-white rounded-b-xl shadow-lg overflow-hidden">
             {% for post in posts %}
-            <div class="flex items-center p-4 hover:bg-gray-50 transition-colors duration-200 border-b border-gray-100 group cursor-pointer" onclick="window.location.href='{{ post | post_url }}'">
+            <div class="flex items-center p-4 hover:bg-gray-50 transition-colors duration-200 border-b border-gray-100 group cursor-pointer" onclick="window.location.href='/{{ format_slug }}/{{ post.slug }}'">
                 <!-- 序号/播放按钮 -->
                 <div class="flex-shrink-0 w-12 h-12 flex items-center justify-center mr-4">
                     <div class="w-10 h-10 bg-gray-100 group-hover:bg-indigo-600 rounded-full flex items-center justify-center transition-colors duration-200">
@@ -376,7 +391,7 @@
             {{ post.featured_image_url | responsive_image(post.title, "w-full h-48 object-cover rounded-lg mb-4", "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw", request.state.db) | safe }}
             {% endif %}
             <h2 class="text-xl font-semibold text-gray-800 mb-2">
-                <a href="{{ post | post_url }}" class="hover:text-indigo-600">{{ post.title }}</a>
+                <a href="/{{ format_slug }}/{{ post.slug }}" class="hover:text-indigo-600">{{ post.title }}</a>
             </h2>
             <div class="flex items-center space-x-4 text-gray-600 text-sm mb-4">
                 <span>发布于 {{ post.published_at.strftime('%Y年%m月%d日') }}</span>
@@ -391,7 +406,7 @@
                 </span>
             </div>
             <p class="text-gray-700">{{ post.excerpt }}</p>
-            <a href="{{ post | post_url }}" class="inline-block mt-4 text-indigo-600 hover:underline">阅读更多 &rarr;</a>
+            <a href="/{{ format_slug }}/{{ post.slug }}" class="inline-block mt-4 text-indigo-600 hover:underline">阅读更多 &rarr;</a>
         </div>
         {% endfor %}
     </div>
@@ -402,6 +417,26 @@
         <a href="/" class="inline-block mt-4 text-indigo-600 hover:underline">返回首页</a>
     </div>
     {% endif %}
+</div>
+
+<div id="format-lightbox" class="format-lightbox hidden" aria-hidden="true">
+    <div class="format-lightbox-backdrop" data-lightbox-close></div>
+    <div class="format-lightbox-panel" role="dialog" aria-modal="true" aria-label="图片预览">
+        <button type="button" class="format-lightbox-close" data-lightbox-close aria-label="关闭">
+            <i class="fas fa-times"></i>
+        </button>
+        <button type="button" class="format-lightbox-nav prev" data-lightbox-prev aria-label="上一张">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <img id="format-lightbox-image" class="format-lightbox-image" src="" alt="">
+        <button type="button" class="format-lightbox-nav next" data-lightbox-next aria-label="下一张">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        <div class="format-lightbox-caption">
+            <span id="format-lightbox-title"></span>
+            <span id="format-lightbox-index"></span>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -456,6 +491,193 @@
     grid-template-columns: repeat(3, 1fr);
 }
 
+.album-preview-trigger {
+    backdrop-filter: blur(3px);
+}
+
+.album-preview-trigger:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.95);
+    outline-offset: 2px;
+}
+
+.weibo-content-body.is-collapsed {
+    max-height: 7.5rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.weibo-content-body.is-collapsed::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2.4rem;
+    background: linear-gradient(to top, #ffffff, rgba(255, 255, 255, 0));
+    pointer-events: none;
+}
+
+.weibo-expand-btn {
+    margin-top: 0.35rem;
+    color: #4f46e5;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.weibo-action-btn .weibo-action-count {
+    min-width: 0.65rem;
+    text-align: center;
+}
+
+.weibo-action-btn.active {
+    color: #dc2626;
+}
+
+[data-action="repost"].active {
+    color: #16a34a;
+}
+
+.weibo-action-toast {
+    position: fixed;
+    left: 50%;
+    top: 1.25rem;
+    transform: translateX(-50%);
+    z-index: 90;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.9);
+    padding: 0.5rem 1rem;
+    color: #ffffff;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.video-preview-card {
+    position: relative;
+}
+
+.video-preview-card .video-play-bubble {
+    transition: transform 0.28s ease, box-shadow 0.28s ease;
+}
+
+.video-preview-card .video-preview-progress {
+    transition: width 0.22s linear;
+}
+
+.video-preview-card.is-previewing .video-thumb {
+    transform: scale(1.08);
+}
+
+.video-preview-card.is-previewing .video-play-bubble {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.18);
+}
+
+.video-preview-card.is-previewing .video-preview-progress {
+    width: 100%;
+    transition: width 1.2s linear;
+}
+
+.format-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+}
+
+.format-lightbox-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(3, 7, 18, 0.86);
+    backdrop-filter: blur(3px);
+}
+
+.format-lightbox-panel {
+    position: relative;
+    width: min(92vw, 1080px);
+    height: min(88vh, 860px);
+    margin: 4vh auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.format-lightbox-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 0.75rem;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+}
+
+.format-lightbox-caption {
+    position: absolute;
+    left: 50%;
+    bottom: 0.5rem;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.65);
+    color: #f8fafc;
+    font-size: 0.85rem;
+    line-height: 1.2;
+    border-radius: 999px;
+    padding: 0.55rem 0.95rem;
+    display: inline-flex;
+    gap: 0.8rem;
+    max-width: calc(100% - 2rem);
+}
+
+.format-lightbox-close,
+.format-lightbox-nav {
+    position: absolute;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 999px;
+    border: none;
+    color: #f8fafc;
+    background: rgba(15, 23, 42, 0.68);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+}
+
+.format-lightbox-close:hover,
+.format-lightbox-nav:hover {
+    background: rgba(15, 23, 42, 0.95);
+}
+
+.format-lightbox-close {
+    top: -0.8rem;
+    right: 0;
+}
+
+.format-lightbox-nav.prev {
+    left: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.format-lightbox-nav.next {
+    right: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+@media (max-width: 768px) {
+    .format-lightbox-panel {
+        width: min(96vw, 760px);
+        margin: 6vh auto;
+    }
+
+    .format-lightbox-nav {
+        width: 2.2rem;
+        height: 2.2rem;
+    }
+
+    .format-lightbox-caption {
+        font-size: 0.75rem;
+        gap: 0.55rem;
+    }
+}
+
 /* 文本截断 */
 .line-clamp-2 {
     display: -webkit-box;
@@ -476,21 +698,216 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 图片点击预览功能
-    const images = document.querySelectorAll('.weibo-image-grid img, .masonry-item img');
-    images.forEach(img => {
-        img.addEventListener('click', function(e) {
-            e.preventDefault();
-            // 这里可以添加图片预览功能
-            console.log('Image clicked:', this.src);
+    const lightboxRoot = document.getElementById('format-lightbox');
+    const lightboxImg = document.getElementById('format-lightbox-image');
+    const lightboxTitle = document.getElementById('format-lightbox-title');
+    const lightboxIndex = document.getElementById('format-lightbox-index');
+    const prevBtn = lightboxRoot ? lightboxRoot.querySelector('[data-lightbox-prev]') : null;
+    const nextBtn = lightboxRoot ? lightboxRoot.querySelector('[data-lightbox-next]') : null;
+    const closeButtons = lightboxRoot ? lightboxRoot.querySelectorAll('[data-lightbox-close]') : [];
+    let lightboxItems = [];
+    let lightboxPosition = 0;
+
+    const setLightboxItem = (index) => {
+        if (!lightboxItems.length || !lightboxImg) return;
+        lightboxPosition = (index + lightboxItems.length) % lightboxItems.length;
+        const item = lightboxItems[lightboxPosition];
+        lightboxImg.src = item.image;
+        lightboxImg.alt = item.title || '预览图';
+        if (lightboxTitle) lightboxTitle.textContent = item.title || '图片预览';
+        if (lightboxIndex) lightboxIndex.textContent = `${lightboxPosition + 1}/${lightboxItems.length}`;
+    };
+
+    const openLightbox = (items, startIndex) => {
+        if (!lightboxRoot || !items.length) return;
+        lightboxItems = items;
+        setLightboxItem(startIndex || 0);
+        lightboxRoot.classList.remove('hidden');
+        lightboxRoot.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('overflow-hidden');
+    };
+
+    const closeLightbox = () => {
+        if (!lightboxRoot) return;
+        lightboxRoot.classList.add('hidden');
+        lightboxRoot.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('overflow-hidden');
+        if (lightboxImg) lightboxImg.src = '';
+    };
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', function() {
+            setLightboxItem(lightboxPosition - 1);
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function() {
+            setLightboxItem(lightboxPosition + 1);
+        });
+    }
+    closeButtons.forEach((button) => {
+        button.addEventListener('click', closeLightbox);
+    });
+    document.addEventListener('keydown', function(event) {
+        if (!lightboxRoot || lightboxRoot.classList.contains('hidden')) return;
+        if (event.key === 'Escape') closeLightbox();
+        if (event.key === 'ArrowLeft') setLightboxItem(lightboxPosition - 1);
+        if (event.key === 'ArrowRight') setLightboxItem(lightboxPosition + 1);
+    });
+
+    // 图集预览按钮（format: photo-album）
+    const albumButtons = Array.from(document.querySelectorAll('[data-lightbox-group="format-album"]'));
+    if (albumButtons.length) {
+        const albumItems = albumButtons
+            .map((btn) => ({
+                image: btn.dataset.lightboxImage,
+                title: btn.dataset.lightboxTitle || '',
+                index: parseInt(btn.dataset.lightboxIndex || '0', 10),
+            }))
+            .sort((a, b) => a.index - b.index);
+        albumButtons.forEach((button) => {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                const startIndex = parseInt(button.dataset.lightboxIndex || '0', 10);
+                openLightbox(albumItems, startIndex);
+            });
+        });
+    }
+
+    // 微博图片按单条动态分组预览
+    document.querySelectorAll('.weibo-image-grid').forEach((grid, gridIndex) => {
+        const imgs = Array.from(grid.querySelectorAll('img'));
+        const items = imgs.map((img, imgIndex) => ({
+            image: img.currentSrc || img.src,
+            title: img.alt || `动态图片 ${imgIndex + 1}`,
+            index: imgIndex,
+        }));
+        imgs.forEach((img, imgIndex) => {
+            img.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                openLightbox(items, imgIndex);
+            });
+            img.dataset.weiboPreviewGroup = `weibo-${gridIndex}`;
         });
     });
-    
-    // 视频卡片悬停效果
-    const videoCards = document.querySelectorAll('.group');
+    document.querySelectorAll('.px-4.pb-3 > .rounded-lg img').forEach((img) => {
+        img.addEventListener('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            openLightbox([{ image: img.currentSrc || img.src, title: img.alt || '动态图片', index: 0 }], 0);
+        });
+    });
+
+    // 微博内容折叠与展开
+    document.querySelectorAll('.weibo-content-body').forEach((contentNode) => {
+        const maxChars = parseInt(contentNode.dataset.maxChars || '180', 10);
+        const textLength = (contentNode.textContent || '').trim().length;
+        if (textLength <= maxChars) return;
+        contentNode.classList.add('is-collapsed');
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'weibo-expand-btn';
+        toggleBtn.textContent = '展开全文';
+        toggleBtn.addEventListener('click', function() {
+            const collapsed = contentNode.classList.toggle('is-collapsed');
+            toggleBtn.textContent = collapsed ? '展开全文' : '收起';
+        });
+        contentNode.parentNode.appendChild(toggleBtn);
+    });
+
+    // 微博操作：点赞/转发（本地记忆）
+    const storage = {
+        get: (key, fallback) => {
+            try {
+                const value = localStorage.getItem(key);
+                if (value === null) return fallback;
+                return JSON.parse(value);
+            } catch (_) {
+                return fallback;
+            }
+        },
+        set: (key, value) => {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch (_) {
+                // ignore storage errors
+            }
+        },
+    };
+    const showActionToast = (message) => {
+        const toast = document.createElement('div');
+        toast.className = 'weibo-action-toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 1600);
+    };
+    const copyText = async (text) => {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            return true;
+        }
+        const input = document.createElement('input');
+        input.value = text;
+        document.body.appendChild(input);
+        input.select();
+        const copied = document.execCommand('copy');
+        input.remove();
+        return copied;
+    };
+    document.querySelectorAll('.weibo-action-btn').forEach((btn) => {
+        const action = btn.dataset.action;
+        const counter = btn.querySelector('.weibo-action-count');
+        if (action === 'like') {
+            const likeKey = btn.dataset.likeKey || '';
+            const stateKey = `${likeKey}_state`;
+            const countKey = `${likeKey}_count`;
+            const liked = storage.get(stateKey, false);
+            const likedCount = storage.get(countKey, liked ? 1 : 0);
+            if (liked) btn.classList.add('active');
+            if (counter) counter.textContent = String(likedCount);
+            btn.addEventListener('click', function() {
+                const isActive = btn.classList.toggle('active');
+                const nextCount = Math.max(0, parseInt(counter ? counter.textContent : '0', 10) + (isActive ? 1 : -1));
+                if (counter) counter.textContent = String(nextCount);
+                storage.set(stateKey, isActive);
+                storage.set(countKey, nextCount);
+            });
+        } else if (action === 'repost') {
+            const shareStateKey = `share_${btn.dataset.shareUrl || ''}`;
+            const shareCount = storage.get(`${shareStateKey}_count`, 0);
+            if (counter) counter.textContent = String(shareCount);
+            btn.addEventListener('click', async function() {
+                const shareUrl = btn.dataset.shareUrl || '/';
+                const fullUrl = new URL(shareUrl, window.location.origin).toString();
+                try {
+                    await copyText(fullUrl);
+                    const nextCount = parseInt(counter ? counter.textContent : '0', 10) + 1;
+                    if (counter) counter.textContent = String(nextCount);
+                    storage.set(`${shareStateKey}_count`, nextCount);
+                    btn.classList.add('active');
+                    setTimeout(() => btn.classList.remove('active'), 1200);
+                    showActionToast('链接已复制，可直接分享');
+                } catch (_) {
+                    showActionToast('复制失败，请手动复制地址');
+                }
+            });
+        }
+    });
+
+    // 视频卡片悬停预览反馈
+    const videoCards = document.querySelectorAll('.video-preview-card');
     videoCards.forEach(card => {
+        const badge = card.querySelector('[data-video-badge]');
+        const originalBadgeText = badge ? badge.textContent.trim() : '';
         card.addEventListener('mouseenter', function() {
-            // 可以添加视频预览功能
+            card.classList.add('is-previewing');
+            if (badge) badge.textContent = '预览中';
+        });
+        card.addEventListener('mouseleave', function() {
+            card.classList.remove('is-previewing');
+            if (badge) badge.textContent = originalBadgeText;
         });
     });
 });

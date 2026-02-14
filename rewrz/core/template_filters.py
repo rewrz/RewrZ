@@ -406,10 +406,14 @@ def post_url_filter(post) -> str:
         return "#"
     
     # 获取文章的主要格式slug
+    # 优先选择差异化展示格式，避免多格式内容总是回落到 article。
     format_slug = "article"  # 默认格式
     if hasattr(post, 'formats') and post.formats:
-        # 使用第一个格式的slug
-        format_slug = post.formats[0].slug
+        available_slugs = [fmt.slug for fmt in post.formats if getattr(fmt, "slug", None)]
+        if available_slugs:
+            priority = ["micro-post", "photo-album", "video", "poetry-song", "article"]
+            matched = next((slug for slug in priority if slug in available_slugs), None)
+            format_slug = matched if matched else available_slugs[0]
 
     # 统一对外友好路径别名
     alias_map = {
