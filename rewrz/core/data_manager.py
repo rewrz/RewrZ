@@ -137,20 +137,43 @@ class DataExportManager:
         exported_media = []
         
         for media in media_items:
+            # 兼容不同版本的媒体模型字段
+            original_filename = getattr(media, "original_filename", None) or getattr(media, "filename", "")
+            created_at = getattr(media, "created_at", None) or getattr(media, "uploaded_at", None)
+            metadata_value = getattr(media, "metadata", None)
+            if not isinstance(metadata_value, (dict, list, str, int, float, bool, type(None))):
+                metadata_value = None
+
+            file_size = getattr(media, "file_size", None)
+            if file_size is None:
+                filepath = getattr(media, "filepath", None)
+                if filepath:
+                    size_candidates = [
+                        filepath,
+                        os.path.join("media_uploads", filepath),
+                    ]
+                    for candidate in size_candidates:
+                        if os.path.exists(candidate):
+                            try:
+                                file_size = os.path.getsize(candidate)
+                            except OSError:
+                                file_size = None
+                            break
+
             media_data = {
-                "id": media.id,
-                "filename": media.filename,
-                "original_filename": media.original_filename,
-                "filepath": media.filepath,
-                "file_type": media.file_type,
-                "file_size": media.file_size,
-                "mime_type": media.mime_type,
-                "title": media.title,
-                "alt_text": media.alt_text,
-                "description": media.description,
-                "metadata": media.metadata,
-                "created_at": media.created_at.isoformat() if media.created_at else None,
-                "uploaded_by": media.uploaded_by.username if media.uploaded_by else None
+                "id": getattr(media, "id", None),
+                "filename": getattr(media, "filename", ""),
+                "original_filename": original_filename,
+                "filepath": getattr(media, "filepath", ""),
+                "file_type": getattr(media, "file_type", ""),
+                "file_size": file_size,
+                "mime_type": getattr(media, "mime_type", ""),
+                "title": getattr(media, "title", None),
+                "alt_text": getattr(media, "alt_text", None),
+                "description": getattr(media, "description", None),
+                "metadata": metadata_value,
+                "created_at": created_at.isoformat() if created_at else None,
+                "uploaded_by": media.uploaded_by.username if getattr(media, "uploaded_by", None) else None
             }
             exported_media.append(media_data)
         

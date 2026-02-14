@@ -5,13 +5,13 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import JSONResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..core.config import settings
 from ..core.database import get_db
 from ..core.security import get_current_user, verify_csrf_token
+from ..core.template_filters import get_templates
 from ..crud import category as crud_category
 from ..crud import comment as crud_comment
 from ..crud import post as crud_post
@@ -21,7 +21,7 @@ from ..schemas import PostCreate, User
 
 
 router = APIRouter()
-templates = Jinja2Templates(directory="rewrz/templates")
+templates = get_templates()
 
 
 def _collect_stats(db: Session) -> dict:
