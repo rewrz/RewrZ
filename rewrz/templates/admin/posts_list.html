@@ -3,155 +3,204 @@
 {% block title_text %}文章管理{% endblock %}
 {% block page_title %}<i class="fas fa-newspaper text-blue-600 mr-3"></i>文章管理{% endblock %}
 {% block content %}
-<div class="admin-panel p-4 md:p-6">
-    <div class="flex justify-between items-center mb-6">
-        <div class="flex space-x-3">
-            <a href="{{ request.state.admin_path }}/posts/new" 
+<div class="admin-panel p-4 md:p-6 space-y-5">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="{{ request.state.admin_path }}/posts/new"
                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
                 <i class="fas fa-plus mr-2"></i>新建文章
             </a>
-            <button onclick="refreshPostsList()" 
+            <button onclick="refreshPostsList()"
                     class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
                 <i class="fas fa-sync-alt mr-2"></i>刷新
             </button>
+            <span class="mx-1 h-6 w-px bg-gray-300"></span>
+            <span class="text-sm text-gray-500">批量操作</span>
+            <button onclick="batchPublish()" data-batch-action
+                    class="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled>
+                批量发布
+            </button>
+            <button onclick="batchDraft()" data-batch-action
+                    class="px-3 py-2 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled>
+                移至草稿
+            </button>
+            <button onclick="batchDelete()" data-batch-action
+                    class="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled>
+                批量删除
+            </button>
+            <span id="selected-count" class="text-sm text-gray-500">已选 0 篇</span>
+        </div>
+        <div class="text-sm text-gray-600">
+            <span class="font-medium">文章总数：</span>{{ total_articles }}
+            {% if pagination.filtered_total != total_articles %}
+            <span class="ml-3"><span class="font-medium">筛选结果：</span>{{ pagination.filtered_total }}</span>
+            {% endif %}
         </div>
     </div>
 
-    <!-- 筛选和搜索 -->
-    <div class="mb-6 flex flex-wrap gap-4 items-center bg-gray-50 p-4 rounded-lg border border-gray-200">
-        <div class="flex-1 min-w-64">
-            <input type="text" 
-                   id="search-input" 
-                   placeholder="搜索文章标题或内容..." 
-                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+    <form method="get" action="{{ request.state.admin_path }}/posts" class="flex flex-wrap gap-3 items-end bg-gray-50 p-4 rounded-lg border border-gray-200">
+        <div class="min-w-64 flex-1">
+            <label for="search-input" class="block text-xs text-gray-500 mb-1">搜索</label>
+            <input
+                type="text"
+                id="search-input"
+                name="search"
+                value="{{ search_query }}"
+                placeholder="搜索标题、摘要或正文..."
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            >
         </div>
         <div>
-            <select id="status-filter" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    hx-on--after-request="setSelectedStatus(this)">
+            <label for="status-filter" class="block text-xs text-gray-500 mb-1">状态</label>
+            <select id="status-filter" name="status" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
                 <option value="">全部状态</option>
-                <option value="published">已发布</option>
-                <option value="draft">草稿</option>
+                <option value="published" {% if selected_status == "published" %}selected{% endif %}>已发布</option>
+                <option value="draft" {% if selected_status == "draft" %}selected{% endif %}>草稿</option>
             </select>
         </div>
         <div>
-            <select id="category-filter" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
-                    hx-get="{{ request.state.admin_path }}/api/v1/categories/options" 
-                    hx-trigger="load" 
-                    hx-target="this"
-                    hx-on--after-request="setSelectedCategory(this)">
-                <option value="">加载中...</option>
+            <label for="category-filter" class="block text-xs text-gray-500 mb-1">分类</label>
+            <select id="category-filter" name="category" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <option value="">全部分类</option>
+                {% for category in categories %}
+                <option value="{{ category.id }}" {% if selected_category == (category.id|string) %}selected{% endif %}>{{ category.name }}</option>
+                {% endfor %}
             </select>
         </div>
-    </div>
+        <div>
+            <label for="page-size-filter" class="block text-xs text-gray-500 mb-1">每页数量</label>
+            <select id="page-size-filter" name="page_size" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                {% for size in pagination.allowed_page_sizes %}
+                <option value="{{ size }}" {% if pagination.page_size == size %}selected{% endif %}>{{ size }} / 页</option>
+                {% endfor %}
+            </select>
+        </div>
+        <input type="hidden" name="page" value="1">
+        <div class="flex gap-2">
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                应用筛选
+            </button>
+            <a href="{{ request.state.admin_path }}/posts" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition-colors">
+                重置
+            </a>
+        </div>
+    </form>
 
-    <!-- 文章列表 -->
     <div class="overflow-x-auto rounded-lg border border-gray-200">
         <table class="min-w-full bg-white">
+            <colgroup>
+                <col class="w-12">
+                <col class="w-[34%]">
+                <col class="w-28">
+                <col class="w-24">
+                <col class="w-[11%]">
+                <col class="w-[10%]">
+                <col class="w-20">
+                <col class="w-40">
+                <col class="w-24">
+            </colgroup>
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         <input type="checkbox" id="select-all" class="rounded border-gray-300">
                     </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标题</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">分类</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标签</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">发布时间</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">阅读量</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标题</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">分类</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标签</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">评论</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">发布时间</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">阅读量</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 {% for post in posts %}
                 <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-3 py-4 align-top">
                         <input type="checkbox" class="post-checkbox rounded border-gray-300" value="{{ post.id }}">
                     </td>
-                    <td class="px-6 py-4">
-                        <div class="flex items-center">
-                            <div>
-                                <div class="text-sm font-medium text-gray-900">
-                                    <a href="{{ post | post_url }}" target="_blank" class="hover:text-blue-600">
-                                        {{ post.title }}
-                                    </a>
-                                </div>
-                                <div class="text-sm text-gray-500">
-                                    {{ post.excerpt[:80] }}{% if post.excerpt and post.excerpt|length > 80 %}...{% endif %}
-                                </div>
-                            </div>
+                    <td class="px-4 py-4 align-top">
+                        <div class="text-base font-semibold tracking-tight text-gray-900">
+                            <a href="{{ post | post_url }}" target="_blank" class="hover:text-blue-600">
+                                {{ post.title or "(无标题)" }}
+                            </a>
+                        </div>
+                        <div class="mt-1 text-xs text-gray-500 leading-5">
+                            <span class="inline-block text-[11px] uppercase tracking-wide text-gray-400">摘要</span>
+                            <span class="ml-1 italic">{{ post.excerpt[:80] if post.excerpt else '' }}{% if post.excerpt and post.excerpt|length > 80 %}...{% endif %}</span>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        {% if post.categories %}
-                            {% for category in post.categories %}
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 mr-1">
-                                    {{ category.name }}
-                                </span>
-                            {% endfor %}
-                        {% else %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                未分类
-                            </span>
-                        {% endif %}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        {% for tag in post.tags %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 mr-1">
-                                {{ tag.name }}
-                            </span>
-                        {% else %}
-                            <span class="text-xs text-gray-500">无标签</span>
-                        {% endfor %}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-4 py-4 align-top">
                         {% if post.status == 'published' %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                已发布
-                            </span>
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">已发布</span>
                         {% elif post.status == 'draft' %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                草稿
-                            </span>
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">草稿</span>
                         {% else %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                {{ post.status }}
-                            </span>
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{{ post.status }}</span>
                         {% endif %}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ post.created_at.strftime('%Y-%m-%d %H:%M') if post.created_at else '-' }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ post.views if post.views else 0 }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div class="flex space-x-2">
-                            <a href="{{ request.state.admin_path }}/posts/{{ post.id }}/edit" 
-                               class="text-blue-600 hover:text-blue-900">
+                    <td class="px-4 py-4 align-top">
+                        <div class="flex items-center gap-3 text-sm">
+                            <a href="{{ request.state.admin_path }}/posts/{{ post.id }}/edit" class="text-blue-600 hover:text-blue-900" title="编辑">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <a href="{{ post | post_url }}" target="_blank" 
-                               class="text-green-600 hover:text-green-900">
+                            <a href="{{ post | post_url }}" target="_blank" class="text-green-600 hover:text-green-900" title="查看">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <button onclick="deletePost({{ post.id }})" 
-                                    class="text-red-600 hover:text-red-900">
+                            <button onclick="deletePost({{ post.id }})" class="text-red-600 hover:text-red-900" title="删除">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </td>
+                    <td class="px-4 py-4 align-top">
+                        <div class="flex flex-wrap gap-1 max-w-[10rem] whitespace-normal break-words leading-5">
+                            {% if post.categories %}
+                                {% for category in post.categories %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                    {{ category.name }}
+                                </span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-xs text-gray-500">未分类</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-4 py-4 align-top">
+                        <div class="flex flex-wrap gap-1 max-w-[9rem] whitespace-normal break-words leading-5">
+                            {% if post.tags %}
+                                {% for tag in post.tags %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                    {{ tag.name }}
+                                </span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-xs text-gray-500">无标签</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-4 py-4 align-top text-sm text-gray-600">
+                        {{ post.comment_count if post.comment_count is defined else 0 }}
+                    </td>
+                    <td class="px-4 py-4 align-top text-sm text-gray-500">
+                        {{ (post.published_at or post.created_at).strftime('%Y-%m-%d %H:%M') if (post.published_at or post.created_at) else '-' }}
+                    </td>
+                    <td class="px-4 py-4 align-top text-sm text-gray-500">
+                        {{ post.views if post.views else 0 }}
+                    </td>
                 </tr>
                 {% endfor %}
-                
+
                 {% if not posts %}
                 <tr>
-                    <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                    <td colspan="9" class="px-6 py-12 text-center text-gray-500">
                         <i class="fas fa-file-alt text-4xl mb-4 text-gray-400"></i>
                         <div class="text-lg">暂无文章</div>
                         <div class="text-sm">
-                            <a href="{{ request.state.admin_path }}/posts/new" class="text-blue-600 hover:text-blue-800">
-                                立即创建第一篇文章
-                            </a>
+                            <a href="{{ request.state.admin_path }}/posts/new" class="text-blue-600 hover:text-blue-800">立即创建第一篇文章</a>
                         </div>
                     </td>
                 </tr>
@@ -160,245 +209,167 @@
         </table>
     </div>
 
-    <!-- 批量操作 -->
-    {% if posts %}
-    <div class="mt-6 flex justify-between items-center">
-        <div class="flex items-center space-x-4">
-            <span class="text-sm text-gray-500">批量操作：</span>
-            <button onclick="batchPublish()" class="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700">
-                批量发布
-            </button>
-            <button onclick="batchDraft()" class="px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700">
-                移至草稿
-            </button>
-            <button onclick="batchDelete()" class="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700">
-                批量删除
-            </button>
+    <div class="flex flex-wrap justify-between items-center gap-3 pt-1">
+        <div class="text-sm text-gray-600">
+            共 {{ pagination.filtered_total }} 篇结果，第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页
         </div>
-        
-        <!-- 分页 -->
-        <div class="flex items-center space-x-2">
-            <span class="text-sm text-gray-500">共 {{ posts|length }} 篇文章</span>
-            <!-- 这里可以添加分页控件 -->
+        <div class="flex items-center gap-1">
+            {% if pagination.has_prev %}
+            <a href="{{ pagination.prev_url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">上一页</a>
+            {% else %}
+            <span class="px-3 py-1.5 text-sm border border-gray-200 rounded text-gray-400 cursor-not-allowed">上一页</span>
+            {% endif %}
+
+            {% for link in pagination.page_links %}
+                {% if link.is_current %}
+                <span class="px-3 py-1.5 text-sm rounded bg-blue-600 text-white">{{ link.page }}</span>
+                {% else %}
+                <a href="{{ link.url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">{{ link.page }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if pagination.has_next %}
+            <a href="{{ pagination.next_url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">下一页</a>
+            {% else %}
+            <span class="px-3 py-1.5 text-sm border border-gray-200 rounded text-gray-400 cursor-not-allowed">下一页</span>
+            {% endif %}
         </div>
     </div>
-    {% endif %}
 </div>
 
 <script>
-// 防抖函数
-function debounce(func, delay) {
-    let timeout;
-    return function(...args) {
-        const context = this;
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(context, args), delay);
-    };
-}
-
-// 文章管理相关JavaScript函数
 function refreshPostsList() {
-    // 清除所有筛选条件并重新加载页面
-    window.location.search = '';
-}
-
-function deletePost(postId) {
-    if (confirm('确定要删除这篇文章吗？此操作不可撤销。')) {
-        // 实现删除逻辑
-        fetch(`{{ request.state.admin_path }}/api/v1/posts/${postId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('删除失败：' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('删除失败：' + error.message);
-        });
-    }
-}
-
-function batchPublish() {
-    const selected = getSelectedPosts();
-    if (selected.length === 0) {
-        alert('请选择要发布的文章');
-        return;
-    }
-    
-    if (confirm(`确定要发布选中的 ${selected.length} 篇文章吗？`)) {
-        // 实现批量发布逻辑
-        fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-publish`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': '{{ request.state.csrf_token }}'
-            },
-            body: JSON.stringify({ post_ids: selected })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('批量发布失败：' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('批量发布失败：' + error.message);
-        });
-    }
-}
-
-function batchDraft() {
-    const selected = getSelectedPosts();
-    if (selected.length === 0) {
-        alert('请选择要移至草稿的文章');
-        return;
-    }
-    
-    if (confirm(`确定要将选中的 ${selected.length} 篇文章移至草稿吗？`)) {
-        // 实现批量移至草稿逻辑
-        fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-draft`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': '{{ request.state.csrf_token }}'
-            },
-            body: JSON.stringify({ post_ids: selected })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('批量移至草稿失败：' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('批量移至草稿失败：' + error.message);
-        });
-    }
-}
-
-function batchDelete() {
-    const selected = getSelectedPosts();
-    if (selected.length === 0) {
-        alert('请选择要删除的文章');
-        return;
-    }
-    
-    if (confirm(`确定要删除选中的 ${selected.length} 篇文章吗？此操作不可撤销。`)) {
-        // 实现批量删除逻辑
-        fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-delete`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': '{{ request.state.csrf_token }}'
-            },
-            body: JSON.stringify({ post_ids: selected })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('批量删除失败：' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('批量删除失败：' + error.message);
-        });
-    }
+    window.location.href = '{{ request.state.admin_path }}/posts';
 }
 
 function getSelectedPosts() {
     const checkboxes = document.querySelectorAll('.post-checkbox:checked');
-    return Array.from(checkboxes).map(cb => cb.value);
+    return Array.from(checkboxes).map((cb) => Number(cb.value));
 }
 
-// 全选/取消全选
-document.getElementById('select-all').addEventListener('change', function() {
-    const checkboxes = document.querySelectorAll('.post-checkbox');
-    checkboxes.forEach(cb => cb.checked = this.checked);
-});
-
-// 搜索功能
-const searchPosts = debounce(function() {
-    const query = document.getElementById('search-input').value;
-    const status = document.getElementById('status-filter').value;
-    const category = document.getElementById('category-filter').value;
-    
-    // 构建查询参数
-    const params = new URLSearchParams();
-    if (query) params.append('search', query);
-    if (status) params.append('status', status);
-    if (category) params.append('category', category);
-    
-    // 重新加载页面或使用HTMX更新内容
-    window.location.search = params.toString();
-}, 500); // 500毫秒防抖
-
-document.getElementById('search-input').addEventListener('input', searchPosts);
-
-// 状态筛选
-document.getElementById('status-filter').addEventListener('change', function() {
-    const status = this.value;
-    const query = document.getElementById('search-input').value;
-    const category = document.getElementById('category-filter').value;
-    
-    // 构建查询参数
-    const params = new URLSearchParams();
-    if (query) params.append('search', query);
-    if (status) params.append('status', status);
-    if (category) params.append('category', category);
-    
-    // 重新加载页面或使用HTMX更新内容
-    window.location.search = params.toString();
-});
-
-// 分类筛选
-document.getElementById('category-filter').addEventListener('change', function() {
-    const category = this.value;
-    const query = document.getElementById('search-input').value;
-    const status = document.getElementById('status-filter').value;
-    
-    // 构建查询参数
-    const params = new URLSearchParams();
-    if (query) params.append('search', query);
-    if (status) params.append('status', status);
-    if (category) params.append('category', category);
-    
-    // 重新加载页面或使用HTMX更新内容
-    window.location.search = params.toString();
-});
-
-function setSelectedCategory(selectElement) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const selectedCategory = urlParams.get('category');
-    if (selectedCategory && selectElement) {
-        selectElement.value = selectedCategory;
+function updateBatchActionState() {
+    const selectedCount = getSelectedPosts().length;
+    const countLabel = document.getElementById('selected-count');
+    if (countLabel) {
+        countLabel.textContent = `已选 ${selectedCount} 篇`;
     }
+    document.querySelectorAll('[data-batch-action]').forEach((button) => {
+        button.disabled = selectedCount === 0;
+    });
 }
 
-function setSelectedStatus(selectElement) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const selectedStatus = urlParams.get('status');
-    if (selectedStatus && selectElement) {
-        selectElement.value = selectedStatus;
+function deletePost(postId) {
+    if (!confirm('确定要删除这篇文章吗？此操作不可撤销。')) return;
+    fetch(`{{ request.state.admin_path }}/api/v1/posts/${postId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': '{{ request.state.csrf_token }}'
+        }
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert('删除失败：' + (data.error || data.detail || '未知错误'));
+    })
+    .catch((error) => alert('删除失败：' + error.message));
+}
+
+function batchPublish() {
+    const selected = getSelectedPosts();
+    if (!selected.length) return;
+    if (!confirm(`确定要发布选中的 ${selected.length} 篇文章吗？`)) return;
+    fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-publish`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': '{{ request.state.csrf_token }}'
+        },
+        body: JSON.stringify({ post_ids: selected })
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert('批量发布失败：' + (data.error || data.detail || '未知错误'));
+    })
+    .catch((error) => alert('批量发布失败：' + error.message));
+}
+
+function batchDraft() {
+    const selected = getSelectedPosts();
+    if (!selected.length) return;
+    if (!confirm(`确定要将选中的 ${selected.length} 篇文章移至草稿吗？`)) return;
+    fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-draft`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': '{{ request.state.csrf_token }}'
+        },
+        body: JSON.stringify({ post_ids: selected })
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert('批量移至草稿失败：' + (data.error || data.detail || '未知错误'));
+    })
+    .catch((error) => alert('批量移至草稿失败：' + error.message));
+}
+
+function batchDelete() {
+    const selected = getSelectedPosts();
+    if (!selected.length) return;
+    if (!confirm(`确定要删除选中的 ${selected.length} 篇文章吗？此操作不可撤销。`)) return;
+    fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-delete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': '{{ request.state.csrf_token }}'
+        },
+        body: JSON.stringify({ post_ids: selected })
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert('批量删除失败：' + (data.error || data.detail || '未知错误'));
+    })
+    .catch((error) => alert('批量删除失败：' + error.message));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const selectAll = document.getElementById('select-all');
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            document.querySelectorAll('.post-checkbox').forEach((checkbox) => {
+                checkbox.checked = this.checked;
+            });
+            updateBatchActionState();
+        });
     }
-}
 
-// 在页面加载时调用，以设置初始的筛选状态
-document.addEventListener('DOMContentLoaded', function() {
-    setSelectedStatus(document.getElementById('status-filter'));
-    setSelectedCategory(document.getElementById('category-filter'));
+    document.querySelectorAll('.post-checkbox').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => {
+            const all = document.querySelectorAll('.post-checkbox');
+            const selected = document.querySelectorAll('.post-checkbox:checked');
+            if (selectAll) {
+                selectAll.checked = all.length > 0 && all.length === selected.length;
+            }
+            updateBatchActionState();
+        });
+    });
+
+    updateBatchActionState();
 });
 </script>
 {% endblock %}

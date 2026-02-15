@@ -19,6 +19,7 @@ from ..crud import post as crud_post
 from ..crud import category as crud_category
 from ..crud import tag as crud_tag
 from ..crud import format as crud_format
+from ..core.content_utils import get_effective_content_html, get_effective_plain_text
 from ..crud import setting as crud_setting
 from ..models import Post
 from ..core.template_context import DEFAULT_BASE_SETTINGS
@@ -277,12 +278,13 @@ def generate_rss_xml(title: str, description: str, link: str, posts: List[Post],
     for post in posts:
         post_url = f'{site_info["base_url"]}/{post.formats[0].slug if post.formats else "article"}/{post.slug}'
         pub_date = post.published_at or post.created_at
+        fallback_excerpt = get_effective_plain_text(post.content_markdown, post.content_html)[:500]
         
         xml_lines.extend([
             '<item>',
             f'<title>{html.escape(post.title)}</title>',
             f'<link>{html.escape(post_url)}</link>',
-            f'<description>{html.escape(post.excerpt or post.content_html[:500])}</description>',
+            f'<description>{html.escape(post.excerpt or fallback_excerpt)}</description>',
             f'<guid isPermaLink="true">{html.escape(post_url)}</guid>',
             f'<pubDate>{pub_date.strftime("%a, %d %b %Y %H:%M:%S %z")}</pubDate>',
         ])
@@ -324,6 +326,8 @@ def generate_atom_xml(title: str, subtitle: str, link: str, posts: List[Post], s
     for post in posts:
         post_url = f'{site_info["base_url"]}/{post.formats[0].slug if post.formats else "article"}/{post.slug}'
         pub_date = post.published_at or post.created_at
+        rendered_html = get_effective_content_html(post.content_markdown, post.content_html)
+        fallback_excerpt = get_effective_plain_text(post.content_markdown, post.content_html)[:500]
         
         xml_lines.extend([
             '<entry>',
@@ -331,8 +335,8 @@ def generate_atom_xml(title: str, subtitle: str, link: str, posts: List[Post], s
             f'<link href="{html.escape(post_url)}" />',
             f'<id>{html.escape(post_url)}</id>',
             f'<updated>{pub_date.isoformat()}</updated>',
-            f'<summary>{html.escape(post.excerpt or post.content_html[:500])}</summary>',
-            f'<content type="html">{html.escape(post.content_html)}</content>',
+            f'<summary>{html.escape(post.excerpt or fallback_excerpt)}</summary>',
+            f'<content type="html">{html.escape(rendered_html)}</content>',
         ])
         
         # 添加分类信息

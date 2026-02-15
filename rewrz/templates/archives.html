@@ -124,9 +124,9 @@
                                 <div class="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
                                     <span class="flex items-center">
                                         <i class="fas fa-clock mr-1"></i>
-                                        {{ post.content_markdown | reading_time }}
+                                        {{ (post.content_markdown or post.content_html) | reading_time }}
                                     </span>
-                                    {% set stats = post.content_markdown | reading_stats(post) %}
+                                    {% set stats = (post.content_markdown or post.content_html) | reading_stats(post) %}
                                     <span class="hidden sm:flex items-center">
                                         <i class="fas fa-file-alt mr-1"></i>
                                         {{ stats.word_count }}字
@@ -239,9 +239,9 @@
                                 <div class="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
                                     <span class="flex items-center">
                                         <i class="fas fa-clock mr-1"></i>
-                                        {{ post.content_markdown | reading_time }}
+                                        {{ (post.content_markdown or post.content_html) | reading_time }}
                                     </span>
-                                    {% set stats = post.content_markdown | reading_stats(post) %}
+                                    {% set stats = (post.content_markdown or post.content_html) | reading_stats(post) %}
                                     <span class="hidden sm:flex items-center">
                                         <i class="fas fa-file-alt mr-1"></i>
                                         {{ stats.word_count }}字

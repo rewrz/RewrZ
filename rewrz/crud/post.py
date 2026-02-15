@@ -5,12 +5,17 @@
 """
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, func
-from ..models import Post, Format, Category, Tag
+from ..models import Post, Format, Category, Tag, Setting
 from ..schemas import PostCreate, PostUpdate
 from datetime import datetime
 from markdown import markdown
 from slugify import slugify
 from ..core.security import get_password_hash, verify_password
+from ..core.content_utils import (
+    infer_editor_mode,
+    normalize_editor_mode,
+    get_effective_plain_text,
+)
 
 from typing import Optional, List
 
@@ -25,11 +30,74 @@ def _normalize_featured_image_url(url: Optional[str]) -> Optional[str]:
 
     return normalized
 
+
+def _extract_setting_int_value(raw) -> int:
+    if isinstance(raw, dict):
+        value = raw.get("value")
+    else:
+        value = raw
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _resolve_storage_contents(
+    editor_mode: str,
+    content_markdown: Optional[str],
+    content_html: Optional[str],
+) -> tuple[str, str]:
+    mode = normalize_editor_mode(editor_mode)
+    markdown_content = content_markdown or ""
+    html_content = content_html or ""
+
+    if mode == "html":
+        resolved_html = html_content.strip() or (markdown(markdown_content) if markdown_content.strip() else "")
+        return "", resolved_html
+
+    resolved_markdown = markdown_content
+    if not resolved_markdown.strip() and html_content.strip():
+        resolved_markdown = get_effective_plain_text("", html_content)
+    return resolved_markdown, ""
+
+
+def _attach_views_metrics(db: Session, posts: List[Post]) -> None:
+    if not posts:
+        return
+
+    post_ids = [p.id for p in posts if getattr(p, "id", None) is not None]
+    if not post_ids:
+        return
+
+    metric_keys = [f"post_views_count_{post_id}" for post_id in post_ids]
+    try:
+        settings = db.execute(select(Setting).where(Setting.key.in_(metric_keys))).scalars().all()
+    except Exception:
+        for post in posts:
+            setattr(post, "views_count", 0)
+            setattr(post, "views", 0)
+        return
+    views_map = {}
+    for setting in settings:
+        if not setting.key.startswith("post_views_count_"):
+            continue
+        suffix = setting.key.replace("post_views_count_", "", 1)
+        try:
+            post_id = int(suffix)
+        except (TypeError, ValueError):
+            continue
+        views_map[post_id] = _extract_setting_int_value(setting.value)
+
+    for post in posts:
+        views = views_map.get(post.id, 0)
+        setattr(post, "views_count", views)
+        setattr(post, "views", views)
+
 def get_post(db: Session, post_id: int):
     """根据文章ID获取文章信息，包含关联的格式、分类、标签和评论"""
     from sqlalchemy.orm import selectinload
     from ..models import Comment
-    return db.execute(
+    post = db.execute(
         select(Post)
         .options(
             joinedload(Post.formats), 
@@ -39,12 +107,15 @@ def get_post(db: Session, post_id: int):
         )
         .filter(Post.id == post_id)
     ).unique().scalar_one_or_none()
+    if post:
+        _attach_views_metrics(db, [post])
+    return post
 
 def get_post_by_slug(db: Session, slug: str):
     """根据文章别名获取文章信息，包含关联的格式、分类、标签和评论"""
     from sqlalchemy.orm import selectinload
     from ..models import Comment
-    return db.execute(
+    post = db.execute(
         select(Post)
         .options(
             joinedload(Post.formats), 
@@ -54,6 +125,9 @@ def get_post_by_slug(db: Session, slug: str):
         )
         .filter(Post.slug == slug)
     ).unique().scalar_one_or_none()
+    if post:
+        _attach_views_metrics(db, [post])
+    return post
 
 def get_posts(db: Session, skip: int = 0, limit: int = 100, status: Optional[str] = None, post_type: Optional[str] = None):
     """获取文章列表，支持分页和状态过滤"""
@@ -72,7 +146,9 @@ def get_posts(db: Session, skip: int = 0, limit: int = 100, status: Optional[str
             query = query.filter(Post.post_type == post_type)
     # 默认按发布时间降序排列
     query = query.order_by(Post.published_at.desc())
-    return db.execute(query.offset(skip).limit(limit)).unique().scalars().all()
+    posts = db.execute(query.offset(skip).limit(limit)).unique().scalars().all()
+    _attach_views_metrics(db, posts)
+    return posts
 
 
 def get_posts_by_type(db: Session, post_type: str, limit: int = 100, skip: int = 0) -> List[Post]:
@@ -92,7 +168,9 @@ def get_posts_by_type(db: Session, post_type: str, limit: int = 100, skip: int =
 def get_all_posts(db: Session):
     """获取所有文章（不分页）"""
     query = select(Post).options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags), joinedload(Post.author))
-    return db.execute(query).unique().scalars().all()
+    posts = db.execute(query).unique().scalars().all()
+    _attach_views_metrics(db, posts)
+    return posts
 
 def count_posts_by_status(db: Session, status: str) -> int:
     """
@@ -102,7 +180,7 @@ def count_posts_by_status(db: Session, status: str) -> int:
 
 def get_posts_by_category(db: Session, category_id: int, skip: int = 0, limit: int = 100):
     """根据分类ID获取已发布文章列表"""
-    return db.execute(
+    posts = db.execute(
         select(Post)
         .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
         .filter(Post.categories.any(id=category_id))
@@ -113,10 +191,12 @@ def get_posts_by_category(db: Session, category_id: int, skip: int = 0, limit: i
         .offset(skip)
         .limit(limit)
     ).unique().scalars().all()
+    _attach_views_metrics(db, posts)
+    return posts
 
 def get_posts_by_format(db: Session, format_id: int, skip: int = 0, limit: int = 100):
     """根据格式ID获取文章列表，仅返回已发布的文章"""
-    return db.execute(
+    posts = db.execute(
         select(Post)
         .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
         .filter(Post.formats.any(id=format_id))
@@ -127,11 +207,13 @@ def get_posts_by_format(db: Session, format_id: int, skip: int = 0, limit: int =
         .offset(skip)
         .limit(limit)
     ).unique().scalars().all()
+    _attach_views_metrics(db, posts)
+    return posts
 
 
 def get_posts_by_tag(db: Session, tag_id: int, skip: int = 0, limit: int = 100):
     """根据标签ID获取已发布文章列表"""
-    return db.execute(
+    posts = db.execute(
         select(Post)
         .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
         .filter(Post.tags.any(id=tag_id))
@@ -142,6 +224,8 @@ def get_posts_by_tag(db: Session, tag_id: int, skip: int = 0, limit: int = 100):
         .offset(skip)
         .limit(limit)
     ).unique().scalars().all()
+    _attach_views_metrics(db, posts)
+    return posts
 
 def create_post(db: Session, post: PostCreate, author_id: int, tag_names: Optional[List[str]] = None, format_ids: Optional[List[int]] = None):
     """创建新文章
@@ -152,10 +236,23 @@ def create_post(db: Session, post: PostCreate, author_id: int, tag_names: Option
     - 自动生成唯一别名
     - 密码哈希加密
     """
-    # 将Markdown转换为HTML
-    content_html = markdown(post.content_markdown)
-    # 如果没有提供摘要，则自动生成
-    excerpt = post.excerpt if post.excerpt else post.content_markdown[:120]
+    editor_mode = infer_editor_mode(
+        requested_mode=post.editor_mode,
+        content_markdown=post.content_markdown,
+        content_html=post.content_html,
+        fallback="markdown",
+    )
+    resolved_markdown, resolved_html = _resolve_storage_contents(
+        editor_mode=editor_mode,
+        content_markdown=post.content_markdown,
+        content_html=post.content_html,
+    )
+
+    if post.excerpt:
+        excerpt = post.excerpt
+    else:
+        plain_text = get_effective_plain_text(resolved_markdown, resolved_html)
+        excerpt = plain_text[:120] if plain_text else ""
 
     # 如果没有提供别名，则从标题生成，并确保唯一性
     if post.slug:
@@ -170,22 +267,32 @@ def create_post(db: Session, post: PostCreate, author_id: int, tag_names: Option
         slug = f"{base_slug}-{i}"
         i += 1
 
-    db_post = Post(
-        title=post.title,
-        slug=slug,
-        content_markdown=post.content_markdown,
-        content_html=content_html,
-        excerpt=excerpt,
-        featured_image_url=_normalize_featured_image_url(post.featured_image_url),
-        post_type=post.post_type,
-        status=post.status,
-        visibility=post.visibility,
-        password=get_password_hash(post.password) if post.password else None,
-        allow_comments=post.allow_comments,
-        version_snapshots=post.version_snapshots,
-        author_id=author_id,
-        published_at=datetime.now() if post.status == "published" else None
-    )
+    resolved_published_at = post.published_at
+    if post.status == "published" and resolved_published_at is None:
+        resolved_published_at = datetime.now()
+
+    post_kwargs = {
+        "title": post.title,
+        "slug": slug,
+        "content_markdown": resolved_markdown,
+        "content_html": resolved_html,
+        "excerpt": excerpt,
+        "featured_image_url": _normalize_featured_image_url(post.featured_image_url),
+        "post_type": post.post_type,
+        "status": post.status,
+        "visibility": post.visibility,
+        "password": get_password_hash(post.password) if post.password else None,
+        "allow_comments": post.allow_comments,
+        "version_snapshots": post.version_snapshots,
+        "author_id": author_id,
+        "published_at": resolved_published_at,
+    }
+    if post.created_at is not None:
+        post_kwargs["created_at"] = post.created_at
+    if post.updated_at is not None:
+        post_kwargs["updated_at"] = post.updated_at
+
+    db_post = Post(**post_kwargs)
 
     # 如果指定了分类ID，则关联对应的分类
     if post.category_ids:
@@ -229,7 +336,7 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
     db_post = db.execute(select(Post).filter(Post.id == post_id)).scalar_one_or_none()
     if db_post:
         # 保存旧内容作为版本快照
-        old_content = db_post.content_markdown
+        old_content = db_post.content_markdown or db_post.content_html
         if old_content:
             db_post.version_snapshots.insert(0, {"timestamp": datetime.now().isoformat(), "content": old_content})
             if len(db_post.version_snapshots) > 5:
@@ -238,6 +345,9 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
         update_data = post.model_dump(exclude_unset=True)
         incoming_title = update_data.pop("title", None)
         incoming_slug = update_data.pop("slug", None)
+        incoming_content_markdown = update_data.pop("content_markdown", None)
+        incoming_content_html = update_data.pop("content_html", None)
+        incoming_editor_mode = update_data.pop("editor_mode", None)
         incoming_status = update_data.get("status")
         incoming_visibility = update_data.get("visibility")
         incoming_password = update_data.pop("password", None)
@@ -276,14 +386,32 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
                 i += 1
             db_post.slug = slug
 
+        should_update_content = (
+            incoming_editor_mode is not None
+            or incoming_content_markdown is not None
+            or incoming_content_html is not None
+        )
+        if should_update_content:
+            resolved_mode = infer_editor_mode(
+                requested_mode=incoming_editor_mode,
+                content_markdown=incoming_content_markdown if incoming_content_markdown is not None else db_post.content_markdown,
+                content_html=incoming_content_html if incoming_content_html is not None else db_post.content_html,
+                fallback="html" if (db_post.content_html or "").strip() and not (db_post.content_markdown or "").strip() else "markdown",
+            )
+            next_markdown, next_html = _resolve_storage_contents(
+                editor_mode=resolved_mode,
+                content_markdown=incoming_content_markdown if incoming_content_markdown is not None else db_post.content_markdown,
+                content_html=incoming_content_html if incoming_content_html is not None else db_post.content_html,
+            )
+            db_post.content_markdown = next_markdown
+            db_post.content_html = next_html
+
         for key, value in update_data.items():
-            if key == "content_markdown":
-                db_post.content_markdown = value # 添加这一行来更新 content_markdown
-                db_post.content_html = markdown(value)
-            elif key == "excerpt" and not value and db_post.content_markdown: # 如果内容变化且摘要为空，则自动生成摘要
-                db_post.excerpt = db_post.content_markdown[:120]
+            if key == "excerpt" and not value:
+                plain_text = get_effective_plain_text(db_post.content_markdown, db_post.content_html)
+                db_post.excerpt = plain_text[:120] if plain_text else ""
             # 跳过featured_image_url，因为它已经在上面处理过了
-            elif key not in {"featured_image_url", "category_ids", "tag_ids", "format_ids"}:
+            elif key not in {"featured_image_url", "category_ids", "tag_ids", "format_ids", "content_markdown", "content_html", "editor_mode"}:
                 setattr(db_post, key, value)
         
         # 如果状态变为已发布，更新发布时间
@@ -357,7 +485,9 @@ def get_posts_by_year_month(
     if limit is not None:
         query = query.limit(limit)
 
-    return db.execute(query).unique().scalars().all()
+    posts = db.execute(query).unique().scalars().all()
+    _attach_views_metrics(db, posts)
+    return posts
 
 
 def get_archive_posts(db: Session) -> List[Post]:
@@ -370,7 +500,9 @@ def get_archive_posts(db: Session) -> List[Post]:
         .filter(Post.post_type.in_(["post", "article"]))
         .order_by(Post.published_at.desc())
     )
-    return db.execute(query).unique().scalars().all()
+    posts = db.execute(query).unique().scalars().all()
+    _attach_views_metrics(db, posts)
+    return posts
 
 def delete_post(db: Session, post_id: int):
     """删除文章

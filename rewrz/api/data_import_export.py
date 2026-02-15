@@ -11,23 +11,85 @@
 import os
 import json
 import tempfile
-from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile, Body
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Dict, Any
 from ..core.database import get_db
 from ..core.security import get_current_user
 from ..core.template_filters import get_templates
 from ..core.data_manager import (
     get_data_export_manager, 
     get_wordpress_importer, 
-    get_rewrz_importer
+    get_rewrz_importer,
+    DEFAULT_WP_IMPORT_OPTIONS,
 )
 from ..schemas import User
 from datetime import datetime
+from ..crud import setting as crud_setting
+from ..schemas import SettingCreate, SettingUpdate
 
 router = APIRouter()
 templates = get_templates()
+
+
+def _normalize_wp_import_options(payload: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    merged = dict(DEFAULT_WP_IMPORT_OPTIONS)
+    if isinstance(payload, dict):
+        merged.update(payload)
+
+    raw_types = merged.get("import_post_types", ["post", "page"])
+    if isinstance(raw_types, str):
+        raw_types = [part.strip() for part in raw_types.split(",")]
+    merged["import_post_types"] = sorted({str(x).strip().lower() for x in raw_types if str(x).strip()}) or ["post", "page"]
+
+    raw_whitelist = merged.get("postmeta_whitelist", ["views", "post_views_count"])
+    if isinstance(raw_whitelist, str):
+        raw_whitelist = [part.strip() for part in raw_whitelist.split(",")]
+    merged["postmeta_whitelist"] = sorted({str(x).strip() for x in raw_whitelist if str(x).strip()}) or ["views", "post_views_count"]
+
+    merged["import_comments"] = bool(merged.get("import_comments", True))
+    merged["import_views"] = bool(merged.get("import_views", True))
+    markdown_strategy = str(merged.get("markdown_strategy", "html_to_markdown")).strip() or "html_to_markdown"
+    if markdown_strategy not in {"html_to_markdown", "raw_html"}:
+        markdown_strategy = "html_to_markdown"
+    merged["markdown_strategy"] = markdown_strategy
+    return merged
+
+
+def _get_wp_import_options(db: Session) -> Dict[str, Any]:
+    setting = crud_setting.get_setting(db, "wordpress_import_options")
+    if setting and isinstance(setting.value, dict):
+        return _normalize_wp_import_options(setting.value)
+    return _normalize_wp_import_options({})
+
+
+def _save_wp_import_options(db: Session, options: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = _normalize_wp_import_options(options)
+    existing = crud_setting.get_setting(db, "wordpress_import_options")
+    if existing:
+        crud_setting.update_setting(
+            db,
+            "wordpress_import_options",
+            SettingUpdate(
+                value=normalized,
+                description="WordPress import options",
+                category="import",
+                type="json",
+            ),
+        )
+    else:
+        crud_setting.create_setting(
+            db,
+            SettingCreate(
+                key="wordpress_import_options",
+                value=normalized,
+                description="WordPress import options",
+                category="import",
+                type="json",
+            ),
+        )
+    return normalized
 
 
 async def data_management_page(
@@ -168,7 +230,8 @@ async def import_wordpress_data(
         temp_file.close()
         
         # 执行导入
-        importer = get_wordpress_importer(db)
+        wp_options = _get_wp_import_options(db)
+        importer = get_wordpress_importer(db, options=wp_options)
         result = importer.import_from_wxr(temp_file.name)
         
         return JSONResponse({
@@ -186,6 +249,27 @@ async def import_wordpress_data(
     finally:
         if os.path.exists(temp_file.name):
             os.unlink(temp_file.name)
+
+
+@router.get("/api/v1/import/wordpress/options")
+@router.get("/api/import/wordpress/options")
+async def get_wordpress_import_options(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    options = _get_wp_import_options(db)
+    return JSONResponse({"success": True, "options": options})
+
+
+@router.post("/api/v1/import/wordpress/options")
+@router.post("/api/import/wordpress/options")
+async def update_wordpress_import_options(
+    payload: Dict[str, Any] = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    options = _save_wp_import_options(db, payload)
+    return JSONResponse({"success": True, "options": options})
 
 
 @router.post("/api/v1/import/rewrz")

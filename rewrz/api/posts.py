@@ -7,11 +7,20 @@ from ..core.database import get_db
 from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..core.config import settings
-from ..crud import post as crud_post, category as crud_category, tag as crud_tag, format as crud_format
+from ..crud import post as crud_post, category as crud_category, tag as crud_tag, format as crud_format, setting as crud_setting
 from ..schemas import Post, PostCreate, PostUpdate, User, PostBatchUpdate
 
 router = APIRouter()
 templates = get_templates()
+
+
+def _get_content_primary_mode(db: Session) -> str:
+    setting = crud_setting.get_setting(db, "content_primary_mode")
+    if setting and isinstance(setting.value, dict):
+        mode = str(setting.value.get("value", "")).strip().lower()
+        if mode in {"markdown", "html"}:
+            return mode
+    return "markdown"
 
 # --- 文章管理路由 ---
 
@@ -22,12 +31,14 @@ async def new_post_page(request: Request, db: Session = Depends(get_db), current
     """
     categories = crud_category.get_categories(db)
     formats = crud_format.get_formats(db)
+    content_primary_mode = _get_content_primary_mode(db)
     return templates.TemplateResponse("admin/post_form.html", {
         "request": request,
         "user": current_user,
         "admin_path": settings.ADMIN_PATH.rstrip('/'),
         "categories": categories,
         "formats": formats,
+        "content_primary_mode": content_primary_mode,
         "post": None, # 新建文章时没有post对象
         "post_type": "post", # 明确指定为文章类型
         "media_upload_dir_name": settings.MEDIA_UPLOAD_DIR # 传递媒体上传目录名称
@@ -44,6 +55,7 @@ async def edit_post_page(post_id: int, request: Request, db: Session = Depends(g
     
     categories = crud_category.get_categories(db)
     formats = crud_format.get_formats(db)
+    content_primary_mode = _get_content_primary_mode(db)
     
     return templates.TemplateResponse("admin/post_form.html", {
         "request": request,
@@ -52,6 +64,7 @@ async def edit_post_page(post_id: int, request: Request, db: Session = Depends(g
         "post": post,
         "categories": categories,
         "formats": formats,
+        "content_primary_mode": content_primary_mode,
         "post_type": "post", # 明确指定为文章类型
         "media_upload_dir_name": settings.MEDIA_UPLOAD_DIR # 传递媒体上传目录名称
     })
@@ -61,6 +74,8 @@ async def create_post_api(
     request: Request,
     title: str = Form(...),
     content: str = Form(...),
+    content_html: Optional[str] = Form(None),
+    editor_mode: Optional[str] = Form(None),
     slug: Optional[str] = Form(None),
     excerpt: Optional[str] = Form(None),
     featured_image_url: Optional[str] = Form(None),
@@ -87,6 +102,8 @@ async def create_post_api(
     post_create_data = PostCreate(
         title=title,
         content_markdown=content,
+        content_html=content_html,
+        editor_mode=editor_mode or _get_content_primary_mode(db),
         slug=slug,
         excerpt=excerpt,
         featured_image_url=featured_image_url,
@@ -121,6 +138,8 @@ async def update_post_api(
     post_id: int,
     title: str = Form(...),
     content: str = Form(...),
+    content_html: Optional[str] = Form(None),
+    editor_mode: Optional[str] = Form(None),
     slug: Optional[str] = Form(None),
     excerpt: Optional[str] = Form(None),
     featured_image_url: Optional[str] = Form(None),
@@ -155,6 +174,8 @@ async def update_post_api(
     post_update_data = PostUpdate(
         title=title,
         content_markdown=content,
+        content_html=content_html,
+        editor_mode=editor_mode or _get_content_primary_mode(db),
         slug=slug,
         excerpt=excerpt,
         featured_image_url=featured_image_url,
@@ -287,11 +308,13 @@ async def new_page_page(request: Request, db: Session = Depends(get_db), current
     显示新建页面页面
     """
     from ..core.template_filters import get_license_options_filter
+    content_primary_mode = _get_content_primary_mode(db)
     return templates.TemplateResponse("admin/page_form.html", {
         "request": request,
         "user": current_user,
         "admin_path": settings.ADMIN_PATH.rstrip('/'),
         "post": None,  # 新建页面时没有post对象
+        "content_primary_mode": content_primary_mode,
         "license_options": get_license_options_filter
     })
 
@@ -305,11 +328,13 @@ async def edit_page_page(page_id: int, request: Request, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="Page not found or is not a page type")
     
     from ..core.template_filters import get_license_options_filter
+    content_primary_mode = _get_content_primary_mode(db)
     return templates.TemplateResponse("admin/page_form.html", {
         "request": request,
         "user": current_user,
         "admin_path": settings.ADMIN_PATH.rstrip('/'),
         "post": page,
+        "content_primary_mode": content_primary_mode,
         "license_options": get_license_options_filter
     })
 
@@ -318,6 +343,8 @@ async def create_page_api(
     request: Request,
     title: str = Form(...),
     content: str = Form(...),
+    content_html: Optional[str] = Form(None),
+    editor_mode: Optional[str] = Form(None),
     slug: Optional[str] = Form(None),
     excerpt: Optional[str] = Form(None),
     featured_image_url: Optional[str] = Form(None),
@@ -341,6 +368,8 @@ async def create_page_api(
     page_create_data = PostCreate(
         title=title,
         content_markdown=content,
+        content_html=content_html,
+        editor_mode=editor_mode or _get_content_primary_mode(db),
         slug=slug,
         excerpt=excerpt,
         featured_image_url=featured_image_url,
@@ -369,6 +398,8 @@ async def update_page_api(
     page_id: int,
     title: str = Form(...),
     content: str = Form(...),
+    content_html: Optional[str] = Form(None),
+    editor_mode: Optional[str] = Form(None),
     slug: Optional[str] = Form(None),
     excerpt: Optional[str] = Form(None),
     featured_image_url: Optional[str] = Form(None),
@@ -400,6 +431,8 @@ async def update_page_api(
     page_update_data = PostUpdate(
         title=title,
         content_markdown=content,
+        content_html=content_html,
+        editor_mode=editor_mode or _get_content_primary_mode(db),
         slug=slug,
         excerpt=excerpt,
         featured_image_url=featured_image_url,

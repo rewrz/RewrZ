@@ -53,9 +53,9 @@
                     <div class="flex items-center space-x-2">
                         <span class="flex items-center">
                             <i class="fas fa-clock mr-1"></i>
-                            {{ related_post.content_markdown | reading_time }}
+                            {{ (related_post.content_markdown or related_post.content_html) | reading_time }}
                         </span>
-                        {% set stats = related_post.content_markdown | reading_stats(related_post) %}
+                        {% set stats = (related_post.content_markdown or related_post.content_html) | reading_stats(related_post) %}
                         <span class="flex items-center">
                             <i class="fas fa-file-text mr-1"></i>
                             {{ stats.word_count }}字

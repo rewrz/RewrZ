@@ -16,6 +16,12 @@ from jinja2 import Environment
 from .license_manager import render_license, LicenseManager
 from .donation_system import render_donation_widget
 from .blog_enhancements import calculate_reading_time, get_related_posts, get_post_statistics
+from .content_utils import (
+    get_effective_content_html,
+    get_effective_plain_text,
+    markdown_to_plain_text,
+    html_to_plain_text,
+)
 from ..core.config import settings # 导入settings
 from ..core.database import get_db
 
@@ -319,20 +325,47 @@ def date_filter(value, format_string: str = "%Y-%m-%d") -> str:
     return str(value)
 
 
-def reading_time_filter(content_markdown: str) -> str:
+def post_content_html_filter(post_obj) -> str:
+    if not post_obj:
+        return ""
+    return get_effective_content_html(
+        getattr(post_obj, "content_markdown", ""),
+        getattr(post_obj, "content_html", ""),
+    )
+
+
+def post_preview_text_filter(post_obj, length: int = 200) -> str:
+    if not post_obj:
+        return ""
+    plain_text = get_effective_plain_text(
+        getattr(post_obj, "content_markdown", ""),
+        getattr(post_obj, "content_html", ""),
+    )
+    if len(plain_text) <= length:
+        return plain_text
+    return f"{plain_text[:length]}..."
+
+
+def reading_time_filter(content_value: str) -> str:
     """
     计算阅读时间的过滤器
     
     Args:
-        content_markdown: Markdown内容
+        content_value: Markdown或HTML内容
         
     Returns:
         阅读时间字符串
     """
-    if not content_markdown:
+    if not content_value:
         return "1 分钟"
-    
-    reading_info = calculate_reading_time(content_markdown)
+
+    source_text = markdown_to_plain_text(content_value)
+    if not source_text and "<" in content_value and ">" in content_value:
+        source_text = html_to_plain_text(content_value)
+    if not source_text:
+        source_text = content_value
+
+    reading_info = calculate_reading_time(source_text)
     minutes = reading_info['reading_time_minutes']
     
     if minutes == 1:
@@ -341,21 +374,29 @@ def reading_time_filter(content_markdown: str) -> str:
         return f"{minutes} 分钟"
 
 
-def reading_stats_filter(content_markdown: str, post_obj=None) -> dict:
+def reading_stats_filter(content_value: str, post_obj=None) -> dict:
     """
     获取文章统计信息的过滤器
     
     Args:
-        content_markdown: Markdown内容
+        content_value: Markdown或HTML内容
         post_obj: 文章对象（可选）
         
     Returns:
         统计信息字典
     """
-    if not content_markdown:
+    effective_content = content_value or ""
+    if not effective_content and post_obj is not None:
+        effective_content = getattr(post_obj, "content_markdown", "") or getattr(post_obj, "content_html", "")
+    if not effective_content:
         return {}
-    
-    return get_post_statistics(content_markdown, post_obj)
+
+    source_text = markdown_to_plain_text(effective_content)
+    if not source_text and "<" in effective_content and ">" in effective_content:
+        source_text = html_to_plain_text(effective_content)
+    if not source_text:
+        source_text = effective_content
+    return get_post_statistics(source_text, post_obj)
 
 
 def related_posts_filter(current_post, db, limit: int = 5) -> list:
@@ -451,6 +492,8 @@ def register_template_filters(app):
     templates.env.filters['responsive_image'] = responsive_image_filter
     templates.env.filters['url'] = url_filter # 注册url过滤器
     templates.env.filters['fa_compat'] = fa_compat_filter # 注册Font Awesome兼容过滤器
+    templates.env.filters['post_content_html'] = post_content_html_filter
+    templates.env.filters['post_preview_text'] = post_preview_text_filter
     
     return templates
 
@@ -484,5 +527,7 @@ def get_templates():
         _templates.env.filters['related_posts'] = related_posts_filter
         _templates.env.filters['fa_compat'] = fa_compat_filter # 注册Font Awesome兼容过滤器
         _templates.env.filters['post_url'] = post_url_filter # 注册文章URL生成过滤器
+        _templates.env.filters['post_content_html'] = post_content_html_filter
+        _templates.env.filters['post_preview_text'] = post_preview_text_filter
     
     return _templates

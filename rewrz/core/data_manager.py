@@ -13,19 +13,28 @@ import json
 import xml.etree.ElementTree as ET
 import zipfile
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Tuple
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 from ..crud import post as crud_post
 from ..crud import category as crud_category
 from ..crud import tag as crud_tag
 from ..crud import setting as crud_setting
 from ..crud import media as crud_media
 from ..crud import user as crud_user
-from ..models import Post, Category, Tag, Media
-from ..schemas import PostCreate, CategoryCreate, TagCreate
+from ..models import Post, Category, Tag, Media, User, Comment
+from ..schemas import PostCreate, CategoryCreate, TagCreate, SettingCreate, SettingUpdate
 import re
 from .template_context import DEFAULT_BASE_SETTINGS
+
+DEFAULT_WP_IMPORT_OPTIONS = {
+    "import_post_types": ["post", "page"],
+    "import_comments": True,
+    "import_views": True,
+    "postmeta_whitelist": ["views", "post_views_count"],
+    "markdown_strategy": "html_to_markdown",
+}
 
 
 class DataExportManager:
@@ -79,6 +88,7 @@ class DataExportManager:
                 "slug": post.slug,
                 "content_markdown": post.content_markdown,
                 "content_html": post.content_html,
+                "editor_mode": "html" if (post.content_html or "").strip() and not (post.content_markdown or "").strip() else "markdown",
                 "excerpt": post.excerpt,
                 "featured_image_url": post.featured_image_url,
                 "post_type": post.post_type,
@@ -251,13 +261,42 @@ class DataExportManager:
 class WordPressImporter:
     """WordPress WXR文件导入器"""
     
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, options: Optional[Dict[str, Any]] = None):
         self.db = db
         self.namespaces = {
             'wp': 'http://wordpress.org/export/1.2/',
             'content': 'http://purl.org/rss/1.0/modules/content/',
-            'excerpt': 'http://wordpress.org/export/1.2/excerpt/'
+            'excerpt': 'http://wordpress.org/export/1.2/excerpt/',
+            'dc': 'http://purl.org/dc/elements/1.1/'
         }
+        self._author_cache: Dict[str, Optional[User]] = {}
+        self.options = self._normalize_import_options(options)
+
+    def _normalize_import_options(self, options: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        merged = dict(DEFAULT_WP_IMPORT_OPTIONS)
+        if isinstance(options, dict):
+            merged.update(options)
+
+        raw_types = merged.get("import_post_types", ["post", "page"])
+        if isinstance(raw_types, str):
+            raw_types = [part.strip() for part in raw_types.split(",")]
+        import_post_types = [str(t).strip().lower() for t in raw_types if str(t).strip()]
+        if not import_post_types:
+            import_post_types = ["post", "page"]
+        merged["import_post_types"] = sorted(set(import_post_types))
+
+        raw_meta_keys = merged.get("postmeta_whitelist", ["views", "post_views_count"])
+        if isinstance(raw_meta_keys, str):
+            raw_meta_keys = [part.strip() for part in raw_meta_keys.split(",")]
+        postmeta_whitelist = [str(k).strip() for k in raw_meta_keys if str(k).strip()]
+        if not postmeta_whitelist:
+            postmeta_whitelist = ["views", "post_views_count"]
+        merged["postmeta_whitelist"] = sorted(set(postmeta_whitelist))
+
+        merged["import_comments"] = bool(merged.get("import_comments", True))
+        merged["import_views"] = bool(merged.get("import_views", True))
+        merged["markdown_strategy"] = str(merged.get("markdown_strategy", "html_to_markdown")).strip() or "html_to_markdown"
+        return merged
     
     def import_from_wxr(self, wxr_file_path: str) -> Dict[str, Any]:
         """
@@ -278,6 +317,8 @@ class WordPressImporter:
                 "posts_imported": 0,
                 "categories_imported": 0,
                 "tags_imported": 0,
+                "comments_imported": 0,
+                "views_imported": 0,
                 "errors": []
             }
             
@@ -298,6 +339,8 @@ class WordPressImporter:
                 "posts_imported": 0,
                 "categories_imported": 0,
                 "tags_imported": 0,
+                "comments_imported": 0,
+                "views_imported": 0,
                 "errors": [str(e)]
             }
     
@@ -311,17 +354,23 @@ class WordPressImporter:
                 cat_name = cat_elem.find('wp:cat_name', self.namespaces)
                 
                 if cat_nicename is not None and cat_name is not None:
+                    slug = (cat_nicename.text or "").strip()
+                    name = (cat_name.text or "").strip()
+                    if not slug or not name:
+                        continue
                     # 检查分类是否已存在
-                    existing_cat = crud_category.get_category_by_slug(self.db, cat_nicename.text)
-                    if not existing_cat:
+                    existing_cat = crud_category.get_category_by_slug(self.db, slug)
+                    existing_cat_by_name = crud_category.get_category_by_name(self.db, name)
+                    if not existing_cat and not existing_cat_by_name:
                         category_data = CategoryCreate(
-                            name=cat_name.text,
-                            slug=cat_nicename.text
+                            name=name,
+                            slug=slug
                         )
                         crud_category.create_category(self.db, category_data)
                         stats["categories_imported"] += 1
                         
             except Exception as e:
+                self.db.rollback()
                 stats["errors"].append(f"导入分类失败: {str(e)}")
     
     def _import_wp_tags(self, root: ET.Element, stats: Dict[str, Any]):
@@ -334,43 +383,68 @@ class WordPressImporter:
                 tag_name = tag_elem.find('wp:tag_name', self.namespaces)
                 
                 if tag_slug is not None and tag_name is not None:
+                    slug = (tag_slug.text or "").strip()
+                    name = (tag_name.text or "").strip()
+                    if not slug or not name:
+                        continue
                     # 检查标签是否已存在
-                    existing_tag = crud_tag.get_tag_by_slug(self.db, tag_slug.text)
-                    if not existing_tag:
+                    existing_tag = crud_tag.get_tag_by_slug(self.db, slug)
+                    existing_tag_by_name = crud_tag.get_tag_by_name(self.db, name)
+                    if not existing_tag and not existing_tag_by_name:
                         tag_data = TagCreate(
-                            name=tag_name.text,
-                            slug=tag_slug.text
+                            name=name,
+                            slug=slug
                         )
                         crud_tag.create_tag(self.db, tag_data)
                         stats["tags_imported"] += 1
                         
             except Exception as e:
+                self.db.rollback()
                 stats["errors"].append(f"导入标签失败: {str(e)}")
     
     def _import_wp_posts(self, root: ET.Element, stats: Dict[str, Any]):
         """导入WordPress文章"""
+        default_user: Optional[User] = None
         items = root.findall('.//item')
         
         for item in items:
             try:
-                # 只导入文章类型
+                # 仅导入正文文章和页面，跳过附件/菜单等类型。
                 post_type = item.find('wp:post_type', self.namespaces)
-                if post_type is None or post_type.text != 'post':
+                raw_post_type = (post_type.text or "").strip().lower() if post_type is not None else ""
+                mapped_post_type = self._map_wp_post_type(raw_post_type)
+                if mapped_post_type is None:
+                    continue
+                if mapped_post_type not in self.options.get("import_post_types", ["post", "page"]):
                     continue
                 
-                # 只导入已发布的文章
                 status = item.find('wp:status', self.namespaces)
-                if status is None or status.text != 'publish':
+                wp_status = (status.text or "").strip().lower() if status is not None else "publish"
+                # 跳过已删除/继承项
+                if wp_status in {"trash", "inherit"}:
                     continue
                 
                 title = item.find('title')
                 content = item.find('content:encoded', self.namespaces)
+                excerpt = item.find('excerpt:encoded', self.namespaces)
+                description = item.find('description')
                 pub_date = item.find('pubDate')
                 link = item.find('link')
+                creator = item.find('dc:creator', self.namespaces)
+                post_name = item.find('wp:post_name', self.namespaces)
+                comment_status = item.find('wp:comment_status', self.namespaces)
+                post_password = item.find('wp:post_password', self.namespaces)
+                post_date = item.find('wp:post_date', self.namespaces)
+                post_date_gmt = item.find('wp:post_date_gmt', self.namespaces)
+                post_modified = item.find('wp:post_modified', self.namespaces)
+                post_modified_gmt = item.find('wp:post_modified_gmt', self.namespaces)
                 
-                if title is not None and content is not None:
-                    # 从链接中提取slug
-                    slug = self._extract_slug_from_url(link.text if link is not None else "")
+                if title is not None:
+                    content_text = content.text if (content is not None and content.text is not None) else ""
+                    # 优先使用WordPress保存的post_name作为slug，保持原始链接一致。
+                    slug = (post_name.text or "").strip() if post_name is not None else ""
+                    if not slug:
+                        slug = self._extract_slug_from_url(link.text if link is not None else "")
                     if not slug:
                         slug = self._generate_slug_from_title(title.text)
                     
@@ -379,35 +453,287 @@ class WordPressImporter:
                     if existing_post:
                         slug = f"{slug}-imported"
                     
-                    # 转换内容格式（简单的HTML到Markdown转换）
-                    markdown_content = self._html_to_markdown(content.text)
+                    markdown_strategy = self.options.get("markdown_strategy")
+                    if markdown_strategy == "raw_html":
+                        markdown_content = ""
+                        html_content = content_text
+                        editor_mode = "html"
+                    else:
+                        markdown_content = self._html_to_markdown(content_text)
+                        if not (markdown_content or "").strip():
+                            markdown_content = content_text
+                        html_content = ""
+                        editor_mode = "markdown"
+                    raw_excerpt = (excerpt.text or "").strip() if excerpt is not None else ""
+                    description_text = (description.text or "").strip() if description is not None else ""
+                    excerpt_text = raw_excerpt if raw_excerpt else (description_text if description_text else self._extract_excerpt(content_text))
+
+                    raw_password = (post_password.text or "").strip() if post_password is not None else ""
+                    mapped_status, mapped_visibility = self._map_wp_post_status_and_visibility(
+                        wp_status=wp_status,
+                        post_password=raw_password,
+                    )
+                    allow_comments = (
+                        (comment_status.text or "").strip().lower() == "open"
+                        if comment_status is not None
+                        else True
+                    )
+                    created_at = self._first_non_none_datetime(
+                        self._parse_wp_datetime_text(post_date_gmt.text if post_date_gmt is not None else None, assume_utc=True),
+                        self._parse_wp_datetime_text(post_date.text if post_date is not None else None),
+                        self._parse_wp_date(pub_date.text if pub_date is not None else None),
+                    )
+                    updated_at = self._first_non_none_datetime(
+                        self._parse_wp_datetime_text(post_modified_gmt.text if post_modified_gmt is not None else None, assume_utc=True),
+                        self._parse_wp_datetime_text(post_modified.text if post_modified is not None else None),
+                        created_at,
+                    )
+                    published_at = created_at if mapped_status == "published" else None
                     
                     # 创建文章
                     post_data = PostCreate(
-                        title=title.text,
+                        title=title.text or "",
                         slug=slug,
                         content_markdown=markdown_content,
-                        content_html=content.text,
-                        excerpt=self._extract_excerpt(content.text),
-                        status="published",
-                        visibility="public",
-                        allow_comments=True,
+                        content_html=html_content,
+                        editor_mode=editor_mode,
+                        excerpt=excerpt_text,
+                        post_type=mapped_post_type,
+                        status=mapped_status,
+                        visibility=mapped_visibility,
+                        password=raw_password or None,
+                        allow_comments=allow_comments,
                         license_type="cc_by_nc_sa_4",
-                        published_at=self._parse_wp_date(pub_date.text if pub_date is not None else None)
+                        created_at=created_at,
+                        updated_at=updated_at,
+                        published_at=published_at,
                     )
                     
                     # 获取默认用户作为作者
-                    default_user = crud_user.get_user_by_id(self.db, 1)  # 假设ID为1的是管理员
-                    if default_user:
-                        new_post = crud_post.create_post(self.db, post_data, default_user.id)
-                        
-                        # 关联分类和标签
-                        self._associate_wp_taxonomies(item, new_post)
-                        
-                        stats["posts_imported"] += 1
+                    if default_user is None:
+                        default_user = self._resolve_default_user()
+
+                    creator_name = (creator.text or "").strip() if creator is not None else ""
+                    author = self._resolve_post_author(creator_name, default_user)
+                    if author is None:
+                        stats["errors"].append(f"导入文章失败: 未找到可用作者账户（creator={creator_name or 'N/A'}）")
+                        continue
+
+                    new_post = crud_post.create_post(self.db, post_data, author.id)
+                    
+                    # 关联分类和标签
+                    self._associate_wp_taxonomies(item, new_post)
+
+                    # 导入评论
+                    if self.options.get("import_comments", True):
+                        self._import_wp_comments(item, new_post, stats)
+
+                    # 导入阅读量（postmeta）
+                    if self.options.get("import_views", True):
+                        views_count = self._extract_wp_views_count(item)
+                        if views_count is not None:
+                            if self._upsert_post_views_metric(new_post.id, views_count):
+                                stats["views_imported"] += 1
+                    
+                    stats["posts_imported"] += 1
                         
             except Exception as e:
+                self.db.rollback()
                 stats["errors"].append(f"导入文章失败: {str(e)}")
+
+    def _import_wp_comments(self, item: ET.Element, post: Post, stats: Dict[str, Any]):
+        """导入WordPress评论（包含父子回复关系）。"""
+        comment_items = item.findall('wp:comment', self.namespaces)
+        if not comment_items:
+            return
+
+        pending_comments = []
+        for comment_elem in comment_items:
+            content_elem = comment_elem.find('wp:comment_content', self.namespaces)
+            content = (content_elem.text or "").strip() if content_elem is not None else ""
+            if not content:
+                continue
+
+            wp_comment_id = self._safe_int(
+                (comment_elem.find('wp:comment_id', self.namespaces).text if comment_elem.find('wp:comment_id', self.namespaces) is not None else None)
+            )
+            wp_parent_id = self._safe_int(
+                (comment_elem.find('wp:comment_parent', self.namespaces).text if comment_elem.find('wp:comment_parent', self.namespaces) is not None else None),
+                default=0,
+            )
+            author_name = (
+                (comment_elem.find('wp:comment_author', self.namespaces).text or "").strip()
+                if comment_elem.find('wp:comment_author', self.namespaces) is not None
+                else ""
+            ) or "Anonymous"
+            author_email = (
+                (comment_elem.find('wp:comment_author_email', self.namespaces).text or "").strip()
+                if comment_elem.find('wp:comment_author_email', self.namespaces) is not None
+                else ""
+            ) or "unknown@example.com"
+            author_url = (
+                (comment_elem.find('wp:comment_author_url', self.namespaces).text or "").strip()
+                if comment_elem.find('wp:comment_author_url', self.namespaces) is not None
+                else ""
+            ) or None
+            ip_address = (
+                (comment_elem.find('wp:comment_author_IP', self.namespaces).text or "").strip()
+                if comment_elem.find('wp:comment_author_IP', self.namespaces) is not None
+                else ""
+            ) or None
+            user_agent = (
+                (comment_elem.find('wp:comment_agent', self.namespaces).text or "").strip()
+                if comment_elem.find('wp:comment_agent', self.namespaces) is not None
+                else ""
+            ) or None
+
+            approved_text = (
+                (comment_elem.find('wp:comment_approved', self.namespaces).text or "").strip().lower()
+                if comment_elem.find('wp:comment_approved', self.namespaces) is not None
+                else "0"
+            )
+            status = self._map_wp_comment_status(approved_text)
+
+            created_at = self._first_non_none_datetime(
+                self._parse_wp_datetime_text(
+                    comment_elem.find('wp:comment_date_gmt', self.namespaces).text
+                    if comment_elem.find('wp:comment_date_gmt', self.namespaces) is not None
+                    else None,
+                    assume_utc=True,
+                ),
+                self._parse_wp_datetime_text(
+                    comment_elem.find('wp:comment_date', self.namespaces).text
+                    if comment_elem.find('wp:comment_date', self.namespaces) is not None
+                    else None
+                ),
+            ) or datetime.utcnow()
+
+            pending_comments.append(
+                {
+                    "wp_id": wp_comment_id,
+                    "wp_parent_id": wp_parent_id,
+                    "author_name": author_name,
+                    "author_email": author_email,
+                    "author_url": author_url,
+                    "content": content,
+                    "ip_address": ip_address,
+                    "user_agent": user_agent,
+                    "status": status,
+                    "created_at": created_at,
+                }
+            )
+
+        wp_to_local: Dict[int, int] = {}
+        remaining = pending_comments
+
+        # 父评论优先落库，无法匹配的回复在最后降级为顶级评论导入。
+        while remaining:
+            progressed = False
+            next_round = []
+            for comment_data in remaining:
+                parent_wp_id = comment_data["wp_parent_id"] or 0
+                if parent_wp_id and parent_wp_id not in wp_to_local:
+                    next_round.append(comment_data)
+                    continue
+
+                db_comment = Comment(
+                    post_id=post.id,
+                    parent_id=wp_to_local.get(parent_wp_id) if parent_wp_id else None,
+                    author_name=comment_data["author_name"],
+                    author_email=comment_data["author_email"],
+                    author_url=comment_data["author_url"],
+                    content=comment_data["content"],
+                    ip_address=comment_data["ip_address"],
+                    user_agent=comment_data["user_agent"],
+                    status=comment_data["status"],
+                    is_admin_reply=False,
+                    created_at=comment_data["created_at"],
+                )
+                self.db.add(db_comment)
+                self.db.flush()
+                if comment_data["wp_id"]:
+                    wp_to_local[comment_data["wp_id"]] = db_comment.id
+                stats["comments_imported"] += 1
+                progressed = True
+
+            if not progressed:
+                for comment_data in next_round:
+                    db_comment = Comment(
+                        post_id=post.id,
+                        parent_id=None,
+                        author_name=comment_data["author_name"],
+                        author_email=comment_data["author_email"],
+                        author_url=comment_data["author_url"],
+                        content=comment_data["content"],
+                        ip_address=comment_data["ip_address"],
+                        user_agent=comment_data["user_agent"],
+                        status=comment_data["status"],
+                        is_admin_reply=False,
+                        created_at=comment_data["created_at"],
+                    )
+                    self.db.add(db_comment)
+                    self.db.flush()
+                    stats["comments_imported"] += 1
+                self.db.commit()
+                return
+
+            remaining = next_round
+
+        self.db.commit()
+
+    def _map_wp_comment_status(self, approved_text: str) -> str:
+        if approved_text in {"1", "approve", "approved"}:
+            return "approved"
+        if approved_text in {"spam", "trash"}:
+            return "spam"
+        return "pending"
+
+    def _extract_wp_views_count(self, item: ET.Element) -> Optional[int]:
+        """提取WordPress postmeta中的阅读量（views/post_views_count）。"""
+        max_views: Optional[int] = None
+        whitelist = set(self.options.get("postmeta_whitelist", ["views", "post_views_count"]))
+        postmeta_items = item.findall('wp:postmeta', self.namespaces)
+        for meta in postmeta_items:
+            key_elem = meta.find('wp:meta_key', self.namespaces)
+            value_elem = meta.find('wp:meta_value', self.namespaces)
+            key = (key_elem.text or "").strip() if key_elem is not None else ""
+            raw_value = (value_elem.text or "").strip() if value_elem is not None else ""
+            if key not in whitelist:
+                continue
+            value = self._safe_int(raw_value, default=0)
+            if value is None:
+                continue
+            if max_views is None or value > max_views:
+                max_views = value
+        return max_views
+
+    def _upsert_post_views_metric(self, post_id: int, views_count: int) -> bool:
+        key = f"post_views_count_{post_id}"
+        setting_value = {"value": int(max(0, views_count))}
+        existing = crud_setting.get_setting(self.db, key)
+        if existing:
+            updated = crud_setting.update_setting(
+                self.db,
+                key,
+                SettingUpdate(
+                    value=setting_value,
+                    description="Imported WordPress post views",
+                    category="post_metrics",
+                    type="integer",
+                ),
+            )
+            return updated is not None
+        created = crud_setting.create_setting(
+            self.db,
+            SettingCreate(
+                key=key,
+                value=setting_value,
+                description="Imported WordPress post views",
+                category="post_metrics",
+                type="integer",
+            ),
+        )
+        return created is not None
     
     def _extract_slug_from_url(self, url: str) -> str:
         """从URL中提取slug"""
@@ -492,9 +818,75 @@ class WordPressImporter:
         try:
             # WordPress日期格式示例: "Wed, 09 Jun 2021 15:35:35 +0000"
             from email.utils import parsedate_to_datetime
-            return parsedate_to_datetime(date_str)
+            return self._normalize_datetime(parsedate_to_datetime(date_str))
         except:
             return None
+
+    def _parse_wp_datetime_text(self, date_str: Optional[str], assume_utc: bool = False) -> Optional[datetime]:
+        """解析 WordPress wp:post_date/wp:post_modified 格式。"""
+        if not date_str:
+            return None
+
+        normalized = date_str.strip()
+        if not normalized or normalized.startswith("0000-00-00"):
+            return None
+
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+            try:
+                parsed = datetime.strptime(normalized, fmt)
+                if assume_utc:
+                    parsed = parsed.replace(tzinfo=timezone.utc)
+                return self._normalize_datetime(parsed)
+            except ValueError:
+                continue
+        return None
+
+    def _safe_int(self, value: Optional[str], default: Optional[int] = None) -> Optional[int]:
+        if value is None:
+            return default
+        text = str(value).strip()
+        if not text:
+            return default
+        try:
+            return int(text)
+        except (ValueError, TypeError):
+            return default
+
+    def _normalize_datetime(self, dt: Optional[datetime]) -> Optional[datetime]:
+        if dt is None:
+            return None
+        if dt.tzinfo is not None:
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
+
+    def _first_non_none_datetime(self, *values: Optional[datetime]) -> Optional[datetime]:
+        for value in values:
+            if value is not None:
+                return value
+        return None
+
+    def _map_wp_post_status_and_visibility(self, wp_status: str, post_password: str) -> Tuple[str, str]:
+        visibility = "public"
+        if post_password:
+            visibility = "password"
+        if wp_status == "private":
+            visibility = "private"
+
+        if wp_status in {"publish", "private"}:
+            status = "published"
+        elif wp_status in {"draft", "pending", "future", "auto-draft"}:
+            status = "draft"
+        else:
+            status = "draft"
+
+        return status, visibility
+
+    def _map_wp_post_type(self, wp_post_type: str) -> Optional[str]:
+        if wp_post_type == "post":
+            return "post"
+        if wp_post_type == "page":
+            return "page"
+        return None
     
     def _associate_wp_taxonomies(self, item: ET.Element, post: Post):
         """关联WordPress的分类和标签到文章"""
@@ -518,7 +910,26 @@ class WordPressImporter:
             self.db.commit()
             
         except Exception as e:
+            self.db.rollback()
             print(f"关联分类标签失败: {str(e)}")
+
+    def _resolve_default_user(self) -> Optional[User]:
+        """优先使用ID=1用户，不存在时回退到首个用户。"""
+        user = crud_user.get_user(self.db, 1)
+        if user:
+            return user
+        return self.db.execute(select(User).order_by(User.id.asc()).limit(1)).scalar_one_or_none()
+
+    def _resolve_post_author(self, creator_name: str, default_user: Optional[User]) -> Optional[User]:
+        if creator_name:
+            if creator_name in self._author_cache:
+                cached = self._author_cache[creator_name]
+                return cached or default_user
+            user = crud_user.get_user_by_username(self.db, creator_name)
+            self._author_cache[creator_name] = user
+            if user:
+                return user
+        return default_user
 
 
 class RewrZImporter:
@@ -546,6 +957,8 @@ class RewrZImporter:
                 "categories_imported": 0,
                 "tags_imported": 0,
                 "settings_imported": 0,
+                "comments_imported": 0,
+                "views_imported": 0,
                 "errors": []
             }
             
@@ -574,6 +987,8 @@ class RewrZImporter:
                 "categories_imported": 0,
                 "tags_imported": 0,
                 "settings_imported": 0,
+                "comments_imported": 0,
+                "views_imported": 0,
                 "errors": [str(e)]
             }
     
@@ -581,30 +996,44 @@ class RewrZImporter:
         """导入分类"""
         for cat_data in categories:
             try:
-                existing_cat = crud_category.get_category_by_slug(self.db, cat_data["slug"])
-                if not existing_cat:
+                slug = (cat_data.get("slug") or "").strip()
+                name = (cat_data.get("name") or "").strip()
+                if not slug or not name:
+                    continue
+
+                existing_cat = crud_category.get_category_by_slug(self.db, slug)
+                existing_cat_by_name = crud_category.get_category_by_name(self.db, name)
+                if not existing_cat and not existing_cat_by_name:
                     category_data = CategoryCreate(
-                        name=cat_data["name"],
-                        slug=cat_data["slug"]
+                        name=name,
+                        slug=slug
                     )
                     crud_category.create_category(self.db, category_data)
                     stats["categories_imported"] += 1
             except Exception as e:
+                self.db.rollback()
                 stats["errors"].append(f"导入分类失败: {str(e)}")
     
     def _import_tags(self, tags: List[Dict], stats: Dict[str, Any]):
         """导入标签"""
         for tag_data in tags:
             try:
-                existing_tag = crud_tag.get_tag_by_slug(self.db, tag_data["slug"])
-                if not existing_tag:
+                slug = (tag_data.get("slug") or "").strip()
+                name = (tag_data.get("name") or "").strip()
+                if not slug or not name:
+                    continue
+
+                existing_tag = crud_tag.get_tag_by_slug(self.db, slug)
+                existing_tag_by_name = crud_tag.get_tag_by_name(self.db, name)
+                if not existing_tag and not existing_tag_by_name:
                     tag_create = TagCreate(
-                        name=tag_data["name"],
-                        slug=tag_data["slug"]
+                        name=name,
+                        slug=slug
                     )
                     crud_tag.create_tag(self.db, tag_create)
                     stats["tags_imported"] += 1
             except Exception as e:
+                self.db.rollback()
                 stats["errors"].append(f"导入标签失败: {str(e)}")
     
     def _import_settings(self, settings: List[Dict], stats: Dict[str, Any]):
@@ -624,24 +1053,32 @@ class RewrZImporter:
                     crud_setting.create_setting(self.db, setting_create)
                     stats["settings_imported"] += 1
             except Exception as e:
+                self.db.rollback()
                 stats["errors"].append(f"导入设置失败: {str(e)}")
     
     def _import_posts(self, posts: List[Dict], stats: Dict[str, Any]):
         """导入文章"""
+        default_user: Optional[User] = None
         for post_data in posts:
             try:
                 existing_post = crud_post.get_post_by_slug(self.db, post_data["slug"])
                 if not existing_post:
                     # 解析日期
-                    published_at = None
-                    if post_data.get("published_at"):
-                        published_at = datetime.fromisoformat(post_data["published_at"].replace('Z', '+00:00'))
+                    created_at = self._parse_iso_datetime(post_data.get("created_at"))
+                    published_at = self._parse_iso_datetime(post_data.get("published_at"))
+                    updated_at = self._parse_iso_datetime(post_data.get("updated_at"))
+                    raw_markdown = post_data.get("content_markdown", "")
+                    raw_html = post_data.get("content_html")
+                    editor_mode = "markdown"
+                    if (raw_html or "").strip() and not (raw_markdown or "").strip():
+                        editor_mode = "html"
                     
                     post_create = PostCreate(
                         title=post_data["title"],
                         slug=post_data["slug"],
-                        content_markdown=post_data.get("content_markdown", ""),
-                        content_html=post_data.get("content_html", ""),
+                        content_markdown=raw_markdown,
+                        content_html=raw_html,
+                        editor_mode=post_data.get("editor_mode") or editor_mode,
                         excerpt=post_data.get("excerpt", ""),
                         featured_image_url=post_data.get("featured_image_url"),
                         post_type=post_data.get("post_type", "post"),
@@ -650,32 +1087,61 @@ class RewrZImporter:
                         password=post_data.get("password"),
                         allow_comments=post_data.get("allow_comments", True),
                         license_type=post_data.get("license_type", "cc_by_nc_sa_4"),
-                        published_at=published_at
+                        created_at=created_at,
+                        published_at=published_at,
+                        updated_at=updated_at,
                     )
                     
                     # 获取默认用户作为作者
-                    default_user = crud_user.get_user_by_id(self.db, 1)
-                    if default_user:
-                        new_post = crud_post.create_post(self.db, post_create, default_user.id)
-                        
-                        # 关联分类和标签
-                        if post_data.get("categories"):
-                            for cat_name in post_data["categories"]:
-                                category = crud_category.get_category_by_name(self.db, cat_name)
-                                if category:
-                                    new_post.categories.append(category)
-                        
-                        if post_data.get("tags"):
-                            for tag_name in post_data["tags"]:
-                                tag = crud_tag.get_tag_by_name(self.db, tag_name)
-                                if tag:
-                                    new_post.tags.append(tag)
-                        
-                        self.db.commit()
-                        stats["posts_imported"] += 1
+                    if default_user is None:
+                        default_user = self._resolve_default_user()
+                        if not default_user:
+                            stats["errors"].append("导入文章失败: 未找到可用作者账户，请先创建管理员用户后重试")
+                            return
+                    new_post = crud_post.create_post(self.db, post_create, default_user.id)
+                    
+                    # 关联分类和标签
+                    if post_data.get("categories"):
+                        for cat_name in post_data["categories"]:
+                            category = crud_category.get_category_by_name(self.db, cat_name)
+                            if category:
+                                new_post.categories.append(category)
+                    
+                    if post_data.get("tags"):
+                        for tag_name in post_data["tags"]:
+                            tag = crud_tag.get_tag_by_name(self.db, tag_name)
+                            if tag:
+                                new_post.tags.append(tag)
+                    
+                    self.db.commit()
+                    stats["posts_imported"] += 1
                         
             except Exception as e:
+                self.db.rollback()
                 stats["errors"].append(f"导入文章失败: {str(e)}")
+
+    def _parse_iso_datetime(self, date_str: Optional[str]) -> Optional[datetime]:
+        if not date_str:
+            return None
+        try:
+            parsed = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            return self._normalize_datetime(parsed)
+        except Exception:
+            return None
+
+    def _normalize_datetime(self, dt: Optional[datetime]) -> Optional[datetime]:
+        if dt is None:
+            return None
+        if dt.tzinfo is not None:
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
+
+    def _resolve_default_user(self) -> Optional[User]:
+        """优先使用ID=1用户，不存在时回退到首个用户。"""
+        user = crud_user.get_user(self.db, 1)
+        if user:
+            return user
+        return self.db.execute(select(User).order_by(User.id.asc()).limit(1)).scalar_one_or_none()
 
 
 # 便捷函数
@@ -684,9 +1150,9 @@ def get_data_export_manager(db: Session) -> DataExportManager:
     return DataExportManager(db)
 
 
-def get_wordpress_importer(db: Session) -> WordPressImporter:
+def get_wordpress_importer(db: Session, options: Optional[Dict[str, Any]] = None) -> WordPressImporter:
     """获取WordPress导入器实例"""
-    return WordPressImporter(db)
+    return WordPressImporter(db, options=options)
 
 
 def get_rewrz_importer(db: Session) -> RewrZImporter:

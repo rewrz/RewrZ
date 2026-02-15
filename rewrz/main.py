@@ -65,6 +65,7 @@ from .core.content_access import (
     render_markdown_with_hide_blocks,
 )
 from .core.toc import build_toc_from_html
+from .core.content_utils import get_effective_content_html
 
 # 全局状态，用于标记后台路由是否已注册
 ADMIN_ROUTES_REGISTERED = False
@@ -346,34 +347,139 @@ def register_admin_routes():
         search: Optional[str] = None,
         status: Optional[str] = None,
         category: Optional[str] = None,
+        page: int = 1,
+        page_size: Optional[int] = None,
         db: Session = Depends(get_db), 
         current_user: User = Depends(get_current_user)
     ):
+        from math import ceil
+        from sqlalchemy import select, func, or_
+        from sqlalchemy.orm import joinedload
+        from .models import Post, Comment
         from .crud import post as crud_post
-        
-        # 使用已有的 get_posts 函数来获取文章列表，确保按发布时间降序排列
-        posts = crud_post.get_posts(db, post_type="post", limit=50, status=status)
-        
-        # 如果有搜索条件，需要额外过滤
-        if search:
-            posts = [post for post in posts if search.lower() in post.title.lower() or search.lower() in post.content_markdown.lower()]
-        
-        # 如果有分类筛选，需要额外过滤
+
+        search = (search or "").strip() or None
+        status = (status or "").strip() or None
+        category = (category or "").strip() or None
+
+        page = max(1, int(page or 1))
+        allowed_page_sizes = [10, 20, 50, 100]
+        try:
+            resolved_page_size = int(page_size) if page_size is not None else 20
+        except (TypeError, ValueError):
+            resolved_page_size = 20
+        if resolved_page_size not in allowed_page_sizes:
+            resolved_page_size = 20
+
+        base_conditions = [Post.post_type.in_(["post", "article"])]
+        filter_conditions = list(base_conditions)
+
+        if status:
+            filter_conditions.append(Post.status == status)
+
+        category_id: Optional[int] = None
         if category:
             try:
                 category_id = int(category)
-                posts = [post for post in posts if any(cat.id == category_id for cat in post.categories)]
             except ValueError:
-                # 如果 category 不是有效的整数，则忽略筛选条件
-                pass
-        
-        # 获取所有分类用于筛选
+                category_id = None
+            if category_id is not None:
+                filter_conditions.append(Post.categories.any(id=category_id))
+
+        if search:
+            like = f"%{search}%"
+            filter_conditions.append(
+                or_(
+                    Post.title.ilike(like),
+                    Post.excerpt.ilike(like),
+                    Post.content_markdown.ilike(like),
+                    Post.content_html.ilike(like),
+                )
+            )
+
+        total_articles = db.execute(
+            select(func.count(Post.id)).where(*base_conditions)
+        ).scalar_one()
+        filtered_total = db.execute(
+            select(func.count(Post.id)).where(*filter_conditions)
+        ).scalar_one()
+
+        total_pages = max(1, ceil(filtered_total / resolved_page_size)) if filtered_total else 1
+        if page > total_pages:
+            page = total_pages
+
+        offset = (page - 1) * resolved_page_size
+        posts = db.execute(
+            select(Post)
+            .options(joinedload(Post.categories), joinedload(Post.tags), joinedload(Post.formats))
+            .where(*filter_conditions)
+            .order_by(Post.created_at.desc())
+            .offset(offset)
+            .limit(resolved_page_size)
+        ).unique().scalars().all()
+
+        # 附加阅读量
+        try:
+            crud_post._attach_views_metrics(db, posts)
+        except Exception:
+            for post in posts:
+                setattr(post, "views", 0)
+                setattr(post, "views_count", 0)
+
+        # 评论数量（包含全部状态）
+        comment_count_map = {}
+        post_ids = [post.id for post in posts]
+        if post_ids:
+            comment_rows = db.execute(
+                select(Comment.post_id, func.count(Comment.id))
+                .where(Comment.post_id.in_(post_ids))
+                .group_by(Comment.post_id)
+            ).all()
+            comment_count_map = {post_id: count for post_id, count in comment_rows}
+        for post in posts:
+            setattr(post, "comment_count", int(comment_count_map.get(post.id, 0)))
+
+        def _build_page_url(target_page: int) -> str:
+            params = {}
+            if search:
+                params["search"] = search
+            if status:
+                params["status"] = status
+            if category_id is not None:
+                params["category"] = str(category_id)
+            params["page"] = str(target_page)
+            params["page_size"] = str(resolved_page_size)
+            return str(request.url.replace_query_params(**params))
+
+        page_window_start = max(1, page - 2)
+        page_window_end = min(total_pages, page_window_start + 4)
+        page_window_start = max(1, page_window_end - 4)
+        page_numbers = list(range(page_window_start, page_window_end + 1))
+
+        pagination = {
+            "current_page": page,
+            "page_size": resolved_page_size,
+            "allowed_page_sizes": allowed_page_sizes,
+            "total_pages": total_pages,
+            "filtered_total": filtered_total,
+            "has_prev": page > 1,
+            "has_next": page < total_pages,
+            "prev_url": _build_page_url(page - 1) if page > 1 else None,
+            "next_url": _build_page_url(page + 1) if page < total_pages else None,
+            "page_links": [{"page": p, "url": _build_page_url(p), "is_current": p == page} for p in page_numbers],
+        }
+
         categories = crud_category.get_categories(db)
         
         return templates.TemplateResponse("admin/posts_list.html", {
             "request": request, 
             "posts": posts, 
             "categories": categories,
+            "search_query": search or "",
+            "selected_status": status or "",
+            "selected_category": str(category_id) if category_id is not None else "",
+            "pagination": pagination,
+            "total_articles": total_articles,
             "user": current_user,
             "admin_path": admin_path
         })
@@ -393,6 +499,8 @@ def register_admin_routes():
         request: Request,
         title: str = Form(...),
         content: str = Form(...),
+        content_html: Optional[str] = Form(None),
+        editor_mode: Optional[str] = Form(None),
         slug: Optional[str] = Form(None),
         excerpt: Optional[str] = Form(None),
         featured_image_url: Optional[str] = Form(None),
@@ -409,23 +517,25 @@ def register_admin_routes():
         current_user: User = Depends(get_current_user)
     ):
         return await posts_api.create_post_api(
-            request,
-            title,
-            content,
-            slug,
-            excerpt,
-            featured_image_url,
-            status,
-            visibility,
-            password,
-            allow_comments,
-            category_ids,
-            tags,
-            format_ids,
-            license_type,
-            csrf_token,
-            db,
-            current_user,
+            request=request,
+            title=title,
+            content=content,
+            content_html=content_html,
+            editor_mode=editor_mode,
+            slug=slug,
+            excerpt=excerpt,
+            featured_image_url=featured_image_url,
+            status=status,
+            visibility=visibility,
+            password=password,
+            allow_comments=allow_comments,
+            category_ids=category_ids,
+            tags=tags,
+            format_ids=format_ids,
+            license_type=license_type,
+            csrf_token=csrf_token,
+            db=db,
+            current_user=current_user,
         )
     
     @app.post(f"{admin_path}/posts/{{post_id}}")
@@ -434,6 +544,8 @@ def register_admin_routes():
         request: Request,
         title: str = Form(...),
         content: str = Form(...),
+        content_html: Optional[str] = Form(None),
+        editor_mode: Optional[str] = Form(None),
         slug: Optional[str] = Form(None),
         excerpt: Optional[str] = Form(None),
         featured_image_url: Optional[str] = Form(None),
@@ -450,24 +562,26 @@ def register_admin_routes():
         current_user: User = Depends(get_current_user)
     ):
         return await posts_api.update_post_api(
-            request,
-            post_id,
-            title,
-            content,
-            slug,
-            excerpt,
-            featured_image_url,
-            status,
-            visibility,
-            password,
-            allow_comments,
-            category_ids,
-            tags,
-            format_ids,
-            license_type,
-            csrf_token,
-            db,
-            current_user,
+            request=request,
+            post_id=post_id,
+            title=title,
+            content=content,
+            content_html=content_html,
+            editor_mode=editor_mode,
+            slug=slug,
+            excerpt=excerpt,
+            featured_image_url=featured_image_url,
+            status=status,
+            visibility=visibility,
+            password=password,
+            allow_comments=allow_comments,
+            category_ids=category_ids,
+            tags=tags,
+            format_ids=format_ids,
+            license_type=license_type,
+            csrf_token=csrf_token,
+            db=db,
+            current_user=current_user,
         )
     
     # 注册后台分类管理页面
@@ -528,13 +642,131 @@ def register_admin_routes():
     
     # 注册后台页面管理页面
     @app.get(f"{admin_path}/pages", response_class=HTMLResponse)
-    async def dynamic_admin_pages_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    async def dynamic_admin_pages_page(
+        request: Request,
+        search: Optional[str] = None,
+        status: Optional[str] = None,
+        visibility: Optional[str] = None,
+        page: int = 1,
+        page_size: Optional[int] = None,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+    ):
+        from math import ceil
+        from sqlalchemy import select, func, or_
+        from .models import Post, Comment
         from .crud import post as crud_post
-        # 获取类型为页面的文章，按发布时间降序排列
-        pages = crud_post.get_posts(db, post_type="page", limit=50)
+
+        search = (search or "").strip() or None
+        status = (status or "").strip() or None
+        visibility = (visibility or "").strip() or None
+
+        page = max(1, int(page or 1))
+        allowed_page_sizes = [10, 20, 50, 100]
+        try:
+            resolved_page_size = int(page_size) if page_size is not None else 20
+        except (TypeError, ValueError):
+            resolved_page_size = 20
+        if resolved_page_size not in allowed_page_sizes:
+            resolved_page_size = 20
+
+        base_conditions = [Post.post_type == "page"]
+        filter_conditions = list(base_conditions)
+        if status:
+            filter_conditions.append(Post.status == status)
+        if visibility:
+            filter_conditions.append(Post.visibility == visibility)
+        if search:
+            like = f"%{search}%"
+            filter_conditions.append(
+                or_(
+                    Post.title.ilike(like),
+                    Post.excerpt.ilike(like),
+                    Post.content_markdown.ilike(like),
+                    Post.content_html.ilike(like),
+                    Post.slug.ilike(like),
+                )
+            )
+
+        total_pages_count = db.execute(
+            select(func.count(Post.id)).where(*base_conditions)
+        ).scalar_one()
+        filtered_total = db.execute(
+            select(func.count(Post.id)).where(*filter_conditions)
+        ).scalar_one()
+
+        total_page_count = max(1, ceil(filtered_total / resolved_page_size)) if filtered_total else 1
+        if page > total_page_count:
+            page = total_page_count
+
+        offset = (page - 1) * resolved_page_size
+        pages = db.execute(
+            select(Post)
+            .where(*filter_conditions)
+            .order_by(Post.created_at.desc())
+            .offset(offset)
+            .limit(resolved_page_size)
+        ).scalars().all()
+
+        # 附加阅读量
+        try:
+            crud_post._attach_views_metrics(db, pages)
+        except Exception:
+            for item in pages:
+                setattr(item, "views", 0)
+                setattr(item, "views_count", 0)
+
+        # 评论数量（全部状态）
+        page_ids = [item.id for item in pages]
+        comment_count_map = {}
+        if page_ids:
+            comment_rows = db.execute(
+                select(Comment.post_id, func.count(Comment.id))
+                .where(Comment.post_id.in_(page_ids))
+                .group_by(Comment.post_id)
+            ).all()
+            comment_count_map = {post_id: count for post_id, count in comment_rows}
+        for item in pages:
+            setattr(item, "comment_count", int(comment_count_map.get(item.id, 0)))
+
+        def _build_page_url(target_page: int) -> str:
+            params = {}
+            if search:
+                params["search"] = search
+            if status:
+                params["status"] = status
+            if visibility:
+                params["visibility"] = visibility
+            params["page"] = str(target_page)
+            params["page_size"] = str(resolved_page_size)
+            return str(request.url.replace_query_params(**params))
+
+        page_window_start = max(1, page - 2)
+        page_window_end = min(total_page_count, page_window_start + 4)
+        page_window_start = max(1, page_window_end - 4)
+        page_numbers = list(range(page_window_start, page_window_end + 1))
+
+        pagination = {
+            "current_page": page,
+            "page_size": resolved_page_size,
+            "allowed_page_sizes": allowed_page_sizes,
+            "total_pages": total_page_count,
+            "filtered_total": filtered_total,
+            "has_prev": page > 1,
+            "has_next": page < total_page_count,
+            "prev_url": _build_page_url(page - 1) if page > 1 else None,
+            "next_url": _build_page_url(page + 1) if page < total_page_count else None,
+            "page_links": [{"page": p, "url": _build_page_url(p), "is_current": p == page} for p in page_numbers],
+        }
+
         return templates.TemplateResponse("admin/pages_list.html", {
             "request": request, 
-            "pages": pages, 
+            "pages": pages,
+            "search_query": search or "",
+            "selected_status": status or "",
+            "selected_visibility": visibility or "",
+            "pagination": pagination,
+            "total_pages_count": total_pages_count,
             "user": current_user,
             "admin_path": admin_path
         })
@@ -544,6 +776,8 @@ def register_admin_routes():
         request: Request,
         title: str = Form(...),
         content: str = Form(...),
+        content_html: Optional[str] = Form(None),
+        editor_mode: Optional[str] = Form(None),
         slug: Optional[str] = Form(None),
         excerpt: Optional[str] = Form(None),
         featured_image_url: Optional[str] = Form(None),
@@ -557,20 +791,22 @@ def register_admin_routes():
         current_user: User = Depends(get_current_user)
     ):
         return await posts_api.create_page_api(
-            request,
-            title,
-            content,
-            slug,
-            excerpt,
-            featured_image_url,
-            status,
-            visibility,
-            password,
-            allow_comments,
-            license_type,
-            csrf_token,
-            db,
-            current_user,
+            request=request,
+            title=title,
+            content=content,
+            content_html=content_html,
+            editor_mode=editor_mode,
+            slug=slug,
+            excerpt=excerpt,
+            featured_image_url=featured_image_url,
+            status=status,
+            visibility=visibility,
+            password=password,
+            allow_comments=allow_comments,
+            license_type=license_type,
+            csrf_token=csrf_token,
+            db=db,
+            current_user=current_user,
         )
     
     @app.post(f"{admin_path}/pages/{{page_id}}")
@@ -579,6 +815,8 @@ def register_admin_routes():
         request: Request,
         title: str = Form(...),
         content: str = Form(...),
+        content_html: Optional[str] = Form(None),
+        editor_mode: Optional[str] = Form(None),
         slug: Optional[str] = Form(None),
         excerpt: Optional[str] = Form(None),
         featured_image_url: Optional[str] = Form(None),
@@ -592,21 +830,23 @@ def register_admin_routes():
         current_user: User = Depends(get_current_user)
     ):
         return await posts_api.update_page_api(
-            request,
-            page_id,
-            title,
-            content,
-            slug,
-            excerpt,
-            featured_image_url,
-            status,
-            visibility,
-            password,
-            allow_comments,
-            license_type,
-            csrf_token,
-            db,
-            current_user,
+            request=request,
+            page_id=page_id,
+            title=title,
+            content=content,
+            content_html=content_html,
+            editor_mode=editor_mode,
+            slug=slug,
+            excerpt=excerpt,
+            featured_image_url=featured_image_url,
+            status=status,
+            visibility=visibility,
+            password=password,
+            allow_comments=allow_comments,
+            license_type=license_type,
+            csrf_token=csrf_token,
+            db=db,
+            current_user=current_user,
         )
     
     # 注册后台系统信息页面
@@ -830,8 +1070,8 @@ def register_admin_routes():
 
         # 处理评论后可见内容
         can_view_hidden = is_admin or request.cookies.get(get_comment_unlock_cookie_name(db_post.id)) == "true"
-        display_content_html = db_post.content_html
-        if has_hide_blocks(db_post.content_markdown):
+        display_content_html = get_effective_content_html(db_post.content_markdown, db_post.content_html)
+        if db_post.content_markdown and has_hide_blocks(db_post.content_markdown):
             display_content_html = render_markdown_with_hide_blocks(
                 db_post.content_markdown,
                 db_post.id,
@@ -894,8 +1134,8 @@ def register_admin_routes():
 
         # 处理评论后可见内容
         can_view_hidden = is_admin or request.cookies.get(get_comment_unlock_cookie_name(db_page.id)) == "true"
-        display_content_html = db_page.content_html
-        if has_hide_blocks(db_page.content_markdown):
+        display_content_html = get_effective_content_html(db_page.content_markdown, db_page.content_html)
+        if db_page.content_markdown and has_hide_blocks(db_page.content_markdown):
             display_content_html = render_markdown_with_hide_blocks(
                 db_page.content_markdown,
                 db_page.id,

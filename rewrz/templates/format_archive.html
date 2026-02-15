@@ -169,7 +169,7 @@
             <!-- 文本内容 -->
             <div class="px-4 pb-3">
                 <div class="prose prose-sm max-w-none text-gray-800 leading-relaxed weibo-content-body" data-max-chars="180">
-                    {{ post.content_html | safe }}
+                    {{ post | post_content_html | safe }}
                 </div>
             </div>
             
@@ -257,7 +257,7 @@
                 
                 <!-- 时长标签 -->
                 <div class="absolute bottom-2 right-2 bg-black bg-opacity-80 text-white text-xs px-2 py-1 rounded font-medium" data-video-badge>
-                    {{ post.content_markdown | reading_time }}
+                    {{ (post.content_markdown or post.content_html) | reading_time }}
                 </div>
                 <div class="video-preview-progress absolute bottom-0 left-0 h-1 bg-red-500/90 w-0"></div>
                 
@@ -369,7 +369,7 @@
                 <!-- 时长/操作 -->
                 <div class="flex-shrink-0 w-16 text-right">
                     <div class="flex items-center justify-end space-x-2">
-                        <span class="text-sm text-gray-400">{{ post.content_markdown | reading_time }}</span>
+                        <span class="text-sm text-gray-400">{{ (post.content_markdown or post.content_html) | reading_time }}</span>
                         <button class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded">
                             <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path>
@@ -397,9 +397,9 @@
                 <span>发布于 {{ post.published_at.strftime('%Y年%m月%d日') }}</span>
                 <span class="flex items-center">
                     <i class="fas fa-clock mr-1"></i>
-                    {{ post.content_markdown | reading_time }}阅读
+                    {{ (post.content_markdown or post.content_html) | reading_time }}阅读
                 </span>
-                {% set stats = post.content_markdown | reading_stats(post) %}
+                {% set stats = (post.content_markdown or post.content_html) | reading_stats(post) %}
                 <span class="flex items-center">
                     <i class="fas fa-file-text mr-1"></i>
                     {{ stats.word_count }}字

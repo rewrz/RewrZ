@@ -3,77 +3,161 @@
 {% block title_text %}页面管理{% endblock %}
 {% block page_title %}<i class="fas fa-file text-blue-600 mr-3"></i>页面管理{% endblock %}
 {% block content %}
-<div class="bg-white rounded-lg shadow-md p-6">
-    <div class="flex justify-between items-center mb-6">
-        <a href="{{ request.state.admin_path }}/pages/new" 
-           class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-            <i class="fas fa-plus mr-2"></i>新建页面
-        </a>
+<div class="admin-panel p-4 md:p-6 space-y-5">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="{{ request.state.admin_path }}/pages/new"
+               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                <i class="fas fa-plus mr-2"></i>新建页面
+            </a>
+            <button onclick="refreshPagesList()"
+                    class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                <i class="fas fa-sync-alt mr-2"></i>刷新
+            </button>
+        </div>
+        <div class="text-sm text-gray-600">
+            <span class="font-medium">页面总数：</span>{{ total_pages_count }}
+            {% if pagination.filtered_total != total_pages_count %}
+            <span class="ml-3"><span class="font-medium">筛选结果：</span>{{ pagination.filtered_total }}</span>
+            {% endif %}
+        </div>
     </div>
 
-    <!-- 页面列表 -->
-    <div class="overflow-x-auto">
-        <table class="min-w-full bg-white border border-gray-200">
+    <form method="get" action="{{ request.state.admin_path }}/pages" class="flex flex-wrap gap-3 items-end bg-gray-50 p-4 rounded-lg border border-gray-200">
+        <div class="min-w-64 flex-1">
+            <label for="search-input" class="block text-xs text-gray-500 mb-1">搜索</label>
+            <input
+                type="text"
+                id="search-input"
+                name="search"
+                value="{{ search_query }}"
+                placeholder="搜索页面标题、摘要、正文或别名..."
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            >
+        </div>
+        <div>
+            <label for="status-filter" class="block text-xs text-gray-500 mb-1">状态</label>
+            <select id="status-filter" name="status" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <option value="">全部状态</option>
+                <option value="published" {% if selected_status == "published" %}selected{% endif %}>已发布</option>
+                <option value="draft" {% if selected_status == "draft" %}selected{% endif %}>草稿</option>
+            </select>
+        </div>
+        <div>
+            <label for="visibility-filter" class="block text-xs text-gray-500 mb-1">可见性</label>
+            <select id="visibility-filter" name="visibility" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <option value="">全部可见性</option>
+                <option value="public" {% if selected_visibility == "public" %}selected{% endif %}>公开</option>
+                <option value="private" {% if selected_visibility == "private" %}selected{% endif %}>私密</option>
+                <option value="password" {% if selected_visibility == "password" %}selected{% endif %}>密码保护</option>
+            </select>
+        </div>
+        <div>
+            <label for="page-size-filter" class="block text-xs text-gray-500 mb-1">每页数量</label>
+            <select id="page-size-filter" name="page_size" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                {% for size in pagination.allowed_page_sizes %}
+                <option value="{{ size }}" {% if pagination.page_size == size %}selected{% endif %}>{{ size }} / 页</option>
+                {% endfor %}
+            </select>
+        </div>
+        <input type="hidden" name="page" value="1">
+        <div class="flex gap-2">
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                应用筛选
+            </button>
+            <a href="{{ request.state.admin_path }}/pages" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition-colors">
+                重置
+            </a>
+        </div>
+    </form>
+
+    <div class="overflow-x-auto rounded-lg border border-gray-200">
+        <table class="min-w-full bg-white">
+            <colgroup>
+                <col class="w-[38%]">
+                <col class="w-24">
+                <col class="w-24">
+                <col class="w-28">
+                <col class="w-20">
+                <col class="w-36">
+                <col class="w-20">
+            </colgroup>
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标题</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">发布时间</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标题</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">可见性</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">评论</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">更新时间</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">阅读量</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 {% for page in pages %}
                 <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4">
-                        <div class="text-sm font-medium text-gray-900">
+                    <td class="px-4 py-4 align-top">
+                        <div class="text-base font-semibold tracking-tight text-gray-900">
                             <a href="/{{ page.slug }}" target="_blank" class="hover:text-blue-600">
-                                {{ page.title }}
+                                {{ page.title or "(无标题页面)" }}
                             </a>
                         </div>
+                        <div class="mt-1 text-xs text-gray-500 leading-5">
+                            <span class="inline-block text-[11px] uppercase tracking-wide text-gray-400">摘要</span>
+                            <span class="ml-1 italic">{{ page.excerpt[:80] if page.excerpt else '' }}{% if page.excerpt and page.excerpt|length > 80 %}...{% endif %}</span>
+                        </div>
+                        <div class="mt-1 text-xs text-gray-400">/{{ page.slug }}</div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-4 py-4 align-top">
                         {% if page.status == 'published' %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                已发布
-                            </span>
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">已发布</span>
                         {% else %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                草稿
-                            </span>
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">草稿</span>
                         {% endif %}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ page.created_at.strftime('%Y-%m-%d %H:%M') if page.created_at else '-' }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div class="flex space-x-2">
-                            <a href="{{ request.state.admin_path }}/pages/{{ page.id }}/edit" 
-                               class="text-blue-600 hover:text-blue-900">
+                    <td class="px-4 py-4 align-top">
+                        <div class="flex items-center gap-3 text-sm">
+                            <a href="{{ request.state.admin_path }}/pages/{{ page.id }}/edit" class="text-blue-600 hover:text-blue-900" title="编辑">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <a href="/{{ page.slug }}" target="_blank" 
-                               class="text-green-600 hover:text-green-900">
+                            <a href="/{{ page.slug }}" target="_blank" class="text-green-600 hover:text-green-900" title="查看">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <button onclick="deletePage('{{ page.id }}')" 
-                                    class="text-red-600 hover:text-red-900">
+                            <button onclick="deletePage('{{ page.id }}')" class="text-red-600 hover:text-red-900" title="删除">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </td>
+                    <td class="px-4 py-4 align-top">
+                        {% if page.visibility == 'public' %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">公开</span>
+                        {% elif page.visibility == 'private' %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">私密</span>
+                        {% elif page.visibility == 'password' %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">密码保护</span>
+                        {% else %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{{ page.visibility }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-4 align-top text-sm text-gray-600">
+                        {{ page.comment_count if page.comment_count is defined else 0 }}
+                    </td>
+                    <td class="px-4 py-4 align-top text-sm text-gray-500">
+                        {{ (page.updated_at or page.created_at).strftime('%Y-%m-%d %H:%M') if (page.updated_at or page.created_at) else '-' }}
+                    </td>
+                    <td class="px-4 py-4 align-top text-sm text-gray-500">
+                        {{ page.views if page.views else 0 }}
+                    </td>
                 </tr>
                 {% endfor %}
-                
+
                 {% if not pages %}
                 <tr>
-                    <td colspan="4" class="px-6 py-12 text-center text-gray-500">
+                    <td colspan="7" class="px-6 py-12 text-center text-gray-500">
                         <i class="fas fa-file text-4xl mb-4 text-gray-400"></i>
                         <div class="text-lg">暂无页面</div>
                         <div class="text-sm">
-                            <a href="{{ request.state.admin_path }}/pages/new" class="text-blue-600 hover:text-blue-800">
-                                立即创建第一个页面
-                            </a>
+                            <a href="{{ request.state.admin_path }}/pages/new" class="text-blue-600 hover:text-blue-800">立即创建第一个页面</a>
                         </div>
                     </td>
                 </tr>
@@ -81,23 +165,60 @@
             </tbody>
         </table>
     </div>
+
+    <div class="flex flex-wrap justify-between items-center gap-3 pt-1">
+        <div class="text-sm text-gray-600">
+            共 {{ pagination.filtered_total }} 条结果，第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页
+        </div>
+        <div class="flex items-center gap-1">
+            {% if pagination.has_prev %}
+            <a href="{{ pagination.prev_url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">上一页</a>
+            {% else %}
+            <span class="px-3 py-1.5 text-sm border border-gray-200 rounded text-gray-400 cursor-not-allowed">上一页</span>
+            {% endif %}
+
+            {% for link in pagination.page_links %}
+                {% if link.is_current %}
+                <span class="px-3 py-1.5 text-sm rounded bg-blue-600 text-white">{{ link.page }}</span>
+                {% else %}
+                <a href="{{ link.url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">{{ link.page }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if pagination.has_next %}
+            <a href="{{ pagination.next_url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">下一页</a>
+            {% else %}
+            <span class="px-3 py-1.5 text-sm border border-gray-200 rounded text-gray-400 cursor-not-allowed">下一页</span>
+            {% endif %}
+        </div>
+    </div>
 </div>
 
 <script>
+function refreshPagesList() {
+    window.location.href = '{{ request.state.admin_path }}/pages';
+}
+
 function deletePage(pageId) {
-    if (confirm('确定要删除这个页面吗？')) {
-        fetch(`{{ request.state.admin_path }}/api/v1/pages/${pageId}`, {
-            method: 'DELETE',
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('删除失败：' + data.error);
-            }
-        });
-    }
+    if (!confirm('确定要删除这个页面吗？此操作不可撤销。')) return;
+    fetch(`{{ request.state.admin_path }}/api/v1/pages/${pageId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': '{{ request.state.csrf_token }}'
+        }
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert('删除失败：' + (data.error || data.detail || '未知错误'));
+    })
+    .catch((error) => {
+        alert('删除失败：' + error.message);
+    });
 }
 </script>
 {% endblock %}

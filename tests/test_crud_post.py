@@ -66,8 +66,8 @@ def test_create_post(db: Session, test_user: User, test_category: Category, test
     assert post.title == "Test Post"
     assert post.slug == "test-post"
     assert post.content_markdown == "## Hello World\nThis is a test post."
-    assert post.content_html == "<h2>Hello World</h2>\n<p>This is a test post.</p>"
-    assert post.excerpt == "## Hello World\nThis is a test post."[:120]
+    assert post.content_html == ""
+    assert post.excerpt == "Hello World This is a test post."
     assert post.post_type == "article"
     assert post.status == "draft"
     assert post.visibility == "public"
@@ -156,7 +156,7 @@ def test_update_post(db: Session, test_user: User, test_category: Category):
     assert updated_post.title == "Updated Title"
     assert updated_post.slug == "updated-slug"
     assert updated_post.content_markdown == "Updated Content"
-    assert updated_post.content_html == "<p>Updated Content</p>"
+    assert updated_post.content_html == ""
     assert updated_post.status == "published"
     assert updated_post.published_at is not None # Should be set on first publish
     assert updated_post.updated_at > old_time  # Compare with saved old time
@@ -231,3 +231,46 @@ def test_post_password_visibility(db: Session, test_user: User):
     update_data = PostUpdate(password="newsecret")
     updated_post = crud_post.update_post(db, post_id=post.id, post=update_data)
     assert updated_post.password != old_password # Should be re-hashed
+
+
+def test_create_post_html_mode_stores_only_html(db: Session, test_user: User):
+    post_data = PostCreate(
+        title="HTML Post",
+        slug="html-post",
+        content_markdown="",
+        content_html="<p><strong>HTML</strong> content</p>",
+        editor_mode="html",
+        post_type="article",
+        status="draft",
+        visibility="public",
+        author_id=test_user.id,
+    )
+    post = crud_post.create_post(db, post_data, author_id=test_user.id)
+    assert post.content_markdown == ""
+    assert post.content_html == "<p><strong>HTML</strong> content</p>"
+
+
+def test_update_post_html_mode_clears_markdown(db: Session, test_user: User):
+    post_data = PostCreate(
+        title="Switch Me",
+        slug="switch-me",
+        content_markdown="Markdown content",
+        post_type="article",
+        status="draft",
+        visibility="public",
+        author_id=test_user.id,
+    )
+    created_post = crud_post.create_post(db, post_data, author_id=test_user.id)
+
+    updated = crud_post.update_post(
+        db,
+        post_id=created_post.id,
+        post=PostUpdate(
+            editor_mode="html",
+            content_markdown="",
+            content_html="<h2>HTML body</h2>",
+        ),
+    )
+
+    assert updated.content_markdown == ""
+    assert updated.content_html == "<h2>HTML body</h2>"

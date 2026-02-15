@@ -93,10 +93,55 @@
         z-index: 35;
         backdrop-filter: blur(10px);
     }
+    .editor-surface .toastui-editor-md-container .cm-content,
+    .editor-surface .toastui-editor-md-container .CodeMirror-lines,
+    .editor-surface .toastui-editor-ww-container .ProseMirror,
+    .editor-surface .toastui-editor-contents {
+        font-size: var(--editor-font-size, 17px);
+        line-height: 1.9;
+    }
+    .editor-utility-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border: 1px solid var(--ui-border);
+        border-radius: 0.55rem;
+        padding: 0.35rem 0.6rem;
+        font-size: 0.8rem;
+        background: color-mix(in srgb, var(--color-card-bg) 98%, transparent);
+    }
+    body.editor-fullscreen-active {
+        overflow: hidden;
+    }
+    #page-form.editor-fullscreen {
+        position: fixed;
+        inset: 0;
+        z-index: 1200;
+        margin: 0 !important;
+        padding: 0.9rem;
+        overflow: auto;
+        background: color-mix(in srgb, var(--color-card-bg) 96%, white);
+    }
+    #page-form.editor-fullscreen .editor-hero {
+        display: none;
+    }
+    #page-form.editor-fullscreen #editor-side-panel {
+        display: none;
+    }
+    #page-form.editor-fullscreen #editor-layout-grid {
+        display: block;
+    }
+    #page-form.editor-fullscreen #editor-main-panel {
+        width: 100%;
+    }
+    #page-form.editor-fullscreen #editor {
+        min-height: 82vh;
+    }
 </style>
 
 <form id="page-form" hx-post="{% if post %}{{ request.state.admin_path }}/pages/{{ post.id }}{% else %}{{ request.state.admin_path }}/pages/new{% endif %}" hx-target="#admin-content" hx-swap="outerHTML" class="space-y-6">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <input type="hidden" name="editor_mode" id="editor-mode-input" value="markdown">
     {% if post %}
     <input type="hidden" name="_method" value="PUT">
     {% endif %}
@@ -116,9 +161,9 @@
             </div>
         </div>
     </section>
-    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+    <div id="editor-layout-grid" class="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <!-- Main Editor -->
-        <div class="xl:col-span-8 space-y-6">
+        <div id="editor-main-panel" class="xl:col-span-8 space-y-6">
             <div class="admin-panel p-4 md:p-6">
                 <div class="mb-4">
                     <label for="title" class="block text-sm font-medium text-gray-700">标题</label>
@@ -129,7 +174,21 @@
                     <div class="text-sm text-gray-600">
                         快捷键: <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200">Ctrl/Cmd + S</kbd>
                     </div>
+                    <div class="inline-flex rounded-md border border-gray-300 overflow-hidden text-sm" role="group" aria-label="编辑模式切换">
+                        <button type="button" id="editor-mode-markdown" class="px-3 py-2 bg-white text-gray-700 hover:bg-gray-50">Markdown</button>
+                        <button type="button" id="editor-mode-html" class="px-3 py-2 bg-white text-gray-700 hover:bg-gray-50 border-l border-gray-300">富文本</button>
+                    </div>
                     <div class="flex flex-wrap gap-2">
+                    <button type="button" id="editor-font-decrease" class="editor-utility-pill" title="缩小字号">
+                        <i class="fas fa-minus"></i><span>A</span>
+                    </button>
+                    <span id="editor-font-size-label" class="editor-utility-pill">17px</span>
+                    <button type="button" id="editor-font-increase" class="editor-utility-pill" title="放大字号">
+                        <i class="fas fa-plus"></i><span>A</span>
+                    </button>
+                    <button type="button" id="editor-fullscreen-toggle" class="editor-utility-pill" title="切换全屏编辑（Ctrl/Cmd+Shift+F）">
+                        <i class="fas fa-expand"></i><span>全屏</span>
+                    </button>
                     <input type="file" id="direct-upload-input" class="hidden" multiple>
                     <button type="button" id="direct-upload-button" class="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">
                         <i class="fas fa-upload mr-2"></i>上传文件
@@ -183,7 +242,7 @@
         </div>
 
         <!-- Sidebar -->
-        <div class="xl:col-span-4">
+        <div id="editor-side-panel" class="xl:col-span-4">
             <div class="admin-panel p-4 md:p-6 space-y-6 xl:sticky xl:top-24">
                 <div>
                     <h3 class="text-lg font-semibold mb-2">URL 别名 (Slug)</h3>
@@ -240,16 +299,63 @@
 </form>
 
 <script>
+    const contentPrimaryMode = {{ (content_primary_mode or "markdown")|tojson }};
+    const isEditingPage = {% if post %}true{% else %}false{% endif %};
+    const initialMarkdownContent = {% if post %}{{ (post.content_markdown or "")|tojson }}{% else %}""{% endif %};
+    const initialHtmlContent = {% if post %}{{ (post.content_html or "")|tojson }}{% else %}""{% endif %};
+
+    function resolveInitialEditorMode() {
+        if (isEditingPage) {
+            const hasMarkdown = Boolean((initialMarkdownContent || "").trim());
+            const hasHtml = Boolean((initialHtmlContent || "").trim());
+            if (hasHtml && !hasMarkdown) return "html";
+            if (hasMarkdown) return "markdown";
+        }
+        return contentPrimaryMode === "html" ? "html" : "markdown";
+    }
+
+    const initialEditorMode = resolveInitialEditorMode();
     const editor = new toastui.Editor({
         el: document.querySelector('#editor'),
         height: '70vh',
-        initialEditType: 'markdown',
-        hideModeSwitch: false,
+        initialEditType: initialEditorMode === "html" ? "wysiwyg" : "markdown",
+        hideModeSwitch: true,
         previewStyle: 'vertical',
-        initialValue: {% if post %}{{ post.content_markdown|tojson }}{% else %}""{% endif %}
+        usageStatistics: false,
+        toolbarItems: [
+            ['heading', 'bold', 'italic', 'strike'],
+            ['hr', 'quote'],
+            ['ul', 'ol', 'task', 'indent', 'outdent'],
+            ['table', 'link', 'image'],
+            ['code', 'codeblock'],
+            ['scrollSync']
+        ],
+        hooks: {
+            addImageBlobHook: async (blob, callback) => {
+                try {
+                    const uploaded = await uploadMediaFile(blob);
+                    callback(uploaded.url, uploaded.alt_text || uploaded.title || blob.name || 'image');
+                    markDirty();
+                } catch (error) {
+                    alert(`图片上传失败: ${error.message}`);
+                }
+                return false;
+            }
+        },
+        initialValue: initialMarkdownContent || ""
     });
+    if (initialEditorMode === "html" && (initialHtmlContent || "").trim()) {
+        editor.setHTML(initialHtmlContent);
+    }
 
     const pageForm = document.getElementById('page-form');
+    const editorModeInput = document.getElementById('editor-mode-input');
+    const markdownModeButton = document.getElementById('editor-mode-markdown');
+    const htmlModeButton = document.getElementById('editor-mode-html');
+    const fullscreenToggleButton = document.getElementById('editor-fullscreen-toggle');
+    const fontIncreaseButton = document.getElementById('editor-font-increase');
+    const fontDecreaseButton = document.getElementById('editor-font-decrease');
+    const fontSizeLabel = document.getElementById('editor-font-size-label');
     const savePageButton = document.getElementById('save-page-button');
     const dirtyIndicator = document.getElementById('dirty-indicator');
     const savedIndicator = document.getElementById('saved-indicator');
@@ -261,6 +367,95 @@
     let isDirty = false;
     let isSubmitting = false;
     let slugTouched = Boolean(slugInput && slugInput.value.trim());
+    const minEditorFontSize = 14;
+    const maxEditorFontSize = 24;
+    let currentEditorFontSize = 17;
+
+    function isEditorFullscreen() {
+        return pageForm.classList.contains('editor-fullscreen');
+    }
+
+    function applyEditorHeight() {
+        if (!editor || typeof editor.setHeight !== 'function') return;
+        editor.setHeight(isEditorFullscreen() ? '82vh' : '70vh');
+    }
+
+    function updateFullscreenButton() {
+        if (!fullscreenToggleButton) return;
+        const active = isEditorFullscreen();
+        const icon = fullscreenToggleButton.querySelector('i');
+        const label = fullscreenToggleButton.querySelector('span');
+        if (icon) {
+            icon.classList.toggle('fa-expand', !active);
+            icon.classList.toggle('fa-compress', active);
+        }
+        if (label) {
+            label.textContent = active ? '退出全屏' : '全屏';
+        }
+    }
+
+    function toggleFullscreen(forceActive = null) {
+        const target = forceActive === null ? !isEditorFullscreen() : Boolean(forceActive);
+        pageForm.classList.toggle('editor-fullscreen', target);
+        document.body.classList.toggle('editor-fullscreen-active', target);
+        updateFullscreenButton();
+        applyEditorHeight();
+        setTimeout(() => {
+            try {
+                editor.focus();
+            } catch (_) {
+                // ignore focus errors
+            }
+        }, 30);
+    }
+
+    function applyEditorFontSize(size, persist = true) {
+        const next = Math.max(minEditorFontSize, Math.min(maxEditorFontSize, Number(size) || 17));
+        currentEditorFontSize = next;
+        pageForm.style.setProperty('--editor-font-size', `${next}px`);
+        if (fontSizeLabel) {
+            fontSizeLabel.textContent = `${next}px`;
+        }
+        if (persist) {
+            localStorage.setItem('rewrz_editor_font_size', String(next));
+        }
+    }
+
+    function getActiveEditorMode() {
+        if (editor && typeof editor.isWysiwygMode === 'function' && editor.isWysiwygMode()) {
+            return 'html';
+        }
+        return 'markdown';
+    }
+
+    function updateEditorModeButtons(activeMode) {
+        const isMarkdown = activeMode === 'markdown';
+        if (markdownModeButton) {
+            markdownModeButton.classList.toggle('bg-blue-600', isMarkdown);
+            markdownModeButton.classList.toggle('text-white', isMarkdown);
+            markdownModeButton.classList.toggle('hover:bg-blue-700', isMarkdown);
+            markdownModeButton.classList.toggle('bg-white', !isMarkdown);
+            markdownModeButton.classList.toggle('text-gray-700', !isMarkdown);
+        }
+        if (htmlModeButton) {
+            htmlModeButton.classList.toggle('bg-blue-600', !isMarkdown);
+            htmlModeButton.classList.toggle('text-white', !isMarkdown);
+            htmlModeButton.classList.toggle('hover:bg-blue-700', !isMarkdown);
+            htmlModeButton.classList.toggle('bg-white', isMarkdown);
+            htmlModeButton.classList.toggle('text-gray-700', isMarkdown);
+        }
+    }
+
+    function setEditorMode(mode, shouldSwitch = true) {
+        const targetMode = mode === 'html' ? 'html' : 'markdown';
+        if (editorModeInput) {
+            editorModeInput.value = targetMode;
+        }
+        if (shouldSwitch && editor && typeof editor.changeMode === 'function') {
+            editor.changeMode(targetMode === 'html' ? 'wysiwyg' : 'markdown', true);
+        }
+        updateEditorModeButtons(targetMode);
+    }
 
     function updateDirtyUI() {
         if (!dirtyIndicator || !savedIndicator) return;
@@ -339,11 +534,52 @@
     } catch (error) {
         console.warn('Unable to bind editor change event:', error);
     }
+    const savedFontSize = Number(localStorage.getItem('rewrz_editor_font_size') || 17);
+    applyEditorFontSize(savedFontSize, false);
     updateEditorStats();
     updateDirtyUI();
+    setEditorMode(initialEditorMode, false);
+    updateFullscreenButton();
+    applyEditorHeight();
+
+    if (markdownModeButton) {
+        markdownModeButton.addEventListener('click', () => {
+            setEditorMode('markdown');
+            markDirty();
+        });
+    }
+    if (htmlModeButton) {
+        htmlModeButton.addEventListener('click', () => {
+            setEditorMode('html');
+            markDirty();
+        });
+    }
+    if (fontIncreaseButton) {
+        fontIncreaseButton.addEventListener('click', () => applyEditorFontSize(currentEditorFontSize + 1));
+    }
+    if (fontDecreaseButton) {
+        fontDecreaseButton.addEventListener('click', () => applyEditorFontSize(currentEditorFontSize - 1));
+    }
+    if (fullscreenToggleButton) {
+        fullscreenToggleButton.addEventListener('click', () => toggleFullscreen());
+    }
+    window.addEventListener('resize', () => {
+        if (isEditorFullscreen()) {
+            applyEditorHeight();
+        }
+    });
 
     pageForm.addEventListener('htmx:configRequest', function (event) {
-        event.detail.parameters.content = editor.getMarkdown();
+        const mode = getActiveEditorMode();
+        setEditorMode(mode, false);
+        event.detail.parameters.editor_mode = mode;
+        if (mode === 'html') {
+            event.detail.parameters.content = '';
+            event.detail.parameters.content_html = editor.getHTML();
+        } else {
+            event.detail.parameters.content = editor.getMarkdown();
+            event.detail.parameters.content_html = '';
+        }
     });
 
     function insertEditorText(text) {
@@ -555,6 +791,17 @@
     window.addEventListener('beforeunload', beforeUnloadHandler);
 
     const saveShortcutHandler = (event) => {
+        const isFullscreenKey = (event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'f';
+        if (isFullscreenKey) {
+            event.preventDefault();
+            toggleFullscreen();
+            return;
+        }
+        if (event.key === 'Escape' && isEditorFullscreen()) {
+            event.preventDefault();
+            toggleFullscreen(false);
+            return;
+        }
         const isSaveKey = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
         if (!isSaveKey) return;
         event.preventDefault();
@@ -573,11 +820,17 @@
         isSubmitting = true;
         isDirty = false;
         updateDirtyUI();
+        if (isEditorFullscreen()) {
+            toggleFullscreen(false);
+        }
         if (savePageButton) {
             savePageButton.disabled = true;
             savePageButton.classList.add('opacity-70', 'cursor-not-allowed');
             savePageButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>保存中...';
         }
+    });
+    pageForm.addEventListener('htmx:beforeSwap', () => {
+        document.body.classList.remove('editor-fullscreen-active');
     });
 
     {% if post %}

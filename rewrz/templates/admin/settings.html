@@ -243,6 +243,15 @@
                            placeholder="默认 5">
                     <p class="text-sm text-gray-500 mt-1">文章详情页显示的相关文章数量</p>
                 </div>
+                <div>
+                    <label for="content_primary_mode" class="block text-sm font-medium text-gray-700">内容主编辑模式</label>
+                    <select id="content_primary_mode" name="content_primary_mode"
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        <option value="markdown" {% if settings.content_primary_mode != 'html' %}selected{% endif %}>Markdown 为主</option>
+                        <option value="html" {% if settings.content_primary_mode == 'html' %}selected{% endif %}>富文本（HTML）为主</option>
+                    </select>
+                    <p class="text-sm text-gray-500 mt-1">决定文章/页面编辑器默认模式与保存字段。</p>
+                </div>
             </div>
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h3 class="text-sm font-medium text-blue-800 mb-2">

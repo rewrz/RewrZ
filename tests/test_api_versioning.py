@@ -69,6 +69,8 @@ def test_data_management_api_has_v1_and_legacy_paths():
     assert "/api/export/backup" in paths
     assert "/api/v1/import/wordpress" in paths
     assert "/api/import/wordpress" in paths
+    assert "/api/v1/import/wordpress/options" in paths
+    assert "/api/import/wordpress/options" in paths
     assert "/api/v1/import/rewrz" in paths
     assert "/api/import/rewrz" in paths
     assert "/api/v1/import/backup" in paths

@@ -23,11 +23,18 @@ class PostCreate(PostBase):
     category_ids: Optional[List[int]] = None
     tag_ids: Optional[List[int]] = None
     format_ids: Optional[List[int]] = None
+    content_html: Optional[str] = None
+    editor_mode: Optional[str] = None
+    created_at: Optional[datetime] = None
+    published_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class PostUpdate(PostBase):
     title: Optional[str] = None
     slug: Optional[str] = None
     content_markdown: Optional[str] = None
+    content_html: Optional[str] = None
+    editor_mode: Optional[str] = None
     category_ids: Optional[List[int]] = None
     tag_ids: Optional[List[int]] = None
     format_ids: Optional[List[int]] = None

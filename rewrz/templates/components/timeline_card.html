@@ -11,7 +11,8 @@
 {% set is_standard = 'article' in format_slugs or not format_slugs %}
 {% set has_featured_image = post.featured_image_url and post.featured_image_url != 'None' %}
 
-{% set content_images = (post.content_html | extract_image_urls(post.featured_image_url)) if post.content_html else [] %}
+{% set rendered_html = post | post_content_html %}
+{% set content_images = (rendered_html | extract_image_urls(post.featured_image_url)) if rendered_html else [] %}
 
 {# 1. 微博格式 - 最高优先级 #}
 {% if is_micro_post %}

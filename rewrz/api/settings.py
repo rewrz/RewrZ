@@ -70,6 +70,7 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "archive_posts_limit": get_setting_value("archive_posts_limit", 20),
         "search_results_limit": get_setting_value("search_results_limit", 15),
         "related_posts_limit": get_setting_value("related_posts_limit", 5),
+        "content_primary_mode": get_setting_value("content_primary_mode", "markdown"),
         "donation_enabled": get_setting_value("donation_enabled", False),
         "donation_title": get_setting_value("donation_title", '如果这篇文章对您有帮助，请考虑支持作者'),
         "donation_description": get_setting_value("donation_description", '您的支持是我创作的动力！'),
@@ -127,6 +128,7 @@ async def update_admin_settings(
     archive_posts_limit: int = Form(20),
     search_results_limit: int = Form(15),
     related_posts_limit: int = Form(5),
+    content_primary_mode: str = Form("markdown"),
     # 打赏功能相关参数
     donation_enabled: bool = Form(False),
     donation_title: str = Form('如果这篇文章对您有帮助，请考虑支持作者'),
@@ -199,6 +201,7 @@ async def update_admin_settings(
         "archive_posts_limit": archive_posts_limit,
         "search_results_limit": search_results_limit,
         "related_posts_limit": related_posts_limit,
+        "content_primary_mode": content_primary_mode if content_primary_mode in {"markdown", "html"} else "markdown",
         "donation_enabled": donation_enabled,
         "donation_title": donation_title,
         "donation_description": donation_description,

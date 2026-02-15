@@ -266,7 +266,8 @@ def perform_search(
             or_(
                 Post.title.ilike(like),
                 Post.excerpt.ilike(like),
-                Post.content_html.ilike(like)
+                Post.content_html.ilike(like),
+                Post.content_markdown.ilike(like),
             )
         )
     base_query = base_query.filter(and_(*token_conditions))
@@ -302,7 +303,8 @@ def perform_search(
             part = (
                 case((Post.title.ilike(like), TITLE_W), else_=0) +
                 case((Post.excerpt.ilike(like), EXCERPT_W), else_=0) +
-                case((Post.content_html.ilike(like), CONTENT_W), else_=0)
+                case((Post.content_html.ilike(like), CONTENT_W), else_=0) +
+                case((Post.content_markdown.ilike(like), CONTENT_W), else_=0)
             )
             score_expr = part if score_expr is None else (score_expr + part)
         # 降序按分数、其次按发布时间

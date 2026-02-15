@@ -89,6 +89,44 @@
                         导入 WordPress 数据
                     </button>
                 </form>
+                <div class="mt-4 border-t border-gray-200 pt-4">
+                    <h5 class="font-medium text-gray-900 mb-2">WordPress 导入配置（白名单）</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <label class="inline-flex items-center gap-2">
+                            <input type="checkbox" id="wp-import-comments" class="form-checkbox">
+                            <span>导入评论</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input type="checkbox" id="wp-import-views" class="form-checkbox">
+                            <span>导入阅读量（postmeta）</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input type="checkbox" id="wp-import-type-post" class="form-checkbox" checked>
+                            <span>导入 post</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input type="checkbox" id="wp-import-type-page" class="form-checkbox" checked>
+                            <span>导入 page</span>
+                        </label>
+                    </div>
+                    <div class="mt-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">postmeta 白名单（逗号分隔）</label>
+                        <input id="wp-postmeta-whitelist" type="text" class="block w-full rounded border border-gray-300 px-3 py-2 text-sm" placeholder="views,post_views_count">
+                    </div>
+                    <div class="mt-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Markdown 生成策略</label>
+                        <select id="wp-markdown-strategy" class="block w-full rounded border border-gray-300 px-3 py-2 text-sm">
+                            <option value="html_to_markdown">转换为 Markdown 并保存到 Markdown 字段</option>
+                            <option value="raw_html">保留原始 HTML 并保存到 HTML 字段</option>
+                        </select>
+                    </div>
+                    <div class="mt-3 flex items-center gap-2">
+                        <button type="button" id="save-wp-options-button" class="bg-slate-700 text-white px-3 py-2 rounded hover:bg-slate-800 transition-colors text-sm">
+                            保存导入配置
+                        </button>
+                        <span id="wp-options-status" class="text-xs text-gray-500"></span>
+                    </div>
+                </div>
             </div>
             
             <div class="border border-gray-200 rounded-lg p-4">
@@ -168,6 +206,11 @@ let currentTab = 'export';
 // 页面加载时获取数据统计
 document.addEventListener('DOMContentLoaded', function() {
     loadDataStats();
+    loadWordPressImportOptions();
+    const saveButton = document.getElementById('save-wp-options-button');
+    if (saveButton) {
+        saveButton.addEventListener('click', saveWordPressImportOptions);
+    }
 });
 
 // 切换选项卡
@@ -207,6 +250,74 @@ async function loadDataStats() {
         document.getElementById('media-size').textContent = data.total_media_size;
     } catch (error) {
         console.error('加载数据统计失败:', error);
+    }
+}
+
+function collectWordPressImportOptions() {
+    const types = [];
+    if (document.getElementById('wp-import-type-post')?.checked) types.push('post');
+    if (document.getElementById('wp-import-type-page')?.checked) types.push('page');
+
+    return {
+        import_comments: Boolean(document.getElementById('wp-import-comments')?.checked),
+        import_views: Boolean(document.getElementById('wp-import-views')?.checked),
+        import_post_types: types,
+        postmeta_whitelist: (document.getElementById('wp-postmeta-whitelist')?.value || '')
+            .split(',')
+            .map(item => item.trim())
+            .filter(Boolean),
+        markdown_strategy: document.getElementById('wp-markdown-strategy')?.value || 'html_to_markdown'
+    };
+}
+
+function applyWordPressImportOptions(options) {
+    const safe = options || {};
+    document.getElementById('wp-import-comments').checked = !!safe.import_comments;
+    document.getElementById('wp-import-views').checked = !!safe.import_views;
+    const types = Array.isArray(safe.import_post_types) ? safe.import_post_types : [];
+    document.getElementById('wp-import-type-post').checked = types.includes('post');
+    document.getElementById('wp-import-type-page').checked = types.includes('page');
+    const whitelist = Array.isArray(safe.postmeta_whitelist) ? safe.postmeta_whitelist : [];
+    document.getElementById('wp-postmeta-whitelist').value = whitelist.join(',');
+    document.getElementById('wp-markdown-strategy').value = safe.markdown_strategy || 'html_to_markdown';
+}
+
+async function loadWordPressImportOptions() {
+    const status = document.getElementById('wp-options-status');
+    try {
+        if (status) status.textContent = '加载配置中...';
+        const response = await fetch('{{ admin_path }}/api/v1/import/wordpress/options');
+        const result = await response.json();
+        if (result.success && result.options) {
+            applyWordPressImportOptions(result.options);
+            if (status) status.textContent = '已加载';
+        } else if (status) {
+            status.textContent = '加载失败';
+        }
+    } catch (error) {
+        if (status) status.textContent = `加载失败: ${error.message}`;
+    }
+}
+
+async function saveWordPressImportOptions() {
+    const status = document.getElementById('wp-options-status');
+    try {
+        if (status) status.textContent = '保存中...';
+        const payload = collectWordPressImportOptions();
+        const response = await fetch('{{ admin_path }}/api/v1/import/wordpress/options', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (result.success) {
+            applyWordPressImportOptions(result.options);
+            if (status) status.textContent = '已保存';
+        } else if (status) {
+            status.textContent = result.error || '保存失败';
+        }
+    } catch (error) {
+        if (status) status.textContent = `保存失败: ${error.message}`;
     }
 }
 
@@ -250,7 +361,12 @@ document.getElementById('wordpress-import-form').addEventListener('submit', asyn
         const result = await response.json();
         
         if (result.success) {
-            showOperationResult('success', 'WordPress 数据导入成功！', result.stats);
+            const hasErrors = result.stats && Array.isArray(result.stats.errors) && result.stats.errors.length > 0;
+            if (hasErrors) {
+                showOperationResult('error', 'WordPress 数据导入已完成，但存在错误。', result.stats);
+            } else {
+                showOperationResult('success', 'WordPress 数据导入成功！', result.stats);
+            }
             loadDataStats(); // 刷新统计
         } else {
             showOperationResult('error', result.error);
@@ -277,7 +393,12 @@ document.getElementById('rewrz-import-form').addEventListener('submit', async fu
         const result = await response.json();
         
         if (result.success) {
-            showOperationResult('success', 'RewrZ 数据导入成功！', result.stats);
+            const hasErrors = result.stats && Array.isArray(result.stats.errors) && result.stats.errors.length > 0;
+            if (hasErrors) {
+                showOperationResult('error', 'RewrZ 数据导入已完成，但存在错误。', result.stats);
+            } else {
+                showOperationResult('success', 'RewrZ 数据导入成功！', result.stats);
+            }
             loadDataStats(); // 刷新统计
         } else {
             showOperationResult('error', result.error);
@@ -308,7 +429,12 @@ document.getElementById('backup-restore-form').addEventListener('submit', async 
         const result = await response.json();
         
         if (result.success) {
-            showOperationResult('success', '备份恢复成功！', result.stats);
+            const hasErrors = result.stats && Array.isArray(result.stats.errors) && result.stats.errors.length > 0;
+            if (hasErrors) {
+                showOperationResult('error', '备份恢复已完成，但存在错误。', result.stats);
+            } else {
+                showOperationResult('success', '备份恢复成功！', result.stats);
+            }
             loadDataStats(); // 刷新统计
         } else {
             showOperationResult('error', result.error);
@@ -339,6 +465,8 @@ function showOperationResult(type, message, stats = null) {
                     ${stats.posts_imported ? `<li>文章: ${stats.posts_imported} 篇</li>` : ''}
                     ${stats.categories_imported ? `<li>分类: ${stats.categories_imported} 个</li>` : ''}
                     ${stats.tags_imported ? `<li>标签: ${stats.tags_imported} 个</li>` : ''}
+                    ${stats.comments_imported ? `<li>评论: ${stats.comments_imported} 条</li>` : ''}
+                    ${stats.views_imported ? `<li>阅读量: ${stats.views_imported} 篇已导入</li>` : ''}
                     ${stats.settings_imported ? `<li>设置: ${stats.settings_imported} 项</li>` : ''}
                     ${stats.media_restored ? `<li>媒体文件: ${stats.media_restored} 个</li>` : ''}
                 </ul>
