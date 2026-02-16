@@ -20,11 +20,12 @@ from sqlalchemy import select
 from ..crud import post as crud_post
 from ..crud import category as crud_category
 from ..crud import tag as crud_tag
+from ..crud import format as crud_format
 from ..crud import setting as crud_setting
 from ..crud import media as crud_media
 from ..crud import user as crud_user
-from ..models import Post, Category, Tag, Media, User, Comment
-from ..schemas import PostCreate, CategoryCreate, TagCreate, SettingCreate, SettingUpdate
+from ..models import Post, Category, Tag, Format, Media, User, Comment
+from ..schemas import PostCreate, CategoryCreate, TagCreate, FormatCreate, SettingCreate, SettingUpdate
 import re
 from .template_context import DEFAULT_BASE_SETTINGS
 
@@ -409,13 +410,17 @@ class WordPressImporter:
         
         for item in items:
             try:
-                # 仅导入正文文章和页面，跳过附件/菜单等类型。
+                # 按白名单导入指定 post_type，附件/修订等系统类型会被跳过。
                 post_type = item.find('wp:post_type', self.namespaces)
-                raw_post_type = (post_type.text or "").strip().lower() if post_type is not None else ""
+                raw_post_type = (post_type.text or "").strip().lower() if post_type is not None else "post"
+                if not raw_post_type:
+                    raw_post_type = "post"
+
+                if raw_post_type not in self.options.get("import_post_types", ["post", "page"]):
+                    continue
+
                 mapped_post_type = self._map_wp_post_type(raw_post_type)
                 if mapped_post_type is None:
-                    continue
-                if mapped_post_type not in self.options.get("import_post_types", ["post", "page"]):
                     continue
                 
                 status = item.find('wp:status', self.namespaces)
@@ -882,11 +887,39 @@ class WordPressImporter:
         return status, visibility
 
     def _map_wp_post_type(self, wp_post_type: str) -> Optional[str]:
-        if wp_post_type == "post":
+        """将 WordPress post_type 映射到 RewrZ post_type。
+
+        - post/article -> post
+        - page -> page
+        - 常见系统类型（attachment/revision/nav_menu_item 等）跳过
+        - 其余自定义类型按 post 导入（由白名单控制是否导入）
+        """
+        if not wp_post_type:
+            return None
+
+        if wp_post_type in {"post", "article"}:
             return "post"
         if wp_post_type == "page":
             return "page"
-        return None
+
+        ignored_post_types = {
+            "attachment",
+            "revision",
+            "nav_menu_item",
+            "custom_css",
+            "customize_changeset",
+            "oembed_cache",
+            "user_request",
+            "wp_block",
+            "wp_navigation",
+            "wp_template",
+            "wp_template_part",
+        }
+        if wp_post_type in ignored_post_types:
+            return None
+
+        # 自定义 post_type 统一按文章导入，避免内容丢失。
+        return "post"
     
     def _associate_wp_taxonomies(self, item: ET.Element, post: Post):
         """关联WordPress的分类和标签到文章"""
@@ -906,12 +939,84 @@ class WordPressImporter:
                     tag = crud_tag.get_tag_by_name(self.db, tag_elem.text)
                     if tag:
                         post.tags.append(tag)
+
+            # 关联内容格式（WordPress post_format taxonomy）
+            format_items = item.findall('category[@domain="post_format"]')
+            for format_elem in format_items:
+                raw_nicename = (format_elem.get("nicename") or "").strip().lower()
+                raw_name = (format_elem.text or "").strip()
+                mapped_slug = self._map_wp_post_format_slug(raw_nicename, raw_name)
+                if not mapped_slug:
+                    continue
+                format_obj = self._ensure_post_format(mapped_slug, raw_name)
+                if format_obj and format_obj not in post.formats:
+                    post.formats.append(format_obj)
             
             self.db.commit()
             
         except Exception as e:
             self.db.rollback()
             print(f"关联分类标签失败: {str(e)}")
+
+    def _map_wp_post_format_slug(self, raw_nicename: str, raw_name: str) -> Optional[str]:
+        """将 WordPress post_format 映射为 RewrZ 格式 slug。"""
+        normalized = (raw_nicename or "").strip().lower()
+        if normalized.startswith("post-format-"):
+            normalized = normalized[len("post-format-"):]
+        if not normalized:
+            normalized = (raw_name or "").strip().lower()
+
+        mapping = {
+            "standard": "article",
+            "post": "article",
+            "article": "article",
+            "aside": "micro-post",
+            "status": "micro-post",
+            "chat": "micro-post",
+            "link": "micro-post",
+            "quote": "micro-post",
+            "image": "photo-album",
+            "gallery": "photo-album",
+            "video": "video",
+            "audio": "poetry-song",
+        }
+        if normalized in mapping:
+            return mapping[normalized]
+
+        # 未知格式保留为自定义格式，避免信息丢失。
+        custom_slug = re.sub(r"[^a-z0-9_-]+", "-", normalized).strip("-")
+        return custom_slug or None
+
+    def _ensure_post_format(self, format_slug: str, display_name: str) -> Optional[Format]:
+        slug = (format_slug or "").strip().lower()
+        if not slug:
+            return None
+
+        existing = crud_format.get_format_by_slug(self.db, slug)
+        if existing:
+            return existing
+
+        fallback_name_map = {
+            "article": "标准文章",
+            "micro-post": "微博",
+            "photo-album": "相册",
+            "video": "视频",
+            "poetry-song": "诗词歌赋",
+        }
+        resolved_name = (display_name or "").strip() or fallback_name_map.get(slug) or slug
+        existing_by_name = self.db.execute(select(Format).filter(Format.name == resolved_name)).scalar_one_or_none()
+        if existing_by_name:
+            return existing_by_name
+
+        try:
+            created = crud_format.create_format(
+                self.db,
+                FormatCreate(name=resolved_name, slug=slug),
+            )
+            return created
+        except Exception:
+            self.db.rollback()
+            return crud_format.get_format_by_slug(self.db, slug)
 
     def _resolve_default_user(self) -> Optional[User]:
         """优先使用ID=1用户，不存在时回退到首个用户。"""
