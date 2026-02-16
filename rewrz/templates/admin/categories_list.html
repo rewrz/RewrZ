@@ -3,124 +3,171 @@
 {% block title_text %}分类管理{% endblock %}
 {% block page_title %}<i class="fas fa-list text-blue-600 mr-3"></i>分类管理{% endblock %}
 {% block content %}
-<div class="bg-white rounded-lg shadow-md p-6">
-    <div class="flex justify-between items-center mb-6">
-        <button onclick="showCreateCategoryModal()" 
-                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-            <i class="fas fa-plus mr-2"></i>新建分类
-        </button>
-    </div>
-
-    <!-- 分类统计 -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div class="bg-blue-50 p-4 rounded-lg">
-            <div class="flex items-center">
-                <div class="p-2 bg-blue-500 rounded-lg">
-                    <i class="fas fa-folder text-white"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">总分类数</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ categories|length }}</p>
-                </div>
-            </div>
+<div class="admin-panel p-4 md:p-6 space-y-5">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2">
+            <button onclick="showCreateCategoryModal()"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                <i class="fas fa-plus mr-2"></i>新建分类
+            </button>
+            <button onclick="refreshCategoriesList()"
+                    class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                <i class="fas fa-sync-alt mr-2"></i>刷新
+            </button>
+            <span class="mx-1 h-6 w-px bg-gray-300"></span>
+            <span class="text-sm text-gray-500">批量操作</span>
+            <button onclick="batchDeleteCategories()" data-batch-action
+                    class="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled>
+                批量删除
+            </button>
+            <span id="selected-count" class="text-sm text-gray-500">已选 0 个</span>
         </div>
-        <div class="bg-green-50 p-4 rounded-lg">
-            <div class="flex items-center">
-                <div class="p-2 bg-green-500 rounded-lg">
-                    <i class="fas fa-file-alt text-white"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">有文章分类</p>
-                    <p class="text-2xl font-bold text-gray-900">
-                        {{ categories|selectattr('posts')|list|length }}
-                    </p>
-                </div>
-            </div>
-        </div>
-        <div class="bg-yellow-50 p-4 rounded-lg">
-            <div class="flex items-center">
-                <div class="p-2 bg-yellow-500 rounded-lg">
-                    <i class="fas fa-chart-bar text-white"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">总文章数</p>
-                    <p class="text-2xl font-bold text-gray-900">
-                        {{ categories|map(attribute='posts')|map('length')|sum }}
-                    </p>
-                </div>
-            </div>
+        <div class="text-sm text-gray-600">
+            <span class="font-medium">分类总数：</span>{{ stats.total }}
+            {% if pagination.filtered_total != stats.total %}
+            <span class="ml-3"><span class="font-medium">筛选结果：</span>{{ pagination.filtered_total }}</span>
+            {% endif %}
         </div>
     </div>
 
-    <!-- 分类列表 -->
-    <div class="overflow-x-auto">
-        <table class="min-w-full bg-white border border-gray-200">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <div class="text-xs text-blue-600">总分类数</div>
+            <div class="mt-1 text-2xl font-semibold text-blue-900">{{ stats.total }}</div>
+        </div>
+        <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
+            <div class="text-xs text-emerald-600">已使用分类</div>
+            <div class="mt-1 text-2xl font-semibold text-emerald-900">{{ stats.used }}</div>
+        </div>
+        <div class="bg-amber-50 p-4 rounded-lg border border-amber-100">
+            <div class="text-xs text-amber-600">未使用分类</div>
+            <div class="mt-1 text-2xl font-semibold text-amber-900">{{ stats.unused }}</div>
+        </div>
+        <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+            <div class="text-xs text-indigo-600">文章归类总关联</div>
+            <div class="mt-1 text-2xl font-semibold text-indigo-900">{{ stats.post_bindings }}</div>
+        </div>
+    </div>
+
+    <form method="get" action="{{ request.state.admin_path }}/categories" class="flex flex-wrap gap-3 items-end bg-gray-50 p-4 rounded-lg border border-gray-200">
+        <div class="min-w-64 flex-1">
+            <label for="search-input" class="block text-xs text-gray-500 mb-1">搜索</label>
+            <input
+                type="text"
+                id="search-input"
+                name="search"
+                value="{{ search_query }}"
+                placeholder="搜索分类名称、别名、描述..."
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            >
+        </div>
+        <div>
+            <label for="usage-filter" class="block text-xs text-gray-500 mb-1">使用状态</label>
+            <select id="usage-filter" name="usage" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <option value="">全部</option>
+                <option value="used" {% if selected_usage == "used" %}selected{% endif %}>已使用</option>
+                <option value="unused" {% if selected_usage == "unused" %}selected{% endif %}>未使用</option>
+            </select>
+        </div>
+        <div>
+            <label for="page-size-filter" class="block text-xs text-gray-500 mb-1">每页数量</label>
+            <select id="page-size-filter" name="page_size" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                {% for size in pagination.allowed_page_sizes %}
+                <option value="{{ size }}" {% if pagination.page_size == size %}selected{% endif %}>{{ size }} / 页</option>
+                {% endfor %}
+            </select>
+        </div>
+        <input type="hidden" name="page" value="1">
+        <div class="flex gap-2">
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                应用筛选
+            </button>
+            <a href="{{ request.state.admin_path }}/categories" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition-colors">
+                重置
+            </a>
+        </div>
+    </form>
+
+    <div class="overflow-x-auto rounded-lg border border-gray-200">
+        <table class="min-w-full bg-white">
+            <colgroup>
+                <col class="w-12">
+                <col class="w-[25%]">
+                <col class="w-[20%]">
+                <col class="w-[37%]">
+                <col class="w-24">
+                <col class="w-24">
+            </colgroup>
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">分类名称</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">别名</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">描述</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">文章数</th>
-                    {% if categories|selectattr('created_at')|list|length > 0 %}
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建时间</th>
-                    {% endif %}
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <input type="checkbox" id="select-all" class="rounded border-gray-300">
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">分类名称</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">别名</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">描述</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">文章数</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 {% for category in categories %}
                 <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0 h-8 w-8">
-                                <div class="h-8 w-8 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-center">
-                                    <i class="fas fa-folder text-white text-sm"></i>
-                                </div>
-                            </div>
-                            <div class="ml-4">
-                                <div class="text-sm font-medium text-gray-900">
-                                    {{ category.name }}
-                                </div>
-                            </div>
+                    <td class="px-3 py-4 align-top">
+                        <input type="checkbox" class="category-checkbox rounded border-gray-300" value="{{ category.id }}" data-name="{{ category.name }}">
+                    </td>
+                    <td class="px-4 py-4 align-top">
+                        <div class="text-base font-semibold tracking-tight text-gray-900 break-words">
+                            {{ category.name }}
                         </div>
+                        <div class="mt-1 text-xs text-gray-400">ID: {{ category.id }}</div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm text-gray-900">{{ category.slug }}</div>
+                    <td class="px-4 py-4 align-top">
+                        <div class="text-sm text-gray-700 break-all">{{ category.slug }}</div>
+                        <div class="mt-1 text-xs text-gray-400">/category/{{ category.slug }}</div>
                     </td>
-                    <td class="px-6 py-4">
-                        <div class="text-sm text-gray-500 max-w-xs truncate">
+                    <td class="px-4 py-4 align-top">
+                        <div class="text-sm text-gray-600 whitespace-normal break-words leading-6">
                             {{ category.description if category.description else '无描述' }}
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                            {{ category.posts|length if category.posts else 0 }} 篇
+                    <td class="px-4 py-4 align-top">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if category.post_count > 0 %}bg-blue-100 text-blue-800{% else %}bg-gray-100 text-gray-700{% endif %}">
+                            {{ category.post_count }} 篇
                         </span>
                     </td>
-                    {% if categories|selectattr('created_at')|list|length > 0 %}
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ category.created_at.strftime('%Y-%m-%d') if category.created_at else '-' }}
-                    </td>
-                    {% endif %}
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div class="flex space-x-2">
-                            <button onclick="editCategory('{{ category.id }}', '{{ category.name }}', '{{ category.slug }}', '{{ category.description }}')" 
-                                    class="text-blue-600 hover:text-blue-900">
+                    <td class="px-4 py-4 align-top">
+                        <div class="flex items-center gap-3 text-sm">
+                            <button type="button"
+                                    onclick="editCategoryFromButton(this)"
+                                    data-id="{{ category.id }}"
+                                    data-name="{{ category.name }}"
+                                    data-slug="{{ category.slug }}"
+                                    data-description="{{ category.description or '' }}"
+                                    class="text-blue-600 hover:text-blue-900"
+                                    title="编辑">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <a href="/category/{{ category.slug }}" target="_blank" 
-                               class="text-green-600 hover:text-green-900">
+                            <a href="/category/{{ category.slug }}" target="_blank"
+                               class="text-green-600 hover:text-green-900"
+                               title="查看">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <button onclick="deleteCategory('{{ category.id }}', '{{ category.name }}')" 
-                                    class="text-red-600 hover:text-red-900 {{ 'opacity-50 cursor-not-allowed' if category.posts and category.posts|length > 0 else '' }}">
+                            <button type="button"
+                                    onclick="deleteCategoryFromButton(this)"
+                                    data-id="{{ category.id }}"
+                                    data-name="{{ category.name }}"
+                                    class="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
+                                    title="{% if category.post_count > 0 %}该分类下有文章，不能删除{% else %}删除{% endif %}"
+                                    {% if category.post_count > 0 %}disabled{% endif %}>
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </td>
                 </tr>
                 {% endfor %}
-                
+
                 {% if not categories %}
                 <tr>
                     <td colspan="6" class="px-6 py-12 text-center text-gray-500">
@@ -137,9 +184,35 @@
             </tbody>
         </table>
     </div>
+
+    <div class="flex flex-wrap justify-between items-center gap-3 pt-1">
+        <div class="text-sm text-gray-600">
+            共 {{ pagination.filtered_total }} 条结果，第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页
+        </div>
+        <div class="flex items-center gap-1">
+            {% if pagination.has_prev %}
+            <a href="{{ pagination.prev_url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">上一页</a>
+            {% else %}
+            <span class="px-3 py-1.5 text-sm border border-gray-200 rounded text-gray-400 cursor-not-allowed">上一页</span>
+            {% endif %}
+
+            {% for link in pagination.page_links %}
+                {% if link.is_current %}
+                <span class="px-3 py-1.5 text-sm rounded bg-blue-600 text-white">{{ link.page }}</span>
+                {% else %}
+                <a href="{{ link.url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">{{ link.page }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if pagination.has_next %}
+            <a href="{{ pagination.next_url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">下一页</a>
+            {% else %}
+            <span class="px-3 py-1.5 text-sm border border-gray-200 rounded text-gray-400 cursor-not-allowed">下一页</span>
+            {% endif %}
+        </div>
+    </div>
 </div>
 
-<!-- 创建/编辑分类模态框 -->
 <div id="categoryModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div class="flex items-center justify-between p-6 border-b">
@@ -148,54 +221,55 @@
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        
+
         <form id="categoryForm" class="p-6 space-y-4">
             <input type="hidden" id="categoryId" value="">
-            
+
             <div>
                 <label for="categoryName" class="block text-sm font-medium text-gray-700 mb-1">
                     分类名称 <span class="text-red-500">*</span>
                 </label>
-                <input type="text" 
-                       id="categoryName" 
-                       name="name" 
+                <input type="text"
+                       id="categoryName"
+                       name="name"
                        required
                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                        placeholder="输入分类名称">
             </div>
-            
+
             <div>
                 <label for="categorySlug" class="block text-sm font-medium text-gray-700 mb-1">
                     URL别名
                 </label>
-                <input type="text" 
-                       id="categorySlug" 
-                       name="slug" 
+                <input type="text"
+                       id="categorySlug"
+                       name="slug"
                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                        placeholder="自动生成或手动输入">
                 <p class="text-xs text-gray-500 mt-1">留空将根据分类名称自动生成</p>
             </div>
-            
+
             <div>
                 <label for="categoryDescription" class="block text-sm font-medium text-gray-700 mb-1">
                     分类描述
                 </label>
-                <textarea id="categoryDescription" 
-                          name="description" 
+                <textarea id="categoryDescription"
+                          name="description"
                           rows="3"
                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                           placeholder="简要描述这个分类（可选）"></textarea>
             </div>
         </form>
-        
+
         <div class="flex justify-end space-x-3 p-6 border-t bg-gray-50">
-            <button type="button" 
-                    onclick="hideCategoryModal()" 
+            <button type="button"
+                    onclick="hideCategoryModal()"
                     class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
                 取消
             </button>
-            <button type="button" 
-                    onclick="saveCategory()" 
+            <button type="button"
+                    id="save-category-btn"
+                    onclick="saveCategory()"
                     class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700">
                 保存
             </button>
@@ -204,20 +278,52 @@
 </div>
 
 <script>
+let categorySlugTouched = false;
+
+function refreshCategoriesList() {
+    window.location.href = '{{ request.state.admin_path }}/categories';
+}
+
+function getSelectedCategoryCheckboxes() {
+    return Array.from(document.querySelectorAll('.category-checkbox:checked'));
+}
+
+function updateBatchActionState() {
+    const selectedCount = getSelectedCategoryCheckboxes().length;
+    const countLabel = document.getElementById('selected-count');
+    if (countLabel) {
+        countLabel.textContent = `已选 ${selectedCount} 个`;
+    }
+    document.querySelectorAll('[data-batch-action]').forEach((button) => {
+        button.disabled = selectedCount === 0;
+    });
+}
+
+async function parseApiError(response) {
+    try {
+        const data = await response.json();
+        return data.error || data.detail || '未知错误';
+    } catch (error) {
+        return `请求失败（HTTP ${response.status}）`;
+    }
+}
+
 function showCreateCategoryModal() {
     document.getElementById('modalTitle').textContent = '新建分类';
     document.getElementById('categoryId').value = '';
     document.getElementById('categoryForm').reset();
+    categorySlugTouched = false;
     document.getElementById('categoryModal').classList.remove('hidden');
     document.getElementById('categoryModal').classList.add('flex');
 }
 
-function editCategory(id, name, slug, description) {
+function editCategoryFromButton(button) {
     document.getElementById('modalTitle').textContent = '编辑分类';
-    document.getElementById('categoryId').value = id;
-    document.getElementById('categoryName').value = name;
-    document.getElementById('categorySlug').value = slug;
-    document.getElementById('categoryDescription').value = description || '';
+    document.getElementById('categoryId').value = button.dataset.id || '';
+    document.getElementById('categoryName').value = button.dataset.name || '';
+    document.getElementById('categorySlug').value = button.dataset.slug || '';
+    document.getElementById('categoryDescription').value = button.dataset.description || '';
+    categorySlugTouched = true;
     document.getElementById('categoryModal').classList.remove('hidden');
     document.getElementById('categoryModal').classList.add('flex');
 }
@@ -227,75 +333,163 @@ function hideCategoryModal() {
     document.getElementById('categoryModal').classList.remove('flex');
 }
 
-function saveCategory() {
-    const form = document.getElementById('categoryForm');
-    const formData = new FormData(form);
-    const categoryId = document.getElementById('categoryId').value;
-    
-    const url = categoryId ? 
-        `{{ request.state.admin_path }}/api/v1/categories/${categoryId}` : 
-        `{{ request.state.admin_path }}/api/v1/categories`;
-    
-    const method = categoryId ? 'PUT' : 'POST';
-    
-    fetch(url, {
-        method: method,
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            hideCategoryModal();
-            location.reload();
-        } else {
-            alert('保存失败：' + (data.error || '未知错误'));
-        }
-    })
-    .catch(error => {
-        alert('保存失败：' + error.message);
-    });
-}
-
-function deleteCategory(id, name) {
-    if (confirm(`确定要删除分类"${name}"吗？\n\n注意：如果该分类下有文章，删除操作将失败。请先将文章移至其他分类。`)) {
-        fetch(`{{ request.state.admin_path }}/api/v1/categories/${id}`, {
-            method: 'DELETE'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('删除失败：' + (data.error || '该分类下还有文章，无法删除'));
-            }
-        })
-        .catch(error => {
-            alert('删除失败：' + error.message);
-        });
-    }
-}
-
-// 生成slug的辅助函数
 function generateSlug(text) {
     return text
         .toLowerCase()
-        .replace(/[^\w\s-]/g, '') // 移除特殊字符
-        .trim() // 去除首尾空格
-        .replace(/[\s_-]+/g, '-') // 将空格、下划线和连字符替换为单个连字符
-        .replace(/^-+|-+$/g, ''); // 移除首尾的连字符
+        .replace(/[^\w\s-]/g, '')
+        .trim()
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
 }
 
-// 自动生成别名
+async function saveCategory() {
+    const saveBtn = document.getElementById('save-category-btn');
+    const form = document.getElementById('categoryForm');
+    const formData = new FormData(form);
+    const categoryId = document.getElementById('categoryId').value;
+
+    const url = categoryId
+        ? `{{ request.state.admin_path }}/api/v1/categories/${categoryId}`
+        : `{{ request.state.admin_path }}/api/v1/categories`;
+    const method = categoryId ? 'PUT' : 'POST';
+
+    try {
+        saveBtn.disabled = true;
+        const response = await fetch(url, { method, body: formData });
+        if (!response.ok) {
+            alert('保存失败：' + await parseApiError(response));
+            return;
+        }
+        const data = await response.json();
+        if (!data.success) {
+            alert('保存失败：' + (data.error || data.detail || '未知错误'));
+            return;
+        }
+        hideCategoryModal();
+        location.reload();
+    } catch (error) {
+        alert('保存失败：' + error.message);
+    } finally {
+        saveBtn.disabled = false;
+    }
+}
+
+async function requestDeleteCategory(categoryId) {
+    const response = await fetch(`{{ request.state.admin_path }}/api/v1/categories/${categoryId}`, {
+        method: 'DELETE'
+    });
+    if (!response.ok) {
+        return { success: false, error: await parseApiError(response) };
+    }
+    const data = await response.json().catch(() => ({}));
+    if (data.success === false) {
+        return { success: false, error: data.error || data.detail || '未知错误' };
+    }
+    return { success: true };
+}
+
+function deleteCategoryFromButton(button) {
+    deleteCategory(button.dataset.id || '', button.dataset.name || '');
+}
+
+async function deleteCategory(id, name) {
+    if (!confirm(`确定要删除分类“${name}”吗？\n\n如果该分类下存在文章，删除会失败。`)) return;
+    try {
+        const result = await requestDeleteCategory(id);
+        if (!result.success) {
+            alert('删除失败：' + result.error);
+            return;
+        }
+        location.reload();
+    } catch (error) {
+        alert('删除失败：' + error.message);
+    }
+}
+
+async function batchDeleteCategories() {
+    const selected = getSelectedCategoryCheckboxes().map((checkbox) => ({
+        id: Number(checkbox.value),
+        name: checkbox.dataset.name || checkbox.value
+    }));
+    if (!selected.length) return;
+    if (!confirm(`确定要删除选中的 ${selected.length} 个分类吗？`)) return;
+
+    const idToName = new Map(selected.map((item) => [item.id, item.name]));
+
+    try {
+        const response = await fetch(`{{ request.state.admin_path }}/api/v1/categories/bulk-action`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'delete',
+                category_ids: selected.map((item) => item.id)
+            })
+        });
+
+        if (!response.ok) {
+            alert('批量删除失败：' + await parseApiError(response));
+            return;
+        }
+
+        const data = await response.json().catch(() => ({}));
+        const successCount = Number(data.deleted_count || 0);
+        const failedItems = Array.isArray(data.failed) ? data.failed : [];
+        const failedMessages = failedItems.map((item) => {
+            const id = Number(item.id);
+            const name = idToName.get(id) || `ID ${id}`;
+            const reason = item.reason || '未知错误';
+            return `${name}: ${reason}`;
+        });
+
+        let message = `批量删除完成：成功 ${successCount} 个`;
+        if (failedMessages.length) {
+            const preview = failedMessages.slice(0, 6).join('\n');
+            const more = failedMessages.length > 6 ? `\n... 其余 ${failedMessages.length - 6} 个失败项已省略` : '';
+            message += `\n失败 ${failedMessages.length} 个：\n${preview}${more}`;
+        }
+        alert(message);
+
+        if (successCount > 0) {
+            location.reload();
+        }
+    } catch (error) {
+        alert('批量删除失败：' + error.message);
+    }
+}
+
 document.getElementById('categoryName').addEventListener('input', function() {
-    const slug = generateSlug(this.value);
-    document.getElementById('categorySlug').value = slug;
+    const slugInput = document.getElementById('categorySlug');
+    if (!categorySlugTouched || !slugInput.value.trim()) {
+        slugInput.value = generateSlug(this.value);
+    }
 });
 
-// 点击模态框外部关闭
+document.getElementById('categorySlug').addEventListener('input', function() {
+    categorySlugTouched = this.value.trim().length > 0;
+});
+
 document.getElementById('categoryModal').addEventListener('click', function(e) {
     if (e.target === this) {
         hideCategoryModal();
     }
 });
+
+const selectAllCheckbox = document.getElementById('select-all');
+if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function() {
+        document.querySelectorAll('.category-checkbox').forEach((checkbox) => {
+            checkbox.checked = this.checked;
+        });
+        updateBatchActionState();
+    });
+}
+
+document.querySelectorAll('.category-checkbox').forEach((checkbox) => {
+    checkbox.addEventListener('change', updateBatchActionState);
+});
+
+updateBatchActionState();
 </script>
 {% endblock %}

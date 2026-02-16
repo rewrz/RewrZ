@@ -3,66 +3,162 @@
 {% block title_text %}标签管理{% endblock %}
 {% block page_title %}<i class="fas fa-tags text-blue-600 mr-3"></i>标签管理{% endblock %}
 {% block content %}
-<div class="bg-white rounded-lg shadow-md p-6">
-    <div class="flex justify-between items-center mb-6">
-        <button onclick="showCreateTagModal()" 
-                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-            <i class="fas fa-plus mr-2"></i>新建标签
-        </button>
+<div class="admin-panel p-4 md:p-6 space-y-5">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2">
+            <button onclick="showCreateTagModal()"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                <i class="fas fa-plus mr-2"></i>新建标签
+            </button>
+            <button onclick="refreshTagsList()"
+                    class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                <i class="fas fa-sync-alt mr-2"></i>刷新
+            </button>
+            <span class="mx-1 h-6 w-px bg-gray-300"></span>
+            <span class="text-sm text-gray-500">批量操作</span>
+            <button onclick="batchDeleteTags()" data-batch-action
+                    class="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled>
+                批量删除
+            </button>
+            <span id="selected-count" class="text-sm text-gray-500">已选 0 个</span>
+        </div>
+        <div class="text-sm text-gray-600">
+            <span class="font-medium">标签总数：</span>{{ stats.total }}
+            {% if pagination.filtered_total != stats.total %}
+            <span class="ml-3"><span class="font-medium">筛选结果：</span>{{ pagination.filtered_total }}</span>
+            {% endif %}
+        </div>
     </div>
 
-    <!-- 标签列表 -->
-    <div class="overflow-x-auto">
-        <table class="min-w-full bg-white border border-gray-200">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <div class="text-xs text-blue-600">总标签数</div>
+            <div class="mt-1 text-2xl font-semibold text-blue-900">{{ stats.total }}</div>
+        </div>
+        <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
+            <div class="text-xs text-emerald-600">已使用标签</div>
+            <div class="mt-1 text-2xl font-semibold text-emerald-900">{{ stats.used }}</div>
+        </div>
+        <div class="bg-amber-50 p-4 rounded-lg border border-amber-100">
+            <div class="text-xs text-amber-600">未使用标签</div>
+            <div class="mt-1 text-2xl font-semibold text-amber-900">{{ stats.unused }}</div>
+        </div>
+        <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+            <div class="text-xs text-indigo-600">文章标签总关联</div>
+            <div class="mt-1 text-2xl font-semibold text-indigo-900">{{ stats.post_bindings }}</div>
+        </div>
+    </div>
+
+    <form method="get" action="{{ request.state.admin_path }}/tags" class="flex flex-wrap gap-3 items-end bg-gray-50 p-4 rounded-lg border border-gray-200">
+        <div class="min-w-64 flex-1">
+            <label for="search-input" class="block text-xs text-gray-500 mb-1">搜索</label>
+            <input
+                type="text"
+                id="search-input"
+                name="search"
+                value="{{ search_query }}"
+                placeholder="搜索标签名称或别名..."
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            >
+        </div>
+        <div>
+            <label for="usage-filter" class="block text-xs text-gray-500 mb-1">使用状态</label>
+            <select id="usage-filter" name="usage" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <option value="">全部</option>
+                <option value="used" {% if selected_usage == "used" %}selected{% endif %}>已使用</option>
+                <option value="unused" {% if selected_usage == "unused" %}selected{% endif %}>未使用</option>
+            </select>
+        </div>
+        <div>
+            <label for="page-size-filter" class="block text-xs text-gray-500 mb-1">每页数量</label>
+            <select id="page-size-filter" name="page_size" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                {% for size in pagination.allowed_page_sizes %}
+                <option value="{{ size }}" {% if pagination.page_size == size %}selected{% endif %}>{{ size }} / 页</option>
+                {% endfor %}
+            </select>
+        </div>
+        <input type="hidden" name="page" value="1">
+        <div class="flex gap-2">
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                应用筛选
+            </button>
+            <a href="{{ request.state.admin_path }}/tags" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition-colors">
+                重置
+            </a>
+        </div>
+    </form>
+
+    <div class="overflow-x-auto rounded-lg border border-gray-200">
+        <table class="min-w-full bg-white">
+            <colgroup>
+                <col class="w-12">
+                <col class="w-[40%]">
+                <col class="w-[35%]">
+                <col class="w-24">
+                <col class="w-24">
+            </colgroup>
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标签名称</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">别名</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">文章数</th>
-                    {% if tags|selectattr('created_at')|list|length > 0 %}
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建时间</th>
-                    {% endif %}
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <input type="checkbox" id="select-all" class="rounded border-gray-300">
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标签名称</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">别名</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">文章数</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 {% for tag in tags %}
                 <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm font-medium text-gray-900">{{ tag.name }}</div>
+                    <td class="px-3 py-4 align-top">
+                        <input type="checkbox" class="tag-checkbox rounded border-gray-300" value="{{ tag.id }}" data-name="{{ tag.name }}">
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm text-gray-900">{{ tag.slug }}</div>
+                    <td class="px-4 py-4 align-top">
+                        <div class="text-base font-semibold tracking-tight text-gray-900 break-words">
+                            {{ tag.name }}
+                        </div>
+                        <div class="mt-1 text-xs text-gray-400">ID: {{ tag.id }}</div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                            {{ tag.posts|length if tag.posts else 0 }} 篇
+                    <td class="px-4 py-4 align-top">
+                        <div class="text-sm text-gray-700 break-all">{{ tag.slug }}</div>
+                        <div class="mt-1 text-xs text-gray-400">/archives/by-tag/{{ tag.slug }}</div>
+                    </td>
+                    <td class="px-4 py-4 align-top">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if tag.post_count > 0 %}bg-blue-100 text-blue-800{% else %}bg-gray-100 text-gray-700{% endif %}">
+                            {{ tag.post_count }} 篇
                         </span>
                     </td>
-                    {% if tags|selectattr('created_at')|list|length > 0 %}
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ tag.created_at.strftime('%Y-%m-%d') if tag.created_at else '-' }}
-                    </td>
-                    {% endif %}
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div class="flex space-x-2">
-                            <button onclick="editTag('{{ tag.id }}', '{{ tag.name }}', '{{ tag.slug }}')"
-                                    class="text-blue-600 hover:text-blue-900">
+                    <td class="px-4 py-4 align-top">
+                        <div class="flex items-center gap-3 text-sm">
+                            <button type="button"
+                                    onclick="editTagFromButton(this)"
+                                    data-id="{{ tag.id }}"
+                                    data-name="{{ tag.name }}"
+                                    data-slug="{{ tag.slug }}"
+                                    class="text-blue-600 hover:text-blue-900"
+                                    title="编辑">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <a href="/archives/by-tag/{{ tag.slug }}" target="_blank"
-                               class="text-green-600 hover:text-green-900">
+                               class="text-green-600 hover:text-green-900"
+                               title="查看">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <button onclick="deleteTag('{{ tag.id }}', '{{ tag.name }}')"
-                                    class="text-red-600 hover:text-red-900">
+                            <button type="button"
+                                    onclick="deleteTagFromButton(this)"
+                                    data-id="{{ tag.id }}"
+                                    data-name="{{ tag.name }}"
+                                    class="text-red-600 hover:text-red-900"
+                                    title="删除">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </td>
                 </tr>
                 {% endfor %}
-                
+
                 {% if not tags %}
                 <tr>
                     <td colspan="5" class="px-6 py-12 text-center text-gray-500">
@@ -79,9 +175,35 @@
             </tbody>
         </table>
     </div>
+
+    <div class="flex flex-wrap justify-between items-center gap-3 pt-1">
+        <div class="text-sm text-gray-600">
+            共 {{ pagination.filtered_total }} 条结果，第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页
+        </div>
+        <div class="flex items-center gap-1">
+            {% if pagination.has_prev %}
+            <a href="{{ pagination.prev_url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">上一页</a>
+            {% else %}
+            <span class="px-3 py-1.5 text-sm border border-gray-200 rounded text-gray-400 cursor-not-allowed">上一页</span>
+            {% endif %}
+
+            {% for link in pagination.page_links %}
+                {% if link.is_current %}
+                <span class="px-3 py-1.5 text-sm rounded bg-blue-600 text-white">{{ link.page }}</span>
+                {% else %}
+                <a href="{{ link.url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">{{ link.page }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if pagination.has_next %}
+            <a href="{{ pagination.next_url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">下一页</a>
+            {% else %}
+            <span class="px-3 py-1.5 text-sm border border-gray-200 rounded text-gray-400 cursor-not-allowed">下一页</span>
+            {% endif %}
+        </div>
+    </div>
 </div>
 
-<!-- 创建/编辑标签模态框 -->
 <div id="tagModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div class="flex items-center justify-between p-6 border-b">
@@ -90,43 +212,44 @@
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        
+
         <form id="tagForm" class="p-6 space-y-4">
             <input type="hidden" id="tagId" value="">
-            
+
             <div>
                 <label for="tagName" class="block text-sm font-medium text-gray-700 mb-1">
                     标签名称 <span class="text-red-500">*</span>
                 </label>
-                <input type="text" 
-                       id="tagName" 
-                       name="name" 
+                <input type="text"
+                       id="tagName"
+                       name="name"
                        required
                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                        placeholder="输入标签名称">
             </div>
-            
+
             <div>
                 <label for="tagSlug" class="block text-sm font-medium text-gray-700 mb-1">
                     URL别名
                 </label>
-                <input type="text" 
-                       id="tagSlug" 
-                       name="slug" 
+                <input type="text"
+                       id="tagSlug"
+                       name="slug"
                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                        placeholder="自动生成或手动输入">
                 <p class="text-xs text-gray-500 mt-1">留空将根据标签名称自动生成</p>
             </div>
         </form>
-        
+
         <div class="flex justify-end space-x-3 p-6 border-t bg-gray-50">
-            <button type="button" 
-                    onclick="hideTagModal()" 
+            <button type="button"
+                    onclick="hideTagModal()"
                     class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
                 取消
             </button>
-            <button type="button" 
-                    onclick="saveTag()" 
+            <button type="button"
+                    id="save-tag-btn"
+                    onclick="saveTag()"
                     class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700">
                 保存
             </button>
@@ -135,19 +258,51 @@
 </div>
 
 <script>
+let tagSlugTouched = false;
+
+function refreshTagsList() {
+    window.location.href = '{{ request.state.admin_path }}/tags';
+}
+
+function getSelectedTagCheckboxes() {
+    return Array.from(document.querySelectorAll('.tag-checkbox:checked'));
+}
+
+function updateBatchActionState() {
+    const selectedCount = getSelectedTagCheckboxes().length;
+    const countLabel = document.getElementById('selected-count');
+    if (countLabel) {
+        countLabel.textContent = `已选 ${selectedCount} 个`;
+    }
+    document.querySelectorAll('[data-batch-action]').forEach((button) => {
+        button.disabled = selectedCount === 0;
+    });
+}
+
+async function parseApiError(response) {
+    try {
+        const data = await response.json();
+        return data.error || data.detail || '未知错误';
+    } catch (error) {
+        return `请求失败（HTTP ${response.status}）`;
+    }
+}
+
 function showCreateTagModal() {
     document.getElementById('modalTitle').textContent = '新建标签';
     document.getElementById('tagId').value = '';
     document.getElementById('tagForm').reset();
+    tagSlugTouched = false;
     document.getElementById('tagModal').classList.remove('hidden');
     document.getElementById('tagModal').classList.add('flex');
 }
 
-function editTag(id, name, slug) {
+function editTagFromButton(button) {
     document.getElementById('modalTitle').textContent = '编辑标签';
-    document.getElementById('tagId').value = id;
-    document.getElementById('tagName').value = name;
-    document.getElementById('tagSlug').value = slug;
+    document.getElementById('tagId').value = button.dataset.id || '';
+    document.getElementById('tagName').value = button.dataset.name || '';
+    document.getElementById('tagSlug').value = button.dataset.slug || '';
+    tagSlugTouched = true;
     document.getElementById('tagModal').classList.remove('hidden');
     document.getElementById('tagModal').classList.add('flex');
 }
@@ -157,75 +312,163 @@ function hideTagModal() {
     document.getElementById('tagModal').classList.remove('flex');
 }
 
-function saveTag() {
-    const form = document.getElementById('tagForm');
-    const formData = new FormData(form);
-    const tagId = document.getElementById('tagId').value;
-    
-    const url = tagId ? 
-        `{{ request.state.admin_path }}/api/v1/tags/${tagId}` : 
-        `{{ request.state.admin_path }}/api/v1/tags`;
-    
-    const method = tagId ? 'PUT' : 'POST';
-    
-    fetch(url, {
-        method: method,
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            hideTagModal();
-            location.reload();
-        } else {
-            alert('保存失败：' + (data.error || '未知错误'));
-        }
-    })
-    .catch(error => {
-        alert('保存失败：' + error.message);
-    });
-}
-
-function deleteTag(id, name) {
-    if (confirm(`确定要删除标签"${name}"吗？`)) {
-        fetch(`{{ request.state.admin_path }}/api/v1/tags/${id}`, {
-            method: 'DELETE'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('删除失败：' + (data.error || '未知错误'));
-            }
-        })
-        .catch(error => {
-            alert('删除失败：' + error.message);
-        });
-    }
-}
-
-// 生成slug的辅助函数
 function generateSlug(text) {
     return text
         .toLowerCase()
-        .replace(/[^\w\s-]/g, '') // 移除特殊字符
-        .trim() // 去除首尾空格
-        .replace(/[\s_-]+/g, '-') // 将空格、下划线和连字符替换为单个连字符
-        .replace(/^-+|-+$/g, ''); // 移除首尾的连字符
+        .replace(/[^\w\s-]/g, '')
+        .trim()
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
 }
 
-// 自动生成别名
+async function saveTag() {
+    const saveBtn = document.getElementById('save-tag-btn');
+    const form = document.getElementById('tagForm');
+    const formData = new FormData(form);
+    const tagId = document.getElementById('tagId').value;
+
+    const url = tagId
+        ? `{{ request.state.admin_path }}/api/v1/tags/${tagId}`
+        : `{{ request.state.admin_path }}/api/v1/tags`;
+    const method = tagId ? 'PUT' : 'POST';
+
+    try {
+        saveBtn.disabled = true;
+        const response = await fetch(url, { method, body: formData });
+        if (!response.ok) {
+            alert('保存失败：' + await parseApiError(response));
+            return;
+        }
+        const data = await response.json();
+        if (!data.success) {
+            alert('保存失败：' + (data.error || data.detail || '未知错误'));
+            return;
+        }
+        hideTagModal();
+        location.reload();
+    } catch (error) {
+        alert('保存失败：' + error.message);
+    } finally {
+        saveBtn.disabled = false;
+    }
+}
+
+async function requestDeleteTag(tagId) {
+    const response = await fetch(`{{ request.state.admin_path }}/api/v1/tags/${tagId}`, {
+        method: 'DELETE'
+    });
+    if (!response.ok) {
+        return { success: false, error: await parseApiError(response) };
+    }
+    const data = await response.json().catch(() => ({}));
+    if (data.success === false) {
+        return { success: false, error: data.error || data.detail || '未知错误' };
+    }
+    return { success: true };
+}
+
+function deleteTagFromButton(button) {
+    deleteTag(button.dataset.id || '', button.dataset.name || '');
+}
+
+async function deleteTag(id, name) {
+    if (!confirm(`确定要删除标签“${name}”吗？`)) return;
+    try {
+        const result = await requestDeleteTag(id);
+        if (!result.success) {
+            alert('删除失败：' + result.error);
+            return;
+        }
+        location.reload();
+    } catch (error) {
+        alert('删除失败：' + error.message);
+    }
+}
+
+async function batchDeleteTags() {
+    const selected = getSelectedTagCheckboxes().map((checkbox) => ({
+        id: Number(checkbox.value),
+        name: checkbox.dataset.name || checkbox.value
+    }));
+    if (!selected.length) return;
+    if (!confirm(`确定要删除选中的 ${selected.length} 个标签吗？`)) return;
+
+    const idToName = new Map(selected.map((item) => [item.id, item.name]));
+
+    try {
+        const response = await fetch(`{{ request.state.admin_path }}/api/v1/tags/bulk-action`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'delete',
+                tag_ids: selected.map((item) => item.id)
+            })
+        });
+
+        if (!response.ok) {
+            alert('批量删除失败：' + await parseApiError(response));
+            return;
+        }
+
+        const data = await response.json().catch(() => ({}));
+        const successCount = Number(data.deleted_count || 0);
+        const failedItems = Array.isArray(data.failed) ? data.failed : [];
+        const failedMessages = failedItems.map((item) => {
+            const id = Number(item.id);
+            const name = idToName.get(id) || `ID ${id}`;
+            const reason = item.reason || '未知错误';
+            return `${name}: ${reason}`;
+        });
+
+        let message = `批量删除完成：成功 ${successCount} 个`;
+        if (failedMessages.length) {
+            const preview = failedMessages.slice(0, 6).join('\n');
+            const more = failedMessages.length > 6 ? `\n... 其余 ${failedMessages.length - 6} 个失败项已省略` : '';
+            message += `\n失败 ${failedMessages.length} 个：\n${preview}${more}`;
+        }
+        alert(message);
+
+        if (successCount > 0) {
+            location.reload();
+        }
+    } catch (error) {
+        alert('批量删除失败：' + error.message);
+    }
+}
+
 document.getElementById('tagName').addEventListener('input', function() {
-    const slug = generateSlug(this.value);
-    document.getElementById('tagSlug').value = slug;
+    const slugInput = document.getElementById('tagSlug');
+    if (!tagSlugTouched || !slugInput.value.trim()) {
+        slugInput.value = generateSlug(this.value);
+    }
 });
 
-// 点击模态框外部关闭
+document.getElementById('tagSlug').addEventListener('input', function() {
+    tagSlugTouched = this.value.trim().length > 0;
+});
+
 document.getElementById('tagModal').addEventListener('click', function(e) {
     if (e.target === this) {
         hideTagModal();
     }
 });
+
+const selectAllCheckbox = document.getElementById('select-all');
+if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function() {
+        document.querySelectorAll('.tag-checkbox').forEach((checkbox) => {
+            checkbox.checked = this.checked;
+        });
+        updateBatchActionState();
+    });
+}
+
+document.querySelectorAll('.tag-checkbox').forEach((checkbox) => {
+    checkbox.addEventListener('change', updateBatchActionState);
+});
+
+updateBatchActionState();
 </script>
 {% endblock %}

@@ -39,8 +39,10 @@ def test_category_api_has_v1_and_legacy_paths():
     new_paths = _paths(categories.router)
     old_paths = _paths(categories.legacy_router)
     assert "/api/v1/categories/" in new_paths
+    assert "/api/v1/categories/bulk-action" in new_paths
     assert "/api/v1/categories/{category_id}" in new_paths
     assert "/api/categories/" in old_paths
+    assert "/api/categories/bulk-action" in old_paths
     assert "/api/categories/{category_id}" in old_paths
 
 
@@ -48,8 +50,10 @@ def test_tag_api_has_v1_and_legacy_paths():
     new_paths = _paths(tags.router)
     old_paths = _paths(tags.legacy_router)
     assert "/api/v1/tags/" in new_paths
+    assert "/api/v1/tags/bulk-action" in new_paths
     assert "/api/v1/tags/{tag_id}" in new_paths
     assert "/api/tags/" in old_paths
+    assert "/api/tags/bulk-action" in old_paths
     assert "/api/tags/{tag_id}" in old_paths
 
 

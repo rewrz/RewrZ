@@ -586,24 +586,243 @@ def register_admin_routes():
     
     # 注册后台分类管理页面
     @app.get(f"{admin_path}/categories", response_class=HTMLResponse)
-    async def dynamic_admin_categories_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-        from .crud import category as crud_category
-        categories = crud_category.get_categories(db)
+    async def dynamic_admin_categories_page(
+        request: Request,
+        search: Optional[str] = None,
+        usage: Optional[str] = None,
+        page: int = 1,
+        page_size: Optional[int] = None,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+    ):
+        from math import ceil
+        from sqlalchemy import select, func, or_
+        from sqlalchemy.orm import selectinload
+        from .models import Category
+        from .models.post import post_categories
+
+        search = (search or "").strip() or None
+        usage = (usage or "").strip().lower() or None
+        if usage not in {"used", "unused"}:
+            usage = None
+
+        page = max(1, int(page or 1))
+        allowed_page_sizes = [20, 50, 100]
+        try:
+            resolved_page_size = int(page_size) if page_size is not None else 20
+        except (TypeError, ValueError):
+            resolved_page_size = 20
+        if resolved_page_size not in allowed_page_sizes:
+            resolved_page_size = 20
+
+        filter_conditions = []
+        if search:
+            like = f"%{search}%"
+            filter_conditions.append(
+                or_(
+                    Category.name.ilike(like),
+                    Category.slug.ilike(like),
+                    Category.description.ilike(like),
+                )
+            )
+        if usage == "used":
+            filter_conditions.append(Category.posts.any())
+        elif usage == "unused":
+            filter_conditions.append(~Category.posts.any())
+
+        total_categories = db.execute(select(func.count(Category.id))).scalar_one()
+        used_categories = db.execute(
+            select(func.count(Category.id)).where(Category.posts.any())
+        ).scalar_one()
+        unused_categories = max(0, total_categories - used_categories)
+        total_post_bindings = db.execute(
+            select(func.count()).select_from(post_categories)
+        ).scalar_one()
+
+        filtered_total_query = select(func.count(Category.id))
+        if filter_conditions:
+            filtered_total_query = filtered_total_query.where(*filter_conditions)
+        filtered_total = db.execute(filtered_total_query).scalar_one()
+
+        total_page_count = max(1, ceil(filtered_total / resolved_page_size)) if filtered_total else 1
+        if page > total_page_count:
+            page = total_page_count
+        offset = (page - 1) * resolved_page_size
+
+        categories_query = select(Category).options(selectinload(Category.posts))
+        if filter_conditions:
+            categories_query = categories_query.where(*filter_conditions)
+        categories = db.execute(
+            categories_query
+            .order_by(Category.name.asc())
+            .offset(offset)
+            .limit(resolved_page_size)
+        ).scalars().all()
+
+        for category in categories:
+            setattr(category, "post_count", len(category.posts) if category.posts else 0)
+
+        def _build_page_url(target_page: int) -> str:
+            params = {}
+            if search:
+                params["search"] = search
+            if usage:
+                params["usage"] = usage
+            params["page"] = str(target_page)
+            params["page_size"] = str(resolved_page_size)
+            return str(request.url.replace_query_params(**params))
+
+        page_window_start = max(1, page - 2)
+        page_window_end = min(total_page_count, page_window_start + 4)
+        page_window_start = max(1, page_window_end - 4)
+        page_numbers = list(range(page_window_start, page_window_end + 1))
+
+        pagination = {
+            "current_page": page,
+            "page_size": resolved_page_size,
+            "allowed_page_sizes": allowed_page_sizes,
+            "total_pages": total_page_count,
+            "filtered_total": filtered_total,
+            "has_prev": page > 1,
+            "has_next": page < total_page_count,
+            "prev_url": _build_page_url(page - 1) if page > 1 else None,
+            "next_url": _build_page_url(page + 1) if page < total_page_count else None,
+            "page_links": [{"page": p, "url": _build_page_url(p), "is_current": p == page} for p in page_numbers],
+        }
+
         return templates.TemplateResponse("admin/categories_list.html", {
-            "request": request, 
-            "categories": categories, 
+            "request": request,
+            "categories": categories,
+            "search_query": search or "",
+            "selected_usage": usage or "",
+            "pagination": pagination,
+            "stats": {
+                "total": total_categories,
+                "used": used_categories,
+                "unused": unused_categories,
+                "post_bindings": total_post_bindings,
+            },
             "user": current_user,
             "admin_path": admin_path
         })
     
     # 注册后台标签管理页面
     @app.get(f"{admin_path}/tags", response_class=HTMLResponse)
-    async def dynamic_admin_tags_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-        from .crud import tag as crud_tag
-        tags = crud_tag.get_tags(db)
+    async def dynamic_admin_tags_page(
+        request: Request,
+        search: Optional[str] = None,
+        usage: Optional[str] = None,
+        page: int = 1,
+        page_size: Optional[int] = None,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+    ):
+        from math import ceil
+        from sqlalchemy import select, func, or_
+        from sqlalchemy.orm import selectinload
+        from .models import Tag
+        from .models.post import post_tags
+
+        search = (search or "").strip() or None
+        usage = (usage or "").strip().lower() or None
+        if usage not in {"used", "unused"}:
+            usage = None
+
+        page = max(1, int(page or 1))
+        allowed_page_sizes = [20, 50, 100]
+        try:
+            resolved_page_size = int(page_size) if page_size is not None else 20
+        except (TypeError, ValueError):
+            resolved_page_size = 20
+        if resolved_page_size not in allowed_page_sizes:
+            resolved_page_size = 20
+
+        filter_conditions = []
+        if search:
+            like = f"%{search}%"
+            filter_conditions.append(
+                or_(
+                    Tag.name.ilike(like),
+                    Tag.slug.ilike(like),
+                )
+            )
+        if usage == "used":
+            filter_conditions.append(Tag.posts.any())
+        elif usage == "unused":
+            filter_conditions.append(~Tag.posts.any())
+
+        total_tags = db.execute(select(func.count(Tag.id))).scalar_one()
+        used_tags = db.execute(
+            select(func.count(Tag.id)).where(Tag.posts.any())
+        ).scalar_one()
+        unused_tags = max(0, total_tags - used_tags)
+        total_post_bindings = db.execute(
+            select(func.count()).select_from(post_tags)
+        ).scalar_one()
+
+        filtered_total_query = select(func.count(Tag.id))
+        if filter_conditions:
+            filtered_total_query = filtered_total_query.where(*filter_conditions)
+        filtered_total = db.execute(filtered_total_query).scalar_one()
+
+        total_page_count = max(1, ceil(filtered_total / resolved_page_size)) if filtered_total else 1
+        if page > total_page_count:
+            page = total_page_count
+        offset = (page - 1) * resolved_page_size
+
+        tags_query = select(Tag).options(selectinload(Tag.posts))
+        if filter_conditions:
+            tags_query = tags_query.where(*filter_conditions)
+        tags = db.execute(
+            tags_query
+            .order_by(Tag.name.asc())
+            .offset(offset)
+            .limit(resolved_page_size)
+        ).scalars().all()
+
+        for tag in tags:
+            setattr(tag, "post_count", len(tag.posts) if tag.posts else 0)
+
+        def _build_page_url(target_page: int) -> str:
+            params = {}
+            if search:
+                params["search"] = search
+            if usage:
+                params["usage"] = usage
+            params["page"] = str(target_page)
+            params["page_size"] = str(resolved_page_size)
+            return str(request.url.replace_query_params(**params))
+
+        page_window_start = max(1, page - 2)
+        page_window_end = min(total_page_count, page_window_start + 4)
+        page_window_start = max(1, page_window_end - 4)
+        page_numbers = list(range(page_window_start, page_window_end + 1))
+
+        pagination = {
+            "current_page": page,
+            "page_size": resolved_page_size,
+            "allowed_page_sizes": allowed_page_sizes,
+            "total_pages": total_page_count,
+            "filtered_total": filtered_total,
+            "has_prev": page > 1,
+            "has_next": page < total_page_count,
+            "prev_url": _build_page_url(page - 1) if page > 1 else None,
+            "next_url": _build_page_url(page + 1) if page < total_page_count else None,
+            "page_links": [{"page": p, "url": _build_page_url(p), "is_current": p == page} for p in page_numbers],
+        }
+
         return templates.TemplateResponse("admin/tags_list.html", {
-            "request": request, 
-            "tags": tags, 
+            "request": request,
+            "tags": tags,
+            "search_query": search or "",
+            "selected_usage": usage or "",
+            "pagination": pagination,
+            "stats": {
+                "total": total_tags,
+                "used": used_tags,
+                "unused": unused_tags,
+                "post_bindings": total_post_bindings,
+            },
             "user": current_user,
             "admin_path": admin_path
         })
@@ -613,12 +832,80 @@ def register_admin_routes():
     async def dynamic_admin_comments_page(
         request: Request, 
         status: Optional[str] = None,
+        search: Optional[str] = None,
+        page: int = 1,
+        page_size: Optional[int] = None,
         db: Session = Depends(get_db), 
         current_user: User = Depends(get_current_user)
     ):
-        from .crud import comment as crud_comment
-        comments = crud_comment.get_comments(db, limit=50, sort_by_latest=True, status=status)
-        
+        from math import ceil
+        from sqlalchemy import select, func, or_
+        from sqlalchemy.orm import joinedload
+        from .models import Comment, Post
+
+        status = (status or "").strip() or None
+        search = (search or "").strip() or None
+
+        page = max(1, int(page or 1))
+        allowed_page_sizes = [20, 50, 100]
+        try:
+            resolved_page_size = int(page_size) if page_size is not None else 20
+        except (TypeError, ValueError):
+            resolved_page_size = 20
+        if resolved_page_size not in allowed_page_sizes:
+            resolved_page_size = 20
+
+        filter_conditions = []
+        if status:
+            filter_conditions.append(Comment.status == status)
+        if search:
+            like = f"%{search}%"
+            filter_conditions.append(
+                or_(
+                    Comment.author_name.ilike(like),
+                    Comment.author_email.ilike(like),
+                    Comment.content.ilike(like),
+                    Post.title.ilike(like),
+                    Comment.ip_address.ilike(like),
+                    Comment.user_agent.ilike(like),
+                )
+            )
+
+        total_comments = db.execute(select(func.count(Comment.id))).scalar_one()
+        pending_count = db.execute(
+            select(func.count(Comment.id)).where(Comment.status == "pending")
+        ).scalar_one()
+        approved_count = db.execute(
+            select(func.count(Comment.id)).where(Comment.status == "approved")
+        ).scalar_one()
+        spam_count = db.execute(
+            select(func.count(Comment.id)).where(Comment.status == "spam")
+        ).scalar_one()
+
+        count_query = select(func.count(Comment.id)).outerjoin(Post, Post.id == Comment.post_id)
+        if filter_conditions:
+            count_query = count_query.where(*filter_conditions)
+        filtered_total = db.execute(count_query).scalar_one()
+
+        total_page_count = max(1, ceil(filtered_total / resolved_page_size)) if filtered_total else 1
+        if page > total_page_count:
+            page = total_page_count
+        offset = (page - 1) * resolved_page_size
+
+        comments_query = (
+            select(Comment)
+            .outerjoin(Post, Post.id == Comment.post_id)
+            .options(
+                joinedload(Comment.post),
+                joinedload(Comment.parent),
+            )
+        )
+        if filter_conditions:
+            comments_query = comments_query.where(*filter_conditions)
+        comments = db.execute(
+            comments_query.order_by(Comment.created_at.desc()).offset(offset).limit(resolved_page_size)
+        ).scalars().all()
+
         avatar_service = get_avatar_service(db)
         comments_with_avatars = []
         for comment in comments:
@@ -632,12 +919,48 @@ def register_admin_routes():
                 "avatar_url": avatar_url
             })
 
+        def _build_page_url(target_page: int) -> str:
+            params = {}
+            if status:
+                params["status"] = status
+            if search:
+                params["search"] = search
+            params["page"] = str(target_page)
+            params["page_size"] = str(resolved_page_size)
+            return str(request.url.replace_query_params(**params))
+
+        page_window_start = max(1, page - 2)
+        page_window_end = min(total_page_count, page_window_start + 4)
+        page_window_start = max(1, page_window_end - 4)
+        page_numbers = list(range(page_window_start, page_window_end + 1))
+
+        pagination = {
+            "current_page": page,
+            "page_size": resolved_page_size,
+            "allowed_page_sizes": allowed_page_sizes,
+            "total_pages": total_page_count,
+            "filtered_total": filtered_total,
+            "has_prev": page > 1,
+            "has_next": page < total_page_count,
+            "prev_url": _build_page_url(page - 1) if page > 1 else None,
+            "next_url": _build_page_url(page + 1) if page < total_page_count else None,
+            "page_links": [{"page": p, "url": _build_page_url(p), "is_current": p == page} for p in page_numbers],
+        }
+
         return templates.TemplateResponse("admin/comments_list.html", {
             "request": request, 
             "comments_with_avatars": comments_with_avatars, 
             "user": current_user,
             "admin_path": admin_path,
-            "current_status": status
+            "current_status": status,
+            "search_query": search or "",
+            "pagination": pagination,
+            "total_comments": total_comments,
+            "status_counts": {
+                "pending": pending_count,
+                "approved": approved_count,
+                "spam": spam_count,
+            },
         })
     
     # 注册后台页面管理页面

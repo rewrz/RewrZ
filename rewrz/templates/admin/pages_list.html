@@ -14,6 +14,24 @@
                     class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
                 <i class="fas fa-sync-alt mr-2"></i>刷新
             </button>
+            <span class="mx-1 h-6 w-px bg-gray-300"></span>
+            <span class="text-sm text-gray-500">批量操作</span>
+            <button onclick="batchPublishPages()" data-batch-action
+                    class="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled>
+                批量发布
+            </button>
+            <button onclick="batchDraftPages()" data-batch-action
+                    class="px-3 py-2 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled>
+                移至草稿
+            </button>
+            <button onclick="batchDeletePages()" data-batch-action
+                    class="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled>
+                批量删除
+            </button>
+            <span id="selected-count" class="text-sm text-gray-500">已选 0 个</span>
         </div>
         <div class="text-sm text-gray-600">
             <span class="font-medium">页面总数：</span>{{ total_pages_count }}
@@ -74,6 +92,7 @@
     <div class="overflow-x-auto rounded-lg border border-gray-200">
         <table class="min-w-full bg-white">
             <colgroup>
+                <col class="w-12">
                 <col class="w-[38%]">
                 <col class="w-24">
                 <col class="w-24">
@@ -84,6 +103,9 @@
             </colgroup>
             <thead class="bg-gray-50">
                 <tr>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <input type="checkbox" id="select-all" class="rounded border-gray-300">
+                    </th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标题</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
@@ -96,6 +118,9 @@
             <tbody class="bg-white divide-y divide-gray-200">
                 {% for page in pages %}
                 <tr class="hover:bg-gray-50">
+                    <td class="px-3 py-4 align-top">
+                        <input type="checkbox" class="page-checkbox rounded border-gray-300" value="{{ page.id }}">
+                    </td>
                     <td class="px-4 py-4 align-top">
                         <div class="text-base font-semibold tracking-tight text-gray-900">
                             <a href="/{{ page.slug }}" target="_blank" class="hover:text-blue-600">
@@ -153,7 +178,7 @@
 
                 {% if not pages %}
                 <tr>
-                    <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                    <td colspan="8" class="px-6 py-12 text-center text-gray-500">
                         <i class="fas fa-file text-4xl mb-4 text-gray-400"></i>
                         <div class="text-lg">暂无页面</div>
                         <div class="text-sm">
@@ -199,6 +224,22 @@ function refreshPagesList() {
     window.location.href = '{{ request.state.admin_path }}/pages';
 }
 
+function getSelectedPages() {
+    const checkboxes = document.querySelectorAll('.page-checkbox:checked');
+    return Array.from(checkboxes).map((cb) => Number(cb.value));
+}
+
+function updateBatchActionState() {
+    const selectedCount = getSelectedPages().length;
+    const countLabel = document.getElementById('selected-count');
+    if (countLabel) {
+        countLabel.textContent = `已选 ${selectedCount} 个`;
+    }
+    document.querySelectorAll('[data-batch-action]').forEach((button) => {
+        button.disabled = selectedCount === 0;
+    });
+}
+
 function deletePage(pageId) {
     if (!confirm('确定要删除这个页面吗？此操作不可撤销。')) return;
     fetch(`{{ request.state.admin_path }}/api/v1/pages/${pageId}`, {
@@ -220,5 +261,99 @@ function deletePage(pageId) {
         alert('删除失败：' + error.message);
     });
 }
+
+function batchPublishPages() {
+    const selected = getSelectedPages();
+    if (!selected.length) return;
+    if (!confirm(`确定要发布选中的 ${selected.length} 个页面吗？`)) return;
+    fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-publish`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': '{{ request.state.csrf_token }}'
+        },
+        body: JSON.stringify({ post_ids: selected })
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert('批量发布失败：' + (data.error || data.detail || '未知错误'));
+    })
+    .catch((error) => alert('批量发布失败：' + error.message));
+}
+
+function batchDraftPages() {
+    const selected = getSelectedPages();
+    if (!selected.length) return;
+    if (!confirm(`确定要将选中的 ${selected.length} 个页面移至草稿吗？`)) return;
+    fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-draft`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': '{{ request.state.csrf_token }}'
+        },
+        body: JSON.stringify({ post_ids: selected })
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert('批量移至草稿失败：' + (data.error || data.detail || '未知错误'));
+    })
+    .catch((error) => alert('批量移至草稿失败：' + error.message));
+}
+
+function batchDeletePages() {
+    const selected = getSelectedPages();
+    if (!selected.length) return;
+    if (!confirm(`确定要删除选中的 ${selected.length} 个页面吗？此操作不可撤销。`)) return;
+    fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-delete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': '{{ request.state.csrf_token }}'
+        },
+        body: JSON.stringify({ post_ids: selected })
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert('批量删除失败：' + (data.error || data.detail || '未知错误'));
+    })
+    .catch((error) => alert('批量删除失败：' + error.message));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const selectAll = document.getElementById('select-all');
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            document.querySelectorAll('.page-checkbox').forEach((checkbox) => {
+                checkbox.checked = this.checked;
+            });
+            updateBatchActionState();
+        });
+    }
+
+    document.querySelectorAll('.page-checkbox').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => {
+            const all = document.querySelectorAll('.page-checkbox');
+            const selected = document.querySelectorAll('.page-checkbox:checked');
+            if (selectAll) {
+                selectAll.checked = all.length > 0 && all.length === selected.length;
+            }
+            updateBatchActionState();
+        });
+    });
+
+    updateBatchActionState();
+});
 </script>
 {% endblock %}

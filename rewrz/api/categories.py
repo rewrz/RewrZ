@@ -1,6 +1,8 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from slugify import slugify
 
@@ -18,6 +20,11 @@ legacy_router = APIRouter(
     tags=["categories"],
     responses={404: {"description": "Not found"}},
 )
+
+
+class CategoryBulkAction(BaseModel):
+    action: str
+    category_ids: List[int]
 
 
 @router.post("/")
@@ -47,6 +54,53 @@ def create_category(
 def read_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     categories = crud.category.get_categories(db, skip=skip, limit=limit)
     return categories
+
+
+@router.post("/bulk-action")
+@legacy_router.post("/bulk-action")
+def bulk_action_categories(payload: CategoryBulkAction, db: Session = Depends(get_db)):
+    action = (payload.action or "").strip().lower()
+    if action != "delete":
+        raise HTTPException(status_code=400, detail="Invalid action")
+
+    category_ids = []
+    seen = set()
+    for category_id in payload.category_ids or []:
+        try:
+            value = int(category_id)
+        except (TypeError, ValueError):
+            continue
+        if value <= 0 or value in seen:
+            continue
+        seen.add(value)
+        category_ids.append(value)
+
+    deleted_ids: List[int] = []
+    failed = []
+
+    for category_id in category_ids:
+        try:
+            deleted = crud.category.delete_category(db, category_id=category_id)
+            if deleted is None:
+                failed.append({"id": category_id, "reason": "分类不存在"})
+                continue
+            deleted_ids.append(category_id)
+        except IntegrityError:
+            db.rollback()
+            failed.append({"id": category_id, "reason": "分类下存在文章关联，无法删除"})
+        except Exception as exc:
+            db.rollback()
+            failed.append({"id": category_id, "reason": str(exc) or "未知错误"})
+
+    return {
+        "success": len(failed) == 0,
+        "action": "delete",
+        "requested_count": len(category_ids),
+        "deleted_count": len(deleted_ids),
+        "failed_count": len(failed),
+        "deleted_ids": deleted_ids,
+        "failed": failed,
+    }
 
 
 @router.get("/{category_id}", response_model=schemas.Category)

@@ -1,6 +1,8 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from slugify import slugify
 
@@ -18,6 +20,11 @@ legacy_router = APIRouter(
     tags=["tags"],
     responses={404: {"description": "Not found"}},
 )
+
+
+class TagBulkAction(BaseModel):
+    action: str
+    tag_ids: List[int]
 
 
 @router.post("/")
@@ -40,6 +47,53 @@ def create_tag(
 def read_tags(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     tags = crud.tag.get_tags(db, skip=skip, limit=limit)
     return tags
+
+
+@router.post("/bulk-action")
+@legacy_router.post("/bulk-action")
+def bulk_action_tags(payload: TagBulkAction, db: Session = Depends(get_db)):
+    action = (payload.action or "").strip().lower()
+    if action != "delete":
+        raise HTTPException(status_code=400, detail="Invalid action")
+
+    tag_ids = []
+    seen = set()
+    for tag_id in payload.tag_ids or []:
+        try:
+            value = int(tag_id)
+        except (TypeError, ValueError):
+            continue
+        if value <= 0 or value in seen:
+            continue
+        seen.add(value)
+        tag_ids.append(value)
+
+    deleted_ids: List[int] = []
+    failed = []
+
+    for tag_id in tag_ids:
+        try:
+            deleted = crud.tag.delete_tag(db, tag_id=tag_id)
+            if deleted is None:
+                failed.append({"id": tag_id, "reason": "标签不存在"})
+                continue
+            deleted_ids.append(tag_id)
+        except IntegrityError:
+            db.rollback()
+            failed.append({"id": tag_id, "reason": "标签存在文章关联，无法删除"})
+        except Exception as exc:
+            db.rollback()
+            failed.append({"id": tag_id, "reason": str(exc) or "未知错误"})
+
+    return {
+        "success": len(failed) == 0,
+        "action": "delete",
+        "requested_count": len(tag_ids),
+        "deleted_count": len(deleted_ids),
+        "failed_count": len(failed),
+        "deleted_ids": deleted_ids,
+        "failed": failed,
+    }
 
 
 @router.get("/{tag_id}", response_model=schemas.Tag)

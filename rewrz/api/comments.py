@@ -23,6 +23,7 @@ from ..core.template_filters import get_templates # 导入模板函数
 from ..core.content_access import extract_hide_block, get_comment_unlock_cookie_name
 from ..core.admin_security import check_comment_rate_limit, get_admin_email, get_client_ip
 from ..core.notification_email import send_new_comment_notification
+from ..core.ip_geo import lookup_ip_locations
 
 router = APIRouter()
 
@@ -41,6 +42,10 @@ class BulkAction(BaseModel):
 
 class AdminReply(BaseModel):
     content: str
+
+
+class IpGeoLookupRequest(BaseModel):
+    ips: List[str]
 
 # 定义评论允许的HTML标签和属性 (需求规格 2.3.1)
 ALLOWED_TAGS = ['a', 'strong', 'em', 'code', 'p', 'br']
@@ -402,6 +407,12 @@ async def bulk_action_api(
     if bulk_action.action == "approve":
         crud_comment.bulk_update_comment_status(db, comment_ids=bulk_action.comment_ids, status="approved")
         message = "Comments approved successfully"
+    elif bulk_action.action == "pending":
+        crud_comment.bulk_update_comment_status(db, comment_ids=bulk_action.comment_ids, status="pending")
+        message = "Comments moved to pending successfully"
+    elif bulk_action.action == "spam":
+        crud_comment.bulk_update_comment_status(db, comment_ids=bulk_action.comment_ids, status="spam")
+        message = "Comments marked as spam successfully"
     elif bulk_action.action == "delete":
         crud_comment.bulk_delete_comments(db, comment_ids=bulk_action.comment_ids)
         message = "Comments deleted successfully"
@@ -409,6 +420,23 @@ async def bulk_action_api(
         raise HTTPException(status_code=400, detail="Invalid action")
         
     return {"success": True, "message": message}
+
+
+@router.post("/api/v1/admin/comments/ip-geo", status_code=status.HTTP_200_OK)
+@router.post("/api/admin/comments/ip-geo", status_code=status.HTTP_200_OK)
+async def lookup_comment_ip_geo(
+    request: Request,
+    payload: IpGeoLookupRequest,
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    批量查询评论IP地理位置信息（用于后台列表参考展示）
+    """
+    verify_csrf_token(request, csrf_token)
+    ips = payload.ips if payload and payload.ips else []
+    return {"success": True, "locations": lookup_ip_locations(ips)}
 
 @router.post("/api/v1/comments/{comment_id}/reply", response_model=Comment, status_code=status.HTTP_201_CREATED)
 @router.post("/api/comments/{comment_id}/reply", response_model=Comment, status_code=status.HTTP_201_CREATED)
