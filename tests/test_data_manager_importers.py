@@ -354,6 +354,51 @@ def test_wordpress_import_maps_post_format_to_rewrz_format(db, tmp_path):
     assert crud_format.get_format_by_slug(db, "video") is not None
 
 
+def test_wordpress_import_custom_post_type_whitelist_maps_to_post(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin_custom_type", email="admin_custom_type@example.com", password="password123"),
+    )
+
+    wxr_content = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>自定义类型导入</title>
+      <content:encoded><![CDATA[<p>自定义类型正文</p>]]></content:encoded>
+      <wp:post_name>custom-type-post</wp:post_name>
+      <wp:post_type>portfolio</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2021-01-01 00:00:00</wp:post_date>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_custom_type.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    importer = WordPressImporter(
+        db,
+        options={
+            "import_post_types": ["post", "page", "portfolio"],
+            "import_comments": True,
+            "import_views": True,
+            "postmeta_whitelist": ["views", "post_views_count"],
+            "markdown_strategy": "html_to_markdown",
+        },
+    )
+    stats = importer.import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+
+    imported = crud_post.get_post_by_slug(db, "custom-type-post")
+    assert imported is not None
+    assert imported.post_type == "post"
+
+
 def test_wordpress_import_comments_and_views_meta(db, tmp_path):
     crud_user.create_user(
         db,

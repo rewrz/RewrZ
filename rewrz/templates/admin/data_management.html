@@ -110,6 +110,11 @@
                         </label>
                     </div>
                     <div class="mt-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">额外文章类型白名单（逗号分隔）</label>
+                        <input id="wp-import-extra-post-types" type="text" class="block w-full rounded border border-gray-300 px-3 py-2 text-sm" placeholder="portfolio,news,article">
+                        <p class="mt-1 text-xs text-gray-500">例如自定义 post_type；会按文章（post）导入。</p>
+                    </div>
+                    <div class="mt-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">postmeta 白名单（逗号分隔）</label>
                         <input id="wp-postmeta-whitelist" type="text" class="block w-full rounded border border-gray-300 px-3 py-2 text-sm" placeholder="views,post_views_count">
                     </div>
@@ -257,6 +262,15 @@ function collectWordPressImportOptions() {
     const types = [];
     if (document.getElementById('wp-import-type-post')?.checked) types.push('post');
     if (document.getElementById('wp-import-type-page')?.checked) types.push('page');
+    const extraTypes = (document.getElementById('wp-import-extra-post-types')?.value || '')
+        .split(',')
+        .map(item => item.trim().toLowerCase())
+        .filter(Boolean);
+    extraTypes.forEach((type) => {
+        if (!types.includes(type)) {
+            types.push(type);
+        }
+    });
 
     return {
         import_comments: Boolean(document.getElementById('wp-import-comments')?.checked),
@@ -277,6 +291,8 @@ function applyWordPressImportOptions(options) {
     const types = Array.isArray(safe.import_post_types) ? safe.import_post_types : [];
     document.getElementById('wp-import-type-post').checked = types.includes('post');
     document.getElementById('wp-import-type-page').checked = types.includes('page');
+    const extraTypes = types.filter(type => !['post', 'page'].includes(type));
+    document.getElementById('wp-import-extra-post-types').value = extraTypes.join(',');
     const whitelist = Array.isArray(safe.postmeta_whitelist) ? safe.postmeta_whitelist : [];
     document.getElementById('wp-postmeta-whitelist').value = whitelist.join(',');
     document.getElementById('wp-markdown-strategy').value = safe.markdown_strategy || 'html_to_markdown';
