@@ -399,6 +399,43 @@ def test_wordpress_import_custom_post_type_whitelist_maps_to_post(db, tmp_path):
     assert imported.post_type == "post"
 
 
+def test_wordpress_import_defaults_format_to_article_when_missing_post_format(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin_default_fmt", email="admin_default_fmt@example.com", password="password123"),
+    )
+
+    wxr_content = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>默认格式测试</title>
+      <content:encoded><![CDATA[<p>正文</p>]]></content:encoded>
+      <wp:post_name>default-format-post</wp:post_name>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2021-01-01 00:00:00</wp:post_date>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_default_format.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    importer = WordPressImporter(db)
+    stats = importer.import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+
+    post = crud_post.get_post_by_slug(db, "default-format-post")
+    assert post is not None
+    assert any(fmt.slug == "article" for fmt in post.formats)
+    assert crud_format.get_format_by_slug(db, "article") is not None
+
+
 def test_wordpress_import_comments_and_views_meta(db, tmp_path):
     crud_user.create_user(
         db,

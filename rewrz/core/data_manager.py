@@ -942,6 +942,7 @@ class WordPressImporter:
 
             # 关联内容格式（WordPress post_format taxonomy）
             format_items = item.findall('category[@domain="post_format"]')
+            format_bound = False
             for format_elem in format_items:
                 raw_nicename = (format_elem.get("nicename") or "").strip().lower()
                 raw_name = (format_elem.text or "").strip()
@@ -951,6 +952,13 @@ class WordPressImporter:
                 format_obj = self._ensure_post_format(mapped_slug, raw_name)
                 if format_obj and format_obj not in post.formats:
                     post.formats.append(format_obj)
+                    format_bound = True
+
+            # 若 WordPress 未显式给出 post_format，则默认绑定标准文章格式。
+            if not format_bound and not post.formats:
+                default_format = self._ensure_post_format("article", "标准文章")
+                if default_format and default_format not in post.formats:
+                    post.formats.append(default_format)
             
             self.db.commit()
             
