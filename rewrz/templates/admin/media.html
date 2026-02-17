@@ -262,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     batchDeleteButton.addEventListener('click', async () => {
         if (!selectedFiles.size) return;
-        if (!window.confirm(`确定删除选中的 ${selectedFiles.size} 个文件吗？此操作不可恢复。`)) return;
+        if (!(await window.adminConfirm(`确定删除选中的 ${selectedFiles.size} 个文件吗？此操作不可恢复。`, { tone: 'danger', confirmText: '批量删除文件' }))) return;
 
         const mediaIds = Array.from(selectedFiles).map((id) => Number.parseInt(id, 10)).filter(Number.isFinite);
         if (!mediaIds.length) return;
@@ -301,11 +301,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             }
 
-            if (result.skipped && result.skipped.length > 0) {
-                window.alert(`批量删除完成：成功 ${result.deleted_count}，跳过 ${result.skipped.length}（权限不足或文件不存在）。`);
+            const deletedCount = Number(result.deleted_count || 0);
+            const skippedCount = Array.isArray(result.skipped) ? result.skipped.length : 0;
+            if (skippedCount > 0) {
+                window.adminNotify(`批量删除完成：成功 ${deletedCount}，跳过 ${skippedCount}（权限不足或文件不存在）。`, 'warning', { duration: 5200 });
+            } else {
+                window.adminNotify(`批量删除完成：成功 ${deletedCount} 个文件。`, 'success');
             }
         } catch (error) {
-            window.alert(`批量删除失败：${error.message}`);
+            window.adminNotify(`批量删除失败：${error.message}`, 'error', { duration: 4200 });
         }
     });
 
@@ -357,8 +361,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        const successCount = files.length - failed;
         if (failed) {
-            window.alert(`上传完成，${failed} 个文件失败，请检查格式或大小限制。`);
+            window.adminSetFlash(`上传完成：成功 ${successCount}，失败 ${failed}。`, 'warning');
+        } else {
+            window.adminSetFlash(`上传完成：成功 ${successCount} 个文件。`, 'success');
         }
         window.location.reload();
     }
@@ -441,9 +448,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 const saveResult = await saveResponse.json();
                 if (!saveResponse.ok) {
-                    window.alert(`保存失败：${saveResult.detail || saveResponse.statusText}`);
+                    window.adminNotify(`保存失败：${saveResult.detail || saveResponse.statusText}`, 'error', { duration: 4200 });
                     return;
                 }
+                window.adminSetFlash('媒体信息已保存', 'success');
                 window.location.reload();
             });
         } catch (error) {
@@ -457,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.deleteMedia = async (mediaId, event) => {
         event.stopPropagation();
-        if (!window.confirm('确定删除这个文件吗？此操作不可恢复。')) return;
+        if (!(await window.adminConfirm('确定删除这个文件吗？此操作不可恢复。', { tone: 'danger', confirmText: '删除文件' }))) return;
 
         try {
             const response = await fetch(`${adminPath}/api/v1/media/${mediaId}`, {
@@ -469,9 +477,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
                 throw new Error(data.detail || response.statusText);
             }
+            window.adminSetFlash('媒体文件已删除', 'success');
             window.location.reload();
         } catch (error) {
-            window.alert(`删除失败：${error.message}`);
+            window.adminNotify(`删除失败：${error.message}`, 'error', { duration: 4200 });
         }
     };
 });

@@ -179,6 +179,64 @@ def test_delete_post(db: Session, test_user: User):
     assert deleted_post.id == created_post.id
     assert crud_post.get_post(db, post_id=created_post.id) is None
 
+
+def test_delete_posts_by_ids_only_deletes_target_author_posts(db: Session, test_user: User):
+    another_user = crud_user.create_user(
+        db,
+        UserCreate(username="another", email="another@example.com", password="password"),
+    )
+
+    owned_post_1 = crud_post.create_post(
+        db,
+        PostCreate(
+            title="Owned Post 1",
+            slug="owned-post-1",
+            content_markdown="Content",
+            post_type="article",
+            status="draft",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+    )
+    owned_post_2 = crud_post.create_post(
+        db,
+        PostCreate(
+            title="Owned Post 2",
+            slug="owned-post-2",
+            content_markdown="Content",
+            post_type="article",
+            status="draft",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+    )
+    other_user_post = crud_post.create_post(
+        db,
+        PostCreate(
+            title="Other User Post",
+            slug="other-user-post",
+            content_markdown="Content",
+            post_type="article",
+            status="draft",
+            visibility="public",
+            author_id=another_user.id,
+        ),
+        author_id=another_user.id,
+    )
+
+    deleted_count = crud_post.delete_posts_by_ids(
+        db,
+        post_ids=[owned_post_1.id, owned_post_2.id, other_user_post.id, owned_post_2.id],
+        author_id=test_user.id,
+    )
+
+    assert deleted_count == 2
+    assert crud_post.get_post(db, post_id=owned_post_1.id) is None
+    assert crud_post.get_post(db, post_id=owned_post_2.id) is None
+    assert crud_post.get_post(db, post_id=other_user_post.id) is not None
+
 def test_post_excerpt_generation(db: Session, test_user: User):
     long_content = "A" * 200
     post_data = PostCreate(

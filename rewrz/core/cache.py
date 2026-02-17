@@ -1,6 +1,10 @@
 from cachetools import cached, TTLCache
 from typing import Any, Callable, Dict
 import functools
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 # A simple in-memory cache with a time-to-live of 5 minutes (300 seconds)
 # This cache will store global settings to reduce database queries.
@@ -43,10 +47,10 @@ def clear_cache(key: str = None):
     if key:
         if key in cache:
             del cache[key]
-        print(f"INFO: Cache for key '{key}' cleared.")
+            logger.debug("Cache for key '%s' cleared.", key)
     else:
         cache.clear()
-        print("INFO: All cache cleared.")
+        logger.debug("All cache cleared.")
 
 
 def cache_key_for_setting(key: str) -> str:

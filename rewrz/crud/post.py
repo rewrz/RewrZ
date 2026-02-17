@@ -227,7 +227,15 @@ def get_posts_by_tag(db: Session, tag_id: int, skip: int = 0, limit: int = 100):
     _attach_views_metrics(db, posts)
     return posts
 
-def create_post(db: Session, post: PostCreate, author_id: int, tag_names: Optional[List[str]] = None, format_ids: Optional[List[int]] = None):
+def create_post(
+    db: Session,
+    post: PostCreate,
+    author_id: int,
+    tag_names: Optional[List[str]] = None,
+    format_ids: Optional[List[int]] = None,
+    *,
+    auto_commit: bool = True
+):
     """创建新文章
     
     自动处理：
@@ -320,8 +328,11 @@ def create_post(db: Session, post: PostCreate, author_id: int, tag_names: Option
         db_post.formats.extend(formats)
 
     db.add(db_post)
-    db.commit()
-    db.refresh(db_post)
+    if auto_commit:
+        db.commit()
+        db.refresh(db_post)
+    else:
+        db.flush()
     return db_post
 
 def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional[List[str]] = None, format_ids: Optional[List[int]] = None):
@@ -504,12 +515,13 @@ def get_archive_posts(db: Session) -> List[Post]:
     _attach_views_metrics(db, posts)
     return posts
 
-def delete_post(db: Session, post_id: int):
+def delete_post(db: Session, post_id: int, *, auto_commit: bool = True):
     """删除文章
     
     Args:
         db: 数据库会话
         post_id: 文章ID
+        auto_commit: 是否在删除后立即提交事务
         
     Returns:
         被删除的文章对象
@@ -517,5 +529,26 @@ def delete_post(db: Session, post_id: int):
     db_post = db.execute(select(Post).filter(Post.id == post_id)).scalar_one_or_none()
     if db_post:
         db.delete(db_post)
-        db.commit()
+        if auto_commit:
+            db.commit()
     return db_post
+
+
+def delete_posts_by_ids(db: Session, post_ids: List[int], author_id: Optional[int] = None) -> int:
+    """按ID批量删除文章，并使用单次提交以降低事务开销。"""
+    normalized_ids = sorted({post_id for post_id in post_ids if post_id is not None})
+    if not normalized_ids:
+        return 0
+
+    query = select(Post).filter(Post.id.in_(normalized_ids))
+    if author_id is not None:
+        query = query.filter(Post.author_id == author_id)
+
+    db_posts = db.execute(query).scalars().all()
+    if not db_posts:
+        return 0
+
+    for db_post in db_posts:
+        db.delete(db_post)
+    db.commit()
+    return len(db_posts)

@@ -524,7 +524,7 @@ class WordPressImporter:
                         stats["errors"].append(f"导入文章失败: 未找到可用作者账户（creator={creator_name or 'N/A'}）")
                         continue
 
-                    new_post = crud_post.create_post(self.db, post_data, author.id)
+                    new_post = crud_post.create_post(self.db, post_data, author.id, auto_commit=False)
                     
                     # 关联分类和标签
                     self._associate_wp_taxonomies(item, new_post)
@@ -537,9 +537,10 @@ class WordPressImporter:
                     if self.options.get("import_views", True):
                         views_count = self._extract_wp_views_count(item)
                         if views_count is not None:
-                            if self._upsert_post_views_metric(new_post.id, views_count):
+                            if self._upsert_post_views_metric(new_post.id, views_count, auto_commit=False):
                                 stats["views_imported"] += 1
-                    
+
+                    self.db.commit()
                     stats["posts_imported"] += 1
                         
             except Exception as e:
@@ -679,12 +680,11 @@ class WordPressImporter:
                     self.db.add(db_comment)
                     self.db.flush()
                     stats["comments_imported"] += 1
-                self.db.commit()
                 return
 
             remaining = next_round
 
-        self.db.commit()
+        self.db.flush()
 
     def _map_wp_comment_status(self, approved_text: str) -> str:
         if approved_text in {"1", "approve", "approved"}:
@@ -712,7 +712,7 @@ class WordPressImporter:
                 max_views = value
         return max_views
 
-    def _upsert_post_views_metric(self, post_id: int, views_count: int) -> bool:
+    def _upsert_post_views_metric(self, post_id: int, views_count: int, *, auto_commit: bool = True) -> bool:
         key = f"post_views_count_{post_id}"
         setting_value = {"value": int(max(0, views_count))}
         existing = crud_setting.get_setting(self.db, key)
@@ -726,6 +726,7 @@ class WordPressImporter:
                     category="post_metrics",
                     type="integer",
                 ),
+                auto_commit=auto_commit,
             )
             return updated is not None
         created = crud_setting.create_setting(
@@ -737,6 +738,7 @@ class WordPressImporter:
                 category="post_metrics",
                 type="integer",
             ),
+            auto_commit=auto_commit,
         )
         return created is not None
     
@@ -960,11 +962,9 @@ class WordPressImporter:
                 if default_format and default_format not in post.formats:
                     post.formats.append(default_format)
             
-            self.db.commit()
-            
         except Exception as e:
             self.db.rollback()
-            print(f"关联分类标签失败: {str(e)}")
+            raise RuntimeError(f"关联分类标签失败: {str(e)}")
 
     def _map_wp_post_format_slug(self, raw_nicename: str, raw_name: str) -> Optional[str]:
         """将 WordPress post_format 映射为 RewrZ 格式 slug。"""

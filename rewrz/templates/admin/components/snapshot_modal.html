@@ -69,7 +69,9 @@
     }
 
     async function restoreSnapshot(snapshotIndex, formattedTime) {
-        const confirmed = window.confirm(`确定恢复到该快照吗？\n${formattedTime}\n\n当前内容会自动存为新快照。`);
+        const confirmed = await window.adminConfirm(`确定恢复到该快照吗？\n${formattedTime}\n\n当前内容会自动存为新快照。`, {
+            confirmText: "恢复快照"
+        });
         if (!confirmed) return;
 
         const response = await fetch(`/api/v1/posts/${state.postId}/snapshots/${snapshotIndex}/restore`, {
@@ -78,7 +80,7 @@
         });
         const result = await response.json();
         if (!response.ok) {
-            window.alert(`恢复失败：${result.detail || response.statusText}`);
+            window.adminNotify(`恢复失败：${result.detail || response.statusText}`, "error", { duration: 4200 });
             return;
         }
 
@@ -86,7 +88,7 @@
             state.editor.setMarkdown(result.new_content || "");
         }
         renderPreview(`已恢复：${formattedTime}`, result.new_content || "");
-        window.alert("快照已恢复到编辑器，请继续编辑后保存。");
+        window.adminNotify("快照已恢复到编辑器，请继续编辑后保存。", "success");
         close();
     }
 

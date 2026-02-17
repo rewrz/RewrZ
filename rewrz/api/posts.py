@@ -288,13 +288,23 @@ async def batch_delete_posts(
     """
     verify_csrf_token(request, csrf_token) # 验证CSRF令牌
     try:
-        deleted_count = 0
-        for post_id in post_batch_update.post_ids: # 访问post_ids属性
-            db_post = crud_post.get_post(db, post_id=post_id)
-            if db_post and db_post.author_id == current_user.id:
-                crud_post.delete_post(db, post_id=post_id)
-                deleted_count += 1
-        return {"success": True, "message": f"成功删除 {deleted_count} 篇文章"}
+        requested_ids = list({
+            post_id for post_id in post_batch_update.post_ids
+            if isinstance(post_id, int) and post_id > 0
+        })
+        deleted_count = crud_post.delete_posts_by_ids(
+            db=db,
+            post_ids=requested_ids,
+            author_id=current_user.id,
+        )
+        skipped_count = max(len(requested_ids) - deleted_count, 0)
+        return {
+            "success": True,
+            "message": f"成功删除 {deleted_count} 篇文章",
+            "requested_count": len(requested_ids),
+            "deleted_count": deleted_count,
+            "skipped_count": skipped_count,
+        }
     except HTTPException as e:
         return JSONResponse(status_code=e.status_code, content={"success": False, "error": e.detail})
     except Exception as e:

@@ -22,6 +22,10 @@
                 批量删除
             </button>
             <span id="selected-count" class="text-sm text-gray-500">已选 0 个</span>
+            <span id="batch-operation-status" class="hidden text-sm text-blue-600">
+                <i class="fas fa-spinner fa-spin mr-1"></i>
+                <span id="batch-operation-status-text"></span>
+            </span>
         </div>
         <div class="text-sm text-gray-600">
             <span class="font-medium">标签总数：</span>{{ stats.total }}
@@ -259,6 +263,7 @@
 
 <script>
 let tagSlugTouched = false;
+let tagBatchDeleteInProgress = false;
 
 function refreshTagsList() {
     window.location.href = '{{ request.state.admin_path }}/tags';
@@ -268,6 +273,37 @@ function getSelectedTagCheckboxes() {
     return Array.from(document.querySelectorAll('.tag-checkbox:checked'));
 }
 
+function setBatchDeleteStatus(visible, text = '') {
+    const status = document.getElementById('batch-operation-status');
+    const textNode = document.getElementById('batch-operation-status-text');
+    if (!status || !textNode) return;
+    if (visible) {
+        textNode.textContent = text;
+        status.classList.remove('hidden');
+        return;
+    }
+    textNode.textContent = '';
+    status.classList.add('hidden');
+}
+
+function setTagBatchDeleteState(isProcessing, message = '正在处理，请稍候...') {
+    tagBatchDeleteInProgress = isProcessing;
+    setBatchDeleteStatus(isProcessing, message);
+
+    const selectedCount = getSelectedTagCheckboxes().length;
+    document.querySelectorAll('[data-batch-action]').forEach((button) => {
+        button.disabled = isProcessing || selectedCount === 0;
+    });
+
+    const selectAll = document.getElementById('select-all');
+    if (selectAll) {
+        selectAll.disabled = isProcessing;
+    }
+    document.querySelectorAll('.tag-checkbox').forEach((checkbox) => {
+        checkbox.disabled = isProcessing;
+    });
+}
+
 function updateBatchActionState() {
     const selectedCount = getSelectedTagCheckboxes().length;
     const countLabel = document.getElementById('selected-count');
@@ -275,7 +311,7 @@ function updateBatchActionState() {
         countLabel.textContent = `已选 ${selectedCount} 个`;
     }
     document.querySelectorAll('[data-batch-action]').forEach((button) => {
-        button.disabled = selectedCount === 0;
+        button.disabled = tagBatchDeleteInProgress || selectedCount === 0;
     });
 }
 
@@ -336,18 +372,19 @@ async function saveTag() {
         saveBtn.disabled = true;
         const response = await fetch(url, { method, body: formData });
         if (!response.ok) {
-            alert('保存失败：' + await parseApiError(response));
+            window.adminNotify(`保存失败：${await parseApiError(response)}`, 'error', { duration: 4200 });
             return;
         }
         const data = await response.json();
         if (!data.success) {
-            alert('保存失败：' + (data.error || data.detail || '未知错误'));
+            window.adminNotify(`保存失败：${data.error || data.detail || '未知错误'}`, 'error', { duration: 4200 });
             return;
         }
+        window.adminSetFlash('标签保存成功', 'success');
         hideTagModal();
         location.reload();
     } catch (error) {
-        alert('保存失败：' + error.message);
+        window.adminNotify(`保存失败：${error.message}`, 'error', { duration: 4200 });
     } finally {
         saveBtn.disabled = false;
     }
@@ -372,28 +409,34 @@ function deleteTagFromButton(button) {
 }
 
 async function deleteTag(id, name) {
-    if (!confirm(`确定要删除标签“${name}”吗？`)) return;
+    if (tagBatchDeleteInProgress) return;
+    if (!(await window.adminConfirm(`确定要删除标签“${name}”吗？`, { tone: 'danger', confirmText: '删除标签' }))) return;
     try {
         const result = await requestDeleteTag(id);
         if (!result.success) {
-            alert('删除失败：' + result.error);
+            window.adminNotify(`删除失败：${result.error}`, 'error', { duration: 4200 });
             return;
         }
+        window.adminSetFlash(`标签“${name}”已删除`, 'success');
         location.reload();
     } catch (error) {
-        alert('删除失败：' + error.message);
+        window.adminNotify(`删除失败：${error.message}`, 'error', { duration: 4200 });
     }
 }
 
 async function batchDeleteTags() {
+    if (tagBatchDeleteInProgress) return;
+
     const selected = getSelectedTagCheckboxes().map((checkbox) => ({
         id: Number(checkbox.value),
         name: checkbox.dataset.name || checkbox.value
     }));
     if (!selected.length) return;
-    if (!confirm(`确定要删除选中的 ${selected.length} 个标签吗？`)) return;
+    if (!(await window.adminConfirm(`确定要删除选中的 ${selected.length} 个标签吗？`, { tone: 'danger', confirmText: '批量删除标签' }))) return;
 
     const idToName = new Map(selected.map((item) => [item.id, item.name]));
+    setTagBatchDeleteState(true, `正在批量删除 ${selected.length} 个标签，请稍候...`);
+    updateBatchActionState();
 
     try {
         const response = await fetch(`{{ request.state.admin_path }}/api/v1/tags/bulk-action`, {
@@ -408,7 +451,9 @@ async function batchDeleteTags() {
         });
 
         if (!response.ok) {
-            alert('批量删除失败：' + await parseApiError(response));
+            setTagBatchDeleteState(false);
+            updateBatchActionState();
+            window.adminNotify(`批量删除失败：${await parseApiError(response)}`, 'error', { duration: 4200 });
             return;
         }
 
@@ -428,13 +473,18 @@ async function batchDeleteTags() {
             const more = failedMessages.length > 6 ? `\n... 其余 ${failedMessages.length - 6} 个失败项已省略` : '';
             message += `\n失败 ${failedMessages.length} 个：\n${preview}${more}`;
         }
-        alert(message);
-
         if (successCount > 0) {
+            window.adminSetFlash(message, failedMessages.length ? 'warning' : 'success');
             location.reload();
+            return;
         }
+        window.adminNotify(message, failedMessages.length ? 'warning' : 'info', { duration: 5200 });
+        setTagBatchDeleteState(false);
+        updateBatchActionState();
     } catch (error) {
-        alert('批量删除失败：' + error.message);
+        setTagBatchDeleteState(false);
+        updateBatchActionState();
+        window.adminNotify(`批量删除失败：${error.message}`, 'error', { duration: 4200 });
     }
 }
 

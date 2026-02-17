@@ -412,7 +412,7 @@
                         callback(uploaded.url, uploaded.alt_text || uploaded.title || blob.name || 'image');
                         markDirty();
                     } catch (error) {
-                        alert(`图片上传失败: ${error.message}`);
+                        window.adminNotify(`图片上传失败：${error.message}`, 'error', { duration: 4200 });
                     }
                     return false;
                 }
@@ -829,7 +829,7 @@
                 markDirty();
             }
             if (failedUploads.length) {
-                alert(`以下文件上传失败：\n${failedUploads.join('\n')}`);
+                window.adminNotify(`以下文件上传失败：\n${failedUploads.join('\n')}`, 'warning', { duration: 6200 });
             }
 
             if (directUploadButton) {

@@ -843,7 +843,7 @@
         });
         
         // 应用新路径
-        applyNewPathBtn.addEventListener('click', function() {
+        applyNewPathBtn.addEventListener('click', async function() {
             const selectedType = document.querySelector('input[name="path_type"]:checked').value;
             let newPath = '';
             
@@ -857,7 +857,7 @@
                 const validation = validateCustomPath(customPath);
                 
                 if (!validation.valid) {
-                    alert('路径格式无效：' + validation.message);
+                    window.adminNotify(`路径格式无效：${validation.message}`, 'warning');
                     return;
                 }
                 
@@ -873,7 +873,9 @@
             }
             
             // 确认操作
-            if (!confirm(`确定要将后台路径更改为 "${newPath}" 吗？\n\n更改后您需要使用新路径来访问后台管理。`)) {
+            if (!(await window.adminConfirm(`确定要将后台路径更改为 "${newPath}" 吗？\n\n更改后您需要使用新路径来访问后台管理。`, {
+                confirmText: '确认更改路径'
+            }))) {
                 return;
             }
             
@@ -882,34 +884,33 @@
             this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>正在更新...';
             
             // 发送更新请求
-            fetch('{{ admin_path }}/api/v1/update-admin-path', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
-                },
-                body: JSON.stringify(pathData)
-            })
-            .then(response => response.json())
-            .then(data => {
+            try {
+                const response = await fetch('{{ admin_path }}/api/v1/update-admin-path', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    },
+                    body: JSON.stringify(pathData)
+                });
+                const data = await response.json();
                 if (data.success) {
-                    alert(`后台路径已成功更新为：${data.new_path}\n\n页面将自动跳转到新的后台地址。`);
+                    window.adminSetFlash(`后台路径已成功更新为：${data.new_path}`, 'success');
                     // 跳转到新的后台路径
                     window.location.href = data.new_path + '/settings';
                 } else {
-                    alert('更新失败：' + (data.error || '未知错误'));
+                    window.adminNotify(`更新失败：${data.error || '未知错误'}`, 'error', { duration: 4200 });
                     // 恢复按钮状态
                     this.disabled = false;
                     this.innerHTML = '<i class="fas fa-shield-alt mr-2"></i>应用新路径';
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('更新失败:', error);
-                alert('网络错误，请稍后重试');
+                window.adminNotify('网络错误，请稍后重试', 'error', { duration: 4200 });
                 // 恢复按钮状态
                 this.disabled = false;
                 this.innerHTML = '<i class="fas fa-shield-alt mr-2"></i>应用新路径';
-            });
+            }
         });
     });
 </script>

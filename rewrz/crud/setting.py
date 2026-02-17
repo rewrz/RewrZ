@@ -40,7 +40,7 @@ def get_settings_by_keys(db: Session, keys: List[str]) -> Dict[str, Any]:
     # 直接返回提取后的值，供中间件使用
     return {setting.key: setting.value.get("value") for setting in results if setting.value}
 
-def create_setting(db: Session, setting: SettingCreate) -> Setting:
+def create_setting(db: Session, setting: SettingCreate, *, auto_commit: bool = True) -> Setting:
     db_setting = Setting(
         key=setting.key,
         value=setting.value,
@@ -49,13 +49,22 @@ def create_setting(db: Session, setting: SettingCreate) -> Setting:
         type=setting.type,
     )
     db.add(db_setting)
-    db.commit()
-    db.refresh(db_setting)
+    if auto_commit:
+        db.commit()
+        db.refresh(db_setting)
+    else:
+        db.flush()
     # Clear cache for this setting after creation
     clear_cache(cache_key_for_setting(setting.key))
     return db_setting
 
-def update_setting(db: Session, key: Union[str, int], setting_update: SettingUpdate) -> Optional[Setting]:
+def update_setting(
+    db: Session,
+    key: Union[str, int],
+    setting_update: SettingUpdate,
+    *,
+    auto_commit: bool = True
+) -> Optional[Setting]:
     if isinstance(key, int):
         db_setting = db.execute(select(Setting).filter(Setting.id == key)).scalar_one_or_none()
     else:
@@ -64,8 +73,11 @@ def update_setting(db: Session, key: Union[str, int], setting_update: SettingUpd
     if db_setting:
         for field, value in setting_update.model_dump(exclude_unset=True).items():
             setattr(db_setting, field, value)
-        db.commit()
-        db.refresh(db_setting)
+        if auto_commit:
+            db.commit()
+            db.refresh(db_setting)
+        else:
+            db.flush()
         clear_cache(cache_key_for_setting(db_setting.key))
     return db_setting
 

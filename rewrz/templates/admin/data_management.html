@@ -50,6 +50,28 @@
         </nav>
     </div>
 
+    <!-- 操作反馈（固定在可视区域上方，避免长页面不易感知） -->
+    <div id="operation-feedback" class="sticky top-4 z-20 mb-6 space-y-3 hidden">
+        <div id="operation-status" class="hidden rounded-xl border border-blue-200 bg-blue-50/95 p-4 shadow-sm backdrop-blur">
+            <div class="flex items-start gap-3">
+                <div class="mt-0.5 h-9 w-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div id="operation-title" class="text-sm font-semibold text-blue-900">正在处理中</div>
+                    <div id="operation-message" class="mt-0.5 text-sm text-blue-800">请稍候，处理中请勿关闭页面。</div>
+                    <div class="mt-3 h-2 overflow-hidden rounded-full bg-blue-100">
+                        <div class="h-full w-full animate-pulse bg-blue-500"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="operation-result" class="hidden">
+            <!-- 动态内容将在这里显示 -->
+        </div>
+    </div>
+
     <!-- 数据导出面板 -->
     <div id="export-panel" class="tab-panel">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">数据导出</h3>
@@ -57,7 +79,7 @@
             <div class="border border-gray-200 rounded-lg p-4">
                 <h4 class="font-medium text-gray-900 mb-2">导出为 JSON 格式</h4>
                 <p class="text-sm text-gray-600 mb-3">导出所有博客数据为 JSON 格式，适合数据迁移和备份。</p>
-                <button onclick="exportData('json')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
+                <button data-export-trigger="1" onclick="exportData('json')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
                     下载 JSON 文件
                 </button>
             </div>
@@ -65,7 +87,7 @@
             <div class="border border-gray-200 rounded-lg p-4">
                 <h4 class="font-medium text-gray-900 mb-2">创建完整备份</h4>
                 <p class="text-sm text-gray-600 mb-3">包含数据文件和媒体文件的完整备份包。</p>
-                <button onclick="exportData('backup')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors">
+                <button data-export-trigger="1" onclick="exportData('backup')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors">
                     下载备份包
                 </button>
             </div>
@@ -186,23 +208,6 @@
         </div>
     </div>
 
-    <!-- 操作状态显示 -->
-    <div id="operation-status" class="mt-6 hidden">
-        <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
-            <div class="flex items-center">
-                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span class="text-blue-700">正在处理中，请稍候...</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- 结果显示 -->
-    <div id="operation-result" class="mt-6 hidden">
-        <!-- 动态内容将在这里显示 -->
-    </div>
 </div>
 
 <script>
@@ -339,7 +344,10 @@ async function saveWordPressImportOptions() {
 
 // 导出数据
 async function exportData(type) {
-    showOperationStatus();
+    showOperationStatus(
+        type === 'json' ? '正在导出 JSON 数据' : '正在创建完整备份',
+        '请稍候，文件准备完成后会自动开始下载。'
+    );
     
     try {
         const url = type === 'json' ? 
@@ -366,7 +374,7 @@ document.getElementById('wordpress-import-form').addEventListener('submit', asyn
     
     const formData = new FormData(this);
     
-    showOperationStatus();
+    showOperationStatus('正在导入 WordPress 数据', '导入时间可能较长，请勿关闭页面。');
     
     try {
         const response = await fetch('{{ admin_path }}/api/v1/import/wordpress', {
@@ -379,7 +387,7 @@ document.getElementById('wordpress-import-form').addEventListener('submit', asyn
         if (result.success) {
             const hasErrors = result.stats && Array.isArray(result.stats.errors) && result.stats.errors.length > 0;
             if (hasErrors) {
-                showOperationResult('error', 'WordPress 数据导入已完成，但存在错误。', result.stats);
+                showOperationResult('warning', 'WordPress 数据导入已完成，但存在错误。', result.stats);
             } else {
                 showOperationResult('success', 'WordPress 数据导入成功！', result.stats);
             }
@@ -398,7 +406,7 @@ document.getElementById('rewrz-import-form').addEventListener('submit', async fu
     
     const formData = new FormData(this);
     
-    showOperationStatus();
+    showOperationStatus('正在导入 RewrZ 数据', '导入时间可能较长，请勿关闭页面。');
     
     try {
         const response = await fetch('{{ admin_path }}/api/v1/import/rewrz', {
@@ -411,7 +419,7 @@ document.getElementById('rewrz-import-form').addEventListener('submit', async fu
         if (result.success) {
             const hasErrors = result.stats && Array.isArray(result.stats.errors) && result.stats.errors.length > 0;
             if (hasErrors) {
-                showOperationResult('error', 'RewrZ 数据导入已完成，但存在错误。', result.stats);
+                showOperationResult('warning', 'RewrZ 数据导入已完成，但存在错误。', result.stats);
             } else {
                 showOperationResult('success', 'RewrZ 数据导入成功！', result.stats);
             }
@@ -428,13 +436,13 @@ document.getElementById('rewrz-import-form').addEventListener('submit', async fu
 document.getElementById('backup-restore-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     
-    if (!confirm('确定要恢复备份吗？这可能会覆盖现有数据！')) {
+    if (!(await window.adminConfirm('确定要恢复备份吗？这可能会覆盖现有数据！', { tone: 'danger', confirmText: '恢复备份' }))) {
         return;
     }
     
     const formData = new FormData(this);
     
-    showOperationStatus();
+    showOperationStatus('正在恢复备份', '恢复过程会覆盖部分现有数据，请耐心等待。');
     
     try {
         const response = await fetch('{{ admin_path }}/api/v1/import/backup', {
@@ -447,7 +455,7 @@ document.getElementById('backup-restore-form').addEventListener('submit', async 
         if (result.success) {
             const hasErrors = result.stats && Array.isArray(result.stats.errors) && result.stats.errors.length > 0;
             if (hasErrors) {
-                showOperationResult('error', '备份恢复已完成，但存在错误。', result.stats);
+                showOperationResult('warning', '备份恢复已完成，但存在错误。', result.stats);
             } else {
                 showOperationResult('success', '备份恢复成功！', result.stats);
             }
@@ -461,22 +469,90 @@ document.getElementById('backup-restore-form').addEventListener('submit', async 
 });
 
 // 显示操作状态
-function showOperationStatus() {
-    document.getElementById('operation-status').classList.remove('hidden');
-    document.getElementById('operation-result').classList.add('hidden');
+function ensureOperationFeedbackVisible() {
+    const feedback = document.getElementById('operation-feedback');
+    if (!feedback) return;
+    const rect = feedback.getBoundingClientRect();
+    if (rect.top < 0 || rect.top > window.innerHeight - 120) {
+        feedback.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+function showOperationStatus(title = '正在处理中', message = '请稍候，处理中请勿关闭页面。') {
+    const feedback = document.getElementById('operation-feedback');
+    const status = document.getElementById('operation-status');
+    const result = document.getElementById('operation-result');
+    const titleNode = document.getElementById('operation-title');
+    const messageNode = document.getElementById('operation-message');
+
+    if (feedback) feedback.classList.remove('hidden');
+    if (status) status.classList.remove('hidden');
+    if (result) result.classList.add('hidden');
+    if (titleNode) titleNode.textContent = title;
+    if (messageNode) messageNode.textContent = message;
+    setOperationBusy(true);
+    ensureOperationFeedbackVisible();
+}
+
+function setOperationBusy(isBusy) {
+    const targets = document.querySelectorAll(
+        '#wordpress-import-form button[type="submit"], #rewrz-import-form button[type="submit"], #backup-restore-form button[type="submit"], [data-export-trigger="1"]'
+    );
+    targets.forEach((button) => {
+        if (!(button instanceof HTMLButtonElement)) return;
+        if (isBusy) {
+            if (!button.dataset.originalHtml) {
+                button.dataset.originalHtml = button.innerHTML;
+            }
+            button.disabled = true;
+            button.classList.add('opacity-70', 'cursor-not-allowed');
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>处理中...';
+            return;
+        }
+        button.disabled = false;
+        button.classList.remove('opacity-70', 'cursor-not-allowed');
+        if (button.dataset.originalHtml) {
+            button.innerHTML = button.dataset.originalHtml;
+            delete button.dataset.originalHtml;
+        }
+    });
 }
 
 // 显示操作结果
 function showOperationResult(type, message, stats = null) {
-    document.getElementById('operation-status').classList.add('hidden');
-    
+    const feedback = document.getElementById('operation-feedback');
+    const status = document.getElementById('operation-status');
     const resultDiv = document.getElementById('operation-result');
+    if (feedback) feedback.classList.remove('hidden');
+    if (status) status.classList.add('hidden');
+
+    const styleMap = {
+        success: {
+            bg: 'bg-green-50',
+            border: 'border-green-200',
+            text: 'text-green-800',
+            icon: 'fas fa-check-circle text-green-500'
+        },
+        warning: {
+            bg: 'bg-amber-50',
+            border: 'border-amber-200',
+            text: 'text-amber-800',
+            icon: 'fas fa-exclamation-triangle text-amber-500'
+        },
+        error: {
+            bg: 'bg-red-50',
+            border: 'border-red-200',
+            text: 'text-red-800',
+            icon: 'fas fa-times-circle text-red-500'
+        }
+    };
+    const style = styleMap[type] || styleMap.error;
     
     let statsHtml = '';
     if (stats) {
         statsHtml = `
-            <div class="mt-3 text-sm">
-                <p><strong>导入统计:</strong></p>
+            <div class="mt-3 text-sm ${style.text}">
+                <p class="font-semibold">导入统计</p>
                 <ul class="list-disc list-inside mt-1 space-y-1">
                     ${stats.posts_imported ? `<li>文章: ${stats.posts_imported} 篇</li>` : ''}
                     ${stats.categories_imported ? `<li>分类: ${stats.categories_imported} 个</li>` : ''}
@@ -488,7 +564,7 @@ function showOperationResult(type, message, stats = null) {
                 </ul>
                 ${stats.errors && stats.errors.length > 0 ? `
                     <div class="mt-2">
-                        <p class="text-red-600"><strong>错误:</strong></p>
+                        <p class="text-red-700 font-semibold">错误详情</p>
                         <ul class="list-disc list-inside mt-1 space-y-1 text-red-600">
                             ${stats.errors.map(error => `<li>${error}</li>`).join('')}
                         </ul>
@@ -499,20 +575,13 @@ function showOperationResult(type, message, stats = null) {
     }
     
     resultDiv.innerHTML = `
-        <div class="bg-${type === 'success' ? 'green' : 'red'}-50 border border-${type === 'success' ? 'green' : 'red'}-200 rounded-md p-4">
-            <div class="flex">
-                <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-${type === 'success' ? 'green' : 'red'}-400" viewBox="0 0 20 20" fill="currentColor">
-                        ${type === 'success' ? 
-                            '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />' :
-                            '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />'
-                        }
-                    </svg>
+        <div class="${style.bg} ${style.border} rounded-xl border p-4 shadow-sm">
+            <div class="flex items-start gap-3">
+                <div class="mt-0.5">
+                    <i class="${style.icon} text-lg"></i>
                 </div>
-                <div class="ml-3">
-                    <p class="text-sm text-${type === 'success' ? 'green' : 'red'}-700">
-                        ${message}
-                    </p>
+                <div class="min-w-0 ${style.text}">
+                    <p class="text-sm font-semibold">${message}</p>
                     ${statsHtml}
                 </div>
             </div>
@@ -520,6 +589,8 @@ function showOperationResult(type, message, stats = null) {
     `;
     
     resultDiv.classList.remove('hidden');
+    setOperationBusy(false);
+    ensureOperationFeedbackVisible();
 }
 </script>
 {% endblock %}

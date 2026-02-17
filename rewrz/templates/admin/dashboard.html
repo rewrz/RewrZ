@@ -259,7 +259,7 @@ async function approveDashboardComment(commentId) {
 }
 
 async function deleteDashboardComment(commentId) {
-    if (!confirm("确认删除该评论？")) return;
+    if (!(await window.adminConfirm("确认删除该评论？", { tone: "danger", confirmText: "删除评论" }))) return;
     const res = await fetch(`/api/v1/comments/${commentId}`, {
         method: "DELETE",
         headers: { "X-CSRF-Token": csrfToken },

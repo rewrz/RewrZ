@@ -32,6 +32,10 @@
                 批量删除
             </button>
             <span id="selected-count" class="text-sm text-gray-500">已选 0 个</span>
+            <span id="batch-operation-status" class="hidden text-sm text-blue-600">
+                <i class="fas fa-spinner fa-spin mr-1"></i>
+                <span id="batch-operation-status-text"></span>
+            </span>
         </div>
         <div class="text-sm text-gray-600">
             <span class="font-medium">页面总数：</span>{{ total_pages_count }}
@@ -220,6 +224,8 @@
 </div>
 
 <script>
+let pageBatchActionInProgress = false;
+
 function refreshPagesList() {
     window.location.href = '{{ request.state.admin_path }}/pages';
 }
@@ -229,6 +235,51 @@ function getSelectedPages() {
     return Array.from(checkboxes).map((cb) => Number(cb.value));
 }
 
+function setBatchOperationStatus(visible, text = '') {
+    const status = document.getElementById('batch-operation-status');
+    const textNode = document.getElementById('batch-operation-status-text');
+    if (!status || !textNode) return;
+    if (visible) {
+        textNode.textContent = text;
+        status.classList.remove('hidden');
+        return;
+    }
+    textNode.textContent = '';
+    status.classList.add('hidden');
+}
+
+function setBatchOperationState(isProcessing, message = '正在处理，请稍候...') {
+    pageBatchActionInProgress = isProcessing;
+    setBatchOperationStatus(isProcessing, message);
+
+    const selectedCount = getSelectedPages().length;
+    document.querySelectorAll('[data-batch-action]').forEach((button) => {
+        button.disabled = isProcessing || selectedCount === 0;
+    });
+
+    const selectAll = document.getElementById('select-all');
+    if (selectAll) {
+        selectAll.disabled = isProcessing;
+    }
+    document.querySelectorAll('.page-checkbox').forEach((checkbox) => {
+        checkbox.disabled = isProcessing;
+    });
+}
+
+async function parseApiResponse(response) {
+    let data = {};
+    try {
+        data = await response.json();
+    } catch (error) {
+        data = {};
+    }
+    if (!response.ok || data.success === false) {
+        const message = data.error || data.detail || `请求失败（HTTP ${response.status}）`;
+        throw new Error(message);
+    }
+    return data;
+}
+
 function updateBatchActionState() {
     const selectedCount = getSelectedPages().length;
     const countLabel = document.getElementById('selected-count');
@@ -236,99 +287,91 @@ function updateBatchActionState() {
         countLabel.textContent = `已选 ${selectedCount} 个`;
     }
     document.querySelectorAll('[data-batch-action]').forEach((button) => {
-        button.disabled = selectedCount === 0;
+        button.disabled = pageBatchActionInProgress || selectedCount === 0;
     });
 }
 
-function deletePage(pageId) {
-    if (!confirm('确定要删除这个页面吗？此操作不可撤销。')) return;
-    fetch(`{{ request.state.admin_path }}/api/v1/pages/${pageId}`, {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': '{{ request.state.csrf_token }}'
-        }
-    })
-    .then((response) => response.json())
-    .then((data) => {
-        if (data.success) {
-            location.reload();
-            return;
-        }
-        alert('删除失败：' + (data.error || data.detail || '未知错误'));
-    })
-    .catch((error) => {
-        alert('删除失败：' + error.message);
-    });
+async function deletePage(pageId) {
+    if (pageBatchActionInProgress) return;
+    if (!(await window.adminConfirm('确定要删除这个页面吗？此操作不可撤销。', { tone: 'danger', confirmText: '删除页面' }))) return;
+    setBatchOperationState(true, '正在删除页面，请稍候...');
+    try {
+        const response = await fetch(`{{ request.state.admin_path }}/api/v1/pages/${pageId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '{{ request.state.csrf_token }}'
+            }
+        });
+        const result = await parseApiResponse(response);
+        window.adminSetFlash(result.message || '页面删除成功', 'success');
+        location.reload();
+    } catch (error) {
+        setBatchOperationState(false);
+        window.adminNotify(`删除失败：${error.message}`, 'error', { duration: 4200 });
+    }
 }
 
-function batchPublishPages() {
-    const selected = getSelectedPages();
-    if (!selected.length) return;
-    if (!confirm(`确定要发布选中的 ${selected.length} 个页面吗？`)) return;
-    fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-publish`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': '{{ request.state.csrf_token }}'
-        },
-        body: JSON.stringify({ post_ids: selected })
-    })
-    .then((response) => response.json())
-    .then((data) => {
-        if (data.success) {
-            location.reload();
-            return;
+async function runBatchPageAction(selected, endpoint, loadingText, errorPrefix) {
+    if (pageBatchActionInProgress) return;
+    setBatchOperationState(true, loadingText);
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '{{ request.state.csrf_token }}'
+            },
+            body: JSON.stringify({ post_ids: selected })
+        });
+        const result = await parseApiResponse(response);
+        const skippedCount = Number(result.skipped_count || 0);
+        let flashMessage = result.message || '批量操作成功';
+        if (skippedCount > 0 && !flashMessage.includes('跳过')) {
+            flashMessage += `，跳过 ${skippedCount} 个`;
         }
-        alert('批量发布失败：' + (data.error || data.detail || '未知错误'));
-    })
-    .catch((error) => alert('批量发布失败：' + error.message));
+        window.adminSetFlash(flashMessage, skippedCount > 0 ? 'warning' : 'success');
+        location.reload();
+    } catch (error) {
+        setBatchOperationState(false);
+        window.adminNotify(`${errorPrefix}：${error.message}`, 'error', { duration: 4200 });
+    }
 }
 
-function batchDraftPages() {
+async function batchPublishPages() {
     const selected = getSelectedPages();
     if (!selected.length) return;
-    if (!confirm(`确定要将选中的 ${selected.length} 个页面移至草稿吗？`)) return;
-    fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-draft`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': '{{ request.state.csrf_token }}'
-        },
-        body: JSON.stringify({ post_ids: selected })
-    })
-    .then((response) => response.json())
-    .then((data) => {
-        if (data.success) {
-            location.reload();
-            return;
-        }
-        alert('批量移至草稿失败：' + (data.error || data.detail || '未知错误'));
-    })
-    .catch((error) => alert('批量移至草稿失败：' + error.message));
+    if (!(await window.adminConfirm(`确定要发布选中的 ${selected.length} 个页面吗？`, { confirmText: '发布页面' }))) return;
+    runBatchPageAction(
+        selected,
+        `{{ request.state.admin_path }}/api/v1/posts/batch-publish`,
+        `正在批量发布 ${selected.length} 个页面，请稍候...`,
+        '批量发布失败'
+    );
 }
 
-function batchDeletePages() {
+async function batchDraftPages() {
     const selected = getSelectedPages();
     if (!selected.length) return;
-    if (!confirm(`确定要删除选中的 ${selected.length} 个页面吗？此操作不可撤销。`)) return;
-    fetch(`{{ request.state.admin_path }}/api/v1/posts/batch-delete`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': '{{ request.state.csrf_token }}'
-        },
-        body: JSON.stringify({ post_ids: selected })
-    })
-    .then((response) => response.json())
-    .then((data) => {
-        if (data.success) {
-            location.reload();
-            return;
-        }
-        alert('批量删除失败：' + (data.error || data.detail || '未知错误'));
-    })
-    .catch((error) => alert('批量删除失败：' + error.message));
+    if (!(await window.adminConfirm(`确定要将选中的 ${selected.length} 个页面移至草稿吗？`, { confirmText: '转为草稿' }))) return;
+    runBatchPageAction(
+        selected,
+        `{{ request.state.admin_path }}/api/v1/posts/batch-draft`,
+        `正在将 ${selected.length} 个页面移至草稿，请稍候...`,
+        '批量移至草稿失败'
+    );
+}
+
+async function batchDeletePages() {
+    const selected = getSelectedPages();
+    if (!selected.length) return;
+    if (!(await window.adminConfirm(`确定要删除选中的 ${selected.length} 个页面吗？此操作不可撤销。`, { tone: 'danger', confirmText: '批量删除页面' }))) return;
+    runBatchPageAction(
+        selected,
+        `{{ request.state.admin_path }}/api/v1/posts/batch-delete`,
+        `正在批量删除 ${selected.length} 个页面，请稍候...`,
+        '批量删除失败'
+    );
 }
 
 document.addEventListener('DOMContentLoaded', () => {

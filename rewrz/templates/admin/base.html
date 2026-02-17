@@ -20,6 +20,160 @@
 
     <link id="admin-theme-variables" rel="stylesheet" href="/api/v1/theme/variables.css">
     <link rel="stylesheet" href="{{ url_for('static', path='css/unified-theme.css') }}">
+    <style>
+        .admin-toast-stack {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1200;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            width: min(24rem, calc(100vw - 2rem));
+        }
+        .admin-toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid transparent;
+            padding: 0.75rem 0.875rem;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+            background: #ffffff;
+            color: #0f172a;
+            opacity: 0;
+            transform: translateY(-6px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .admin-toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .admin-toast.hide {
+            opacity: 0;
+            transform: translateY(-4px);
+        }
+        .admin-toast-info {
+            border-color: #bfdbfe;
+            background: #eff6ff;
+            color: #1e3a8a;
+        }
+        .admin-toast-success {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+        }
+        .admin-toast-warning {
+            border-color: #fde68a;
+            background: #fffbeb;
+            color: #92400e;
+        }
+        .admin-toast-error {
+            border-color: #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+        .admin-toast-message {
+            flex: 1;
+            font-size: 0.875rem;
+            line-height: 1.4;
+            white-space: pre-line;
+            word-break: break-word;
+        }
+        .admin-toast-close {
+            border: 0;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+            padding: 0;
+            font-size: 0.875rem;
+            line-height: 1;
+            opacity: 0.7;
+        }
+        .admin-toast-close:hover {
+            opacity: 1;
+        }
+        .admin-confirm-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 1300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.45);
+            opacity: 0;
+            transition: opacity 0.18s ease;
+        }
+        .admin-confirm-backdrop.show {
+            opacity: 1;
+        }
+        .admin-confirm-panel {
+            width: min(30rem, 100%);
+            border-radius: 0.75rem;
+            border: 1px solid #e5e7eb;
+            background: #ffffff;
+            color: #111827;
+            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.24);
+            transform: translateY(6px);
+            transition: transform 0.2s ease;
+        }
+        .admin-confirm-backdrop.show .admin-confirm-panel {
+            transform: translateY(0);
+        }
+        .admin-confirm-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 1.125rem 0.25rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #111827;
+        }
+        .admin-confirm-message {
+            padding: 0.5rem 1.125rem 0;
+            font-size: 0.925rem;
+            line-height: 1.5;
+            color: #374151;
+            white-space: pre-line;
+            word-break: break-word;
+        }
+        .admin-confirm-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.625rem;
+            padding: 1rem 1.125rem 1.125rem;
+        }
+        .admin-confirm-btn {
+            border: 1px solid transparent;
+            border-radius: 0.5rem;
+            padding: 0.45rem 0.95rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .admin-confirm-cancel {
+            border-color: #d1d5db;
+            background: #ffffff;
+            color: #374151;
+        }
+        .admin-confirm-cancel:hover {
+            background: #f9fafb;
+        }
+        .admin-confirm-submit {
+            background: #2563eb;
+            color: #ffffff;
+        }
+        .admin-confirm-submit:hover {
+            background: #1d4ed8;
+        }
+        .admin-confirm-submit-danger {
+            background: #dc2626;
+        }
+        .admin-confirm-submit-danger:hover {
+            background: #b91c1c;
+        }
+    </style>
 </head>
 <body class="admin-app {{ atmosphere_class if atmosphere_class else '' }}">
     <div class="admin-shell">
@@ -48,6 +202,168 @@
     <div class="admin-anime-float" aria-hidden="true"></div>
 
     <script>
+        function getToastIcon(type) {
+            if (type === 'success') return 'fas fa-check-circle';
+            if (type === 'warning') return 'fas fa-exclamation-triangle';
+            if (type === 'error') return 'fas fa-times-circle';
+            return 'fas fa-info-circle';
+        }
+
+        function getToastStack() {
+            let stack = document.getElementById('admin-toast-stack');
+            if (stack) return stack;
+            stack = document.createElement('div');
+            stack.id = 'admin-toast-stack';
+            stack.className = 'admin-toast-stack';
+            document.body.appendChild(stack);
+            return stack;
+        }
+
+        window.adminNotify = function(message, type = 'info', options = {}) {
+            const stack = getToastStack();
+            const duration = Number(options.duration ?? 2800);
+            const toast = document.createElement('div');
+            toast.className = `admin-toast admin-toast-${type}`;
+            toast.innerHTML = `
+                <i class="${getToastIcon(type)} mt-[2px]"></i>
+                <div class="admin-toast-message"></div>
+                <button class="admin-toast-close" aria-label="关闭"><i class="fas fa-times"></i></button>
+            `;
+            const messageNode = toast.querySelector('.admin-toast-message');
+            if (messageNode) messageNode.textContent = String(message || '');
+            stack.appendChild(toast);
+
+            const close = () => {
+                toast.classList.remove('show');
+                toast.classList.add('hide');
+                window.setTimeout(() => {
+                    if (toast.parentElement) toast.remove();
+                }, 220);
+            };
+
+            toast.querySelector('.admin-toast-close')?.addEventListener('click', close);
+            window.setTimeout(() => toast.classList.add('show'), 10);
+            if (duration > 0) {
+                window.setTimeout(close, duration);
+            }
+            return toast;
+        };
+
+        window.adminSetFlash = function(message, type = 'success') {
+            const payload = {
+                message: String(message || ''),
+                type: String(type || 'success')
+            };
+            sessionStorage.setItem('admin_flash_notice', JSON.stringify(payload));
+        };
+
+        function consumeFlashNotice() {
+            const raw = sessionStorage.getItem('admin_flash_notice');
+            if (!raw) return;
+            sessionStorage.removeItem('admin_flash_notice');
+            try {
+                const payload = JSON.parse(raw);
+                if (payload && payload.message) {
+                    window.adminNotify(payload.message, payload.type || 'success');
+                }
+            } catch (_) {
+                // ignore invalid flash payload
+            }
+        }
+
+        const confirmQueue = [];
+        let confirmOpen = false;
+
+        function showConfirmDialog(payload) {
+            const {
+                message,
+                resolve,
+                title = '请确认操作',
+                confirmText = '确认',
+                cancelText = '取消',
+                tone = 'default',
+            } = payload;
+
+            const backdrop = document.createElement('div');
+            backdrop.className = 'admin-confirm-backdrop';
+            backdrop.innerHTML = `
+                <div class="admin-confirm-panel" role="dialog" aria-modal="true" aria-label="${title}">
+                    <div class="admin-confirm-header">
+                        <i class="fas fa-exclamation-circle ${tone === 'danger' ? 'text-red-600' : 'text-blue-600'}"></i>
+                        <span></span>
+                    </div>
+                    <div class="admin-confirm-message"></div>
+                    <div class="admin-confirm-actions">
+                        <button type="button" class="admin-confirm-btn admin-confirm-cancel">${cancelText}</button>
+                        <button type="button" class="admin-confirm-btn admin-confirm-submit ${tone === 'danger' ? 'admin-confirm-submit-danger' : ''}">${confirmText}</button>
+                    </div>
+                </div>
+            `;
+
+            const titleNode = backdrop.querySelector('.admin-confirm-header span');
+            const messageNode = backdrop.querySelector('.admin-confirm-message');
+            if (titleNode) titleNode.textContent = String(title || '请确认操作');
+            if (messageNode) messageNode.textContent = String(message || '');
+
+            const cancelButton = backdrop.querySelector('.admin-confirm-cancel');
+            const submitButton = backdrop.querySelector('.admin-confirm-submit');
+
+            let closed = false;
+            const cleanup = (result) => {
+                if (closed) return;
+                closed = true;
+                document.removeEventListener('keydown', onKeydown);
+                backdrop.classList.remove('show');
+                window.setTimeout(() => {
+                    if (backdrop.parentElement) backdrop.remove();
+                    confirmOpen = false;
+                    resolve(result);
+                    const next = confirmQueue.shift();
+                    if (next) {
+                        confirmOpen = true;
+                        showConfirmDialog(next);
+                    }
+                }, 160);
+            };
+
+            const onKeydown = (event) => {
+                if (event.key === 'Escape') cleanup(false);
+                if (event.key === 'Enter') cleanup(true);
+            };
+
+            cancelButton?.addEventListener('click', () => cleanup(false));
+            submitButton?.addEventListener('click', () => cleanup(true));
+            backdrop.addEventListener('click', (event) => {
+                if (event.target === backdrop) cleanup(false);
+            });
+            document.addEventListener('keydown', onKeydown);
+
+            document.body.appendChild(backdrop);
+            window.setTimeout(() => backdrop.classList.add('show'), 10);
+            submitButton?.focus();
+        }
+
+        window.adminConfirm = function(message, options = {}) {
+            return new Promise((resolve) => {
+                const tone = options.tone || 'default';
+                const payload = {
+                    message: String(message || ''),
+                    resolve,
+                    title: options.title || (tone === 'danger' ? '危险操作确认' : '请确认操作'),
+                    confirmText: options.confirmText || '确认',
+                    cancelText: options.cancelText || '取消',
+                    tone,
+                };
+
+                if (confirmOpen) {
+                    confirmQueue.push(payload);
+                    return;
+                }
+                confirmOpen = true;
+                showConfirmDialog(payload);
+            });
+        };
+
         const ADMIN_THEME_NAMES = ['light', 'dark', 'nature', 'ocean', 'sunset'];
 
         async function syncAdminTheme(forceReloadCss = false) {
@@ -95,6 +411,7 @@
         };
 
         document.addEventListener('DOMContentLoaded', function() {
+            consumeFlashNotice();
             syncAdminTheme(true);
             setInterval(() => syncAdminTheme(false), 30000);
         });

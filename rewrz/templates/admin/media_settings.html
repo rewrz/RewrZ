@@ -357,18 +357,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
             
             if (result.success) {
-                alert('媒体设置保存成功！');
+                window.adminSetFlash('媒体设置保存成功', 'success');
                 if (result.redirect_url) {
                     window.location.href = result.redirect_url;
+                    return;
                 }
+                window.adminNotify('媒体设置保存成功', 'success');
             } else {
-                alert('保存失败: ' + (result.error || '未知错误'));
+                window.adminNotify(`保存失败：${result.error || '未知错误'}`, 'error', { duration: 4200 });
                 if (result.details && result.details.length > 0) {
-                    alert('详细错误:\n' + result.details.join('\n'));
+                    window.adminNotify(`详细错误：\n${result.details.join('\n')}`, 'warning', { duration: 6200 });
                 }
             }
         } catch (error) {
-            alert('保存失败: ' + error.message);
+            window.adminNotify(`保存失败：${error.message}`, 'error', { duration: 4200 });
         }
     });
 });

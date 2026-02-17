@@ -24,6 +24,10 @@
                 应用
             </button>
             <span id="selected-count" class="text-sm text-gray-500">已选 0 条</span>
+            <span id="batch-operation-status" class="hidden text-sm text-blue-600">
+                <i class="fas fa-spinner fa-spin mr-1"></i>
+                <span id="batch-operation-status-text"></span>
+            </span>
         </div>
         <div class="text-sm text-gray-600">
             <span class="font-medium">评论总数：</span>{{ total_comments }}
@@ -264,6 +268,8 @@
 </div>
 
 <script>
+let commentBulkActionInProgress = false;
+
 function refreshCommentsList() {
     window.location.href = '{{ request.state.admin_path }}/comments';
 }
@@ -272,15 +278,61 @@ function getSelectedCommentIds() {
     return Array.from(document.querySelectorAll('.comment-checkbox:checked')).map((cb) => Number(cb.value));
 }
 
+function setBulkActionStatus(visible, text = '') {
+    const status = document.getElementById('batch-operation-status');
+    const textNode = document.getElementById('batch-operation-status-text');
+    if (!status || !textNode) return;
+    if (visible) {
+        textNode.textContent = text;
+        status.classList.remove('hidden');
+        return;
+    }
+    textNode.textContent = '';
+    status.classList.add('hidden');
+}
+
+function setBulkActionState(isProcessing, message = '正在处理，请稍候...') {
+    commentBulkActionInProgress = isProcessing;
+    setBulkActionStatus(isProcessing, message);
+
+    const bulkActionSelect = document.getElementById('bulk-action');
+    if (bulkActionSelect) {
+        bulkActionSelect.disabled = isProcessing;
+    }
+    const selectAll = document.getElementById('select-all');
+    if (selectAll) {
+        selectAll.disabled = isProcessing;
+    }
+    document.querySelectorAll('.comment-checkbox').forEach((checkbox) => {
+        checkbox.disabled = isProcessing;
+    });
+}
+
+async function parseApiResponse(response) {
+    let data = {};
+    try {
+        data = await response.json();
+    } catch (error) {
+        data = {};
+    }
+    if (!response.ok || data.success === false) {
+        const message = data.detail || data.error || `请求失败（HTTP ${response.status}）`;
+        throw new Error(message);
+    }
+    return data;
+}
+
 function updateBulkUiState() {
     const selectedCount = getSelectedCommentIds().length;
     const label = document.getElementById('selected-count');
     if (label) {
         label.textContent = `已选 ${selectedCount} 条`;
     }
+    const bulkActionSelect = document.getElementById('bulk-action');
+    const selectedAction = bulkActionSelect ? String(bulkActionSelect.value || '').trim() : '';
     const applyButton = document.getElementById('bulk-apply-button');
     if (applyButton) {
-        applyButton.disabled = selectedCount === 0;
+        applyButton.disabled = commentBulkActionInProgress || selectedCount === 0 || !selectedAction;
     }
 }
 
@@ -295,69 +347,79 @@ document.querySelectorAll('.comment-checkbox').forEach((checkbox) => {
     checkbox.addEventListener('change', updateBulkUiState);
 });
 
-function applyBulkAction() {
+document.getElementById('bulk-action')?.addEventListener('change', updateBulkUiState);
+
+async function applyBulkAction() {
+    if (commentBulkActionInProgress) return;
+
     const action = document.getElementById('bulk-action').value;
     if (!action) {
-        alert('请选择一个批量操作。');
+        window.adminNotify('请选择一个批量操作。', 'warning');
         return;
     }
 
     const selectedIds = getSelectedCommentIds();
     if (selectedIds.length === 0) {
-        alert('请至少选择一条评论。');
+        window.adminNotify('请至少选择一条评论。', 'warning');
         return;
     }
 
-    if (!confirm(`确定要对选中的 ${selectedIds.length} 条评论执行该操作吗？`)) {
+    const actionLabelMap = {
+        approve: '批量批准评论',
+        pending: '批量移至待审核',
+        spam: '批量标记垃圾评论',
+        delete: '批量删除评论'
+    };
+    const actionLabel = actionLabelMap[action] || '批量操作';
+
+    if (!(await window.adminConfirm(`确定要对选中的 ${selectedIds.length} 条评论执行该操作吗？`, {
+        tone: action === 'delete' ? 'danger' : 'default',
+        confirmText: actionLabel
+    }))) {
         return;
     }
 
-    fetch('/api/v1/comments/bulk-action', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': '{{ request.state.csrf_token }}'
-        },
-        body: JSON.stringify({
-            action: action,
-            comment_ids: selectedIds
-        })
-    })
-    .then((response) => response.json())
-    .then((data) => {
-        if (data.success) {
-            location.reload();
-            return;
-        }
-        alert('批量操作失败：' + (data.detail || data.error || '未知错误'));
-    })
-    .catch((error) => {
-        console.error('Error:', error);
-        alert('批量操作遇到网络错误。');
-    });
+    setBulkActionState(true, `正在执行${actionLabel}（${selectedIds.length} 条），请稍候...`);
+    updateBulkUiState();
+
+    try {
+        const response = await fetch('/api/v1/comments/bulk-action', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '{{ request.state.csrf_token }}'
+            },
+            body: JSON.stringify({
+                action: action,
+                comment_ids: selectedIds
+            })
+        });
+        const data = await parseApiResponse(response);
+        window.adminSetFlash(data.message || `${actionLabel}成功`, 'success');
+        location.reload();
+    } catch (error) {
+        setBulkActionState(false);
+        updateBulkUiState();
+        window.adminNotify(`批量操作失败：${error.message}`, 'error', { duration: 4200 });
+    }
 }
 
-function approveComment(commentId) {
-    if (!confirm('确定要批准这条评论吗？')) return;
-    fetch(`/api/v1/comments/${commentId}/approve`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': '{{ request.state.csrf_token }}'
-        }
-    })
-    .then((response) => response.json())
-    .then((data) => {
-        if (data.success) {
-            location.reload();
-            return;
-        }
-        alert('批准失败：' + (data.detail || data.error || '未知错误'));
-    })
-    .catch((error) => {
-        console.error('Error:', error);
-        alert('批准操作遇到网络错误。');
-    });
+async function approveComment(commentId) {
+    if (!(await window.adminConfirm('确定要批准这条评论吗？', { confirmText: '批准评论' }))) return;
+    try {
+        const response = await fetch(`/api/v1/comments/${commentId}/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '{{ request.state.csrf_token }}'
+            }
+        });
+        const data = await parseApiResponse(response);
+        window.adminSetFlash(data.message || '评论已批准', 'success');
+        location.reload();
+    } catch (error) {
+        window.adminNotify(`批准失败：${error.message}`, 'error', { duration: 4200 });
+    }
 }
 
 let currentReplyCommentId = null;
@@ -374,63 +436,57 @@ document.getElementById('cancel-reply')?.addEventListener('click', function() {
     document.getElementById('reply-modal').classList.remove('flex');
 });
 
-document.getElementById('send-reply')?.addEventListener('click', function() {
+document.getElementById('send-reply')?.addEventListener('click', async function() {
     const content = document.getElementById('reply-content').value.trim();
     if (!content) {
-        alert('回复内容不能为空。');
+        window.adminNotify('回复内容不能为空。', 'warning');
         return;
     }
     if (!currentReplyCommentId) {
-        alert('无效的评论ID。');
+        window.adminNotify('无效的评论ID。', 'warning');
         return;
     }
 
-    fetch(`/api/v1/comments/${currentReplyCommentId}/reply`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': '{{ request.state.csrf_token }}'
-        },
-        body: JSON.stringify({ content: content })
-    })
-    .then((response) => response.json())
-    .then((data) => {
-        if (data.id) {
-            alert('回复成功！');
+    try {
+        const response = await fetch(`/api/v1/comments/${currentReplyCommentId}/reply`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '{{ request.state.csrf_token }}'
+            },
+            body: JSON.stringify({ content: content })
+        });
+        const data = await response.json();
+        if (response.ok && data.id) {
+            window.adminSetFlash('回复已发送', 'success');
             document.getElementById('reply-modal').classList.add('hidden');
             document.getElementById('reply-modal').classList.remove('flex');
             location.reload();
             return;
         }
-        alert('回复失败：' + (data.detail || data.error || '未知错误'));
-    })
-    .catch((error) => {
-        console.error('Error:', error);
-        alert('回复操作遇到网络错误。');
-    });
+        const detail = data.detail || data.error || `请求失败（HTTP ${response.status}）`;
+        throw new Error(detail);
+    } catch (error) {
+        window.adminNotify(`回复失败：${error.message}`, 'error', { duration: 4200 });
+    }
 });
 
-function deleteComment(commentId) {
-    if (!confirm('确定要删除这条评论吗？此操作不可撤销。')) return;
-    fetch(`/api/v1/comments/${commentId}`, {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': '{{ request.state.csrf_token }}'
-        }
-    })
-    .then((response) => response.json())
-    .then((data) => {
-        if (data.success) {
-            location.reload();
-            return;
-        }
-        alert('删除失败：' + (data.detail || data.error || '未知错误'));
-    })
-    .catch((error) => {
-        console.error('Error:', error);
-        alert('删除操作遇到网络错误。');
-    });
+async function deleteComment(commentId) {
+    if (!(await window.adminConfirm('确定要删除这条评论吗？此操作不可撤销。', { tone: 'danger', confirmText: '删除评论' }))) return;
+    try {
+        const response = await fetch(`/api/v1/comments/${commentId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '{{ request.state.csrf_token }}'
+            }
+        });
+        const data = await parseApiResponse(response);
+        window.adminSetFlash(data.message || '评论已删除', 'success');
+        location.reload();
+    } catch (error) {
+        window.adminNotify(`删除失败：${error.message}`, 'error', { duration: 4200 });
+    }
 }
 
 async function loadIpLocations() {
