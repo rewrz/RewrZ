@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select, func
 from ..models import Category
+from ..models.post import post_categories
 from ..schemas import CategoryCreate, CategoryUpdate
 
 def get_category(db: Session, category_id: int):
@@ -53,3 +54,58 @@ def delete_category(db: Session, category_id: int):
         db.delete(db_category)
         db.commit()
     return db_category
+
+
+def bulk_delete_categories(db: Session, category_ids: list[int]):
+    """批量删除分类（单事务提交），并返回可用于前端提示的删除结果。"""
+    if not category_ids:
+        return {
+            "deleted_ids": [],
+            "missing_ids": [],
+            "blocked_by_posts_ids": [],
+            "blocked_by_children_ids": [],
+        }
+
+    existing_ids = set(
+        db.execute(select(Category.id).filter(Category.id.in_(category_ids))).scalars().all()
+    )
+    if not existing_ids:
+        return {
+            "deleted_ids": [],
+            "missing_ids": category_ids,
+            "blocked_by_posts_ids": [],
+            "blocked_by_children_ids": [],
+        }
+
+    blocked_by_posts_ids = set(
+        db.execute(
+            select(post_categories.c.category_id)
+            .filter(post_categories.c.category_id.in_(existing_ids))
+            .distinct()
+        ).scalars().all()
+    )
+    blocked_by_children_ids = set(
+        db.execute(
+            select(Category.parent_id)
+            .filter(
+                Category.parent_id.in_(existing_ids),
+                ~Category.id.in_(existing_ids),
+            )
+            .distinct()
+        ).scalars().all()
+    )
+
+    blocked_ids = blocked_by_posts_ids | blocked_by_children_ids
+    deletable_ids = [category_id for category_id in category_ids if category_id in existing_ids and category_id not in blocked_ids]
+
+    if deletable_ids:
+        db.query(Category).filter(Category.id.in_(deletable_ids)).delete(synchronize_session=False)
+        db.commit()
+
+    missing_ids = [category_id for category_id in category_ids if category_id not in existing_ids]
+    return {
+        "deleted_ids": deletable_ids,
+        "missing_ids": missing_ids,
+        "blocked_by_posts_ids": [category_id for category_id in category_ids if category_id in blocked_by_posts_ids],
+        "blocked_by_children_ids": [category_id for category_id in category_ids if category_id in blocked_by_children_ids],
+    }

@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from rewrz.models.base import Base
-from rewrz.models.category import Category
+from rewrz.models.post import Post
 from rewrz.schemas.category import CategoryCreate, CategoryUpdate
 from rewrz.crud import category as crud_category
 
@@ -86,3 +86,37 @@ def test_delete_category(db: Session):
     deleted_category = crud_category.delete_category(db, category_id=created_category.id)
     assert deleted_category.id == created_category.id
     assert crud_category.get_category(db, category_id=created_category.id) is None
+
+
+def test_bulk_delete_categories(db: Session):
+    delete_me = crud_category.create_category(db, CategoryCreate(name="Bulk Delete", slug="bulk-delete"))
+    used_by_post = crud_category.create_category(db, CategoryCreate(name="Used By Post", slug="used-by-post"))
+    delete_me_id = delete_me.id
+    used_by_post_id = used_by_post.id
+
+    post = Post(title="Test Post", slug="test-post", content_markdown="x", content_html="<p>x</p>")
+    post.categories.append(used_by_post)
+    db.add(post)
+    db.commit()
+
+    result = crud_category.bulk_delete_categories(db, [delete_me_id, used_by_post_id, 99999])
+
+    assert result["deleted_ids"] == [delete_me_id]
+    assert result["blocked_by_posts_ids"] == [used_by_post_id]
+    assert result["missing_ids"] == [99999]
+    assert crud_category.get_category(db, category_id=delete_me_id) is None
+    assert crud_category.get_category(db, category_id=used_by_post_id) is not None
+
+
+def test_bulk_delete_categories_blocked_by_child(db: Session):
+    parent = crud_category.create_category(db, CategoryCreate(name="Parent Bulk", slug="parent-bulk"))
+    crud_category.create_category(
+        db,
+        CategoryCreate(name="Child Bulk", slug="child-bulk", parent_id=parent.id),
+    )
+
+    result = crud_category.bulk_delete_categories(db, [parent.id])
+
+    assert result["deleted_ids"] == []
+    assert result["blocked_by_children_ids"] == [parent.id]
+    assert crud_category.get_category(db, category_id=parent.id) is not None

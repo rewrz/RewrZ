@@ -43,11 +43,11 @@
             </div>
         </div>
         
-        <!-- 格式 -->
+        <!-- 内容类型 -->
         <div class="bg-purple-50 rounded-lg p-6">
             <h3 class="text-lg font-semibold text-purple-900 mb-4">
                 <i class="fas fa-palette text-purple-600 mr-2"></i>
-                内容格式
+                内容类型
             </h3>
             <ul class="space-y-2">
                 <li class="flex items-center text-sm text-purple-800">
@@ -57,14 +57,6 @@
                 <li class="flex items-center text-sm text-purple-800">
                     <i class="fas fa-comment text-xs text-purple-500 mr-2"></i>
                     微博
-                </li>
-                <li class="flex items-center text-sm text-purple-800">
-                    <i class="fas fa-images text-xs text-purple-500 mr-2"></i>
-                    相册
-                </li>
-                <li class="flex items-center text-sm text-purple-800">
-                    <i class="fas fa-play text-xs text-purple-500 mr-2"></i>
-                    视频
                 </li>
                 <li class="flex items-center text-sm text-purple-800">
                     <i class="fas fa-book text-xs text-purple-500 mr-2"></i>
@@ -93,9 +85,9 @@
                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1">
                 <div class="ml-3">
                     <label for="create_default_content" class="block text-sm font-medium text-gray-900">
-                        创建默认分类、标签和格式
+                        创建默认分类、标签和内容类型
                     </label>
-                    <p class="text-xs text-gray-500 mt-1">为您的博客创建基础的内容分类体系，包括技术、生活、思考3个分类，Python、Web开发、编程、教程4个标签，以及文章、微博、相册、视频、音乐5种内容格式</p>
+                    <p class="text-xs text-gray-500 mt-1">为您的博客创建基础内容体系，包括技术、生活、思考 3 个分类，Python、Web开发、编程、教程 4 个标签，以及文章、微博、诗词歌赋 3 种内容类型。</p>
                 </div>
             </div>
             <div class="flex items-start">
@@ -126,9 +118,9 @@
                 <div class="mt-2 text-sm text-yellow-700">
                     <ul class="list-disc list-inside space-y-1">
                         <li>默认内容可以帮助您快速开始使用个人博客系统</li>
-                        <li>所有分类、标签和格式都可以在管理后台随时修改或删除</li>
+                        <li>所有分类、标签和内容类型都可以在管理后台随时修改或删除</li>
                         <li>如果您已有明确的内容规划，也可以跳过此步骤</li>
-                        <li>多重身份内容系统支持文章、微博、相册、视频、音乐等多种展示方式</li>
+                        <li>内容类型决定语义，图片/视频/音频通过媒体附件体现</li>
                     </ul>
                 </div>
             </div>
@@ -206,7 +198,7 @@
                     <div class="text-sm text-blue-700">
                         <div class="flex items-center">
                             <div class="w-2 h-2 bg-blue-400 rounded-full mr-2 animate-pulse"></div>
-                            设置内容格式
+                            设置内容类型
                         </div>
                     </div>
                 </div>
@@ -243,7 +235,7 @@
                             </div>
                             <div class="flex items-center">
                                 <i class="fas fa-check text-green-500 mr-2"></i>
-                                创建了 ${created.formats} 种内容格式
+                                创建了 ${created.formats} 种内容类型
                             </div>
                             ${created.sample_post ? '<div class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>创建了示例文章</div>' : ''}
                         </div>
@@ -297,3 +289,4 @@
         });
     });
 </script>
+

@@ -59,35 +59,27 @@ class MultiFormatInteractions {
      * 初始化微博功能
      */
     initMicroPosts() {
-        // 微博展开/收起功能
-        document.querySelectorAll('.micro-post-content').forEach(content => {
-            const fullText = content.textContent.trim();
-            const shortText = fullText.substring(0, 140);
-            
-            if (fullText.length > 140) {
-                content.innerHTML = `
-                    <span class="short-text">${shortText}...</span>
-                    <span class="full-text hidden">${fullText}</span>
-                    <button class="expand-btn text-blue-500 hover:text-blue-700 text-sm mt-1">展开</button>
-                `;
-                
-                const expandBtn = content.querySelector('.expand-btn');
-                expandBtn.addEventListener('click', () => {
-                    const shortTextEl = content.querySelector('.short-text');
-                    const fullTextEl = content.querySelector('.full-text');
-                    const isExpanded = !shortTextEl.classList.contains('hidden');
-                    
-                    if (isExpanded) {
-                        shortTextEl.classList.add('hidden');
-                        fullTextEl.classList.remove('hidden');
-                        expandBtn.textContent = '收起';
-                    } else {
-                        shortTextEl.classList.remove('hidden');
-                        fullTextEl.classList.add('hidden');
-                        expandBtn.textContent = '展开';
-                    }
-                });
-            }
+        // 仅处理显式标记为可折叠的微博内容，避免破坏详情页正文HTML结构
+        document.querySelectorAll('.micro-content[data-micro-collapsible="true"]').forEach((content) => {
+            const fullText = (content.textContent || '').trim();
+            const maxChars = Number(content.dataset.maxChars || '180');
+            if (!fullText || fullText.length <= maxChars) return;
+            if (content.dataset.microBound === '1') return;
+
+            content.dataset.microBound = '1';
+            content.classList.add('micro-collapsible', 'is-collapsed');
+
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'micro-expand-btn mt-2 text-xs font-semibold text-blue-600 hover:text-blue-700';
+            toggle.textContent = '展开';
+
+            toggle.addEventListener('click', () => {
+                const collapsed = content.classList.toggle('is-collapsed');
+                toggle.textContent = collapsed ? '展开' : '收起';
+            });
+
+            content.insertAdjacentElement('afterend', toggle);
         });
     }
 
@@ -748,7 +740,7 @@ class MultiFormatInteractions {
         }
 
         const microFocusBtn = document.getElementById('micro-focus-btn');
-        const microArticle = document.getElementById('micro-post-article');
+        const microArticle = document.getElementById('micro-article');
         if (microFocusBtn && microArticle) {
             microFocusBtn.addEventListener('click', function() {
                 microArticle.classList.toggle('scale-[1.01]');
@@ -811,7 +803,7 @@ class MultiFormatInteractions {
 
     initReadingProgress() {
         const detailPageMarkers = [
-            '#micro-post-article',
+            '#micro-article',
             '.photo-album-article',
             '#video-post-shell',
             '#poetry-lyrics-content',
@@ -964,3 +956,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 export default MultiFormatInteractions;
+

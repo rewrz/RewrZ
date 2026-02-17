@@ -316,7 +316,7 @@ def test_wordpress_import_page_type(db, tmp_path):
     assert page.post_type == "page"
 
 
-def test_wordpress_import_maps_post_format_to_rewrz_format(db, tmp_path):
+def test_wordpress_import_maps_media_post_format_to_article_intent(db, tmp_path):
     crud_user.create_user(
         db,
         UserCreate(username="admin_format", email="admin_format@example.com", password="password123"),
@@ -350,8 +350,8 @@ def test_wordpress_import_maps_post_format_to_rewrz_format(db, tmp_path):
 
     post = crud_post.get_post_by_slug(db, "format-mapped-post")
     assert post is not None
-    assert any(fmt.slug == "video" for fmt in post.formats)
-    assert crud_format.get_format_by_slug(db, "video") is not None
+    assert any(fmt.slug == "article" for fmt in post.formats)
+    assert crud_format.get_format_by_slug(db, "article") is not None
 
 
 def test_wordpress_import_custom_post_type_whitelist_maps_to_post(db, tmp_path):
@@ -443,7 +443,7 @@ def test_wordpress_import_custom_post_type_can_map_to_micro_post_format(db, tmp_
     imported = crud_post.get_post_by_slug(db, "shuoshuo-1896")
     assert imported is not None
     assert imported.post_type == "post"
-    assert any(fmt.slug == "micro-post" for fmt in imported.formats)
+    assert any(fmt.slug == "micro" for fmt in imported.formats)
 
 
 def test_wordpress_import_defaults_format_to_article_when_missing_post_format(db, tmp_path):
@@ -671,3 +671,4 @@ def test_wordpress_import_raw_html_strategy_uses_html_mode(db, tmp_path):
     assert post is not None
     assert post.content_markdown == ""
     assert "<h2>标题</h2>" in post.content_html
+

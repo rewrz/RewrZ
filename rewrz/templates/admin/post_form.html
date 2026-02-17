@@ -324,15 +324,27 @@
                             <button type="button" class="w-full mt-2 py-2 border-dashed border-2 border-red-300 text-red-600 rounded-md hover:bg-red-50 {% if not post or not post.featured_image_url %}hidden{% endif %}" id="remove-feature-image-button">移除图片</button>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">内容格式</h3>
+                            <h3 class="text-lg font-semibold mb-2">内容类型</h3>
+                            {% set selected_intent = namespace(value='article') %}
+                            {% if post and post.formats %}
+                                {% set format_slugs = post.formats | map(attribute='slug') | list %}
+                                {% if 'micro' in format_slugs %}
+                                    {% set selected_intent.value = 'micro' %}
+                                {% elif 'poem' in format_slugs %}
+                                    {% set selected_intent.value = 'poem' %}
+                                {% else %}
+                                    {% set selected_intent.value = 'article' %}
+                                {% endif %}
+                            {% endif %}
                             <div class="editor-format-grid">
                                 {% for format in formats %}
                                 <label class="editor-format-item">
-                                    <input type="checkbox" name="format_ids" value="{{ format.id }}" {% if post and format in post.formats %}checked{% endif %} class="form-checkbox">
+                                    <input type="radio" name="format_id" value="{{ format.id }}" {% if format.slug == selected_intent.value %}checked{% endif %} class="form-checkbox">
                                     <span>{{ format.name }}</span>
                                 </label>
                                 {% endfor %}
                             </div>
+                            <p class="mt-2 text-xs text-gray-500">每篇内容仅选择一个主类型；图片/视频/音频通过内容附件体现。</p>
                         </div>
                         <div>
                             <h3 class="text-lg font-semibold mb-2">分类</h3>
@@ -981,3 +993,5 @@
     {% include 'admin/components/media_library_modal.html' %}
     {% include 'admin/components/snapshot_modal.html' %}
 {% endblock %}
+
+

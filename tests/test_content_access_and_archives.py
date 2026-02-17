@@ -193,7 +193,7 @@ def test_build_toc_from_html():
     assert "id=" in processed_html
 
 
-def test_post_url_filter_alias_mapping():
+def test_post_url_filter_uses_canonical_intent_segment():
     class _Format:
         def __init__(self, slug):
             self.slug = slug
@@ -203,9 +203,9 @@ def test_post_url_filter_alias_mapping():
             self.slug = slug
             self.formats = [_Format(format_slug)]
 
-    assert post_url_filter(_Post("p1", "micro-post")) == "/weibo/p1"
-    assert post_url_filter(_Post("p2", "photo-album")) == "/photos/p2"
-    assert post_url_filter(_Post("p3", "poetry-song")) == "/music/p3"
+    assert post_url_filter(_Post("p1", "micro")) == "/micro/p1"
+    assert post_url_filter(_Post("p2", "article")) == "/article/p2"
+    assert post_url_filter(_Post("p3", "poem")) == "/poem/p3"
 
 
 def test_extract_image_urls_filter_deduplicates_and_skips_featured():
@@ -218,3 +218,4 @@ def test_extract_image_urls_filter_deduplicates_and_skips_featured():
     )
     urls = extract_image_urls_filter(html, featured_image_url="/media/featured.jpg")
     assert urls == ["/media/a.jpg", "/media/b.jpg"]
+

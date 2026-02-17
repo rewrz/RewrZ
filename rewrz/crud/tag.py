@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from ..models import Tag
+from ..models.post import post_tags
 from ..schemas import TagCreate, TagUpdate
 
 def get_tag(db: Session, tag_id: int):
@@ -48,3 +49,43 @@ def delete_tag(db: Session, tag_id: int):
         db.delete(db_tag)
         db.commit()
     return db_tag
+
+
+def bulk_delete_tags(db: Session, tag_ids: list[int]):
+    """批量删除标签（单事务提交），并返回可用于前端提示的删除结果。"""
+    if not tag_ids:
+        return {
+            "deleted_ids": [],
+            "missing_ids": [],
+            "blocked_by_posts_ids": [],
+        }
+
+    existing_ids = set(
+        db.execute(select(Tag.id).filter(Tag.id.in_(tag_ids))).scalars().all()
+    )
+    if not existing_ids:
+        return {
+            "deleted_ids": [],
+            "missing_ids": tag_ids,
+            "blocked_by_posts_ids": [],
+        }
+
+    blocked_by_posts_ids = set(
+        db.execute(
+            select(post_tags.c.tag_id)
+            .filter(post_tags.c.tag_id.in_(existing_ids))
+            .distinct()
+        ).scalars().all()
+    )
+    deletable_ids = [tag_id for tag_id in tag_ids if tag_id in existing_ids and tag_id not in blocked_by_posts_ids]
+
+    if deletable_ids:
+        db.query(Tag).filter(Tag.id.in_(deletable_ids)).delete(synchronize_session=False)
+        db.commit()
+
+    missing_ids = [tag_id for tag_id in tag_ids if tag_id not in existing_ids]
+    return {
+        "deleted_ids": deletable_ids,
+        "missing_ids": missing_ids,
+        "blocked_by_posts_ids": [tag_id for tag_id in tag_ids if tag_id in blocked_by_posts_ids],
+    }

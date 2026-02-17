@@ -349,7 +349,7 @@
     background: #ef4444;
 }
 
-.format-badge.poetry-song {
+.format-badge.poem {
     background: #8b5cf6;
 }
 
@@ -418,6 +418,34 @@
 
 .micro-grid-item {
     transition: all 0.3s ease;
+}
+
+.micro-collapsible.is-collapsed {
+    max-height: 9rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.micro-collapsible.is-collapsed::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2.8rem;
+    background: linear-gradient(to top, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
+    pointer-events: none;
+}
+
+.dark .micro-collapsible.is-collapsed::after {
+    background: linear-gradient(to top, rgba(17, 24, 39, 0.96), rgba(17, 24, 39, 0));
+}
+
+.micro-expand-btn {
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
 }
 
 /* 表情反应系统 */
@@ -737,3 +765,4 @@ body.video-theater-mode .video-article {
         font-size: 14px;
     }
 }
+

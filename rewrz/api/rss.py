@@ -23,6 +23,7 @@ from ..core.content_utils import get_effective_content_html, get_effective_plain
 from ..crud import setting as crud_setting
 from ..models import Post
 from ..core.template_context import DEFAULT_BASE_SETTINGS
+from ..core.content_intents import choose_primary_intent_slug, to_public_post_segment
 
 router = APIRouter()
 
@@ -276,7 +277,9 @@ def generate_rss_xml(title: str, description: str, link: str, posts: List[Post],
     
     # 添加文章项
     for post in posts:
-        post_url = f'{site_info["base_url"]}/{post.formats[0].slug if post.formats else "article"}/{post.slug}'
+        format_slugs = [fmt.slug for fmt in post.formats if getattr(fmt, "slug", None)] if post.formats else []
+        primary_intent = choose_primary_intent_slug(format_slugs)
+        post_url = f'{site_info["base_url"]}/{to_public_post_segment(primary_intent)}/{post.slug}'
         pub_date = post.published_at or post.created_at
         fallback_excerpt = get_effective_plain_text(post.content_markdown, post.content_html)[:500]
         
@@ -324,7 +327,9 @@ def generate_atom_xml(title: str, subtitle: str, link: str, posts: List[Post], s
     
     # 添加文章项
     for post in posts:
-        post_url = f'{site_info["base_url"]}/{post.formats[0].slug if post.formats else "article"}/{post.slug}'
+        format_slugs = [fmt.slug for fmt in post.formats if getattr(fmt, "slug", None)] if post.formats else []
+        primary_intent = choose_primary_intent_slug(format_slugs)
+        post_url = f'{site_info["base_url"]}/{to_public_post_segment(primary_intent)}/{post.slug}'
         pub_date = post.published_at or post.created_at
         rendered_html = get_effective_content_html(post.content_markdown, post.content_html)
         fallback_excerpt = get_effective_plain_text(post.content_markdown, post.content_html)[:500]

@@ -417,11 +417,9 @@ async def create_initial_content(
                 
                 # 创建默认格式
                 default_formats = [
-                    {"name": "标准文章", "slug": "article", "description": "标准的博客文章格式"},
-                    {"name": "微博", "slug": "micro-post", "description": "类似微博的短内容"},
-                    {"name": "相册", "slug": "photo-album", "description": "图片展示格式"},
-                    {"name": "视频", "slug": "video", "description": "视频内容格式"},
-                    {"name": "诗词歌赋", "slug": "poetry-song", "description": "诗词歌赋内容格式"}
+                    {"name": "标准文章", "slug": "article", "description": "长内容、深度表达"},
+                    {"name": "微博", "slug": "micro", "description": "短内容、即时更新"},
+                    {"name": "诗词歌赋", "slug": "poem", "description": "文学体裁、特殊排版"},
                 ]
                 
                 for format_data in default_formats:
@@ -733,3 +731,4 @@ MEDIA_UPLOAD_DIR="media_uploads"
         if env_created and os.path.exists(".env"):
             os.remove(".env")  # 仅清理当前安装流程新建的 .env，避免误删已部署配置
         raise HTTPException(status_code=500, detail=f"安装失败: {str(e)}")
+

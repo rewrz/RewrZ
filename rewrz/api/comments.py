@@ -51,7 +51,8 @@ class IpGeoLookupRequest(BaseModel):
 ALLOWED_TAGS = ['a', 'strong', 'em', 'code', 'p', 'br']
 ALLOWED_ATTRIBUTES = {'a': ['href', 'title']}
 
-@router.post("/api/v1/comments/{post_id}", response_class=HTMLResponse)
+@router.post("/api/v1/comments/{post_id:int}", response_class=HTMLResponse)
+@router.post("/api/comments/{post_id:int}", response_class=HTMLResponse)
 async def create_comment_api(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -80,9 +81,9 @@ async def create_comment_api(
     # 检查文章是否存在且允许评论
     db_post = crud_post.get_post(db, post_id=post_id)
     if db_post is None:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise HTTPException(status_code=404, detail="文章不存在")
     if not db_post.allow_comments:
-        raise HTTPException(status_code=403, detail="Comments are not allowed on this post.")
+        raise HTTPException(status_code=403, detail="当前内容未开启评论")
 
     # 获取客户端信息
     ip_address = get_client_ip(request)
@@ -117,7 +118,10 @@ async def create_comment_api(
         # 静默丢弃：返回成功响应但不保存评论，也不写入解锁Cookie
         print(f"垃圾评论被阻止: {spam_result.reason} (IP: {ip_address})")
         return HTMLResponse(
-            content="<div class='alert alert-success'>评论提交成功！</div>",
+            content=(
+                "<div class='rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 "
+                "dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300'>评论提交成功。</div>"
+            ),
             status_code=200
         )
 
@@ -196,7 +200,10 @@ async def create_comment_api(
     # 如果需要审核，返回提示信息
     if comment_status == "pending":
         pending_response = HTMLResponse(
-            content="<div class='alert alert-warning'>评论已提交，正在等待审核。</div>",
+            content=(
+                "<div class='rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 "
+                "dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300'>评论已提交，正在等待审核。</div>"
+            ),
             status_code=200
         )
         _set_comment_unlock_cookie(pending_response, post_id)
@@ -230,7 +237,7 @@ async def reveal_hidden_content(
     """
     db_post = crud_post.get_post(db, post_id=post_id)
     if db_post is None:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise HTTPException(status_code=404, detail="文章不存在")
 
     unlock_cookie_name = get_comment_unlock_cookie_name(post_id)
     if request.cookies.get(unlock_cookie_name) != "true":
@@ -263,14 +270,14 @@ async def get_reply_form(request: Request, post_id: int, parent_id: int, db: Ses
     
     db_post = crud_post.get_post(db, post_id=post_id)
     if db_post is None:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise HTTPException(status_code=404, detail="文章不存在")
     
     # 生成防垃圾字段
     anti_spam = get_anti_spam_engine(db)
     form_timestamp_token = anti_spam.generate_form_timestamp_token()
     parent_comment = crud_comment.get_comment(db, comment_id=parent_id)
     if parent_comment is None:
-        raise HTTPException(status_code=404, detail="Parent comment not found")
+        raise HTTPException(status_code=404, detail="父评论不存在")
     
     return templates.TemplateResponse(
         "components/reply_form.html", 
@@ -296,11 +303,14 @@ async def get_comment_form(request: Request, post_id: int, db: Session = Depends
     
     db_post = crud_post.get_post(db, post_id=post_id)
     if db_post is None:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise HTTPException(status_code=404, detail="文章不存在")
     
     if not db_post.allow_comments:
         return HTMLResponse(
-            content="<div class='alert alert-info'>此文章不允许评论。</div>",
+            content=(
+                "<div class='rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700 "
+                "dark:border-sky-800/60 dark:bg-sky-900/20 dark:text-sky-300'>当前内容未开启评论。</div>"
+            ),
             status_code=200
         )
     
@@ -334,8 +344,8 @@ async def approve_comment_api(
     verify_csrf_token(request, csrf_token)
     db_comment = crud_comment.update_comment_status(db, comment_id=comment_id, status="approved")
     if db_comment is None:
-        raise HTTPException(status_code=404, detail="Comment not found")
-    return {"success": True, "message": "Comment approved successfully"}
+        raise HTTPException(status_code=404, detail="评论不存在")
+    return {"success": True, "message": "评论已批准"}
 
 @router.delete("/api/v1/comments/{comment_id}", status_code=status.HTTP_200_OK)
 @router.delete("/api/comments/{comment_id}", status_code=status.HTTP_200_OK)
@@ -352,8 +362,8 @@ async def delete_comment_api(
     verify_csrf_token(request, csrf_token)
     db_comment = crud_comment.delete_comment(db, comment_id=comment_id)
     if db_comment is None:
-        raise HTTPException(status_code=404, detail="Comment not found")
-    return {"success": True, "message": "Comment deleted successfully"}
+        raise HTTPException(status_code=404, detail="评论不存在")
+    return {"success": True, "message": "评论已删除"}
 
 @router.post("/api/v1/admin/comments/{comment_id}/moderate")
 async def moderate_comment(
@@ -373,7 +383,7 @@ async def moderate_comment(
     """
     verify_csrf_token(request, csrf_token)
     if action not in ["approve", "reject", "spam"]:
-        raise HTTPException(status_code=400, detail="Invalid action")
+        raise HTTPException(status_code=400, detail="无效的操作类型")
     
     # 设置评论状态
     status_map = {
@@ -387,9 +397,9 @@ async def moderate_comment(
     )
     
     if db_comment is None:
-        raise HTTPException(status_code=404, detail="Comment not found")
+        raise HTTPException(status_code=404, detail="评论不存在")
     
-    return {"message": f"Comment {action}d successfully", "comment_id": comment_id}
+    return {"message": f"评论操作成功：{action}", "comment_id": comment_id}
 
 @router.post("/api/v1/comments/bulk-action", status_code=status.HTTP_200_OK)
 @router.post("/api/comments/bulk-action", status_code=status.HTTP_200_OK)
@@ -404,20 +414,27 @@ async def bulk_action_api(
     批量操作评论
     """
     verify_csrf_token(request, csrf_token)
+    comment_ids = sorted({
+        comment_id for comment_id in (bulk_action.comment_ids or [])
+        if isinstance(comment_id, int) and comment_id > 0
+    })
+    if not comment_ids:
+        raise HTTPException(status_code=400, detail="未提供有效的评论ID")
+
     if bulk_action.action == "approve":
-        crud_comment.bulk_update_comment_status(db, comment_ids=bulk_action.comment_ids, status="approved")
-        message = "Comments approved successfully"
+        crud_comment.bulk_update_comment_status(db, comment_ids=comment_ids, status="approved")
+        message = f"批量批准成功（{len(comment_ids)} 条）"
     elif bulk_action.action == "pending":
-        crud_comment.bulk_update_comment_status(db, comment_ids=bulk_action.comment_ids, status="pending")
-        message = "Comments moved to pending successfully"
+        crud_comment.bulk_update_comment_status(db, comment_ids=comment_ids, status="pending")
+        message = f"批量移至待审核成功（{len(comment_ids)} 条）"
     elif bulk_action.action == "spam":
-        crud_comment.bulk_update_comment_status(db, comment_ids=bulk_action.comment_ids, status="spam")
-        message = "Comments marked as spam successfully"
+        crud_comment.bulk_update_comment_status(db, comment_ids=comment_ids, status="spam")
+        message = f"批量标记垃圾评论成功（{len(comment_ids)} 条）"
     elif bulk_action.action == "delete":
-        crud_comment.bulk_delete_comments(db, comment_ids=bulk_action.comment_ids)
-        message = "Comments deleted successfully"
+        crud_comment.bulk_delete_comments(db, comment_ids=comment_ids)
+        message = f"批量删除成功（{len(comment_ids)} 条）"
     else:
-        raise HTTPException(status_code=400, detail="Invalid action")
+        raise HTTPException(status_code=400, detail="无效的批量操作类型")
         
     return {"success": True, "message": message}
 
@@ -455,7 +472,7 @@ async def admin_reply_to_comment(
     # 获取被回复的评论
     original_comment = crud_comment.get_comment(db, comment_id=comment_id)
     if not original_comment:
-        raise HTTPException(status_code=404, detail="Comment not found")
+        raise HTTPException(status_code=404, detail="评论不存在")
     
     # 从数据库获取网站设置
     site_url_setting = crud_setting.get_setting(db, "site_url")

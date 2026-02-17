@@ -140,9 +140,9 @@
                         <p class="mt-1 text-xs text-gray-500">例如自定义 post_type；默认会按文章（post）导入。</p>
                     </div>
                     <div class="mt-3">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">post_type 格式映射（逗号分隔）</label>
-                        <input id="wp-post-type-format-map" type="text" class="block w-full rounded border border-gray-300 px-3 py-2 text-sm" placeholder="shuoshuo:micro-post,news:article">
-                        <p class="mt-1 text-xs text-gray-500">用于把自定义 post_type 映射为指定格式，例如 <code>shuoshuo:micro-post</code>（微博）。</p>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">post_type 内容类型映射（逗号分隔）</label>
+                        <input id="wp-post-type-format-map" type="text" class="block w-full rounded border border-gray-300 px-3 py-2 text-sm" placeholder="shuoshuo:micro,news:article">
+                        <p class="mt-1 text-xs text-gray-500">用于把自定义 post_type 映射为主类型，例如 <code>shuoshuo:micro</code>（微博）。仅支持 <code>article</code>/<code>micro</code>/<code>poem</code>。</p>
                     </div>
                     <div class="mt-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">postmeta 白名单（逗号分隔）</label>
@@ -304,22 +304,23 @@ function collectWordPressImportOptions() {
 function parsePostTypeFormatMap(text) {
     const result = {};
     const aliasMap = {
-        weibo: 'micro-post',
-        micro: 'micro-post',
-        micro_post: 'micro-post',
+        weibo: 'micro',
+        micro: 'micro',
+        micro_post: 'micro',
+        status: 'micro',
+        aside: 'micro',
         post: 'article',
         standard: 'article',
-        photo: 'photo-album',
-        gallery: 'photo-album',
-        album: 'photo-album',
-        poetry: 'poetry-song',
-        song: 'poetry-song',
-        '微博': 'micro-post',
+        article: 'article',
+        poetry: 'poem',
+        song: 'poem',
+        audio: 'poem',
+        '微博': 'micro',
         '标准文章': 'article',
-        '相册': 'photo-album',
-        '视频': 'video',
-        '诗词歌赋': 'poetry-song'
+        '文章': 'article',
+        '诗词歌赋': 'poem'
     };
+    const allowSet = new Set(['article', 'micro', 'poem']);
 
     String(text || '')
         .split(/[,\n;]+/)
@@ -332,7 +333,7 @@ function parsePostTypeFormatMap(text) {
             let value = parts.slice(1).join(':').trim().toLowerCase();
             value = aliasMap[value] || value;
             value = value.replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
-            if (!key || !value) return;
+            if (!key || !value || !allowSet.has(value)) return;
             result[key] = value;
         });
     return result;
@@ -781,3 +782,5 @@ function showOperationResult(type, message, stats = null) {
 }
 </script>
 {% endblock %}
+
+

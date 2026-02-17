@@ -7,6 +7,7 @@ RewrZ 博客系统主应用模块
 import os
 import hashlib
 import secrets
+from urllib.parse import urlparse
 from fastapi import FastAPI, Depends, HTTPException, Request, Response, Form, UploadFile, File, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
@@ -66,6 +67,18 @@ from .core.content_access import (
 )
 from .core.toc import build_toc_from_html
 from .core.content_utils import get_effective_content_html
+from .core.content_intents import (
+    choose_primary_intent_slug,
+    normalize_intent_slug,
+    normalize_public_intent_slug,
+    to_public_post_segment,
+)
+from .core.media_attachments import (
+    summarize_media_attachments,
+    detect_media_flags,
+    list_registered_media_attachment_keys,
+    get_default_media_navigation,
+)
 
 # 全局状态，用于标记后台路由是否已注册
 ADMIN_ROUTES_REGISTERED = False
@@ -141,24 +154,13 @@ def _has_valid_password_cookie(request: Request, post_obj) -> bool:
     return secrets.compare_digest(cookie_value, expected)
 
 
-FORMAT_SLUG_ALIASES = {
-    "weibo": "micro-post",
-    "photos": "photo-album",
-    "music": "poetry-song",
-}
-
-
 def _resolve_format_by_slug(db: Session, format_slug: str):
-    db_format = crud_format.get_format_by_slug(db, slug=format_slug)
+    normalized_slug = normalize_public_intent_slug(format_slug)
+    if not normalized_slug:
+        return None, None
+    db_format = crud_format.get_format_by_slug(db, slug=normalized_slug)
     if db_format is not None:
-        return db_format, format_slug
-
-    mapped_slug = FORMAT_SLUG_ALIASES.get(format_slug)
-    if mapped_slug:
-        db_format = crud_format.get_format_by_slug(db, slug=mapped_slug)
-        if db_format is not None:
-            return db_format, mapped_slug
-
+        return db_format, normalized_slug
     return None, None
 
 # 包含部分身份验证路由（保留用户信息端点，移除登录端点）
@@ -510,7 +512,7 @@ def register_admin_routes():
         allow_comments: bool = Form(True),
         category_ids: Optional[List[int]] = Form(None),
         tags: Optional[str] = Form(None),
-        format_ids: Optional[List[int]] = Form(None),
+        format_id: Optional[int] = Form(None),
         license_type: str = Form("cc_by_nc_sa_4"),
         csrf_token: str = Form(...),
         db: Session = Depends(get_db),
@@ -531,7 +533,7 @@ def register_admin_routes():
             allow_comments=allow_comments,
             category_ids=category_ids,
             tags=tags,
-            format_ids=format_ids,
+            format_id=format_id,
             license_type=license_type,
             csrf_token=csrf_token,
             db=db,
@@ -555,7 +557,7 @@ def register_admin_routes():
         allow_comments: bool = Form(True),
         category_ids: Optional[List[int]] = Form(None),
         tags: Optional[str] = Form(None),
-        format_ids: Optional[List[int]] = Form(None),
+        format_id: Optional[int] = Form(None),
         license_type: str = Form("cc_by_nc_sa_4"),
         csrf_token: str = Form(...),
         db: Session = Depends(get_db),
@@ -577,7 +579,7 @@ def register_admin_routes():
             allow_comments=allow_comments,
             category_ids=category_ids,
             tags=tags,
-            format_ids=format_ids,
+            format_id=format_id,
             license_type=license_type,
             csrf_token=csrf_token,
             db=db,
@@ -1350,37 +1352,23 @@ def register_admin_routes():
             })
             return templates.TemplateResponse("password_protected.html", context, status_code=401)
         
-        # 验证格式slug是否匹配，并确定当前详情页展示格式
-        active_format_slug = "article"
-        if db_post.formats:
-            post_format_slugs = [fmt.slug for fmt in db_post.formats if getattr(fmt, "slug", None)]
-            if post_format_slugs:
-                requested_format_slug = FORMAT_SLUG_ALIASES.get(format_slug, format_slug)
-                accepted_slugs = set(post_format_slugs)
-                for slug in post_format_slugs:
-                    if slug == "micro-post":
-                        accepted_slugs.add("weibo")
-                    elif slug == "photo-album":
-                        accepted_slugs.add("photos")
-                    elif slug == "poetry-song":
-                        accepted_slugs.add("music")
+        # 验证路由段与文章主类型是否匹配（只使用内容类型，不再按媒体类型分流）
+        raw_format_slugs = [fmt.slug for fmt in db_post.formats if getattr(fmt, "slug", None)] if db_post.formats else []
+        normalized_intents = {
+            intent_slug
+            for intent_slug in (normalize_intent_slug(slug) for slug in raw_format_slugs)
+            if intent_slug is not None
+        }
+        if not normalized_intents:
+            normalized_intents = {"article"}
 
-                if format_slug not in accepted_slugs and requested_format_slug not in post_format_slugs:
-                    # 路由不匹配时，重定向到文章的首选展示格式（优先使用对外友好别名）
-                    preferred_slug = post_format_slugs[0]
-                    preferred_alias = {
-                        "micro-post": "weibo",
-                        "photo-album": "photos",
-                        "poetry-song": "music",
-                    }.get(preferred_slug, preferred_slug)
-                    return RedirectResponse(url=f"/{preferred_alias}/{post_slug}", status_code=301)
+        requested_intent = normalize_public_intent_slug(format_slug)
+        if requested_intent not in normalized_intents:
+            preferred_intent = choose_primary_intent_slug(normalized_intents)
+            preferred_segment = to_public_post_segment(preferred_intent)
+            return RedirectResponse(url=f"/{preferred_segment}/{post_slug}", status_code=301)
 
-                if requested_format_slug in post_format_slugs:
-                    active_format_slug = requested_format_slug
-                elif format_slug in post_format_slugs:
-                    active_format_slug = format_slug
-                else:
-                    active_format_slug = post_format_slugs[0]
+        active_format_slug = requested_intent or "article"
         
         # 获取SEO元数据
         from .api.seo import _generate_post_seo_data
@@ -1734,17 +1722,9 @@ async def unlock_password_protected_post(
             safe_next_url = f"/{db_post.slug}"
         else:
             available_slugs = [fmt.slug for fmt in db_post.formats if getattr(fmt, "slug", None)] if db_post.formats else []
-            if available_slugs:
-                priority = ["micro-post", "photo-album", "video", "poetry-song", "article"]
-                format_slug = next((slug for slug in priority if slug in available_slugs), available_slugs[0])
-            else:
-                format_slug = "article"
-            format_slug = {
-                "micro-post": "weibo",
-                "photo-album": "photos",
-                "poetry-song": "music",
-            }.get(format_slug, format_slug)
-            safe_next_url = f"/{format_slug}/{db_post.slug}"
+            primary_intent = choose_primary_intent_slug(available_slugs)
+            path_segment = to_public_post_segment(primary_intent)
+            safe_next_url = f"/{path_segment}/{db_post.slug}"
 
     response = RedirectResponse(url=safe_next_url, status_code=303)
     response.set_cookie(
@@ -1793,9 +1773,9 @@ async def homepage(request: Request, db: Session = Depends(get_db)):
 @app.get("/formats/{format_slug}", response_class=HTMLResponse)
 async def format_page(request: Request, format_slug: str, db: Session = Depends(get_db)):
     """
-    格式归档页面（多重身份内容系统）
+    内容类型归档页面（多重身份内容系统）
     
-    根据格式别名显示指定格式的所有文章，URL符合 /formats/{format_slug} 规范
+    根据内容类型 slug 显示对应文章，URL符合 /formats/{format_slug} 规范
     """
     format, resolved_slug = _resolve_format_by_slug(db, format_slug)
     if format is None:
@@ -1813,6 +1793,61 @@ async def format_page(request: Request, format_slug: str, db: Session = Depends(
     })
     
     return templates.TemplateResponse("format_archive.html", context)
+
+
+@app.get("/archives/media/{media_slug}", response_class=HTMLResponse)
+async def posts_by_media_attachment(request: Request, media_slug: str, db: Session = Depends(get_db)):
+    """
+    按媒体附件类型聚合页面
+
+    注意：使用 /archives/media/{media_slug}，避免与 /media 静态目录冲突。
+    """
+    normalized_media_slug = (media_slug or "").strip().lower()
+    registered_media_keys = set(list_registered_media_attachment_keys())
+    if normalized_media_slug not in registered_media_keys:
+        raise HTTPException(status_code=404, detail="Media attachment type not found")
+
+    posts = crud_post.get_archive_posts(db)
+    matched_posts = []
+
+    for post in posts:
+        rendered_content = get_effective_content_html(post.content_markdown, post.content_html)
+        summary = summarize_media_attachments(
+            rendered_content,
+            featured_image_url=post.featured_image_url,
+        )
+        media_flags = detect_media_flags(summary)
+        if not media_flags.get(normalized_media_slug, False):
+            continue
+
+        summary_dict = summary.to_dict()
+        setattr(post, "media_attachment_summary", summary_dict)
+        setattr(post, "media_flags", media_flags)
+        setattr(post, "all_image_urls", list(summary.image_urls))
+        primary_link = summary.external_links[0] if summary.external_links else ""
+        setattr(post, "media_primary_external_link", primary_link)
+        setattr(post, "media_primary_external_domain", urlparse(primary_link).netloc if primary_link else "")
+        matched_posts.append(post)
+
+    total_matched_count = len(matched_posts)
+    archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
+    matched_posts = matched_posts[:archive_posts_limit]
+
+    media_nav_items = get_default_media_navigation()
+    selected_media_item = next(
+        (item for item in media_nav_items if item.get("key") == normalized_media_slug),
+        {"key": normalized_media_slug, "name": normalized_media_slug, "icon": "fa-photo-film"},
+    )
+
+    context = build_base_template_context(request)
+    context.update({
+        "media_slug": normalized_media_slug,
+        "media_item": selected_media_item,
+        "media_nav_items": media_nav_items,
+        "posts": matched_posts,
+        "total_count": total_matched_count,
+    })
+    return templates.TemplateResponse("media_archive.html", context)
 
 @app.get("/archives/by-category/{category_slug}", response_class=HTMLResponse)
 async def posts_by_category(request: Request, category_slug: str, db: Session = Depends(get_db)):
@@ -1909,3 +1944,4 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
 # 添加设置加载中间件（在会话中间件之后）
 app.add_middleware(SettingsMiddleware)
+

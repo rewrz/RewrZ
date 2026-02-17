@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}文章归档 - {{ site_name or 'RewrZ' }}{% endblock %}
+{% block title %}内容归档 - {{ site_name or 'RewrZ' }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 lg:px-6 py-8 max-w-4xl">
@@ -8,14 +8,14 @@
     <div class="text-center mb-8">
         <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
             <i class="fas fa-archive mr-3 text-blue-600 dark:text-blue-400"></i>
-            文章归档
+            内容归档
         </h1>
         <p class="text-gray-600 dark:text-gray-300">
             记录时光，见证成长的每一个瞬间
         </p>
         {% if posts %}
         <div class="mt-4 text-sm text-gray-500 dark:text-gray-400">
-            共收录 <span class="font-semibold text-blue-600 dark:text-blue-400">{{ posts | length }}</span> 篇文章
+            共收录 <span class="font-semibold text-blue-600 dark:text-blue-400">{{ posts | length }}</span> 条内容
         </div>
         {% endif %}
     </div>
@@ -67,7 +67,7 @@
                                 {{ year }}
                             </h2>
                             <span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm font-medium">
-                                {{ year_posts | length }} 篇文章
+                                {{ year_posts | length }} 条
                             </span>
                         </div>
                     </div>
@@ -88,21 +88,17 @@
                                     <!-- 格式图标 -->
                                     {% if post.formats %}
                                         {% set format_slugs = post.formats | map(attribute='slug') | list %}
-                                        {% if 'weibo' in format_slugs %}
+                                        {% if 'micro' in format_slugs %}
                                             <i class="fas fa-comment-dots text-blue-500" title="微博"></i>
-                                        {% elif 'photo-album' in format_slugs %}
-                                            <i class="fas fa-images text-purple-500" title="相册"></i>
-                                        {% elif 'video' in format_slugs %}
-                                            <i class="fas fa-video text-green-500" title="视频"></i>
-                                        {% elif 'poetry-song' in format_slugs %}
+                                        {% elif 'poem' in format_slugs %}
                                             <i class="fas fa-feather-alt text-yellow-500" title="诗词歌赋"></i>
                                         {% elif 'article' in format_slugs %}
-                                            <i class="fas fa-file-alt text-gray-600" title="标准文章"></i>
+                                            <i class="fas fa-file-alt text-gray-600" title="文章"></i>
                                         {% else %}
-                                            <i class="fas fa-pen-alt text-gray-600" title="帖子"></i>
+                                            <i class="fas fa-pen-alt text-gray-600" title="内容"></i>
                                         {% endif %}
                                     {% else %}
-                                        <i class="fas fa-pen text-gray-600" title="帖子"></i>
+                                        <i class="fas fa-pen text-gray-600" title="内容"></i>
                                     {% endif %}
                                     
                                     <!-- 标题 -->
@@ -114,7 +110,7 @@
                                             {% elif post.excerpt %}
                                                 {{ post.excerpt[:50] }}{% if post.excerpt|length > 50 %}...{% endif %}
                                             {% else %}
-                                                无标题文章
+                                                无标题内容
                                             {% endif %}
                                         </a>
                                     </div>
@@ -182,7 +178,7 @@
                                 {{ year }} 年 {{ month_zh }}
                             </h3>
                             <span class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full text-sm font-medium">
-                                {{ month_posts | length }} 篇文章
+                                {{ month_posts | length }} 条
                             </span>
                         </div>
                     </div>
@@ -203,21 +199,17 @@
                                     <!-- 格式图标 -->
                                     {% if post.formats %}
                                         {% set format_slugs = post.formats | map(attribute='slug') | list %}
-                                        {% if 'weibo' in format_slugs %}
+                                        {% if 'micro' in format_slugs %}
                                             <i class="fas fa-comment-dots text-blue-500" title="微博"></i>
-                                        {% elif 'photo-album' in format_slugs %}
-                                            <i class="fas fa-images text-purple-500" title="相册"></i>
-                                        {% elif 'video' in format_slugs %}
-                                            <i class="fas fa-video text-green-500" title="视频"></i>
-                                        {% elif 'poetry-song' in format_slugs %}
+                                        {% elif 'poem' in format_slugs %}
                                             <i class="fas fa-feather-alt text-yellow-500" title="诗词歌赋"></i>
                                         {% elif 'article' in format_slugs %}
-                                            <i class="fas fa-file-alt text-gray-600" title="标准文章"></i>
+                                            <i class="fas fa-file-alt text-gray-600" title="文章"></i>
                                         {% else %}
-                                            <i class="fas fa-pen-alt text-gray-600" title="帖子"></i>
+                                            <i class="fas fa-pen-alt text-gray-600" title="内容"></i>
                                         {% endif %}
                                     {% else %}
-                                        <i class="fas fa-pen text-gray-600" title="帖子"></i>
+                                        <i class="fas fa-pen text-gray-600" title="内容"></i>
                                     {% endif %}
                                     
                                     <!-- 标题 -->
@@ -229,7 +221,7 @@
                                             {% elif post.excerpt %}
                                                 {{ post.excerpt[:50] }}{% if post.excerpt|length > 50 %}...{% endif %}
                                             {% else %}
-                                                无标题文章
+                                                无标题内容
                                             {% endif %}
                                         </a>
                                     </div>
@@ -281,8 +273,8 @@
         <div class="w-24 h-24 mx-auto mb-6 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
             <i class="fas fa-archive text-3xl text-gray-400 dark:text-gray-500"></i>
         </div>
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">暂无文章</h3>
-        <p class="text-gray-600 dark:text-gray-300 mb-6">还没有发布任何文章，开始创作吧！</p>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">暂无内容</h3>
+        <p class="text-gray-600 dark:text-gray-300 mb-6">还没有发布任何内容，开始创作吧！</p>
         <a href="/" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
             <i class="fas fa-home mr-2"></i>
             返回首页
@@ -361,3 +353,4 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 </style>
 {% endblock %}
+

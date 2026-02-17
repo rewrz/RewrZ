@@ -238,7 +238,7 @@
                 {# Define dot and icon classes based on format #}
                 {% set dot_class = "bg-gray-500" %}
                 {% set icon_class = "fas fa-pen" %}
-                {% if 'micro-post' in format_slugs %}
+                {% if 'micro' in format_slugs %}
                     {% set dot_class = "bg-blue-500" %}
                     {% set icon_class = "fas fa-comment-dots" %}
                 {% elif 'photo-album' in format_slugs %}
@@ -250,7 +250,7 @@
                 {% elif 'video' in format_slugs %}
                     {% set dot_class = "bg-green-500" %}
                     {% set icon_class = "fas fa-video" %}
-                {% elif 'poetry-song' in format_slugs %}
+                {% elif 'poem' in format_slugs %}
                     {% set dot_class = "bg-yellow-500" %}
                     {% set icon_class = "fas fa-music" %}
                 {% endif %}

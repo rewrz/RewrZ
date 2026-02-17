@@ -24,6 +24,12 @@ from ..crud import tag as crud_tag
 from ..crud import format as crud_format
 from ..crud import setting as crud_setting
 from ..core.template_context import build_base_template_context, HOMEPAGE_SETTING_KEYS
+from ..core.content_intents import (
+    INTENT_SLUGS,
+    choose_primary_intent_slug,
+    normalize_public_intent_slug,
+    to_public_post_segment,
+)
 from ..models import Post, Category, Tag
 
 router = APIRouter()
@@ -77,7 +83,10 @@ async def search_page(
     # 获取筛选选项
     categories = crud_category.get_categories(db)
     tags = crud_tag.get_tags(db)
-    formats = crud_format.get_formats(db)
+    formats = [
+        fmt for fmt in crud_format.get_formats(db)
+        if (fmt.slug or "").strip().lower() in INTENT_SLUGS
+    ]
     # 准备设置上下文 (包含主页个性化设置，供 base.html 使用)
     homepage_settings = crud_setting.get_settings_by_keys(db, HOMEPAGE_SETTING_KEYS)
     # 该方法已返回 {key: value} 的映射，因此直接与 request.state 的默认值合并
@@ -138,6 +147,8 @@ async def search_api(
     # 转换结果为API格式
     api_results = []
     for post in search_result["results"]:
+        format_slugs = [fmt.slug for fmt in post.formats if getattr(fmt, "slug", None)] if post.formats else []
+        primary_intent = choose_primary_intent_slug(format_slugs)
         api_results.append({
             "id": post.id,
             "title": post.title,
@@ -145,7 +156,7 @@ async def search_api(
             "excerpt": post.excerpt,
             "published_at": post.published_at.isoformat() if post.published_at else None,
             "featured_image_url": post.featured_image_url,
-            "url": f"/{post.formats[0].slug if post.formats else 'article'}/{post.slug}",
+            "url": f"/{to_public_post_segment(primary_intent)}/{post.slug}",
             "categories": [{"name": cat.name, "slug": cat.slug} for cat in post.categories],
             "tags": [{"name": tag.name, "slug": tag.slug} for tag in post.tags],
             "formats": [{"name": fmt.name, "slug": fmt.slug} for fmt in post.formats]
@@ -186,10 +197,12 @@ async def search_suggestions(
     ).limit(limit).all()
     
     for post in posts:
+        format_slugs = [fmt.slug for fmt in post.formats if getattr(fmt, "slug", None)] if post.formats else []
+        primary_intent = choose_primary_intent_slug(format_slugs)
         suggestions.append({
             "type": "post",
             "title": post.title,
-            "url": f"/{post.formats[0].slug if post.formats else 'article'}/{post.slug}"
+            "url": f"/{to_public_post_segment(primary_intent)}/{post.slug}"
         })
     
     # 搜索匹配的分类
@@ -286,7 +299,8 @@ def perform_search(
     
     # 格式筛选
     if format_slug:
-        format_obj = crud_format.get_format_by_slug(db, slug=format_slug)
+        normalized_format_slug = normalize_public_intent_slug(format_slug)
+        format_obj = crud_format.get_format_by_slug(db, slug=normalized_format_slug) if normalized_format_slug else None
         if format_obj:
             base_query = base_query.filter(Post.formats.contains(format_obj))
     

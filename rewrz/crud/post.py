@@ -4,18 +4,20 @@
 支持多重身份内容系统和版本快照功能。
 """
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select, func
-from ..models import Post, Format, Category, Tag, Setting
-from ..schemas import PostCreate, PostUpdate
+from sqlalchemy import select, func, delete
+from ..models import Post, Format, Category, Tag, Setting, Comment
+from ..schemas import PostCreate, PostUpdate, FormatCreate
 from datetime import datetime
 from markdown import markdown
 from slugify import slugify
 from ..core.security import get_password_hash, verify_password
+from ..crud import format as crud_format
 from ..core.content_utils import (
     infer_editor_mode,
     normalize_editor_mode,
     get_effective_plain_text,
 )
+from ..core.content_intents import choose_primary_intent_slug, normalize_intent_slug, INTENT_NAME_MAP
 
 from typing import Optional, List
 
@@ -92,6 +94,42 @@ def _attach_views_metrics(db: Session, posts: List[Post]) -> None:
         views = views_map.get(post.id, 0)
         setattr(post, "views_count", views)
         setattr(post, "views", views)
+
+
+def _ensure_intent_format(db: Session, intent_slug: str) -> Optional[Format]:
+    normalized_slug = normalize_intent_slug(intent_slug)
+    if not normalized_slug:
+        normalized_slug = "article"
+    fmt = crud_format.get_format_by_slug(db, slug=normalized_slug)
+    if fmt is not None:
+        return fmt
+    try:
+        return crud_format.create_format(
+            db,
+            FormatCreate(name=INTENT_NAME_MAP.get(normalized_slug, normalized_slug), slug=normalized_slug),
+        )
+    except Exception:
+        db.rollback()
+        return crud_format.get_format_by_slug(db, slug=normalized_slug)
+
+
+def _normalize_intent_format_ids(db: Session, raw_format_ids: Optional[List[int]]) -> Optional[List[int]]:
+    if raw_format_ids is None:
+        return None
+
+    if not raw_format_ids:
+        article = _ensure_intent_format(db, "article")
+        return [article.id] if article else []
+
+    input_formats = db.execute(
+        select(Format).filter(Format.id.in_(list({int(x) for x in raw_format_ids if isinstance(x, int)})))
+    ).scalars().all()
+    input_slugs = [fmt.slug for fmt in input_formats if getattr(fmt, "slug", None)]
+    primary_intent = choose_primary_intent_slug(input_slugs)
+    intent_format = _ensure_intent_format(db, primary_intent)
+    if intent_format is None:
+        return []
+    return [intent_format.id]
 
 def get_post(db: Session, post_id: int):
     """根据文章ID获取文章信息，包含关联的格式、分类、标签和评论"""
@@ -322,10 +360,14 @@ def create_post(
             db_post.tags.append(tag)
     
     resolved_format_ids = format_ids if format_ids is not None else post.format_ids
-    # 如果指定了格式ID，则关联对应的格式（多重身份内容系统）
-    if resolved_format_ids is not None:
-        formats = db.execute(select(Format).filter(Format.id.in_(resolved_format_ids))).scalars().all()
+    normalized_format_ids = _normalize_intent_format_ids(db, resolved_format_ids)
+    if normalized_format_ids is not None:
+        formats = db.execute(select(Format).filter(Format.id.in_(normalized_format_ids))).scalars().all()
         db_post.formats.extend(formats)
+    elif post.post_type in {"post", "article"}:
+        default_intent = _ensure_intent_format(db, "article")
+        if default_intent is not None:
+            db_post.formats.append(default_intent)
 
     db.add(db_post)
     if auto_commit:
@@ -453,13 +495,18 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
                     db.flush()
                 db_post.tags.append(tag)
 
-        # 更新内容格式
+        # 更新内容类型（仅保留一个主类型）
         resolved_format_ids = format_ids if format_ids is not None else post.format_ids
-        if resolved_format_ids is not None:
+        normalized_format_ids = _normalize_intent_format_ids(db, resolved_format_ids)
+        if normalized_format_ids is not None:
             db_post.formats.clear()
-            if resolved_format_ids:
-                formats = db.execute(select(Format).filter(Format.id.in_(resolved_format_ids))).scalars().all()
+            if normalized_format_ids:
+                formats = db.execute(select(Format).filter(Format.id.in_(normalized_format_ids))).scalars().all()
                 db_post.formats.extend(formats)
+        elif db_post.post_type in {"post", "article"} and not db_post.formats:
+            default_intent = _ensure_intent_format(db, "article")
+            if default_intent is not None:
+                db_post.formats.append(default_intent)
 
         # 确保 updated_at 设置为当前时间
         db_post.updated_at = datetime.now()
@@ -528,6 +575,8 @@ def delete_post(db: Session, post_id: int, *, auto_commit: bool = True):
     """
     db_post = db.execute(select(Post).filter(Post.id == post_id)).scalar_one_or_none()
     if db_post:
+        # 先清理评论，避免遗留孤儿评论或外键约束问题。
+        db.execute(delete(Comment).where(Comment.post_id == post_id))
         db.delete(db_post)
         if auto_commit:
             db.commit()
@@ -548,7 +597,48 @@ def delete_posts_by_ids(db: Session, post_ids: List[int], author_id: Optional[in
     if not db_posts:
         return 0
 
+    deletable_post_ids = [post.id for post in db_posts if getattr(post, "id", None) is not None]
+    if deletable_post_ids:
+        db.execute(delete(Comment).where(Comment.post_id.in_(deletable_post_ids)))
+
     for db_post in db_posts:
         db.delete(db_post)
     db.commit()
     return len(db_posts)
+
+
+def bulk_update_posts_status_by_ids(
+    db: Session,
+    post_ids: List[int],
+    status: str,
+    author_id: Optional[int] = None,
+) -> int:
+    """按ID批量更新文章状态，并使用单次提交降低事务开销。"""
+    if status not in {"published", "draft"}:
+        raise ValueError("Unsupported status")
+
+    normalized_ids = sorted({post_id for post_id in post_ids if isinstance(post_id, int) and post_id > 0})
+    if not normalized_ids:
+        return 0
+
+    query = select(Post).filter(Post.id.in_(normalized_ids))
+    if author_id is not None:
+        query = query.filter(Post.author_id == author_id)
+
+    db_posts = db.execute(query).scalars().all()
+    if not db_posts:
+        return 0
+
+    now = datetime.now()
+    for db_post in db_posts:
+        db_post.status = status
+        if status == "published":
+            if db_post.published_at is None:
+                db_post.published_at = now
+        else:
+            db_post.published_at = None
+        db_post.updated_at = now
+
+    db.commit()
+    return len(db_posts)
+

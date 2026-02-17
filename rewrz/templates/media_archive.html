@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}媒体：{{ media_item.name }} - {{ site_title }}{% endblock %}
+
+{% block content %}
+<section class="py-8">
+    <div class="container mx-auto max-w-7xl px-4">
+        <div class="mb-8 rounded-3xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-sky-50 to-white p-6 shadow-sm dark:border-cyan-700/40 dark:from-cyan-900/20 dark:via-slate-900 dark:to-gray-900 md:p-8">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">媒体聚合</p>
+                    <h1 class="mt-1 text-3xl font-bold text-gray-900 dark:text-white md:text-4xl">
+                        <i class="fas {{ media_item.icon }} mr-2"></i>{{ media_item.name }}
+                    </h1>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        过滤出含有「{{ media_item.name }}」附件的内容，跨文章 / 微博 / 诗词歌赋统一展示。
+                    </p>
+                </div>
+                <div class="rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm dark:bg-gray-800 dark:text-gray-200">
+                    共 {{ total_count }} 条
+                </div>
+            </div>
+
+            <div class="mt-5 flex flex-wrap items-center gap-2">
+                {% for item in media_nav_items %}
+                <a href="/archives/media/{{ item.key }}" class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition
+                    {% if media_slug == item.key %}
+                        bg-cyan-600 text-white
+                    {% else %}
+                        bg-white text-cyan-700 hover:bg-cyan-100 dark:bg-gray-800 dark:text-cyan-300 dark:hover:bg-cyan-900/40
+                    {% endif %}">
+                    <i class="fas {{ item.icon }} mr-1"></i>{{ item.name }}
+                </a>
+                {% endfor %}
+                <a href="/archives" class="ml-auto inline-flex items-center rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
+                    <i class="fas fa-archive mr-1"></i>全部归档
+                </a>
+            </div>
+        </div>
+
+        {% if posts %}
+            {% if media_slug == 'videos' %}
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                {% for post in posts %}
+                {% set cover_url = post.featured_image_url or (post.all_image_urls[0] if post.all_image_urls else '') %}
+                <article class="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-gray-700 dark:bg-gray-800">
+                    <a href="{{ post | post_url }}" class="block">
+                        <div class="relative aspect-video overflow-hidden bg-gradient-to-br from-slate-700 to-slate-900">
+                            {% if cover_url %}
+                            <img src="{{ cover_url }}" alt="{{ post.title }}" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
+                            {% else %}
+                            <div class="flex h-full w-full items-center justify-center text-white/80">
+                                <i class="fas fa-circle-play text-5xl"></i>
+                            </div>
+                            {% endif %}
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent"></div>
+                            <div class="absolute left-3 top-3 rounded-full bg-black/60 px-2 py-1 text-[11px] font-semibold text-white">
+                                <i class="fas fa-video mr-1"></i>VIDEO
+                            </div>
+                            <div class="absolute inset-0 flex items-center justify-center opacity-90 transition group-hover:scale-110">
+                                <span class="video-play-bubble inline-flex h-14 w-14 items-center justify-center rounded-full bg-cyan-500/90 text-white shadow-lg">
+                                    <i class="fas fa-play ml-0.5"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </a>
+                    <div class="p-4">
+                        <a href="{{ post | post_url }}" class="line-clamp-2 text-base font-semibold text-gray-900 transition-colors hover:text-cyan-600 dark:text-white dark:hover:text-cyan-300">
+                            {{ post.title or post.excerpt or "未命名内容" }}
+                        </a>
+                        <p class="mt-2 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
+                            {{ post.excerpt or (post | post_preview_text(95)) }}
+                        </p>
+                        <div class="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                            <span>{{ post.author.username if post.author else "匿名" }}</span>
+                            <span>{{ post.published_at.strftime('%Y-%m-%d') if post.published_at else '-' }}</span>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+
+            {% elif media_slug == 'gallery' %}
+            <div class="media-masonry columns-1 gap-5 sm:columns-2 xl:columns-3">
+                {% for post in posts %}
+                {% set cover_url = post.featured_image_url or (post.all_image_urls[0] if post.all_image_urls else '') %}
+                <article class="mb-5 break-inside-avoid overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:shadow-xl dark:border-gray-700 dark:bg-gray-800">
+                    <a href="{{ post | post_url }}" class="group block">
+                        <div class="relative overflow-hidden bg-gray-100 dark:bg-gray-900">
+                            {% if cover_url %}
+                            <img src="{{ cover_url }}" alt="{{ post.title }}" class="w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
+                            {% else %}
+                            <div class="flex h-56 items-center justify-center text-gray-400 dark:text-gray-600">
+                                <i class="fas fa-images text-5xl"></i>
+                            </div>
+                            {% endif %}
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent"></div>
+                            <div class="absolute bottom-3 left-3 rounded-full bg-white/90 px-2 py-1 text-[11px] font-semibold text-gray-700">
+                                {{ post.media_attachment_summary.image_count if post.media_attachment_summary else 0 }} 张
+                            </div>
+                        </div>
+                    </a>
+                    <div class="p-4">
+                        <a href="{{ post | post_url }}" class="line-clamp-2 text-base font-semibold text-gray-900 hover:text-cyan-600 dark:text-white dark:hover:text-cyan-300">
+                            {{ post.title or "相册内容" }}
+                        </a>
+                        <p class="mt-2 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">{{ post.excerpt or (post | post_preview_text(78)) }}</p>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+
+            {% elif media_slug == 'audio' %}
+            <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                {% for post in posts %}
+                <a href="{{ post | post_url }}" class="audio-row group flex items-center gap-4 border-b border-gray-100 p-4 transition hover:bg-cyan-50/70 dark:border-gray-700 dark:hover:bg-cyan-900/15 {% if loop.last %}border-b-0{% endif %}">
+                    <div class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow">
+                        <i class="fas fa-music"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="line-clamp-1 text-sm font-semibold text-gray-900 group-hover:text-cyan-700 dark:text-white dark:group-hover:text-cyan-300">
+                            {{ post.title or post.excerpt or "音频内容" }}
+                        </div>
+                        <div class="mt-1 line-clamp-1 text-xs text-gray-500 dark:text-gray-400">
+                            {{ post.excerpt or (post | post_preview_text(96)) }}
+                        </div>
+                    </div>
+                    <div class="text-right text-xs text-gray-500 dark:text-gray-400">
+                        <div>{{ post.author.username if post.author else "匿名" }}</div>
+                        <div>{{ post.published_at.strftime('%m-%d') if post.published_at else "-" }}</div>
+                    </div>
+                    <div class="text-cyan-600 dark:text-cyan-300">
+                        <i class="fas fa-chevron-right text-xs"></i>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+
+            {% elif media_slug == 'link' %}
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {% for post in posts %}
+                <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-cyan-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-cyan-700/60">
+                    <a href="{{ post | post_url }}" class="group block">
+                        <div class="mb-3 flex items-center gap-2 text-xs font-semibold text-cyan-700 dark:text-cyan-300">
+                            <i class="fas fa-link"></i>外链聚合
+                        </div>
+                        <h2 class="line-clamp-2 text-base font-semibold text-gray-900 group-hover:text-cyan-700 dark:text-white dark:group-hover:text-cyan-300">
+                            {{ post.title or post.excerpt or "外链内容" }}
+                        </h2>
+                        <p class="mt-2 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
+                            {{ post.excerpt or (post | post_preview_text(120)) }}
+                        </p>
+                        {% if post.media_primary_external_link %}
+                        <div class="mt-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                            <div class="line-clamp-1 font-semibold">{{ post.media_primary_external_domain or "外部站点" }}</div>
+                            <div class="line-clamp-1">{{ post.media_primary_external_link }}</div>
+                        </div>
+                        {% endif %}
+                        <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                            发布于 {{ post.published_at.strftime('%Y-%m-%d') if post.published_at else "-" }}
+                        </div>
+                    </a>
+                </article>
+                {% endfor %}
+            </div>
+
+            {% else %}
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                {% for post in posts %}
+                {% set cover_url = post.featured_image_url or (post.all_image_urls[0] if post.all_image_urls else '') %}
+                <article class="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                    <a href="{{ post | post_url }}" class="block">
+                        <div class="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-900">
+                            {% if cover_url %}
+                            <img src="{{ cover_url }}" alt="{{ post.title }}" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
+                            {% else %}
+                            <div class="flex h-full items-center justify-center text-gray-400 dark:text-gray-600">
+                                <i class="fas fa-image text-4xl"></i>
+                            </div>
+                            {% endif %}
+                            <div class="absolute bottom-3 right-3 rounded-full bg-black/65 px-2 py-1 text-[11px] font-semibold text-white">
+                                {{ post.media_attachment_summary.image_count if post.media_attachment_summary else 0 }} 图
+                            </div>
+                        </div>
+                    </a>
+                    <div class="p-4">
+                        <a href="{{ post | post_url }}" class="line-clamp-2 text-base font-semibold text-gray-900 transition-colors hover:text-cyan-700 dark:text-white dark:hover:text-cyan-300">
+                            {{ post.title or "图片内容" }}
+                        </a>
+                        <p class="mt-2 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
+                            {{ post.excerpt or (post | post_preview_text(90)) }}
+                        </p>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% else %}
+        <div class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center dark:border-gray-600 dark:bg-gray-900/40">
+            <i class="fas {{ media_item.icon }} text-4xl text-gray-400 dark:text-gray-500"></i>
+            <h2 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">该媒体分类暂无内容</h2>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">你可以先发布带有 {{ media_item.name }} 附件的内容，再回来查看聚合效果。</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<style>
+.video-play-bubble {
+    box-shadow: 0 12px 30px rgba(8, 145, 178, 0.45);
+}
+
+.media-masonry img {
+    max-height: 520px;
+}
+
+.line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+</style>
+{% endblock %}

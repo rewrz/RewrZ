@@ -1,69 +1,105 @@
-<div id="comment-form-{{ parent_id }}" class="reply-form bg-gray-100 p-4 rounded-lg mt-4">
-    <h4 class="text-lg font-semibold mb-3">回复 @{{ parent_author_name }}</h4>
-    <form hx-post="/api/v1/comments/{{ post_id }}" hx-target="#comments-list" hx-swap="beforeend" hx-on::after-request="this.reset(); document.getElementById('comment-form-{{ parent_id }}').innerHTML = '';">
+<div id="comment-form-{{ parent_id }}" class="reply-form rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 dark:border-indigo-700/50 dark:bg-indigo-900/20">
+    <h4 class="mb-3 text-sm font-semibold text-indigo-800 dark:text-indigo-300">回复 @{{ parent_author_name }}</h4>
+
+    <form
+        class="rewrz-comment-form space-y-4"
+        data-form-kind="reply"
+        hx-post="/api/v1/comments/{{ post_id }}"
+        hx-target="#comment-{{ parent_id }}-children"
+        hx-swap="beforeend"
+        hx-on::before-request="window.rewrzCommentUI && window.rewrzCommentUI.beforeRequest(this)"
+        hx-on::after-request="window.rewrzCommentUI && window.rewrzCommentUI.afterRequest(event, this); if (event.detail.successful) { this.reset(); const childBox = document.getElementById('comment-{{ parent_id }}-children'); if (childBox) childBox.classList.remove('hidden'); const wrap = document.getElementById('comment-form-{{ parent_id }}'); if (wrap) wrap.innerHTML = ''; }"
+        hx-on::response-error="window.rewrzCommentUI && window.rewrzCommentUI.onError(event, this)"
+    >
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <input type="hidden" name="parent_id" value="{{ parent_id }}">
         <input type="hidden" name="ft" value="{{ form_timestamp_token }}">
 
-        <!-- HoneyPot 字段：对人类不可见，机器人常会误填 -->
         <div class="absolute -left-[9999px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
             <label for="reply-hp-field-{{ parent_id }}">请勿填写</label>
+            <input type="text" id="reply-hp-field-{{ parent_id }}" name="hp_field" tabindex="-1" autocomplete="off" value="">
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-2">
+            <div>
+                <label for="reply_author_name_{{ parent_id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">昵称 <span class="text-rose-500">*</span></label>
+                <input
+                    type="text"
+                    id="reply_author_name_{{ parent_id }}"
+                    name="author_name"
+                    required
+                    maxlength="80"
+                    class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
+                >
+            </div>
+            <div>
+                <label for="reply_author_email_{{ parent_id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">邮箱 <span class="text-rose-500">*</span></label>
+                <input
+                    type="email"
+                    id="reply_author_email_{{ parent_id }}"
+                    name="author_email"
+                    required
+                    class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
+                >
+            </div>
+        </div>
+
+        <div>
+            <label for="reply_author_url_{{ parent_id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">个人网站（可选）</label>
             <input
-                type="text"
-                id="reply-hp-field-{{ parent_id }}"
-                name="hp_field"
-                tabindex="-1"
-                autocomplete="off"
-                value=""
+                type="url"
+                id="reply_author_url_{{ parent_id }}"
+                name="author_url"
+                placeholder="https://example.com"
+                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
             >
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-                <label for="reply_author_name_{{ parent_id }}" class="block text-sm font-medium text-gray-700">昵称 <span class="text-red-500">*</span></label>
-                <input type="text" id="reply_author_name_{{ parent_id }}" name="author_name" required
-                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
-            </div>
-            <div>
-                <label for="reply_author_email_{{ parent_id }}" class="block text-sm font-medium text-gray-700">邮箱 <span class="text-red-500">*</span></label>
-                <input type="email" id="reply_author_email_{{ parent_id }}" name="author_email" required
-                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
-            </div>
+        <div>
+            <label for="reply_content_{{ parent_id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">回复内容 <span class="text-rose-500">*</span></label>
+            <textarea
+                id="reply_content_{{ parent_id }}"
+                name="content"
+                rows="3"
+                required
+                maxlength="2000"
+                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
+            ></textarea>
         </div>
-        <div class="mb-4">
-            <label for="reply_author_url_{{ parent_id }}" class="block text-sm font-medium text-gray-700">个人网站/URL</label>
-            <input type="url" id="reply_author_url_{{ parent_id }}" name="author_url"
-                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
-        </div>
-        <div class="mb-4">
-            <label for="reply_content_{{ parent_id }}" class="block text-sm font-medium text-gray-700">评论内容 <span class="text-red-500">*</span></label>
-            <textarea id="reply_content_{{ parent_id }}" name="content" rows="3" required
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></textarea>
-        </div>
+
         {% if captcha_enabled %}
-        <div class="mb-4">
-            <label for="reply_captcha_{{ parent_id }}" class="block text-sm font-medium text-gray-700 mb-1">验证码</label>
-            <div class="flex items-center space-x-3">
+        <div>
+            <label for="reply_captcha_{{ parent_id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">验证码</label>
+            <div class="flex items-center gap-3">
                 <input
                     type="text"
                     id="reply_captcha_{{ parent_id }}"
                     name="captcha"
-                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
                     placeholder="请输入验证码"
                 >
-                <div class="captcha-image">
-                    <img src="/api/v1/captcha" alt="Captcha" onclick="this.src='/api/v1/captcha?t=' + new Date().getTime()">
-                </div>
+                <img
+                    class="h-9 rounded border border-gray-200 dark:border-gray-600"
+                    src="/api/v1/captcha"
+                    alt="验证码"
+                    onclick="this.src='/api/v1/captcha?t=' + Date.now()"
+                >
             </div>
         </div>
         {% endif %}
-        <div class="flex justify-end space-x-2">
-            <button type="button" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-                    hx-on:click="document.getElementById('comment-form-{{ parent_id }}').innerHTML = '';">
-                取消回复
+
+        <div class="flex items-center justify-end gap-2">
+            <button
+                type="button"
+                class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                onclick="document.getElementById('comment-form-{{ parent_id }}').innerHTML = ''"
+            >
+                取消
             </button>
-            <button type="submit"
-                    class="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+            <button
+                type="submit"
+                class="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-700"
+            >
                 提交回复
             </button>
         </div>

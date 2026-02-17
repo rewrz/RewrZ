@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from rewrz.models.base import Base
-from rewrz.models.tag import Tag
+from rewrz.models.post import Post
 from rewrz.schemas.tag import TagCreate, TagUpdate
 from rewrz.crud import tag as crud_tag
 
@@ -68,3 +68,23 @@ def test_delete_tag(db: Session):
     deleted_tag = crud_tag.delete_tag(db, tag_id=created_tag.id)
     assert deleted_tag.id == created_tag.id
     assert crud_tag.get_tag(db, tag_id=created_tag.id) is None
+
+
+def test_bulk_delete_tags(db: Session):
+    delete_me = crud_tag.create_tag(db, TagCreate(name="Bulk Delete Tag", slug="bulk-delete-tag"))
+    used_by_post = crud_tag.create_tag(db, TagCreate(name="Used By Post Tag", slug="used-by-post-tag"))
+    delete_me_id = delete_me.id
+    used_by_post_id = used_by_post.id
+
+    post = Post(title="Tag Test Post", slug="tag-test-post", content_markdown="x", content_html="<p>x</p>")
+    post.tags.append(used_by_post)
+    db.add(post)
+    db.commit()
+
+    result = crud_tag.bulk_delete_tags(db, [delete_me_id, used_by_post_id, 99999])
+
+    assert result["deleted_ids"] == [delete_me_id]
+    assert result["blocked_by_posts_ids"] == [used_by_post_id]
+    assert result["missing_ids"] == [99999]
+    assert crud_tag.get_tag(db, tag_id=delete_me_id) is None
+    assert crud_tag.get_tag(db, tag_id=used_by_post_id) is not None

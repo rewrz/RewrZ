@@ -1,149 +1,195 @@
-<!-- 评论表单组件 -->
-<div class="comment-form bg-white p-6 rounded-lg border border-gray-200">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">发表评论</h3>
-    
-    <form hx-post="/api/v1/comments/{{ post.id }}" 
-          hx-target="#comments-list" 
-          hx-swap="beforeend"
-          hx-on="htmx:afterRequest: this.reset()">
-        
+<div class="comment-form">
+    <form
+        class="rewrz-comment-form space-y-5"
+        data-form-kind="root"
+        hx-post="/api/v1/comments/{{ post.id }}"
+        hx-target="#comments-list"
+        hx-swap="beforeend"
+        hx-on::before-request="window.rewrzCommentUI && window.rewrzCommentUI.beforeRequest(this)"
+        hx-on::after-request="window.rewrzCommentUI && window.rewrzCommentUI.afterRequest(event, this); if (event.detail.successful) { this.reset(); }"
+        hx-on::response-error="window.rewrzCommentUI && window.rewrzCommentUI.onError(event, this)"
+    >
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <input type="hidden" name="ft" value="{{ form_timestamp_token }}">
 
-        <!-- HoneyPot 字段：对人类不可见，机器人常会误填 -->
         <div class="absolute -left-[9999px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
             <label for="hp-field-{{ post.id }}">请勿填写</label>
+            <input type="text" id="hp-field-{{ post.id }}" name="hp_field" tabindex="-1" autocomplete="off" value="">
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+            <div>
+                <label for="author_name" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">昵称 <span class="text-rose-500">*</span></label>
+                <div class="flex items-center gap-3">
+                    <img
+                        id="avatar-preview"
+                        class="h-11 w-11 rounded-full border border-gray-200 object-cover dark:border-gray-600"
+                        src="/static/images/default-avatar.png"
+                        alt="头像预览"
+                        loading="lazy"
+                    >
+                    <input
+                        type="text"
+                        id="author_name"
+                        name="author_name"
+                        class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
+                        required
+                        maxlength="80"
+                        placeholder="怎么称呼你？"
+                    >
+                </div>
+            </div>
+
+            <div>
+                <label for="author_email" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">邮箱 <span class="text-rose-500">*</span></label>
+                <input
+                    type="email"
+                    id="author_email"
+                    name="author_email"
+                    class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
+                    required
+                    placeholder="name@example.com"
+                    autocomplete="email"
+                >
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">邮箱不会公开，仅用于头像与通知。</p>
+            </div>
+        </div>
+
+        <div>
+            <label for="author_url" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">个人网站（可选）</label>
             <input
-                type="text"
-                id="hp-field-{{ post.id }}"
-                name="hp_field"
-                tabindex="-1"
-                autocomplete="off"
-                value=""
+                type="url"
+                id="author_url"
+                name="author_url"
+                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
+                placeholder="https://example.com"
             >
         </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <!-- 姓名输入框，带头像预览 -->
-            <div>
-                <label for="author_name" class="block text-sm font-medium text-gray-700 mb-1">姓名 *</label>
-                <div class="flex items-center space-x-3">
-                    <!-- 头像预览 -->
-                    <div class="flex-shrink-0">
-                        <img id="avatar-preview" 
-                             class="w-10 h-10 rounded-full border-2 border-gray-200" 
-                             src="/static/images/default-avatar.png" 
-                             alt="头像预览"
-                             loading="lazy">
-                    </div>
-                    <div class="flex-1">
-                        <input type="text" 
-                               id="author_name" 
-                               name="author_name" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                               required>
-                    </div>
-                </div>
+
+        <div>
+            <div class="mb-1 flex items-center justify-between gap-3">
+                <label for="content" class="block text-sm font-medium text-gray-700 dark:text-gray-300">评论内容 <span class="text-rose-500">*</span></label>
+                <span id="comment-content-count" class="text-xs text-gray-500 dark:text-gray-400">0 字</span>
             </div>
-            
-            <!-- 邮箱输入框 -->
-            <div>
-                <label for="author_email" class="block text-sm font-medium text-gray-700 mb-1">邮箱 *</label>
-                <input type="email" 
-                       id="author_email" 
-                       name="author_email" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                       required
-                       onchange="updateAvatarPreview(this.value)">
-                <p class="text-xs text-gray-500 mt-1">邮箱不会被公开，用于显示Gravatar头像</p>
+            <textarea
+                id="content"
+                name="content"
+                rows="5"
+                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
+                required
+                maxlength="3000"
+                placeholder="支持 Markdown，欢迎友善交流。"
+            ></textarea>
+            <div class="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <span>支持基础 Markdown 与链接。</span>
+                <span>请勿发布违法或攻击性内容。</span>
             </div>
         </div>
-        
-        <!-- 网站输入框 -->
-        <div class="mb-4">
-            <label for="author_url" class="block text-sm font-medium text-gray-700 mb-1">网站（可选）</label>
-            <input type="url" 
-                   id="author_url" 
-                   name="author_url" 
-                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                   placeholder="https://example.com">
-        </div>
-        
-        <!-- 评论内容 -->
-        <div class="mb-4">
-            <label for="content" class="block text-sm font-medium text-gray-700 mb-1">评论内容 *</label>
-            <textarea id="content" 
-                      name="content" 
-                      rows="4" 
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                      required
-                      placeholder="支持Markdown格式..."></textarea>
-            <div class="text-xs text-gray-500 mt-1 flex justify-between">
-                <span>支持Markdown语法，允许使用基本HTML标签</span>
-                <span>请文明发言，遵守相关法律法规</span>
-            </div>
-        </div>
-        
-        <!-- 验证码（如果需要） -->
+
         {% if captcha_enabled %}
-        <div class="mb-4">
-            <label for="captcha" class="block text-sm font-medium text-gray-700 mb-1">验证码</label>
-            <div class="flex items-center space-x-3">
-                <input type="text" 
-                       id="captcha" 
-                       name="captcha" 
-                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                       placeholder="请输入验证码">
-                <div class="captcha-image">
-                    <img src="/api/v1/captcha" alt="Captcha" onclick="this.src='/api/v1/captcha?t=' + new Date().getTime()">
-                </div>
+        <div>
+            <label for="captcha" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">验证码</label>
+            <div class="flex items-center gap-3">
+                <input
+                    type="text"
+                    id="captcha"
+                    name="captcha"
+                    class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
+                    placeholder="请输入验证码"
+                >
+                <img
+                    class="h-10 rounded-md border border-gray-200 dark:border-gray-600"
+                    src="/api/v1/captcha"
+                    alt="验证码"
+                    onclick="this.src='/api/v1/captcha?t=' + Date.now()"
+                >
             </div>
         </div>
         {% endif %}
-        
-        <!-- 提交按钮 -->
-        <div class="flex justify-between items-center">
-            <div class="text-sm text-gray-600">
-                <span class="text-red-500">*</span> 必填项
-            </div>
-            <button type="submit" 
-                    class="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-                    hx-indicator="#submit-spinner">
-                <span id="submit-spinner" class="htmx-indicator">
-                    <svg class="animate-spin -ml-1 mr-3 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                </span>
-                发表评论
+
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <span class="text-xs text-gray-500 dark:text-gray-400"><span class="text-rose-500">*</span> 为必填项</span>
+            <button
+                type="submit"
+                class="inline-flex items-center rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-900/50"
+            >
+                <svg class="mr-2 hidden h-4 w-4 animate-spin" data-role="submit-spinner" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"></path>
+                </svg>
+                发布评论
             </button>
         </div>
     </form>
 </div>
 
-<!-- 引入crypto-js用于MD5计算 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-
-<!-- JavaScript for avatar preview -->
 <script>
-function updateAvatarPreview(email) {
-    if (!email) {
-        document.getElementById('avatar-preview').src = '/static/images/default-avatar.png';
-        return;
-    }
-    
-    // 生成Gravatar URL
-    const emailHash = CryptoJS.MD5(email.toLowerCase().trim()).toString();
-    const gravatarUrl = `https://www.gravatar.com/avatar/${emailHash}?s=40&d=identicon&r=g`;
-    
-    document.getElementById('avatar-preview').src = gravatarUrl;
-}
+(function enhanceRootCommentForm() {
+    const form = document.querySelector('.rewrz-comment-form[data-form-kind="root"]');
+    if (!form || form.dataset.enhanced === '1') return;
+    form.dataset.enhanced = '1';
 
-// 页面加载时初始化头像预览
-document.addEventListener('DOMContentLoaded', function() {
-    const emailInput = document.getElementById('author_email');
-    if (emailInput && emailInput.value) {
-        updateAvatarPreview(emailInput.value);
+    const emailInput = form.querySelector('#author_email');
+    const avatarImg = form.querySelector('#avatar-preview');
+    const contentInput = form.querySelector('#content');
+    const countNode = form.querySelector('#comment-content-count');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const submitSpinner = form.querySelector('[data-role="submit-spinner"]');
+
+    const setAvatar = (url) => {
+        if (!avatarImg) return;
+        avatarImg.src = url || '/static/images/default-avatar.png';
+    };
+
+    let avatarTimer = null;
+    const loadAvatarPreview = async (email) => {
+        const cleanEmail = (email || '').trim();
+        if (!cleanEmail) {
+            setAvatar('/static/images/default-avatar.png');
+            return;
+        }
+        try {
+            const response = await fetch(`/api/v1/avatar/preview?email=${encodeURIComponent(cleanEmail)}&size=48`);
+            if (!response.ok) throw new Error('avatar preview failed');
+            const data = await response.json();
+            setAvatar(data.gravatar_url || '/static/images/default-avatar.png');
+        } catch (_) {
+            setAvatar('/static/images/default-avatar.png');
+        }
+    };
+
+    if (emailInput) {
+        emailInput.addEventListener('input', () => {
+            clearTimeout(avatarTimer);
+            avatarTimer = setTimeout(() => loadAvatarPreview(emailInput.value), 320);
+        });
+        if (emailInput.value) loadAvatarPreview(emailInput.value);
     }
-});
+
+    const updateWordCount = () => {
+        if (!contentInput || !countNode) return;
+        const count = (contentInput.value || '').trim().length;
+        countNode.textContent = `${count} 字`;
+        countNode.classList.toggle('text-rose-500', count > 2500);
+    };
+
+    if (contentInput) {
+        contentInput.addEventListener('input', updateWordCount);
+        updateWordCount();
+    }
+
+    form.addEventListener('htmx:beforeRequest', () => {
+        if (submitBtn) submitBtn.disabled = true;
+        if (submitSpinner) submitSpinner.classList.remove('hidden');
+    });
+    form.addEventListener('htmx:afterRequest', () => {
+        if (submitBtn) submitBtn.disabled = false;
+        if (submitSpinner) submitSpinner.classList.add('hidden');
+        updateWordCount();
+    });
+    form.addEventListener('htmx:responseError', () => {
+        if (submitBtn) submitBtn.disabled = false;
+        if (submitSpinner) submitSpinner.classList.add('hidden');
+    });
+})();
 </script>

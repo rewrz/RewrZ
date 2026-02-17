@@ -65,6 +65,13 @@ def test_comment_admin_actions_have_v1_paths():
     assert "/api/v1/comments/{comment_id}/reply" in paths
 
 
+def test_comment_bulk_action_route_is_not_shadowed_by_create_comment_route():
+    client = TestClient(main_module.app)
+    response = client.post("/api/v1/comments/bulk-action")
+    # If bulk route is shadowed by /api/v1/comments/{post_id}, this becomes 422.
+    assert response.status_code != 422
+
+
 def test_data_management_api_has_v1_and_legacy_paths():
     paths = _paths(data_import_export.router)
     assert "/api/v1/export/json" in paths
@@ -177,6 +184,8 @@ def test_no_conflicting_top_level_format_alias_routes():
     assert "/video" not in app_paths
     assert "/music" not in app_paths
     assert "/formats/{format_slug}" in app_paths
+    # Media aggregate uses archives prefix to avoid collision with /media static mount.
+    assert "/archives/media/{media_slug}" in app_paths
 
 
 def test_docs_endpoints_are_disabled_for_security():

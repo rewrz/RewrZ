@@ -10,10 +10,12 @@ from rewrz.models.category import Category
 from rewrz.models.tag import Tag
 from rewrz.schemas.user import UserCreate
 from rewrz.schemas.post import PostCreate, PostUpdate
+from rewrz.schemas.comment import CommentCreate
 from rewrz.schemas.category import CategoryCreate
 from rewrz.schemas.tag import TagCreate
 from rewrz.crud import user as crud_user
 from rewrz.crud import post as crud_post
+from rewrz.crud import comment as crud_comment
 from rewrz.crud import category as crud_category
 from rewrz.crud import tag as crud_tag
 
@@ -180,6 +182,49 @@ def test_delete_post(db: Session, test_user: User):
     assert crud_post.get_post(db, post_id=created_post.id) is None
 
 
+def test_delete_post_also_deletes_related_comments(db: Session, test_user: User):
+    created_post = crud_post.create_post(
+        db,
+        PostCreate(
+            title="Delete With Comments",
+            slug="delete-with-comments",
+            content_markdown="Content",
+            post_type="article",
+            status="published",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+    )
+
+    parent = crud_comment.create_comment(
+        db,
+        CommentCreate(
+            post_id=created_post.id,
+            author_name="A",
+            author_email="a@example.com",
+            content="Parent",
+            status="approved",
+        ),
+    )
+    crud_comment.create_comment(
+        db,
+        CommentCreate(
+            post_id=created_post.id,
+            parent_id=parent.id,
+            author_name="B",
+            author_email="b@example.com",
+            content="Child",
+            status="approved",
+        ),
+    )
+
+    deleted_post = crud_post.delete_post(db, post_id=created_post.id)
+    assert deleted_post is not None
+    assert crud_post.get_post(db, post_id=created_post.id) is None
+    assert crud_comment.get_comments_for_post(db, created_post.id) == []
+
+
 def test_delete_posts_by_ids_only_deletes_target_author_posts(db: Session, test_user: User):
     another_user = crud_user.create_user(
         db,
@@ -236,6 +281,144 @@ def test_delete_posts_by_ids_only_deletes_target_author_posts(db: Session, test_
     assert crud_post.get_post(db, post_id=owned_post_1.id) is None
     assert crud_post.get_post(db, post_id=owned_post_2.id) is None
     assert crud_post.get_post(db, post_id=other_user_post.id) is not None
+
+
+def test_delete_posts_by_ids_also_deletes_comments_for_deleted_posts(db: Session, test_user: User):
+    another_user = crud_user.create_user(
+        db,
+        UserCreate(username="another2", email="another2@example.com", password="password"),
+    )
+
+    owned_post = crud_post.create_post(
+        db,
+        PostCreate(
+            title="Owned Post With Comment",
+            slug="owned-post-with-comment",
+            content_markdown="Content",
+            post_type="article",
+            status="published",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+    )
+    other_user_post = crud_post.create_post(
+        db,
+        PostCreate(
+            title="Other Post With Comment",
+            slug="other-post-with-comment",
+            content_markdown="Content",
+            post_type="article",
+            status="published",
+            visibility="public",
+            author_id=another_user.id,
+        ),
+        author_id=another_user.id,
+    )
+
+    crud_comment.create_comment(
+        db,
+        CommentCreate(
+            post_id=owned_post.id,
+            author_name="Owned",
+            author_email="owned@example.com",
+            content="Owned comment",
+            status="approved",
+        ),
+    )
+    crud_comment.create_comment(
+        db,
+        CommentCreate(
+            post_id=other_user_post.id,
+            author_name="Other",
+            author_email="other@example.com",
+            content="Other comment",
+            status="approved",
+        ),
+    )
+
+    deleted_count = crud_post.delete_posts_by_ids(
+        db,
+        post_ids=[owned_post.id, other_user_post.id],
+        author_id=test_user.id,
+    )
+
+    assert deleted_count == 1
+    assert crud_post.get_post(db, post_id=owned_post.id) is None
+    assert crud_post.get_post(db, post_id=other_user_post.id) is not None
+    assert crud_comment.get_comments_for_post(db, owned_post.id) == []
+    assert len(crud_comment.get_comments_for_post(db, other_user_post.id)) == 1
+
+
+def test_bulk_update_posts_status_by_ids_only_updates_target_author_posts(db: Session, test_user: User):
+    another_user = crud_user.create_user(
+        db,
+        UserCreate(username="bulkstatus", email="bulkstatus@example.com", password="password"),
+    )
+
+    owned_draft = crud_post.create_post(
+        db,
+        PostCreate(
+            title="Owned Draft",
+            slug="owned-draft",
+            content_markdown="Content",
+            post_type="article",
+            status="draft",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+    )
+    owned_published = crud_post.create_post(
+        db,
+        PostCreate(
+            title="Owned Published",
+            slug="owned-published",
+            content_markdown="Content",
+            post_type="article",
+            status="published",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+    )
+    other_user_post = crud_post.create_post(
+        db,
+        PostCreate(
+            title="Other User Draft",
+            slug="other-user-draft",
+            content_markdown="Content",
+            post_type="article",
+            status="draft",
+            visibility="public",
+            author_id=another_user.id,
+        ),
+        author_id=another_user.id,
+    )
+
+    updated_count = crud_post.bulk_update_posts_status_by_ids(
+        db,
+        post_ids=[owned_draft.id, owned_published.id, other_user_post.id, owned_draft.id],
+        status="published",
+        author_id=test_user.id,
+    )
+
+    assert updated_count == 2
+    assert crud_post.get_post(db, post_id=owned_draft.id).status == "published"
+    assert crud_post.get_post(db, post_id=owned_draft.id).published_at is not None
+    assert crud_post.get_post(db, post_id=other_user_post.id).status == "draft"
+
+    drafted_count = crud_post.bulk_update_posts_status_by_ids(
+        db,
+        post_ids=[owned_draft.id, owned_published.id],
+        status="draft",
+        author_id=test_user.id,
+    )
+    assert drafted_count == 2
+    assert crud_post.get_post(db, post_id=owned_draft.id).status == "draft"
+    assert crud_post.get_post(db, post_id=owned_draft.id).published_at is None
+    assert crud_post.get_post(db, post_id=owned_published.id).status == "draft"
+    assert crud_post.get_post(db, post_id=owned_published.id).published_at is None
 
 def test_post_excerpt_generation(db: Session, test_user: User):
     long_content = "A" * 200

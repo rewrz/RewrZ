@@ -1,35 +1,131 @@
-<!--
-评论组件
-
-使用方法：
-在文章详情页面中使用：
-
-需要在上下文中提供：
-- post: 当前文章对象
-- db: 数据库会话 (通过 request.state.db)
-- request: Starlette Request 对象
--->
-
 {% if post.allow_comments %}
-<div class="comments-section mt-8">
-    <h3 class="text-xl font-bold text-gray-800 mb-4">所有评论 ({{ post.comments|length }})</h3>
-    
-    {% if post.comments %}
-    <div id="comments-list" class="space-y-6">
-        {% for comment in post.comments if not comment.parent_id %}
-            {% include "components/comment_item.html" %}
-        {% endfor %}
+{% set total_comments = post.comments | length %}
+{% set root_comments = post.comments | selectattr('parent_id', 'none') | list %}
+
+<div class="comments-section mt-8" data-post-id="{{ post.id }}">
+    <div class="mb-5 rounded-2xl border border-gray-200 bg-gradient-to-r from-slate-50 to-blue-50 p-4 shadow-sm dark:border-gray-700 dark:from-gray-900 dark:to-slate-900">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300">
+                    <i class="far fa-comments"></i>
+                </span>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">评论区</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">欢迎理性交流，系统已启用反垃圾与审核机制。</p>
+                </div>
+            </div>
+            <span id="comment-count-badge" class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700 shadow-sm dark:bg-gray-800 dark:text-indigo-300">
+                {{ total_comments }} 条评论
+            </span>
+        </div>
     </div>
-    {% else %}
-    <div id="comments-list">
-        <p class="text-gray-600">目前还没有评论。成为第一个评论者吧！</p>
+
+    <div id="comment-feedback" class="mb-4" aria-live="polite"></div>
+
+    <div id="comments-list" class="space-y-4">
+        {% if root_comments %}
+            {% for comment in root_comments %}
+                {% include "components/comment_item.html" %}
+            {% endfor %}
+        {% else %}
+        <div id="comment-empty-state" class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-600 dark:border-gray-600 dark:bg-gray-900/40 dark:text-gray-300">
+            还没有评论，欢迎发表第一条看法。
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
-    
-    <div class="mt-8">
-        <h3 class="text-xl font-bold text-gray-800 mb-4">发表评论</h3>
-        <!-- 通过HTMX获取评论表单，确保form_timestamp等变量正确传递 -->
+
+    <div id="comment-form-area" class="mt-8 rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/70 md:p-6">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">发表评论</h3>
+            <span class="text-xs text-gray-500 dark:text-gray-400">支持 Markdown 与基础链接</span>
+        </div>
         <div hx-get="/api/v1/comments/form/{{ post.id }}" hx-trigger="load"></div>
     </div>
 </div>
+
+<script>
+(function initCommentUi() {
+    if (window.rewrzCommentUI) return;
+
+    const FEEDBACK_LEVEL_CLASS = {
+        success: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300',
+        info: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800/60 dark:bg-sky-900/20 dark:text-sky-300',
+        warning: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300',
+        error: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/60 dark:bg-rose-900/20 dark:text-rose-300',
+    };
+
+    const showFeedback = (message, level = 'info') => {
+        const box = document.getElementById('comment-feedback');
+        if (!box) return;
+        const classes = FEEDBACK_LEVEL_CLASS[level] || FEEDBACK_LEVEL_CLASS.info;
+        box.innerHTML = `<div class="rounded-xl border px-3 py-2 text-sm ${classes}">${message}</div>`;
+
+        if (window.multiFormatInteractions && typeof window.multiFormatInteractions.showToast === 'function') {
+            window.multiFormatInteractions.showToast(message, level === 'error' ? 'error' : (level === 'success' ? 'success' : 'info'), 1600);
+        }
+    };
+
+    const updateCount = (delta = 0) => {
+        const badge = document.getElementById('comment-count-badge');
+        if (!badge) return;
+        const current = parseInt((badge.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
+        const next = Math.max(0, current + delta);
+        badge.textContent = `${next} 条评论`;
+    };
+
+    const extractErrorMessage = (xhr) => {
+        if (!xhr) return '评论提交失败，请稍后重试。';
+        try {
+            const payload = JSON.parse(xhr.responseText || '{}');
+            if (payload && typeof payload.detail === 'string' && payload.detail.trim()) {
+                return payload.detail.trim();
+            }
+        } catch (_) {
+            // ignore parse errors
+        }
+        return xhr.status === 429 ? '提交过于频繁，请稍后再试。' : '评论提交失败，请稍后重试。';
+    };
+
+    const toggleSubmitState = (form, pending) => {
+        if (!form) return;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (!submitBtn) return;
+        submitBtn.disabled = !!pending;
+        submitBtn.classList.toggle('opacity-70', !!pending);
+        submitBtn.classList.toggle('cursor-not-allowed', !!pending);
+    };
+
+    window.rewrzCommentUI = {
+        beforeRequest(form) {
+            toggleSubmitState(form, true);
+        },
+        afterRequest(event, form) {
+            toggleSubmitState(form, false);
+
+            const xhr = event && event.detail ? event.detail.xhr : null;
+            const responseText = xhr && typeof xhr.responseText === 'string' ? xhr.responseText : '';
+            const success = !!xhr && xhr.status >= 200 && xhr.status < 300;
+            if (!success) return;
+
+            if (responseText.includes('id="comment-')) {
+                const empty = document.getElementById('comment-empty-state');
+                if (empty) empty.remove();
+                updateCount(1);
+                showFeedback('评论发布成功。', 'success');
+            } else if (responseText.includes('等待审核')) {
+                showFeedback('评论已提交，待审核后展示。', 'warning');
+            } else if (responseText.includes('评论提交成功')) {
+                showFeedback('评论已提交成功。', 'success');
+            } else {
+                showFeedback('操作已完成。', 'info');
+            }
+        },
+        onError(event, form) {
+            toggleSubmitState(form, false);
+            const xhr = event && event.detail ? event.detail.xhr : null;
+            showFeedback(extractErrorMessage(xhr), 'error');
+        },
+    };
+})();
+</script>
 {% endif %}

@@ -357,15 +357,30 @@ def bulk_delete_media_items(
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
-    media_ids = list(dict.fromkeys(payload.media_ids or []))
+    media_ids = []
+    seen = set()
+    for media_id in payload.media_ids or []:
+        try:
+            value = int(media_id)
+        except (TypeError, ValueError):
+            continue
+        if value <= 0 or value in seen:
+            continue
+        seen.add(value)
+        media_ids.append(value)
     if not media_ids:
-        raise HTTPException(status_code=400, detail="No media IDs provided")
+        raise HTTPException(status_code=400, detail="未提供有效的媒体ID")
 
+    media_items = db.execute(select(MediaModel).filter(MediaModel.id.in_(media_ids))).scalars().all()
+    media_map = {item.id: item for item in media_items}
+
+    deletable_items: List[MediaModel] = []
+    deletable_ids: List[int] = []
     deleted_ids: List[int] = []
     skipped: List[dict] = []
 
     for media_id in media_ids:
-        db_media = crud_media.get_media(db, media_id=media_id)
+        db_media = media_map.get(media_id)
         if db_media is None:
             skipped.append({"id": media_id, "reason": "not_found"})
             continue
@@ -373,9 +388,20 @@ def bulk_delete_media_items(
             skipped.append({"id": media_id, "reason": "forbidden"})
             continue
 
-        _delete_media_files(db_media)
-        crud_media.delete_media(db=db, media_id=media_id)
-        deleted_ids.append(media_id)
+        deletable_items.append(db_media)
+        deletable_ids.append(media_id)
+
+    if deletable_ids:
+        try:
+            db.query(MediaModel).filter(MediaModel.id.in_(deletable_ids)).delete(synchronize_session=False)
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"批量删除媒体记录失败: {exc}") from exc
+
+        for media_item in deletable_items:
+            _delete_media_files(media_item)
+        deleted_ids = deletable_ids
 
     return {
         "requested_count": len(media_ids),

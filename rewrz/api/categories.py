@@ -2,7 +2,6 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from slugify import slugify
 
@@ -75,22 +74,34 @@ def bulk_action_categories(payload: CategoryBulkAction, db: Session = Depends(ge
         seen.add(value)
         category_ids.append(value)
 
-    deleted_ids: List[int] = []
-    failed = []
+    try:
+        result = crud.category.bulk_delete_categories(db, category_ids=category_ids)
+    except Exception as exc:
+        db.rollback()
+        failed = [{"id": category_id, "reason": str(exc) or "未知错误"} for category_id in category_ids]
+        return {
+            "success": False,
+            "action": "delete",
+            "requested_count": len(category_ids),
+            "deleted_count": 0,
+            "failed_count": len(failed),
+            "deleted_ids": [],
+            "failed": failed,
+        }
 
+    deleted_ids = result["deleted_ids"]
+    missing_ids = set(result["missing_ids"])
+    blocked_by_posts_ids = set(result["blocked_by_posts_ids"])
+    blocked_by_children_ids = set(result["blocked_by_children_ids"])
+
+    failed = []
     for category_id in category_ids:
-        try:
-            deleted = crud.category.delete_category(db, category_id=category_id)
-            if deleted is None:
-                failed.append({"id": category_id, "reason": "分类不存在"})
-                continue
-            deleted_ids.append(category_id)
-        except IntegrityError:
-            db.rollback()
+        if category_id in missing_ids:
+            failed.append({"id": category_id, "reason": "分类不存在"})
+        elif category_id in blocked_by_posts_ids:
             failed.append({"id": category_id, "reason": "分类下存在文章关联，无法删除"})
-        except Exception as exc:
-            db.rollback()
-            failed.append({"id": category_id, "reason": str(exc) or "未知错误"})
+        elif category_id in blocked_by_children_ids:
+            failed.append({"id": category_id, "reason": "分类存在子分类关联，无法删除"})
 
     return {
         "success": len(failed) == 0,

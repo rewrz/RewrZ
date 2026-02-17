@@ -7,6 +7,8 @@ from fastapi import Request
 from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..crud import format as crud_format, post as crud_post
+from ..core.content_intents import INTENT_SLUGS, normalize_intent_slug
+from ..core.media_attachments import get_default_media_navigation
 
 # 主页个性化设置键常量，集中管理，避免魔法字符串分散各处
 HOMEPAGE_SETTING_KEYS = [
@@ -59,8 +61,16 @@ def build_base_template_context(request: Request) -> dict:
         db_gen = get_db()
         db = next(db_gen)
     
-    # 获取所有文章格式
-    post_formats = crud_format.get_formats(db)
+    # 仅保留三种内容类型，避免旧格式继续出现在导航中
+    all_formats = crud_format.get_formats(db)
+    intent_order = {slug: index for index, slug in enumerate(INTENT_SLUGS)}
+    post_formats = [
+        fmt for fmt in all_formats
+        if normalize_intent_slug(getattr(fmt, "slug", None)) in INTENT_SLUGS
+    ]
+    post_formats.sort(
+        key=lambda fmt: intent_order.get(normalize_intent_slug(getattr(fmt, "slug", None)) or "", 999)
+    )
 
     # 获取所有已发布的自定义页面
     custom_pages = crud_post.get_posts(db, post_type="page", status="published")
@@ -106,6 +116,7 @@ def build_base_template_context(request: Request) -> dict:
         
         # 动态导航菜单数据
         "post_formats": post_formats,
+        "media_nav_items": get_default_media_navigation(),
         "custom_pages": custom_pages,
     }
     
@@ -116,3 +127,4 @@ def build_base_template_context(request: Request) -> dict:
             pass
 
     return context
+

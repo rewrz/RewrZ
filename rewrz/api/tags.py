@@ -2,7 +2,6 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from slugify import slugify
 
@@ -68,22 +67,31 @@ def bulk_action_tags(payload: TagBulkAction, db: Session = Depends(get_db)):
         seen.add(value)
         tag_ids.append(value)
 
-    deleted_ids: List[int] = []
-    failed = []
+    try:
+        result = crud.tag.bulk_delete_tags(db, tag_ids=tag_ids)
+    except Exception as exc:
+        db.rollback()
+        failed = [{"id": tag_id, "reason": str(exc) or "未知错误"} for tag_id in tag_ids]
+        return {
+            "success": False,
+            "action": "delete",
+            "requested_count": len(tag_ids),
+            "deleted_count": 0,
+            "failed_count": len(failed),
+            "deleted_ids": [],
+            "failed": failed,
+        }
 
+    deleted_ids = result["deleted_ids"]
+    missing_ids = set(result["missing_ids"])
+    blocked_by_posts_ids = set(result["blocked_by_posts_ids"])
+
+    failed = []
     for tag_id in tag_ids:
-        try:
-            deleted = crud.tag.delete_tag(db, tag_id=tag_id)
-            if deleted is None:
-                failed.append({"id": tag_id, "reason": "标签不存在"})
-                continue
-            deleted_ids.append(tag_id)
-        except IntegrityError:
-            db.rollback()
+        if tag_id in missing_ids:
+            failed.append({"id": tag_id, "reason": "标签不存在"})
+        elif tag_id in blocked_by_posts_ids:
             failed.append({"id": tag_id, "reason": "标签存在文章关联，无法删除"})
-        except Exception as exc:
-            db.rollback()
-            failed.append({"id": tag_id, "reason": str(exc) or "未知错误"})
 
     return {
         "success": len(failed) == 0,

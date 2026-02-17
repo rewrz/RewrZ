@@ -29,6 +29,7 @@ from ..core.data_manager import (
     get_rewrz_importer,
     DEFAULT_WP_IMPORT_OPTIONS,
 )
+from ..core.content_intents import normalize_intent_slug
 from ..schemas import User
 from datetime import datetime
 from ..crud import setting as crud_setting
@@ -73,27 +74,27 @@ def _normalize_wp_import_options(payload: Optional[Dict[str, Any]]) -> Dict[str,
             map_items.append((left, right))
 
     alias_map = {
+        "weibo": "micro",
+        "micro": "micro",
+        "micro_post": "micro",
+        "status": "micro",
+        "aside": "micro",
         "post": "article",
         "standard": "article",
-        "weibo": "micro-post",
-        "micro": "micro-post",
-        "micro_post": "micro-post",
-        "photo": "photo-album",
-        "gallery": "photo-album",
-        "album": "photo-album",
-        "poetry": "poetry-song",
-        "song": "poetry-song",
-        "微博": "micro-post",
+        "article": "article",
+        "poetry": "poem",
+        "song": "poem",
+        "audio": "poem",
+        "微博": "micro",
         "标准文章": "article",
-        "相册": "photo-album",
-        "视频": "video",
-        "诗词歌赋": "poetry-song",
+        "文章": "article",
+        "诗词歌赋": "poem",
     }
     for raw_key, raw_value in map_items:
         key = re.sub(r"[^a-z0-9_-]+", "", raw_key.strip().lower())
         target_raw = str(raw_value or "").strip().lower()
         mapped_target = alias_map.get(target_raw, target_raw)
-        target = re.sub(r"[^a-z0-9_-]+", "-", mapped_target).strip("-")
+        target = normalize_intent_slug(re.sub(r"[^a-z0-9_-]+", "-", mapped_target).strip("-"))
         if key and target:
             normalized_map[key] = target
     merged["post_type_format_map"] = dict(sorted(normalized_map.items()))
@@ -748,3 +749,4 @@ def _cleanup_temp_files(temp_dir: str):
             shutil.rmtree(temp_dir)
     except Exception as e:
         print(f"清理临时文件失败: {str(e)}")
+

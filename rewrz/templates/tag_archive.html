@@ -1,27 +1,36 @@
 {% extends "base.html" %}
 
-{% block title %}标签: {{ tag.name }} - RewrZ{% endblock %}
+{% block title %}标签：{{ tag.name }} - RewrZ{% endblock %}
 
 {% block content %}
-<h1 class="text-4xl font-bold text-gray-900 mb-8">标签: {{ tag.name }}</h1>
+<section class="py-8">
+    <div class="container mx-auto max-w-6xl px-4">
+        <div class="mb-7 rounded-2xl border border-fuchsia-200 bg-gradient-to-r from-fuchsia-50 to-white p-5 shadow-sm dark:border-fuchsia-700/40 dark:from-fuchsia-900/20 dark:to-gray-900">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="min-w-0">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-fuchsia-600 dark:text-fuchsia-300">标签聚合</p>
+                    <h1 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">#{{ tag.name }}</h1>
+                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">此标签下共 {{ posts|length }} 条内容，适合追踪同主题阅读。</p>
+                </div>
+                <a href="/archives" class="inline-flex items-center rounded-full bg-white px-4 py-2 text-xs font-semibold text-fuchsia-700 shadow-sm transition hover:bg-fuchsia-100 dark:bg-gray-800 dark:text-fuchsia-300 dark:hover:bg-fuchsia-900/40">
+                    <i class="fas fa-stream mr-1"></i>返回归档
+                </a>
+            </div>
+        </div>
 
-{% if posts %}
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-    {% for post in posts %}
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        {% if post.featured_image_url %}
-        {{ post.featured_image_url | responsive_image(post.title, "w-full h-48 object-cover rounded-lg mb-4", "(max-width: 768px) 100vw, (max-width: 1200px) 600px, 800px", request.state.db) | safe }}
+        {% if posts %}
+        <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+            {% for post in posts %}
+            <article class="rounded-2xl border border-gray-200/70 bg-white/70 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/70">
+                {% include "components/timeline_card.html" %}
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center text-gray-600 dark:border-gray-600 dark:bg-gray-900/40 dark:text-gray-300">
+            此标签下暂无内容。
+        </div>
         {% endif %}
-        <h2 class="text-2xl font-semibold text-gray-800 mb-2">
-            <a href="{{ post | post_url }}" class="hover:text-indigo-600">{{ post.title }}</a>
-        </h2>
-        <p class="text-gray-600 text-sm mb-4">发布于 {{ post.published_at.strftime('%Y年%m月%d日') }}</p>
-        <p class="text-gray-700">{{ post.excerpt }}</p>
-        <a href="{{ post | post_url }}" class="inline-block mt-4 text-indigo-600 hover:underline">阅读更多 &rarr;</a>
     </div>
-    {% endfor %}
-</div>
-{% else %}
-<p class="text-gray-600">此标签下暂无文章。</p>
-{% endif %}
+</section>
 {% endblock %}

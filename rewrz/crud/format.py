@@ -18,6 +18,10 @@ def get_format_by_slug(db: Session, slug: str) -> Optional[Format]:
     """根据格式别名获取格式信息"""
     return db.execute(select(Format).filter(Format.slug == slug)).scalar_one_or_none()
 
+def get_format_by_name(db: Session, name: str) -> Optional[Format]:
+    """根据格式名称获取格式信息"""
+    return db.execute(select(Format).filter(Format.name == name)).scalar_one_or_none()
+
 def get_formats(db: Session, skip: int = 0, limit: int = 100) -> List[Format]:
     """获取所有格式列表，支持分页"""
     return db.execute(select(Format).offset(skip).limit(limit)).scalars().all()
@@ -29,6 +33,19 @@ def create_format(db: Session, format: FormatCreate) -> Format:
     """
     # 仅在未提供别名时自动生成
     slug = format.slug if format.slug else slugify(format.name)
+    existing_by_slug = get_format_by_slug(db, slug)
+    if existing_by_slug:
+        return existing_by_slug
+
+    # 开发阶段强制收敛：同名即视为同一格式，直接更新为当前slug
+    existing_by_name = get_format_by_name(db, format.name)
+    if existing_by_name:
+        if existing_by_name.slug != slug:
+            existing_by_name.slug = slug
+            db.commit()
+            db.refresh(existing_by_name)
+        return existing_by_name
+
     db_format = Format(name=format.name, slug=slug)
     db.add(db_format)
     db.commit()

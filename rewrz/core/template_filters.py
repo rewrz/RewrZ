@@ -22,6 +22,7 @@ from .content_utils import (
     markdown_to_plain_text,
     html_to_plain_text,
 )
+from .content_intents import choose_primary_intent_slug, to_public_post_segment
 from ..core.config import settings # 导入settings
 from ..core.database import get_db
 
@@ -446,25 +447,13 @@ def post_url_filter(post) -> str:
     if not post or not hasattr(post, 'slug'):
         return "#"
     
-    # 获取文章的主要格式slug
-    # 优先选择差异化展示格式，避免多格式内容总是回落到 article。
-    format_slug = "article"  # 默认格式
+    available_slugs = []
     if hasattr(post, 'formats') and post.formats:
         available_slugs = [fmt.slug for fmt in post.formats if getattr(fmt, "slug", None)]
-        if available_slugs:
-            priority = ["micro-post", "photo-album", "video", "poetry-song", "article"]
-            matched = next((slug for slug in priority if slug in available_slugs), None)
-            format_slug = matched if matched else available_slugs[0]
 
-    # 统一对外友好路径别名
-    alias_map = {
-        "micro-post": "weibo",
-        "photo-album": "photos",
-        "poetry-song": "music",
-    }
-    format_slug = alias_map.get(format_slug, format_slug)
-    
-    return f"/{format_slug}/{post.slug}"
+    primary_intent = choose_primary_intent_slug(available_slugs)
+    path_segment = to_public_post_segment(primary_intent)
+    return f"/{path_segment}/{post.slug}"
 
 
 def register_template_filters(app):

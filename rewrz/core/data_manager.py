@@ -29,6 +29,7 @@ from ..schemas import PostCreate, CategoryCreate, TagCreate, FormatCreate, Setti
 from .cache import clear_cache, cache_key_for_setting, cache
 import re
 from .template_context import DEFAULT_BASE_SETTINGS
+from .content_intents import INTENT_NAME_MAP, normalize_intent_slug
 
 DEFAULT_WP_IMPORT_OPTIONS = {
     "import_post_types": ["post", "page"],
@@ -1071,7 +1072,7 @@ class WordPressImporter:
             raise RuntimeError(f"关联分类标签失败: {str(e)}")
 
     def _map_wp_post_format_slug(self, raw_nicename: str, raw_name: str) -> Optional[str]:
-        """将 WordPress post_format 映射为 RewrZ 格式 slug。"""
+        """将 WordPress post_format 映射为 RewrZ 内容类型 slug。"""
         normalized = (raw_nicename or "").strip().lower()
         if normalized.startswith("post-format-"):
             normalized = normalized[len("post-format-"):]
@@ -1082,22 +1083,21 @@ class WordPressImporter:
             "standard": "article",
             "post": "article",
             "article": "article",
-            "aside": "micro-post",
-            "status": "micro-post",
-            "chat": "micro-post",
-            "link": "micro-post",
-            "quote": "micro-post",
-            "image": "photo-album",
-            "gallery": "photo-album",
-            "video": "video",
-            "audio": "poetry-song",
+            "aside": "micro",
+            "status": "micro",
+            "chat": "micro",
+            "link": "micro",
+            "quote": "micro",
+            # 媒体形态不再决定内容类型，统一归到 article。
+            "image": "article",
+            "gallery": "article",
+            "video": "article",
+            "audio": "poem",
         }
         if normalized in mapping:
             return mapping[normalized]
 
-        # 未知格式保留为自定义格式，避免信息丢失。
-        custom_slug = re.sub(r"[^a-z0-9_-]+", "-", normalized).strip("-")
-        return custom_slug or None
+        return "article"
 
     def _normalize_post_type_format_map(self, raw_map: Any) -> Dict[str, str]:
         normalized: Dict[str, str] = {}
@@ -1105,7 +1105,7 @@ class WordPressImporter:
         if isinstance(raw_map, dict):
             items = [(str(k), str(v)) for k, v in raw_map.items()]
         elif isinstance(raw_map, str):
-            # 支持 "shuoshuo:micro-post,news:article" 简写格式。
+            # 支持 "shuoshuo:micro,news:article" 简写格式。
             for token in re.split(r"[,;\n]+", raw_map):
                 part = token.strip()
                 if not part or ":" not in part:
@@ -1128,23 +1128,23 @@ class WordPressImporter:
         alias_map = {
             "post": "article",
             "standard": "article",
-            "weibo": "micro-post",
-            "micro": "micro-post",
-            "micro_post": "micro-post",
-            "photo": "photo-album",
-            "gallery": "photo-album",
-            "album": "photo-album",
-            "poetry": "poetry-song",
-            "song": "poetry-song",
-            "微博": "micro-post",
+            "article": "article",
+            "weibo": "micro",
+            "micro": "micro",
+            "micro_post": "micro",
+            "status": "micro",
+            "aside": "micro",
+            "poetry": "poem",
+            "song": "poem",
+            "audio": "poem",
+            "微博": "micro",
             "标准文章": "article",
-            "相册": "photo-album",
-            "视频": "video",
-            "诗词歌赋": "poetry-song",
+            "文章": "article",
+            "诗词歌赋": "poem",
         }
         mapped = alias_map.get(raw_text, raw_text)
         slug = re.sub(r"[^a-z0-9_-]+", "-", mapped).strip("-")
-        return slug or None
+        return normalize_intent_slug(slug)
 
     def _map_wp_post_type_to_format_slug(self, wp_post_type: str) -> Optional[str]:
         normalized_type = (wp_post_type or "").strip().lower()
@@ -1159,7 +1159,7 @@ class WordPressImporter:
         return self._normalize_rewrz_format_slug(raw_target)
 
     def _ensure_post_format(self, format_slug: str, display_name: str) -> Optional[Format]:
-        slug = (format_slug or "").strip().lower()
+        slug = normalize_intent_slug(format_slug)
         if not slug:
             return None
 
@@ -1167,14 +1167,7 @@ class WordPressImporter:
         if existing:
             return existing
 
-        fallback_name_map = {
-            "article": "标准文章",
-            "micro-post": "微博",
-            "photo-album": "相册",
-            "video": "视频",
-            "poetry-song": "诗词歌赋",
-        }
-        resolved_name = (display_name or "").strip() or fallback_name_map.get(slug) or slug
+        resolved_name = (display_name or "").strip() or INTENT_NAME_MAP.get(slug, slug)
         existing_by_name = self.db.execute(select(Format).filter(Format.name == resolved_name)).scalar_one_or_none()
         if existing_by_name:
             return existing_by_name
@@ -1438,3 +1431,5 @@ def get_wordpress_importer(
 def get_rewrz_importer(db: Session) -> RewrZImporter:
     """获取RewrZ导入器实例"""
     return RewrZImporter(db)
+
+

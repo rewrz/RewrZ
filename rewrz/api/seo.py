@@ -23,6 +23,7 @@ from ..crud import tag as crud_tag
 from ..crud import setting as crud_setting
 from ..schemas import User
 from ..core.template_context import DEFAULT_BASE_SETTINGS
+from ..core.content_intents import choose_primary_intent_slug, to_public_post_segment
 
 router = APIRouter()
 
@@ -56,7 +57,9 @@ async def generate_sitemap(request: Request, db: Session = Depends(get_db)):
     # 添加已发布的文章
     posts = crud_post.get_posts(db, status="published", limit=1000)
     for post in posts:
-        post_url = urljoin(base_url, f"/{post.formats[0].slug if post.formats else 'article'}/{post.slug}")
+        format_slugs = [fmt.slug for fmt in post.formats if getattr(fmt, "slug", None)] if post.formats else []
+        primary_intent = choose_primary_intent_slug(format_slugs)
+        post_url = urljoin(base_url, f"/{to_public_post_segment(primary_intent)}/{post.slug}")
         last_mod = post.updated_at.strftime("%Y-%m-%d") if post.updated_at else None
         _add_url_to_sitemap(urlset, post_url, lastmod=last_mod, changefreq="weekly", priority="0.8")
     
@@ -367,8 +370,9 @@ def _generate_post_seo_data(db_post, request, db: Session) -> Dict:
     site_title = site_title_setting.value.get("value") if site_title_setting and site_title_setting.value else DEFAULT_BASE_SETTINGS["site_title"]
     base_url = site_url_setting.value.get("value") if site_url_setting else str(request.base_url).rstrip('/')
     
-    format_slug = db_post.formats[0].slug if db_post.formats else "article"
-    post_url = urljoin(base_url, f"/{format_slug}/{db_post.slug}")
+    format_slugs = [fmt.slug for fmt in db_post.formats if getattr(fmt, "slug", None)] if db_post.formats else []
+    primary_intent = choose_primary_intent_slug(format_slugs)
+    post_url = urljoin(base_url, f"/{to_public_post_segment(primary_intent)}/{db_post.slug}")
     
     # 生成SEO元数据
     meta_data = {

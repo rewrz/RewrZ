@@ -8,7 +8,8 @@ from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..core.config import settings
 from ..crud import post as crud_post, category as crud_category, tag as crud_tag, format as crud_format, setting as crud_setting
-from ..schemas import Post, PostCreate, PostUpdate, User, PostBatchUpdate
+from ..schemas import Post, PostCreate, PostUpdate, User, PostBatchUpdate, FormatCreate
+from ..core.content_intents import INTENT_SLUGS, INTENT_NAME_MAP
 
 router = APIRouter()
 templates = get_templates()
@@ -22,6 +23,25 @@ def _get_content_primary_mode(db: Session) -> str:
             return mode
     return "markdown"
 
+
+def _get_or_create_intent_formats(db: Session):
+    formats = []
+    for slug in INTENT_SLUGS:
+        fmt = crud_format.get_format_by_slug(db, slug=slug)
+        if fmt is None:
+            fmt = crud_format.create_format(
+                db,
+                FormatCreate(name=INTENT_NAME_MAP.get(slug, slug), slug=slug),
+            )
+        formats.append(fmt)
+    return formats
+
+
+def _resolve_selected_format_ids(format_id: Optional[int]) -> Optional[List[int]]:
+    if isinstance(format_id, int) and format_id > 0:
+        return [format_id]
+    return None
+
 # --- 文章管理路由 ---
 
 @router.get(f"{settings.ADMIN_PATH.rstrip('/')}/posts/new", response_class=HTMLResponse)
@@ -30,7 +50,7 @@ async def new_post_page(request: Request, db: Session = Depends(get_db), current
     显示新建文章页面
     """
     categories = crud_category.get_categories(db)
-    formats = crud_format.get_formats(db)
+    formats = _get_or_create_intent_formats(db)
     content_primary_mode = _get_content_primary_mode(db)
     return templates.TemplateResponse("admin/post_form.html", {
         "request": request,
@@ -54,7 +74,7 @@ async def edit_post_page(post_id: int, request: Request, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="Post not found or is not an article")
     
     categories = crud_category.get_categories(db)
-    formats = crud_format.get_formats(db)
+    formats = _get_or_create_intent_formats(db)
     content_primary_mode = _get_content_primary_mode(db)
     
     return templates.TemplateResponse("admin/post_form.html", {
@@ -85,7 +105,7 @@ async def create_post_api(
     allow_comments: bool = Form(True),
     category_ids: Optional[List[int]] = Form(None),
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
-    format_ids: Optional[List[int]] = Form(None),
+    format_id: Optional[int] = Form(None),
     license_type: str = Form("cc_by_nc_sa_4"),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
@@ -119,12 +139,14 @@ async def create_post_api(
     # 处理标签
     tag_names = [name.strip() for name in tags.split(',') if name.strip()] if tags else []
     
+    resolved_format_ids = _resolve_selected_format_ids(format_id)
+
     db_post = crud_post.create_post(
         db=db, 
         post=post_create_data, 
         author_id=current_user.id,
         tag_names=tag_names, # 传递标签名称列表
-        format_ids=format_ids # 传递内容格式ID列表
+        format_ids=resolved_format_ids # 仅传递单个主类型ID
     )
     
     # 返回HTMX响应，重定向到文章列表或编辑页面
@@ -149,7 +171,7 @@ async def update_post_api(
     allow_comments: bool = Form(True),
     category_ids: Optional[List[int]] = Form(None),
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
-    format_ids: Optional[List[int]] = Form(None),
+    format_id: Optional[int] = Form(None),
     license_type: str = Form("cc_by_nc_sa_4"),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
@@ -191,11 +213,13 @@ async def update_post_api(
     # 处理标签
     tag_names = [name.strip() for name in tags.split(',') if name.strip()] if tags else []
 
+    resolved_format_ids = _resolve_selected_format_ids(format_id)
+
     updated_post = crud_post.update_post(
         db=db, 
         post_id=post_id, 
         post=post_update_data, 
-        format_ids=format_ids,
+        format_ids=resolved_format_ids,
         tag_names=tag_names
     )
     
@@ -234,14 +258,24 @@ async def batch_publish_posts(
     """
     verify_csrf_token(request, csrf_token) # 验证CSRF令牌
     try:
-        published_count = 0
-        for post_id in post_batch_update.post_ids: # 访问post_ids属性
-            db_post = crud_post.get_post(db, post_id=post_id)
-            if db_post and db_post.author_id == current_user.id:
-                post_update = PostUpdate(status="published")
-                crud_post.update_post(db, post_id=post_id, post=post_update)
-                published_count += 1
-        return {"success": True, "message": f"成功发布 {published_count} 篇文章"}
+        requested_ids = sorted({
+            post_id for post_id in post_batch_update.post_ids
+            if isinstance(post_id, int) and post_id > 0
+        })
+        published_count = crud_post.bulk_update_posts_status_by_ids(
+            db=db,
+            post_ids=requested_ids,
+            status="published",
+            author_id=current_user.id,
+        )
+        skipped_count = max(len(requested_ids) - published_count, 0)
+        return {
+            "success": True,
+            "message": f"成功发布 {published_count} 篇文章",
+            "requested_count": len(requested_ids),
+            "published_count": published_count,
+            "skipped_count": skipped_count,
+        }
     except HTTPException as e:
         return JSONResponse(status_code=e.status_code, content={"success": False, "error": e.detail})
     except Exception as e:
@@ -261,14 +295,24 @@ async def batch_draft_posts(
     """
     verify_csrf_token(request, csrf_token) # 验证CSRF令牌
     try:
-        drafted_count = 0
-        for post_id in post_batch_update.post_ids: # 访问post_ids属性
-            db_post = crud_post.get_post(db, post_id=post_id)
-            if db_post and db_post.author_id == current_user.id:
-                post_update = PostUpdate(status="draft")
-                crud_post.update_post(db, post_id=post_id, post=post_update)
-                drafted_count += 1
-        return {"success": True, "message": f"成功将 {drafted_count} 篇文章移至草稿"}
+        requested_ids = sorted({
+            post_id for post_id in post_batch_update.post_ids
+            if isinstance(post_id, int) and post_id > 0
+        })
+        drafted_count = crud_post.bulk_update_posts_status_by_ids(
+            db=db,
+            post_ids=requested_ids,
+            status="draft",
+            author_id=current_user.id,
+        )
+        skipped_count = max(len(requested_ids) - drafted_count, 0)
+        return {
+            "success": True,
+            "message": f"成功将 {drafted_count} 篇文章移至草稿",
+            "requested_count": len(requested_ids),
+            "drafted_count": drafted_count,
+            "skipped_count": skipped_count,
+        }
     except HTTPException as e:
         return JSONResponse(status_code=e.status_code, content={"success": False, "error": e.detail})
     except Exception as e:
@@ -480,3 +524,4 @@ async def delete_page_api(page_id: int, db: Session = Depends(get_db), current_u
 
     crud_post.delete_post(db, post_id=page_id)
     return {"success": True, "message": "页面删除成功"}
+

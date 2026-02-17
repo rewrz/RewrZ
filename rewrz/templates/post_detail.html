@@ -23,18 +23,17 @@
 {% set format_slugs = post.formats | map(attribute='slug') | list if post.formats else [] %}
 {% set rendered_content = display_content_html if display_content_html is defined else post.content_html %}
 {% set active_format = active_format_slug if active_format_slug is defined and active_format_slug else (format_slugs[0] if format_slugs else 'article') %}
-{% set is_micro_post = active_format in ['weibo', 'micro-post'] %}
-{% set is_photo_album = active_format in ['photo-album', 'photos'] %}
-{% set is_video = active_format == 'video' %}
-{% set is_poetry_song = active_format in ['poetry-song', 'music'] %}
+{% set is_micro_post = active_format == 'micro' %}
+{% set is_poetry_song = active_format == 'poem' %}
 {% set content_images = (rendered_content | extract_image_urls(post.featured_image_url)) if rendered_content else [] %}
+{% set comment_count = post.comments | length %}
 
 {% if is_micro_post %}
 <section class="py-8">
     <div class="container mx-auto px-4 max-w-3xl">
         <!-- 返回导航 -->
         <nav class="mb-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <a href="/formats/weibo" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+            <a href="/formats/micro" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
                 <i class="fas fa-arrow-left mr-1"></i>返回动态列表
             </a>
             <span class="text-gray-300 dark:text-gray-600">|</span>
@@ -43,7 +42,7 @@
             </a>
         </nav>
 
-        <article id="micro-post-article" class="micro-detail-card rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 shadow-xl overflow-hidden transition-all duration-300">
+        <article id="micro-article" class="micro-detail-card rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 shadow-xl overflow-hidden transition-all duration-300">
             <header class="p-5 border-b border-gray-100 dark:border-gray-700">
                 <div class="flex items-start justify-between gap-3">
                     <div class="flex items-center gap-3 min-w-0">
@@ -182,295 +181,6 @@
             </footer>
         </article>
 
-        <!-- 评论区标题优化 -->
-        <div class="mt-6 mb-4 flex items-center gap-3">
-            <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-                <i class="far fa-comments mr-2 text-indigo-500"></i>评论区
-            </h2>
-            <span class="text-sm text-gray-500 dark:text-gray-400">说说你的看法</span>
-        </div>
-    </div>
-</section>
-
-{% elif is_photo_album %}
-<section class="photo-album-section pb-8 pt-6">
-    <div class="container mx-auto px-4 max-w-6xl space-y-6">
-        <!-- 返回导航 -->
-        <nav class="mb-4 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-            <div class="flex items-center gap-2">
-                <a href="/formats/photo-album" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                    <i class="fas fa-arrow-left mr-1"></i>返回相册列表
-                </a>
-                <span class="text-gray-300 dark:text-gray-600">|</span>
-                <a href="/archives" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                    <i class="fas fa-stream mr-1"></i>全部归档
-                </a>
-            </div>
-            <div class="flex items-center gap-2">
-                <button type="button" id="gallery-fullscreen-btn" class="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" title="全屏浏览">
-                    <i class="fas fa-expand mr-1"></i>全屏
-                </button>
-                <button type="button" id="gallery-slideshow-btn" class="px-3 py-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors" title="幻灯片播放">
-                    <i class="fas fa-play mr-1"></i>幻灯片
-                </button>
-            </div>
-        </nav>
-
-        <article class="photo-album-article rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 shadow-xl overflow-hidden">
-            {% if post.featured_image_url %}
-            <div class="photo-hero relative h-[42vh] md:h-[56vh] min-h-[280px] group">
-                <button type="button" class="absolute inset-0 block h-full w-full text-left" data-lightbox-group="post-gallery" data-lightbox-position="0" data-lightbox-image="{{ post.featured_image_url }}" data-lightbox-title="{{ post.title }}">
-                    {{ post.featured_image_url | responsive_image(post.title, "h-full w-full object-cover transition-transform duration-700 group-hover:scale-105", "100vw", request.state.db) | safe }}
-                </button>
-                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none"></div>
-                
-                <!-- 图片信息悬浮层 -->
-                <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div class="bg-black/60 backdrop-blur-sm text-white text-xs px-3 py-2 rounded-full">
-                        <i class="fas fa-image mr-1"></i>封面图
-                    </div>
-                </div>
-                
-                <div class="absolute bottom-0 left-0 right-0 p-5 md:p-8 text-white">
-                    <div class="flex items-center gap-2 mb-3">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-sm">
-                            <i class="fas fa-camera-retro mr-1"></i>相册故事
-                        </span>
-                        {% if content_images|length > 0 %}
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-white/20 backdrop-blur-sm text-white">
-                            {{ content_images|length + 1 }} 张照片
-                        </span>
-                        {% endif %}
-                    </div>
-                    <h1 class="text-3xl md:text-5xl font-bold leading-tight drop-shadow-lg">{{ post.title }}</h1>
-                    {% if post.excerpt %}
-                    <p class="mt-3 text-sm md:text-base text-white/85 max-w-2xl">{{ post.excerpt }}</p>
-                    {% endif %}
-                    <div class="mt-4 flex flex-wrap items-center gap-4 text-sm text-white/70">
-                        <span><i class="far fa-user mr-1"></i>{{ post.author.username }}</span>
-                        <span><i class="far fa-calendar mr-1"></i>{{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}</span>
-                    </div>
-                </div>
-            </div>
-            {% else %}
-            <header class="p-6 md:p-8 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-sm">
-                        <i class="fas fa-camera-retro mr-1"></i>相册故事
-                    </span>
-                </div>
-                <h1 class="text-3xl md:text-4xl font-bold">{{ post.title }}</h1>
-                {% if post.excerpt %}
-                <p class="mt-3 text-gray-600 dark:text-gray-300">{{ post.excerpt }}</p>
-                {% endif %}
-            </header>
-            {% endif %}
-
-            <div class="p-5 md:p-8 space-y-8">
-                {% if content_images %}
-                <section class="photo-gallery-section">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-semibold flex items-center gap-2">
-                            <i class="fas fa-th-large text-emerald-500"></i>照片画廊
-                        </h2>
-                        <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                            <span id="photo-count">{{ content_images|length }} 张</span>
-                            <span>•</span>
-                            <span>点击图片查看大图</span>
-                        </div>
-                    </div>
-                    
-                    <!-- 瀑布流画廊 -->
-                    <div class="photo-masonry-grid columns-1 md:columns-2 xl:columns-3 gap-4 [column-fill:_balance]" id="photo-gallery">
-                        {% for image_url in content_images %}
-                        <button type="button" class="photo-masonry-item mb-4 block w-full break-inside-avoid overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-black/5 group relative" data-lightbox-group="post-gallery" data-lightbox-position="{{ loop.index if post.featured_image_url else loop.index0 }}" data-lightbox-image="{{ image_url }}" data-lightbox-title="{{ post.title }} - 第{{ loop.index if post.featured_image_url else loop.index0 | int + 1 }}张">
-                            <img src="{{ image_url }}" alt="{{ post.title }}" class="w-full h-auto object-cover transition-all duration-500 group-hover:scale-[1.03]" loading="lazy">
-                            
-                            <!-- 悬停效果 -->
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-                            <div class="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                                <span class="text-white text-xs font-medium">第 {{ loop.index if post.featured_image_url else loop.index0 | int + 1 }} 张</span>
-                            </div>
-                            
-                            <!-- 放大图标 -->
-                            <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                <span class="bg-black/50 text-white w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm">
-                                    <i class="fas fa-search-plus text-sm"></i>
-                                </span>
-                            </div>
-                        </button>
-                        {% endfor %}
-                    </div>
-                </section>
-                {% endif %}
-
-                <!-- 文字内容 -->
-                {% if rendered_content and rendered_content.strip() %}
-                <section class="prose dark:prose-invert max-w-none photo-content">
-                    <h2 class="text-lg font-semibold flex items-center gap-2 mb-4">
-                        <i class="fas fa-pen-fancy text-indigo-500"></i>相册描述
-                    </h2>
-                    {{ rendered_content | safe }}
-                </section>
-                {% endif %}
-
-                <!-- 标签区域 -->
-                {% if post.tags %}
-                <section class="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="text-sm text-gray-500 dark:text-gray-400 mr-2"><i class="fas fa-tags"></i></span>
-                        {% for tag in post.tags %}
-                        <a href="/archives/by-tag/{{ tag.slug }}" class="photo-tag px-3 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all duration-200">
-                            #{{ tag.name }}
-                        </a>
-                        {% endfor %}
-                    </div>
-                </section>
-                {% endif %}
-
-                <!-- 操作栏 -->
-                <section class="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm">
-                    <div class="flex flex-wrap items-center gap-4 text-gray-500 dark:text-gray-400">
-                        <span><i class="fas fa-user mr-1"></i>{{ post.author.username }}</span>
-                        <span><i class="fas fa-calendar-alt mr-1"></i>{{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}</span>
-                        <span><i class="fas fa-images mr-1"></i>{{ content_images|length + (1 if post.featured_image_url else 0) }} 张图</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" class="photo-action-btn hover:text-rose-500" onclick="copyCurrentUrl()" title="复制链接">
-                            <i class="fas fa-link mr-1"></i>复制链接
-                        </button>
-                        <button type="button" class="photo-action-btn hover:text-indigo-600" onclick="sharePhotoAlbum()" title="分享">
-                            <i class="fas fa-share-alt mr-1"></i>分享
-                        </button>
-                    </div>
-                </section>
-            </div>
-        </article>
-    </div>
-</section>
-
-{% elif is_video %}
-<section class="video-section py-8">
-    <div class="container mx-auto px-4 max-w-6xl">
-        <!-- 返回导航 -->
-        <nav class="mb-4 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-            <div class="flex items-center gap-2">
-                <a href="/formats/video" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                    <i class="fas fa-arrow-left mr-1"></i>返回视频列表
-                </a>
-                <span class="text-gray-300 dark:text-gray-600">|</span>
-                <a href="/archives" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                    <i class="fas fa-stream mr-1"></i>全部归档
-                </a>
-            </div>
-            <div class="flex items-center gap-2">
-                <button type="button" id="video-pip-btn" class="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" title="画中画">
-                    <i class="fas fa-external-link-alt mr-1"></i>画中画
-                </button>
-                <button type="button" id="video-theater-toggle" class="text-sm px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
-                    <i class="fas fa-film mr-1"></i>影院模式
-                </button>
-            </div>
-        </nav>
-
-        <article id="video-post-shell" class="video-article rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 shadow-xl overflow-hidden transition-all duration-500">
-            <!-- 视频播放区域 -->
-            <div class="video-player-wrapper relative bg-black aspect-video group">
-                {% if post.featured_image_url %}
-                {{ post.featured_image_url | responsive_image(post.title, "absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105", "100vw", request.state.db) | safe }}
-                {% endif %}
-                
-                <!-- 渐变遮罩 -->
-                <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none"></div>
-                
-                <!-- 播放按钮 -->
-                <div class="absolute inset-0 flex items-center justify-center">
-                    <button id="video-play-btn" class="video-play-button h-20 w-20 md:h-24 md:w-24 rounded-full bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-2xl hover:scale-110 hover:shadow-red-500/30 transition-all duration-300 group" aria-label="播放视频">
-                        <i class="fas fa-play text-2xl md:text-3xl ml-1 group-hover:scale-110 transition-transform"></i>
-                    </button>
-                </div>
-                
-                <!-- 视频信息叠加层 -->
-                <div class="absolute bottom-0 left-0 right-0 p-5 md:p-6 text-white">
-                    <div class="flex items-center gap-2 mb-3">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-sm">
-                            <i class="fas fa-video mr-1"></i>视频内容
-                        </span>
-                        {% if post.categories %}
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-white/20 backdrop-blur-sm">
-                            {{ post.categories[0].name }}
-                        </span>
-                        {% endif %}
-                    </div>
-                    <h1 class="text-2xl md:text-4xl font-bold leading-tight drop-shadow-lg">{{ post.title }}</h1>
-                    <div class="mt-3 flex flex-wrap items-center gap-4 text-sm text-white/80">
-                        <span><i class="far fa-user mr-1"></i>{{ post.author.username }}</span>
-                        <span><i class="far fa-calendar mr-1"></i>{{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}</span>
-                    </div>
-                </div>
-                
-                <!-- 控制条 -->
-                <div class="video-controls-bar absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div class="flex items-center gap-3">
-                        <button class="text-white/80 hover:text-white transition-colors" title="播放/暂停">
-                            <i class="fas fa-play"></i>
-                        </button>
-                        <div class="flex-1 h-1 bg-white/30 rounded-full overflow-hidden cursor-pointer">
-                            <div class="h-full bg-red-500 w-0 transition-all duration-100"></div>
-                        </div>
-                        <button class="text-white/80 hover:text-white transition-colors" title="音量">
-                            <i class="fas fa-volume-up"></i>
-                        </button>
-                        <button class="text-white/80 hover:text-white transition-colors" id="video-speed-btn" title="倍速">
-                            1x
-                        </button>
-                        <button class="text-white/80 hover:text-white transition-colors" title="全屏">
-                            <i class="fas fa-expand"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="p-5 md:p-7 space-y-6">
-                <!-- 视频描述 -->
-                <div class="prose dark:prose-invert max-w-none video-content">
-                    {% if post.excerpt %}
-                    <p class="text-lg text-gray-600 dark:text-gray-300 leading-relaxed border-l-4 border-red-400 pl-4">{{ post.excerpt }}</p>
-                    {% endif %}
-                    {{ rendered_content | safe }}
-                </div>
-
-                <!-- 标签区域 -->
-                {% if post.tags %}
-                <section class="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="text-sm text-gray-500 dark:text-gray-400 mr-2"><i class="fas fa-tags"></i></span>
-                        {% for tag in post.tags %}
-                        <a href="/archives/by-tag/{{ tag.slug }}" class="video-tag px-3 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200">
-                            #{{ tag.name }}
-                        </a>
-                        {% endfor %}
-                    </div>
-                </section>
-                {% endif %}
-
-                <!-- 操作栏 -->
-                <section class="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm">
-                    <div class="flex flex-wrap items-center gap-4 text-gray-500 dark:text-gray-400">
-                        <span><i class="fas fa-user mr-1"></i>{{ post.author.username }}</span>
-                        <span><i class="fas fa-calendar-alt mr-1"></i>{{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" class="video-action-btn hover:text-rose-500" onclick="copyCurrentUrl()" title="复制链接">
-                            <i class="fas fa-link mr-1"></i>复制链接
-                        </button>
-                        <button type="button" class="video-action-btn hover:text-indigo-600" onclick="shareVideo()" title="分享">
-                            <i class="fas fa-share-alt mr-1"></i>分享
-                        </button>
-                    </div>
-                </section>
-            </div>
-        </article>
     </div>
 </section>
 
@@ -501,7 +211,7 @@
         <!-- 返回导航 -->
         <nav class="mb-6 flex items-center justify-between text-sm text-white/70">
             <div class="flex items-center gap-2">
-                <a href="/formats/poetry-song" class="hover:text-white transition-colors">
+                <a href="/formats/poem" class="hover:text-white transition-colors">
                     <i class="fas fa-arrow-left mr-1"></i>返回诗词列表
                 </a>
                 <span class="text-white/30">|</span>
@@ -694,9 +404,37 @@
         {% include "components/related_posts.html" %}
 
         {% if post.allow_comments %}
-        <div id="comments-section" class="rounded-xl bg-white/95 dark:bg-gray-800/95 border border-gray-200 dark:border-gray-700 shadow-lg p-6">
-            <h2 class="text-2xl font-bold mb-6">评论</h2>
-            {% include "components/comments.html" %}
+        <div
+            id="comments-section"
+            class="overflow-hidden rounded-2xl border shadow-lg
+            {% if is_micro_post %}
+                border-indigo-200 bg-gradient-to-b from-indigo-50/70 to-white dark:border-indigo-700/60 dark:from-indigo-900/20 dark:to-gray-900
+            {% elif is_poetry_song %}
+                border-purple-200 bg-gradient-to-b from-purple-50/70 to-white dark:border-purple-700/60 dark:from-purple-900/20 dark:to-gray-900
+            {% else %}
+                border-gray-200 bg-white/95 dark:border-gray-700 dark:bg-gray-800/95
+            {% endif %}"
+        >
+            <div class="border-b px-5 py-4 md:px-6 {% if is_poetry_song %}border-purple-200/70 dark:border-purple-700/50{% elif is_micro_post %}border-indigo-200/70 dark:border-indigo-700/50{% else %}border-gray-200 dark:border-gray-700{% endif %}">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <span class="inline-flex h-10 w-10 items-center justify-center rounded-full {% if is_poetry_song %}bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-300{% elif is_micro_post %}bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-300{% else %}bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200{% endif %}">
+                            <i class="far fa-comments"></i>
+                        </span>
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900 dark:text-white">评论互动</h2>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">分享观点、补充想法，和读者一起完善内容。</p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm dark:bg-gray-800 dark:text-gray-200">
+                        {{ comment_count }} 条
+                    </span>
+                </div>
+            </div>
+
+            <div class="p-5 md:p-6">
+                {% include "components/comments.html" %}
+            </div>
         </div>
         {% endif %}
     </div>
@@ -760,3 +498,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
+
