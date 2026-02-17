@@ -140,3 +140,51 @@ def test_delete_comment(db: Session, test_post: Post):
     deleted_comment = crud_comment.delete_comment(db, comment_id=created_comment.id)
     assert deleted_comment.id == created_comment.id
     assert crud_comment.get_comment(db, comment_id=created_comment.id) is None
+
+
+def test_bulk_delete_comments_returns_affected_count(db: Session, test_post: Post):
+    rows = [
+        Comment(
+            post_id=test_post.id,
+            author_name=f"bulk-delete-{idx}",
+            author_email=f"bulk-delete-{idx}@example.com",
+            content="bulk delete",
+            status="approved",
+        )
+        for idx in range(8)
+    ]
+    db.add_all(rows)
+    db.commit()
+
+    ids = db.query(Comment.id).all()
+    target_ids = [row[0] for row in ids[:5]]
+    affected = crud_comment.bulk_delete_comments(db, target_ids)
+
+    assert affected == 5
+    remain = db.query(Comment).count()
+    assert remain == 3
+
+
+def test_bulk_comment_operations_support_chunked_ids(db: Session, test_post: Post):
+    rows = [
+        Comment(
+            post_id=test_post.id,
+            author_name=f"chunk-{idx}",
+            author_email=f"chunk-{idx}@example.com",
+            content="chunk",
+            status="pending",
+        )
+        for idx in range(620)
+    ]
+    db.add_all(rows)
+    db.commit()
+
+    ids = [row[0] for row in db.query(Comment.id).all()]
+
+    updated = crud_comment.bulk_update_comment_status(db, ids, "approved")
+    assert updated == len(ids)
+    assert db.query(Comment).filter(Comment.status == "approved").count() == len(ids)
+
+    deleted = crud_comment.bulk_delete_comments(db, ids)
+    assert deleted == len(ids)
+    assert db.query(Comment).count() == 0

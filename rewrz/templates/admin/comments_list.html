@@ -30,9 +30,9 @@
             </span>
         </div>
         <div class="text-sm text-gray-600">
-            <span class="font-medium">评论总数：</span>{{ total_comments }}
+            <span class="font-medium">评论总数：</span><span id="total-comments-count">{{ total_comments }}</span>
             {% if pagination.filtered_total != total_comments %}
-            <span class="ml-3"><span class="font-medium">筛选结果：</span>{{ pagination.filtered_total }}</span>
+            <span class="ml-3"><span class="font-medium">筛选结果：</span><span id="filtered-comments-count">{{ pagination.filtered_total }}</span></span>
             {% endif %}
         </div>
     </div>
@@ -41,17 +41,17 @@
         <a href="{{ request.state.admin_path }}/comments?status=pending&page_size={{ pagination.page_size }}"
            class="rounded-lg border px-4 py-3 {% if current_status == 'pending' %}border-yellow-300 bg-yellow-50{% else %}border-gray-200 bg-white hover:bg-gray-50{% endif %}">
             <div class="text-xs text-gray-500">待审核</div>
-            <div class="mt-1 text-xl font-semibold text-yellow-700">{{ status_counts.pending }}</div>
+            <div id="status-count-pending" class="mt-1 text-xl font-semibold text-yellow-700">{{ status_counts.pending }}</div>
         </a>
         <a href="{{ request.state.admin_path }}/comments?status=approved&page_size={{ pagination.page_size }}"
            class="rounded-lg border px-4 py-3 {% if current_status == 'approved' %}border-green-300 bg-green-50{% else %}border-gray-200 bg-white hover:bg-gray-50{% endif %}">
             <div class="text-xs text-gray-500">已批准</div>
-            <div class="mt-1 text-xl font-semibold text-green-700">{{ status_counts.approved }}</div>
+            <div id="status-count-approved" class="mt-1 text-xl font-semibold text-green-700">{{ status_counts.approved }}</div>
         </a>
         <a href="{{ request.state.admin_path }}/comments?status=spam&page_size={{ pagination.page_size }}"
            class="rounded-lg border px-4 py-3 {% if current_status == 'spam' %}border-red-300 bg-red-50{% else %}border-gray-200 bg-white hover:bg-gray-50{% endif %}">
             <div class="text-xs text-gray-500">垃圾评论</div>
-            <div class="mt-1 text-xl font-semibold text-red-700">{{ status_counts.spam }}</div>
+            <div id="status-count-spam" class="mt-1 text-xl font-semibold text-red-700">{{ status_counts.spam }}</div>
         </a>
     </div>
 
@@ -111,7 +111,12 @@
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <input type="checkbox" id="select-all" class="rounded border-gray-300">
+                        <input
+                            type="checkbox"
+                            id="select-all"
+                            class="rounded border-gray-300"
+                            onchange="window.toggleAllCommentCheckboxes && window.toggleAllCommentCheckboxes(this.checked)"
+                        >
                     </th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">作者</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">评论内容</th>
@@ -126,7 +131,11 @@
             <tbody class="bg-white divide-y divide-gray-200">
                 {% for item in comments_with_avatars %}
                 {% set comment = item.comment %}
-                <tr class="hover:bg-gray-50 {% if comment.status == 'pending' %}bg-yellow-50/40{% endif %}">
+                <tr
+                    class="hover:bg-gray-50 {% if comment.status == 'pending' %}bg-yellow-50/40{% endif %}"
+                    data-comment-id="{{ comment.id }}"
+                    data-comment-status="{{ comment.status }}"
+                >
                     <td class="px-3 py-4 align-top">
                         <input type="checkbox" class="comment-checkbox rounded border-gray-300" value="{{ comment.id }}">
                     </td>
@@ -209,7 +218,7 @@
                 {% endfor %}
 
                 {% if not comments_with_avatars %}
-                <tr>
+                <tr data-empty-comments-row="1">
                     <td colspan="9" class="px-6 py-12 text-center text-gray-500">
                         <i class="fas fa-comments text-4xl mb-4 text-gray-400"></i>
                         <div class="text-lg">暂无评论</div>
@@ -221,7 +230,7 @@
     </div>
 
     <div class="flex flex-wrap justify-between items-center gap-3 pt-1">
-        <div class="text-sm text-gray-600">
+        <div id="pagination-summary" class="text-sm text-gray-600">
             共 {{ pagination.filtered_total }} 条结果，第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页
         </div>
         <div class="flex items-center gap-1">
@@ -324,6 +333,14 @@ async function parseApiResponse(response) {
 
 function updateBulkUiState() {
     const selectedCount = getSelectedCommentIds().length;
+    const checkboxes = Array.from(document.querySelectorAll('.comment-checkbox')).filter((cb) => !cb.disabled);
+    const selectAll = document.getElementById('select-all');
+    if (selectAll) {
+        const checkedCount = checkboxes.filter((cb) => cb.checked).length;
+        selectAll.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+        selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+    }
+
     const label = document.getElementById('selected-count');
     if (label) {
         label.textContent = `已选 ${selectedCount} 条`;
@@ -336,11 +353,105 @@ function updateBulkUiState() {
     }
 }
 
-document.getElementById('select-all')?.addEventListener('change', function(e) {
+window.toggleAllCommentCheckboxes = function toggleAllCommentCheckboxes(checked) {
     document.querySelectorAll('.comment-checkbox').forEach((checkbox) => {
-        checkbox.checked = e.target.checked;
+        if (checkbox.disabled) return;
+        checkbox.checked = Boolean(checked);
     });
     updateBulkUiState();
+};
+
+function getNumericText(nodeId) {
+    const node = document.getElementById(nodeId);
+    if (!node) return null;
+    const num = Number((node.textContent || '').trim());
+    return Number.isFinite(num) ? num : null;
+}
+
+function setNumericText(nodeId, value) {
+    const node = document.getElementById(nodeId);
+    if (!node || !Number.isFinite(value)) return;
+    node.textContent = String(Math.max(0, value));
+}
+
+function parseSummaryTotalCount() {
+    const summaryNode = document.getElementById('pagination-summary');
+    if (!summaryNode) return null;
+    const text = summaryNode.textContent || '';
+    const match = text.match(/共\s*(\d+)\s*条结果/);
+    if (!match) return null;
+    const num = Number(match[1]);
+    return Number.isFinite(num) ? num : null;
+}
+
+function applyBulkDeleteUiPatch(selectedIds) {
+    const selectedSet = new Set((selectedIds || []).map((id) => Number(id)));
+    const removedByStatus = { pending: 0, approved: 0, spam: 0 };
+    let removedCount = 0;
+
+    document.querySelectorAll('tr[data-comment-id]').forEach((row) => {
+        const rowId = Number(row.dataset.commentId || 0);
+        if (!selectedSet.has(rowId)) return;
+        const status = String(row.dataset.commentStatus || '').trim();
+        if (Object.prototype.hasOwnProperty.call(removedByStatus, status)) {
+            removedByStatus[status] += 1;
+        }
+        row.remove();
+        removedCount += 1;
+    });
+
+    if (removedCount <= 0) return 0;
+
+    ['pending', 'approved', 'spam'].forEach((status) => {
+        const key = `status-count-${status}`;
+        const current = getNumericText(key);
+        if (current !== null) {
+            setNumericText(key, current - (removedByStatus[status] || 0));
+        }
+    });
+
+    const totalCount = getNumericText('total-comments-count');
+    if (totalCount !== null) {
+        setNumericText('total-comments-count', totalCount - removedCount);
+    }
+
+    const filteredCount = getNumericText('filtered-comments-count');
+    if (filteredCount !== null) {
+        setNumericText('filtered-comments-count', filteredCount - removedCount);
+    }
+
+    const summaryNode = document.getElementById('pagination-summary');
+    if (summaryNode) {
+        const summaryCount = parseSummaryTotalCount();
+        const baseCount = filteredCount !== null ? filteredCount : (summaryCount ?? 0);
+        const currentText = summaryNode.textContent || '';
+        summaryNode.textContent = currentText.replace(/共\s*\d+\s*条结果/, `共 ${Math.max(0, baseCount - removedCount)} 条结果`);
+    }
+
+    const selectAllCheckbox = document.getElementById('select-all');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+    document.getElementById('bulk-action').value = '';
+
+    const tbody = document.querySelector('table tbody');
+    if (tbody && !tbody.querySelector('tr[data-comment-id]') && !tbody.querySelector('tr[data-empty-comments-row]')) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.setAttribute('data-empty-comments-row', '1');
+        emptyRow.innerHTML = `
+            <td colspan="9" class="px-6 py-12 text-center text-gray-500">
+                <i class="fas fa-comments text-4xl mb-4 text-gray-400"></i>
+                <div class="text-lg">暂无评论</div>
+            </td>
+        `;
+        tbody.appendChild(emptyRow);
+    }
+    return removedCount;
+}
+
+document.getElementById('select-all')?.addEventListener('change', function(e) {
+    window.toggleAllCommentCheckboxes(Boolean(e.target.checked));
 });
 
 document.querySelectorAll('.comment-checkbox').forEach((checkbox) => {
@@ -395,7 +506,23 @@ async function applyBulkAction() {
             })
         });
         const data = await parseApiResponse(response);
-        window.adminSetFlash(data.message || `${actionLabel}成功`, 'success');
+        const affected = Number(data.affected || selectedIds.length || 0);
+        if (action === 'delete') {
+            const removedCount = applyBulkDeleteUiPatch(selectedIds);
+            setBulkActionState(false);
+            updateBulkUiState();
+            window.adminNotify(
+                data.message || `${actionLabel}成功（${affected} 条）`,
+                'success',
+                { duration: 2600 }
+            );
+            if (removedCount <= 0) {
+                // 当前页可能与实际被删除条目不重叠，回退为整页刷新确保一致性
+                location.reload();
+            }
+            return;
+        }
+        window.adminSetFlash(data.message || `${actionLabel}成功（${affected} 条）`, 'success');
         location.reload();
     } catch (error) {
         setBulkActionState(false);

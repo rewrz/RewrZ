@@ -4,10 +4,23 @@
 支持嵌套评论和状态管理。
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete, update
 from ..models import Comment
 from ..schemas import CommentCreate
 from datetime import datetime
+from typing import Iterable, List
+
+
+_BULK_CHUNK_SIZE = 500
+
+
+def _normalize_comment_ids(comment_ids: Iterable[int]) -> List[int]:
+    return sorted({comment_id for comment_id in (comment_ids or []) if isinstance(comment_id, int) and comment_id > 0})
+
+
+def _iter_chunks(items: List[int], chunk_size: int = _BULK_CHUNK_SIZE):
+    for idx in range(0, len(items), chunk_size):
+        yield items[idx: idx + chunk_size]
 
 def get_comment(db: Session, comment_id: int):
     """根据评论id获取评论信息"""
@@ -112,12 +125,32 @@ def delete_comment(db: Session, comment_id: int):
         db.commit()
     return db_comment
 
-def bulk_update_comment_status(db: Session, comment_ids: list[int], status: str):
-    """批量更新评论状态"""
-    db.query(Comment).filter(Comment.id.in_(comment_ids)).update({"status": status}, synchronize_session=False)
-    db.commit()
+def bulk_update_comment_status(db: Session, comment_ids: list[int], status: str) -> int:
+    """批量更新评论状态（分块执行，避免超大IN参数导致性能和兼容性问题）"""
+    normalized_ids = _normalize_comment_ids(comment_ids)
+    if not normalized_ids:
+        return 0
 
-def bulk_delete_comments(db: Session, comment_ids: list[int]):
-    """批量删除评论"""
-    db.query(Comment).filter(Comment.id.in_(comment_ids)).delete(synchronize_session=False)
+    affected = 0
+    for chunk in _iter_chunks(normalized_ids):
+        result = db.execute(
+            update(Comment)
+            .where(Comment.id.in_(chunk))
+            .values(status=status)
+        )
+        affected += int(result.rowcount or 0)
     db.commit()
+    return affected
+
+def bulk_delete_comments(db: Session, comment_ids: list[int]) -> int:
+    """批量删除评论（分块执行，避免超大IN参数导致性能和兼容性问题）"""
+    normalized_ids = _normalize_comment_ids(comment_ids)
+    if not normalized_ids:
+        return 0
+
+    affected = 0
+    for chunk in _iter_chunks(normalized_ids):
+        result = db.execute(delete(Comment).where(Comment.id.in_(chunk)))
+        affected += int(result.rowcount or 0)
+    db.commit()
+    return affected

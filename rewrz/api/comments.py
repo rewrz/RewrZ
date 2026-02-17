@@ -422,21 +422,21 @@ async def bulk_action_api(
         raise HTTPException(status_code=400, detail="未提供有效的评论ID")
 
     if bulk_action.action == "approve":
-        crud_comment.bulk_update_comment_status(db, comment_ids=comment_ids, status="approved")
-        message = f"批量批准成功（{len(comment_ids)} 条）"
+        affected = crud_comment.bulk_update_comment_status(db, comment_ids=comment_ids, status="approved")
+        message = f"批量批准成功（{affected} 条）"
     elif bulk_action.action == "pending":
-        crud_comment.bulk_update_comment_status(db, comment_ids=comment_ids, status="pending")
-        message = f"批量移至待审核成功（{len(comment_ids)} 条）"
+        affected = crud_comment.bulk_update_comment_status(db, comment_ids=comment_ids, status="pending")
+        message = f"批量移至待审核成功（{affected} 条）"
     elif bulk_action.action == "spam":
-        crud_comment.bulk_update_comment_status(db, comment_ids=comment_ids, status="spam")
-        message = f"批量标记垃圾评论成功（{len(comment_ids)} 条）"
+        affected = crud_comment.bulk_update_comment_status(db, comment_ids=comment_ids, status="spam")
+        message = f"批量标记垃圾评论成功（{affected} 条）"
     elif bulk_action.action == "delete":
-        crud_comment.bulk_delete_comments(db, comment_ids=comment_ids)
-        message = f"批量删除成功（{len(comment_ids)} 条）"
+        affected = crud_comment.bulk_delete_comments(db, comment_ids=comment_ids)
+        message = f"批量删除成功（{affected} 条）"
     else:
         raise HTTPException(status_code=400, detail="无效的批量操作类型")
         
-    return {"success": True, "message": message}
+    return {"success": True, "message": message, "affected": affected}
 
 
 @router.post("/api/v1/admin/comments/ip-geo", status_code=status.HTTP_200_OK)
