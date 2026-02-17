@@ -19,6 +19,7 @@ class MultiFormatInteractions {
         this.initAudioPlayers();
         this.initMediaPlayers();
         this.initLazyLoading();
+        this.initAjaxPaginationBridge();
         this.initInfiniteScroll();
         this.initImageGallery();
         this.initResponsiveGrid();
@@ -241,43 +242,129 @@ class MultiFormatInteractions {
     }
 
     /**
+     * 初始化无刷新分页增强（兜底）
+     * 当页面处于 ajax 模式时，为缺失 hx 属性的分页链接补齐配置
+     */
+    initAjaxPaginationBridge() {
+        const mode = String(document.body?.dataset?.listNavigationMode || '').trim().toLowerCase();
+        if (mode !== 'ajax') return;
+
+        const patchPaginationLinks = (root = document) => {
+            const scope = root && typeof root.querySelectorAll === 'function' ? root : document;
+            const links = scope.querySelectorAll('nav[aria-label="pagination"] a[href], #pagination a[href*="page="]');
+
+            links.forEach((link) => {
+                if (link.dataset.ajaxPatched === '1') return;
+
+                const href = link.getAttribute('href');
+                if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+
+                const panel =
+                    link.closest('#search-panel, [id$="-posts-panel"]') ||
+                    document.querySelector('#search-panel, [id$="-posts-panel"]');
+                if (!panel || !panel.id) return;
+
+                link.setAttribute('hx-get', href);
+                link.setAttribute('hx-target', `#${panel.id}`);
+                link.setAttribute('hx-push-url', 'true');
+
+                if (panel.id === 'search-panel') {
+                    link.setAttribute('hx-swap', 'innerHTML');
+                    link.removeAttribute('hx-select');
+                } else {
+                    link.setAttribute('hx-select', `#${panel.id}`);
+                    link.setAttribute('hx-swap', 'outerHTML');
+                }
+
+                link.dataset.ajaxPatched = '1';
+            });
+        };
+
+        patchPaginationLinks(document);
+        document.body.addEventListener('htmx:afterSwap', (event) => {
+            patchPaginationLinks(event?.target || document);
+        });
+    }
+
+    /**
      * 初始化无限滚动
      */
     initInfiniteScroll() {
-        let loading = false;
-        let page = 1;
-        
-        const loadMoreContent = async () => {
-            if (loading) return;
-            
-            // 检查是否已滚动到页面底部附近
-            if (window.innerHeight + window.scrollY < document.body.offsetHeight - 1000) {
-                return;
-            }
-            
-            loading = true;
-            
+        const mode = String(document.body?.dataset?.listNavigationMode || '').trim().toLowerCase();
+        if (mode !== 'infinite_scroll') return;
+
+        let ticking = false;
+        const getLoader = () => document.querySelector('[data-infinite-loader="1"]');
+
+        const fetchAndReplaceLoader = async (loader) => {
+            const url = loader?.getAttribute('hx-get');
+            if (!url) return;
+
+            loader.dataset.loading = '1';
             try {
-                // 由于当前系统没有公开的posts API，暂时禁用无限滚动
-                // 后续可以根据需要添加专门的分页API
-                console.log('无限滚动功能需要额外的API实现');
-                return; // 直接返回，不执行加载
+                const response = await fetch(url, {
+                    headers: { 'HX-Request': 'true' },
+                    credentials: 'same-origin',
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const html = await response.text();
+                loader.outerHTML = html;
             } catch (error) {
                 console.error('加载更多内容失败:', error);
-            } finally {
-                loading = false;
-            }
-        };
-        
-        // 滚动监听
-        window.addEventListener('scroll', () => {
-            // 添加检查确保window和document对象存在
-            if (window && document && document.body) {
-                if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 1000) {
-                    loadMoreContent();
+                if (loader && loader.isConnected) {
+                    loader.dataset.loading = '0';
                 }
             }
+        };
+
+        const triggerLoadMore = () => {
+            const loader = getLoader();
+            if (!loader || loader.dataset.loading === '1') return;
+
+            const rect = loader.getBoundingClientRect();
+            if (rect.top > window.innerHeight + 220) return;
+
+            loader.dataset.loading = '1';
+            if (window.htmx && typeof window.htmx.trigger === 'function') {
+                window.htmx.trigger(loader, 'revealed');
+            } else {
+                fetchAndReplaceLoader(loader);
+            }
+        };
+
+        const scheduleCheck = () => {
+            if (ticking) return;
+            ticking = true;
+            window.requestAnimationFrame(() => {
+                ticking = false;
+                triggerLoadMore();
+            });
+        };
+
+        window.addEventListener('scroll', scheduleCheck, { passive: true });
+        window.addEventListener('resize', scheduleCheck, { passive: true });
+
+        document.body.addEventListener('htmx:beforeRequest', (event) => {
+            const source = event?.detail?.elt;
+            if (source && source.matches && source.matches('[data-infinite-loader="1"]')) {
+                source.dataset.loading = '1';
+            }
         });
+
+        document.body.addEventListener('htmx:responseError', (event) => {
+            const source = event?.detail?.elt;
+            if (source && source.matches && source.matches('[data-infinite-loader="1"]')) {
+                source.dataset.loading = '0';
+            }
+        });
+
+        document.body.addEventListener('htmx:afterSwap', () => {
+            scheduleCheck();
+        });
+
+        scheduleCheck();
     }
 
     appendPosts(posts) {

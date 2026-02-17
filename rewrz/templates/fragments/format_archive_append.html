@@ -1,0 +1,23 @@
+{% set is_micro = format_slug == 'micro' %}
+
+{% if posts %}
+    {% if is_micro %}
+    <div class="mx-auto max-w-3xl space-y-5">
+        {% for post in posts %}
+        <article class="rounded-2xl border border-indigo-200/70 bg-white/80 p-4 shadow-sm dark:border-indigo-700/40 dark:bg-gray-800/80">
+            {% include "components/timeline_card.html" %}
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+        {% for post in posts %}
+        <article class="rounded-2xl border border-gray-200/70 bg-white/80 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/80">
+            {% include "components/timeline_card.html" %}
+        </article>
+        {% endfor %}
+    </div>
+    {% endif %}
+{% endif %}
+
+{% include "components/list_pagination.html" %}

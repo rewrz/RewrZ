@@ -1,0 +1,30 @@
+{% if results %}
+<div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+    {% for post in results %}
+    <article class="search-result-card rounded-2xl border border-gray-200/70 bg-white/80 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/80">
+        {% include "components/timeline_card.html" %}
+    </article>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if search_info.total_pages > 1 %}
+{% if search_info.page < search_info.total_pages %}
+{% set next_page_url = "/search?q=" ~ (search_info.query or '') ~ "&category=" ~ (search_info.category or '') ~ "&tag=" ~ (search_info.tag or '') ~ "&format=" ~ (search_info.format or '') ~ "&sort=" ~ (search_info.sort or 'relevance') ~ "&page=" ~ (search_info.page + 1) %}
+<div class="mt-6 flex justify-center">
+    <div
+        data-infinite-loader="1"
+        class="inline-flex items-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+        hx-get="{{ next_page_url }}&append=1"
+        hx-push-url="{{ next_page_url }}"
+        hx-trigger="revealed once, intersect once"
+        hx-target="this"
+        hx-swap="outerHTML"
+    >
+        <i class="fas fa-spinner fa-spin mr-2"></i>正在加载更多结果...
+    </div>
+</div>
+{% elif search_info.page > 1 %}
+<div class="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">已加载全部搜索结果</div>
+{% endif %}
+{% endif %}

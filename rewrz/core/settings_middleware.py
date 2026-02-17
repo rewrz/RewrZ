@@ -62,7 +62,7 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                 "sitemap_enabled",
                 
                 # 分页设置
-                "homepage_posts_limit", "archive_posts_limit", "search_results_limit", "related_posts_limit",
+                "homepage_posts_limit", "archive_posts_limit", "search_results_limit", "related_posts_limit", "list_navigation_mode",
                 
                 # 打赏功能设置
                 "donation_enabled", "donation_title", "donation_description",
@@ -110,6 +110,7 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                     "archive_posts_limit": all_settings.get("archive_posts_limit", 20),
                     "search_results_limit": all_settings.get("search_results_limit", 15),
                     "related_posts_limit": all_settings.get("related_posts_limit", 5),
+                    "list_navigation_mode": all_settings.get("list_navigation_mode", "pagination"),
                 },
                 "donation": {
                     "enabled": all_settings.get("donation_enabled", False),

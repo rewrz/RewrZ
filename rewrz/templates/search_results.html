@@ -4,6 +4,7 @@
 
 {% block content %}
 <div class="max-w-6xl mx-auto">
+    {% set search_use_ajax = list_navigation_mode in ['ajax', 'infinite_scroll'] %}
     <!-- 搜索表单 -->
     <div class="bg-white p-6 rounded-lg shadow-md mb-8">
         <h1 class="text-3xl font-bold text-gray-900 mb-6">全站搜索</h1>
@@ -13,9 +14,11 @@
             method="GET"
             action="/search"
             class="space-y-4"
+            {% if search_use_ajax %}
             hx-get="/search"
             hx-target="#search-panel"
             hx-push-url="true"
+            {% endif %}
         >
             <div class="flex space-x-4">
                 <div class="flex-1 relative">

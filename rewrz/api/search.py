@@ -35,6 +35,12 @@ from ..models import Post, Category, Tag
 router = APIRouter()
 templates = get_templates()
 
+
+def _normalize_list_navigation_mode(raw_value: Any) -> str:
+    mode = str(raw_value or "pagination").strip().lower()
+    return mode if mode in {"pagination", "ajax", "infinite_scroll"} else "pagination"
+
+
 @router.get("/search", response_class=HTMLResponse)
 async def search_page(
     request: Request, 
@@ -44,6 +50,7 @@ async def search_page(
     format: Optional[str] = Query(None, description="格式筛选"),
     sort: Optional[str] = Query("relevance", description="排序方式"),
     page: int = Query(1, description="页码"),
+    append: int = Query(0, description="是否为无限滚动追加片段"),
     per_page: Optional[int] = Query(None, description="每页数量"),
     db: Session = Depends(get_db)
 ):
@@ -52,10 +59,21 @@ async def search_page(
     
     支持全站搜索功能，包括文章、分类、标签等内容的搜索
     """
+    page = max(1, int(page or 1))
+
     # 获取搜索结果数量配置
     if per_page is None:
         search_results_limit_setting = crud_setting.get_setting(db, key="search_results_limit")
         per_page = search_results_limit_setting.value.get("value") if search_results_limit_setting and search_results_limit_setting.value else 15
+    try:
+        per_page = max(1, min(100, int(per_page)))
+    except (TypeError, ValueError):
+        per_page = 15
+
+    list_navigation_mode_setting = crud_setting.get_setting(db, key="list_navigation_mode")
+    list_navigation_mode = _normalize_list_navigation_mode(
+        list_navigation_mode_setting.value.get("value") if list_navigation_mode_setting and list_navigation_mode_setting.value else "pagination"
+    )
     results = []
     total_count = 0
     search_info = {
@@ -67,7 +85,8 @@ async def search_page(
         "page": page,
         "per_page": per_page,
         "total_count": 0,
-        "total_pages": 0
+        "total_pages": 0,
+        "list_navigation_mode": list_navigation_mode,
     }
     
     if q and len(q.strip()) > 0:
@@ -103,9 +122,12 @@ async def search_page(
         "tags": tags,
         "formats": formats,
         "settings": settings_dict,
+        "list_navigation_mode": list_navigation_mode,
         **build_base_template_context(request),
     }
 
+    if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
+        return templates.TemplateResponse("fragments/search_results_append.html", context)
     if request.headers.get("HX-Request") == "true":
         return templates.TemplateResponse("components/search_results_panel.html", context)
     return templates.TemplateResponse("search_results.html", context)

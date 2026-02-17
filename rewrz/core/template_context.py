@@ -36,6 +36,7 @@ DEFAULT_BASE_SETTINGS = {
     "gongan_beian": "",
     "rss_enabled": True,
     "copyright_info": "",
+    "list_navigation_mode": "pagination",
 }
 
 # 主页个性化设置的集中默认值，供全局读取与回退使用
@@ -113,6 +114,7 @@ def build_base_template_context(request: Request) -> dict:
         "archive_posts_limit": settings.get("pagination", {}).get("archive_posts_limit") if settings.get("pagination", {}).get("archive_posts_limit") is not None else getattr(request.state, "archive_posts_limit", 20),
         "search_results_limit": settings.get("pagination", {}).get("search_results_limit") if settings.get("pagination", {}).get("search_results_limit") is not None else getattr(request.state, "search_results_limit", 15),
         "related_posts_limit": settings.get("pagination", {}).get("related_posts_limit") if settings.get("pagination", {}).get("related_posts_limit") is not None else getattr(request.state, "related_posts_limit", 5),
+        "list_navigation_mode": settings.get("pagination", {}).get("list_navigation_mode") or getattr(request.state, "list_navigation_mode", "pagination"),
         
         # 动态导航菜单数据
         "post_formats": post_formats,

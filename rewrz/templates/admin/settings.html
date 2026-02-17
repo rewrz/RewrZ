@@ -103,16 +103,55 @@
     <!-- 社交链接管理 -->
     <div id="section-social" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
         <h2 class="text-2xl font-semibold text-gray-800 mb-1">社交与联系入口</h2>
-        <p class="text-sm text-gray-500 mb-4">配置前台页脚的社交图标链接，建议仅保留常用平台。</p>
-        <div id="social-links-container" class="space-y-4 mb-4">
-            {% for link in settings.social_links %}
-            <div class="flex items-center space-x-4 social-link-item">
-                <input type="text" class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="图标类名 (如 fab fa-github)" value="{{ link.icon }}">
-                <input type="url" class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="链接 URL" value="{{ link.url }}">
-                <button type="button" class="remove-social-link px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">移除</button>
-            </div>
-            {% endfor %}
+        <p class="text-sm text-gray-500 mb-4">选择平台后会自动配置图标和示例链接，不需要手动记忆图标类名。</p>
+        <div class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50/70 px-4 py-3 text-sm text-indigo-700">
+            常用平台已内置：GitHub、Bilibili、微博、知乎、Telegram、Discord、QQ、微信、邮箱、RSS 等。
         </div>
+        <div id="social-links-container" class="space-y-3 mb-4"></div>
+        <template id="social-link-template">
+            <div class="social-link-item rounded-xl border border-gray-200 bg-gray-50/70 p-4">
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-[180px_minmax(0,1fr)_auto] md:items-start">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">平台</label>
+                        <select class="social-platform-select w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                            <option value="github">GitHub</option>
+                            <option value="bilibili">Bilibili</option>
+                            <option value="weibo">微博</option>
+                            <option value="zhihu">知乎</option>
+                            <option value="x">X / Twitter</option>
+                            <option value="youtube">YouTube</option>
+                            <option value="discord">Discord</option>
+                            <option value="telegram">Telegram</option>
+                            <option value="qq">QQ</option>
+                            <option value="wechat">微信</option>
+                            <option value="email">邮箱</option>
+                            <option value="website">个人网站</option>
+                            <option value="rss">RSS</option>
+                            <option value="custom">自定义图标</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">链接 URL</label>
+                            <input type="url" class="social-link-url w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com">
+                            <p class="mt-1 text-xs text-gray-500">选择“个人网站”时会自动尝试获取网站图标（favicon）。</p>
+                        </div>
+                        <div class="social-custom-icon-wrap hidden">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">自定义图标类名</label>
+                            <input type="text" class="social-custom-icon w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="例如：fab fa-github">
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between md:flex-col md:items-end md:justify-start gap-2">
+                        <div class="social-preview inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-indigo-700">
+                            <img class="social-preview-favicon hidden h-4 w-4 rounded object-cover" alt="favicon">
+                            <i class="social-preview-icon fas fa-link"></i>
+                            <span class="social-preview-label">入口预览</span>
+                        </div>
+                        <button type="button" class="remove-social-link px-3 py-2 bg-rose-500 text-white rounded-md hover:bg-rose-600">移除</button>
+                    </div>
+                </div>
+            </div>
+        </template>
         <button type="button" id="add-social-link" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">添加社交链接</button>
         <input type="hidden" name="social_links_json" id="social-links-json">
         <input type="hidden" name="anniversaries_json" value='{{ settings.anniversaries | tojson | e }}'>
@@ -233,6 +272,16 @@
                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                            placeholder="默认 15">
                     <p class="text-sm text-gray-500 mt-1">每页搜索结果的文章数量</p>
+                </div>
+                <div>
+                    <label for="list_navigation_mode" class="block text-sm font-medium text-gray-700">列表加载方式</label>
+                    <select id="list_navigation_mode" name="list_navigation_mode"
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        <option value="pagination" {% if settings.list_navigation_mode not in ['ajax', 'infinite_scroll'] %}selected{% endif %}>分页组件（整页刷新）</option>
+                        <option value="ajax" {% if settings.list_navigation_mode == 'ajax' %}selected{% endif %}>无刷新翻页（HTMX）</option>
+                        <option value="infinite_scroll" {% if settings.list_navigation_mode == 'infinite_scroll' %}selected{% endif %}>滚动无限加载（HTMX）</option>
+                    </select>
+                    <p class="text-sm text-gray-500 mt-1">应用于首页、聚合页和搜索页。</p>
                 </div>
                 <div>
                     <label for="related_posts_limit" class="block text-sm font-medium text-gray-700">相关文章数量</label>
@@ -615,46 +664,217 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Social Links Management
         const socialLinksContainer = document.getElementById('social-links-container');
+        const socialLinkTemplate = document.getElementById('social-link-template');
         const addSocialLinkBtn = document.getElementById('add-social-link');
         const socialLinksJsonInput = document.getElementById('social-links-json');
+        const existingSocialLinks = {{ settings.social_links | tojson | safe }};
+
+        const SOCIAL_PLATFORM_META = {
+            github: { label: 'GitHub', icon: 'fab fa-github', placeholder: 'https://github.com/yourname' },
+            bilibili: { label: 'Bilibili', icon: 'fas fa-tv', placeholder: 'https://space.bilibili.com/' },
+            weibo: { label: '微博', icon: 'fab fa-weibo', placeholder: 'https://weibo.com/' },
+            zhihu: { label: '知乎', icon: 'fab fa-zhihu', placeholder: 'https://www.zhihu.com/people/' },
+            x: { label: 'X / Twitter', icon: 'fab fa-x-twitter', placeholder: 'https://x.com/' },
+            youtube: { label: 'YouTube', icon: 'fab fa-youtube', placeholder: 'https://www.youtube.com/@' },
+            discord: { label: 'Discord', icon: 'fab fa-discord', placeholder: 'https://discord.gg/' },
+            telegram: { label: 'Telegram', icon: 'fab fa-telegram', placeholder: 'https://t.me/' },
+            qq: { label: 'QQ', icon: 'fab fa-qq', placeholder: 'https://wpa.qq.com/msgrd?v=3&uin=' },
+            wechat: { label: '微信', icon: 'fab fa-weixin', placeholder: 'https://weixin.qq.com/' },
+            email: { label: '邮箱', icon: 'fas fa-envelope', placeholder: 'mailto:you@example.com' },
+            website: { label: '个人网站', icon: 'fas fa-globe', placeholder: 'https://example.com' },
+            rss: { label: 'RSS', icon: 'fas fa-rss', placeholder: '/feed.xml' },
+            custom: { label: '自定义', icon: 'fas fa-link', placeholder: 'https://example.com' },
+        };
+
+        const ICON_HINT_MAP = [
+            { key: 'github', hit: 'github' },
+            { key: 'bilibili', hit: 'bili' },
+            { key: 'weibo', hit: 'weibo' },
+            { key: 'zhihu', hit: 'zhihu' },
+            { key: 'x', hit: 'x-twitter' },
+            { key: 'youtube', hit: 'youtube' },
+            { key: 'discord', hit: 'discord' },
+            { key: 'telegram', hit: 'telegram' },
+            { key: 'qq', hit: 'qq' },
+            { key: 'wechat', hit: 'weixin' },
+            { key: 'email', hit: 'envelope' },
+            { key: 'website', hit: 'globe' },
+            { key: 'rss', hit: 'rss' },
+        ];
+
+        function normalizeIconClass(value) {
+            return String(value || '').trim().replace(/\s+/g, ' ');
+        }
+
+        function parseHttpHostname(url) {
+            const raw = String(url || '').trim();
+            if (!raw) return '';
+            try {
+                const parsed = new URL(raw, window.location.origin);
+                if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+                    return '';
+                }
+                return parsed.hostname || '';
+            } catch (_) {
+                return '';
+            }
+        }
+
+        function buildFaviconUrl(url) {
+            const hostname = parseHttpHostname(url);
+            if (!hostname) return '';
+            return `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(hostname)}`;
+        }
+
+        function detectPlatformByIcon(iconClass) {
+            const normalized = normalizeIconClass(iconClass).toLowerCase();
+            if (!normalized) return null;
+            const exact = Object.entries(SOCIAL_PLATFORM_META).find(([key, meta]) => key !== 'custom' && meta.icon.toLowerCase() === normalized);
+            if (exact) return exact[0];
+            const hinted = ICON_HINT_MAP.find(item => normalized.includes(item.hit));
+            return hinted ? hinted.key : null;
+        }
+
+        function detectPlatformByUrl(url) {
+            const value = String(url || '').toLowerCase();
+            if (!value) return null;
+            if (value.startsWith('mailto:')) return 'email';
+            if (value.includes('github.com')) return 'github';
+            if (value.includes('bilibili.com')) return 'bilibili';
+            if (value.includes('weibo.com')) return 'weibo';
+            if (value.includes('zhihu.com')) return 'zhihu';
+            if (value.includes('x.com') || value.includes('twitter.com')) return 'x';
+            if (value.includes('youtube.com') || value.includes('youtu.be')) return 'youtube';
+            if (value.includes('discord.gg') || value.includes('discord.com')) return 'discord';
+            if (value.includes('t.me') || value.includes('telegram.me')) return 'telegram';
+            if (value.includes('qq.com')) return 'qq';
+            if (value.includes('weixin.qq.com')) return 'wechat';
+            if (value.includes('/feed') || value.includes('/rss') || value.endsWith('.xml')) return 'rss';
+            return null;
+        }
+
+        function resolveIconValue(item) {
+            const platform = item.querySelector('.social-platform-select').value;
+            if (platform === 'custom') {
+                return normalizeIconClass(item.querySelector('.social-custom-icon').value) || 'fas fa-link';
+            }
+            return SOCIAL_PLATFORM_META[platform]?.icon || 'fas fa-link';
+        }
+
+        function updateSocialItemVisual(item) {
+            const platform = item.querySelector('.social-platform-select').value;
+            const urlInput = item.querySelector('.social-link-url');
+            const customWrap = item.querySelector('.social-custom-icon-wrap');
+            const customIconInput = item.querySelector('.social-custom-icon');
+            const previewIcon = item.querySelector('.social-preview-icon');
+            const previewFavicon = item.querySelector('.social-preview-favicon');
+            const previewLabel = item.querySelector('.social-preview-label');
+            const meta = SOCIAL_PLATFORM_META[platform] || SOCIAL_PLATFORM_META.custom;
+
+            customWrap.classList.toggle('hidden', platform !== 'custom');
+            urlInput.placeholder = meta.placeholder || 'https://example.com';
+            if (platform === 'custom' && !normalizeIconClass(customIconInput.value)) {
+                customIconInput.value = meta.icon;
+            }
+
+            previewIcon.className = `social-preview-icon ${resolveIconValue(item)}`;
+            previewLabel.textContent = meta.label;
+
+            const faviconUrl = platform === 'website' ? buildFaviconUrl(urlInput.value) : '';
+            if (faviconUrl) {
+                previewFavicon.src = faviconUrl;
+                previewFavicon.classList.remove('hidden');
+                previewIcon.classList.add('hidden');
+                previewFavicon.onerror = function() {
+                    previewFavicon.classList.add('hidden');
+                    previewIcon.classList.remove('hidden');
+                };
+                previewFavicon.onload = function() {
+                    previewIcon.classList.add('hidden');
+                };
+            } else {
+                previewFavicon.removeAttribute('src');
+                previewFavicon.classList.add('hidden');
+                previewIcon.classList.remove('hidden');
+            }
+        }
 
         function updateSocialLinksJson() {
             const links = [];
             socialLinksContainer.querySelectorAll('.social-link-item').forEach(item => {
-                const icon = item.children[0].value;
-                const url = item.children[1].value;
-                if (icon && url) {
-                    links.push({ icon: icon, url: url });
+                const icon = resolveIconValue(item);
+                const url = item.querySelector('.social-link-url').value.trim();
+                if (url) {
+                    links.push({ icon, url });
                 }
             });
             socialLinksJsonInput.value = JSON.stringify(links);
         }
 
-        addSocialLinkBtn.addEventListener('click', () => {
-            const newItem = document.createElement('div');
-            newItem.classList.add('flex', 'items-center', 'space-x-4', 'social-link-item');
-            newItem.innerHTML = `
-                <input type="text" class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="图标类名 (如 fab fa-github)">
-                <input type="url" class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="链接 URL">
-                <button type="button" class="remove-social-link px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">移除</button>
-            `;
-            socialLinksContainer.appendChild(newItem);
-            newItem.querySelector('.remove-social-link').addEventListener('click', (e) => {
-                e.target.closest('.social-link-item').remove();
+        function bindSocialItemEvents(item) {
+            const select = item.querySelector('.social-platform-select');
+            const urlInput = item.querySelector('.social-link-url');
+            const customIconInput = item.querySelector('.social-custom-icon');
+            const removeButton = item.querySelector('.remove-social-link');
+
+            const sync = () => {
+                updateSocialItemVisual(item);
+                updateSocialLinksJson();
+            };
+
+            select.addEventListener('change', sync);
+            urlInput.addEventListener('input', sync);
+            customIconInput.addEventListener('input', sync);
+            removeButton.addEventListener('click', () => {
+                item.remove();
                 updateSocialLinksJson();
             });
-            newItem.querySelectorAll('input').forEach(input => input.addEventListener('input', updateSocialLinksJson));
+        }
+
+        function createSocialLinkItem(initial = {}) {
+            const fragment = socialLinkTemplate.content.cloneNode(true);
+            const item = fragment.querySelector('.social-link-item');
+            const select = item.querySelector('.social-platform-select');
+            const urlInput = item.querySelector('.social-link-url');
+            const customIconInput = item.querySelector('.social-custom-icon');
+
+            const initialIcon = normalizeIconClass(initial.icon);
+            const initialUrl = String(initial.url || '').trim();
+            const platformByIcon = detectPlatformByIcon(initialIcon);
+            const platformByUrl = detectPlatformByUrl(initialUrl);
+            const inferredPlatform = platformByIcon || platformByUrl || 'website';
+            const platform = SOCIAL_PLATFORM_META[inferredPlatform] ? inferredPlatform : 'custom';
+
+            select.value = platform;
+            urlInput.value = initialUrl;
+            if (platform === 'custom') {
+                customIconInput.value = initialIcon || 'fas fa-link';
+            } else {
+                customIconInput.value = '';
+            }
+
+            bindSocialItemEvents(item);
+            updateSocialItemVisual(item);
+            return item;
+        }
+
+        function bootstrapSocialLinks() {
+            socialLinksContainer.innerHTML = '';
+            const links = Array.isArray(existingSocialLinks) ? existingSocialLinks : [];
+            if (links.length === 0) {
+                socialLinksContainer.appendChild(createSocialLinkItem({ platform: 'website', url: '' }));
+            } else {
+                links.forEach(link => socialLinksContainer.appendChild(createSocialLinkItem(link)));
+            }
+            updateSocialLinksJson();
+        }
+
+        addSocialLinkBtn.addEventListener('click', () => {
+            socialLinksContainer.appendChild(createSocialLinkItem({ platform: 'website', url: '' }));
             updateSocialLinksJson();
         });
 
-        socialLinksContainer.querySelectorAll('.remove-social-link').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.target.closest('.social-link-item').remove();
-                updateSocialLinksJson();
-            });
-        });
-        socialLinksContainer.querySelectorAll('input').forEach(input => input.addEventListener('input', updateSocialLinksJson));
-        updateSocialLinksJson(); // Initial update
+        bootstrapSocialLinks();
 
         // 后台路径配置管理
         const generateRandomPathBtn = document.getElementById('generate-random-path');

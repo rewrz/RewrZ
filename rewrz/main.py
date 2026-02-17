@@ -7,6 +7,7 @@ RewrZ 博客系统主应用模块
 import os
 import hashlib
 import secrets
+from math import ceil
 from urllib.parse import urlparse
 from fastapi import FastAPI, Depends, HTTPException, Request, Response, Form, UploadFile, File, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
@@ -54,8 +55,10 @@ from .crud import category as crud_category
 from .crud import tag as crud_tag
 from .crud import setting as crud_setting # Import crud_setting
 from .crud import format as crud_format # 导入格式CRUD模块以修复未定义变量错误
+from .models import Post
 from .core import error_handler  # 导入错误处理模块
-from typing import List, Optional
+from typing import Any, Callable, List, Optional
+from sqlalchemy import select, func
 from datetime import date, datetime # 导入date和datetime用于纪念日检查和主题调度
 from starlette.middleware.sessions import SessionMiddleware # 导入会话中间件
 from .core.security import generate_csrf_token # 导入CSRF令牌生成函数
@@ -241,7 +244,9 @@ def register_admin_routes():
         homepage_posts_limit: int = Form(10),
         archive_posts_limit: int = Form(20),
         search_results_limit: int = Form(15),
+        list_navigation_mode: str = Form("pagination"),
         related_posts_limit: int = Form(5), # 打赏功能相关参数之前的参数
+        content_primary_mode: str = Form("markdown"),
         # 打赏功能相关参数
         donation_enabled: bool = Form(False),
         donation_title: str = Form('如果这篇文章对您有帮助，请考虑支持作者'),
@@ -265,7 +270,9 @@ def register_admin_routes():
             icp_beian, gongan_beian, social_links_json, anniversaries_json, sitemap_enabled,
             noindex_site, block_ai_crawlers, rss_enabled, rss_items_limit, rss_cache_duration,
             rss_description, homepage_posts_limit, archive_posts_limit, search_results_limit,
+            list_navigation_mode,
             related_posts_limit,
+            content_primary_mode,
             # 打赏功能相关参数
             donation_enabled, donation_title, donation_description,
             donation_qr_code_url, donation_link_text, donation_link_url,
@@ -1666,7 +1673,7 @@ async def add_global_context(request: Request, call_next):
             except Exception:
                 pass
 
-def get_page_config(db: Session, config_key: str, default_value: int) -> int:
+def get_page_config(db: Session, config_key: str, default_value: Any) -> Any:
     """
     获取页面显示配置
     
@@ -1676,10 +1683,52 @@ def get_page_config(db: Session, config_key: str, default_value: int) -> int:
         default_value: 默认值
     
     Returns:
-        配置的数值
+        配置值
     """
     setting = crud_setting.get_setting(db, key=config_key)
     return setting.value.get("value") if setting and setting.value else default_value
+
+
+def _resolve_posts_per_page(raw_value: Any, default_value: int, *, minimum: int = 1, maximum: int = 100) -> int:
+    try:
+        parsed = int(raw_value)
+    except (TypeError, ValueError):
+        parsed = default_value
+    parsed = max(minimum, parsed)
+    return min(maximum, parsed)
+
+
+def _normalize_list_navigation_mode(raw_value: Any) -> str:
+    mode = str(raw_value or "pagination").strip().lower()
+    return mode if mode in {"pagination", "ajax", "infinite_scroll"} else "pagination"
+
+
+def _build_public_pagination(
+    page: int,
+    total_count: int,
+    page_size: int,
+    url_builder: Callable[[int], str],
+) -> tuple[int, dict]:
+    total_pages = max(1, ceil(total_count / page_size)) if total_count else 1
+    current_page = max(1, min(page, total_pages))
+
+    page_window_start = max(1, current_page - 2)
+    page_window_end = min(total_pages, page_window_start + 4)
+    page_window_start = max(1, page_window_end - 4)
+    page_numbers = list(range(page_window_start, page_window_end + 1))
+
+    pagination = {
+        "current_page": current_page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+        "total_count": total_count,
+        "has_prev": current_page > 1,
+        "has_next": current_page < total_pages,
+        "prev_url": url_builder(current_page - 1) if current_page > 1 else None,
+        "next_url": url_builder(current_page + 1) if current_page < total_pages else None,
+        "page_links": [{"page": p, "url": url_builder(p), "is_current": p == current_page} for p in page_numbers],
+    }
+    return current_page, pagination
 
 def get_admin_path() -> str:
     """
@@ -1744,16 +1793,27 @@ async def favicon():
 
 
 @app.get("/", response_class=HTMLResponse)
-async def homepage(request: Request, db: Session = Depends(get_db)):
+async def homepage(request: Request, page: int = 1, append: int = 0, db: Session = Depends(get_db)):
     """
     首页路由
     
     显示最新的文章，数量根据后台配置确定，支持多重身份内容系统的格式优先级渲染，包含动态SEO元数据
     """
-    # 获取首页文章数量配置
-    homepage_posts_limit = get_page_config(db, "homepage_posts_limit", 10)
-    # 获取已发布的文章，数量根据后台配置确定
-    posts = crud_post.get_posts(db, skip=0, limit=homepage_posts_limit, status="published")
+    page = max(1, int(page or 1))
+    homepage_posts_limit = _resolve_posts_per_page(get_page_config(db, "homepage_posts_limit", 10), 10)
+    list_navigation_mode = _normalize_list_navigation_mode(get_page_config(db, "list_navigation_mode", "pagination"))
+
+    total_posts_count = db.execute(
+        select(func.count(Post.id)).where(Post.status == "published", Post.published_at.isnot(None))
+    ).scalar_one()
+    page, pagination = _build_public_pagination(
+        page,
+        total_posts_count,
+        homepage_posts_limit,
+        lambda target_page: f"/?page={target_page}",
+    )
+    offset = (page - 1) * homepage_posts_limit
+    posts = crud_post.get_posts(db, skip=offset, limit=homepage_posts_limit, status="published")
     
     # 获取首页SEO元数据
     from .api.seo import _generate_homepage_seo_data
@@ -1764,14 +1824,19 @@ async def homepage(request: Request, db: Session = Depends(get_db)):
     context.update({
         "posts": posts,
         "seo_data": seo_data,
+        "pagination": pagination,
+        "list_navigation_mode": list_navigation_mode,
     })
+
+    if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
+        return templates.TemplateResponse("fragments/homepage_append.html", context)
     
     return templates.TemplateResponse("index.html", context)
 
 # 聚合页面路由：统一使用 /formats/{format_slug}
 # 注意：不要新增 /photos 等一级短路由，否则会与 /{page_slug} 动态页面路由冲突。
 @app.get("/formats/{format_slug}", response_class=HTMLResponse)
-async def format_page(request: Request, format_slug: str, db: Session = Depends(get_db)):
+async def format_page(request: Request, format_slug: str, page: int = 1, append: int = 0, db: Session = Depends(get_db)):
     """
     内容类型归档页面（多重身份内容系统）
     
@@ -1780,23 +1845,51 @@ async def format_page(request: Request, format_slug: str, db: Session = Depends(
     format, resolved_slug = _resolve_format_by_slug(db, format_slug)
     if format is None:
         raise HTTPException(status_code=404, detail="Format not found")
-    posts = crud_post.get_posts_by_format(db, format_id=format.id)
-    archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
-    posts = posts[:archive_posts_limit]
+    page = max(1, int(page or 1))
+    archive_posts_limit = _resolve_posts_per_page(get_page_config(db, "archive_posts_limit", 20), 20, maximum=200)
+    list_navigation_mode = _normalize_list_navigation_mode(get_page_config(db, "list_navigation_mode", "pagination"))
+
+    total_posts_count = db.execute(
+        select(func.count(Post.id)).where(
+            Post.formats.any(id=format.id),
+            Post.status == "published",
+            Post.published_at.isnot(None),
+            Post.post_type.in_(["post", "article"]),
+        )
+    ).scalar_one()
+    canonical_format_slug = resolved_slug or format_slug
+    page, pagination = _build_public_pagination(
+        page,
+        total_posts_count,
+        archive_posts_limit,
+        lambda target_page: f"/formats/{canonical_format_slug}?page={target_page}",
+    )
+    offset = (page - 1) * archive_posts_limit
+    posts = crud_post.get_posts_by_format(
+        db,
+        format_id=format.id,
+        skip=offset,
+        limit=archive_posts_limit,
+    )
     
     # 构建模板上下文（现在包含统一的设置数据）
     context = build_base_template_context(request)
     context.update({
         "format": format,
-        "format_slug": resolved_slug or format_slug,  # 将实际slug传递给模板
+        "format_slug": canonical_format_slug,  # 将实际slug传递给模板
         "posts": posts,
+        "pagination": pagination,
+        "list_navigation_mode": list_navigation_mode,
     })
+
+    if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
+        return templates.TemplateResponse("fragments/format_archive_append.html", context)
     
     return templates.TemplateResponse("format_archive.html", context)
 
 
 @app.get("/archives/media/{media_slug}", response_class=HTMLResponse)
-async def posts_by_media_attachment(request: Request, media_slug: str, db: Session = Depends(get_db)):
+async def posts_by_media_attachment(request: Request, media_slug: str, page: int = 1, append: int = 0, db: Session = Depends(get_db)):
     """
     按媒体附件类型聚合页面
 
@@ -1806,6 +1899,10 @@ async def posts_by_media_attachment(request: Request, media_slug: str, db: Sessi
     registered_media_keys = set(list_registered_media_attachment_keys())
     if normalized_media_slug not in registered_media_keys:
         raise HTTPException(status_code=404, detail="Media attachment type not found")
+
+    page = max(1, int(page or 1))
+    archive_posts_limit = _resolve_posts_per_page(get_page_config(db, "archive_posts_limit", 20), 20, maximum=200)
+    list_navigation_mode = _normalize_list_navigation_mode(get_page_config(db, "list_navigation_mode", "pagination"))
 
     posts = crud_post.get_archive_posts(db)
     matched_posts = []
@@ -1830,8 +1927,14 @@ async def posts_by_media_attachment(request: Request, media_slug: str, db: Sessi
         matched_posts.append(post)
 
     total_matched_count = len(matched_posts)
-    archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
-    matched_posts = matched_posts[:archive_posts_limit]
+    page, pagination = _build_public_pagination(
+        page,
+        total_matched_count,
+        archive_posts_limit,
+        lambda target_page: f"/archives/media/{normalized_media_slug}?page={target_page}",
+    )
+    offset = (page - 1) * archive_posts_limit
+    matched_posts = matched_posts[offset: offset + archive_posts_limit]
 
     media_nav_items = get_default_media_navigation()
     selected_media_item = next(
@@ -1846,11 +1949,15 @@ async def posts_by_media_attachment(request: Request, media_slug: str, db: Sessi
         "media_nav_items": media_nav_items,
         "posts": matched_posts,
         "total_count": total_matched_count,
+        "pagination": pagination,
+        "list_navigation_mode": list_navigation_mode,
     })
+    if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
+        return templates.TemplateResponse("fragments/media_archive_append.html", context)
     return templates.TemplateResponse("media_archive.html", context)
 
 @app.get("/archives/by-category/{category_slug}", response_class=HTMLResponse)
-async def posts_by_category(request: Request, category_slug: str, db: Session = Depends(get_db)):
+async def posts_by_category(request: Request, category_slug: str, page: int = 1, append: int = 0, db: Session = Depends(get_db)):
     """
     按分类归档页面
     
@@ -1859,21 +1966,48 @@ async def posts_by_category(request: Request, category_slug: str, db: Session = 
     category = crud_category.get_category_by_slug(db, slug=category_slug)
     if category is None:
         raise HTTPException(status_code=404, detail="Category not found")
-    posts = crud_post.get_posts_by_category(db, category_id=category.id)
-    archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
-    posts = posts[:archive_posts_limit]
+    page = max(1, int(page or 1))
+    archive_posts_limit = _resolve_posts_per_page(get_page_config(db, "archive_posts_limit", 20), 20, maximum=200)
+    list_navigation_mode = _normalize_list_navigation_mode(get_page_config(db, "list_navigation_mode", "pagination"))
+
+    total_posts_count = db.execute(
+        select(func.count(Post.id)).where(
+            Post.categories.any(id=category.id),
+            Post.status == "published",
+            Post.published_at.isnot(None),
+            Post.post_type.in_(["post", "article"]),
+        )
+    ).scalar_one()
+    page, pagination = _build_public_pagination(
+        page,
+        total_posts_count,
+        archive_posts_limit,
+        lambda target_page: f"/archives/by-category/{category.slug}?page={target_page}",
+    )
+    offset = (page - 1) * archive_posts_limit
+    posts = crud_post.get_posts_by_category(
+        db,
+        category_id=category.id,
+        skip=offset,
+        limit=archive_posts_limit,
+    )
     
     # 构建模板上下文（现在包含统一的设置数据）
     context = build_base_template_context(request)
     context.update({
         "category": category,
         "posts": posts,
+        "pagination": pagination,
+        "list_navigation_mode": list_navigation_mode,
     })
+
+    if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
+        return templates.TemplateResponse("fragments/category_archive_append.html", context)
     
     return templates.TemplateResponse("category_archive.html", context)
 
 @app.get("/archives/by-tag/{tag_slug}", response_class=HTMLResponse)
-async def posts_by_tag(request: Request, tag_slug: str, db: Session = Depends(get_db)):
+async def posts_by_tag(request: Request, tag_slug: str, page: int = 1, append: int = 0, db: Session = Depends(get_db)):
     """
     按标签归档页面
     
@@ -1882,21 +2016,48 @@ async def posts_by_tag(request: Request, tag_slug: str, db: Session = Depends(ge
     tag = crud_tag.get_tag_by_slug(db, slug=tag_slug)
     if tag is None:
         raise HTTPException(status_code=404, detail="Tag not found")
-    posts = crud_post.get_posts_by_tag(db, tag_id=tag.id)
-    archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
-    posts = posts[:archive_posts_limit]
+    page = max(1, int(page or 1))
+    archive_posts_limit = _resolve_posts_per_page(get_page_config(db, "archive_posts_limit", 20), 20, maximum=200)
+    list_navigation_mode = _normalize_list_navigation_mode(get_page_config(db, "list_navigation_mode", "pagination"))
+
+    total_posts_count = db.execute(
+        select(func.count(Post.id)).where(
+            Post.tags.any(id=tag.id),
+            Post.status == "published",
+            Post.published_at.isnot(None),
+            Post.post_type.in_(["post", "article"]),
+        )
+    ).scalar_one()
+    page, pagination = _build_public_pagination(
+        page,
+        total_posts_count,
+        archive_posts_limit,
+        lambda target_page: f"/archives/by-tag/{tag.slug}?page={target_page}",
+    )
+    offset = (page - 1) * archive_posts_limit
+    posts = crud_post.get_posts_by_tag(
+        db,
+        tag_id=tag.id,
+        skip=offset,
+        limit=archive_posts_limit,
+    )
     
     # 构建模板上下文（现在包含统一的设置数据）
     context = build_base_template_context(request)
     context.update({
         "tag": tag,
         "posts": posts,
+        "pagination": pagination,
+        "list_navigation_mode": list_navigation_mode,
     })
+
+    if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
+        return templates.TemplateResponse("fragments/tag_archive_append.html", context)
     
     return templates.TemplateResponse("tag_archive.html", context)
 
 @app.get("/archives/{year}/{month}", response_class=HTMLResponse)
-async def posts_by_month(request: Request, year: int, month: int, db: Session = Depends(get_db)):
+async def posts_by_month(request: Request, year: int, month: int, page: int = 1, append: int = 0, db: Session = Depends(get_db)):
     """
     按年月归档页面
     
@@ -1905,9 +2066,20 @@ async def posts_by_month(request: Request, year: int, month: int, db: Session = 
     if month < 1 or month > 12:
         raise HTTPException(status_code=404, detail="Invalid month")
 
-    posts = crud_post.get_posts_by_year_month(db, year=year, month=month)
-    archive_posts_limit = get_page_config(db, "archive_posts_limit", 20)
-    posts = posts[:archive_posts_limit]
+    page = max(1, int(page or 1))
+    archive_posts_limit = _resolve_posts_per_page(get_page_config(db, "archive_posts_limit", 20), 20, maximum=200)
+    list_navigation_mode = _normalize_list_navigation_mode(get_page_config(db, "list_navigation_mode", "pagination"))
+
+    all_posts = crud_post.get_posts_by_year_month(db, year=year, month=month)
+    total_posts_count = len(all_posts)
+    page, pagination = _build_public_pagination(
+        page,
+        total_posts_count,
+        archive_posts_limit,
+        lambda target_page: f"/archives/{year}/{month}?page={target_page}",
+    )
+    offset = (page - 1) * archive_posts_limit
+    posts = all_posts[offset: offset + archive_posts_limit]
     
     # 构建模板上下文（现在包含统一的设置数据）
     context = build_base_template_context(request)
@@ -1915,7 +2087,12 @@ async def posts_by_month(request: Request, year: int, month: int, db: Session = 
         "year": year,
         "month": month,
         "posts": posts,
+        "pagination": pagination,
+        "list_navigation_mode": list_navigation_mode,
     })
+
+    if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
+        return templates.TemplateResponse("fragments/monthly_archive_append.html", context)
     
     return templates.TemplateResponse("monthly_archive.html", context)
 

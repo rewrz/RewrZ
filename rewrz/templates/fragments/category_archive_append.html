@@ -1,0 +1,11 @@
+{% if posts %}
+<div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+    {% for post in posts %}
+    <article class="rounded-2xl border border-gray-200/70 bg-white/70 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/70">
+        {% include "components/timeline_card.html" %}
+    </article>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% include "components/list_pagination.html" %}
