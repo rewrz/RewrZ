@@ -54,8 +54,9 @@ def create_setting(db: Session, setting: SettingCreate, *, auto_commit: bool = T
         db.refresh(db_setting)
     else:
         db.flush()
-    # Clear cache for this setting after creation
-    clear_cache(cache_key_for_setting(setting.key))
+    # 仅在已提交时清理缓存；未提交事务避免提前失效导致短暂脏读。
+    if auto_commit:
+        clear_cache(cache_key_for_setting(setting.key))
     return db_setting
 
 def update_setting(
@@ -76,9 +77,9 @@ def update_setting(
         if auto_commit:
             db.commit()
             db.refresh(db_setting)
+            clear_cache(cache_key_for_setting(db_setting.key))
         else:
             db.flush()
-        clear_cache(cache_key_for_setting(db_setting.key))
     return db_setting
 
 def delete_setting(db: Session, key: str) -> Optional[Setting]:

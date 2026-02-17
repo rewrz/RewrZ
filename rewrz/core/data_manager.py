@@ -14,7 +14,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 import shutil
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Callable
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from ..crud import post as crud_post
@@ -24,8 +24,9 @@ from ..crud import format as crud_format
 from ..crud import setting as crud_setting
 from ..crud import media as crud_media
 from ..crud import user as crud_user
-from ..models import Post, Category, Tag, Format, Media, User, Comment
-from ..schemas import PostCreate, CategoryCreate, TagCreate, FormatCreate, SettingCreate, SettingUpdate
+from ..models import Post, Category, Tag, Format, Media, User, Comment, Setting
+from ..schemas import PostCreate, CategoryCreate, TagCreate, FormatCreate, SettingCreate
+from .cache import clear_cache, cache_key_for_setting, cache
 import re
 from .template_context import DEFAULT_BASE_SETTINGS
 
@@ -34,6 +35,7 @@ DEFAULT_WP_IMPORT_OPTIONS = {
     "import_comments": True,
     "import_views": True,
     "postmeta_whitelist": ["views", "post_views_count"],
+    "post_type_format_map": {},
     "markdown_strategy": "html_to_markdown",
 }
 
@@ -262,7 +264,12 @@ class DataExportManager:
 class WordPressImporter:
     """WordPress WXR文件导入器"""
     
-    def __init__(self, db: Session, options: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        db: Session,
+        options: Optional[Dict[str, Any]] = None,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    ):
         self.db = db
         self.namespaces = {
             'wp': 'http://wordpress.org/export/1.2/',
@@ -272,6 +279,34 @@ class WordPressImporter:
         }
         self._author_cache: Dict[str, Optional[User]] = {}
         self.options = self._normalize_import_options(options)
+        self.progress_callback = progress_callback
+        self._deferred_setting_cache_keys: set[str] = set()
+
+    def _report_progress(
+        self,
+        stage: str,
+        message: str,
+        current: Optional[int] = None,
+        total: Optional[int] = None,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        if not self.progress_callback:
+            return
+        payload: Dict[str, Any] = {
+            "stage": stage,
+            "message": message,
+        }
+        if current is not None:
+            payload["current"] = int(current)
+        if total is not None:
+            payload["total"] = int(total)
+        if extra:
+            payload.update(extra)
+        try:
+            self.progress_callback(payload)
+        except Exception:
+            # 进度回调失败不影响导入主流程
+            pass
 
     def _normalize_import_options(self, options: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         merged = dict(DEFAULT_WP_IMPORT_OPTIONS)
@@ -294,6 +329,9 @@ class WordPressImporter:
             postmeta_whitelist = ["views", "post_views_count"]
         merged["postmeta_whitelist"] = sorted(set(postmeta_whitelist))
 
+        merged["post_type_format_map"] = self._normalize_post_type_format_map(
+            merged.get("post_type_format_map", {})
+        )
         merged["import_comments"] = bool(merged.get("import_comments", True))
         merged["import_views"] = bool(merged.get("import_views", True))
         merged["markdown_strategy"] = str(merged.get("markdown_strategy", "html_to_markdown")).strip() or "html_to_markdown"
@@ -310,8 +348,12 @@ class WordPressImporter:
             导入结果统计
         """
         try:
+            self._report_progress("prepare", "正在解析 WordPress 导出文件...")
             tree = ET.parse(wxr_file_path)
             root = tree.getroot()
+            category_nodes = root.findall('.//wp:category', self.namespaces)
+            tag_nodes = root.findall('.//wp:tag', self.namespaces)
+            item_nodes = root.findall('.//item')
             
             # 导入统计
             stats = {
@@ -323,18 +365,32 @@ class WordPressImporter:
                 "errors": []
             }
             
+            self._report_progress(
+                "prepare",
+                "文件解析完成，开始导入数据。",
+                extra={
+                    "categories_total": len(category_nodes),
+                    "tags_total": len(tag_nodes),
+                    "items_total": len(item_nodes),
+                },
+            )
+
             # 导入分类
-            self._import_wp_categories(root, stats)
+            self._import_wp_categories(root, stats, total=len(category_nodes))
             
             # 导入标签
-            self._import_wp_tags(root, stats)
+            self._import_wp_tags(root, stats, total=len(tag_nodes))
             
             # 导入文章
-            self._import_wp_posts(root, stats)
+            self._import_wp_posts(root, stats, total=len(item_nodes))
+            self._clear_deferred_setting_cache()
+
+            self._report_progress("completed", "WordPress 数据导入完成。", current=1, total=1, extra={"stats": stats})
             
             return stats
             
         except Exception as e:
+            self._report_progress("failed", f"导入失败: {str(e)}")
             return {
                 "error": f"导入失败: {str(e)}",
                 "posts_imported": 0,
@@ -345,11 +401,13 @@ class WordPressImporter:
                 "errors": [str(e)]
             }
     
-    def _import_wp_categories(self, root: ET.Element, stats: Dict[str, Any]):
+    def _import_wp_categories(self, root: ET.Element, stats: Dict[str, Any], total: Optional[int] = None):
         """导入WordPress分类"""
         categories = root.findall('.//wp:category', self.namespaces)
-        
-        for cat_elem in categories:
+        total_count = total if total is not None else len(categories)
+        self._report_progress("categories", "正在导入分类...", current=0, total=total_count)
+
+        for index, cat_elem in enumerate(categories, start=1):
             try:
                 cat_nicename = cat_elem.find('wp:category_nicename', self.namespaces)
                 cat_name = cat_elem.find('wp:cat_name', self.namespaces)
@@ -373,12 +431,22 @@ class WordPressImporter:
             except Exception as e:
                 self.db.rollback()
                 stats["errors"].append(f"导入分类失败: {str(e)}")
+            finally:
+                self._report_progress(
+                    "categories",
+                    f"正在导入分类 ({index}/{total_count})",
+                    current=index,
+                    total=total_count,
+                    extra={"categories_imported": stats["categories_imported"]},
+                )
     
-    def _import_wp_tags(self, root: ET.Element, stats: Dict[str, Any]):
+    def _import_wp_tags(self, root: ET.Element, stats: Dict[str, Any], total: Optional[int] = None):
         """导入WordPress标签"""
         tags = root.findall('.//wp:tag', self.namespaces)
-        
-        for tag_elem in tags:
+        total_count = total if total is not None else len(tags)
+        self._report_progress("tags", "正在导入标签...", current=0, total=total_count)
+
+        for index, tag_elem in enumerate(tags, start=1):
             try:
                 tag_slug = tag_elem.find('wp:tag_slug', self.namespaces)
                 tag_name = tag_elem.find('wp:tag_name', self.namespaces)
@@ -402,13 +470,23 @@ class WordPressImporter:
             except Exception as e:
                 self.db.rollback()
                 stats["errors"].append(f"导入标签失败: {str(e)}")
+            finally:
+                self._report_progress(
+                    "tags",
+                    f"正在导入标签 ({index}/{total_count})",
+                    current=index,
+                    total=total_count,
+                    extra={"tags_imported": stats["tags_imported"]},
+                )
     
-    def _import_wp_posts(self, root: ET.Element, stats: Dict[str, Any]):
+    def _import_wp_posts(self, root: ET.Element, stats: Dict[str, Any], total: Optional[int] = None):
         """导入WordPress文章"""
         default_user: Optional[User] = None
         items = root.findall('.//item')
-        
-        for item in items:
+        total_count = total if total is not None else len(items)
+        self._report_progress("posts", "正在导入文章...", current=0, total=total_count)
+
+        for index, item in enumerate(items, start=1):
             try:
                 # 按白名单导入指定 post_type，附件/修订等系统类型会被跳过。
                 post_type = item.find('wp:post_type', self.namespaces)
@@ -527,25 +605,42 @@ class WordPressImporter:
                     new_post = crud_post.create_post(self.db, post_data, author.id, auto_commit=False)
                     
                     # 关联分类和标签
-                    self._associate_wp_taxonomies(item, new_post)
+                    self._associate_wp_taxonomies(item, new_post, raw_post_type=raw_post_type)
 
                     # 导入评论
                     if self.options.get("import_comments", True):
                         self._import_wp_comments(item, new_post, stats)
 
                     # 导入阅读量（postmeta）
+                    imported_views_key = None
                     if self.options.get("import_views", True):
                         views_count = self._extract_wp_views_count(item)
                         if views_count is not None:
                             if self._upsert_post_views_metric(new_post.id, views_count, auto_commit=False):
                                 stats["views_imported"] += 1
+                                imported_views_key = f"post_views_count_{new_post.id}"
 
                     self.db.commit()
+                    if imported_views_key:
+                        self._deferred_setting_cache_keys.add(imported_views_key)
                     stats["posts_imported"] += 1
                         
             except Exception as e:
                 self.db.rollback()
                 stats["errors"].append(f"导入文章失败: {str(e)}")
+            finally:
+                self._report_progress(
+                    "posts",
+                    f"正在导入文章 ({index}/{total_count})",
+                    current=index,
+                    total=total_count,
+                    extra={
+                        "posts_imported": stats["posts_imported"],
+                        "comments_imported": stats["comments_imported"],
+                        "views_imported": stats["views_imported"],
+                        "errors_count": len(stats["errors"]),
+                    },
+                )
 
     def _import_wp_comments(self, item: ET.Element, post: Post, stats: Dict[str, Any]):
         """导入WordPress评论（包含父子回复关系）。"""
@@ -715,32 +810,32 @@ class WordPressImporter:
     def _upsert_post_views_metric(self, post_id: int, views_count: int, *, auto_commit: bool = True) -> bool:
         key = f"post_views_count_{post_id}"
         setting_value = {"value": int(max(0, views_count))}
-        existing = crud_setting.get_setting(self.db, key)
+        existing = self.db.execute(select(Setting).filter(Setting.key == key)).scalar_one_or_none()
         if existing:
-            updated = crud_setting.update_setting(
-                self.db,
-                key,
-                SettingUpdate(
-                    value=setting_value,
-                    description="Imported WordPress post views",
-                    category="post_metrics",
-                    type="integer",
-                ),
-                auto_commit=auto_commit,
-            )
-            return updated is not None
-        created = crud_setting.create_setting(
-            self.db,
-            SettingCreate(
+            existing.value = setting_value
+            existing.description = "Imported WordPress post views"
+            existing.category = "post_metrics"
+            existing.type = "integer"
+        else:
+            self.db.add(Setting(
                 key=key,
                 value=setting_value,
                 description="Imported WordPress post views",
                 category="post_metrics",
                 type="integer",
-            ),
-            auto_commit=auto_commit,
-        )
-        return created is not None
+            ))
+
+        if auto_commit:
+            self.db.commit()
+            clear_cache(cache_key_for_setting(key))
+        return True
+
+    def _clear_deferred_setting_cache(self) -> None:
+        if not self._deferred_setting_cache_keys:
+            return
+        for setting_key in self._deferred_setting_cache_keys:
+            cache.pop(cache_key_for_setting(setting_key), None)
+        self._deferred_setting_cache_keys.clear()
     
     def _extract_slug_from_url(self, url: str) -> str:
         """从URL中提取slug"""
@@ -923,7 +1018,7 @@ class WordPressImporter:
         # 自定义 post_type 统一按文章导入，避免内容丢失。
         return "post"
     
-    def _associate_wp_taxonomies(self, item: ET.Element, post: Post):
+    def _associate_wp_taxonomies(self, item: ET.Element, post: Post, raw_post_type: str = ""):
         """关联WordPress的分类和标签到文章"""
         try:
             # 关联分类
@@ -942,19 +1037,28 @@ class WordPressImporter:
                     if tag:
                         post.tags.append(tag)
 
-            # 关联内容格式（WordPress post_format taxonomy）
-            format_items = item.findall('category[@domain="post_format"]')
             format_bound = False
-            for format_elem in format_items:
-                raw_nicename = (format_elem.get("nicename") or "").strip().lower()
-                raw_name = (format_elem.text or "").strip()
-                mapped_slug = self._map_wp_post_format_slug(raw_nicename, raw_name)
-                if not mapped_slug:
-                    continue
-                format_obj = self._ensure_post_format(mapped_slug, raw_name)
-                if format_obj and format_obj not in post.formats:
-                    post.formats.append(format_obj)
+            # 优先使用 post_type -> format 映射，便于将自定义类型（如 shuoshuo）导入到指定格式。
+            mapped_from_type = self._map_wp_post_type_to_format_slug(raw_post_type)
+            if mapped_from_type:
+                mapped_format = self._ensure_post_format(mapped_from_type, "")
+                if mapped_format and mapped_format not in post.formats:
+                    post.formats.append(mapped_format)
                     format_bound = True
+
+            # 未配置自定义映射时，回退到 WordPress post_format taxonomy。
+            if not format_bound:
+                format_items = item.findall('category[@domain="post_format"]')
+                for format_elem in format_items:
+                    raw_nicename = (format_elem.get("nicename") or "").strip().lower()
+                    raw_name = (format_elem.text or "").strip()
+                    mapped_slug = self._map_wp_post_format_slug(raw_nicename, raw_name)
+                    if not mapped_slug:
+                        continue
+                    format_obj = self._ensure_post_format(mapped_slug, raw_name)
+                    if format_obj and format_obj not in post.formats:
+                        post.formats.append(format_obj)
+                        format_bound = True
 
             # 若 WordPress 未显式给出 post_format，则默认绑定标准文章格式。
             if not format_bound and not post.formats:
@@ -994,6 +1098,65 @@ class WordPressImporter:
         # 未知格式保留为自定义格式，避免信息丢失。
         custom_slug = re.sub(r"[^a-z0-9_-]+", "-", normalized).strip("-")
         return custom_slug or None
+
+    def _normalize_post_type_format_map(self, raw_map: Any) -> Dict[str, str]:
+        normalized: Dict[str, str] = {}
+        items: List[Tuple[str, str]] = []
+        if isinstance(raw_map, dict):
+            items = [(str(k), str(v)) for k, v in raw_map.items()]
+        elif isinstance(raw_map, str):
+            # 支持 "shuoshuo:micro-post,news:article" 简写格式。
+            for token in re.split(r"[,;\n]+", raw_map):
+                part = token.strip()
+                if not part or ":" not in part:
+                    continue
+                left, right = part.split(":", 1)
+                items.append((left, right))
+
+        for raw_key, raw_value in items:
+            wp_type = re.sub(r"[^a-z0-9_-]+", "", raw_key.strip().lower())
+            format_slug = self._normalize_rewrz_format_slug(raw_value)
+            if not wp_type or not format_slug:
+                continue
+            normalized[wp_type] = format_slug
+        return dict(sorted(normalized.items()))
+
+    def _normalize_rewrz_format_slug(self, raw_value: Any) -> Optional[str]:
+        raw_text = str(raw_value or "").strip().lower()
+        if not raw_text:
+            return None
+        alias_map = {
+            "post": "article",
+            "standard": "article",
+            "weibo": "micro-post",
+            "micro": "micro-post",
+            "micro_post": "micro-post",
+            "photo": "photo-album",
+            "gallery": "photo-album",
+            "album": "photo-album",
+            "poetry": "poetry-song",
+            "song": "poetry-song",
+            "微博": "micro-post",
+            "标准文章": "article",
+            "相册": "photo-album",
+            "视频": "video",
+            "诗词歌赋": "poetry-song",
+        }
+        mapped = alias_map.get(raw_text, raw_text)
+        slug = re.sub(r"[^a-z0-9_-]+", "-", mapped).strip("-")
+        return slug or None
+
+    def _map_wp_post_type_to_format_slug(self, wp_post_type: str) -> Optional[str]:
+        normalized_type = (wp_post_type or "").strip().lower()
+        if not normalized_type:
+            return None
+        mapping = self.options.get("post_type_format_map") or {}
+        if not isinstance(mapping, dict):
+            return None
+        raw_target = mapping.get(normalized_type)
+        if raw_target is None:
+            return None
+        return self._normalize_rewrz_format_slug(raw_target)
 
     def _ensure_post_format(self, format_slug: str, display_name: str) -> Optional[Format]:
         slug = (format_slug or "").strip().lower()
@@ -1263,9 +1426,13 @@ def get_data_export_manager(db: Session) -> DataExportManager:
     return DataExportManager(db)
 
 
-def get_wordpress_importer(db: Session, options: Optional[Dict[str, Any]] = None) -> WordPressImporter:
+def get_wordpress_importer(
+    db: Session,
+    options: Optional[Dict[str, Any]] = None,
+    progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+) -> WordPressImporter:
     """获取WordPress导入器实例"""
-    return WordPressImporter(db, options=options)
+    return WordPressImporter(db, options=options, progress_callback=progress_callback)
 
 
 def get_rewrz_importer(db: Session) -> RewrZImporter:

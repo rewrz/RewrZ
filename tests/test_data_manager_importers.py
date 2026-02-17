@@ -399,6 +399,53 @@ def test_wordpress_import_custom_post_type_whitelist_maps_to_post(db, tmp_path):
     assert imported.post_type == "post"
 
 
+def test_wordpress_import_custom_post_type_can_map_to_micro_post_format(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin_custom_map", email="admin_custom_map@example.com", password="password123"),
+    )
+
+    wxr_content = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>说说映射格式</title>
+      <content:encoded><![CDATA[<p>说说正文</p>]]></content:encoded>
+      <wp:post_name>shuoshuo-1896</wp:post_name>
+      <wp:post_type>shuoshuo</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2024-03-03 18:12:26</wp:post_date>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_shuoshuo.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    importer = WordPressImporter(
+        db,
+        options={
+            "import_post_types": ["post", "page", "shuoshuo"],
+            "post_type_format_map": {"shuoshuo": "weibo"},
+            "import_comments": True,
+            "import_views": True,
+            "postmeta_whitelist": ["views", "post_views_count"],
+            "markdown_strategy": "html_to_markdown",
+        },
+    )
+    stats = importer.import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+
+    imported = crud_post.get_post_by_slug(db, "shuoshuo-1896")
+    assert imported is not None
+    assert imported.post_type == "post"
+    assert any(fmt.slug == "micro-post" for fmt in imported.formats)
+
+
 def test_wordpress_import_defaults_format_to_article_when_missing_post_format(db, tmp_path):
     crud_user.create_user(
         db,

@@ -10,12 +10,17 @@
 
 import os
 import json
+import copy
 import tempfile
+import threading
+import uuid
+import re
+from concurrent.futures import ThreadPoolExecutor
 from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile, Body
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
-from ..core.database import get_db
+from ..core.database import get_db, db_manager
 from ..core.security import get_current_user
 from ..core.template_filters import get_templates
 from ..core.data_manager import (
@@ -32,6 +37,12 @@ from ..schemas import SettingCreate, SettingUpdate
 router = APIRouter()
 templates = get_templates()
 
+IMPORT_JOB_STATUSES = {"queued", "running", "completed", "failed"}
+_IMPORT_JOBS: Dict[str, Dict[str, Any]] = {}
+_IMPORT_JOBS_LOCK = threading.Lock()
+_IMPORT_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="import-jobs")
+_MAX_IMPORT_JOB_COUNT = 200
+
 
 def _normalize_wp_import_options(payload: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     merged = dict(DEFAULT_WP_IMPORT_OPTIONS)
@@ -47,6 +58,45 @@ def _normalize_wp_import_options(payload: Optional[Dict[str, Any]]) -> Dict[str,
     if isinstance(raw_whitelist, str):
         raw_whitelist = [part.strip() for part in raw_whitelist.split(",")]
     merged["postmeta_whitelist"] = sorted({str(x).strip() for x in raw_whitelist if str(x).strip()}) or ["views", "post_views_count"]
+
+    raw_map = merged.get("post_type_format_map", {})
+    normalized_map: Dict[str, str] = {}
+    map_items = []
+    if isinstance(raw_map, dict):
+        map_items = [(str(k), str(v)) for k, v in raw_map.items()]
+    elif isinstance(raw_map, str):
+        for token in re.split(r"[,;\n]+", raw_map):
+            part = token.strip()
+            if not part or ":" not in part:
+                continue
+            left, right = part.split(":", 1)
+            map_items.append((left, right))
+
+    alias_map = {
+        "post": "article",
+        "standard": "article",
+        "weibo": "micro-post",
+        "micro": "micro-post",
+        "micro_post": "micro-post",
+        "photo": "photo-album",
+        "gallery": "photo-album",
+        "album": "photo-album",
+        "poetry": "poetry-song",
+        "song": "poetry-song",
+        "微博": "micro-post",
+        "标准文章": "article",
+        "相册": "photo-album",
+        "视频": "video",
+        "诗词歌赋": "poetry-song",
+    }
+    for raw_key, raw_value in map_items:
+        key = re.sub(r"[^a-z0-9_-]+", "", raw_key.strip().lower())
+        target_raw = str(raw_value or "").strip().lower()
+        mapped_target = alias_map.get(target_raw, target_raw)
+        target = re.sub(r"[^a-z0-9_-]+", "-", mapped_target).strip("-")
+        if key and target:
+            normalized_map[key] = target
+    merged["post_type_format_map"] = dict(sorted(normalized_map.items()))
 
     merged["import_comments"] = bool(merged.get("import_comments", True))
     merged["import_views"] = bool(merged.get("import_views", True))
@@ -90,6 +140,149 @@ def _save_wp_import_options(db: Session, options: Dict[str, Any]) -> Dict[str, A
             ),
         )
     return normalized
+
+
+def _create_import_job(user_id: int, job_type: str, filename: str) -> Dict[str, Any]:
+    job_id = uuid.uuid4().hex
+    now = datetime.utcnow().isoformat()
+    job = {
+        "id": job_id,
+        "user_id": int(user_id),
+        "type": job_type,
+        "filename": filename,
+        "status": "queued",
+        "created_at": now,
+        "updated_at": now,
+        "progress": {
+            "stage": "queued",
+            "message": "任务已创建，等待执行。",
+            "current": 0,
+            "total": 1,
+            "percent": 0,
+        },
+        "result": None,
+        "error": None,
+    }
+    with _IMPORT_JOBS_LOCK:
+        _IMPORT_JOBS[job_id] = job
+        _prune_import_jobs_locked()
+    return job
+
+
+def _prune_import_jobs_locked() -> None:
+    if len(_IMPORT_JOBS) <= _MAX_IMPORT_JOB_COUNT:
+        return
+    sorted_jobs = sorted(_IMPORT_JOBS.values(), key=lambda item: item.get("updated_at", ""))
+    overflow = len(_IMPORT_JOBS) - _MAX_IMPORT_JOB_COUNT
+    for job in sorted_jobs[:overflow]:
+        _IMPORT_JOBS.pop(job["id"], None)
+
+
+def _update_import_job(job_id: str, **fields: Any) -> None:
+    with _IMPORT_JOBS_LOCK:
+        job = _IMPORT_JOBS.get(job_id)
+        if not job:
+            return
+        job.update(fields)
+        job["updated_at"] = datetime.utcnow().isoformat()
+
+
+def _set_import_job_progress(
+    job_id: str,
+    stage: str,
+    message: str,
+    current: Optional[int] = None,
+    total: Optional[int] = None,
+    percent: Optional[int] = None,
+    extra: Optional[Dict[str, Any]] = None,
+) -> None:
+    with _IMPORT_JOBS_LOCK:
+        job = _IMPORT_JOBS.get(job_id)
+        if not job:
+            return
+        progress = dict(job.get("progress") or {})
+        progress["stage"] = stage
+        progress["message"] = message
+        if current is not None:
+            progress["current"] = int(max(current, 0))
+        if total is not None:
+            progress["total"] = int(max(total, 0))
+        if percent is None:
+            cur = progress.get("current")
+            tot = progress.get("total")
+            if isinstance(cur, int) and isinstance(tot, int) and tot > 0:
+                percent = int(max(0, min(100, round((cur / tot) * 100))))
+        if percent is not None:
+            progress["percent"] = int(max(0, min(100, percent)))
+        if isinstance(extra, dict):
+            progress.update(extra)
+        job["progress"] = progress
+        job["updated_at"] = datetime.utcnow().isoformat()
+
+
+def _get_import_job(job_id: str) -> Optional[Dict[str, Any]]:
+    with _IMPORT_JOBS_LOCK:
+        job = _IMPORT_JOBS.get(job_id)
+        if not job:
+            return None
+        return copy.deepcopy(job)
+
+
+def _run_wordpress_import_job(job_id: str, wxr_path: str, options: Dict[str, Any]) -> None:
+    _update_import_job(job_id, status="running")
+    _set_import_job_progress(job_id, "prepare", "开始导入任务...", current=0, total=1, percent=0)
+
+    db = None
+    try:
+        db_manager.reload_if_needed()
+        db = db_manager.get_session()
+        if db is None:
+            raise RuntimeError("数据库连接不可用")
+
+        def progress_callback(payload: Dict[str, Any]) -> None:
+            stage = str(payload.get("stage") or "running")
+            message = str(payload.get("message") or "正在导入...")
+            current = payload.get("current")
+            total = payload.get("total")
+            extra = {
+                key: value
+                for key, value in payload.items()
+                if key not in {"stage", "message", "current", "total"}
+            }
+            _set_import_job_progress(
+                job_id,
+                stage=stage,
+                message=message,
+                current=current if isinstance(current, int) else None,
+                total=total if isinstance(total, int) else None,
+                extra=extra or None,
+            )
+
+        importer = get_wordpress_importer(db, options=options, progress_callback=progress_callback)
+        result = importer.import_from_wxr(wxr_path)
+
+        if isinstance(result, dict) and result.get("error"):
+            _update_import_job(job_id, status="failed", error=str(result.get("error")), result={"stats": result})
+            _set_import_job_progress(job_id, "failed", f"导入失败：{result.get('error')}", percent=100)
+        else:
+            _update_import_job(job_id, status="completed", result={"stats": result}, error=None)
+            _set_import_job_progress(job_id, "completed", "导入完成。", percent=100)
+    except Exception as exc:
+        try:
+            if db is not None:
+                db.rollback()
+        except Exception:
+            pass
+        _update_import_job(job_id, status="failed", error=str(exc), result=None)
+        _set_import_job_progress(job_id, "failed", f"导入失败：{str(exc)}", percent=100)
+    finally:
+        if db is not None:
+            db.close()
+        try:
+            if os.path.exists(wxr_path):
+                os.unlink(wxr_path)
+        except Exception:
+            pass
 
 
 async def data_management_page(
@@ -249,6 +442,71 @@ async def import_wordpress_data(
     finally:
         if os.path.exists(temp_file.name):
             os.unlink(temp_file.name)
+
+
+@router.post("/api/v1/import/wordpress/tasks")
+@router.post("/api/import/wordpress/tasks")
+async def create_wordpress_import_task(
+    wxr_file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    创建 WordPress 导入异步任务，并返回任务ID用于查询进度。
+    """
+    filename = wxr_file.filename or ""
+    if not filename.lower().endswith(".xml"):
+        raise HTTPException(status_code=400, detail="请上传XML格式的WXR文件")
+
+    max_size = 50 * 1024 * 1024  # 50MB
+    content = await wxr_file.read()
+    if len(content) > max_size:
+        raise HTTPException(status_code=400, detail="文件大小超过限制（最大50MB）")
+
+    temp_file = tempfile.NamedTemporaryFile(mode="wb", suffix=".xml", delete=False)
+    try:
+        temp_file.write(content)
+        temp_file.close()
+        wp_options = _get_wp_import_options(db)
+        job = _create_import_job(
+            user_id=current_user.id,
+            job_type="wordpress_import",
+            filename=filename,
+        )
+        _IMPORT_EXECUTOR.submit(_run_wordpress_import_job, job["id"], temp_file.name, wp_options)
+        return JSONResponse(
+            {
+                "success": True,
+                "message": "WordPress导入任务已启动",
+                "job_id": job["id"],
+            },
+            status_code=202,
+        )
+    except Exception:
+        try:
+            if os.path.exists(temp_file.name):
+                os.unlink(temp_file.name)
+        except Exception:
+            pass
+        raise
+
+
+@router.get("/api/v1/import/jobs/{job_id}")
+@router.get("/api/import/jobs/{job_id}")
+async def get_import_job_status(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    获取异步导入任务状态。
+    """
+    job = _get_import_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="任务不存在或已过期")
+    if int(job.get("user_id", -1)) != int(current_user.id):
+        raise HTTPException(status_code=403, detail="无权访问该任务")
+    job_view = {k: v for k, v in job.items() if k != "user_id"}
+    return JSONResponse({"success": True, "job": job_view})
 
 
 @router.get("/api/v1/import/wordpress/options")

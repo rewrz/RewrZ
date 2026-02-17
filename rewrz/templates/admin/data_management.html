@@ -60,8 +60,11 @@
                 <div class="min-w-0 flex-1">
                     <div id="operation-title" class="text-sm font-semibold text-blue-900">正在处理中</div>
                     <div id="operation-message" class="mt-0.5 text-sm text-blue-800">请稍候，处理中请勿关闭页面。</div>
-                    <div class="mt-3 h-2 overflow-hidden rounded-full bg-blue-100">
-                        <div class="h-full w-full animate-pulse bg-blue-500"></div>
+                    <div class="mt-3 flex items-center gap-3">
+                        <div class="h-2 flex-1 overflow-hidden rounded-full bg-blue-100">
+                            <div id="operation-progress-bar" class="h-full w-full animate-pulse bg-blue-500 transition-all duration-300 ease-out"></div>
+                        </div>
+                        <span id="operation-progress-text" class="w-12 text-right text-xs font-semibold text-blue-700">处理中</span>
                     </div>
                 </div>
             </div>
@@ -134,7 +137,12 @@
                     <div class="mt-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">额外文章类型白名单（逗号分隔）</label>
                         <input id="wp-import-extra-post-types" type="text" class="block w-full rounded border border-gray-300 px-3 py-2 text-sm" placeholder="portfolio,news,article">
-                        <p class="mt-1 text-xs text-gray-500">例如自定义 post_type；会按文章（post）导入。</p>
+                        <p class="mt-1 text-xs text-gray-500">例如自定义 post_type；默认会按文章（post）导入。</p>
+                    </div>
+                    <div class="mt-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">post_type 格式映射（逗号分隔）</label>
+                        <input id="wp-post-type-format-map" type="text" class="block w-full rounded border border-gray-300 px-3 py-2 text-sm" placeholder="shuoshuo:micro-post,news:article">
+                        <p class="mt-1 text-xs text-gray-500">用于把自定义 post_type 映射为指定格式，例如 <code>shuoshuo:micro-post</code>（微博）。</p>
                     </div>
                     <div class="mt-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">postmeta 白名单（逗号分隔）</label>
@@ -212,6 +220,8 @@
 
 <script>
 let currentTab = 'export';
+let activeWordPressImportJobId = null;
+const WORDPRESS_IMPORT_POLL_INTERVAL_MS = 1000;
 
 // 页面加载时获取数据统计
 document.addEventListener('DOMContentLoaded', function() {
@@ -264,6 +274,7 @@ async function loadDataStats() {
 }
 
 function collectWordPressImportOptions() {
+    const postTypeFormatMapText = document.getElementById('wp-post-type-format-map')?.value || '';
     const types = [];
     if (document.getElementById('wp-import-type-post')?.checked) types.push('post');
     if (document.getElementById('wp-import-type-page')?.checked) types.push('page');
@@ -281,12 +292,59 @@ function collectWordPressImportOptions() {
         import_comments: Boolean(document.getElementById('wp-import-comments')?.checked),
         import_views: Boolean(document.getElementById('wp-import-views')?.checked),
         import_post_types: types,
+        post_type_format_map: parsePostTypeFormatMap(postTypeFormatMapText),
         postmeta_whitelist: (document.getElementById('wp-postmeta-whitelist')?.value || '')
             .split(',')
             .map(item => item.trim())
             .filter(Boolean),
         markdown_strategy: document.getElementById('wp-markdown-strategy')?.value || 'html_to_markdown'
     };
+}
+
+function parsePostTypeFormatMap(text) {
+    const result = {};
+    const aliasMap = {
+        weibo: 'micro-post',
+        micro: 'micro-post',
+        micro_post: 'micro-post',
+        post: 'article',
+        standard: 'article',
+        photo: 'photo-album',
+        gallery: 'photo-album',
+        album: 'photo-album',
+        poetry: 'poetry-song',
+        song: 'poetry-song',
+        '微博': 'micro-post',
+        '标准文章': 'article',
+        '相册': 'photo-album',
+        '视频': 'video',
+        '诗词歌赋': 'poetry-song'
+    };
+
+    String(text || '')
+        .split(/[,\n;]+/)
+        .map(item => item.trim())
+        .filter(Boolean)
+        .forEach(pair => {
+            const parts = pair.split(':');
+            if (parts.length < 2) return;
+            const key = (parts[0] || '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '');
+            let value = parts.slice(1).join(':').trim().toLowerCase();
+            value = aliasMap[value] || value;
+            value = value.replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+            if (!key || !value) return;
+            result[key] = value;
+        });
+    return result;
+}
+
+function stringifyPostTypeFormatMap(mapping) {
+    if (!mapping || typeof mapping !== 'object') return '';
+    return Object.entries(mapping)
+        .filter(([key, value]) => key && value)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([key, value]) => `${key}:${value}`)
+        .join(',');
 }
 
 function applyWordPressImportOptions(options) {
@@ -298,6 +356,7 @@ function applyWordPressImportOptions(options) {
     document.getElementById('wp-import-type-page').checked = types.includes('page');
     const extraTypes = types.filter(type => !['post', 'page'].includes(type));
     document.getElementById('wp-import-extra-post-types').value = extraTypes.join(',');
+    document.getElementById('wp-post-type-format-map').value = stringifyPostTypeFormatMap(safe.post_type_format_map);
     const whitelist = Array.isArray(safe.postmeta_whitelist) ? safe.postmeta_whitelist : [];
     document.getElementById('wp-postmeta-whitelist').value = whitelist.join(',');
     document.getElementById('wp-markdown-strategy').value = safe.markdown_strategy || 'html_to_markdown';
@@ -368,33 +427,160 @@ async function exportData(type) {
     }
 }
 
+function getImportStageLabel(stage) {
+    const stageMap = {
+        queued: '排队中',
+        prepare: '准备中',
+        categories: '导入分类',
+        tags: '导入标签',
+        posts: '导入文章',
+        completed: '已完成',
+        failed: '失败'
+    };
+    return stageMap[String(stage || '').toLowerCase()] || '处理中';
+}
+
+function normalizeProgressPercent(progress) {
+    if (!progress || typeof progress !== 'object') return null;
+    const directPercent = Number(progress.percent);
+    if (Number.isFinite(directPercent)) {
+        return Math.max(0, Math.min(100, Math.round(directPercent)));
+    }
+    const current = Number(progress.current);
+    const total = Number(progress.total);
+    if (Number.isFinite(current) && Number.isFinite(total) && total > 0) {
+        return Math.max(0, Math.min(100, Math.round((current / total) * 100)));
+    }
+    return null;
+}
+
+function setOperationProgress(percent = null) {
+    const bar = document.getElementById('operation-progress-bar');
+    const text = document.getElementById('operation-progress-text');
+    if (!bar || !text) return;
+
+    if (typeof percent === 'number' && Number.isFinite(percent)) {
+        const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+        bar.style.width = `${clamped}%`;
+        bar.classList.remove('animate-pulse');
+        text.textContent = `${clamped}%`;
+    } else {
+        bar.style.width = '100%';
+        bar.classList.add('animate-pulse');
+        text.textContent = '处理中';
+    }
+}
+
+function updateOperationProgress(payload = {}) {
+    const titleNode = document.getElementById('operation-title');
+    const messageNode = document.getElementById('operation-message');
+    if (titleNode && payload.title) titleNode.textContent = payload.title;
+    if (messageNode && payload.message) messageNode.textContent = payload.message;
+    setOperationProgress(payload.percent);
+}
+
+async function pollWordPressImportJob(jobId) {
+    let failedAttempts = 0;
+
+    while (activeWordPressImportJobId === jobId) {
+        try {
+            const response = await fetch(`{{ admin_path }}/api/v1/import/jobs/${encodeURIComponent(jobId)}`);
+            let result = {};
+            try {
+                result = await response.json();
+            } catch (jsonError) {
+                result = {};
+            }
+
+            if (!response.ok || !result.success || !result.job) {
+                throw new Error(result.detail || result.error || `状态查询失败 (${response.status})`);
+            }
+
+            failedAttempts = 0;
+            const job = result.job;
+            const progress = job.progress || {};
+            const percent = normalizeProgressPercent(progress);
+
+            updateOperationProgress({
+                title: `WordPress 导入中: ${getImportStageLabel(progress.stage)}`,
+                message: progress.message || '正在处理导入任务...',
+                percent
+            });
+
+            if (job.status === 'completed') {
+                activeWordPressImportJobId = null;
+                const stats = job.result && job.result.stats ? job.result.stats : null;
+                const hasErrors = stats && Array.isArray(stats.errors) && stats.errors.length > 0;
+                if (hasErrors) {
+                    showOperationResult('warning', 'WordPress 数据导入已完成，但存在错误。', stats);
+                } else {
+                    showOperationResult('success', 'WordPress 数据导入成功！', stats);
+                }
+                loadDataStats();
+                return;
+            }
+
+            if (job.status === 'failed') {
+                activeWordPressImportJobId = null;
+                const stats = job.result && job.result.stats ? job.result.stats : null;
+                showOperationResult('error', `WordPress 导入失败: ${job.error || '任务执行失败'}`, stats);
+                return;
+            }
+        } catch (error) {
+            failedAttempts += 1;
+            if (failedAttempts >= 5) {
+                activeWordPressImportJobId = null;
+                showOperationResult('error', `导入任务状态查询失败: ${error.message}`);
+                return;
+            }
+            updateOperationProgress({
+                title: '导入状态重连中',
+                message: `网络暂时不稳定，正在重试 (${failedAttempts}/5)...`,
+                percent: null
+            });
+        }
+
+        await new Promise(resolve => setTimeout(resolve, WORDPRESS_IMPORT_POLL_INTERVAL_MS));
+    }
+}
+
 // 处理 WordPress 导入
 document.getElementById('wordpress-import-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    
+
+    if (activeWordPressImportJobId) {
+        showOperationResult('warning', '已有 WordPress 导入任务在执行，请等待当前任务完成。');
+        return;
+    }
+
     const formData = new FormData(this);
-    
-    showOperationStatus('正在导入 WordPress 数据', '导入时间可能较长，请勿关闭页面。');
-    
+
+    showOperationStatus('正在提交 WordPress 导入任务', '文件上传中，请稍候。');
+    setOperationProgress(3);
+
     try {
-        const response = await fetch('{{ admin_path }}/api/v1/import/wordpress', {
+        const response = await fetch('{{ admin_path }}/api/v1/import/wordpress/tasks', {
             method: 'POST',
             body: formData
         });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            const hasErrors = result.stats && Array.isArray(result.stats.errors) && result.stats.errors.length > 0;
-            if (hasErrors) {
-                showOperationResult('warning', 'WordPress 数据导入已完成，但存在错误。', result.stats);
-            } else {
-                showOperationResult('success', 'WordPress 数据导入成功！', result.stats);
-            }
-            loadDataStats(); // 刷新统计
-        } else {
-            showOperationResult('error', result.error);
+
+        let result = {};
+        try {
+            result = await response.json();
+        } catch (jsonError) {
+            result = {};
         }
+        if (!response.ok || !result.success || !result.job_id) {
+            throw new Error(result.detail || result.error || `任务创建失败 (${response.status})`);
+        }
+
+        activeWordPressImportJobId = result.job_id;
+        updateOperationProgress({
+            title: 'WordPress 导入任务已创建',
+            message: '任务已提交到后台，正在等待执行...',
+            percent: 5
+        });
+        await pollWordPressImportJob(result.job_id);
     } catch (error) {
         showOperationResult('error', `导入失败: ${error.message}`);
     }
@@ -490,6 +676,7 @@ function showOperationStatus(title = '正在处理中', message = '请稍候，�
     if (result) result.classList.add('hidden');
     if (titleNode) titleNode.textContent = title;
     if (messageNode) messageNode.textContent = message;
+    setOperationProgress(null);
     setOperationBusy(true);
     ensureOperationFeedbackVisible();
 }
