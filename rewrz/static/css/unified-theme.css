@@ -2,12 +2,26 @@
     --font-family-base: 'SourceHanSansCN', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
     --font-family-heading: 'Noto Serif SC', 'SourceHanSansCN', serif;
     --font-family-decorative: 'KaiTi', 'STKaiti', serif;
-    --ui-radius-lg: 1rem;
-    --ui-radius-xl: 1.25rem;
-    --ui-shadow-soft: 0 14px 35px -20px rgba(15, 23, 42, 0.45);
-    --ui-shadow-card: 0 20px 45px -24px rgba(30, 41, 59, 0.35);
+    /* 二次元风格圆角系统 - 更圆润的设计 */
+    --ui-radius-sm: 0.75rem;
+    --ui-radius-md: 1rem;
+    --ui-radius-lg: 1.25rem;
+    --ui-radius-xl: 1.5rem;
+    --ui-radius-2xl: 2rem;
+    --ui-radius-full: 9999px;
+    /* 增强的阴影系统 - 更柔和、更有层次 */
+    --ui-shadow-soft: 0 8px 32px -8px rgba(15, 23, 42, 0.12), 0 4px 16px -4px rgba(15, 23, 42, 0.08);
+    --ui-shadow-card: 0 12px 40px -12px rgba(30, 41, 59, 0.25), 0 4px 16px -4px rgba(30, 41, 59, 0.1);
+    --ui-shadow-glow: 0 0 40px -10px var(--color-primary);
+    --ui-shadow-hover: 0 20px 50px -15px rgba(30, 41, 59, 0.3), 0 8px 24px -8px rgba(30, 41, 59, 0.15);
     --ui-ring: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent);
     --ui-border: color-mix(in srgb, var(--color-border) 70%, transparent);
+    /* 二次元动画时长 */
+    --anime-fast: 0.2s;
+    --anime-normal: 0.35s;
+    --anime-slow: 0.5s;
+    --anime-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --anime-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 html,
@@ -342,4 +356,997 @@ body.admin-app {
         right: 10px;
         bottom: 10px;
     }
+}
+
+/* ===== 二次元风格增强 ===== */
+
+/* 时间线卡片悬浮发光效果 */
+.timeline-card-shell:hover {
+    box-shadow: var(--ui-shadow-glow), var(--ui-shadow-hover);
+    transform: translateY(-4px);
+    transition: all var(--anime-normal) var(--anime-smooth);
+}
+
+/* 标签胶囊美化 */
+.anime-chip {
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--ui-radius-full);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    backdrop-filter: blur(8px);
+    transition: all var(--anime-fast) var(--anime-smooth);
+}
+
+.anime-chip:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+
+/* Hero区域增强 */
+.hero-surface {
+    border-radius: var(--ui-radius-2xl);
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-surface::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--color-primary) 8%, transparent) 0%, transparent 70%);
+    animation: heroFloat 20s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes heroFloat {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    33% { transform: translate(3%, 3%) rotate(2deg); }
+    66% { transform: translate(-2%, 2%) rotate(-1deg); }
+}
+
+/* Hero缩略图悬浮效果 */
+.hero-anime-thumb {
+    border-radius: var(--ui-radius-xl);
+    transition: all var(--anime-normal) var(--anime-bounce);
+}
+
+.hero-anime-thumb:hover {
+    transform: scale(1.03) rotate(1deg);
+    box-shadow: var(--ui-shadow-glow);
+}
+
+/* 时间轴节点动画 */
+.timeline-node {
+    position: relative;
+    transition: all var(--anime-normal) var(--anime-smooth);
+}
+
+.timeline-node::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    opacity: 0;
+    animation: nodePulse 2s ease-in-out infinite;
+}
+
+@keyframes nodePulse {
+    0%, 100% { transform: scale(1); opacity: 0; }
+    50% { transform: scale(1.5); opacity: 0.3; }
+}
+
+/* 文章卡片渐入动画 */
+.timeline-reveal {
+    animation: cardFadeIn 0.6s var(--anime-smooth) forwards;
+}
+
+@keyframes cardFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 装饰性几何图形 */
+.deco-shape {
+    position: absolute;
+    border-radius: 50%;
+    background: linear-gradient(135deg, 
+        color-mix(in srgb, var(--color-primary) 20%, transparent),
+        color-mix(in srgb, var(--color-primary) 5%, transparent)
+    );
+    pointer-events: none;
+    z-index: 0;
+}
+
+.deco-shape-1 {
+    width: 300px;
+    height: 300px;
+    top: 10%;
+    right: -100px;
+    animation: floatShape 15s ease-in-out infinite;
+}
+
+.deco-shape-2 {
+    width: 200px;
+    height: 200px;
+    bottom: 20%;
+    left: -50px;
+    animation: floatShape 12s ease-in-out infinite reverse;
+}
+
+@keyframes floatShape {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(20px, -20px) rotate(10deg); }
+}
+
+/* 导航栏增强 */
+body.site-shell > header {
+    transition: all var(--anime-normal) var(--anime-smooth);
+}
+
+body.site-shell > header:hover {
+    background: color-mix(in srgb, var(--color-nav-bg) 92%, transparent) !important;
+}
+
+/* 导航链接动画 */
+body.site-shell > header nav a {
+    position: relative;
+    overflow: hidden;
+}
+
+body.site-shell > header nav a::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+    transition: all var(--anime-normal) var(--anime-smooth);
+    transform: translateX(-50%);
+}
+
+body.site-shell > header nav a:hover::after {
+    width: 80%;
+}
+
+/* 按钮涟漪效果 */
+.btn-ripple {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-ripple::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn-ripple:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* 搜索框聚焦效果 */
+body.site-shell > header input[type="text"]:focus {
+    box-shadow: var(--ui-ring), 0 4px 16px -4px color-mix(in srgb, var(--color-primary) 30%, transparent);
+    border-color: var(--color-primary);
+}
+
+/* 页脚渐变增强 */
+body.site-shell > footer {
+    background: linear-gradient(
+        to top,
+        color-mix(in srgb, var(--color-background) 100%, transparent),
+        color-mix(in srgb, var(--color-background) 95%, transparent)
+    );
+}
+
+/* 社交链接悬浮效果 */
+body.site-shell > footer a {
+    transition: all var(--anime-fast) var(--anime-bounce);
+}
+
+body.site-shell > footer a:hover {
+    transform: translateY(-3px) scale(1.1);
+}
+
+/* 返回顶部按钮增强 */
+.back-to-top {
+    border-radius: var(--ui-radius-full);
+    background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 80%, #8b5cf6));
+    box-shadow: 0 4px 20px -4px color-mix(in srgb, var(--color-primary) 50%, transparent);
+    transition: all var(--anime-normal) var(--anime-bounce);
+}
+
+.back-to-top:hover {
+    transform: translateY(-4px) scale(1.1);
+    box-shadow: 0 8px 30px -4px color-mix(in srgb, var(--color-primary) 60%, transparent);
+}
+
+/* 加载动画 */
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 图片懒加载占位 */
+.img-placeholder {
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--color-card-bg) 90%, transparent) 25%,
+        color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg)) 50%,
+        color-mix(in srgb, var(--color-card-bg) 90%, transparent) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* 主题切换按钮动画 */
+#desktop-theme-toggle,
+#mobile-theme-toggle {
+    transition: all var(--anime-normal) var(--anime-bounce);
+}
+
+#desktop-theme-toggle:hover,
+#mobile-theme-toggle:hover {
+    transform: rotate(180deg) scale(1.1);
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+    .hero-surface::before {
+        display: none;
+    }
+    
+    .timeline-card-shell:hover {
+        transform: none;
+    }
+    
+    .deco-shape {
+        display: none;
+    }
+}
+
+/* 减少动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ===== 后台管理界面二次元风格增强 ===== */
+
+/* 后台侧边栏悬浮动画 */
+.admin-sidebar-shell {
+    position: relative;
+    overflow: hidden;
+}
+
+.admin-sidebar-shell::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--color-primary) 8%, transparent) 0%, transparent 50%);
+    animation: sidebarGlow 15s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes sidebarGlow {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(10%, 10%); }
+}
+
+/* 后台导航链接增强 */
+.admin-nav-link {
+    position: relative;
+    overflow: hidden;
+    transition: all var(--anime-normal) var(--anime-smooth);
+}
+
+.admin-nav-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 3px;
+    background: var(--color-primary);
+    transform: scaleY(0);
+    transition: transform var(--anime-normal) var(--anime-bounce);
+    border-radius: 0 2px 2px 0;
+}
+
+.admin-nav-link:hover::before,
+.admin-nav-link.active::before {
+    transform: scaleY(1);
+}
+
+.admin-nav-link:hover {
+    transform: translateX(4px);
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.admin-nav-link.active {
+    background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+    box-shadow: inset 0 0 20px color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+/* 后台分组标题装饰 */
+.admin-nav-group-title {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.admin-nav-group-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    margin-left: 0.5rem;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 30%, transparent), transparent);
+}
+
+/* 后台面板增强 */
+.admin-panel {
+    position: relative;
+    overflow: hidden;
+    transition: all var(--anime-normal) var(--anime-smooth);
+}
+
+.admin-panel:hover {
+    box-shadow: var(--ui-shadow-hover);
+}
+
+.admin-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, 
+        transparent,
+        var(--color-primary),
+        color-mix(in srgb, var(--color-primary) 50%, #8b5cf6),
+        var(--color-primary),
+        transparent
+    );
+    opacity: 0;
+    transition: opacity var(--anime-normal) var(--anime-smooth);
+}
+
+.admin-panel:hover::before {
+    opacity: 1;
+}
+
+/* 后台顶部栏增强 */
+.admin-topbar {
+    position: relative;
+}
+
+.admin-topbar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, 
+        color-mix(in srgb, var(--color-primary) 5%, transparent),
+        transparent 50%
+    );
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+/* 后台标签芯片增强 */
+.admin-chip {
+    transition: all var(--anime-fast) var(--anime-bounce);
+    backdrop-filter: blur(8px);
+}
+
+.admin-chip:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+/* 后台浮动装饰增强 */
+.admin-anime-float {
+    animation: adminFloatRotate 20s ease-in-out infinite;
+}
+
+@keyframes adminFloatRotate {
+    0%, 100% { transform: rotate(-3deg) translateY(0); }
+    50% { transform: rotate(3deg) translateY(-10px); }
+}
+
+/* 后台 Toast 通知增强 */
+.admin-toast {
+    border-radius: var(--ui-radius-lg) !important;
+    backdrop-filter: blur(12px);
+    animation: toastSlideIn 0.3s var(--anime-bounce) forwards !important;
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.admin-toast-success {
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7) !important;
+    border-left: 4px solid #10b981 !important;
+}
+
+.admin-toast-error {
+    background: linear-gradient(135deg, #fef2f2, #fecaca) !important;
+    border-left: 4px solid #ef4444 !important;
+}
+
+.admin-toast-warning {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7) !important;
+    border-left: 4px solid #f59e0b !important;
+}
+
+.admin-toast-info {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe) !important;
+    border-left: 4px solid #3b82f6 !important;
+}
+
+/* 后台确认弹窗增强 */
+.admin-confirm-panel {
+    border-radius: var(--ui-radius-xl) !important;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border)) !important;
+}
+
+.admin-confirm-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--color-primary), #8b5cf6, var(--color-primary));
+}
+
+.admin-confirm-btn {
+    border-radius: var(--ui-radius-md) !important;
+    transition: all var(--anime-fast) var(--anime-bounce) !important;
+}
+
+.admin-confirm-btn:hover {
+    transform: translateY(-2px);
+}
+
+.admin-confirm-submit {
+    background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 80%, #8b5cf6)) !important;
+    box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--color-primary) 40%, transparent) !important;
+}
+
+/* 后台按钮增强 */
+.admin-app .bg-indigo-600,
+.admin-app .bg-blue-600,
+.admin-app .bg-green-600,
+.admin-app .bg-red-600 {
+    transition: all var(--anime-fast) var(--anime-bounce);
+    border-radius: var(--ui-radius-md);
+}
+
+.admin-app .bg-indigo-600:hover,
+.admin-app .bg-blue-600:hover,
+.admin-app .bg-green-600:hover,
+.admin-app .bg-red-600:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px -4px color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+
+/* 后台表格增强 */
+.admin-app table {
+    border-radius: var(--ui-radius-lg);
+    overflow: hidden;
+}
+
+.admin-app thead {
+    background: linear-gradient(180deg, 
+        color-mix(in srgb, var(--color-background-alt) 100%, transparent),
+        color-mix(in srgb, var(--color-background-alt) 90%, transparent)
+    ) !important;
+}
+
+.admin-app tbody tr {
+    transition: all var(--anime-fast) var(--anime-smooth);
+}
+
+.admin-app tbody tr:hover {
+    background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+}
+
+/* 后台卡片/面板标题增强 */
+.admin-app h1,
+.admin-app h2,
+.admin-app h3 {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.admin-app h1::after,
+.admin-app h2::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 40px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--color-primary), transparent);
+    border-radius: 2px;
+}
+
+/* 后台输入框增强 */
+.admin-app input[type="text"],
+.admin-app input[type="email"],
+.admin-app input[type="password"],
+.admin-app input[type="number"],
+.admin-app textarea,
+.admin-app select {
+    border-radius: var(--ui-radius-md) !important;
+    transition: all var(--anime-fast) var(--anime-smooth) !important;
+}
+
+.admin-app input:hover,
+.admin-app textarea:hover,
+.admin-app select:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
+}
+
+/* 后台状态卡片增强 */
+.admin-app .grid > .bg-white,
+.admin-app .grid > .bg-gray-50 {
+    border-radius: var(--ui-radius-lg);
+    transition: all var(--anime-normal) var(--anime-smooth);
+    position: relative;
+    overflow: hidden;
+}
+
+.admin-app .grid > .bg-white:hover,
+.admin-app .grid > .bg-gray-50:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--ui-shadow-hover);
+}
+
+/* 后台登录页面增强 */
+.admin-login-page {
+    min-height: 100vh;
+    background: 
+        radial-gradient(circle at 20% 80%, color-mix(in srgb, var(--color-primary) 15%, transparent) 0%, transparent 40%),
+        radial-gradient(circle at 80% 20%, color-mix(in srgb, #8b5cf6 15%, transparent) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--color-primary) 5%, transparent) 0%, transparent 60%),
+        var(--color-background);
+}
+
+.admin-login-card {
+    border-radius: var(--ui-radius-2xl);
+    background: color-mix(in srgb, var(--color-card-bg) 90%, transparent);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--ui-shadow-card);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+    position: relative;
+    overflow: hidden;
+}
+
+.admin-login-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--color-primary), #8b5cf6, #ec4899, var(--color-primary));
+    background-size: 200% 100%;
+    animation: gradientShift 3s ease infinite;
+}
+
+@keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+.admin-login-logo {
+    animation: logoFloat 3s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+.admin-login-input {
+    border-radius: var(--ui-radius-lg) !important;
+    padding: 0.875rem 1rem !important;
+    transition: all var(--anime-normal) var(--anime-smooth) !important;
+}
+
+.admin-login-input:focus {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 15%, transparent),
+                var(--ui-ring) !important;
+}
+
+.admin-login-btn {
+    border-radius: var(--ui-radius-lg);
+    background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 80%, #8b5cf6));
+    box-shadow: 0 4px 20px -4px color-mix(in srgb, var(--color-primary) 50%, transparent);
+    transition: all var(--anime-normal) var(--anime-bounce);
+    position: relative;
+    overflow: hidden;
+}
+
+.admin-login-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.admin-login-btn:hover::before {
+    left: 100%;
+}
+
+.admin-login-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px -4px color-mix(in srgb, var(--color-primary) 60%, transparent);
+}
+
+/* 后台分页增强 */
+.admin-app .pagination,
+.admin-app nav[aria-label="pagination"] {
+    gap: 0.5rem;
+}
+
+.admin-app .pagination a,
+.admin-app .pagination span,
+.admin-app nav[aria-label="pagination"] a,
+.admin-app nav[aria-label="pagination"] span {
+    border-radius: var(--ui-radius-md) !important;
+    transition: all var(--anime-fast) var(--anime-smooth) !important;
+}
+
+.admin-app .pagination a:hover,
+.admin-app nav[aria-label="pagination"] a:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+
+/* 后台响应式优化 */
+@media (max-width: 900px) {
+    .admin-sidebar-shell::before {
+        display: none;
+    }
+    
+    .admin-nav-link:hover {
+        transform: none;
+    }
+}
+
+/* ===== 2026 Unified Refresh ===== */
+
+/* Frontend color tokens mapped from theme variables */
+body.site-shell .bg-blue-600,
+body.site-shell .bg-indigo-600 {
+    background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 78%, #8b5cf6)) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 46%, transparent) !important;
+}
+
+body.site-shell .hover\:bg-blue-700:hover,
+body.site-shell .hover\:bg-indigo-700:hover {
+    background: var(--color-primary-hover) !important;
+}
+
+body.site-shell .bg-blue-100,
+body.site-shell .bg-blue-50,
+body.site-shell .dark\:bg-blue-900,
+body.site-shell .dark\:bg-blue-900\/20 {
+    background-color: color-mix(in srgb, var(--color-primary) 14%, transparent) !important;
+}
+
+body.site-shell .text-blue-700,
+body.site-shell .text-blue-600,
+body.site-shell .dark\:text-blue-400,
+body.site-shell .dark\:text-blue-300 {
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%) !important;
+}
+
+body.site-shell .text-gray-900,
+body.site-shell .text-gray-800,
+body.site-shell .text-gray-700 {
+    color: var(--color-text) !important;
+}
+
+body.site-shell .text-gray-600,
+body.site-shell .text-gray-500,
+body.site-shell .text-gray-400 {
+    color: var(--color-text-light) !important;
+}
+
+body.site-shell .border-gray-200,
+body.site-shell .border-gray-300,
+body.site-shell .dark\:border-gray-700,
+body.site-shell .dark\:border-slate-700 {
+    border-color: var(--ui-border) !important;
+}
+
+body.site-shell > header nav a,
+body.site-shell > header nav button {
+    border: 1px solid transparent;
+    border-radius: var(--ui-radius-md);
+    transition: transform var(--anime-fast) var(--anime-bounce), border-color var(--anime-fast) ease, background-color var(--anime-fast) ease;
+}
+
+body.site-shell > header nav a:hover,
+body.site-shell > header nav button:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+
+body.site-shell > header .absolute.top-full {
+    border-radius: var(--ui-radius-lg) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border)) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 97%, transparent) !important;
+    box-shadow: var(--ui-shadow-card) !important;
+    backdrop-filter: blur(12px);
+}
+
+body.site-shell > header input[type="text"] {
+    border-radius: var(--ui-radius-full) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 94%, transparent) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border)) !important;
+}
+
+body.site-shell #mobile-nav-menu {
+    margin-top: 0.8rem;
+    padding: 0.9rem;
+    border-radius: var(--ui-radius-lg);
+    border: 1px solid var(--ui-border);
+    background: color-mix(in srgb, var(--color-card-bg) 94%, transparent);
+    box-shadow: var(--ui-shadow-soft);
+}
+
+#desktop-theme-toggle:hover,
+#mobile-theme-toggle:hover {
+    transform: rotate(12deg) scale(1.06);
+}
+
+.timeline-card-shell > div {
+    border-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-border)) !important;
+    background-color: color-mix(in srgb, var(--color-card-bg) 95%, transparent) !important;
+}
+
+/* Admin alignment and mobile shell fixes */
+.admin-app h1,
+.admin-app h2,
+.admin-app h3 {
+    display: block;
+}
+
+.admin-app h1::after,
+.admin-app h2::after {
+    content: none;
+}
+
+.admin-page-title {
+    display: flex !important;
+}
+
+.admin-page-title::after {
+    content: none !important;
+}
+
+.admin-sidebar-toggle,
+.admin-sidebar-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    border-radius: var(--ui-radius-md);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 34%, transparent);
+    background: color-mix(in srgb, var(--color-card-bg) 92%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+    padding: 0.45rem 0.8rem;
+    font-size: 0.825rem;
+    line-height: 1;
+}
+
+@media (min-width: 768px) {
+    .admin-sidebar-toggle,
+    .admin-sidebar-close {
+        display: none !important;
+    }
+}
+
+.admin-sidebar-close {
+    position: sticky;
+    top: 0.1rem;
+    margin-left: auto;
+    margin-bottom: 0.5rem;
+    z-index: 2;
+}
+
+.admin-sidebar-nav {
+    padding-bottom: 1.2rem;
+}
+
+.admin-logo-link {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
+    background: linear-gradient(120deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 62%);
+}
+
+@media (max-width: 900px) {
+    .admin-shell {
+        display: block;
+    }
+
+    .admin-sidebar-shell {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: min(82vw, 310px);
+        height: 100vh;
+        z-index: 70;
+        transform: translateX(-105%);
+        transition: transform var(--anime-normal) var(--anime-smooth);
+        border-right: 1px solid var(--ui-border);
+        border-bottom: none;
+        box-shadow: var(--ui-shadow-card);
+    }
+
+    .admin-sidebar-shell.is-open {
+        transform: translateX(0);
+    }
+
+    .admin-main-shell {
+        padding: 0.85rem;
+    }
+
+    .admin-topbar {
+        top: 0.5rem;
+    }
+}
+
+/* Theme admin page */
+.theme-admin-page .theme-admin-panel {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+    box-shadow: var(--ui-shadow-soft);
+}
+
+.admin-app .text-blue-600,
+.admin-app .text-blue-700,
+.admin-app .text-blue-800,
+.admin-app .text-red-600,
+.admin-app .text-red-700,
+.admin-app .text-red-800,
+.admin-app .text-green-600,
+.admin-app .text-green-700,
+.admin-app .text-green-800,
+.admin-app .text-indigo-700,
+.admin-app .text-indigo-800 {
+    color: color-mix(in srgb, var(--color-primary) 70%, var(--color-text) 30%) !important;
+}
+
+.theme-admin-page .bg-blue-50,
+.theme-admin-page .bg-red-50,
+.theme-admin-page .bg-green-50,
+.theme-admin-page .bg-indigo-50 {
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg)) !important;
+}
+
+.theme-admin-page .border-blue-200,
+.theme-admin-page .border-red-200,
+.theme-admin-page .border-green-200 {
+    border-color: color-mix(in srgb, var(--color-primary) 32%, transparent) !important;
+}
+
+.theme-admin-page .border-l-4 {
+    border-left-color: color-mix(in srgb, var(--color-primary) 56%, transparent) !important;
+}
+
+.theme-admin-page .theme-option-label {
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+    background: color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+}
+
+.theme-admin-page .theme-option-label.is-active {
+    border-color: color-mix(in srgb, var(--color-primary) 65%, transparent);
+    background: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--color-primary) 16%, transparent),
+        color-mix(in srgb, var(--color-card-bg) 95%, transparent)
+    );
+    box-shadow: 0 10px 26px -12px color-mix(in srgb, var(--color-primary) 42%, transparent);
+}
+
+.theme-admin-page .theme-option-label:hover {
+    transform: translateY(-2px);
+}
+
+.theme-admin-page .theme-anniversary-item,
+.theme-admin-page .theme-schedule-item {
+    border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+    background: color-mix(in srgb, var(--color-background-alt) 93%, transparent);
+}
+
+.theme-admin-page .effect-preview-btn {
+    border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border)) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+    transition: transform var(--anime-fast) var(--anime-bounce), border-color var(--anime-fast) ease, box-shadow var(--anime-fast) ease;
+}
+
+.theme-admin-page .effect-preview-btn:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--color-primary) 55%, transparent) !important;
+    box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--color-primary) 42%, transparent);
+}
+
+.theme-admin-page input[name="background_type"]:checked + div {
+    border-color: color-mix(in srgb, var(--color-primary) 58%, transparent) !important;
+    box-shadow: 0 10px 24px -16px color-mix(in srgb, var(--color-primary) 52%, transparent);
+}
+
+/* Login field alignment fix */
+.admin-login-page .login-input-wrapper i {
+    pointer-events: none;
+}
+
+.admin-login-page .login-input-wrapper input.admin-login-input {
+    padding-top: 0.82rem !important;
+    padding-bottom: 0.82rem !important;
+    padding-left: 2.65rem !important;
+    padding-right: 1rem !important;
+}
+
+.admin-login-page .login-input-wrapper input[type="password"].admin-login-input {
+    padding-right: 2.9rem !important;
 }

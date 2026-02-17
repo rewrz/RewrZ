@@ -99,21 +99,44 @@ class ThemeSync {
         const body = document.body;
         
         // 移除现有的背景类
-        body.classList.remove('bg-none', 'bg-gradient', 'bg-custom');
-        
+        body.classList.remove(
+            'bg-none',
+            'bg-gradient',
+            'bg-gradient-1',
+            'bg-gradient-2',
+            'bg-gradient-3',
+            'bg-gradient-4',
+            'bg-custom'
+        );
+        body.style.backgroundSize = '';
+        body.style.backgroundPosition = '';
+        body.style.backgroundRepeat = '';
+
         // 根据背景类型应用相应的样式
-        if (backgroundSettings.type === 'none') {
+        if (!backgroundSettings || backgroundSettings.type === 'none') {
             body.classList.add('bg-none');
             body.style.backgroundImage = '';
-        } else if (backgroundSettings.type === 'gradient') {
-            body.classList.add('bg-gradient');
+        } else if (backgroundSettings.type === 'gradient' || backgroundSettings.type === 'gradient1') {
+            body.classList.add('bg-gradient', 'bg-gradient-1');
             body.style.backgroundImage = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        } else if (backgroundSettings.type === 'gradient2') {
+            body.classList.add('bg-gradient', 'bg-gradient-2');
+            body.style.backgroundImage = 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)';
+        } else if (backgroundSettings.type === 'gradient3') {
+            body.classList.add('bg-gradient', 'bg-gradient-3');
+            body.style.backgroundImage = 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)';
+        } else if (backgroundSettings.type === 'gradient4') {
+            body.classList.add('bg-gradient', 'bg-gradient-4');
+            body.style.backgroundImage = 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)';
         } else if (backgroundSettings.type === 'custom' && backgroundSettings.custom_url) {
             body.classList.add('bg-custom');
             body.style.backgroundImage = `url('${backgroundSettings.custom_url}')`;
             body.style.backgroundSize = 'cover';
             body.style.backgroundPosition = 'center';
             body.style.backgroundRepeat = 'no-repeat';
+        } else {
+            body.classList.add('bg-none');
+            body.style.backgroundImage = '';
         }
     }
     

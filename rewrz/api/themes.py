@@ -23,13 +23,13 @@ from ..schemas import Setting, SettingCreate, SettingUpdate, User
 
 router = APIRouter()
 
-# 预定义主题配置（统一为 5 种预设，兼容旧键名）
+# 预定义主题配置（8种预设主题，含二次元风格）
 DEFAULT_THEMES = {
     "light": {
         "name": "浅色主题",
         "variables": {
-            "--color-primary": "#4f46e5",
-            "--color-primary-hover": "#4338ca",
+            "--color-primary": "#6366f1",
+            "--color-primary-hover": "#4f46e5",
             "--color-secondary": "#6b7280",
             "--color-background": "#ffffff",
             "--color-background-alt": "#f8fafc",
@@ -39,20 +39,20 @@ DEFAULT_THEMES = {
             "--color-border": "#e2e8f0",
             "--color-border-light": "#f1f5f9",
             "--color-card-bg": "#ffffff",
-            "--color-card-shadow": "rgba(0, 0, 0, 0.1)",
-            "--color-nav-bg": "rgba(255, 255, 255, 0.8)",
+            "--color-card-shadow": "rgba(99, 102, 241, 0.1)",
+            "--color-nav-bg": "rgba(255, 255, 255, 0.85)",
             "--color-footer-bg": "#f8fafc",
             "--font-family-base": "'SourceHanSansCN', 'Noto Sans SC', 'Microsoft YaHei', sans-serif",
             "--font-family-heading": "'Noto Serif SC', 'SourceHanSansCN', 'STSong', serif",
             "--font-family-decorative": "'KaiTi', 'STKaiti', serif",
-            "--backdrop-blur": "blur(10px)"
+            "--backdrop-blur": "blur(12px)"
         }
     },
     "dark": {
         "name": "深色主题",
         "variables": {
-            "--color-primary": "#6366f1",
-            "--color-primary-hover": "#4f46e5",
+            "--color-primary": "#818cf8",
+            "--color-primary-hover": "#6366f1",
             "--color-secondary": "#94a3b8",
             "--color-background": "#0f172a",
             "--color-background-alt": "#1e293b",
@@ -62,20 +62,20 @@ DEFAULT_THEMES = {
             "--color-border": "#334155",
             "--color-border-light": "#475569",
             "--color-card-bg": "#1e293b",
-            "--color-card-shadow": "rgba(0, 0, 0, 0.3)",
-            "--color-nav-bg": "rgba(15, 23, 42, 0.8)",
+            "--color-card-shadow": "rgba(129, 140, 248, 0.15)",
+            "--color-nav-bg": "rgba(15, 23, 42, 0.85)",
             "--color-footer-bg": "#1e293b",
             "--font-family-base": "'SourceHanSansCN', 'PingFang SC', 'Microsoft YaHei', sans-serif",
             "--font-family-heading": "'Trebuchet MS', 'SourceHanSansCN', sans-serif",
             "--font-family-decorative": "'Georgia', 'SourceHanSansCN', serif",
-            "--backdrop-blur": "blur(10px)"
+            "--backdrop-blur": "blur(12px)"
         }
     },
     "nature": {
         "name": "自然主题",
         "variables": {
-            "--color-primary": "#059669",
-            "--color-primary-hover": "#047857",
+            "--color-primary": "#10b981",
+            "--color-primary-hover": "#059669",
             "--color-secondary": "#6b7280",
             "--color-background": "#f0fdf4",
             "--color-background-alt": "#dcfce7",
@@ -85,7 +85,7 @@ DEFAULT_THEMES = {
             "--color-border": "#bbf7d0",
             "--color-border-light": "#dcfce7",
             "--color-card-bg": "#ffffff",
-            "--color-card-shadow": "rgba(5, 150, 105, 0.1)",
+            "--color-card-shadow": "rgba(16, 185, 129, 0.1)",
             "--color-nav-bg": "rgba(240, 253, 244, 0.9)",
             "--color-footer-bg": "#dcfce7",
             "--font-family-base": "'SourceHanSansCN', 'Noto Sans SC', 'Microsoft YaHei', sans-serif",
@@ -136,6 +136,75 @@ DEFAULT_THEMES = {
             "--color-footer-bg": "#fef3c7",
             "--font-family-base": "'SourceHanSansCN', 'Noto Sans SC', 'Microsoft YaHei', sans-serif",
             "--font-family-heading": "'Georgia', 'SourceHanSansCN', serif",
+            "--font-family-decorative": "'KaiTi', 'STKaiti', serif",
+            "--backdrop-blur": "blur(12px)"
+        }
+    },
+    "sakura": {
+        "name": "樱花粉",
+        "variables": {
+            "--color-primary": "#ec4899",
+            "--color-primary-hover": "#db2777",
+            "--color-secondary": "#f472b6",
+            "--color-background": "#fdf2f8",
+            "--color-background-alt": "#fce7f3",
+            "--color-text": "#831843",
+            "--color-text-light": "#9d174d",
+            "--color-text-muted": "#ec4899",
+            "--color-border": "#fbcfe8",
+            "--color-border-light": "#fce7f3",
+            "--color-card-bg": "#ffffff",
+            "--color-card-shadow": "rgba(236, 72, 153, 0.12)",
+            "--color-nav-bg": "rgba(253, 242, 248, 0.9)",
+            "--color-footer-bg": "#fce7f3",
+            "--font-family-base": "'SourceHanSansCN', 'Noto Sans SC', 'Microsoft YaHei', sans-serif",
+            "--font-family-heading": "'Noto Serif SC', 'SourceHanSansCN', serif",
+            "--font-family-decorative": "'KaiTi', 'STKaiti', serif",
+            "--backdrop-blur": "blur(12px)"
+        }
+    },
+    "galaxy": {
+        "name": "星空紫",
+        "variables": {
+            "--color-primary": "#a855f7",
+            "--color-primary-hover": "#9333ea",
+            "--color-secondary": "#c084fc",
+            "--color-background": "#0c0a1d",
+            "--color-background-alt": "#1a1333",
+            "--color-text": "#f3e8ff",
+            "--color-text-light": "#e9d5ff",
+            "--color-text-muted": "#a855f7",
+            "--color-border": "#3b2580",
+            "--color-border-light": "#2d1f5e",
+            "--color-card-bg": "#1a1333",
+            "--color-card-shadow": "rgba(168, 85, 247, 0.15)",
+            "--color-nav-bg": "rgba(12, 10, 29, 0.9)",
+            "--color-footer-bg": "#1a1333",
+            "--font-family-base": "'SourceHanSansCN', 'Noto Sans SC', 'Microsoft YaHei', sans-serif",
+            "--font-family-heading": "'Cinzel', 'SourceHanSansCN', serif",
+            "--font-family-decorative": "'KaiTi', 'STKaiti', serif",
+            "--backdrop-blur": "blur(14px)"
+        }
+    },
+    "mint": {
+        "name": "薄荷绿",
+        "variables": {
+            "--color-primary": "#14b8a6",
+            "--color-primary-hover": "#0d9488",
+            "--color-secondary": "#2dd4bf",
+            "--color-background": "#f0fdfa",
+            "--color-background-alt": "#ccfbf1",
+            "--color-text": "#134e4a",
+            "--color-text-light": "#115e59",
+            "--color-text-muted": "#14b8a6",
+            "--color-border": "#99f6e4",
+            "--color-border-light": "#ccfbf1",
+            "--color-card-bg": "#ffffff",
+            "--color-card-shadow": "rgba(20, 184, 166, 0.1)",
+            "--color-nav-bg": "rgba(240, 253, 250, 0.9)",
+            "--color-footer-bg": "#ccfbf1",
+            "--font-family-base": "'SourceHanSansCN', 'Noto Sans SC', 'Microsoft YaHei', sans-serif",
+            "--font-family-heading": "'Noto Serif SC', 'SourceHanSansCN', serif",
             "--font-family-decorative": "'KaiTi', 'STKaiti', serif",
             "--backdrop-blur": "blur(12px)"
         }

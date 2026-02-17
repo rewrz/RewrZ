@@ -181,6 +181,10 @@
 
         <div id="admin-content" class="admin-main-shell">
             <header class="admin-topbar flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <button type="button" id="admin-sidebar-toggle" class="admin-sidebar-toggle md:hidden" aria-label="展开侧边栏菜单">
+                    <i class="fas fa-bars"></i>
+                    菜单
+                </button>
                 <h1 class="admin-page-title text-2xl md:text-3xl font-semibold">{% block page_title %}{% endblock %}</h1>
                 <div class="flex flex-wrap items-center gap-3 md:gap-4 text-sm">
                     <span class="admin-chip"><i class="fas fa-user-circle"></i> {{ user.username }}</span>
@@ -364,7 +368,7 @@
             });
         };
 
-        const ADMIN_THEME_NAMES = ['light', 'dark', 'nature', 'ocean', 'sunset'];
+        const ADMIN_THEME_NAMES = ['light', 'dark', 'nature', 'ocean', 'sunset', 'sakura', 'galaxy', 'mint'];
 
         async function syncAdminTheme(forceReloadCss = false) {
             try {
@@ -414,6 +418,26 @@
             consumeFlashNotice();
             syncAdminTheme(true);
             setInterval(() => syncAdminTheme(false), 30000);
+
+            const sidebar = document.getElementById('admin-sidebar');
+            const openSidebarBtn = document.getElementById('admin-sidebar-toggle');
+            const closeSidebarBtn = document.getElementById('admin-sidebar-close');
+
+            const closeSidebar = () => sidebar?.classList.remove('is-open');
+            const openSidebar = () => sidebar?.classList.add('is-open');
+
+            openSidebarBtn?.addEventListener('click', openSidebar);
+            closeSidebarBtn?.addEventListener('click', closeSidebar);
+
+            document.addEventListener('click', (event) => {
+                if (!sidebar || window.innerWidth > 900 || !sidebar.classList.contains('is-open')) return;
+                if (sidebar.contains(event.target) || openSidebarBtn?.contains(event.target)) return;
+                closeSidebar();
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 900) closeSidebar();
+            });
         });
 
         window.addEventListener('focus', () => syncAdminTheme(false));

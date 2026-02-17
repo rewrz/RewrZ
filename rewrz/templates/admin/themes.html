@@ -3,10 +3,10 @@
 {% block title_text %}主题管理{% endblock %}
 {% block page_title %}<i class="fas fa-palette text-blue-600 mr-3"></i>主题管理{% endblock %}
 {% block content %}
-<div class="max-w-6xl mx-auto space-y-6">
+<div class="theme-admin-page max-w-6xl mx-auto space-y-6">
     
     <!-- 优先级说明卡片 -->
-    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+    <div class="admin-panel theme-admin-panel bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
         <h2 class="text-lg font-semibold text-blue-800 mb-3">
             <i class="fas fa-info-circle mr-2"></i>
             主题优先级说明
@@ -28,7 +28,7 @@
     </div>
 
     <!-- 纪念日氛围设置 -->
-    <div class="bg-white shadow-sm rounded-lg">
+    <div class="admin-panel theme-admin-panel bg-white shadow-sm rounded-lg">
         <div class="px-6 py-4 border-b border-gray-200 bg-red-50">
             <h2 class="text-xl font-semibold text-red-800">
                 <i class="fas fa-calendar-heart mr-2"></i>
@@ -42,7 +42,7 @@
             <div id="anniversaries-container" class="space-y-4 mb-6">
                 {% if settings.anniversaries %}
                     {% for anniversary in settings.anniversaries %}
-                    <div class="anniversary-item bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div class="anniversary-item theme-anniversary-item bg-gray-50 rounded-lg p-4 border border-gray-200">
                         <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
                             <!-- 日期设置 -->
                             <div class="flex space-x-2">
@@ -179,12 +179,12 @@
             </div>
             
             <!-- 操作按钮 -->
-            <div class="flex justify-between items-center pt-4 border-t border-gray-200">
+            <div class="flex flex-col gap-3 pt-4 border-t border-gray-200 sm:flex-row sm:items-center sm:justify-between">
                 <button type="button" id="add-anniversary" 
                         class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
                     <i class="fas fa-plus mr-2"></i>添加纪念日
                 </button>
-                <div class="space-x-3">
+                <div class="flex flex-wrap items-center gap-3 sm:justify-end">
                     <button type="button" id="preview-all-anniversaries"
                             class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
                         <i class="fas fa-eye mr-2"></i>预览所有效果
@@ -199,7 +199,7 @@
     </div>
 
     <!-- 基础主题设置 -->
-    <div class="bg-white shadow-sm rounded-lg">
+    <div class="admin-panel theme-admin-panel bg-white shadow-sm rounded-lg">
         <div class="px-6 py-4 border-b border-gray-200 bg-blue-50">
             <h2 class="text-xl font-semibold text-blue-800">
                 <i class="fas fa-swatchbook mr-2"></i>
@@ -215,31 +215,33 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- 当前主题 -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-3">当前主题</label>
-                        <div class="grid grid-cols-2 gap-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">当前主题（含二次元风格）</label>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                             {% for theme_id, theme_config in default_themes.items() %}
                             <div class="theme-option relative">
                                 <input type="radio" name="current_theme" value="{{ theme_id }}" 
                                        id="theme-{{ theme_id }}" class="sr-only"
                                        {{ 'checked' if theme_id == current_theme else '' }}>
                                 <label for="theme-{{ theme_id }}" 
-                                       class="block p-4 border-2 rounded-lg cursor-pointer hover:border-blue-300 transition-colors
-                                              {{ 'border-blue-500 bg-blue-50' if theme_id == current_theme else 'border-gray-200' }}">
+                                       class="theme-option-label block p-4 border-2 rounded-xl cursor-pointer hover:border-blue-300 transition-all duration-300 hover:shadow-md {{ 'is-active' if theme_id == current_theme else '' }}">
                                     <div class="text-center">
-                                        <div class="text-lg mb-2">
+                                        <div class="text-2xl mb-2">
                                             {% if theme_id == 'light' %}🌞
                                             {% elif theme_id == 'dark' %}🌙
-                                            {% elif theme_id == 'auto' %}🌗
+                                            {% elif theme_id == 'nature' %}🌿
+                                            {% elif theme_id == 'ocean' %}🌊
+                                            {% elif theme_id == 'sunset' %}🌅
+                                            {% elif theme_id == 'sakura' %}🌸
+                                            {% elif theme_id == 'galaxy' %}✨
+                                            {% elif theme_id == 'mint' %}🍃
                                             {% else %}🎨{% endif %}
                                         </div>
-                                        <div class="font-medium">{{ theme_config.name }}</div>
+                                        <div class="font-medium text-sm">{{ theme_config.name }}</div>
                                         <div class="flex justify-center space-x-1 mt-2">
-                                            {% for var_name, var_value in theme_config.variables.items() %}
-                                            {% if 'color' in var_name %}
-                                            <div class="w-4 h-4 rounded-full border border-gray-300" 
-                                                 style="background-color: {{ var_value }}"></div>
-                                            {% endif %}
-                                            {% endfor %}
+                                            <div class="w-5 h-5 rounded-full border border-gray-300 shadow-sm" 
+                                                 style="background-color: {{ theme_config.variables.get('--color-primary', '#6366f1') }}"></div>
+                                            <div class="w-5 h-5 rounded-full border border-gray-300 shadow-sm" 
+                                                 style="background-color: {{ theme_config.variables.get('--color-background', '#ffffff') }}"></div>
                                         </div>
                                     </div>
                                 </label>
@@ -321,7 +323,7 @@
     </div>
 
     <!-- 主题调度设置 -->
-    <div class="bg-white shadow-sm rounded-lg">
+    <div class="admin-panel theme-admin-panel bg-white shadow-sm rounded-lg">
         <div class="px-6 py-4 border-b border-gray-200 bg-green-50">
             <h2 class="text-xl font-semibold text-green-800">
                 <i class="fas fa-clock mr-2"></i>
@@ -334,7 +336,7 @@
             <div id="schedule-container" class="space-y-4 mb-6">
                 {% if theme_schedule %}
                     {% for item in theme_schedule %}
-                    <div class="schedule-item bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div class="schedule-item theme-schedule-item bg-gray-50 rounded-lg p-4 border border-gray-200">
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
                             <!-- 时间范围 -->
                             <div class="space-y-2">
@@ -383,7 +385,7 @@
             </div>
             
             <!-- 操作按钮 -->
-            <div class="flex justify-between items-center pt-4 border-t border-gray-200">
+            <div class="flex flex-col gap-3 pt-4 border-t border-gray-200 sm:flex-row sm:items-center sm:justify-between">
                 <button type="button" id="add-schedule" 
                         class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
                     <i class="fas fa-plus mr-2"></i>添加调度规则
@@ -397,7 +399,7 @@
     </div>
 
     <!-- 特效预览区域 -->
-    <div class="bg-white shadow-sm rounded-lg">
+    <div class="admin-panel theme-admin-panel bg-white shadow-sm rounded-lg">
         <div class="px-6 py-4 border-b border-gray-200">
             <h2 class="text-xl font-semibold text-gray-800">
                 <i class="fas fa-magic mr-2"></i>
@@ -488,7 +490,7 @@ function addAnniversaryItem() {
     }
     
     const newItem = document.createElement('div');
-    newItem.className = 'anniversary-item bg-gray-50 rounded-lg p-4 border border-gray-200';
+    newItem.className = 'anniversary-item theme-anniversary-item bg-gray-50 rounded-lg p-4 border border-gray-200';
     newItem.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
             <div class="flex space-x-2">
@@ -596,7 +598,7 @@ function addAnniversaryItem() {
                     </div>
                 </div>
             </div>
-            <div class="flex space-x-2">
+            <div class="flex flex-wrap gap-2">
                 <button type="button" class="preview-anniversary px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
                     <i class="fas fa-eye"></i> 预览
                 </button>
@@ -831,7 +833,7 @@ function addScheduleItem() {
     })();
 
     const newItem = document.createElement('div');
-    newItem.className = 'schedule-item bg-gray-50 rounded-lg p-4 border border-gray-200';
+    newItem.className = 'schedule-item theme-schedule-item bg-gray-50 rounded-lg p-4 border border-gray-200';
     newItem.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
             <div class="space-y-2">
@@ -848,7 +850,7 @@ function addScheduleItem() {
                     ${scheduleOptionsHtml}
                 </select>
             </div>
-            <div class="flex space-x-2">
+            <div class="flex flex-wrap gap-2">
                 <button type="button" class="preview-schedule px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
                     <i class="fas fa-eye"></i>
                 </button>
@@ -899,33 +901,12 @@ function attachScheduleEvents(item) {
 
 // 通知显示功能
 function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 max-w-sm ${
-        type === 'success' ? 'bg-green-500 text-white' :
-        type === 'error' ? 'bg-red-500 text-white' :
-        type === 'warning' ? 'bg-yellow-500 text-white' :
-        'bg-blue-500 text-white'
-    }`;
-    notification.innerHTML = `
-        <div class="flex items-center">
-            <i class="fas fa-${
-                type === 'success' ? 'check-circle' :
-                type === 'error' ? 'exclamation-circle' :
-                type === 'warning' ? 'exclamation-triangle' :
-                'info-circle'
-            } mr-2"></i>
-            <span>${message}</span>
-        </div>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // 自动移除通知
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.remove();
-        }
-    }, 4000);
+    if (window.adminNotify && typeof window.adminNotify === 'function') {
+        window.adminNotify(message, type);
+        return;
+    }
+
+    alert(message);
 }
 
 // 保存背景图片设置
@@ -1016,16 +997,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('input[name="current_theme"]').forEach(radio => {
         radio.addEventListener('change', function() {
             // 更新所有主题选项的样式
-            document.querySelectorAll('.theme-option label').forEach(label => {
-                label.classList.remove('border-blue-500', 'bg-blue-50');
-                label.classList.add('border-gray-200');
+            document.querySelectorAll('.theme-option .theme-option-label').forEach(label => {
+                label.classList.remove('is-active');
             });
             
             // 为选中的主题添加高亮样式
             if (this.checked) {
                 const label = this.nextElementSibling;
-                label.classList.remove('border-gray-200');
-                label.classList.add('border-blue-500', 'bg-blue-50');
+                label.classList.add('is-active');
                 showNotification(`已切换到 ${label.querySelector('.font-medium').textContent} 主题`, 'success');
                 window.dispatchEvent(new Event('adminThemeRefreshRequested'));
                 if (window.adminThemeSync && typeof window.adminThemeSync.syncNow === 'function') {
@@ -1057,6 +1036,11 @@ document.addEventListener('DOMContentLoaded', function() {
             saveBackgroundImage();
         });
     });
+
+    const selectedBackgroundType = document.querySelector('input[name="background_type"]:checked')?.value;
+    if (selectedBackgroundType === 'custom') {
+        document.getElementById('custom-background-input')?.classList.remove('hidden');
+    }
     
     // 自定义背景URL输入监听
     const customBackgroundInput = document.querySelector('input[name="custom_background_url"]');
@@ -1064,11 +1048,6 @@ document.addEventListener('DOMContentLoaded', function() {
         customBackgroundInput.addEventListener('blur', saveBackgroundImage);
     }
     
-    // 自动保存背景图片设置
-    document.querySelectorAll('input[name="background_type"]').forEach(radio => {
-        radio.addEventListener('change', saveBackgroundImage);
-    });
-
     // --- 自动勾选特效 ---
     const effectCombinations = {
         'festive': ['fireworks', 'confetti', 'lanterns'],

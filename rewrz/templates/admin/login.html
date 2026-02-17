@@ -11,41 +11,221 @@
     {% endif %}
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <!-- FontAwesome for icons (统一使用CDN，版本与后台保持一致) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link id="admin-theme-variables" rel="stylesheet" href="/api/v1/theme/variables.css">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/unified-theme.css') }}">
+    <style>
+        /* 登录页面专用样式 */
+        .login-deco-1 {
+            position: fixed;
+            top: 10%;
+            right: 5%;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, color-mix(in srgb, var(--color-primary) 20%, transparent), transparent 70%);
+            border-radius: 50%;
+            animation: decoFloat 8s ease-in-out infinite;
+            pointer-events: none;
+        }
+        .login-deco-2 {
+            position: fixed;
+            bottom: 15%;
+            left: 8%;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, color-mix(in srgb, #8b5cf6 20%, transparent), transparent 70%);
+            border-radius: 50%;
+            animation: decoFloat 10s ease-in-out infinite reverse;
+            pointer-events: none;
+        }
+        .login-deco-3 {
+            position: fixed;
+            top: 60%;
+            right: 15%;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, color-mix(in srgb, #ec4899 15%, transparent), transparent 70%);
+            border-radius: 50%;
+            animation: decoFloat 12s ease-in-out infinite;
+            pointer-events: none;
+        }
+        @keyframes decoFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(20px, -20px) scale(1.1); }
+        }
+        .login-input-wrapper {
+            position: relative;
+        }
+        .login-input-wrapper i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--color-text-muted);
+            transition: color 0.3s ease;
+        }
+        .login-input-wrapper input:focus + i,
+        .login-input-wrapper input:focus ~ i {
+            color: var(--color-primary);
+        }
+        .login-error-shake {
+            animation: shake 0.5s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+        /* 密码显示切换按钮 */
+        .password-toggle {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--color-text-muted);
+            cursor: pointer;
+            padding: 0.25rem;
+            transition: color 0.3s ease;
+        }
+        .password-toggle:hover {
+            color: var(--color-primary);
+        }
+    </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center h-screen">
-    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
-        <h2 class="text-2xl font-bold text-center mb-6">用户登录</h2>
-        <form hx-post="{{ admin_path }}/auth" hx-trigger="submit" hx-target="body" hx-swap="innerHTML">
-            <div>
-                <label for="username" class="block text-sm font-medium text-gray-700">用户名</label>
-                <input type="text" id="username" name="username" required
-                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+<body class="admin-login-page flex items-center justify-center min-h-screen p-4">
+    <!-- 装饰性背景元素 -->
+    <div class="login-deco-1"></div>
+    <div class="login-deco-2"></div>
+    <div class="login-deco-3"></div>
+
+    <!-- 登录卡片 -->
+    <div class="admin-login-card w-full max-w-md p-8 relative z-10">
+        <!-- Logo 区域 -->
+        <div class="text-center mb-8">
+            <div class="admin-login-logo inline-block mb-4">
+                {% if request.state.site_logo_light %}
+                <img src="{{ request.state.site_logo_light }}" alt="{{ request.state.site_title }}" class="h-16 w-auto mx-auto object-contain">
+                {% else %}
+                <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
+                    <i class="fas fa-feather-alt text-white text-2xl"></i>
+                </div>
+                {% endif %}
             </div>
-            <div class="mt-4">
-                <label for="password" class="block text-sm font-medium text-gray-700">密码</label>
-                <input type="password" id="password" name="password" required
-                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+            <h1 class="text-2xl font-bold" style="color: var(--color-text);">
+                {{ request.state.site_title | default('RewrZ', true) }}
+            </h1>
+            <p class="text-sm mt-2" style="color: var(--color-text-light);">管理控制台登录</p>
+        </div>
+
+        <!-- 登录表单 -->
+        <form hx-post="{{ admin_path }}/auth" hx-trigger="submit" hx-target="body" hx-swap="innerHTML" id="login-form">
+            <!-- 用户名输入 -->
+            <div class="mb-5">
+                <label for="username" class="block text-sm font-medium mb-2" style="color: var(--color-text);">
+                    <i class="fas fa-user mr-2" style="color: var(--color-primary);"></i>用户名
+                </label>
+                <div class="login-input-wrapper">
+                    <input type="text" id="username" name="username" required
+                           class="admin-login-input w-full pl-10 pr-4 py-3 border"
+                           style="border-color: var(--color-border); background: color-mix(in srgb, var(--color-card-bg) 98%, transparent); color: var(--color-text);"
+                           placeholder="请输入用户名"
+                           autocomplete="username">
+                    <i class="fas fa-user"></i>
+                </div>
             </div>
-            <div id="login-message" class="text-red-500 text-sm mt-2"></div>
-            <button type="submit"
-                    class="mt-6 w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                登录
+
+            <!-- 密码输入 -->
+            <div class="mb-5">
+                <label for="password" class="block text-sm font-medium mb-2" style="color: var(--color-text);">
+                    <i class="fas fa-lock mr-2" style="color: var(--color-primary);"></i>密码
+                </label>
+                <div class="login-input-wrapper">
+                    <input type="password" id="password" name="password" required
+                           class="admin-login-input w-full pl-10 pr-12 py-3 border"
+                           style="border-color: var(--color-border); background: color-mix(in srgb, var(--color-card-bg) 98%, transparent); color: var(--color-text);"
+                           placeholder="请输入密码"
+                           autocomplete="current-password">
+                    <i class="fas fa-lock"></i>
+                    <button type="button" class="password-toggle" onclick="togglePassword()" aria-label="显示/隐藏密码">
+                        <i class="fas fa-eye" id="password-toggle-icon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 错误消息 -->
+            <div id="login-message" class="text-sm mb-4 p-3 rounded-lg hidden" 
+                 style="background: color-mix(in srgb, #ef4444 10%, transparent); color: #dc2626;">
+                <i class="fas fa-exclamation-circle mr-2"></i>
+                <span id="login-message-text"></span>
+            </div>
+
+            <!-- 登录按钮 -->
+            <button type="submit" class="admin-login-btn w-full py-3 px-4 text-white font-medium text-sm flex items-center justify-center gap-2">
+                <i class="fas fa-sign-in-alt"></i>
+                <span>登录</span>
             </button>
         </form>
+
+        <!-- 底部信息 -->
+        <div class="mt-8 text-center text-xs" style="color: var(--color-text-muted);">
+            <p>&copy; <span id="current-year">{{ "now" | date("%Y") }}</span> {{ request.state.site_title | default('RewrZ', true) }}</p>
+        </div>
     </div>
 
     <script>
+        // 设置当前年份
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
+        // 密码显示/隐藏切换
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('password-toggle-icon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        }
+
+        // 显示错误消息
+        function showErrorMessage(message) {
+            const messageDiv = document.getElementById('login-message');
+            const messageText = document.getElementById('login-message-text');
+            
+            messageText.textContent = message;
+            messageDiv.classList.remove('hidden');
+            
+            // 添加抖动动画
+            const form = document.getElementById('login-form');
+            form.classList.add('login-error-shake');
+            setTimeout(() => form.classList.remove('login-error-shake'), 500);
+        }
+
+        // 隐藏错误消息
+        function hideErrorMessage() {
+            document.getElementById('login-message').classList.add('hidden');
+        }
+
+        // HTMX 事件处理
         document.body.addEventListener('htmx:beforeSend', function(evt) {
-            // 清除之前的消息
-            document.getElementById('login-message').textContent = '';
+            hideErrorMessage();
+            // 禁用提交按钮
+            const submitBtn = document.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>登录中...';
         });
 
         document.body.addEventListener('htmx:responseError', function(evt) {
-            // 显示错误消息
             const xhr = evt.detail.xhr;
             let errorDetail = '';
+            
             try {
                 const payload = JSON.parse(xhr.responseText || '{}');
                 errorDetail = payload.detail || '';
@@ -53,13 +233,49 @@
                 errorDetail = '';
             }
 
+            // 恢复按钮状态
+            const submitBtn = document.querySelector('button[type="submit"]');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>登录';
+
+            // 显示错误消息
             if (xhr.status === 401) {
-                document.getElementById('login-message').textContent = '用户名或密码错误';
+                showErrorMessage('用户名或密码错误');
             } else if (xhr.status === 429) {
-                document.getElementById('login-message').textContent = errorDetail || '登录尝试过于频繁，请稍后重试';
+                showErrorMessage(errorDetail || '登录尝试过于频繁，请稍后重试');
             } else {
-                document.getElementById('login-message').textContent = errorDetail || '登录失败，请稍后重试';
+                showErrorMessage(errorDetail || '登录失败，请稍后重试');
             }
+        });
+
+        // 加载主题配置
+        async function loadThemeConfig() {
+            try {
+                const response = await fetch('/api/v1/theme/current');
+                const config = await response.json();
+                
+                const root = document.documentElement;
+                if (config.variables) {
+                    Object.entries(config.variables).forEach(([name, value]) => {
+                        root.style.setProperty(name, value);
+                    });
+                }
+            } catch (error) {
+                console.warn('加载主题配置失败:', error);
+            }
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', loadThemeConfig);
+
+        // 输入框获得焦点时的效果
+        document.querySelectorAll('.admin-login-input').forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.style.transform = 'scale(1.01)';
+            });
+            input.addEventListener('blur', function() {
+                this.parentElement.style.transform = 'scale(1)';
+            });
         });
     </script>
 </body>

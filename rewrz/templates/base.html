@@ -148,14 +148,17 @@
             }
         }
         
-        // 可用主题列表（与后端保持一致）
-        const AVAILABLE_THEMES = ['light', 'dark', 'nature', 'ocean', 'sunset'];
+        // 可用主题列表（与后端保持一致）- 含二次元风格主题
+        const AVAILABLE_THEMES = ['light', 'dark', 'nature', 'ocean', 'sunset', 'sakura', 'galaxy', 'mint'];
         const THEME_UI_META = {
             light: { name: '浅色', icon: 'fa-sun' },
             dark: { name: '深色', icon: 'fa-moon' },
             nature: { name: '自然', icon: 'fa-leaf' },
             ocean: { name: '海洋', icon: 'fa-water' },
-            sunset: { name: '夕阳', icon: 'fa-cloud-sun' }
+            sunset: { name: '夕阳', icon: 'fa-cloud-sun' },
+            sakura: { name: '樱花', icon: 'fa-heart' },
+            galaxy: { name: '星空', icon: 'fa-star' },
+            mint: { name: '薄荷', icon: 'fa-seedling' }
         };
         let currentThemeIndex = 0;
 
@@ -195,12 +198,13 @@
         // 立即应用主题（避免闪烁）
         function applyThemeImmediately(theme) {
             const html = document.documentElement;
-            html.classList.remove('light', 'dark');
+            html.classList.remove(...AVAILABLE_THEMES);
             html.classList.add(theme);
             
             // 同步到body（兼容某些组件）
-            document.body.classList.remove('light', 'dark');
+            document.body.classList.remove(...AVAILABLE_THEMES);
             document.body.classList.add(theme);
+            document.body.dataset.activeTheme = theme;
 
             // 同步主题切换按钮UI
             updateThemeToggleUI(theme);
@@ -399,8 +403,7 @@
 
         // DOM加载完成后执行初始化
         document.addEventListener('DOMContentLoaded', async function() {
-            initializeTheme();
-            await loadThemeConfig();
+            await initializeTheme();
             initMobileMenu();
             initThemeToggle();
             hljs.highlightAll();

@@ -1,23 +1,27 @@
 {% set admin_root = request.state.admin_path %}
 {% set current_path = request.url.path %}
-<aside class="admin-sidebar-shell">
-    <a href="{{ admin_root }}/dashboard" class="flex items-center gap-3 px-2 py-2 rounded-xl mb-3 hover:bg-white/40 transition-colors">
+<aside id="admin-sidebar" class="admin-sidebar-shell">
+    <button type="button" id="admin-sidebar-close" class="admin-sidebar-close md:hidden" aria-label="收起侧边栏">
+        <i class="fas fa-times"></i>
+    </button>
+    <!-- Logo 区域增强 -->
+    <a href="{{ admin_root }}/dashboard" class="admin-logo-link flex items-center gap-3 px-2 py-3 rounded-xl mb-4 transition-all duration-300 hover:shadow-lg group">
         {% if request.state.site_logo_light %}
-            <img src="{{ request.state.site_logo_light }}" alt="{{ request.state.site_title or '后台' }}" class="h-10 w-auto object-contain rounded-md">
+            <img src="{{ request.state.site_logo_light }}" alt="{{ request.state.site_title or '后台' }}" class="h-10 w-auto object-contain rounded-lg transition-transform duration-300 group-hover:scale-105">
         {% elif request.state.site_logo_dark %}
-            <img src="{{ request.state.site_logo_dark }}" alt="{{ request.state.site_title or '后台' }}" class="h-10 w-auto object-contain rounded-md">
+            <img src="{{ request.state.site_logo_dark }}" alt="{{ request.state.site_title or '后台' }}" class="h-10 w-auto object-contain rounded-lg transition-transform duration-300 group-hover:scale-105">
         {% else %}
-            <span class="h-10 w-10 rounded-xl bg-indigo-500/80 text-white inline-flex items-center justify-center text-lg">
+            <span class="h-11 w-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 text-white inline-flex items-center justify-center text-lg shadow-md transition-all duration-300 group-hover:shadow-lg group-hover:scale-105">
                 <i class="fas fa-feather-alt"></i>
             </span>
         {% endif %}
         <div class="min-w-0">
-            <p class="font-semibold truncate">{{ request.state.site_title or 'RewrZ' }}</p>
-            <p class="text-xs admin-muted truncate">管理控制台</p>
+            <p class="font-bold truncate text-base" style="color: var(--color-text);">{{ request.state.site_title or 'RewrZ' }}</p>
+            <p class="text-xs truncate" style="color: var(--color-text-muted);">✨ 管理控制台</p>
         </div>
     </a>
 
-    <nav class="space-y-1 text-sm">
+    <nav class="admin-sidebar-nav space-y-1 text-sm">
         <a href="{{ admin_root }}/dashboard" class="admin-nav-link {% if current_path.startswith(admin_root + '/dashboard') %}active{% endif %}">
             <i class="fas fa-chart-line w-5 text-center"></i>仪表盘
         </a>
