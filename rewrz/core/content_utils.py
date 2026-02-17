@@ -5,6 +5,21 @@ from markdown import markdown
 
 
 VALID_EDITOR_MODES = {"markdown", "html"}
+MARKDOWN_RENDER_EXTENSIONS = ("extra", "sane_lists", "nl2br")
+
+
+def render_markdown_html(content_markdown: Optional[str]) -> str:
+    """
+    统一 Markdown -> HTML 渲染策略，尽量与编辑器预览观感保持一致。
+
+    - extra: 支持表格、围栏代码块等常见语法
+    - sane_lists: 列表渲染更稳定
+    - nl2br: 单换行也保留为可见换行
+    """
+    markdown_content = content_markdown or ""
+    if not markdown_content.strip():
+        return ""
+    return markdown(markdown_content, extensions=list(MARKDOWN_RENDER_EXTENSIONS))
 
 
 def normalize_editor_mode(value: Optional[str], fallback: str = "markdown") -> str:
@@ -39,10 +54,7 @@ def get_effective_content_html(content_markdown: Optional[str], content_html: Op
     if html_content:
         return html_content
 
-    markdown_content = content_markdown or ""
-    if not markdown_content.strip():
-        return ""
-    return markdown(markdown_content)
+    return render_markdown_html(content_markdown)
 
 
 def html_to_plain_text(content_html: Optional[str]) -> str:

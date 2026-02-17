@@ -8,7 +8,6 @@ from sqlalchemy import select, func, delete
 from ..models import Post, Format, Category, Tag, Setting, Comment
 from ..schemas import PostCreate, PostUpdate, FormatCreate
 from datetime import datetime
-from markdown import markdown
 from slugify import slugify
 from ..core.security import get_password_hash, verify_password
 from ..crud import format as crud_format
@@ -16,6 +15,7 @@ from ..core.content_utils import (
     infer_editor_mode,
     normalize_editor_mode,
     get_effective_plain_text,
+    render_markdown_html,
 )
 from ..core.content_intents import choose_primary_intent_slug, normalize_intent_slug, INTENT_NAME_MAP
 
@@ -54,7 +54,7 @@ def _resolve_storage_contents(
     html_content = content_html or ""
 
     if mode == "html":
-        resolved_html = html_content.strip() or (markdown(markdown_content) if markdown_content.strip() else "")
+        resolved_html = html_content.strip() or render_markdown_html(markdown_content)
         return "", resolved_html
 
     resolved_markdown = markdown_content

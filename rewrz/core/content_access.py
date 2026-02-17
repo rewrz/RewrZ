@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-from markdown import markdown
+from .content_utils import render_markdown_html
 
 
 HIDE_BLOCK_RE = re.compile(r"\[hide\](.*?)\[/hide\]", re.IGNORECASE | re.DOTALL)
@@ -65,7 +65,7 @@ def render_markdown_with_hide_blocks(
         return ""
 
     if not has_hide_blocks(content_markdown):
-        return markdown(content_markdown)
+        return render_markdown_html(content_markdown)
 
     rendered_parts = []
     last_end = 0
@@ -74,11 +74,11 @@ def render_markdown_with_hide_blocks(
     for match in HIDE_BLOCK_RE.finditer(content_markdown):
         normal_segment = content_markdown[last_end : match.start()]
         if normal_segment.strip():
-            rendered_parts.append(markdown(normal_segment))
+            rendered_parts.append(render_markdown_html(normal_segment))
 
         hidden_segment = (match.group(1) or "").strip()
         if can_view_hidden:
-            rendered_parts.append(markdown(hidden_segment))
+            rendered_parts.append(render_markdown_html(hidden_segment))
         else:
             rendered_parts.append(build_hidden_placeholder_html(post_id, block_index))
 
@@ -87,7 +87,6 @@ def render_markdown_with_hide_blocks(
 
     tail_segment = content_markdown[last_end:]
     if tail_segment.strip():
-        rendered_parts.append(markdown(tail_segment))
+        rendered_parts.append(render_markdown_html(tail_segment))
 
     return "".join(rendered_parts)
-

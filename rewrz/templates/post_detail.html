@@ -16,6 +16,7 @@
 </script>
 {% endif %}
 
+<link rel="stylesheet" href="{{ url_for('static', path='css/post-detail.css') }}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 {% endblock %}
 
@@ -81,7 +82,7 @@
                 <p class="text-base text-gray-600 dark:text-gray-300 leading-relaxed border-l-4 border-indigo-400 pl-4 italic">{{ post.excerpt }}</p>
                 {% endif %}
 
-                <div class="prose dark:prose-invert max-w-none micro-content">
+                <div class="post-content prose dark:prose-invert max-w-none micro-content">
                     {{ rendered_content | safe }}
                 </div>
 
@@ -277,7 +278,7 @@
 
             <!-- 内容区域 -->
             <div class="poetry-body p-6 md:p-10">
-                <div id="poetry-lyrics-content" class="poetry-content prose dark:prose-invert max-w-none text-center leading-loose max-h-[60vh] overflow-y-auto pr-2 text-lg md:text-xl transition-all duration-300" data-font="sans">
+                <div id="poetry-lyrics-content" class="post-content poetry-content prose dark:prose-invert max-w-none text-center leading-loose max-h-[60vh] overflow-y-auto pr-2 text-lg md:text-xl transition-all duration-300" data-font="sans">
                     {{ rendered_content | safe }}
                 </div>
             </div>
@@ -349,7 +350,7 @@
             </header>
 
             <div class="p-6 md:p-8">
-                <div class="prose prose-lg dark:prose-invert max-w-none">
+                <div class="post-content prose prose-lg dark:prose-invert max-w-none">
                     {{ rendered_content | safe }}
                 </div>
             </div>

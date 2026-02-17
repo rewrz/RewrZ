@@ -742,11 +742,11 @@ function showOperationResult(type, message, stats = null) {
             <div class="mt-3 text-sm ${style.text}">
                 <p class="font-semibold">导入统计</p>
                 <ul class="list-disc list-inside mt-1 space-y-1">
-                    ${stats.posts_imported ? `<li>文章: ${stats.posts_imported} 篇</li>` : ''}
+                    ${stats.posts_imported ? `<li>文章: ${stats.posts_imported} 篇${stats.views_imported ? `（含阅读量元数据 ${stats.views_imported} 篇）` : ''}</li>` : ''}
                     ${stats.categories_imported ? `<li>分类: ${stats.categories_imported} 个</li>` : ''}
                     ${stats.tags_imported ? `<li>标签: ${stats.tags_imported} 个</li>` : ''}
                     ${stats.comments_imported ? `<li>评论: ${stats.comments_imported} 条</li>` : ''}
-                    ${stats.views_imported ? `<li>阅读量: ${stats.views_imported} 篇已导入</li>` : ''}
+                    ${(!stats.posts_imported && stats.views_imported) ? `<li>阅读量元数据: ${stats.views_imported} 篇</li>` : ''}
                     ${stats.settings_imported ? `<li>设置: ${stats.settings_imported} 项</li>` : ''}
                     ${stats.media_restored ? `<li>媒体文件: ${stats.media_restored} 个</li>` : ''}
                 </ul>

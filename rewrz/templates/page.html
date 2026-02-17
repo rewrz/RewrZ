@@ -34,7 +34,7 @@
             {% endif %}
         </div>
         
-        <div class="prose prose-indigo max-w-none mb-8">
+        <div class="post-content prose prose-indigo max-w-none mb-8">
             {% if toc_items %}
             <nav class="mb-6 rounded-lg border border-blue-100 bg-blue-50 p-4" aria-label="页面目录">
                 <h2 class="mb-3 text-sm font-semibold text-blue-800">页面目录</h2>
@@ -121,7 +121,7 @@
             </span>
             {% endif %}
         </div>
-        <div class="prose prose-indigo max-w-none mb-8">
+        <div class="post-content prose prose-indigo max-w-none mb-8">
             {% if toc_items %}
             <nav class="mb-6 rounded-lg border border-blue-100 bg-blue-50 p-4" aria-label="页面目录">
                 <h2 class="mb-3 text-sm font-semibold text-blue-800">页面目录</h2>
@@ -140,7 +140,7 @@
 {% else %}
     <article class="bg-white p-8 rounded-lg shadow-md">
         <h1 class="text-4xl font-bold text-gray-900 mb-4">{{ title }}</h1>
-        <div class="prose prose-indigo max-w-none mb-8">
+        <div class="post-content prose prose-indigo max-w-none mb-8">
             {{ content | safe }}
         </div>
     </article>
