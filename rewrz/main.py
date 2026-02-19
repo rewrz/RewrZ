@@ -1850,6 +1850,37 @@ def _sum_post_views_metrics(db: Session) -> int:
     return total_views
 
 
+def _load_post_views_metrics_map(db: Session, post_ids: List[int], chunk_size: int = 300) -> Dict[int, int]:
+    normalized_post_ids = sorted({int(post_id) for post_id in post_ids if isinstance(post_id, int) or str(post_id).isdigit()})
+    if not normalized_post_ids:
+        return {}
+
+    views_map: Dict[int, int] = {}
+    metric_keys = [f"post_views_count_{post_id}" for post_id in normalized_post_ids]
+    batch_size = max(50, int(chunk_size or 300))
+
+    for offset in range(0, len(metric_keys), batch_size):
+        batch_keys = metric_keys[offset: offset + batch_size]
+        try:
+            rows = db.execute(
+                select(Setting.key, Setting.value).where(Setting.key.in_(batch_keys))
+            ).all()
+        except Exception:
+            continue
+
+        for key, value in rows:
+            key_text = str(key or "")
+            if not key_text.startswith("post_views_count_"):
+                continue
+            suffix = key_text.replace("post_views_count_", "", 1)
+            try:
+                post_id = int(suffix)
+            except (TypeError, ValueError):
+                continue
+            views_map[post_id] = max(0, _extract_metric_int(value, default=0))
+    return views_map
+
+
 def _parse_bool(value: Any, default: bool) -> bool:
     if isinstance(value, bool):
         return value
@@ -2629,7 +2660,7 @@ async def format_page(request: Request, format_slug: str, page: int = 1, append:
         limit=archive_posts_limit,
         exclude_format_ids=exclude_format_ids,
     )
-    from .models import Comment
+    from .models import Comment, ContentReaction
 
     post_ids = [item.id for item in posts if getattr(item, "id", None) is not None]
     comment_count_map = {}
@@ -2642,6 +2673,175 @@ async def format_page(request: Request, format_slug: str, page: int = 1, append:
         comment_count_map = {pid: int(count or 0) for pid, count in comment_rows}
     for item in posts:
         setattr(item, "comment_count", int(comment_count_map.get(item.id, 0)))
+
+    format_post_ids_query = select(Post.id).where(
+        Post.formats.any(id=format.id),
+        Post.status == "published",
+        Post.published_at.isnot(None),
+        Post.post_type.in_(["post", "article"]),
+    )
+    for excluded_format_id in exclude_format_ids:
+        format_post_ids_query = format_post_ids_query.where(~Post.formats.any(id=excluded_format_id))
+
+    micro_interaction_count = 0
+    if canonical_format_slug == "micro":
+
+        micro_comment_total = db.execute(
+            select(func.count(Comment.id)).where(
+                Comment.status == "approved",
+                Comment.post_id.in_(format_post_ids_query),
+            )
+        ).scalar_one()
+        micro_like_total = db.execute(
+            select(func.count(ContentReaction.id)).where(
+                ContentReaction.target_type == "post",
+                ContentReaction.target_id.in_(format_post_ids_query),
+                ContentReaction.like_active.is_(True),
+            )
+        ).scalar_one()
+        micro_reaction_total = db.execute(
+            select(func.count(ContentReaction.id)).where(
+                ContentReaction.target_type == "post",
+                ContentReaction.target_id.in_(format_post_ids_query),
+                ContentReaction.reaction_type.isnot(None),
+            )
+        ).scalar_one()
+
+        micro_interaction_count = int(
+            (micro_comment_total or 0)
+            + (micro_like_total or 0)
+            + (micro_reaction_total or 0)
+        )
+
+    format_tag_topic_count = 0
+    format_category_topic_count = 0
+    format_hot_tags: List[Dict[str, Any]] = []
+    if canonical_format_slug in {"micro", "poem", "article"}:
+        from .models import Tag
+        from .models.post import post_tags
+
+        tag_post_rows = db.execute(
+            select(
+                Tag.id,
+                Tag.name,
+                Tag.slug,
+                post_tags.c.post_id,
+            )
+            .join(post_tags, post_tags.c.tag_id == Tag.id)
+            .where(post_tags.c.post_id.in_(format_post_ids_query))
+        ).all()
+
+        format_tag_topic_count = len({int(row.id) for row in tag_post_rows if getattr(row, "id", None) is not None})
+
+        if tag_post_rows:
+            tagged_post_ids = sorted(
+                {
+                    int(row.post_id)
+                    for row in tag_post_rows
+                    if getattr(row, "post_id", None) is not None
+                }
+            )
+            tagged_post_ids_query = (
+                select(post_tags.c.post_id)
+                .where(post_tags.c.post_id.in_(format_post_ids_query))
+                .group_by(post_tags.c.post_id)
+            )
+
+            tag_comment_rows = db.execute(
+                select(Comment.post_id, func.count(Comment.id))
+                .where(
+                    Comment.status == "approved",
+                    Comment.post_id.in_(tagged_post_ids_query),
+                )
+                .group_by(Comment.post_id)
+            ).all()
+            tag_like_rows = db.execute(
+                select(ContentReaction.target_id, func.count(ContentReaction.id))
+                .where(
+                    ContentReaction.target_type == "post",
+                    ContentReaction.target_id.in_(tagged_post_ids_query),
+                    ContentReaction.like_active.is_(True),
+                )
+                .group_by(ContentReaction.target_id)
+            ).all()
+            tag_reaction_rows = db.execute(
+                select(ContentReaction.target_id, func.count(ContentReaction.id))
+                .where(
+                    ContentReaction.target_type == "post",
+                    ContentReaction.target_id.in_(tagged_post_ids_query),
+                    ContentReaction.reaction_type.isnot(None),
+                )
+                .group_by(ContentReaction.target_id)
+            ).all()
+
+            tag_comment_map = {int(post_id): int(count or 0) for post_id, count in tag_comment_rows}
+            tag_like_map = {int(post_id): int(count or 0) for post_id, count in tag_like_rows}
+            tag_reaction_map = {int(post_id): int(count or 0) for post_id, count in tag_reaction_rows}
+            tag_views_map = _load_post_views_metrics_map(db, tagged_post_ids)
+
+            # 热门标签算法：浏览量 + 评论互动（评论/点赞/表态）综合加权
+            view_weight = 1
+            comment_weight = 30
+            like_weight = 12
+            reaction_weight = 10
+
+            tag_heat_map: Dict[int, Dict[str, Any]] = {}
+            for row in tag_post_rows:
+                tag_id = int(row.id)
+                post_id = int(row.post_id)
+                comment_count = int(tag_comment_map.get(post_id, 0))
+                like_count = int(tag_like_map.get(post_id, 0))
+                reaction_count = int(tag_reaction_map.get(post_id, 0))
+                view_count = int(tag_views_map.get(post_id, 0))
+
+                interaction_score = (
+                    comment_count * comment_weight
+                    + like_count * like_weight
+                    + reaction_count * reaction_weight
+                )
+                heat_score = interaction_score + view_count * view_weight
+
+                current = tag_heat_map.get(tag_id)
+                if current is None:
+                    current = {
+                        "id": tag_id,
+                        "name": row.name,
+                        "slug": row.slug,
+                        "count": 0,
+                        "heat_score": 0,
+                        "interaction_score": 0,
+                        "views_score": 0,
+                    }
+                    tag_heat_map[tag_id] = current
+
+                current["count"] = int(current["count"]) + 1
+                current["heat_score"] = int(current["heat_score"]) + int(heat_score)
+                current["interaction_score"] = int(current["interaction_score"]) + int(interaction_score)
+                current["views_score"] = int(current["views_score"]) + int(view_count)
+
+            format_hot_tags = sorted(
+                tag_heat_map.values(),
+                key=lambda item: (
+                    int(item.get("heat_score", 0)),
+                    int(item.get("interaction_score", 0)),
+                    int(item.get("views_score", 0)),
+                    int(item.get("count", 0)),
+                    -int(item.get("id", 0)),
+                ),
+                reverse=True,
+            )[:10]
+
+    if canonical_format_slug == "article":
+        from .models.post import post_categories
+
+        format_category_topic_count = int(
+            db.execute(
+                select(func.count(func.distinct(post_categories.c.category_id))).where(
+                    post_categories.c.post_id.in_(format_post_ids_query)
+                )
+            ).scalar_one()
+            or 0
+        )
 
     profile_resolver = get_public_profile_resolver()
     format_profile = profile_resolver.resolve_format_profile(request, db, canonical_format_slug)
@@ -2758,6 +2958,10 @@ async def format_page(request: Request, format_slug: str, page: int = 1, append:
         "pagination": pagination,
         "list_navigation_mode": list_navigation_mode,
         "format_profile": format_profile,
+        "micro_interaction_count": micro_interaction_count,
+        "format_tag_topic_count": format_tag_topic_count,
+        "format_category_topic_count": format_category_topic_count,
+        "format_hot_tags": format_hot_tags,
     })
 
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":

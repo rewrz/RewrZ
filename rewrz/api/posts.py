@@ -42,6 +42,40 @@ def _resolve_selected_format_ids(format_id: Optional[int]) -> Optional[List[int]
         return [format_id]
     return None
 
+
+def _resolve_selected_intent_slug(db: Session, format_id: Optional[int], fallback_slug: str = "article") -> str:
+    fallback = str(fallback_slug or "article").strip().lower() or "article"
+    if isinstance(format_id, int) and format_id > 0:
+        fmt = crud_format.get_format(db, format_id)
+        if fmt and getattr(fmt, "slug", None):
+            return str(fmt.slug).strip().lower() or fallback
+    return fallback
+
+
+def _resolve_post_primary_intent_slug(post_obj) -> str:
+    if not post_obj or not getattr(post_obj, "formats", None):
+        return "article"
+    slugs = [
+        str(getattr(fmt, "slug", "") or "").strip().lower()
+        for fmt in (post_obj.formats or [])
+    ]
+    if "micro" in slugs:
+        return "micro"
+    if "poem" in slugs:
+        return "poem"
+    return "article"
+
+
+def _normalize_category_ids_for_intent(category_ids: Optional[List[int]], intent_slug: str) -> List[int]:
+    normalized_intent = str(intent_slug or "article").strip().lower() or "article"
+    if normalized_intent in {"micro", "poem"}:
+        return []
+    cleaned = sorted({
+        int(item) for item in (category_ids or [])
+        if isinstance(item, int) and item > 0
+    })
+    return cleaned
+
 # --- 文章管理路由 ---
 
 @router.get(f"{settings.ADMIN_PATH.rstrip('/')}/posts/new", response_class=HTMLResponse)
@@ -119,6 +153,9 @@ async def create_post_api(
     if visibility == "password" and not normalized_password:
         raise HTTPException(status_code=400, detail="密码保护内容必须设置访问密码")
     
+    selected_intent_slug = _resolve_selected_intent_slug(db, format_id, fallback_slug="article")
+    normalized_category_ids = _normalize_category_ids_for_intent(category_ids, selected_intent_slug)
+
     post_create_data = PostCreate(
         title=title,
         content_markdown=content,
@@ -131,7 +168,7 @@ async def create_post_api(
         visibility=visibility,
         password=normalized_password,
         allow_comments=allow_comments,
-        category_ids=category_ids if category_ids else [],
+        category_ids=normalized_category_ids,
         license_type=license_type,
         post_type="post" # 确保文章类型为 'post'
     )
@@ -193,6 +230,10 @@ async def update_post_api(
     if visibility == "password" and not normalized_password and not db_post.password:
         raise HTTPException(status_code=400, detail="密码保护内容必须设置访问密码")
 
+    fallback_intent_slug = _resolve_post_primary_intent_slug(db_post)
+    selected_intent_slug = _resolve_selected_intent_slug(db, format_id, fallback_slug=fallback_intent_slug)
+    normalized_category_ids = _normalize_category_ids_for_intent(category_ids, selected_intent_slug)
+
     post_update_data = PostUpdate(
         title=title,
         content_markdown=content,
@@ -205,7 +246,7 @@ async def update_post_api(
         visibility=visibility,
         password=normalized_password,
         allow_comments=allow_comments,
-        category_ids=category_ids if category_ids else [],
+        category_ids=normalized_category_ids,
         license_type=license_type,
         post_type="post" # 确保文章类型不被修改
     )

@@ -61,6 +61,16 @@
                     </div>
                 </div>
                 <div class="flex flex-wrap items-start justify-start gap-2 md:justify-end">
+                    <div class="grid w-full grid-cols-2 gap-2 md:max-w-xs">
+                        <div class="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-center dark:border-slate-600 dark:bg-slate-700/40">
+                            <div class="text-base font-bold text-slate-900 dark:text-white">{{ (format_category_topic_count if format_category_topic_count is defined else 0) | compact_number_cn }}</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-300">分类数量</div>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-center dark:border-slate-600 dark:bg-slate-700/40">
+                            <div class="text-base font-bold text-slate-900 dark:text-white">{{ (format_tag_topic_count if format_tag_topic_count is defined else 0) | compact_number_cn }}</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-300">标签数量</div>
+                        </div>
+                    </div>
                     {% if profile_website %}
                     <a href="{{ profile_website }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700/60 dark:bg-indigo-900/30 dark:text-indigo-300">
                         <i class="fas fa-link mr-1"></i>网站
@@ -80,6 +90,19 @@
                     {% endfor %}
                     {% endif %}
                 </div>
+                {% if format_hot_tags and format_hot_tags | length > 0 %}
+                <div class="mt-4 md:col-span-2">
+                    <p class="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-300">热门标签推荐</p>
+                    <div class="flex flex-wrap gap-2">
+                        {% for tag_item in format_hot_tags[:8] %}
+                        <a href="/archives/by-tag/{{ tag_item.slug }}" class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600">
+                            <span>#{{ tag_item.name }}</span>
+                            <span class="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-600 dark:text-slate-100" title="综合热度：浏览 + 互动">{{ (tag_item.heat_score if tag_item.heat_score is defined else tag_item.count) | compact_number_cn }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </header>
         {% elif is_micro %}
@@ -105,20 +128,37 @@
                     <p class="mt-4 text-sm leading-7 text-slate-700 dark:text-slate-200">
                         {{ profile_motto if profile_motto else (profile_bio if profile_bio else '记录即时想法、碎片灵感与日常动态。') }}
                     </p>
-                    <div class="mt-4 grid grid-cols-3 gap-3 text-center">
+                    <div class="mt-4 grid grid-cols-2 gap-3 text-center md:grid-cols-4">
                         <div class="rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
                             <div class="text-xl font-bold text-slate-900 dark:text-white">{{ pagination.total_count if pagination else (posts|length) }}</div>
                             <div class="text-xs text-slate-500 dark:text-slate-400">动态</div>
                         </div>
                         <div class="rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
-                            <div class="text-xl font-bold text-slate-900 dark:text-white">{{ pagination.current_page if pagination else 1 }}</div>
-                            <div class="text-xs text-slate-500 dark:text-slate-400">页面</div>
+                            <div class="text-xl font-bold text-slate-900 dark:text-white">{{ (micro_interaction_count if micro_interaction_count is defined else 0) | compact_number_cn }}</div>
+                            <div class="text-xs text-slate-500 dark:text-slate-400">互动</div>
+                        </div>
+                        <div class="rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
+                            <div class="text-xl font-bold text-slate-900 dark:text-white">{{ (format_tag_topic_count if format_tag_topic_count is defined else 0) | compact_number_cn }}</div>
+                            <div class="text-xs text-slate-500 dark:text-slate-400">话题</div>
                         </div>
                         <div class="rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
                             <div class="text-xl font-bold text-slate-900 dark:text-white">{{ profile_location if profile_location else 'Online' }}</div>
                             <div class="text-xs text-slate-500 dark:text-slate-400">位置</div>
                         </div>
                     </div>
+                    {% if format_hot_tags and format_hot_tags | length > 0 %}
+                    <div class="mt-4">
+                        <p class="mb-2 text-xs font-semibold tracking-wide text-slate-600 dark:text-slate-300">热门话题推荐</p>
+                        <div class="flex flex-wrap gap-2">
+                            {% for tag_item in format_hot_tags[:8] %}
+                            <a href="/archives/by-tag/{{ tag_item.slug }}" class="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-white/90 px-2.5 py-1 text-xs text-sky-700 hover:bg-sky-50 dark:border-sky-700/70 dark:bg-slate-800 dark:text-sky-200 dark:hover:bg-slate-700">
+                                <span>#{{ tag_item.name }}</span>
+                                <span class="rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-900/60 dark:text-sky-200" title="综合热度：浏览 + 互动">{{ (tag_item.heat_score if tag_item.heat_score is defined else tag_item.count) | compact_number_cn }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
                     {% if social_links and social_links | length > 0 %}
                     <div class="mt-4 flex flex-wrap gap-2">
                         {% for link in social_links %}
@@ -157,6 +197,9 @@
                         <span class="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
                             卷数 {{ pagination.total_count if pagination else (posts|length) }}
                         </span>
+                        <span class="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
+                            话题 {{ (format_tag_topic_count if format_tag_topic_count is defined else 0) | compact_number_cn }}
+                        </span>
                         {% if profile_location %}
                         <span class="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
                             <i class="fas fa-location-dot mr-1"></i>{{ profile_location }}
@@ -168,6 +211,19 @@
                         </a>
                         {% endif %}
                     </div>
+                    {% if format_hot_tags and format_hot_tags | length > 0 %}
+                    <div class="mx-auto mt-4 max-w-4xl">
+                        <p class="mb-2 text-xs font-semibold tracking-[0.16em] text-stone-600 dark:text-stone-300">热门话题推荐</p>
+                        <div class="flex flex-wrap items-center justify-center gap-2">
+                            {% for tag_item in format_hot_tags[:8] %}
+                            <a href="/archives/by-tag/{{ tag_item.slug }}" class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-white/85 px-3 py-1 text-xs text-amber-800 hover:bg-white dark:border-amber-800 dark:bg-stone-800 dark:text-amber-200 dark:hover:bg-stone-700">
+                                <span>#{{ tag_item.name }}</span>
+                                <span class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/60 dark:text-amber-200" title="综合热度：浏览 + 互动">{{ (tag_item.heat_score if tag_item.heat_score is defined else tag_item.count) | compact_number_cn }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </header>

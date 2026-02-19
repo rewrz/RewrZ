@@ -122,6 +122,26 @@ def time_ago_filter(dt: datetime) -> str:
         return dt.strftime('%Y年%m月%d日')
 
 
+def micro_datetime_cn_filter(dt: datetime) -> str:
+    """
+    微博时间格式过滤器
+
+    规则：
+    - 当年：`%m月%d日 %H:%M`
+    - 非当年：`%Y年%m月%d日 %H:%M`
+    """
+    if not dt:
+        return ""
+
+    now = datetime.now()
+    if dt.tzinfo is not None:
+        now = now.replace(tzinfo=dt.tzinfo)
+
+    if dt.year == now.year:
+        return dt.strftime("%m月%d日 %H:%M")
+    return dt.strftime("%Y年%m月%d日 %H:%M")
+
+
 def truncate_html_filter(html_content: str, length: int = 100) -> str:
     """
     截断HTML内容的过滤器（保留HTML标签结构）
@@ -499,6 +519,7 @@ def register_template_filters(app):
     templates.env.filters['gravatar_url'] = gravatar_url_filter
     templates.env.filters['avatar_url'] = avatar_url_filter
     templates.env.filters['time_ago'] = time_ago_filter
+    templates.env.filters['micro_datetime_cn'] = micro_datetime_cn_filter
     templates.env.filters['truncate_html'] = truncate_html_filter
     templates.env.filters['extract_image_urls'] = extract_image_urls_filter
     templates.env.filters['date'] = date_filter
@@ -530,6 +551,7 @@ def get_templates():
         _templates.env.filters['gravatar_url'] = gravatar_url_filter
         _templates.env.filters['avatar_url'] = avatar_url_filter
         _templates.env.filters['time_ago'] = time_ago_filter
+        _templates.env.filters['micro_datetime_cn'] = micro_datetime_cn_filter
         _templates.env.filters['truncate_html'] = truncate_html_filter
         _templates.env.filters['extract_image_urls'] = extract_image_urls_filter
         _templates.env.filters['date'] = date_filter

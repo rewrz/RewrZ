@@ -339,23 +339,24 @@
                             <div class="editor-format-grid">
                                 {% for format in formats %}
                                 <label class="editor-format-item">
-                                    <input type="radio" name="format_id" value="{{ format.id }}" {% if format.slug == selected_intent.value %}checked{% endif %} class="form-checkbox">
+                                    <input type="radio" name="format_id" data-format-slug="{{ format.slug }}" value="{{ format.id }}" {% if format.slug == selected_intent.value %}checked{% endif %} class="form-checkbox">
                                     <span>{{ format.name }}</span>
                                 </label>
                                 {% endfor %}
                             </div>
                             <p class="mt-2 text-xs text-gray-500">每篇内容仅选择一个主类型；图片/视频/音频通过内容附件体现。</p>
                         </div>
-                        <div>
+                        <div id="category-panel">
                             <h3 class="text-lg font-semibold mb-2">分类</h3>
                             <div class="editor-scroll-list grid grid-cols-1 gap-2">
                                 {% for category in categories %}
                                 <label class="editor-check-item">
-                                    <input type="checkbox" name="category_ids" value="{{ category.id }}" {% if post and category in post.categories %}checked{% endif %} class="form-checkbox">
+                                    <input type="checkbox" name="category_ids" value="{{ category.id }}" {% if post and category in post.categories %}checked{% endif %} class="form-checkbox js-category-checkbox">
                                     <span class="text-gray-700 text-sm">{{ category.name }}</span>
                                 </label>
                                 {% endfor %}
                             </div>
+                            <p id="category-panel-hint" class="mt-2 text-xs text-gray-500">标准文章建议设置分类；微博与诗词歌赋默认不需要分类。</p>
                         </div>
                         <div>
                             <h3 class="text-lg font-semibold mb-2">标签</h3>
@@ -451,6 +452,9 @@
         const titleInput = document.getElementById('title');
         const slugInput = document.getElementById('slug-input');
         const slugPreview = document.getElementById('slug-preview');
+        const categoryPanel = document.getElementById('category-panel');
+        const formatInputs = Array.from(document.querySelectorAll('input[name="format_id"]'));
+        const categoryInputs = Array.from(document.querySelectorAll('input[name="category_ids"]'));
         let isDirty = false;
         let isSubmitting = false;
         let slugTouched = Boolean(slugInput && slugInput.value.trim());
@@ -557,6 +561,26 @@
             }
         }
 
+        function getSelectedIntentSlug() {
+            const selected = formatInputs.find((item) => item.checked);
+            if (!selected) return 'article';
+            return String(selected.dataset.formatSlug || 'article').trim().toLowerCase() || 'article';
+        }
+
+        function syncCategoryPanelByIntent() {
+            const intentSlug = getSelectedIntentSlug();
+            const categoryEnabled = intentSlug === 'article';
+            if (categoryPanel) {
+                categoryPanel.classList.toggle('hidden', !categoryEnabled);
+            }
+            categoryInputs.forEach((item) => {
+                if (!categoryEnabled) {
+                    item.checked = false;
+                }
+                item.disabled = !categoryEnabled;
+            });
+        }
+
         function updateEditorStats() {
             const markdown = editor.getMarkdown();
             const plain = markdown
@@ -613,6 +637,13 @@
 
         postForm.addEventListener('input', markDirty);
         postForm.addEventListener('change', markDirty);
+        formatInputs.forEach((item) => {
+            item.addEventListener('change', () => {
+                syncCategoryPanelByIntent();
+                markDirty();
+            });
+        });
+        syncCategoryPanelByIntent();
 
         try {
             editor.on('change', () => {

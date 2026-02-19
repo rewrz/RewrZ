@@ -54,13 +54,9 @@
                             <p class="font-semibold text-lg truncate">{{ post_author_name }}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
                                 <i class="far fa-clock"></i>
-                                {{ post.published_at.strftime('%Y年%m月%d日 %H:%M') if post.published_at else post.created_at.strftime('%Y年%m月%d日 %H:%M') }}
+                                {{ (post.published_at if post.published_at else post.created_at) | micro_datetime_cn }}
                                 <span class="text-gray-300 dark:text-gray-600">•</span>
                                 <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
-                                {% if post.categories %}
-                                <span class="text-gray-300 dark:text-gray-600">•</span>
-                                <a href="/archives/by-category/{{ post.categories[0].slug }}" class="hover:text-indigo-600">{{ post.categories[0].name }}</a>
-                                {% endif %}
                             </p>
                         </div>
                     </div>
