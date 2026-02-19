@@ -147,6 +147,28 @@
                     <button type="button" class="select-from-media-btn px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700" data-target-input="site_cover_url">从媒体库选择</button>
                 </div>
             </div>
+            <div class="md:col-span-2">
+                <label for="admin_login_background_image_url" class="block text-sm font-medium text-gray-700">登录页动态背景图</label>
+                <input type="text" id="admin_login_background_image_url" name="admin_login_background_image_url" value="{{ settings.admin_login_background_image_url }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="用于后台登录页的动态背景图（建议 16:9 或更大尺寸）">
+                <p class="mt-1 text-xs text-gray-500">留空时将使用系统内置二次元背景。可上传或从媒体库选择。若下方配置了视频，则优先播放视频。</p>
+                <div class="mt-2 flex items-center gap-2">
+                    <input type="file" id="upload_admin_login_bg_file" accept="image/*" class="block w-full text-xs text-gray-500">
+                    <button type="button" id="upload_admin_login_bg_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                    <button type="button" class="select-from-media-btn px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700" data-target-input="admin_login_background_image_url">从媒体库选择</button>
+                </div>
+            </div>
+            <div class="md:col-span-2">
+                <label for="admin_login_background_video_url" class="block text-sm font-medium text-gray-700">登录页自动播放背景视频</label>
+                <input type="text" id="admin_login_background_video_url" name="admin_login_background_video_url" value="{{ settings.admin_login_background_video_url }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com/login-bg.mp4">
+                <p class="mt-1 text-xs text-gray-500">支持 MP4/WebM。登录页会自动静音、循环播放并内联播放（autoplay muted loop playsinline）。</p>
+                <div class="mt-2 flex items-center gap-2">
+                    <input type="file" id="upload_admin_login_video_file" accept="video/mp4,video/webm,video/ogg" class="block w-full text-xs text-gray-500">
+                    <button type="button" id="upload_admin_login_video_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                    <button type="button" class="select-from-media-btn px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700" data-target-input="admin_login_background_video_url">从媒体库选择</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1087,6 +1109,8 @@
         bindSiteAssetUpload('upload_site_logo_dark_file', 'upload_site_logo_dark_btn', 'site_logo_dark', '暗色 Logo 已上传并填充。', 'covers');
         bindSiteAssetUpload('upload_favicon_file', 'upload_favicon_btn', 'favicon', 'Favicon 已上传并填充。', 'covers');
         bindSiteAssetUpload('upload_site_cover_file', 'upload_site_cover_btn', 'site_cover_url', '封面已上传并填充。', 'covers');
+        bindSiteAssetUpload('upload_admin_login_bg_file', 'upload_admin_login_bg_btn', 'admin_login_background_image_url', '登录页背景图已上传并填充。', 'covers');
+        bindSiteAssetUpload('upload_admin_login_video_file', 'upload_admin_login_video_btn', 'admin_login_background_video_url', '登录页背景视频已上传并填充。', 'covers');
 
         document.querySelectorAll('.select-from-media-btn').forEach((button) => {
             button.addEventListener('click', () => {

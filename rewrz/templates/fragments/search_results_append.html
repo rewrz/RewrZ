@@ -1,7 +1,7 @@
 {% if results %}
-<div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+<div class="archive-grid-equal grid grid-cols-1 gap-5 md:grid-cols-2">
     {% for post in results %}
-    <article class="search-result-card rounded-2xl border border-gray-200/70 bg-white/80 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/80">
+    <article class="search-result-card archive-card-equal rounded-2xl border border-gray-200/70 bg-white/80 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/80">
         {% include "components/timeline_card.html" %}
     </article>
     {% endfor %}

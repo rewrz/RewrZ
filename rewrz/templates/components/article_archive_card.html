@@ -1,7 +1,7 @@
 {% set cover_url = post.archive_cover_url if post.archive_cover_url is defined and post.archive_cover_url else '' %}
 {% set summary_text = post.excerpt if post.excerpt else (post | post_preview_text(220)) %}
 
-<article class="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
+<article class="archive-card-equal group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
     <a href="{{ post | post_url }}" class="block overflow-hidden">
         {% if cover_url %}
         <img src="{{ cover_url }}" alt="{{ post.title or '文章封面' }}" class="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
@@ -12,8 +12,8 @@
         {% endif %}
     </a>
 
-    <div class="p-5">
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white leading-snug">
+    <div class="archive-card-body p-5">
+        <h3 class="u-line-clamp-2 min-h-[3.5rem] text-xl font-semibold leading-snug text-gray-900 dark:text-white">
             <a href="{{ post | post_url }}" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                 {% if post.title and post.title.strip() %}
                     {{ post.title }}
@@ -24,12 +24,12 @@
         </h3>
 
         {% if summary_text %}
-        <p class="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+        <p class="u-line-clamp-3 mt-3 min-h-[4.25rem] text-sm leading-6 text-gray-600 dark:text-gray-300">
             {{ summary_text[:140] }}{% if summary_text|length > 140 %}...{% endif %}
         </p>
         {% endif %}
 
-        <div class="mt-4 flex flex-wrap items-center gap-2 text-xs">
+        <div class="mt-4 flex min-h-[2.4rem] flex-wrap items-center gap-2 text-xs">
             {% if post.categories %}
                 {% for category in post.categories[:2] %}
                 <a href="/archives/by-category/{{ category.slug }}" class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50">
@@ -51,7 +51,7 @@
             {% endif %}
         </div>
 
-        <div class="mt-4 grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-gray-400 sm:grid-cols-4">
+        <div class="archive-card-meta mt-4 grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 sm:grid-cols-4">
             <span class="inline-flex items-center"><i class="far fa-eye mr-1.5"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
             <span class="inline-flex items-center"><i class="fas fa-clock mr-1.5"></i>{{ (post.content_markdown or post.content_html) | reading_time }}</span>
             {% set stats = (post.content_markdown or post.content_html) | reading_stats(post) %}

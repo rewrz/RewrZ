@@ -21,9 +21,9 @@
         {% set pagination_target_id = "monthly-posts-panel" %}
         <div id="{{ pagination_target_id }}">
             {% if posts %}
-            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div class="archive-grid-equal grid grid-cols-1 gap-5 md:grid-cols-2">
                 {% for post in posts %}
-                <article class="rounded-2xl border border-gray-200/70 bg-white/70 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/70">
+                <article class="archive-card-equal rounded-2xl border border-gray-200/70 bg-white/70 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/70">
                     {% include "components/timeline_card.html" %}
                 </article>
                 {% endfor %}

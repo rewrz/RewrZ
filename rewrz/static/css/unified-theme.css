@@ -113,6 +113,48 @@ body.site-shell footer {
     backdrop-filter: blur(4px);
 }
 
+.archive-grid-equal {
+    align-items: stretch;
+}
+
+@media (min-width: 768px) {
+    .archive-grid-equal {
+        grid-auto-rows: 1fr;
+    }
+}
+
+.archive-card-equal {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.archive-card-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+}
+
+.archive-card-meta {
+    margin-top: auto;
+}
+
+.u-line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.u-line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
 .anime-chip {
     display: inline-flex;
     align-items: center;
@@ -1368,7 +1410,7 @@ body.site-shell #mobile-nav-menu {
 }
 
 /* Login field alignment fix */
-.admin-login-page .login-input-wrapper i {
+.admin-login-page .login-input-wrapper .field-icon {
     pointer-events: none;
 }
 

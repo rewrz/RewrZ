@@ -14,8 +14,114 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link id="admin-theme-variables" rel="stylesheet" href="/api/v1/theme/variables.css">
     <link rel="stylesheet" href="{{ url_for('static', path='css/unified-theme.css') }}">
+    {% set login_background_url = request.state.admin_login_background_image_url if request.state.admin_login_background_image_url else '/static/images/anime/covers/home-default.svg' %}
+    {% set login_background_video_url = request.state.admin_login_background_video_url if request.state.admin_login_background_video_url else '' %}
+    {% set has_login_video = login_background_video_url and login_background_video_url.strip() %}
     <style>
         /* 登录页面专用样式 */
+        .admin-login-page {
+            overflow: hidden;
+            background: #090d1f;
+        }
+        .admin-login-stage {
+            --login-parallax-x: 0px;
+            --login-parallax-y: 0px;
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .admin-login-bg-motion {
+            position: absolute;
+            inset: -4%;
+            animation: loginBgDrift 26s ease-in-out infinite alternate;
+        }
+        .admin-login-bg {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(125deg, rgba(10, 14, 30, 0.52), rgba(29, 40, 72, 0.42), rgba(64, 52, 148, 0.35)),
+                url('{{ login_background_url }}');
+            background-size: cover;
+            background-position: center;
+            transform: translate3d(var(--login-parallax-x), var(--login-parallax-y), 0) scale(1.12);
+            filter: saturate(1.12) brightness(0.78) contrast(1.06);
+            transition: transform 0.22s ease-out;
+            will-change: transform;
+        }
+        .admin-login-video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: translate3d(var(--login-parallax-x), var(--login-parallax-y), 0) scale(1.14);
+            filter: saturate(1.08) brightness(0.72) contrast(1.04);
+            transition: transform 0.22s ease-out;
+            will-change: transform;
+        }
+        .admin-login-aurora {
+            position: absolute;
+            inset: -20%;
+            background:
+                radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--color-primary) 34%, transparent), transparent 45%),
+                radial-gradient(circle at 18% 76%, color-mix(in srgb, #ec4899 25%, transparent), transparent 46%),
+                radial-gradient(circle at 52% 40%, color-mix(in srgb, #22d3ee 14%, transparent), transparent 58%);
+            mix-blend-mode: screen;
+            opacity: 0.58;
+            filter: blur(10px);
+            animation: auroraPulse 16s ease-in-out infinite alternate;
+        }
+        .admin-login-grid {
+            position: absolute;
+            inset: -25%;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+            background-size: 44px 44px, 44px 44px;
+            opacity: 0.16;
+            transform: perspective(680px) rotateX(58deg);
+            transform-origin: center top;
+            animation: gridShift 18s linear infinite;
+        }
+        .admin-login-particles {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+        }
+        .admin-login-particles span {
+            position: absolute;
+            bottom: -12vh;
+            left: var(--x);
+            width: var(--size);
+            height: var(--size);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.82);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
+            opacity: 0;
+            animation: particleRise var(--duration) linear infinite;
+            animation-delay: var(--delay);
+        }
+        @keyframes loginBgDrift {
+            0% { transform: translate3d(-1.8%, -1.2%, 0) scale(1.06); }
+            50% { transform: translate3d(1.2%, 1.4%, 0) scale(1.1); }
+            100% { transform: translate3d(-0.7%, 0.9%, 0) scale(1.08); }
+        }
+        @keyframes auroraPulse {
+            0% { transform: rotate(0deg) scale(1); filter: blur(10px) hue-rotate(0deg); opacity: 0.52; }
+            100% { transform: rotate(8deg) scale(1.06); filter: blur(14px) hue-rotate(24deg); opacity: 0.7; }
+        }
+        @keyframes gridShift {
+            0% { transform: perspective(680px) rotateX(58deg) translate3d(0, 0, 0); }
+            100% { transform: perspective(680px) rotateX(58deg) translate3d(-44px, 44px, 0); }
+        }
+        @keyframes particleRise {
+            0% { transform: translate3d(0, 0, 0) scale(0.8); opacity: 0; }
+            12% { opacity: 0.62; }
+            80% { opacity: 0.48; }
+            100% { transform: translate3d(var(--drift), -118vh, 0) scale(1.15); opacity: 0; }
+        }
         .login-deco-1 {
             position: fixed;
             top: 10%;
@@ -26,6 +132,7 @@
             border-radius: 50%;
             animation: decoFloat 8s ease-in-out infinite;
             pointer-events: none;
+            z-index: 2;
         }
         .login-deco-2 {
             position: fixed;
@@ -37,6 +144,7 @@
             border-radius: 50%;
             animation: decoFloat 10s ease-in-out infinite reverse;
             pointer-events: none;
+            z-index: 2;
         }
         .login-deco-3 {
             position: fixed;
@@ -48,6 +156,7 @@
             border-radius: 50%;
             animation: decoFloat 12s ease-in-out infinite;
             pointer-events: none;
+            z-index: 2;
         }
         @keyframes decoFloat {
             0%, 100% { transform: translate(0, 0) scale(1); }
@@ -56,7 +165,23 @@
         .login-input-wrapper {
             position: relative;
         }
-        .login-input-wrapper i {
+        .admin-login-card {
+            background: color-mix(in srgb, var(--color-card-bg) 72%, transparent) !important;
+            backdrop-filter: blur(24px) saturate(1.25);
+            border: 1px solid color-mix(in srgb, var(--color-primary) 30%, rgba(255, 255, 255, 0.18));
+            box-shadow:
+                0 24px 62px -18px rgba(12, 15, 30, 0.65),
+                0 10px 32px -12px color-mix(in srgb, var(--color-primary) 42%, transparent);
+        }
+        .admin-login-card::after {
+            content: '';
+            position: absolute;
+            inset: 1px;
+            border-radius: inherit;
+            border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.68) 42%, transparent);
+            pointer-events: none;
+        }
+        .login-input-wrapper .field-icon {
             position: absolute;
             left: 1rem;
             top: 50%;
@@ -64,8 +189,7 @@
             color: var(--color-text-muted);
             transition: color 0.3s ease;
         }
-        .login-input-wrapper input:focus + i,
-        .login-input-wrapper input:focus ~ i {
+        .login-input-wrapper input:focus ~ .field-icon {
             color: var(--color-primary);
         }
         .login-error-shake {
@@ -92,9 +216,37 @@
         .password-toggle:hover {
             color: var(--color-primary);
         }
+        @media (prefers-reduced-motion: reduce) {
+            .admin-login-bg-motion,
+            .admin-login-aurora,
+            .admin-login-grid,
+            .admin-login-particles span,
+            .login-deco-1,
+            .login-deco-2,
+            .login-deco-3 {
+                animation: none !important;
+            }
+        }
     </style>
 </head>
 <body class="admin-login-page flex items-center justify-center min-h-screen p-4">
+    <div class="admin-login-stage" aria-hidden="true">
+        <div class="admin-login-bg-motion">
+            <div class="admin-login-bg"></div>
+            {% if has_login_video %}
+            <video id="admin-login-video" class="admin-login-video" autoplay muted loop playsinline preload="auto" poster="{{ login_background_url }}">
+                <source src="{{ login_background_video_url }}">
+            </video>
+            {% endif %}
+        </div>
+        <div class="admin-login-aurora"></div>
+        <div class="admin-login-grid"></div>
+        <div class="admin-login-particles">
+            {% for i in range(1, 21) %}
+            <span style="--x: {{ (i * 13) % 100 }}%; --size: {{ 2 + (i % 3) }}px; --duration: {{ 11 + (i % 6) }}s; --delay: -{{ i * 0.8 }}s; --drift: {{ ((i % 5) - 2) * 2 }}vw;"></span>
+            {% endfor %}
+        </div>
+    </div>
     <!-- 装饰性背景元素 -->
     <div class="login-deco-1"></div>
     <div class="login-deco-2"></div>
@@ -123,31 +275,27 @@
         <form hx-post="{{ admin_path }}/auth" hx-trigger="submit" hx-target="body" hx-swap="innerHTML" id="login-form">
             <!-- 用户名输入 -->
             <div class="mb-5">
-                <label for="username" class="block text-sm font-medium mb-2" style="color: var(--color-text);">
-                    <i class="fas fa-user mr-2" style="color: var(--color-primary);"></i>用户名
-                </label>
+                <label for="username" class="block text-sm font-medium mb-2" style="color: var(--color-text);">用户名</label>
                 <div class="login-input-wrapper">
                     <input type="text" id="username" name="username" required
                            class="admin-login-input w-full pl-10 pr-4 py-3 border"
                            style="border-color: var(--color-border); background: color-mix(in srgb, var(--color-card-bg) 98%, transparent); color: var(--color-text);"
                            placeholder="请输入用户名"
                            autocomplete="username">
-                    <i class="fas fa-user"></i>
+                    <i class="field-icon fas fa-user"></i>
                 </div>
             </div>
 
             <!-- 密码输入 -->
             <div class="mb-5">
-                <label for="password" class="block text-sm font-medium mb-2" style="color: var(--color-text);">
-                    <i class="fas fa-lock mr-2" style="color: var(--color-primary);"></i>密码
-                </label>
+                <label for="password" class="block text-sm font-medium mb-2" style="color: var(--color-text);">密码</label>
                 <div class="login-input-wrapper">
                     <input type="password" id="password" name="password" required
                            class="admin-login-input w-full pl-10 pr-12 py-3 border"
                            style="border-color: var(--color-border); background: color-mix(in srgb, var(--color-card-bg) 98%, transparent); color: var(--color-text);"
                            placeholder="请输入密码"
                            autocomplete="current-password">
-                    <i class="fas fa-lock"></i>
+                    <i class="field-icon fas fa-lock"></i>
                     <button type="button" class="password-toggle" onclick="togglePassword()" aria-label="显示/隐藏密码">
                         <i class="fas fa-eye" id="password-toggle-icon"></i>
                     </button>
@@ -265,8 +413,46 @@
             }
         }
 
+        function initLoginBackgroundMotion() {
+            const stage = document.querySelector('.admin-login-stage');
+            if (!stage) return;
+
+            const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const video = document.getElementById('admin-login-video');
+
+            if (video) {
+                const attemptPlay = () => video.play().catch(() => {});
+                video.addEventListener('canplay', attemptPlay, { once: true });
+                attemptPlay();
+            }
+            if (prefersReduced) return;
+
+            let rafId = null;
+            const applyParallax = (clientX, clientY) => {
+                if (rafId) cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(() => {
+                    const xRatio = (clientX / window.innerWidth) - 0.5;
+                    const yRatio = (clientY / window.innerHeight) - 0.5;
+                    stage.style.setProperty('--login-parallax-x', `${(xRatio * 18).toFixed(2)}px`);
+                    stage.style.setProperty('--login-parallax-y', `${(yRatio * 14).toFixed(2)}px`);
+                });
+            };
+
+            window.addEventListener('mousemove', (event) => {
+                applyParallax(event.clientX, event.clientY);
+            }, { passive: true });
+
+            window.addEventListener('mouseleave', () => {
+                stage.style.setProperty('--login-parallax-x', '0px');
+                stage.style.setProperty('--login-parallax-y', '0px');
+            }, { passive: true });
+        }
+
         // 页面加载完成后初始化
-        document.addEventListener('DOMContentLoaded', loadThemeConfig);
+        document.addEventListener('DOMContentLoaded', function() {
+            loadThemeConfig();
+            initLoginBackgroundMotion();
+        });
 
         // 输入框获得焦点时的效果
         document.querySelectorAll('.admin-login-input').forEach(input => {

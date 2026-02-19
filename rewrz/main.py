@@ -256,6 +256,8 @@ def register_admin_routes():
         site_logo_dark: Optional[str] = Form(None),
         favicon: Optional[str] = Form(None),
         site_cover_url: Optional[str] = Form(None),
+        admin_login_background_image_url: Optional[str] = Form(None),
+        admin_login_background_video_url: Optional[str] = Form(None),
         copyright_info: str = Form(...),
         custom_footer_text: Optional[str] = Form(None),
         icp_beian: Optional[str] = Form(None),
@@ -299,7 +301,7 @@ def register_admin_routes():
         return await settings_api.update_admin_settings(
             request, db, current_user, site_title, tagline, site_url, admin_email,
             public_contact_email,
-            site_logo_light, site_logo_dark, favicon, site_cover_url, copyright_info, custom_footer_text,
+            site_logo_light, site_logo_dark, favicon, site_cover_url, admin_login_background_image_url, admin_login_background_video_url, copyright_info, custom_footer_text,
             icp_beian, gongan_beian, social_links_json, anniversaries_json, sitemap_enabled,
             noindex_site, block_ai_crawlers, rss_enabled, rss_items_limit, rss_cache_duration,
             rss_description, homepage_posts_limit, archive_posts_limit, search_results_limit,

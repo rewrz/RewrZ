@@ -254,15 +254,15 @@
                     {% endfor %}
                 </div>
                 {% elif is_article %}
-                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div class="archive-grid-equal grid grid-cols-1 gap-6 md:grid-cols-2">
                     {% for post in posts %}
                     {% include "components/article_archive_card.html" %}
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div class="archive-grid-equal grid grid-cols-1 gap-5 md:grid-cols-2">
                     {% for post in posts %}
-                    <article class="rounded-2xl border border-amber-200/60 bg-white/85 p-4 shadow-sm dark:border-amber-800/40 dark:bg-gray-800/80">
+                    <article class="archive-card-equal rounded-2xl border border-amber-200/60 bg-white/85 p-4 shadow-sm dark:border-amber-800/40 dark:bg-gray-800/80">
                         {% include "components/timeline_card.html" %}
                     </article>
                     {% endfor %}
