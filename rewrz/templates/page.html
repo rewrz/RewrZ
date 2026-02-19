@@ -25,6 +25,10 @@
                 <i class="fas fa-calendar-alt mr-2"></i>
                 {{ post.created_at.strftime('%Y年%m月%d日') }}
             </span>
+            <span class="flex items-center">
+                <i class="far fa-eye mr-2"></i>
+                {{ (post.views_count or 0) | compact_number_cn }}
+            </span>
             
             {% if post.updated_at and post.updated_at != post.created_at %}
             <span class="flex items-center">
@@ -112,6 +116,10 @@
             <span class="flex items-center">
                 <i class="fas fa-calendar-alt mr-2"></i>
                 {{ post.created_at.strftime('%Y年%m月%d日') }}
+            </span>
+            <span class="flex items-center">
+                <i class="far fa-eye mr-2"></i>
+                {{ (post.views_count or 0) | compact_number_cn }}
             </span>
             
             {% if post.updated_at and post.updated_at != post.created_at %}

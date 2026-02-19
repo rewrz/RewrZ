@@ -60,7 +60,7 @@
                     {% endif %}
                 </div>
                 <div class="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                    <span><i class="far fa-eye mr-1"></i>{{ post.views_count or 0 }}</span>
+                    <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
                     <span><i class="fas fa-clock mr-1"></i>{{ (post.content_markdown or post.content_html) | reading_time }}</span>
                 </div>
             </div>
@@ -139,7 +139,7 @@
                     {% endif %}
                 </div>
                 <div class="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                    <span><i class="far fa-eye mr-1"></i>{{ post.views_count or 0 }}</span>
+                    <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
                     <span><i class="fas fa-clock mr-1"></i>{{ (post.content_markdown or post.content_html) | reading_time }}</span>
                 </div>
             </div>
@@ -186,7 +186,7 @@
                     </p>
                     {% endif %}
                     <div class="mt-2.5 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                        <span><i class="far fa-eye mr-1"></i>{{ post.views_count or 0 }}</span>
+                        <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
                         <span><i class="fas fa-clock mr-1"></i>{{ (post.content_markdown or post.content_html) | reading_time }}</span>
                     </div>
                 </div>

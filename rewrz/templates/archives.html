@@ -131,7 +131,7 @@
                                     </span>
                                     <span class="hidden md:flex items-center">
                                         <i class="far fa-eye mr-1"></i>
-                                        {{ post.views_count or 0 }}
+                                        {{ (post.views_count or 0) | compact_number_cn }}
                                     </span>
                                 </div>
                             </div>
@@ -248,7 +248,7 @@
                                     </span>
                                     <span class="hidden md:flex items-center">
                                         <i class="far fa-eye mr-1"></i>
-                                        {{ post.views_count or 0 }}
+                                        {{ (post.views_count or 0) | compact_number_cn }}
                                     </span>
                                 </div>
                             </div>

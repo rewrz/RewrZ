@@ -326,6 +326,33 @@ def date_filter(value, format_string: str = "%Y-%m-%d") -> str:
     return str(value)
 
 
+def compact_number_cn_filter(value) -> str:
+    """
+    中文数字缩写过滤器（用于浏览量等计数展示）
+
+    规则：
+    - < 1万：原值
+    - >= 1万：按“万”缩写
+    - >= 1亿：按“亿”缩写
+    """
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return "0"
+
+    is_negative = number < 0
+    abs_number = abs(number)
+
+    if abs_number < 10000:
+        text = str(int(abs_number))
+    elif abs_number < 100000000:
+        text = f"{abs_number / 10000:.1f}".rstrip("0").rstrip(".") + "万"
+    else:
+        text = f"{abs_number / 100000000:.1f}".rstrip("0").rstrip(".") + "亿"
+
+    return f"-{text}" if is_negative else text
+
+
 def post_content_html_filter(post_obj) -> str:
     if not post_obj:
         return ""
@@ -475,6 +502,7 @@ def register_template_filters(app):
     templates.env.filters['truncate_html'] = truncate_html_filter
     templates.env.filters['extract_image_urls'] = extract_image_urls_filter
     templates.env.filters['date'] = date_filter
+    templates.env.filters['compact_number_cn'] = compact_number_cn_filter
     templates.env.filters['license_html'] = license_html_filter
     templates.env.filters['license_options'] = get_license_options_filter
     templates.env.filters['donation_widget'] = donation_widget_filter
@@ -505,6 +533,7 @@ def get_templates():
         _templates.env.filters['truncate_html'] = truncate_html_filter
         _templates.env.filters['extract_image_urls'] = extract_image_urls_filter
         _templates.env.filters['date'] = date_filter
+        _templates.env.filters['compact_number_cn'] = compact_number_cn_filter
         _templates.env.filters['license_html'] = license_html_filter
         _templates.env.filters['license_options'] = get_license_options_filter
         _templates.env.filters['donation_widget'] = donation_widget_filter

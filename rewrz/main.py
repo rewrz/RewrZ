@@ -59,9 +59,10 @@ from .core.public_profile import get_public_profile_resolver
 from .crud import post as crud_post
 from .crud import category as crud_category
 from .crud import tag as crud_tag
+from .crud import comment as crud_comment
 from .crud import setting as crud_setting # Import crud_setting
 from .crud import format as crud_format # 导入格式CRUD模块以修复未定义变量错误
-from .models import Post
+from .models import Post, Setting
 from .core import error_handler  # 导入错误处理模块
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from sqlalchemy import select, func
@@ -1462,6 +1463,14 @@ def register_admin_routes():
             return RedirectResponse(url=f"/{preferred_segment}/{post_slug}", status_code=301)
 
         active_format_slug = requested_intent or "article"
+
+        # 访问即计数：文章详情页浏览量 +1
+        try:
+            latest_views = _increment_post_views_metric(db, db_post.id)
+            setattr(db_post, "views_count", latest_views)
+            setattr(db_post, "views", latest_views)
+        except Exception:
+            db.rollback()
         
         # 获取SEO元数据
         from .api.seo import _generate_post_seo_data
@@ -1535,6 +1544,14 @@ def register_admin_routes():
                 "error_message": None,
             })
             return templates.TemplateResponse("password_protected.html", context, status_code=401)
+
+        # 访问即计数：页面详情浏览量 +1
+        try:
+            latest_views = _increment_post_views_metric(db, db_page.id)
+            setattr(db_page, "views_count", latest_views)
+            setattr(db_page, "views", latest_views)
+        except Exception:
+            db.rollback()
         
         # 获取SEO元数据
         from .api.seo import _generate_post_seo_data
@@ -1777,6 +1794,57 @@ def get_page_config(db: Session, config_key: str, default_value: Any) -> Any:
     """
     setting = crud_setting.get_setting(db, key=config_key)
     return setting.value.get("value") if setting and setting.value else default_value
+
+
+def _extract_metric_int(raw_value: Any, default: int = 0) -> int:
+    if isinstance(raw_value, dict):
+        raw_value = raw_value.get("value")
+    try:
+        return int(raw_value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _increment_post_views_metric(db: Session, post_id: int, step: int = 1) -> int:
+    metric_key = f"post_views_count_{post_id}"
+    db_setting = crud_setting.get_setting(db, key=metric_key)
+    current_value = _extract_metric_int(db_setting.value if db_setting else 0, default=0)
+    next_value = max(0, current_value + max(1, int(step or 1)))
+    payload = {"value": next_value}
+
+    if db_setting:
+        crud_setting.update_setting(
+            db,
+            key=metric_key,
+            setting_update=SettingUpdate(
+                value=payload,
+                description="Post views metric",
+                category="post_metrics",
+                type="integer",
+            ),
+        )
+    else:
+        crud_setting.create_setting(
+            db,
+            setting=SettingCreate(
+                key=metric_key,
+                value=payload,
+                description="Post views metric",
+                category="post_metrics",
+                type="integer",
+            ),
+        )
+    return next_value
+
+
+def _sum_post_views_metrics(db: Session) -> int:
+    total_views = 0
+    rows = db.execute(
+        select(Setting.value).where(Setting.key.like("post_views_count_%"))
+    ).scalars().all()
+    for row in rows:
+        total_views += max(0, _extract_metric_int(row, default=0))
+    return total_views
 
 
 def _parse_bool(value: Any, default: bool) -> bool:
@@ -2476,6 +2544,18 @@ async def homepage(request: Request, page: int = 1, append: int = 0, db: Session
         )
     profile_resolver = get_public_profile_resolver()
     site_profile = profile_resolver.resolve_homepage_profile(request, db)
+
+    # 首页概览统计：分类、标签、评论、总浏览量
+    homepage_stats = {
+        "categories_count": crud_category.count_categories(db),
+        "tags_count": crud_tag.count_tags(db),
+        "comments_count": crud_comment.count_comments(db),
+        "total_views": 0,
+    }
+    try:
+        homepage_stats["total_views"] = _sum_post_views_metrics(db)
+    except Exception:
+        homepage_stats["total_views"] = 0
     
     # 获取首页SEO元数据
     from .api.seo import _generate_homepage_seo_data
@@ -2490,6 +2570,7 @@ async def homepage(request: Request, page: int = 1, append: int = 0, db: Session
         "list_navigation_mode": list_navigation_mode,
         "timeline_start_index": offset,
         "site_profile": site_profile,
+        "homepage_stats": homepage_stats,
     })
 
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":

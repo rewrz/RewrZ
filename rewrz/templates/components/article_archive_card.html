@@ -52,7 +52,7 @@
         </div>
 
         <div class="mt-4 grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-gray-400 sm:grid-cols-4">
-            <span class="inline-flex items-center"><i class="far fa-eye mr-1.5"></i>{{ post.views_count or 0 }}</span>
+            <span class="inline-flex items-center"><i class="far fa-eye mr-1.5"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
             <span class="inline-flex items-center"><i class="fas fa-clock mr-1.5"></i>{{ (post.content_markdown or post.content_html) | reading_time }}</span>
             {% set stats = (post.content_markdown or post.content_html) | reading_stats(post) %}
             <span class="inline-flex items-center"><i class="fas fa-file-alt mr-1.5"></i>{{ stats.word_count or 0 }}字</span>

@@ -55,6 +55,8 @@
                             <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
                                 <i class="far fa-clock"></i>
                                 {{ post.published_at.strftime('%Y年%m月%d日 %H:%M') if post.published_at else post.created_at.strftime('%Y年%m月%d日 %H:%M') }}
+                                <span class="text-gray-300 dark:text-gray-600">•</span>
+                                <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
                                 {% if post.categories %}
                                 <span class="text-gray-300 dark:text-gray-600">•</span>
                                 <a href="/archives/by-category/{{ post.categories[0].slug }}" class="hover:text-indigo-600">{{ post.categories[0].name }}</a>
@@ -237,6 +239,7 @@
                 <div class="poetry-meta flex items-center justify-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                     <span><i class="far fa-user mr-1"></i>{{ post.author.username }}</span>
                     <span><i class="far fa-calendar mr-1"></i>{{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}</span>
+                    <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
                 </div>
             </div>
 
@@ -306,6 +309,7 @@
                 <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
                     <span><i class="fas fa-calendar-alt mr-2 text-blue-500"></i>{{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}</span>
                     <span><i class="fas fa-user mr-2 text-green-500"></i>{{ post.author.username }}</span>
+                    <span><i class="far fa-eye mr-2 text-indigo-500"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
 
                     {% if post.categories %}
                     <div class="flex items-center gap-1 flex-wrap">
@@ -425,7 +429,7 @@
                         </div>
                     </div>
                     <span class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm dark:bg-gray-800 dark:text-gray-200">
-                        {{ comment_count }} 条
+                        {{ comment_count | compact_number_cn }} 条
                     </span>
                 </div>
             </div>

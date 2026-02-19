@@ -14,8 +14,8 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400">欢迎理性交流，系统已启用反垃圾与审核机制。</p>
                 </div>
             </div>
-            <span id="comment-count-badge" class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700 shadow-sm dark:bg-gray-800 dark:text-indigo-300">
-                {{ total_comments }} 条评论
+            <span id="comment-count-badge" data-count="{{ total_comments }}" class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700 shadow-sm dark:bg-gray-800 dark:text-indigo-300">
+                {{ total_comments | compact_number_cn }} 条评论
             </span>
         </div>
     </div>
@@ -68,9 +68,18 @@
     const updateCount = (delta = 0) => {
         const badge = document.getElementById('comment-count-badge');
         if (!badge) return;
-        const current = parseInt((badge.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
+        const formatCompactCn = (value) => {
+            const num = Number(value);
+            if (!Number.isFinite(num)) return '0';
+            const absNum = Math.abs(num);
+            if (absNum < 10000) return `${Math.floor(absNum)}`;
+            if (absNum < 100000000) return `${(absNum / 10000).toFixed(1).replace(/\.0$/, '')}万`;
+            return `${(absNum / 100000000).toFixed(1).replace(/\.0$/, '')}亿`;
+        };
+        const current = parseInt(badge.dataset.count || '0', 10) || 0;
         const next = Math.max(0, current + delta);
-        badge.textContent = `${next} 条评论`;
+        badge.dataset.count = String(next);
+        badge.textContent = `${formatCompactCn(next)} 条评论`;
     };
 
     const extractErrorMessage = (xhr) => {

@@ -57,7 +57,6 @@
         <div class="text-center text-white">
             <h1 class="text-4xl font-bold md:text-6xl">{{ site_title }}</h1>
             <p class="mt-3 text-base md:text-xl">{{ tagline or '记录生活、灵感与创作瞬间。' }}</p>
-            <a href="/archives" class="mt-8 inline-flex rounded-full bg-white/20 px-6 py-3 text-sm backdrop-blur hover:bg-white/30">浏览归档</a>
         </div>
     </div>
 </section>
@@ -77,7 +76,6 @@
         <div class="text-center text-white">
             <h1 class="text-4xl font-bold md:text-6xl">{{ site_title }}</h1>
             <p class="mt-3 text-base md:text-xl">{{ tagline or '记录生活、灵感与创作瞬间。' }}</p>
-            <a href="/archives" class="mt-8 inline-flex rounded-full bg-white/20 px-6 py-3 text-sm backdrop-blur hover:bg-white/30">浏览归档</a>
         </div>
     </div>
 </section>
@@ -95,31 +93,16 @@
             </div>
             <div class="grid gap-5 px-5 pb-5 pt-12 md:grid-cols-[1.3fr_0.7fr] md:px-7 md:pb-7">
                 <div class="space-y-3">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="anime-chip"><i class="fas fa-user-astronaut"></i> 个人主页</span>
-                        <span class="anime-chip"><i class="fas fa-layer-group"></i> 模式：{{ '全屏画廊' if current_homepage_mode == 'fullscreen_gallery' else ('全屏视频' if current_homepage_mode == 'fullscreen_video' else '默认时间轴') }}</span>
-                    </div>
                     <h2 class="font-display text-3xl font-bold leading-tight text-gray-900 dark:text-white md:text-5xl">
                         {{ profile_name }}
                     </h2>
                     <p class="max-w-2xl text-sm text-gray-600 dark:text-gray-300 md:text-base">{{ profile_bio }}</p>
                     <div class="flex flex-wrap items-center gap-2 text-xs md:text-sm">
-                        <span class="rounded-full border border-gray-200 bg-white/75 px-3 py-1.5 dark:border-slate-600 dark:bg-slate-700/70">
-                            时间线 {{ pagination.total_count if pagination else (posts|length if posts else 0) }} 条
-                        </span>
-                        {% if profile_website %}
-                        <a href="{{ profile_website }}" target="_blank" rel="noopener" class="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-600/60 dark:bg-indigo-900/30 dark:text-indigo-300">
-                            <i class="fas fa-link mr-1"></i>个人网站
-                        </a>
-                        {% endif %}
                         {% if profile_public_email %}
                         <a href="mailto:{{ profile_public_email }}" class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-700/60 dark:bg-emerald-900/30 dark:text-emerald-300">
                             <i class="fas fa-envelope mr-1"></i>联系邮箱
                         </a>
                         {% endif %}
-                        <a href="/archives" class="rounded-full bg-indigo-600 px-3 py-1.5 text-white transition hover:bg-indigo-700">
-                            浏览归档
-                        </a>
                     </div>
                     {% if social_links and social_links | length > 0 %}
                     <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
@@ -153,12 +136,20 @@
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div class="rounded-2xl border border-white/70 bg-white/80 p-3 text-center shadow-sm dark:border-slate-600/80 dark:bg-slate-800/80">
-                        <div class="text-xl font-bold text-slate-900 dark:text-white">{{ pagination.total_count if pagination else (posts|length if posts else 0) }}</div>
-                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">已发布内容</div>
+                        <div class="text-xl font-bold text-slate-900 dark:text-white">{{ homepage_stats.categories_count if homepage_stats else 0 }}</div>
+                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">分类数</div>
                     </div>
                     <div class="rounded-2xl border border-white/70 bg-white/80 p-3 text-center shadow-sm dark:border-slate-600/80 dark:bg-slate-800/80">
-                        <div class="text-xl font-bold text-slate-900 dark:text-white">{{ pagination.current_page if pagination else 1 }}</div>
-                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">当前页</div>
+                        <div class="text-xl font-bold text-slate-900 dark:text-white">{{ homepage_stats.tags_count if homepage_stats else 0 }}</div>
+                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">标签数</div>
+                    </div>
+                    <div class="rounded-2xl border border-white/70 bg-white/80 p-3 text-center shadow-sm dark:border-slate-600/80 dark:bg-slate-800/80">
+                        <div class="text-xl font-bold text-slate-900 dark:text-white">{{ (homepage_stats.comments_count if homepage_stats else 0) | compact_number_cn }}</div>
+                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">评论数</div>
+                    </div>
+                    <div class="rounded-2xl border border-white/70 bg-white/80 p-3 text-center shadow-sm dark:border-slate-600/80 dark:bg-slate-800/80">
+                        <div class="text-xl font-bold text-slate-900 dark:text-white">{{ (homepage_stats.total_views if homepage_stats else 0) | compact_number_cn }}</div>
+                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">总浏览量</div>
                     </div>
                 </div>
             </div>
