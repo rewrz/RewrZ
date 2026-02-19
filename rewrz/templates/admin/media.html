@@ -35,7 +35,47 @@
         opacity: 0;
     }
     #media-grid.list-view {
-        grid-template-columns: repeat(1, minmax(0, 1fr));
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    #media-grid.list-view .media-card {
+        display: grid;
+        grid-template-columns: 170px minmax(0, 1fr) 140px;
+        align-items: center;
+        gap: 0.9rem;
+        padding: 0.65rem;
+    }
+    #media-grid.list-view .media-preview-shell {
+        height: 104px;
+        border-radius: 0.65rem;
+        overflow: hidden;
+    }
+    #media-grid.list-view .media-meta {
+        padding: 0;
+    }
+    #media-grid.list-view .media-overlay {
+        position: static;
+        opacity: 1;
+        background: transparent;
+        justify-content: flex-end;
+    }
+    #media-grid.list-view .media-overlay button {
+        color: #374151;
+        background: #f3f4f6;
+        border-radius: 0.5rem;
+        padding: 0.4rem 0.75rem;
+    }
+    #media-grid.list-view .media-checkbox-wrap {
+        left: 0.75rem;
+    }
+    @media (max-width: 860px) {
+        #media-grid.list-view .media-card {
+            grid-template-columns: 1fr;
+        }
+        #media-grid.list-view .media-overlay {
+            justify-content: flex-start;
+        }
     }
 </style>
 {% endblock %}
@@ -67,14 +107,19 @@
                 选择文件
             </label>
             <input type="file" id="file-input" multiple class="hidden">
+            <div class="mt-4 w-full max-w-md text-left">
+                <label for="upload-folder-select" class="block text-xs font-medium text-gray-600 mb-1">上传到文件夹</label>
+                <select id="upload-folder-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"></select>
+            </div>
         </div>
         <div id="upload-previews" class="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
     </div>
 
     <!-- Toolbar & Filters -->
-    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm flex flex-col gap-4">
+        <div class="flex flex-wrap items-center gap-2">
             <input type="search" id="search-input" placeholder="搜索..." class="w-full md:w-64 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-indigo-500 focus:border-indigo-500">
+            <select id="folder-filter" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm"></select>
             <select id="type-filter" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm">
                 <option value="">全部类型</option>
                 <option value="image">图片</option>
@@ -86,28 +131,60 @@
             <input type="date" id="date-from-filter" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm">
             <input type="date" id="date-to-filter" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm">
         </div>
-        <div class="flex items-center space-x-2">
-            <div class="inline-flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
-                <button id="grid-view-button" class="px-3 py-2 text-sm bg-indigo-600 text-white">网格</button>
-                <button id="list-view-button" class="px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200">列表</button>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2">
+                <input id="new-folder-input" type="text" placeholder="新建文件夹，如 covers/2026" class="w-56 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <button id="create-folder-button" type="button" class="px-3 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700">新建文件夹</button>
             </div>
-            <div id="batch-actions-toolbar" class="hidden items-center space-x-2">
-                <span id="selected-count" class="text-sm font-medium text-gray-700 dark:text-gray-200"></span>
-                <button id="batch-delete-button" class="px-3 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700">删除选中</button>
-                <button id="clear-selection-button" class="px-3 py-2 text-sm font-semibold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">取消</button>
+            <div class="flex items-center space-x-2">
+                <div class="inline-flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
+                    <button id="grid-view-button" class="px-3 py-2 text-sm bg-indigo-600 text-white">网格</button>
+                    <button id="list-view-button" class="px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200">列表</button>
+                </div>
+                <div id="batch-actions-toolbar" class="hidden items-center space-x-2">
+                    <span id="selected-count" class="text-sm font-medium text-gray-700 dark:text-gray-200"></span>
+                    <select id="move-folder-select" class="px-3 py-2 border border-gray-300 rounded-lg text-sm"></select>
+                    <button id="batch-move-button" class="px-3 py-2 text-sm font-semibold text-white bg-amber-600 rounded-lg hover:bg-amber-700">移动选中</button>
+                    <button id="batch-delete-button" class="px-3 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700">删除选中</button>
+                    <button id="clear-selection-button" class="px-3 py-2 text-sm font-semibold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">取消</button>
+                </div>
             </div>
         </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-800">重复文件管理</h3>
+                <p id="duplicate-summary" class="mt-1 text-xs text-gray-500">尚未扫描，点击“重新扫描”后显示结果。</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <select id="duplicate-keep-select" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="oldest">清理时保留最早上传</option>
+                    <option value="latest">清理时保留最新上传</option>
+                </select>
+                <button id="scan-duplicates-button" type="button" class="px-3 py-2 text-sm rounded-lg border border-gray-300 hover:bg-gray-50">重新扫描</button>
+                <button id="cleanup-duplicates-button" type="button" class="px-3 py-2 text-sm text-white bg-emerald-600 rounded-lg hover:bg-emerald-700">一键清理重复</button>
+            </div>
+        </div>
+        <div id="duplicate-groups-preview" class="mt-3 space-y-2 text-xs text-gray-500">尚未扫描。</div>
     </div>
 
     <!-- Media Grid -->
     <div id="media-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         {% if media_items %}
             {% for media in media_items %}
-            <div class="media-card group relative border bg-white dark:bg-gray-800 rounded-lg shadow-sm cursor-pointer" data-id="{{ media.id }}" data-title="{{ media.title or media.filename }}" data-file-type="{{ media.file_type }}" data-upload-date="{{ media.uploaded_at.strftime('%Y-%m-%d') }}" onclick="toggleSelect(this, event)">
-                <div class="absolute top-2 left-2 z-10">
+            <div class="media-card group relative border bg-white dark:bg-gray-800 rounded-lg shadow-sm cursor-pointer"
+                 data-id="{{ media.id }}"
+                 data-title="{{ media.title or media.filename }}"
+                 data-file-type="{{ media.file_type }}"
+                 data-upload-date="{{ media.uploaded_at.strftime('%Y-%m-%d') }}"
+                 data-folder="{{ media.folder or '' }}"
+                 onclick="toggleSelect(this, event)">
+                <div class="media-checkbox-wrap absolute top-2 left-2 z-10">
                     <input type="checkbox" class="media-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" value="{{ media.id }}">
                 </div>
-                <div class="relative w-full aspect-w-1 aspect-h-1 bg-gray-100 dark:bg-gray-700 rounded-t-lg overflow-hidden">
+                <div class="media-preview-shell relative w-full aspect-w-1 aspect-h-1 bg-gray-100 dark:bg-gray-700 rounded-t-lg overflow-hidden">
                     {% if media.file_type.startswith('image') %}
                         <img src="{{ media.url or (media.filepath | url) }}" alt="{{ media.alt_text or media.title }}" class="w-full h-full object-cover" loading="lazy">
                     {% else %}
@@ -122,11 +199,12 @@
                         </div>
                     {% endif %}
                 </div>
-                <div class="p-3">
+                <div class="media-meta p-3">
                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate" title="{{ media.title or media.filename }}">{{ media.title or media.filename }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ media.folder or '根目录' }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ media.uploaded_at.strftime('%Y-%m-%d') }}</p>
                 </div>
-                <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <div class="media-overlay absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <button class="text-white font-semibold" onclick="showMediaDetails('{{ media.id }}', event)">查看详情</button>
                 </div>
             </div>
@@ -161,11 +239,22 @@
 document.addEventListener('DOMContentLoaded', () => {
     const adminPath = "{{ request.state.admin_path }}";
     const csrfToken = "{{ request.state.csrf_token }}";
+    const bootstrapFolders = {{ (media_folders or []) | tojson }};
 
     const uploadButton = document.getElementById('upload-button');
     const uploadDropZone = document.getElementById('upload-drop-zone');
     const fileInput = document.getElementById('file-input');
     const searchInput = document.getElementById('search-input');
+    const folderFilter = document.getElementById('folder-filter');
+    const uploadFolderSelect = document.getElementById('upload-folder-select');
+    const moveFolderSelect = document.getElementById('move-folder-select');
+    const duplicateSummary = document.getElementById('duplicate-summary');
+    const duplicateGroupsPreview = document.getElementById('duplicate-groups-preview');
+    const duplicateKeepSelect = document.getElementById('duplicate-keep-select');
+    const scanDuplicatesButton = document.getElementById('scan-duplicates-button');
+    const cleanupDuplicatesButton = document.getElementById('cleanup-duplicates-button');
+    const newFolderInput = document.getElementById('new-folder-input');
+    const createFolderButton = document.getElementById('create-folder-button');
     const typeFilter = document.getElementById('type-filter');
     const dateFromFilter = document.getElementById('date-from-filter');
     const dateToFilter = document.getElementById('date-to-filter');
@@ -174,11 +263,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const mediaGrid = document.getElementById('media-grid');
     const batchActionsToolbar = document.getElementById('batch-actions-toolbar');
     const selectedCountSpan = document.getElementById('selected-count');
+    const batchMoveButton = document.getElementById('batch-move-button');
     const batchDeleteButton = document.getElementById('batch-delete-button');
     const clearSelectionButton = document.getElementById('clear-selection-button');
 
     const selectedFiles = new Set();
     let currentViewMode = 'grid';
+    let currentFolders = Array.isArray(bootstrapFolders) ? bootstrapFolders : [];
 
     function setViewMode(mode) {
         currentViewMode = mode;
@@ -193,9 +284,108 @@ document.addEventListener('DOMContentLoaded', () => {
             : 'px-3 py-2 text-sm bg-indigo-600 text-white';
     }
 
+    function renderFolderOptions(targetSelect, options) {
+        if (!targetSelect) return;
+        const previousValue = targetSelect.value;
+        targetSelect.innerHTML = '';
+
+        options.forEach((item) => {
+            const option = document.createElement('option');
+            option.value = item.path;
+            option.textContent = `${item.name}${typeof item.count === 'number' ? ` (${item.count})` : ''}`;
+            targetSelect.appendChild(option);
+        });
+
+        if (Array.from(targetSelect.options).some((opt) => opt.value === previousValue)) {
+            targetSelect.value = previousValue;
+        }
+    }
+
+    function refreshFolderSelectors() {
+        const allOption = [{ path: '__all__', name: '全部文件夹', count: null }];
+        const rootOption = [{ path: '', name: '根目录', count: null }];
+        const normalFolders = (currentFolders || []).filter((item) => item.path !== '__all__');
+
+        renderFolderOptions(folderFilter, allOption.concat(normalFolders));
+        renderFolderOptions(uploadFolderSelect, rootOption.concat(normalFolders.filter((item) => item.path !== '')));
+        renderFolderOptions(moveFolderSelect, rootOption.concat(normalFolders.filter((item) => item.path !== '')));
+    }
+
+    async function loadFolders() {
+        try {
+            const response = await fetch(`${adminPath}/api/v1/media/folders`, { credentials: 'same-origin' });
+            const data = await response.json();
+            if (response.ok && Array.isArray(data)) {
+                currentFolders = data;
+            }
+        } catch (_) {
+            // noop
+        } finally {
+            refreshFolderSelectors();
+        }
+    }
+
+    function formatBytes(bytes) {
+        const value = Number(bytes || 0);
+        if (!Number.isFinite(value) || value <= 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let size = value;
+        let index = 0;
+        while (size >= 1024 && index < units.length - 1) {
+            size /= 1024;
+            index += 1;
+        }
+        return `${size.toFixed(index === 0 ? 0 : 2)} ${units[index]}`;
+    }
+
+    function renderDuplicateGroups(data) {
+        if (!duplicateSummary || !duplicateGroupsPreview) return;
+        const groupCount = Number(data?.group_count || 0);
+        const duplicateCount = Number(data?.total_duplicate_files || 0);
+        const reclaimableBytes = Number(data?.reclaimable_bytes || 0);
+        duplicateSummary.textContent = groupCount > 0
+            ? `发现 ${groupCount} 组重复文件，冗余 ${duplicateCount} 项，预计可回收 ${formatBytes(reclaimableBytes)}。`
+            : '未发现重复文件。';
+
+        const groups = Array.isArray(data?.groups) ? data.groups : [];
+        if (!groups.length) {
+            duplicateGroupsPreview.innerHTML = '<p class="text-xs text-gray-500">暂无重复分组。</p>';
+            return;
+        }
+
+        const limitedGroups = groups.slice(0, 5);
+        duplicateGroupsPreview.innerHTML = limitedGroups.map((group) => {
+            const first = Array.isArray(group.items) && group.items.length ? group.items[0] : null;
+            const firstName = first ? (first.title || first.filename || `#${first.id}`) : '未知文件';
+            return `<div class="rounded border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <span class="font-medium">${firstName}</span>
+                <span class="ml-1">等 ${group.count} 个副本，浪费 ${formatBytes(group.wasted_bytes)}</span>
+            </div>`;
+        }).join('');
+    }
+
+    async function loadDuplicateGroups() {
+        if (!duplicateSummary) return;
+        duplicateSummary.textContent = '正在扫描重复文件...';
+        try {
+            const response = await fetch(`${adminPath}/api/v1/media/duplicates`, { credentials: 'same-origin' });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || response.statusText);
+            }
+            renderDuplicateGroups(data);
+        } catch (error) {
+            duplicateSummary.textContent = `扫描失败：${error.message}`;
+            if (duplicateGroupsPreview) {
+                duplicateGroupsPreview.innerHTML = '';
+            }
+        }
+    }
+
     function applyFilters() {
         const searchTerm = (searchInput.value || '').toLowerCase().trim();
         const selectedType = typeFilter.value;
+        const selectedFolder = folderFilter ? folderFilter.value : '__all__';
         const fromDate = dateFromFilter.value ? new Date(dateFromFilter.value) : null;
         const toDate = dateToFilter.value ? new Date(dateToFilter.value) : null;
         if (toDate) toDate.setHours(23, 59, 59, 999);
@@ -206,13 +396,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const fileType = card.dataset.fileType || '';
             const uploadDateRaw = card.dataset.uploadDate || '';
             const uploadDate = uploadDateRaw ? new Date(uploadDateRaw) : null;
+            const cardFolder = card.dataset.folder || '';
 
             const matchSearch = title.includes(searchTerm);
-            const matchType = !selectedType || fileType === selectedType;
+            const matchType = !selectedType || fileType.startsWith(selectedType);
+            const matchFolder = selectedFolder === '__all__' || selectedFolder === cardFolder;
             const matchFrom = !fromDate || (uploadDate && uploadDate >= fromDate);
             const matchTo = !toDate || (uploadDate && uploadDate <= toDate);
 
-            card.style.display = matchSearch && matchType && matchFrom && matchTo ? '' : 'none';
+            card.style.display = matchSearch && matchType && matchFolder && matchFrom && matchTo ? '' : 'none';
         });
     }
 
@@ -258,6 +450,37 @@ document.addEventListener('DOMContentLoaded', () => {
             if (checkbox) checkbox.checked = false;
         });
         updateBatchToolbar();
+    });
+
+    batchMoveButton.addEventListener('click', async () => {
+        if (!selectedFiles.size) return;
+        const mediaIds = Array.from(selectedFiles).map((id) => Number.parseInt(id, 10)).filter(Number.isFinite);
+        if (!mediaIds.length) return;
+        const targetFolder = moveFolderSelect ? moveFolderSelect.value : '';
+
+        if (!(await window.adminConfirm(`确定将选中的 ${mediaIds.length} 个文件移动到目标文件夹吗？`, { confirmText: '确认移动' }))) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${adminPath}/api/v1/media/bulk-move`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken,
+                },
+                body: JSON.stringify({ media_ids: mediaIds, target_folder: targetFolder }),
+                credentials: 'same-origin',
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.detail || response.statusText);
+            }
+            window.adminSetFlash(`批量移动完成：成功 ${result.moved_count || 0} 项。`, 'success');
+            window.location.reload();
+        } catch (error) {
+            window.adminNotify(`批量移动失败：${error.message}`, 'error', { duration: 4200 });
+        }
     });
 
     batchDeleteButton.addEventListener('click', async () => {
@@ -313,6 +536,68 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    createFolderButton.addEventListener('click', async () => {
+        const folder = (newFolderInput.value || '').trim();
+        if (!folder) {
+            window.adminNotify('请输入要创建的文件夹名称。', 'warning');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${adminPath}/api/v1/media/folders`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken,
+                },
+                body: JSON.stringify({ folder }),
+                credentials: 'same-origin',
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.detail || response.statusText);
+            }
+            newFolderInput.value = '';
+            await loadFolders();
+            window.adminNotify('文件夹创建成功。', 'success');
+        } catch (error) {
+            window.adminNotify(`创建文件夹失败：${error.message}`, 'error', { duration: 4200 });
+        }
+    });
+
+    scanDuplicatesButton?.addEventListener('click', async () => {
+        await loadDuplicateGroups();
+    });
+
+    cleanupDuplicatesButton?.addEventListener('click', async () => {
+        const keepStrategy = duplicateKeepSelect ? duplicateKeepSelect.value : 'oldest';
+        if (!(await window.adminConfirm('确认清理重复文件吗？系统会自动把引用替换到保留文件。', { tone: 'warning', confirmText: '开始清理' }))) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${adminPath}/api/v1/media/duplicates/cleanup`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken,
+                },
+                body: JSON.stringify({ keep_strategy: keepStrategy, dry_run: false }),
+                credentials: 'same-origin',
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.detail || response.statusText);
+            }
+            const removedCount = Number(result.removed_count || 0);
+            const reclaimed = formatBytes(result.reclaimed_bytes || 0);
+            window.adminSetFlash(`重复文件清理完成：删除 ${removedCount} 项，回收 ${reclaimed}。`, 'success');
+            window.location.reload();
+        } catch (error) {
+            window.adminNotify(`清理失败：${error.message}`, 'error', { duration: 4200 });
+        }
+    });
+
     uploadButton.addEventListener('click', () => {
         uploadDropZone.classList.toggle('hidden');
     });
@@ -339,11 +624,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const files = Array.from(fileList || []);
         if (!files.length) return;
 
+        const targetFolder = uploadFolderSelect ? uploadFolderSelect.value : '';
         let failed = 0;
+        let deduped = 0;
         for (const file of files) {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('title', file.name);
+            formData.append('target_folder', targetFolder);
+            formData.append('deduplicate', 'true');
 
             try {
                 const response = await fetch(`${adminPath}/media/upload`, {
@@ -352,8 +641,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: formData,
                     credentials: 'same-origin',
                 });
+                const payload = await response.json().catch(() => ({}));
                 if (!response.ok) {
                     failed += 1;
+                } else if (payload && payload.is_duplicate) {
+                    deduped += 1;
                 }
             } catch (error) {
                 failed += 1;
@@ -362,10 +654,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const successCount = files.length - failed;
+        let message = `上传完成：成功 ${successCount}`;
+        if (deduped > 0) {
+            message += `，其中复用重复文件 ${deduped}`;
+        }
         if (failed) {
-            window.adminSetFlash(`上传完成：成功 ${successCount}，失败 ${failed}。`, 'warning');
+            message += `，失败 ${failed}`;
+        }
+        message += '。';
+        if (failed) {
+            window.adminSetFlash(message, 'warning');
         } else {
-            window.adminSetFlash(`上传完成：成功 ${successCount} 个文件。`, 'success');
+            window.adminSetFlash(message, 'success');
         }
         window.location.reload();
     }
@@ -373,13 +673,18 @@ document.addEventListener('DOMContentLoaded', () => {
     gridViewButton.addEventListener('click', () => setViewMode('grid'));
     listViewButton.addEventListener('click', () => setViewMode('list'));
 
-    [searchInput, typeFilter, dateFromFilter, dateToFilter].forEach((element) => {
+    [searchInput, folderFilter, typeFilter, dateFromFilter, dateToFilter].forEach((element) => {
         element.addEventListener('input', applyFilters);
         element.addEventListener('change', applyFilters);
     });
 
     setViewMode('grid');
-    applyFilters();
+    loadFolders().finally(() => {
+        if (folderFilter && !folderFilter.value) {
+            folderFilter.value = '__all__';
+        }
+        applyFilters();
+    });
 
     window.showMediaDetails = async (mediaId, event) => {
         event.stopPropagation();
@@ -398,7 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
             content.innerHTML = `
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="w-full aspect-w-1 aspect-h-1 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
-                        ${media.file_type === 'image'
+                        ${String(media.file_type || '').startsWith('image')
                             ? `<img src="${media.url}" alt="${media.alt_text || media.title || media.filename}" class="w-full h-full object-contain">`
                             : `<div class="w-full h-full flex items-center justify-center text-gray-400"><span>不支持预览</span></div>`}
                     </div>
@@ -418,6 +723,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="text-sm text-gray-500 dark:text-gray-400 space-y-2">
                             <p><strong>文件名:</strong> ${media.filename}</p>
                             <p><strong>类型:</strong> ${media.mime_type}</p>
+                            <p><strong>文件夹:</strong> ${media.folder || '根目录'}</p>
                             <p><strong>上传时间:</strong> ${new Date(media.uploaded_at).toLocaleString()}</p>
                             <p><strong>文件 URL:</strong> <input type="text" readonly value="${media.url}" class="w-full rounded-md border-none bg-gray-100 p-1 dark:bg-gray-900"></p>
                         </div>

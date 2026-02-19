@@ -130,6 +130,9 @@
                         <button type="button" id="upload-avatar-btn" class="rounded-md bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700">
                             <i class="fas fa-upload mr-1"></i>上传头像
                         </button>
+                        <button type="button" id="select-avatar-from-media-btn" class="rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700">
+                            <i class="fas fa-photo-video mr-1"></i>从媒体库选择
+                        </button>
                         <button type="button" id="delete-avatar-btn" class="rounded-md bg-rose-600 px-3 py-2 text-sm text-white hover:bg-rose-700">
                             <i class="fas fa-trash-alt mr-1"></i>删除头像
                         </button>
@@ -149,6 +152,7 @@
                         <div class="mt-2 flex gap-2">
                             <input id="creator_profile_cover_url_file" type="file" accept="image/*" class="block w-full text-xs text-gray-500">
                             <button type="button" data-upload-target="creator_profile_cover_url" class="upload-cover-btn rounded bg-slate-700 px-3 py-1.5 text-xs text-white hover:bg-slate-800">上传</button>
+                            <button type="button" data-media-target="creator_profile_cover_url" class="select-cover-from-media-btn rounded bg-indigo-600 px-3 py-1.5 text-xs text-white hover:bg-indigo-700">从媒体库选择</button>
                         </div>
                     </div>
                     <div>
@@ -160,6 +164,7 @@
                         <div class="mt-2 flex gap-2">
                             <input id="creator_profile_micro_cover_url_file" type="file" accept="image/*" class="block w-full text-xs text-gray-500">
                             <button type="button" data-upload-target="creator_profile_micro_cover_url" class="upload-cover-btn rounded bg-slate-700 px-3 py-1.5 text-xs text-white hover:bg-slate-800">上传</button>
+                            <button type="button" data-media-target="creator_profile_micro_cover_url" class="select-cover-from-media-btn rounded bg-indigo-600 px-3 py-1.5 text-xs text-white hover:bg-indigo-700">从媒体库选择</button>
                         </div>
                     </div>
                     <div>
@@ -171,6 +176,7 @@
                         <div class="mt-2 flex gap-2">
                             <input id="creator_profile_poem_cover_url_file" type="file" accept="image/*" class="block w-full text-xs text-gray-500">
                             <button type="button" data-upload-target="creator_profile_poem_cover_url" class="upload-cover-btn rounded bg-slate-700 px-3 py-1.5 text-xs text-white hover:bg-slate-800">上传</button>
+                            <button type="button" data-media-target="creator_profile_poem_cover_url" class="select-cover-from-media-btn rounded bg-indigo-600 px-3 py-1.5 text-xs text-white hover:bg-indigo-700">从媒体库选择</button>
                         </div>
                     </div>
                 </div>
@@ -230,11 +236,13 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (_) {}
     }
 
-    async function uploadToMedia(file) {
+    async function uploadToMedia(file, targetFolder = 'covers') {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('title', file.name);
         formData.append('alt_text', 'creator-profile-cover');
+        formData.append('target_folder', targetFolder);
+        formData.append('deduplicate', 'true');
 
         const response = await fetch(`${adminPath}/media/upload`, {
             method: 'POST',
@@ -255,6 +263,25 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!input || !preview) return;
         const value = (input.value || '').trim();
         if (value) preview.src = value;
+    }
+
+    async function setAvatarFromUrl(avatarUrl) {
+        const response = await fetch(`/api/v1/users/${userId}/avatar/settings`, {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({
+                avatar_url: avatarUrl,
+                use_gravatar: 'disabled'
+            })
+        });
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.detail || '头像设置失败');
+        }
     }
 
     document.getElementById('upload-avatar-btn')?.addEventListener('click', async function() {
@@ -306,6 +333,25 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    document.getElementById('select-avatar-from-media-btn')?.addEventListener('click', () => {
+        if (!window.RewrzMediaLibrary) {
+            window.adminNotify('媒体库组件未加载。', 'error');
+            return;
+        }
+        window.RewrzMediaLibrary.open({
+            onSelect: async (item) => {
+                try {
+                    await setAvatarFromUrl(item.url || '');
+                    setAvatar(item.url || '/static/images/default-avatar.png');
+                    if (avatarSourceBadge) avatarSourceBadge.textContent = 'custom';
+                    window.adminNotify('已从媒体库设置头像。', 'success');
+                } catch (error) {
+                    window.adminNotify(error.message || '头像设置失败。', 'error');
+                }
+            }
+        });
+    });
+
     document.querySelectorAll('.upload-cover-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const fieldName = btn.getAttribute('data-upload-target');
@@ -317,13 +363,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             try {
-                const data = await uploadToMedia(file);
+                const data = await uploadToMedia(file, 'covers');
                 targetInput.value = data.url || '';
                 refreshCoverPreview(fieldName);
-                window.adminNotify('封面上传成功，请点击“保存资料”生效。', 'success');
+                const message = data.is_duplicate
+                    ? '封面已填充（检测到重复文件，已复用），请点击“保存资料”生效。'
+                    : '封面上传成功，请点击“保存资料”生效。';
+                window.adminNotify(message, 'success');
             } catch (error) {
                 window.adminNotify(error.message || '封面上传失败。', 'error');
             }
+        });
+    });
+
+    document.querySelectorAll('.select-cover-from-media-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const fieldName = btn.getAttribute('data-media-target');
+            const targetInput = fieldName ? document.getElementById(fieldName) : null;
+            if (!targetInput) {
+                window.adminNotify('未找到目标字段。', 'warning');
+                return;
+            }
+            if (!window.RewrzMediaLibrary) {
+                window.adminNotify('媒体库组件未加载。', 'error');
+                return;
+            }
+            window.RewrzMediaLibrary.open({
+                onSelect: (item) => {
+                    targetInput.value = item.url || '';
+                    refreshCoverPreview(fieldName);
+                    window.adminNotify('已从媒体库填充封面。', 'success');
+                }
+            });
         });
     });
 
@@ -333,4 +404,5 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+{% include 'admin/components/media_library_modal.html' %}
 {% endblock %}

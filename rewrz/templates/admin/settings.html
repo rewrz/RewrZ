@@ -68,6 +68,7 @@
                 <div class="mt-2 flex items-center gap-2">
                     <input type="file" id="upload_site_logo_light_file" accept="image/*" class="block w-full text-xs text-gray-500">
                     <button type="button" id="upload_site_logo_light_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                    <button type="button" class="select-from-media-btn px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700" data-target-input="site_logo_light">从媒体库选择</button>
                 </div>
             </div>
             <div>
@@ -77,6 +78,7 @@
                 <div class="mt-2 flex items-center gap-2">
                     <input type="file" id="upload_site_logo_dark_file" accept="image/*" class="block w-full text-xs text-gray-500">
                     <button type="button" id="upload_site_logo_dark_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                    <button type="button" class="select-from-media-btn px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700" data-target-input="site_logo_dark">从媒体库选择</button>
                 </div>
             </div>
             <div>
@@ -86,6 +88,7 @@
                 <div class="mt-2 flex items-center gap-2">
                     <input type="file" id="upload_favicon_file" accept="image/*,.ico" class="block w-full text-xs text-gray-500">
                     <button type="button" id="upload_favicon_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                    <button type="button" class="select-from-media-btn px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700" data-target-input="favicon">从媒体库选择</button>
                 </div>
             </div>
             <div>
@@ -96,6 +99,7 @@
                 <div class="mt-2 flex items-center gap-2">
                     <input type="file" id="upload_site_cover_file" accept="image/*" class="block w-full text-xs text-gray-500">
                     <button type="button" id="upload_site_cover_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                    <button type="button" class="select-from-media-btn px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700" data-target-input="site_cover_url">从媒体库选择</button>
                 </div>
             </div>
         </div>
@@ -986,11 +990,13 @@
             return csrfInput ? csrfInput.value : '';
         }
 
-        async function uploadSiteAsset(file) {
+        async function uploadSiteAsset(file, targetFolder = 'covers') {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('title', file.name || 'site-asset');
             formData.append('alt_text', '站点资源');
+            formData.append('target_folder', targetFolder);
+            formData.append('deduplicate', 'true');
 
             const response = await fetch(`${adminPath}/media/upload`, {
                 method: 'POST',
@@ -1005,7 +1011,7 @@
             return response.json();
         }
 
-        function bindSiteAssetUpload(fileInputId, buttonId, targetInputId, successMessage) {
+        function bindSiteAssetUpload(fileInputId, buttonId, targetInputId, successMessage, targetFolder = 'covers') {
             const fileInput = document.getElementById(fileInputId);
             const button = document.getElementById(buttonId);
             const targetInput = document.getElementById(targetInputId);
@@ -1018,19 +1024,41 @@
                     return;
                 }
                 try {
-                    const data = await uploadSiteAsset(file);
+                    const data = await uploadSiteAsset(file, targetFolder);
                     targetInput.value = data.url || '';
-                    window.adminNotify(successMessage, 'success');
+                    const message = data.is_duplicate ? `${successMessage}（检测到重复文件，已复用）` : successMessage;
+                    window.adminNotify(message, 'success');
                 } catch (error) {
                     window.adminNotify(error.message || '上传失败。', 'error');
                 }
             });
         }
 
-        bindSiteAssetUpload('upload_site_logo_light_file', 'upload_site_logo_light_btn', 'site_logo_light', '亮色 Logo 已上传并填充。');
-        bindSiteAssetUpload('upload_site_logo_dark_file', 'upload_site_logo_dark_btn', 'site_logo_dark', '暗色 Logo 已上传并填充。');
-        bindSiteAssetUpload('upload_favicon_file', 'upload_favicon_btn', 'favicon', 'Favicon 已上传并填充。');
-        bindSiteAssetUpload('upload_site_cover_file', 'upload_site_cover_btn', 'site_cover_url', '封面已上传并填充。');
+        bindSiteAssetUpload('upload_site_logo_light_file', 'upload_site_logo_light_btn', 'site_logo_light', '亮色 Logo 已上传并填充。', 'covers');
+        bindSiteAssetUpload('upload_site_logo_dark_file', 'upload_site_logo_dark_btn', 'site_logo_dark', '暗色 Logo 已上传并填充。', 'covers');
+        bindSiteAssetUpload('upload_favicon_file', 'upload_favicon_btn', 'favicon', 'Favicon 已上传并填充。', 'covers');
+        bindSiteAssetUpload('upload_site_cover_file', 'upload_site_cover_btn', 'site_cover_url', '封面已上传并填充。', 'covers');
+
+        document.querySelectorAll('.select-from-media-btn').forEach((button) => {
+            button.addEventListener('click', () => {
+                const targetInputId = button.getAttribute('data-target-input');
+                const targetInput = targetInputId ? document.getElementById(targetInputId) : null;
+                if (!targetInput) {
+                    window.adminNotify('未找到目标输入框。', 'warning');
+                    return;
+                }
+                if (!window.RewrzMediaLibrary) {
+                    window.adminNotify('媒体库组件未加载。', 'error');
+                    return;
+                }
+                window.RewrzMediaLibrary.open({
+                    onSelect: (item) => {
+                        targetInput.value = item.url || '';
+                        window.adminNotify('已从媒体库填充图片地址。', 'success');
+                    }
+                });
+            });
+        });
 
         // 后台路径配置管理
         const generateRandomPathBtn = document.getElementById('generate-random-path');
@@ -1290,4 +1318,5 @@
         });
     });
 </script>
+{% include 'admin/components/media_library_modal.html' %}
 {% endblock %}

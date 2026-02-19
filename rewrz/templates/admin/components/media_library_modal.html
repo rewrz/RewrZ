@@ -20,6 +20,7 @@
             <section id="media-lib-panel-library" class="space-y-4">
                 <div class="flex gap-2">
                     <input type="text" id="media-lib-search-input" placeholder="按标题或文件名搜索..." class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    <select id="media-lib-folder-filter" class="w-44 rounded-md border border-gray-300 px-2 py-2 text-sm"></select>
                     <button type="button" id="media-lib-search-btn" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">搜索</button>
                 </div>
 
@@ -34,6 +35,10 @@
             </section>
 
             <section id="media-lib-panel-upload" class="hidden space-y-4">
+                <div>
+                    <label for="media-lib-upload-folder-select" class="mb-1 block text-xs text-gray-600">上传到文件夹</label>
+                    <select id="media-lib-upload-folder-select" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"></select>
+                </div>
                 <div id="media-lib-drop-area" class="cursor-pointer rounded-md border-2 border-dashed border-gray-300 p-8 text-center hover:bg-gray-50">
                     <input type="file" id="media-lib-file-input" multiple class="hidden">
                     <p class="text-sm text-gray-700">拖拽文件到此处，或点击选择</p>
@@ -62,6 +67,8 @@
         panelLibrary: document.getElementById("media-lib-panel-library"),
         panelUpload: document.getElementById("media-lib-panel-upload"),
         searchInput: document.getElementById("media-lib-search-input"),
+        folderFilter: document.getElementById("media-lib-folder-filter"),
+        uploadFolderSelect: document.getElementById("media-lib-upload-folder-select"),
         searchBtn: document.getElementById("media-lib-search-btn"),
         grid: document.getElementById("media-lib-grid"),
         loading: document.getElementById("media-lib-loading"),
@@ -80,6 +87,7 @@
         hasMore: false,
         loading: false,
         onSelect: null,
+        folders: [],
     };
 
     function switchTab(tabName) {
@@ -100,13 +108,59 @@
         modal.querySelectorAll(".media-lib-item").forEach((item) => item.classList.remove("ring-2", "ring-blue-500"));
     }
 
+    function renderFolderOptions() {
+        const folderOptions = Array.isArray(state.folders) ? state.folders : [];
+        const libraryOptions = [{ path: "__all__", name: "全部文件夹", count: null }].concat(
+            folderOptions.filter((item) => item.path !== "__all__")
+        );
+        const uploadOptions = [{ path: "", name: "根目录", count: null }].concat(
+            folderOptions.filter((item) => item.path !== "__all__" && item.path !== "")
+        );
+
+        const fillSelect = (el, options) => {
+            if (!el) return;
+            const oldValue = el.value;
+            el.innerHTML = "";
+            options.forEach((item) => {
+                const option = document.createElement("option");
+                option.value = item.path;
+                option.textContent = `${item.name}${typeof item.count === "number" ? ` (${item.count})` : ""}`;
+                el.appendChild(option);
+            });
+            if (Array.from(el.options).some((opt) => opt.value === oldValue)) {
+                el.value = oldValue;
+            }
+        };
+
+        fillSelect(elements.folderFilter, libraryOptions);
+        fillSelect(elements.uploadFolderSelect, uploadOptions);
+
+        if (elements.folderFilter && !elements.folderFilter.value) {
+            elements.folderFilter.value = "__all__";
+        }
+    }
+
+    async function loadFolders() {
+        try {
+            const response = await fetch(`${adminPath}/api/v1/media/folders`, { credentials: "same-origin" });
+            const data = await response.json();
+            if (response.ok && Array.isArray(data)) {
+                state.folders = data;
+            }
+        } catch (_) {
+            // noop
+        } finally {
+            renderFolderOptions();
+        }
+    }
+
     function renderMediaCard(item) {
         const card = document.createElement("button");
         card.type = "button";
         card.className = "media-lib-item overflow-hidden rounded-md border border-gray-200 text-left transition hover:shadow";
         card.dataset.id = item.id;
 
-        const preview = item.file_type === "image"
+        const preview = String(item.file_type || "").startsWith("image")
             ? `<img src="${item.url}" alt="${item.alt_text || item.title || item.filename}" class="h-28 w-full object-cover">`
             : `<div class="flex h-28 w-full items-center justify-center bg-gray-100 text-xs text-gray-500">非图片文件</div>`;
         card.innerHTML = `
@@ -142,7 +196,8 @@
         }
 
         const search = encodeURIComponent(elements.searchInput.value || "");
-        const url = `${adminPath}/api/v1/media?page=${state.page}&limit=${state.perPage}&search=${search}`;
+        const folder = encodeURIComponent(elements.folderFilter ? (elements.folderFilter.value || "__all__") : "__all__");
+        const url = `${adminPath}/api/v1/media?page=${state.page}&limit=${state.perPage}&search=${search}&folder=${folder}`;
 
         try {
             const response = await fetch(url, { credentials: "same-origin" });
@@ -187,12 +242,16 @@
         elements.uploadStatus.classList.remove("hidden");
 
         let successCount = 0;
+        let dedupedCount = 0;
+        const targetFolder = elements.uploadFolderSelect ? elements.uploadFolderSelect.value : "";
         for (const file of files) {
             elements.uploadStatus.textContent = `上传中：${file.name}`;
 
             const formData = new FormData();
             formData.append("file", file);
             formData.append("title", file.name);
+            formData.append("target_folder", targetFolder);
+            formData.append("deduplicate", "true");
 
             try {
                 const response = await fetch(`${adminPath}/media/upload`, {
@@ -206,6 +265,9 @@
                     throw new Error(data.detail || response.statusText);
                 }
                 successCount += 1;
+                if (data && data.is_duplicate) {
+                    dedupedCount += 1;
+                }
 
                 const preview = document.createElement("div");
                 preview.className = "rounded-md border border-gray-200";
@@ -222,16 +284,20 @@
             }
         }
 
-        elements.uploadStatus.textContent = `上传完成：成功 ${successCount} / ${files.length}`;
+        elements.uploadStatus.textContent = dedupedCount > 0
+            ? `上传完成：成功 ${successCount} / ${files.length}，其中复用重复文件 ${dedupedCount}`
+            : `上传完成：成功 ${successCount} / ${files.length}`;
+        await loadFolders();
         await loadMediaItems(false);
         switchTab("library");
     }
 
-    function open(options = {}) {
+    async function open(options = {}) {
         state.onSelect = typeof options.onSelect === "function" ? options.onSelect : null;
         modal.classList.remove("hidden");
         switchTab("library");
-        loadMediaItems(false);
+        await loadFolders();
+        await loadMediaItems(false);
     }
 
     function close() {
@@ -257,6 +323,7 @@
     elements.tabLibrary.addEventListener("click", () => switchTab("library"));
     elements.tabUpload.addEventListener("click", () => switchTab("upload"));
     elements.searchBtn.addEventListener("click", () => loadMediaItems(false));
+    elements.folderFilter?.addEventListener("change", () => loadMediaItems(false));
     elements.searchInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
             event.preventDefault();

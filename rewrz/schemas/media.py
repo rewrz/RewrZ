@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from .user import User # 导入User schema
@@ -26,6 +26,8 @@ class Media(MediaBase):
     uploaded_by_id: int
     uploaded_by: Optional[User] = None
     url: str # 修改为str类型
+    folder: Optional[str] = ""
+    is_duplicate: bool = False
 
     model_config = {
         "from_attributes": True

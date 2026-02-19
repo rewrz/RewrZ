@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import os
+import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, Response
@@ -16,23 +18,46 @@ from ..core.database import get_db
 from ..core.media_processor import get_media_processor
 from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
-from ..crud import setting as crud_setting
 from ..crud import media as crud_media
+from ..crud import setting as crud_setting
+from ..models import Post as PostModel
+from ..models import Setting as SettingModel
+from ..models import User as UserModel
 from ..models.media import Media as MediaModel
 from ..schemas import Media, MediaCreate, MediaUpdate, User
 
 router = APIRouter()
 templates = get_templates()
 
+
 class MediaBulkDeleteRequest(BaseModel):
     media_ids: List[int] = Field(default_factory=list)
+
+
+class MediaFolderCreateRequest(BaseModel):
+    folder: str = Field(..., min_length=1, max_length=160)
+
+
+class MediaMoveRequest(BaseModel):
+    target_folder: str = Field(default="", max_length=160)
+
+
+class MediaBulkMoveRequest(BaseModel):
+    media_ids: List[int] = Field(default_factory=list)
+    target_folder: str = Field(default="", max_length=160)
+
+
+class MediaDuplicateCleanupRequest(BaseModel):
+    keep_strategy: str = Field(default="oldest", max_length=16)
+    dry_run: bool = False
 
 
 UPLOAD_ROOT = Path(settings.MEDIA_UPLOAD_DIR).resolve()
 os.makedirs(UPLOAD_ROOT, exist_ok=True)
 
-
 THUMBNAIL_SIZE_NAMES = ("thumbnail", "small", "medium", "large", "cover")
+DEFAULT_MEDIA_FOLDERS = ("covers", "avatars", "backgrounds", "articles", "misc")
+FILE_HASH_CACHE: Dict[str, Tuple[int, float, str]] = {}
 
 
 def _get_setting_value(db: Session, key: str, default):
@@ -55,12 +80,54 @@ def _get_media_cdn_base(db: Session) -> Optional[str]:
     return cdn_url
 
 
-def _media_url_from_filepath(filepath: str, cdn_base: Optional[str] = None) -> str:
+def _ensure_default_folders() -> None:
+    for folder in DEFAULT_MEDIA_FOLDERS:
+        (UPLOAD_ROOT / folder).mkdir(parents=True, exist_ok=True)
+
+
+def _normalize_folder_path(folder: Optional[str]) -> str:
+    raw = str(folder or "").strip().replace("\\", "/")
+    if raw in {"", "/"}:
+        return ""
+
+    parts: List[str] = []
+    for part in raw.split("/"):
+        token = part.strip()
+        if not token or token == ".":
+            continue
+        if token == "..":
+            raise ValueError("文件夹路径不合法")
+        if any(char in token for char in (":", "*", "?", '"', "<", ">", "|")):
+            raise ValueError("文件夹名称包含非法字符")
+        parts.append(token)
+
+    normalized = "/".join(parts)
+    target = (UPLOAD_ROOT / normalized).resolve()
+    if target != UPLOAD_ROOT and UPLOAD_ROOT not in target.parents:
+        raise ValueError("文件夹路径超出媒体目录")
+    return normalized
+
+
+def _relative_media_path(filepath: str) -> str:
     if not filepath:
         return ""
     try:
-        relative_path = Path(filepath).resolve().relative_to(UPLOAD_ROOT).as_posix()
+        return Path(filepath).resolve().relative_to(UPLOAD_ROOT).as_posix()
     except Exception:
+        return ""
+
+
+def _folder_from_filepath(filepath: str) -> str:
+    rel_path = _relative_media_path(filepath)
+    if not rel_path:
+        return ""
+    parent = Path(rel_path).parent.as_posix()
+    return "" if parent == "." else parent
+
+
+def _media_url_from_filepath(filepath: str, cdn_base: Optional[str] = None) -> str:
+    relative_path = _relative_media_path(filepath)
+    if not relative_path:
         return ""
     if cdn_base:
         return f"{cdn_base}/{relative_path}"
@@ -69,6 +136,9 @@ def _media_url_from_filepath(filepath: str, cdn_base: Optional[str] = None) -> s
 
 def _attach_media_url(media_obj: MediaModel, cdn_base: Optional[str] = None) -> MediaModel:
     media_obj.url = _media_url_from_filepath(media_obj.filepath, cdn_base=cdn_base)
+    media_obj.folder = _folder_from_filepath(media_obj.filepath)
+    if not hasattr(media_obj, "is_duplicate"):
+        media_obj.is_duplicate = False
     return media_obj
 
 
@@ -84,7 +154,6 @@ def _delete_media_files(db_media: MediaModel) -> None:
     original_path = Path(db_media.filepath)
     _safe_unlink(original_path)
 
-    # Thumbnail files are generated under the same month directory: /YYYY/MM/thumbnails/
     thumbnails_dir = original_path.parent / "thumbnails"
     if thumbnails_dir.exists():
         for thumb_file in thumbnails_dir.glob(f"{original_path.stem}_*"):
@@ -156,12 +225,407 @@ def _cleanup_orphan_media_files(db: Session, cleanup_days: int) -> int:
     return deleted_count
 
 
+def _compute_sha256_from_bytes(data: bytes) -> str:
+    digest = hashlib.sha256()
+    digest.update(data)
+    return digest.hexdigest()
+
+
+def _compute_sha256_from_file(path: Path) -> str:
+    cache_key = str(path.resolve())
+    stat = path.stat()
+    cached = FILE_HASH_CACHE.get(cache_key)
+    if cached and cached[0] == stat.st_size and cached[1] == stat.st_mtime:
+        return cached[2]
+
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    file_hash = digest.hexdigest()
+    FILE_HASH_CACHE[cache_key] = (stat.st_size, stat.st_mtime, file_hash)
+    return file_hash
+
+
+def _find_duplicate_media(db: Session, upload_hash: str, file_size: int) -> Optional[MediaModel]:
+    media_items = db.execute(select(MediaModel)).scalars().all()
+    for item in media_items:
+        file_path = Path(item.filepath)
+        if not file_path.exists() or not file_path.is_file():
+            continue
+        try:
+            if file_path.stat().st_size != file_size:
+                continue
+            existing_hash = _compute_sha256_from_file(file_path)
+        except OSError:
+            continue
+        if existing_hash == upload_hash:
+            return item
+    return None
+
+
+def _make_unique_path(path: Path) -> Path:
+    if not path.exists():
+        return path
+
+    stem = path.stem
+    suffix = path.suffix
+    parent = path.parent
+    index = 1
+    while True:
+        candidate = parent / f"{stem}_{index}{suffix}"
+        if not candidate.exists():
+            return candidate
+        index += 1
+
+
+def _move_related_media_files(old_path: Path, new_path: Path) -> None:
+    old_webp_path = old_path.with_suffix(".webp")
+    if old_webp_path.exists():
+        new_webp_path = _make_unique_path(new_path.with_suffix(".webp"))
+        shutil.move(str(old_webp_path), str(new_webp_path))
+
+    old_thumb_dir = old_path.parent / "thumbnails"
+    if old_thumb_dir.exists():
+        new_thumb_dir = new_path.parent / "thumbnails"
+        new_thumb_dir.mkdir(parents=True, exist_ok=True)
+        for thumb_file in old_thumb_dir.glob(f"{old_path.stem}_*"):
+            suffix_part = thumb_file.stem[len(old_path.stem) :]
+            new_thumb_path = _make_unique_path(new_thumb_dir / f"{new_path.stem}{suffix_part}{thumb_file.suffix}")
+            shutil.move(str(thumb_file), str(new_thumb_path))
+
+
+def _replace_text_value(text: Any, replacements: List[Tuple[str, str]]) -> Tuple[Any, bool]:
+    if not isinstance(text, str) or not text:
+        return text, False
+    new_value = text
+    changed = False
+    for old, new in replacements:
+        if old and old in new_value:
+            new_value = new_value.replace(old, new)
+            changed = True
+    return new_value, changed
+
+
+def _replace_nested_value(value: Any, replacements: List[Tuple[str, str]]) -> Tuple[Any, bool]:
+    if isinstance(value, str):
+        return _replace_text_value(value, replacements)
+
+    if isinstance(value, list):
+        changed = False
+        next_list = []
+        for item in value:
+            next_item, item_changed = _replace_nested_value(item, replacements)
+            if item_changed:
+                changed = True
+            next_list.append(next_item)
+        return (next_list, True) if changed else (value, False)
+
+    if isinstance(value, dict):
+        changed = False
+        next_dict: Dict[Any, Any] = {}
+        for key, item in value.items():
+            next_item, item_changed = _replace_nested_value(item, replacements)
+            if item_changed:
+                changed = True
+            next_dict[key] = next_item
+        return (next_dict, True) if changed else (value, False)
+
+    return value, False
+
+
+def _replace_media_references(db: Session, replacements: List[Tuple[str, str]]) -> Dict[str, int]:
+    if not replacements:
+        return {"posts": 0, "users": 0, "settings": 0}
+
+    post_changed = 0
+    user_changed = 0
+    setting_changed = 0
+
+    posts = db.execute(select(PostModel)).scalars().all()
+    for post in posts:
+        changed = False
+        for field in ("featured_image_url", "content_markdown", "content_html"):
+            current = getattr(post, field, None)
+            updated, has_changed = _replace_text_value(current, replacements)
+            if has_changed:
+                setattr(post, field, updated)
+                changed = True
+        if changed:
+            post_changed += 1
+
+    users = db.execute(select(UserModel)).scalars().all()
+    for user in users:
+        updated_avatar, has_changed = _replace_text_value(getattr(user, "avatar_url", None), replacements)
+        if has_changed:
+            user.avatar_url = updated_avatar
+            user_changed += 1
+
+    settings_items = db.execute(select(SettingModel)).scalars().all()
+    for setting_item in settings_items:
+        current_value = setting_item.value
+        updated_value, has_changed = _replace_nested_value(current_value, replacements)
+        if has_changed:
+            setting_item.value = updated_value
+            setting_changed += 1
+
+    return {"posts": post_changed, "users": user_changed, "settings": setting_changed}
+
+
+def _build_url_replacements(old_filepath: str, new_filepath: str, cdn_base: Optional[str]) -> List[Tuple[str, str]]:
+    candidates: List[Tuple[str, str]] = []
+    old_local_url = _media_url_from_filepath(old_filepath, cdn_base=None)
+    new_local_url = _media_url_from_filepath(new_filepath, cdn_base=None)
+    if old_local_url and new_local_url and old_local_url != new_local_url:
+        candidates.append((old_local_url, new_local_url))
+
+    if cdn_base:
+        old_cdn_url = _media_url_from_filepath(old_filepath, cdn_base=cdn_base)
+        new_cdn_url = _media_url_from_filepath(new_filepath, cdn_base=cdn_base)
+        if old_cdn_url and new_cdn_url and old_cdn_url != new_cdn_url:
+            candidates.append((old_cdn_url, new_cdn_url))
+
+    if old_filepath and new_filepath and old_filepath != new_filepath:
+        candidates.append((old_filepath, new_filepath))
+
+    deduped: List[Tuple[str, str]] = []
+    seen: Set[Tuple[str, str]] = set()
+    for pair in candidates:
+        if pair in seen:
+            continue
+        seen.add(pair)
+        deduped.append(pair)
+    return deduped
+
+
+def _sanitize_media_ids(raw_media_ids: List[int]) -> List[int]:
+    media_ids: List[int] = []
+    seen = set()
+    for media_id in raw_media_ids or []:
+        try:
+            value = int(media_id)
+        except (TypeError, ValueError):
+            continue
+        if value <= 0 or value in seen:
+            continue
+        seen.add(value)
+        media_ids.append(value)
+    return media_ids
+
+
+def _move_media_record_to_folder(db_media: MediaModel, target_folder: str) -> Tuple[str, str]:
+    old_path = Path(db_media.filepath).resolve()
+    if old_path != UPLOAD_ROOT and UPLOAD_ROOT not in old_path.parents:
+        raise HTTPException(status_code=400, detail="媒体文件路径无效")
+    if not old_path.exists():
+        raise HTTPException(status_code=404, detail="媒体文件不存在")
+
+    target_dir = (UPLOAD_ROOT / target_folder).resolve() if target_folder else UPLOAD_ROOT
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    desired_path = target_dir / old_path.name
+    if desired_path.resolve() == old_path:
+        return str(old_path), str(old_path)
+
+    new_path = _make_unique_path(desired_path)
+    shutil.move(str(old_path), str(new_path))
+    _move_related_media_files(old_path, new_path)
+    db_media.filepath = str(new_path)
+    return str(old_path), str(new_path)
+
+
+def _list_media_folders(db: Session) -> List[Dict[str, Any]]:
+    _ensure_default_folders()
+    media_items = db.execute(select(MediaModel.filepath)).scalars().all()
+    folder_counts: Dict[str, int] = {}
+    for filepath in media_items:
+        folder = _folder_from_filepath(filepath)
+        folder_counts[folder] = folder_counts.get(folder, 0) + 1
+
+    disk_folders: Set[str] = set()
+    for folder_path in UPLOAD_ROOT.rglob("*"):
+        if folder_path.is_dir():
+            rel = folder_path.resolve().relative_to(UPLOAD_ROOT).as_posix()
+            if rel and rel != "." and "thumbnails" not in rel.split("/"):
+                disk_folders.add(rel)
+
+    all_folders: Set[str] = set(DEFAULT_MEDIA_FOLDERS) | set(folder_counts.keys()) | disk_folders
+    all_folders.discard("__all__")
+
+    total_count = sum(folder_counts.values())
+    result: List[Dict[str, Any]] = [
+        {"path": "__all__", "name": "全部文件夹", "count": total_count},
+        {"path": "", "name": "根目录", "count": folder_counts.get("", 0)},
+    ]
+    for folder in sorted(all_folders):
+        if folder == "":
+            continue
+        result.append(
+            {
+                "path": folder,
+                "name": Path(folder).name,
+                "count": folder_counts.get(folder, 0),
+            }
+        )
+    return result
+
+
+def _collect_duplicate_groups(
+    db: Session,
+    current_user_id: int,
+    cdn_base: Optional[str],
+) -> Dict[str, Any]:
+    media_items = (
+        db.execute(
+            select(MediaModel)
+            .filter(MediaModel.uploaded_by_id == current_user_id)
+            .order_by(MediaModel.uploaded_at.asc(), MediaModel.id.asc())
+        )
+        .scalars()
+        .all()
+    )
+
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for item in media_items:
+        file_path = Path(item.filepath)
+        if not file_path.exists() or not file_path.is_file():
+            continue
+        try:
+            file_size = int(file_path.stat().st_size)
+            file_hash = _compute_sha256_from_file(file_path)
+        except OSError:
+            continue
+
+        key = f"{file_size}:{file_hash}"
+        bucket = grouped.get(key)
+        if bucket is None:
+            bucket = {"hash": file_hash, "size": file_size, "items": []}
+            grouped[key] = bucket
+        bucket["items"].append(item)
+
+    groups: List[Dict[str, Any]] = []
+    total_duplicate_files = 0
+    reclaimable_bytes = 0
+
+    for group_info in grouped.values():
+        items = group_info["items"]
+        if len(items) <= 1:
+            continue
+        for item in items:
+            _attach_media_url(item, cdn_base=cdn_base)
+
+        items_sorted = sorted(items, key=lambda x: (x.uploaded_at or datetime.min, x.id))
+        wasted = int(group_info["size"]) * (len(items_sorted) - 1)
+        total_duplicate_files += len(items_sorted) - 1
+        reclaimable_bytes += wasted
+        groups.append(
+            {
+                "hash": group_info["hash"],
+                "size": int(group_info["size"]),
+                "count": len(items_sorted),
+                "wasted_bytes": wasted,
+                "items": [
+                    {
+                        "id": item.id,
+                        "filename": item.filename,
+                        "title": item.title or "",
+                        "url": getattr(item, "url", ""),
+                        "folder": getattr(item, "folder", ""),
+                        "uploaded_at": item.uploaded_at.isoformat() if item.uploaded_at else None,
+                    }
+                    for item in items_sorted
+                ],
+            }
+        )
+
+    groups.sort(key=lambda x: (x["wasted_bytes"], x["count"]), reverse=True)
+    return {
+        "group_count": len(groups),
+        "total_duplicate_files": total_duplicate_files,
+        "reclaimable_bytes": reclaimable_bytes,
+        "groups": groups,
+    }
+
+
+def _cleanup_duplicate_groups(
+    db: Session,
+    current_user: User,
+    keep_strategy: str,
+    cdn_base: Optional[str],
+    dry_run: bool = False,
+) -> Dict[str, Any]:
+    duplicate_data = _collect_duplicate_groups(db, current_user.id, cdn_base)
+    groups = duplicate_data.get("groups", [])
+
+    if keep_strategy not in {"oldest", "latest"}:
+        raise HTTPException(status_code=400, detail="keep_strategy 仅支持 oldest 或 latest")
+
+    removed_ids: List[int] = []
+    replacements: List[Tuple[str, str]] = []
+    reclaimed_bytes = 0
+
+    for group in groups:
+        group_items = group.get("items", [])
+        if len(group_items) <= 1:
+            continue
+
+        keeper = group_items[0] if keep_strategy == "oldest" else group_items[-1]
+        keeper_media = crud_media.get_media(db, keeper["id"])
+        if keeper_media is None:
+            continue
+        keeper_path = str(keeper_media.filepath)
+
+        for row in group_items:
+            if row["id"] == keeper["id"]:
+                continue
+            duplicate_media = crud_media.get_media(db, row["id"])
+            if duplicate_media is None:
+                continue
+            if duplicate_media.uploaded_by_id != current_user.id:
+                continue
+
+            duplicate_path = str(duplicate_media.filepath)
+            file_path = Path(duplicate_path)
+            if file_path.exists():
+                try:
+                    reclaimed_bytes += int(file_path.stat().st_size)
+                except OSError:
+                    pass
+
+            replacements.extend(_build_url_replacements(duplicate_path, keeper_path, cdn_base))
+            removed_ids.append(duplicate_media.id)
+            if not dry_run:
+                _delete_media_files(duplicate_media)
+                db.delete(duplicate_media)
+
+    reference_changes = _replace_media_references(db, replacements)
+
+    if dry_run:
+        db.rollback()
+    else:
+        try:
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"清理重复文件失败: {exc}") from exc
+
+    return {
+        "group_count": duplicate_data.get("group_count", 0),
+        "removed_count": len(removed_ids),
+        "removed_ids": removed_ids,
+        "reclaimed_bytes": reclaimed_bytes,
+        "reference_changes": reference_changes,
+        "dry_run": dry_run,
+    }
+
+
 @router.get(f"{settings.ADMIN_PATH.rstrip('/')}/media", response_class=HTMLResponse)
 async def media_library_page(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    _ensure_default_folders()
     media_items = crud_media.get_all_media(db=db)
     cdn_base = _get_media_cdn_base(db)
     for item in media_items:
@@ -173,6 +637,7 @@ async def media_library_page(
             "request": request,
             "user": current_user,
             "media_items": media_items,
+            "media_folders": _list_media_folders(db),
         },
     )
 
@@ -184,15 +649,94 @@ async def get_media_items_api(
     page: int = 1,
     limit: int = 12,
     search: Optional[str] = None,
+    folder: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    page = max(1, int(page))
+    limit = max(1, min(200, int(limit)))
     skip = (page - 1) * limit
-    media_items = crud_media.get_all_media(db=db, skip=skip, limit=limit, search=search)
+
+    folder_filter: Optional[str] = None
+    if folder is not None and folder != "__all__":
+        try:
+            folder_filter = _normalize_folder_path(folder)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if folder_filter is None:
+        media_items = crud_media.get_all_media(db=db, skip=skip, limit=limit, search=search)
+    else:
+        # Folder filter is path-based and easy to maintain in Python layer.
+        all_items = crud_media.get_all_media(db=db, skip=0, limit=5000, search=search)
+        filtered_items = [item for item in all_items if _folder_from_filepath(item.filepath) == folder_filter]
+        media_items = filtered_items[skip : skip + limit]
+
     cdn_base = _get_media_cdn_base(db)
     for item in media_items:
         _attach_media_url(item, cdn_base=cdn_base)
     return media_items
+
+
+@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/folders")
+@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/folders")
+def get_media_folders_api(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return _list_media_folders(db)
+
+
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/folders")
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/folders")
+def create_media_folder(
+    request: Request,
+    payload: MediaFolderCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
+):
+    verify_csrf_token(request, csrf_token)
+    try:
+        folder = _normalize_folder_path(payload.folder)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not folder:
+        raise HTTPException(status_code=400, detail="根目录无需创建")
+
+    target_dir = (UPLOAD_ROOT / folder).resolve()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    return {"folder": folder, "message": "文件夹创建成功"}
+
+
+@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/duplicates")
+@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/duplicates")
+def get_duplicate_media_groups(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    cdn_base = _get_media_cdn_base(db)
+    return _collect_duplicate_groups(db=db, current_user_id=current_user.id, cdn_base=cdn_base)
+
+
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/duplicates/cleanup")
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/duplicates/cleanup")
+def cleanup_duplicate_media_groups(
+    request: Request,
+    payload: MediaDuplicateCleanupRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
+):
+    verify_csrf_token(request, csrf_token)
+    cdn_base = _get_media_cdn_base(db)
+    return _cleanup_duplicate_groups(
+        db=db,
+        current_user=current_user,
+        keep_strategy=(payload.keep_strategy or "oldest").strip().lower(),
+        cdn_base=cdn_base,
+        dry_run=bool(payload.dry_run),
+    )
 
 
 @router.post(f"{settings.ADMIN_PATH.rstrip('/')}/media/upload", response_model=Media)
@@ -202,6 +746,8 @@ async def upload_media(
     title: Optional[str] = Form(None),
     alt_text: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
+    target_folder: Optional[str] = Form(None),
+    deduplicate: bool = Form(True),
     auto_process: bool = Form(True),
     generate_thumbnails: bool = Form(True),
     db: Session = Depends(get_db),
@@ -210,6 +756,7 @@ async def upload_media(
 ):
     verify_csrf_token(request, csrf_token)
     media_processor = get_media_processor(db)
+    _ensure_default_folders()
 
     original_name = Path(file.filename or "upload.bin").name
     file_content = await file.read()
@@ -223,9 +770,25 @@ async def upload_media(
     if not is_valid:
         raise HTTPException(status_code=400, detail=error_msg)
 
-    now = datetime.now()
-    sub_dir = Path(now.strftime("%Y")) / now.strftime("%m")
-    target_dir = UPLOAD_ROOT / sub_dir
+    try:
+        normalized_folder = _normalize_folder_path(target_folder)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    cdn_base = _get_media_cdn_base(db)
+    if deduplicate:
+        upload_hash = _compute_sha256_from_bytes(file_content)
+        duplicate = _find_duplicate_media(db, upload_hash, file_size)
+        if duplicate is not None:
+            _attach_media_url(duplicate, cdn_base=cdn_base)
+            duplicate.is_duplicate = True
+            return duplicate
+
+    if normalized_folder:
+        target_dir = (UPLOAD_ROOT / normalized_folder).resolve()
+    else:
+        now = datetime.now()
+        target_dir = (UPLOAD_ROOT / now.strftime("%Y") / now.strftime("%m")).resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
 
     unique_name = f"{os.urandom(8).hex()}_{original_name}"
@@ -262,10 +825,10 @@ async def upload_media(
         alt_text=alt_text,
         description=description,
     )
-
     db_media = crud_media.create_media(db=db, media=media_create, uploaded_by_id=current_user.id)
-    cdn_base = _get_media_cdn_base(db)
+
     _attach_media_url(db_media, cdn_base=cdn_base)
+    db_media.is_duplicate = False
 
     auto_cleanup = bool(_get_setting_value(db, "media_auto_cleanup", False))
     if auto_cleanup:
@@ -288,9 +851,7 @@ def get_media_item(
     current_user: User = Depends(get_current_user),
 ):
     db_media = db.execute(
-        select(MediaModel)
-        .filter(MediaModel.id == media_id)
-        .options(joinedload(MediaModel.uploaded_by))
+        select(MediaModel).filter(MediaModel.id == media_id).options(joinedload(MediaModel.uploaded_by))
     ).scalar_one_or_none()
 
     if db_media is None:
@@ -325,6 +886,103 @@ def update_media_item(
     return updated_media
 
 
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/{{media_id}}/move", response_model=Media)
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/{{media_id}}/move", response_model=Media)
+def move_media_item(
+    request: Request,
+    media_id: int,
+    payload: MediaMoveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
+):
+    verify_csrf_token(request, csrf_token)
+
+    db_media = crud_media.get_media(db, media_id=media_id)
+    if db_media is None:
+        raise HTTPException(status_code=404, detail="Media file not found")
+    if db_media.uploaded_by_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to move this media file")
+
+    try:
+        target_folder = _normalize_folder_path(payload.target_folder)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    old_filepath, new_filepath = _move_media_record_to_folder(db_media, target_folder)
+    cdn_base = _get_media_cdn_base(db)
+    replacements = _build_url_replacements(old_filepath, new_filepath, cdn_base)
+    _replace_media_references(db, replacements)
+
+    try:
+        db.commit()
+        db.refresh(db_media)
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"移动媒体失败: {exc}") from exc
+
+    _attach_media_url(db_media, cdn_base=cdn_base)
+    return db_media
+
+
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/bulk-move")
+@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/bulk-move")
+def bulk_move_media_items(
+    request: Request,
+    payload: MediaBulkMoveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
+):
+    verify_csrf_token(request, csrf_token)
+    media_ids = _sanitize_media_ids(payload.media_ids)
+    if not media_ids:
+        raise HTTPException(status_code=400, detail="未提供有效的媒体ID")
+
+    try:
+        target_folder = _normalize_folder_path(payload.target_folder)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    media_items = db.execute(select(MediaModel).filter(MediaModel.id.in_(media_ids))).scalars().all()
+    media_map = {item.id: item for item in media_items}
+    moved_ids: List[int] = []
+    skipped: List[Dict[str, Any]] = []
+    replacements: List[Tuple[str, str]] = []
+    cdn_base = _get_media_cdn_base(db)
+
+    for media_id in media_ids:
+        db_media = media_map.get(media_id)
+        if db_media is None:
+            skipped.append({"id": media_id, "reason": "not_found"})
+            continue
+        if db_media.uploaded_by_id != current_user.id:
+            skipped.append({"id": media_id, "reason": "forbidden"})
+            continue
+        try:
+            old_filepath, new_filepath = _move_media_record_to_folder(db_media, target_folder)
+            moved_ids.append(media_id)
+            replacements.extend(_build_url_replacements(old_filepath, new_filepath, cdn_base))
+        except HTTPException as exc:
+            skipped.append({"id": media_id, "reason": exc.detail})
+        except Exception as exc:
+            skipped.append({"id": media_id, "reason": str(exc)})
+
+    _replace_media_references(db, replacements)
+    try:
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"批量移动失败: {exc}") from exc
+
+    return {
+        "requested_count": len(media_ids),
+        "moved_count": len(moved_ids),
+        "moved_ids": moved_ids,
+        "skipped": skipped,
+    }
+
+
 @router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/{{media_id}}", status_code=status.HTTP_204_NO_CONTENT)
 @router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/{{media_id}}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_media_item(
@@ -357,17 +1015,7 @@ def bulk_delete_media_items(
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
-    media_ids = []
-    seen = set()
-    for media_id in payload.media_ids or []:
-        try:
-            value = int(media_id)
-        except (TypeError, ValueError):
-            continue
-        if value <= 0 or value in seen:
-            continue
-        seen.add(value)
-        media_ids.append(value)
+    media_ids = _sanitize_media_ids(payload.media_ids)
     if not media_ids:
         raise HTTPException(status_code=400, detail="未提供有效的媒体ID")
 
