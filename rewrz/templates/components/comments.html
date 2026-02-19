@@ -3,6 +3,8 @@
 {% set root_comments = post.comments | selectattr('parent_id', 'none') | list %}
 
 <div class="comments-section mt-8" data-post-id="{{ post.id }}">
+    {% set show_comments_panel_header = show_comments_panel_header if show_comments_panel_header is defined else true %}
+    {% if show_comments_panel_header %}
     <div class="mb-5 rounded-2xl border border-gray-200 bg-gradient-to-r from-slate-50 to-blue-50 p-4 shadow-sm dark:border-gray-700 dark:from-gray-900 dark:to-slate-900">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-3">
@@ -19,6 +21,7 @@
             </span>
         </div>
     </div>
+    {% endif %}
 
     <div id="comment-feedback" class="mb-4" aria-live="polite"></div>
 

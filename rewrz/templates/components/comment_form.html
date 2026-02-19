@@ -17,6 +17,23 @@
             <input type="text" id="hp-field-{{ post.id }}" name="hp_field" tabindex="-1" autocomplete="off" value="">
         </div>
 
+        {% if logged_in_user %}
+        {% set logged_name = logged_in_public_name if logged_in_public_name else '已登录用户' %}
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-3 dark:border-emerald-800/50 dark:bg-emerald-900/20">
+            <div class="flex items-center gap-3 text-sm text-emerald-800 dark:text-emerald-200">
+                <img
+                    class="h-10 w-10 rounded-full border border-emerald-200 object-cover dark:border-emerald-700"
+                    src="{{ logged_in_user | avatar_url(48) }}"
+                    alt="{{ logged_name }}"
+                    loading="lazy"
+                >
+                <div>
+                    <p class="font-semibold">当前登录：{{ logged_name }}</p>
+                    <p class="text-xs opacity-80">已自动填充身份信息，可直接发表评论。</p>
+                </div>
+            </div>
+        </div>
+        {% else %}
         <div class="grid gap-4 md:grid-cols-2">
             <div>
                 <label for="author_name" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">昵称 <span class="text-rose-500">*</span></label>
@@ -65,6 +82,7 @@
                 placeholder="https://example.com"
             >
         </div>
+        {% endif %}
 
         <div>
             <div class="mb-1 flex items-center justify-between gap-3">

@@ -10,7 +10,6 @@
 {% set profile_name = profile.display_name if profile.display_name else site_title %}
 {% set profile_avatar = profile.avatar_url if profile.avatar_url else '/static/images/default-avatar.png' %}
 {% set profile_cover = profile.cover_url if profile.cover_url else ('/static/images/anime/covers/format-micro.svg' if is_micro else ('/static/images/anime/covers/format-poem.svg' if is_poem else '/static/images/anime/covers/format-article.svg')) %}
-{% set profile_username = profile.username if profile.username else '' %}
 {% set profile_headline = profile.headline if profile.headline else '' %}
 {% set profile_bio = profile.bio if profile.bio else '' %}
 {% set profile_motto = profile.motto if profile.motto else '' %}
@@ -95,7 +94,7 @@
                             <div class="min-w-0">
                                 <h1 class="truncate text-2xl font-bold text-slate-900 dark:text-white">{{ profile_name }}</h1>
                                 <p class="truncate text-sm text-slate-600 dark:text-slate-300">
-                                    @{{ profile_username if profile_username else 'creator' }}
+                                    创作者主页
                                 </p>
                             </div>
                         </div>

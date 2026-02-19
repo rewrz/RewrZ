@@ -6,7 +6,8 @@
 
 class MultiFormatInteractions {
     constructor() {
-        this.reactionStorage = this.getStorage('reactions');
+        this.reactionSummaryCache = new Map();
+        this.reactionWidgetsBound = new WeakSet();
         this.speechSynthesis = window.speechSynthesis || null;
         this.speaking = false;
         this.init();
@@ -14,6 +15,7 @@ class MultiFormatInteractions {
 
     init() {
         this.initMicroPosts();
+        this.initMicroArchiveActions();
         this.initPhotoAlbums();
         this.initVideoPlayers();
         this.initAudioPlayers();
@@ -34,25 +36,9 @@ class MultiFormatInteractions {
         this.initReadingProgress();
         this.initTocHighlight();
         this.initKeyboardNavigation();
+        this.bindGlobalHtmxHooks();
+        this.bindReactionMenuDismiss();
         window.addEventListener('resize', () => this.adjustImageGrid(), { passive: true });
-    }
-
-    // ==================== 存储工具 ====================
-    getStorage(key) {
-        try {
-            const data = localStorage.getItem(`rewrz_${key}`);
-            return data ? JSON.parse(data) : {};
-        } catch (e) {
-            return {};
-        }
-    }
-
-    setStorage(key, data) {
-        try {
-            localStorage.setItem(`rewrz_${key}`, JSON.stringify(data));
-        } catch (e) {
-            // 忽略存储错误
-        }
     }
 
     /**
@@ -80,6 +66,126 @@ class MultiFormatInteractions {
             });
 
             content.insertAdjacentElement('afterend', toggle);
+        });
+    }
+
+    bindGlobalHtmxHooks() {
+        if (document.body.dataset.multiFormatHtmxBound === '1') return;
+        document.body.dataset.multiFormatHtmxBound = '1';
+
+        document.body.addEventListener('htmx:afterSwap', (event) => {
+            const target = (event && event.detail && event.detail.target) ? event.detail.target : document;
+            this.initMicroArchiveActions(target);
+            this.initReactionWidgets(target);
+        });
+    }
+
+    bindReactionMenuDismiss() {
+        if (document.body.dataset.reactionMenuDismissBound === '1') return;
+        document.body.dataset.reactionMenuDismissBound = '1';
+
+        document.addEventListener('click', (event) => {
+            document.querySelectorAll('[data-reaction-menu]').forEach((menu) => {
+                const owner = menu.closest('[data-reaction-widget]');
+                if (owner && owner.contains(event.target)) return;
+                menu.classList.add('hidden');
+            });
+        });
+    }
+
+    initMicroArchiveActions(root = document) {
+        const scope = root && root.querySelectorAll ? root : document;
+
+        scope.querySelectorAll('[data-micro-comments-toggle]').forEach((toggle) => {
+            if (toggle.dataset.bound === '1') return;
+            toggle.dataset.bound = '1';
+
+            toggle.addEventListener('click', async () => {
+                const selector = toggle.dataset.target || '';
+                if (!selector) return;
+                const panel = document.querySelector(selector);
+                if (!panel) return;
+
+                const isOpen = !panel.classList.contains('hidden');
+                if (isOpen) {
+                    panel.classList.add('hidden');
+                    toggle.classList.remove('text-sky-600', 'dark:text-sky-300');
+                    return;
+                }
+
+                panel.classList.remove('hidden');
+                toggle.classList.add('text-sky-600', 'dark:text-sky-300');
+
+                if (panel.dataset.loaded === '1') {
+                    this.initReactionWidgets(panel);
+                    return;
+                }
+
+                panel.innerHTML = `
+                    <div class="mt-3 flex justify-center">
+                        <span class="inline-flex items-center rounded-full border border-sky-200 bg-white px-3 py-1 text-xs text-sky-700 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-300">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>加载评论中...
+                        </span>
+                    </div>
+                `;
+
+                const url = toggle.dataset.url;
+                if (!url) return;
+
+                try {
+                    const response = await fetch(url, {
+                        credentials: 'same-origin',
+                        headers: { 'HX-Request': 'true' },
+                    });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const html = await response.text();
+                    panel.innerHTML = html;
+                    panel.dataset.loaded = '1';
+                    if (window.htmx && typeof window.htmx.process === 'function') {
+                        window.htmx.process(panel);
+                    }
+                    this.initReactionWidgets(panel);
+                } catch (error) {
+                    panel.innerHTML = `
+                        <div class="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
+                            加载评论失败，请稍后重试。
+                        </div>
+                    `;
+                    console.error('加载微博评论失败:', error);
+                }
+            });
+        });
+
+        scope.querySelectorAll('[data-micro-share-btn]').forEach((btn) => {
+            if (btn.dataset.bound === '1') return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', async () => {
+                const title = btn.dataset.shareTitle || document.title;
+                const rawUrl = btn.dataset.shareUrl || window.location.pathname;
+                const shareUrl = rawUrl.startsWith('http')
+                    ? rawUrl
+                    : new URL(rawUrl, window.location.origin).toString();
+
+                if (navigator.share) {
+                    try {
+                        await navigator.share({ title, text: title, url: shareUrl });
+                        return;
+                    } catch (_) {
+                        // ignore cancel
+                    }
+                }
+
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(shareUrl);
+                        this.showToast('链接已复制', 'success', 1200);
+                        return;
+                    }
+                } catch (_) {
+                    // ignore and fallback
+                }
+                this.showToast('当前浏览器不支持分享', 'info', 1200);
+            });
         });
     }
 
@@ -281,6 +387,8 @@ class MultiFormatInteractions {
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const html = await response.text();
                 loader.outerHTML = html;
+                this.initMicroArchiveActions(document);
+                this.initReactionWidgets(document);
             } catch (error) {
                 loader.dataset.loading = '0';
                 console.error('加载更多内容失败:', error);
@@ -406,67 +514,282 @@ class MultiFormatInteractions {
         });
     }
 
-    // ==================== 表情反应系统 ====================
+    // ==================== 互动（点赞/表态） ====================
     initReactionSystem() {
-        const container = document.getElementById('reaction-container');
-        if (!container) return;
-
-        const postId = document.body.dataset.postId || window.location.pathname;
-        const buttons = container.querySelectorAll('.reaction-btn');
-        const summaryEl = document.getElementById('reaction-summary');
-
-        // 加载已保存的反应
-        const savedReactions = this.reactionStorage[postId] || {};
-        let totalCount = 0;
-
-        buttons.forEach(btn => {
-            const reaction = btn.dataset.reaction;
-            const countEl = btn.querySelector('.reaction-count');
-            const saved = savedReactions[reaction] || { count: 0, active: false };
-            
-            if (countEl) countEl.textContent = saved.count;
-            if (saved.active) btn.classList.add('active');
-            totalCount += saved.count;
-
-            btn.addEventListener('click', () => {
-                const isActive = btn.classList.toggle('active');
-                const currentCount = parseInt(countEl.textContent || '0');
-                const newCount = isActive ? currentCount + 1 : Math.max(0, currentCount - 1);
-                
-                if (countEl) countEl.textContent = newCount;
-                
-                // 保存状态
-                if (!this.reactionStorage[postId]) this.reactionStorage[postId] = {};
-                this.reactionStorage[postId][reaction] = { count: newCount, active: isActive };
-                this.setStorage('reactions', this.reactionStorage);
-
-                // 更新总结
-                this.updateReactionSummary(container, summaryEl);
-                
-                // 添加动画效果
-                btn.style.transform = 'scale(1.2)';
-                setTimeout(() => btn.style.transform = '', 200);
-            });
-        });
-
-        this.updateReactionSummary(container, summaryEl);
+        this.initReactionWidgets(document);
     }
 
-    updateReactionSummary(container, summaryEl) {
-        if (!summaryEl || !container) return;
-        
-        let total = 0;
-        container.querySelectorAll('.reaction-count').forEach(el => {
-            total += parseInt(el.textContent || '0');
+    formatCompactCn(value) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return '0';
+        const absNum = Math.abs(num);
+        if (absNum < 10000) return `${Math.floor(absNum)}`;
+        if (absNum < 100000000) return `${(absNum / 10000).toFixed(1).replace(/\.0$/, '')}万`;
+        return `${(absNum / 100000000).toFixed(1).replace(/\.0$/, '')}亿`;
+    }
+
+    async requestJson(url, options = {}) {
+        const response = await fetch(url, {
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(options.headers || {}),
+            },
+            ...options,
+        });
+        let payload = {};
+        try {
+            payload = await response.json();
+        } catch (_) {
+            payload = {};
+        }
+        if (!response.ok || !payload || payload.success === false) {
+            const message = (payload && payload.detail) ? payload.detail : `请求失败 (${response.status})`;
+            throw new Error(message);
+        }
+        return payload;
+    }
+
+    getReactionWidgetTarget(widget) {
+        const targetType = (widget.dataset.targetType || '').trim().toLowerCase();
+        const targetId = Number(widget.dataset.targetId || 0);
+        if (!targetType || !Number.isFinite(targetId) || targetId <= 0) return null;
+        return { targetType, targetId };
+    }
+
+    reactionSummaryText(summary) {
+        const total = Number(summary && summary.total_reaction_count ? summary.total_reaction_count : 0);
+        if (total <= 0) return '匿名互动已开启，欢迎点赞或表态。';
+        if (total < 5) return `${total} 人已表态`;
+        return `🔥 ${total} 人已表态`;
+    }
+
+    renderReactionWidget(widget, summary) {
+        if (!widget || !summary) return;
+        widget.dataset.summary = JSON.stringify(summary);
+
+        const likeBtn = widget.querySelector('[data-reaction-like-btn]');
+        const likeCountNode = widget.querySelector('[data-like-count]');
+        const likeIcon = widget.querySelector('[data-like-icon]');
+        const viewerLiked = !!(summary.viewer && summary.viewer.liked);
+        if (likeCountNode) {
+            likeCountNode.textContent = this.formatCompactCn(summary.like_count || 0);
+            likeCountNode.dataset.count = String(summary.like_count || 0);
+        }
+        if (likeBtn) {
+            likeBtn.classList.toggle('text-rose-600', viewerLiked);
+            likeBtn.classList.toggle('dark:text-rose-300', viewerLiked);
+            likeBtn.dataset.active = viewerLiked ? '1' : '0';
+        }
+        if (likeIcon) {
+            likeIcon.classList.remove('fas', 'far');
+            likeIcon.classList.add(viewerLiked ? 'fas' : 'far');
+        }
+
+        const reactionMap = summary.reactions || {};
+        widget.querySelectorAll('[data-reaction-count]').forEach((node) => {
+            const key = node.dataset.reactionCount;
+            const value = Number(reactionMap[key] || 0);
+            node.textContent = this.formatCompactCn(value);
+            node.dataset.count = String(value);
         });
 
-        if (total === 0) {
-            summaryEl.textContent = '还没有人表态，快来抢沙发！';
-        } else if (total < 5) {
-            summaryEl.textContent = `${total} 人表态`;
-        } else {
-            summaryEl.textContent = `🔥 ${total} 人觉得赞`;
+        const viewerReaction = (summary.viewer && summary.viewer.reaction_type) ? summary.viewer.reaction_type : null;
+        widget.querySelectorAll('[data-reaction-option]').forEach((btn) => {
+            const selected = btn.dataset.reactionOption === viewerReaction;
+            btn.classList.toggle('bg-indigo-50', selected);
+            btn.classList.toggle('text-indigo-700', selected);
+            btn.classList.toggle('dark:bg-indigo-900/40', selected);
+            btn.classList.toggle('dark:text-indigo-300', selected);
+        });
+
+        const summaryNode = widget.querySelector('[data-reaction-summary]');
+        if (summaryNode) {
+            summaryNode.textContent = this.reactionSummaryText(summary);
         }
+    }
+
+    async loadReactionWidgetSummary(widget, force = false) {
+        const target = this.getReactionWidgetTarget(widget);
+        if (!target) return;
+        const cacheKey = `${target.targetType}:${target.targetId}`;
+        if (!force && this.reactionSummaryCache.has(cacheKey)) {
+            this.renderReactionWidget(widget, this.reactionSummaryCache.get(cacheKey));
+            return;
+        }
+        const url = `/api/v1/reactions/summary?target_type=${encodeURIComponent(target.targetType)}&target_id=${target.targetId}`;
+        try {
+            const payload = await this.requestJson(url, { method: 'GET', headers: {} });
+            if (!payload || !payload.summary) return;
+            this.reactionSummaryCache.set(cacheKey, payload.summary);
+            this.renderReactionWidget(widget, payload.summary);
+        } catch (error) {
+            console.error('加载互动数据失败:', error);
+        }
+    }
+
+    initReactionWidgets(root = document) {
+        const scope = root && root.querySelectorAll ? root : document;
+        const widgets = scope.querySelectorAll('[data-reaction-widget]');
+        if (!widgets.length) return;
+
+        widgets.forEach((widget) => {
+            if (!widget || this.reactionWidgetsBound.has(widget)) {
+                this.loadReactionWidgetSummary(widget, false);
+                return;
+            }
+            this.reactionWidgetsBound.add(widget);
+
+            const menuToggle = widget.querySelector('[data-reaction-menu-toggle]');
+            const menu = widget.querySelector('[data-reaction-menu]');
+            if (menuToggle && menu) {
+                menuToggle.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    menu.classList.toggle('hidden');
+                });
+            }
+
+            const likeBtn = widget.querySelector('[data-reaction-like-btn]');
+            if (likeBtn) {
+                likeBtn.addEventListener('click', async () => {
+                    const target = this.getReactionWidgetTarget(widget);
+                    if (!target) return;
+                    try {
+                        const payload = await this.requestJson('/api/v1/reactions/like', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                target_type: target.targetType,
+                                target_id: target.targetId,
+                            }),
+                        });
+                        if (payload && payload.summary) {
+                            const cacheKey = `${target.targetType}:${target.targetId}`;
+                            this.reactionSummaryCache.set(cacheKey, payload.summary);
+                            this.renderReactionWidget(widget, payload.summary);
+                        }
+                    } catch (error) {
+                        this.showToast(error.message || '点赞失败', 'error', 1300);
+                    }
+                });
+            }
+
+            widget.querySelectorAll('[data-reaction-option]').forEach((btn) => {
+                btn.addEventListener('click', async () => {
+                    const target = this.getReactionWidgetTarget(widget);
+                    if (!target) return;
+                    const reactionType = btn.dataset.reactionOption || null;
+                    try {
+                        const payload = await this.requestJson('/api/v1/reactions/react', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                target_type: target.targetType,
+                                target_id: target.targetId,
+                                reaction_type: reactionType,
+                            }),
+                        });
+                        if (payload && payload.summary) {
+                            const cacheKey = `${target.targetType}:${target.targetId}`;
+                            this.reactionSummaryCache.set(cacheKey, payload.summary);
+                            this.renderReactionWidget(widget, payload.summary);
+                        }
+                        if (menu) menu.classList.add('hidden');
+                    } catch (error) {
+                        this.showToast(error.message || '表态失败', 'error', 1300);
+                    }
+                });
+            });
+
+            this.loadReactionWidgetSummary(widget, false);
+        });
+    }
+
+    updateInlineCommentCount(postId, delta = 0) {
+        if (!postId) return;
+        const nodes = document.querySelectorAll(
+            `[data-comment-count-for="${postId}"], [data-micro-inline-count="${postId}"]`
+        );
+        nodes.forEach((node) => {
+            const current = parseInt(node.dataset.count || '0', 10) || 0;
+            const next = Math.max(0, current + delta);
+            node.dataset.count = String(next);
+            node.textContent = this.formatCompactCn(next);
+        });
+    }
+
+    showInlineCommentFeedback(form, message, level = 'info') {
+        if (!form) return;
+        const postId = form.dataset.postId;
+        const feedback = document.querySelector(`[data-inline-comment-feedback="${postId}"]`);
+        if (!feedback) return;
+
+        const clsMap = {
+            success: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300',
+            warning: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300',
+            error: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/60 dark:bg-rose-900/20 dark:text-rose-300',
+            info: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800/60 dark:bg-sky-900/20 dark:text-sky-300',
+        };
+        const cls = clsMap[level] || clsMap.info;
+        feedback.innerHTML = `<div class="rounded-xl border px-3 py-2 text-xs ${cls}">${message}</div>`;
+    }
+
+    handleInlineCommentBeforeRequest(form) {
+        if (!form) return;
+        const btn = form.querySelector('button[type="submit"]');
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('opacity-70', 'cursor-not-allowed');
+        }
+    }
+
+    handleInlineCommentAfterRequest(event, form) {
+        const btn = form ? form.querySelector('button[type="submit"]') : null;
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-70', 'cursor-not-allowed');
+        }
+        if (!event || !event.detail || !event.detail.xhr || !form) return;
+
+        const xhr = event.detail.xhr;
+        const text = typeof xhr.responseText === 'string' ? xhr.responseText : '';
+        if (xhr.status < 200 || xhr.status >= 300) return;
+
+        if (text.includes('id="comment-')) {
+            const postId = form.dataset.postId;
+            this.updateInlineCommentCount(postId, 1);
+            const empty = document.getElementById(`micro-comments-empty-${postId}`);
+            if (empty) empty.remove();
+            this.showInlineCommentFeedback(form, '评论发布成功。', 'success');
+            form.reset();
+            const panel = document.getElementById(`micro-comments-panel-${postId}`);
+            if (panel) this.initReactionWidgets(panel);
+        } else if (text.includes('等待审核')) {
+            this.showInlineCommentFeedback(form, '评论已提交，待审核后展示。', 'warning');
+            form.reset();
+        } else if (text.includes('评论提交成功')) {
+            this.showInlineCommentFeedback(form, '评论已提交成功。', 'success');
+            form.reset();
+        } else {
+            this.showInlineCommentFeedback(form, '操作已完成。', 'info');
+        }
+    }
+
+    handleInlineCommentError(event, form) {
+        const btn = form ? form.querySelector('button[type="submit"]') : null;
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-70', 'cursor-not-allowed');
+        }
+        let message = '评论提交失败，请稍后重试。';
+        try {
+            const xhr = event && event.detail ? event.detail.xhr : null;
+            if (xhr && xhr.responseText) {
+                const payload = JSON.parse(xhr.responseText);
+                if (payload && payload.detail) message = String(payload.detail);
+            }
+        } catch (_) {
+            // ignore
+        }
+        this.showInlineCommentFeedback(form, message, 'error');
     }
 
     // ==================== 诗词功能 ====================
@@ -748,18 +1071,6 @@ class MultiFormatInteractions {
     }
 
     initMicroDetailActions() {
-        const microLikeBtn = document.getElementById('micro-like-btn');
-        if (microLikeBtn) {
-            microLikeBtn.addEventListener('click', function() {
-                const liked = this.dataset.liked === '1';
-                this.dataset.liked = liked ? '0' : '1';
-                this.classList.toggle('text-rose-500', !liked);
-                this.innerHTML = liked
-                    ? '<i class="far fa-heart mr-1"></i>喜欢'
-                    : '<i class="fas fa-heart mr-1"></i>已喜欢';
-            });
-        }
-
         const microFocusBtn = document.getElementById('micro-focus-btn');
         const microArticle = document.getElementById('micro-article');
         if (microFocusBtn && microArticle) {

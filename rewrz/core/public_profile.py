@@ -15,6 +15,7 @@ from ..crud import setting as crud_setting
 from ..crud import user as crud_user
 from ..models import User as UserModel
 from .avatar import get_avatar_service
+from .public_alias import resolve_public_display_name
 from .template_context import DEFAULT_BASE_SETTINGS, DEFAULT_HOMEPAGE_SETTINGS
 
 
@@ -123,12 +124,12 @@ class DefaultPublicProfileResolver:
         joined_text = ""
 
         if owner is not None:
-            display_name = (
-                str(getattr(owner, "display_name", "") or "").strip()
-                or str(getattr(owner, "username", "") or "").strip()
-                or site_title
+            display_name = resolve_public_display_name(
+                getattr(owner, "display_name", None),
+                seed_value=getattr(owner, "id", None),
+                fallback=site_title,
             )
-            username = str(getattr(owner, "username", "") or "").strip()
+            username = ""
             bio_default = str(getattr(owner, "bio", "") or "").strip() or tagline
             website = str(getattr(owner, "website", "") or "").strip() or site_url
             owner_email = str(getattr(owner, "email", "") or "").strip()
@@ -189,10 +190,10 @@ class DefaultPublicProfileResolver:
         if user_obj is None:
             return {"display_name": fallback_display_name, "avatar_url": "/static/images/default-avatar.png"}
 
-        display_name = (
-            str(getattr(user_obj, "display_name", "") or "").strip()
-            or str(getattr(user_obj, "username", "") or "").strip()
-            or fallback_display_name
+        display_name = resolve_public_display_name(
+            getattr(user_obj, "display_name", None),
+            seed_value=getattr(user_obj, "id", None),
+            fallback=fallback_display_name,
         )
         user_email = str(getattr(user_obj, "email", "") or "")
         avatar_url = avatar_service.get_avatar_url(user_email, getattr(user_obj, "id", None), size=96)

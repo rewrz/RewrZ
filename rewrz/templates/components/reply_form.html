@@ -8,7 +8,7 @@
         hx-target="#comment-{{ parent_id }}-children"
         hx-swap="beforeend"
         hx-on::before-request="window.rewrzCommentUI && window.rewrzCommentUI.beforeRequest(this)"
-        hx-on::after-request="window.rewrzCommentUI && window.rewrzCommentUI.afterRequest(event, this); if (event.detail.successful) { this.reset(); const childBox = document.getElementById('comment-{{ parent_id }}-children'); if (childBox) childBox.classList.remove('hidden'); const wrap = document.getElementById('comment-form-{{ parent_id }}'); if (wrap) wrap.innerHTML = ''; }"
+        hx-on::after-request="window.rewrzCommentUI && window.rewrzCommentUI.afterRequest(event, this); if (event.detail.successful) { this.reset(); if (window.multiFormatInteractions && typeof window.multiFormatInteractions.updateInlineCommentCount === 'function') { window.multiFormatInteractions.updateInlineCommentCount('{{ post_id }}', 1); } const childBox = document.getElementById('comment-{{ parent_id }}-children'); if (childBox) childBox.classList.remove('hidden'); const wrap = document.getElementById('comment-form-{{ parent_id }}'); if (wrap) wrap.innerHTML = ''; }"
         hx-on::response-error="window.rewrzCommentUI && window.rewrzCommentUI.onError(event, this)"
     >
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
@@ -20,6 +20,20 @@
             <input type="text" id="reply-hp-field-{{ parent_id }}" name="hp_field" tabindex="-1" autocomplete="off" value="">
         </div>
 
+        {% if logged_in_user %}
+        {% set logged_name = logged_in_public_name if logged_in_public_name else '已登录用户' %}
+        <div class="rounded-lg border border-emerald-200 bg-emerald-50/80 px-3 py-2 dark:border-emerald-800/50 dark:bg-emerald-900/20">
+            <div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+                <img
+                    class="h-8 w-8 rounded-full border border-emerald-200 object-cover dark:border-emerald-700"
+                    src="{{ logged_in_user | avatar_url(40) }}"
+                    alt="{{ logged_name }}"
+                    loading="lazy"
+                >
+                <p class="text-xs">以 <span class="font-semibold">{{ logged_name }}</span> 身份回复</p>
+            </div>
+        </div>
+        {% else %}
         <div class="grid gap-3 md:grid-cols-2">
             <div>
                 <label for="reply_author_name_{{ parent_id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">昵称 <span class="text-rose-500">*</span></label>
@@ -54,6 +68,7 @@
                 class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
             >
         </div>
+        {% endif %}
 
         <div>
             <label for="reply_content_{{ parent_id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">回复内容 <span class="text-rose-500">*</span></label>

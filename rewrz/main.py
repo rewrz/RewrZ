@@ -34,6 +34,7 @@ from .api import installer as installer_api
 from .api import posts as posts_api
 from .api import media as media_api # Import the media router
 from .api import comments as comments_api # Import the comments router
+from .api import reactions as reactions_api # Import reactions router
 from .api import settings as settings_api # Import the settings router
 from .api import formats as formats_api # Import the formats router
 from .api import avatars as avatars_api # 导入头像路由
@@ -1588,6 +1589,8 @@ app.include_router(posts_api.router)
 app.include_router(media_api.router)
 # 包含评论路由
 app.include_router(comments_api.router)
+# 包含互动表态路由
+app.include_router(reactions_api.router)
 # 包含设置路由
 app.include_router(settings_api.router)
 # 包含格式路由
@@ -2626,6 +2629,20 @@ async def format_page(request: Request, format_slug: str, page: int = 1, append:
         limit=archive_posts_limit,
         exclude_format_ids=exclude_format_ids,
     )
+    from .models import Comment
+
+    post_ids = [item.id for item in posts if getattr(item, "id", None) is not None]
+    comment_count_map = {}
+    if post_ids:
+        comment_rows = db.execute(
+            select(Comment.post_id, func.count(Comment.id))
+            .where(Comment.post_id.in_(post_ids), Comment.status == "approved")
+            .group_by(Comment.post_id)
+        ).all()
+        comment_count_map = {pid: int(count or 0) for pid, count in comment_rows}
+    for item in posts:
+        setattr(item, "comment_count", int(comment_count_map.get(item.id, 0)))
+
     profile_resolver = get_public_profile_resolver()
     format_profile = profile_resolver.resolve_format_profile(request, db, canonical_format_slug)
     _attach_post_author_profiles(db, posts, fallback_name=format_profile.get("display_name", "博主"))
@@ -2796,6 +2813,11 @@ async def posts_by_media_attachment(request: Request, media_slug: str, page: int
     )
     offset = (page - 1) * archive_posts_limit
     matched_posts = matched_posts[offset: offset + archive_posts_limit]
+    _attach_post_author_profiles(
+        db,
+        matched_posts,
+        fallback_name=str(getattr(request.state, "site_title", "博主") or "博主"),
+    )
 
     media_nav_items = get_default_media_navigation()
     selected_media_item = next(

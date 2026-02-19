@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from ..core.avatar import get_avatar_service
 from ..core.database import get_db
+from ..core.public_alias import resolve_public_display_name
 from ..core.security import get_current_user
 from ..crud import user as crud_user
 from ..schemas import User, UserAvatarUpdate
@@ -157,7 +158,10 @@ async def delete_user_avatar(
 async def get_user_avatar_info(
     user_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    _ensure_avatar_permission(user_id, current_user)
+
     user = crud_user.get_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -168,8 +172,11 @@ async def get_user_avatar_info(
 
     return {
         "user_id": user.id,
-        "username": user.username,
-        "email": user.email,
+        "display_name": resolve_public_display_name(
+            getattr(user, "display_name", None),
+            seed_value=getattr(user, "id", None),
+            fallback="已登录用户",
+        ),
         "custom_avatar_url": user.avatar_url,
         "gravatar_url": gravatar_url,
         "final_avatar_url": final_avatar_url,

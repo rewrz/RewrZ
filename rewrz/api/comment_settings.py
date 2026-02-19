@@ -25,6 +25,13 @@ router = APIRouter()
 templates = get_templates()
 
 
+def _checkbox_to_bool(raw_value: Optional[str]) -> bool:
+    if raw_value is None:
+        return False
+    normalized = str(raw_value).strip().lower()
+    return normalized in {"1", "true", "on", "yes", "checked"}
+
+
 # 评论设置页面已移至 main.py 中的动态路由注册系统
 async def comment_settings_page(
     request: Request,
@@ -98,18 +105,18 @@ async def update_comment_settings(
     current_user: User = Depends(get_current_user),
     
     # 第一层：无感防御设置
-    honeypot_enabled: bool = Form(True),
+    honeypot_enabled: Optional[str] = Form(None),
     time_threshold: int = Form(5),
     
     # 第二层：内容分析设置
     max_links: int = Form(2),
-    keyword_filter: bool = Form(True),
+    keyword_filter: Optional[str] = Form(None),
     keywords: str = Form(""),  # 一行一个关键词
-    akismet_enabled: bool = Form(False),
+    akismet_enabled: Optional[str] = Form(None),
     akismet_key: str = Form(""),
     
     # 第三层：验证码设置
-    captcha_enabled: bool = Form(True),
+    captcha_enabled: Optional[str] = Form(None),
     captcha_threshold: float = Form(0.6),
     
     # 动作阈值设置
@@ -125,6 +132,12 @@ async def update_comment_settings(
     """
     from ..core.security import verify_csrf_token
     verify_csrf_token(request, csrf_token)
+
+    honeypot_enabled_flag = _checkbox_to_bool(honeypot_enabled)
+    keyword_filter_flag = _checkbox_to_bool(keyword_filter)
+    akismet_enabled_flag = _checkbox_to_bool(akismet_enabled)
+    captcha_enabled_flag = _checkbox_to_bool(captcha_enabled)
+    normalized_akismet_key = (akismet_key or "").strip()
     
     # 验证设置
     errors = []
@@ -146,20 +159,23 @@ async def update_comment_settings(
         errors.append("阻止阈值必须在0.0-1.0之间")
     
     # 验证Akismet设置
-    if akismet_enabled and akismet_key:
-        site_url_setting = crud_setting.get_setting(db, "site_url")
-        site_url = site_url_setting.value.get("value") if site_url_setting else "http://localhost"
-        
-        akismet_client = get_akismet_client(akismet_key, site_url)
-        if akismet_client:
-            try:
-                is_valid = await akismet_client.verify_key()
-                if not is_valid:
-                    errors.append("Akismet API密钥无效")
-            except Exception as e:
-                errors.append(f"验证Akismet密钥时出错: {str(e)}")
+    if akismet_enabled_flag:
+        if not normalized_akismet_key:
+            errors.append("启用 Akismet 前请填写 API 密钥并测试通过")
         else:
-            errors.append("无法创建Akismet客户端")
+            site_url_setting = crud_setting.get_setting(db, "site_url")
+            site_url = site_url_setting.value.get("value") if site_url_setting else "http://localhost"
+            
+            akismet_client = get_akismet_client(normalized_akismet_key, site_url)
+            if akismet_client:
+                try:
+                    is_valid = await akismet_client.verify_key()
+                    if not is_valid:
+                        errors.append("Akismet API密钥无效，请先测试通过后再保存")
+                except Exception as e:
+                    errors.append(f"验证Akismet密钥时出错: {str(e)}")
+            else:
+                errors.append("无法创建Akismet客户端")
     
     if errors:
         return JSONResponse({
@@ -175,14 +191,14 @@ async def update_comment_settings(
     
     # 准备要更新的设置
     settings_to_update = {
-        "anti_spam_honeypot_enabled": honeypot_enabled,
+        "anti_spam_honeypot_enabled": honeypot_enabled_flag,
         "anti_spam_time_threshold": time_threshold,
         "anti_spam_max_links": max_links,
-        "anti_spam_keyword_filter": keyword_filter,
+        "anti_spam_keyword_filter": keyword_filter_flag,
         "anti_spam_keywords": keyword_list,
-        "anti_spam_akismet_enabled": akismet_enabled,
-        "anti_spam_akismet_key": akismet_key,
-        "anti_spam_captcha_enabled": captcha_enabled,
+        "anti_spam_akismet_enabled": akismet_enabled_flag,
+        "anti_spam_akismet_key": normalized_akismet_key,
+        "anti_spam_captcha_enabled": captcha_enabled_flag,
         "anti_spam_captcha_threshold": captcha_threshold,
         "anti_spam_moderate_threshold": moderate_threshold,
         "anti_spam_block_threshold": block_threshold,
@@ -210,7 +226,7 @@ async def update_comment_settings(
         return JSONResponse({
             "success": True,
             "message": "评论设置已更新",
-            "redirect_url": f"{getattr(request.state, 'admin_path', '/admin')}/comments/settings"
+            "redirect_url": f"{getattr(request.state, 'admin_path', '/admin')}/comment-settings"
         })
         
     except Exception as e:

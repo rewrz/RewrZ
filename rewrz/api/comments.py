@@ -11,10 +11,11 @@ from ..core.database import get_db
 from ..crud import comment as crud_comment
 from ..crud import post as crud_post
 from ..crud import setting as crud_setting
+from ..crud import user as crud_user
 from ..schemas import CommentCreate, Comment, User
-from ..core.security import get_current_user, verify_csrf_token
+from ..core.security import get_current_user, verify_csrf_token, decode_access_token
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 import bleach # 导入bleach用于HTML净化
 from markdown import markdown
 from ..core.anti_spam import get_anti_spam_engine # 导入反垃圾引擎
@@ -24,6 +25,7 @@ from ..core.content_access import extract_hide_block, get_comment_unlock_cookie_
 from ..core.admin_security import check_comment_rate_limit, get_admin_email, get_client_ip
 from ..core.notification_email import send_new_comment_notification
 from ..core.ip_geo import lookup_ip_locations
+from ..core.public_alias import resolve_public_display_name
 
 router = APIRouter()
 
@@ -34,6 +36,32 @@ def _set_comment_unlock_cookie(response: HTMLResponse, post_id: int) -> None:
         value="true",
         max_age=30 * 24 * 60 * 60,  # 30天
         samesite="lax",
+    )
+
+
+def _resolve_optional_user(request: Request, db: Session):
+    token = (request.cookies.get("access_token") or "").strip()
+    if not token:
+        return None
+
+    payload = decode_access_token(token)
+    if not payload:
+        return None
+
+    raw_user_id = payload.get("sub")
+    try:
+        user_id = int(raw_user_id)
+    except (TypeError, ValueError):
+        return None
+
+    return crud_user.get_user(db, user_id=user_id)
+
+
+def _resolve_public_display_name(user_obj) -> str:
+    return resolve_public_display_name(
+        getattr(user_obj, "display_name", None),
+        seed_value=getattr(user_obj, "id", None),
+        fallback="已登录用户",
     )
 
 class BulkAction(BaseModel):
@@ -57,8 +85,8 @@ async def create_comment_api(
     request: Request,
     background_tasks: BackgroundTasks,
     post_id: int,
-    author_name: str = Form(...),
-    author_email: str = Form(...),
+    author_name: Optional[str] = Form(None),
+    author_email: Optional[str] = Form(None),
     content: str = Form(...),
     author_url: str = Form(None),
     parent_id: int = Form(None),
@@ -85,6 +113,27 @@ async def create_comment_api(
     if not db_post.allow_comments:
         raise HTTPException(status_code=403, detail="当前内容未开启评论")
 
+    logged_in_user = _resolve_optional_user(request, db)
+    logged_in_public_name = _resolve_public_display_name(logged_in_user) if logged_in_user else ""
+    resolved_author_name = (author_name or "").strip()
+    resolved_author_email = (author_email or "").strip()
+    resolved_author_url = (author_url or "").strip() or None
+
+    if logged_in_user is not None:
+        resolved_author_name = _resolve_public_display_name(logged_in_user)
+        resolved_author_email = (
+            (getattr(logged_in_user, "email", None) or "").strip()
+            or resolved_author_email
+        )
+        if not resolved_author_url:
+            profile_website = (getattr(logged_in_user, "website", None) or "").strip()
+            resolved_author_url = profile_website or None
+
+    if not resolved_author_name:
+        raise HTTPException(status_code=400, detail="请填写昵称")
+    if not resolved_author_email:
+        raise HTTPException(status_code=400, detail="请填写邮箱")
+
     # 获取客户端信息
     ip_address = get_client_ip(request)
     user_agent = request.headers.get("User-Agent", "")
@@ -104,9 +153,9 @@ async def create_comment_api(
     # 执行垃圾检测
     spam_result = await anti_spam.check_comment(
         content=content,
-        author_name=author_name,
-        author_email=author_email,
-        author_url=author_url,
+        author_name=resolved_author_name,
+        author_email=resolved_author_email,
+        author_url=resolved_author_url,
         ip_address=ip_address,
         user_agent=user_agent,
         honeypot_field=honeypot_field,
@@ -157,9 +206,9 @@ async def create_comment_api(
     comment_create = CommentCreate(
         post_id=post_id,
         parent_id=parent_id if parent_id else None,
-        author_name=author_name,
-        author_email=author_email,
-        author_url=author_url,
+        author_name=resolved_author_name,
+        author_email=resolved_author_email,
+        author_url=resolved_author_url,
         content=sanitized_content,
         ip_address=ip_address,
         user_agent=user_agent,
@@ -176,8 +225,8 @@ async def create_comment_api(
             send_new_comment_notification,
             admin_email,
             db_post.title or "(untitled)",
-            author_name,
-            author_email,
+            resolved_author_name,
+            resolved_author_email,
             comment_preview,
             review_url,
         )
@@ -192,7 +241,7 @@ async def create_comment_api(
     # 获取头像服务并为评论添加头像信息
     avatar_service = get_avatar_service(db)
     comment_avatar_url = avatar_service.get_comment_avatar_url(
-        author_email=author_email,
+        author_email=resolved_author_email,
         author_id=None,  # 匿名评论者没有用户ID
         size=40  # 评论区头像尺寸
     )
@@ -278,6 +327,8 @@ async def get_reply_form(request: Request, post_id: int, parent_id: int, db: Ses
     parent_comment = crud_comment.get_comment(db, comment_id=parent_id)
     if parent_comment is None:
         raise HTTPException(status_code=404, detail="父评论不存在")
+    logged_in_user = _resolve_optional_user(request, db)
+    logged_in_public_name = _resolve_public_display_name(logged_in_user) if logged_in_user else ""
     
     return templates.TemplateResponse(
         "components/reply_form.html", 
@@ -289,6 +340,8 @@ async def get_reply_form(request: Request, post_id: int, parent_id: int, db: Ses
             "parent_author_name": parent_comment.author_name,
             "form_timestamp_token": form_timestamp_token,
             "captcha_enabled": anti_spam.captcha_enabled,
+            "logged_in_user": logged_in_user,
+            "logged_in_public_name": logged_in_public_name,
         }
     )
 
@@ -317,6 +370,8 @@ async def get_comment_form(request: Request, post_id: int, db: Session = Depends
     # 生成防垃圾字段
     anti_spam = get_anti_spam_engine(db)
     form_timestamp_token = anti_spam.generate_form_timestamp_token()
+    logged_in_user = _resolve_optional_user(request, db)
+    logged_in_public_name = _resolve_public_display_name(logged_in_user) if logged_in_user else ""
     
     return templates.TemplateResponse(
         "components/comment_form.html", 
@@ -325,8 +380,45 @@ async def get_comment_form(request: Request, post_id: int, db: Session = Depends
             "post_id": post_id, 
             "post": db_post,
             "form_timestamp_token": form_timestamp_token,
-            "captcha_enabled": anti_spam.captcha_enabled
+            "captcha_enabled": anti_spam.captcha_enabled,
+            "logged_in_user": logged_in_user,
+            "logged_in_public_name": logged_in_public_name,
         }
+    )
+
+
+@router.get("/api/v1/comments/embed/{post_id}", response_class=HTMLResponse)
+async def get_inline_comment_embed(request: Request, post_id: int, db: Session = Depends(get_db)):
+    """
+    获取微博聚合页内嵌评论区域（可折叠展开）
+    """
+    templates = get_templates()
+    db_post = crud_post.get_post(db, post_id=post_id)
+    if db_post is None:
+        raise HTTPException(status_code=404, detail="文章不存在")
+
+    if db_post.status != "published" or db_post.published_at is None:
+        raise HTTPException(status_code=404, detail="文章不存在")
+
+    anti_spam = get_anti_spam_engine(db)
+    form_timestamp_token = anti_spam.generate_form_timestamp_token()
+    approved_comments = list(db_post.comments or [])
+    root_comments = [item for item in approved_comments if item.parent_id is None]
+    logged_in_user = _resolve_optional_user(request, db)
+    logged_in_public_name = _resolve_public_display_name(logged_in_user) if logged_in_user else ""
+
+    return templates.TemplateResponse(
+        "components/micro_comments_embed.html",
+        {
+            "request": request,
+            "post": db_post,
+            "total_comments": len(approved_comments),
+            "root_comments": root_comments,
+            "form_timestamp_token": form_timestamp_token,
+            "captcha_enabled": anti_spam.captcha_enabled,
+            "logged_in_user": logged_in_user,
+            "logged_in_public_name": logged_in_public_name,
+        },
     )
 
 @router.post("/api/v1/comments/{comment_id}/approve", status_code=status.HTTP_200_OK)
@@ -497,7 +589,7 @@ async def admin_reply_to_comment(
     reply_comment = CommentCreate(
         post_id=original_comment.post_id,
         parent_id=comment_id,
-        author_name=current_user.username,  # 使用管理员用户名
+        author_name=_resolve_public_display_name(current_user),  # 使用对外显示名，避免暴露登录名
         author_email=admin_email,  # 使用管理员邮箱
         author_url=site_url,    # 使用网站地址
         content=reply.content,

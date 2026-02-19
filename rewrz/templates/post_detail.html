@@ -28,7 +28,7 @@
 {% set is_poetry_song = active_format == 'poem' %}
 {% set content_images = (rendered_content | extract_image_urls(post.featured_image_url)) if rendered_content else [] %}
 {% set comment_count = post.comments | length %}
-{% set post_author_name = post.author_display_name if post.author_display_name is defined and post.author_display_name else ((post.author.display_name if post.author and post.author.display_name else post.author.username) if post.author else '博主') %}
+{% set post_author_name = post.author_display_name if post.author_display_name is defined and post.author_display_name else ((post.author.display_name if post.author and post.author.display_name else '博主') if post.author else '博主') %}
 {% set post_author_avatar = post.author_avatar_url if post.author_avatar_url is defined and post.author_avatar_url else '/static/images/default-avatar.png' %}
 
 {% if is_micro_post %}
@@ -121,37 +121,47 @@
                 {% endif %}
             </div>
 
-            <!-- 表情反应系统 -->
-            <div class="px-5 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-1" id="reaction-container">
-                        <button type="button" class="reaction-btn group" data-reaction="like" title="点赞">
-                            <span class="reaction-emoji">👍</span>
-                            <span class="reaction-count">0</span>
+            <div class="border-t border-gray-100 bg-gray-50/50 px-5 py-3 dark:border-gray-700 dark:bg-gray-900/50">
+                <div
+                    class="flex flex-wrap items-center justify-between gap-2"
+                    data-reaction-widget
+                    data-target-type="post"
+                    data-target-id="{{ post.id }}"
+                >
+                    <div class="inline-flex items-center gap-2">
+                        <button
+                            type="button"
+                            data-reaction-like-btn
+                            class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-gray-600 transition hover:bg-rose-50 hover:text-rose-600 dark:text-gray-300 dark:hover:bg-rose-900/20 dark:hover:text-rose-300"
+                        >
+                            <i class="far fa-heart" data-like-icon></i>
+                            <span>点赞</span>
+                            <span data-like-count>0</span>
                         </button>
-                        <button type="button" class="reaction-btn group" data-reaction="heart" title="爱心">
-                            <span class="reaction-emoji">❤️</span>
-                            <span class="reaction-count">0</span>
-                        </button>
-                        <button type="button" class="reaction-btn group" data-reaction="laugh" title="笑哭">
-                            <span class="reaction-emoji">😄</span>
-                            <span class="reaction-count">0</span>
-                        </button>
-                        <button type="button" class="reaction-btn group" data-reaction="wow" title="惊讶">
-                            <span class="reaction-emoji">😮</span>
-                            <span class="reaction-count">0</span>
-                        </button>
-                        <button type="button" class="reaction-btn group" data-reaction="sad" title="伤心">
-                            <span class="reaction-emoji">😢</span>
-                            <span class="reaction-count">0</span>
-                        </button>
-                        <button type="button" class="reaction-btn group" data-reaction="fire" title="火">
-                            <span class="reaction-emoji">🔥</span>
-                            <span class="reaction-count">0</span>
-                        </button>
+                        <div class="relative">
+                            <button
+                                type="button"
+                                data-reaction-menu-toggle
+                                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-gray-600 transition hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-300 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-300"
+                            >
+                                <i class="far fa-face-smile"></i>
+                                <span>表态</span>
+                            </button>
+                            <div
+                                data-reaction-menu
+                                class="absolute left-0 top-full z-20 mt-1 hidden min-w-[184px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+                            >
+                                <button type="button" data-reaction-option="funny" class="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-800"><span>😂 有趣</span><span data-reaction-count="funny">0</span></button>
+                                <button type="button" data-reaction-option="wow" class="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-800"><span>😮 惊讶</span><span data-reaction-count="wow">0</span></button>
+                                <button type="button" data-reaction-option="moved" class="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-800"><span>😢 感动</span><span data-reaction-count="moved">0</span></button>
+                                <button type="button" data-reaction-option="angry" class="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-800"><span>😡 生气</span><span data-reaction-count="angry">0</span></button>
+                                <button type="button" data-reaction-option="thinking" class="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-800"><span>🤔 思考</span><span data-reaction-count="thinking">0</span></button>
+                                <button type="button" data-reaction-option="salute" class="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-800"><span>🫡 致敬</span><span data-reaction-count="salute">0</span></button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400" id="reaction-summary">
-                        还没有人表态，快来抢沙发！
+                    <div class="text-xs text-gray-500 dark:text-gray-400" data-reaction-summary>
+                        匿名互动已开启，欢迎点赞或表态。
                     </div>
                 </div>
             </div>
@@ -165,9 +175,6 @@
                     {% endfor %}
                 </div>
                 <div class="flex items-center gap-2">
-                    <button type="button" id="micro-like-btn" class="micro-action-btn hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20" title="收藏">
-                        <i class="far fa-heart mr-1"></i>收藏
-                    </button>
                     <button type="button" id="micro-focus-btn" class="micro-action-btn hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20" title="沉浸阅读">
                         <i class="fas fa-expand-alt mr-1"></i>沉浸
                     </button>
@@ -237,7 +244,7 @@
                 {% endif %}
                 
                 <div class="poetry-meta flex items-center justify-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                    <span><i class="far fa-user mr-1"></i>{{ post.author.username }}</span>
+                    <span><i class="far fa-user mr-1"></i>{{ post_author_name }}</span>
                     <span><i class="far fa-calendar mr-1"></i>{{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}</span>
                     <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
                 </div>
@@ -308,7 +315,7 @@
 
                 <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
                     <span><i class="fas fa-calendar-alt mr-2 text-blue-500"></i>{{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}</span>
-                    <span><i class="fas fa-user mr-2 text-green-500"></i>{{ post.author.username }}</span>
+                    <span><i class="fas fa-user mr-2 text-green-500"></i>{{ post_author_name }}</span>
                     <span><i class="far fa-eye mr-2 text-indigo-500"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
 
                     {% if post.categories %}
@@ -428,13 +435,14 @@
                             <p class="text-xs text-gray-500 dark:text-gray-400">分享观点、补充想法，和读者一起完善内容。</p>
                         </div>
                     </div>
-                    <span class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm dark:bg-gray-800 dark:text-gray-200">
+                    <span id="comment-count-badge" data-count="{{ comment_count }}" class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm dark:bg-gray-800 dark:text-gray-200">
                         {{ comment_count | compact_number_cn }} 条
                     </span>
                 </div>
             </div>
 
             <div class="p-5 md:p-6">
+                {% set show_comments_panel_header = false %}
                 {% include "components/comments.html" %}
             </div>
         </div>

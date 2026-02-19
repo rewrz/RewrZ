@@ -24,6 +24,7 @@ from ..crud import setting as crud_setting
 from ..schemas import User
 from ..core.template_context import DEFAULT_BASE_SETTINGS
 from ..core.content_intents import choose_primary_intent_slug, to_public_post_segment
+from ..core.public_alias import resolve_public_display_name
 
 router = APIRouter()
 
@@ -383,7 +384,15 @@ def _generate_post_seo_data(db_post, request, db: Session) -> Dict:
         "type": "article",
         "published_time": db_post.published_at.isoformat() if db_post.published_at else None,
         "modified_time": db_post.updated_at.isoformat() if db_post.updated_at else None,
-        "author": db_post.author.username if db_post.author else None,
+        "author": (
+            resolve_public_display_name(
+                getattr(db_post.author, "display_name", None),
+                seed_value=getattr(db_post.author, "id", None),
+                fallback=site_title,
+            )
+            if db_post.author
+            else None
+        ),
         "section": ", ".join([cat.name for cat in db_post.categories]) if db_post.categories else None,
         "tags": [tag.name for tag in db_post.tags] if db_post.tags else []
     }
