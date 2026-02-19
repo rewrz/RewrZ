@@ -8,8 +8,10 @@ class MultiFormatInteractions {
     constructor() {
         this.reactionSummaryCache = new Map();
         this.reactionWidgetsBound = new WeakSet();
+        this.openReactionMenus = new Map();
         this.speechSynthesis = window.speechSynthesis || null;
         this.speaking = false;
+        this.repositionReactionMenus = this.repositionReactionMenus.bind(this);
         this.init();
     }
 
@@ -85,11 +87,89 @@ class MultiFormatInteractions {
         document.body.dataset.reactionMenuDismissBound = '1';
 
         document.addEventListener('click', (event) => {
-            document.querySelectorAll('[data-reaction-menu]').forEach((menu) => {
-                const owner = menu.closest('[data-reaction-widget]');
-                if (owner && owner.contains(event.target)) return;
-                menu.classList.add('hidden');
-            });
+            if (event.target && event.target.closest('[data-reaction-widget]')) return;
+            this.closeAllReactionMenus();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                this.closeAllReactionMenus();
+            }
+        });
+
+        window.addEventListener('resize', this.repositionReactionMenus, { passive: true });
+        window.addEventListener('scroll', this.repositionReactionMenus, { passive: true, capture: true });
+    }
+
+    closeReactionMenu(menu) {
+        if (!menu) return;
+        menu.classList.add('hidden');
+        menu.dataset.open = '0';
+        menu.style.left = '';
+        menu.style.top = '';
+        menu.style.visibility = '';
+        this.openReactionMenus.delete(menu);
+    }
+
+    closeAllReactionMenus(exceptMenu = null) {
+        document.querySelectorAll('[data-reaction-menu]').forEach((menu) => {
+            if (exceptMenu && menu === exceptMenu) return;
+            this.closeReactionMenu(menu);
+        });
+    }
+
+    positionReactionMenu(menu, toggle) {
+        if (!menu || !toggle) return;
+        const toggleRect = toggle.getBoundingClientRect();
+        const margin = 10;
+        const menuRect = menu.getBoundingClientRect();
+        const menuWidth = Math.min(menuRect.width || 300, window.innerWidth - margin * 2);
+        const menuHeight = menuRect.height || 92;
+
+        let left = toggleRect.left + (toggleRect.width / 2) - (menuWidth / 2);
+        left = Math.max(margin, Math.min(left, window.innerWidth - menuWidth - margin));
+
+        let top = toggleRect.top - menuHeight - 8;
+        let placement = 'top';
+        if (top < margin) {
+            top = Math.min(window.innerHeight - menuHeight - margin, toggleRect.bottom + 8);
+            placement = 'bottom';
+        }
+
+        menu.style.left = `${Math.round(left)}px`;
+        menu.style.top = `${Math.round(top)}px`;
+        menu.dataset.placement = placement;
+    }
+
+    openReactionMenu(menu, toggle) {
+        if (!menu || !toggle) return;
+        this.closeAllReactionMenus(menu);
+        menu.classList.remove('hidden');
+        menu.dataset.open = '1';
+        menu.style.visibility = 'hidden';
+        this.positionReactionMenu(menu, toggle);
+        menu.style.visibility = 'visible';
+        this.openReactionMenus.set(menu, toggle);
+    }
+
+    toggleReactionMenu(menu, toggle) {
+        if (!menu || !toggle) return;
+        const isHidden = menu.classList.contains('hidden');
+        if (!isHidden) {
+            this.closeReactionMenu(menu);
+            return;
+        }
+        this.openReactionMenu(menu, toggle);
+    }
+
+    repositionReactionMenus() {
+        if (!this.openReactionMenus.size) return;
+        this.openReactionMenus.forEach((toggle, menu) => {
+            if (!document.body.contains(menu) || !document.body.contains(toggle) || menu.classList.contains('hidden')) {
+                this.openReactionMenus.delete(menu);
+                return;
+            }
+            this.positionReactionMenu(menu, toggle);
         });
     }
 
@@ -572,9 +652,10 @@ class MultiFormatInteractions {
         const likeCountNode = widget.querySelector('[data-like-count]');
         const likeIcon = widget.querySelector('[data-like-icon]');
         const viewerLiked = !!(summary.viewer && summary.viewer.liked);
+        const likeCount = Number(summary.like_count || 0);
         if (likeCountNode) {
-            likeCountNode.textContent = this.formatCompactCn(summary.like_count || 0);
-            likeCountNode.dataset.count = String(summary.like_count || 0);
+            likeCountNode.textContent = likeCount > 0 ? `+${this.formatCompactCn(likeCount)}` : '0';
+            likeCountNode.dataset.count = String(likeCount);
         }
         if (likeBtn) {
             likeBtn.classList.toggle('text-rose-600', viewerLiked);
@@ -594,9 +675,22 @@ class MultiFormatInteractions {
             node.dataset.count = String(value);
         });
 
+        const totalReactionCount = Number(summary.total_reaction_count || 0);
+        widget.querySelectorAll('[data-reaction-total]').forEach((node) => {
+            node.dataset.count = String(totalReactionCount);
+            if (totalReactionCount > 0) {
+                node.textContent = `+${this.formatCompactCn(totalReactionCount)}`;
+                node.classList.remove('hidden');
+            } else {
+                node.textContent = '+0';
+                node.classList.add('hidden');
+            }
+        });
+
         const viewerReaction = (summary.viewer && summary.viewer.reaction_type) ? summary.viewer.reaction_type : null;
         widget.querySelectorAll('[data-reaction-option]').forEach((btn) => {
             const selected = btn.dataset.reactionOption === viewerReaction;
+            btn.dataset.active = selected ? '1' : '0';
             btn.classList.toggle('bg-indigo-50', selected);
             btn.classList.toggle('text-indigo-700', selected);
             btn.classList.toggle('dark:bg-indigo-900/40', selected);
@@ -644,8 +738,9 @@ class MultiFormatInteractions {
             const menu = widget.querySelector('[data-reaction-menu]');
             if (menuToggle && menu) {
                 menuToggle.addEventListener('click', (event) => {
+                    event.preventDefault();
                     event.stopPropagation();
-                    menu.classList.toggle('hidden');
+                    this.toggleReactionMenu(menu, menuToggle);
                 });
             }
 
@@ -692,7 +787,7 @@ class MultiFormatInteractions {
                             this.reactionSummaryCache.set(cacheKey, payload.summary);
                             this.renderReactionWidget(widget, payload.summary);
                         }
-                        if (menu) menu.classList.add('hidden');
+                        if (menu) this.closeReactionMenu(menu);
                     } catch (error) {
                         this.showToast(error.message || '表态失败', 'error', 1300);
                     }

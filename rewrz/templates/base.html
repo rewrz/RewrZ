@@ -68,7 +68,7 @@
     
     <!-- 优化后的统一样式系统 -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/tailwind-optimized.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', path='css/unified-theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/unified-theme.css') }}?v=20260219-2">
     
     <style>
         /* 自定义字体定义 */
@@ -838,7 +838,7 @@
         });
      </script>
      <script type="module" src="{{ url_for('static', path='js/enhanced-theme-manager.js') }}?v=20260214-2"></script>
-     <script type="module" src="{{ url_for('static', path='js/multi-format-interactions.js') }}?v=20260219-1"></script>
+     <script type="module" src="{{ url_for('static', path='js/multi-format-interactions.js') }}?v=20260219-4"></script>
      <script type="module" src="{{ url_for('static', path='js/theme-sync.js') }}?v=20260219-1"></script>
      <script type="module" src="{{ url_for('static', path='js/ui-enhancements.js') }}"></script>
      {% block scripts %}{% endblock %}

@@ -72,7 +72,7 @@
                     <button
                         type="button"
                         data-reaction-like-btn
-                        class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs text-gray-600 transition hover:bg-rose-50 hover:text-rose-600 dark:text-gray-300 dark:hover:bg-rose-900/20 dark:hover:text-rose-300"
+                        class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm text-gray-600 transition hover:bg-rose-50 hover:text-rose-600 dark:text-gray-300 dark:hover:bg-rose-900/20 dark:hover:text-rose-300"
                     >
                         <i class="far fa-thumbs-up" data-like-icon></i>
                         <span>点赞</span>
@@ -82,21 +82,24 @@
                         <button
                             type="button"
                             data-reaction-menu-toggle
-                            class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs text-gray-600 transition hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-300 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-300"
+                            class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm text-gray-600 transition hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-300 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-300"
                         >
                             <i class="far fa-face-smile"></i>
                             <span>表态</span>
+                            <span data-reaction-total class="hidden text-xs font-semibold">+0</span>
                         </button>
                         <div
                             data-reaction-menu
-                            class="absolute left-0 top-full z-20 mt-1 hidden min-w-[168px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+                            class="reaction-float-menu fixed z-[120] hidden max-w-[92vw] rounded-2xl border border-pink-200/80 bg-white/95 p-2 shadow-2xl backdrop-blur-md dark:border-indigo-700/70 dark:bg-gray-900/95"
                         >
-                            <button type="button" data-reaction-option="funny" class="flex w-full items-center justify-between rounded-lg px-2 py-1 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-800"><span>😂 有趣</span><span data-reaction-count="funny">0</span></button>
-                            <button type="button" data-reaction-option="wow" class="flex w-full items-center justify-between rounded-lg px-2 py-1 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-800"><span>😮 惊讶</span><span data-reaction-count="wow">0</span></button>
-                            <button type="button" data-reaction-option="moved" class="flex w-full items-center justify-between rounded-lg px-2 py-1 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-800"><span>😢 感动</span><span data-reaction-count="moved">0</span></button>
-                            <button type="button" data-reaction-option="angry" class="flex w-full items-center justify-between rounded-lg px-2 py-1 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-800"><span>😡 生气</span><span data-reaction-count="angry">0</span></button>
-                            <button type="button" data-reaction-option="thinking" class="flex w-full items-center justify-between rounded-lg px-2 py-1 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-800"><span>🤔 思考</span><span data-reaction-count="thinking">0</span></button>
-                            <button type="button" data-reaction-option="salute" class="flex w-full items-center justify-between rounded-lg px-2 py-1 text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-800"><span>🫡 致敬</span><span data-reaction-count="salute">0</span></button>
+                            <div class="reaction-float-grid flex flex-wrap items-stretch gap-1.5">
+                                <button type="button" data-reaction-option="funny" class="reaction-chip group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium text-gray-600 transition duration-200 hover:-translate-y-0.5 hover:bg-indigo-50 hover:text-indigo-700 dark:text-gray-300 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-200"><span class="reaction-emoji text-2xl leading-none">😂</span><span class="leading-none">有趣</span><span class="text-[10px] leading-none text-gray-500 dark:text-gray-400" data-reaction-count="funny">0</span></button>
+                                <button type="button" data-reaction-option="wow" class="reaction-chip group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium text-gray-600 transition duration-200 hover:-translate-y-0.5 hover:bg-indigo-50 hover:text-indigo-700 dark:text-gray-300 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-200"><span class="reaction-emoji text-2xl leading-none">😮</span><span class="leading-none">惊讶</span><span class="text-[10px] leading-none text-gray-500 dark:text-gray-400" data-reaction-count="wow">0</span></button>
+                                <button type="button" data-reaction-option="moved" class="reaction-chip group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium text-gray-600 transition duration-200 hover:-translate-y-0.5 hover:bg-indigo-50 hover:text-indigo-700 dark:text-gray-300 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-200"><span class="reaction-emoji text-2xl leading-none">😢</span><span class="leading-none">感动</span><span class="text-[10px] leading-none text-gray-500 dark:text-gray-400" data-reaction-count="moved">0</span></button>
+                                <button type="button" data-reaction-option="angry" class="reaction-chip group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium text-gray-600 transition duration-200 hover:-translate-y-0.5 hover:bg-indigo-50 hover:text-indigo-700 dark:text-gray-300 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-200"><span class="reaction-emoji text-2xl leading-none">😡</span><span class="leading-none">生气</span><span class="text-[10px] leading-none text-gray-500 dark:text-gray-400" data-reaction-count="angry">0</span></button>
+                                <button type="button" data-reaction-option="thinking" class="reaction-chip group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium text-gray-600 transition duration-200 hover:-translate-y-0.5 hover:bg-indigo-50 hover:text-indigo-700 dark:text-gray-300 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-200"><span class="reaction-emoji text-2xl leading-none">🤔</span><span class="leading-none">思考</span><span class="text-[10px] leading-none text-gray-500 dark:text-gray-400" data-reaction-count="thinking">0</span></button>
+                                <button type="button" data-reaction-option="salute" class="reaction-chip group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium text-gray-600 transition duration-200 hover:-translate-y-0.5 hover:bg-indigo-50 hover:text-indigo-700 dark:text-gray-300 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-200"><span class="reaction-emoji text-2xl leading-none">🫡</span><span class="leading-none">致敬</span><span class="text-[10px] leading-none text-gray-500 dark:text-gray-400" data-reaction-count="salute">0</span></button>
+                            </div>
                         </div>
                     </div>
                 </div>

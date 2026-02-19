@@ -1424,3 +1424,61 @@ body.site-shell #mobile-nav-menu {
 .admin-login-page .login-input-wrapper input[type="password"].admin-login-input {
     padding-right: 2.9rem !important;
 }
+
+/* Reaction floating panel */
+.reaction-float-menu {
+    min-width: 280px;
+    width: max-content;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 24%, rgba(255, 255, 255, 0.8));
+    background:
+        radial-gradient(circle at 18% -15%, color-mix(in srgb, var(--color-primary) 24%, transparent), transparent 44%),
+        radial-gradient(circle at 85% 120%, color-mix(in srgb, #f472b6 20%, transparent), transparent 48%),
+        color-mix(in srgb, var(--color-card-bg) 94%, transparent);
+    box-shadow:
+        0 22px 44px -28px color-mix(in srgb, var(--color-primary) 52%, transparent),
+        0 10px 24px -18px rgba(8, 15, 45, 0.55);
+    backdrop-filter: blur(12px) saturate(1.1);
+    transform-origin: center bottom;
+    animation: reaction-pop-in 0.2s ease-out;
+}
+
+.reaction-float-menu[data-placement="bottom"] {
+    transform-origin: center top;
+}
+
+.reaction-chip {
+    border: 1px solid transparent;
+    background: color-mix(in srgb, var(--color-card-bg) 88%, transparent);
+    box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.reaction-chip:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+    box-shadow: 0 10px 16px -14px color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+
+.reaction-chip .reaction-emoji {
+    transition: transform 0.16s ease;
+    filter: drop-shadow(0 4px 6px rgba(15, 23, 42, 0.18));
+}
+
+.reaction-chip:hover .reaction-emoji {
+    transform: translateY(-2px) scale(1.14);
+}
+
+.reaction-chip[data-active="1"] {
+    border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 16%, var(--color-card-bg));
+    box-shadow: 0 10px 24px -16px color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
+
+@keyframes reaction-pop-in {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}

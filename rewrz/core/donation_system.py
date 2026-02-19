@@ -5,6 +5,8 @@
 """
 
 from typing import Dict, Optional
+from html import escape
+from urllib.parse import urlparse
 from sqlalchemy.orm import Session
 from ..crud import setting as crud_setting
 
@@ -35,6 +37,34 @@ class DonationSystem:
         if setting and "value" in setting.value:
             return setting.value["value"]
         return default
+
+    def _escape_text(self, value: str) -> str:
+        return escape(str(value or ""), quote=False)
+
+    def _escape_attr(self, value: str) -> str:
+        return escape(str(value or ""), quote=True)
+
+    def _sanitize_href(self, value: str) -> str:
+        raw = str(value or "").strip()
+        if not raw:
+            return ""
+        parsed = urlparse(raw)
+        if parsed.scheme in {"http", "https", "mailto"}:
+            return self._escape_attr(raw)
+        if not parsed.scheme and (raw.startswith("/") or raw.startswith("#") or raw.startswith("./") or raw.startswith("../")):
+            return self._escape_attr(raw)
+        return ""
+
+    def _sanitize_image_src(self, value: str) -> str:
+        raw = str(value or "").strip()
+        if not raw:
+            return ""
+        parsed = urlparse(raw)
+        if parsed.scheme in {"http", "https"}:
+            return self._escape_attr(raw)
+        if not parsed.scheme and (raw.startswith("/") or raw.startswith("./") or raw.startswith("../")):
+            return self._escape_attr(raw)
+        return ""
     
     def is_enabled(self) -> bool:
         """检查打赏功能是否启用"""
@@ -63,123 +93,159 @@ class DonationSystem:
     
     def _render_elegant_style(self) -> str:
         """优雅风格的打赏组件"""
-        has_qr = bool(self.settings['qr_code_url'])
-        has_link = bool(self.settings['link_url'])
-        link_text = self.settings['link_text'] or '支持作者'
-        
+        title = self._escape_text(self.settings.get("title", "支持作者"))
+        description = self._escape_text(self.settings.get("description", ""))
+        qr_code_url = self._sanitize_image_src(self.settings.get("qr_code_url", ""))
+        link_url = self._sanitize_href(self.settings.get("link_url", ""))
+        link_text = self._escape_text(self.settings.get("link_text") or "支持作者")
+
+        has_qr = bool(qr_code_url)
+        has_link = bool(link_url)
         if not has_qr and not has_link:
-            return ''  # 没有配置任何打赏方式
-        
-        html = f'''
-        <div class="donation-widget elegant-style">
-            <div class="donation-header">
-                <div class="donation-icon">
-                    <svg viewBox="0 0 24 24" class="heart-icon">
-                        <path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5 2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.04L12,21.35Z"/>
-                    </svg>
-                </div>
-                <h4 class="donation-title">{self.settings['title']}</h4>
-            </div>
-            <p class="donation-description">{self.settings['description']}</p>
-            <div class="donation-methods">
-        '''
-        
+            return ""
+
+        methods_html = []
         if has_qr:
-            html += f'''
-                <div class="donation-qr">
-                    <img src="{self.settings['qr_code_url']}" alt="打赏二维码" class="qr-code" loading="lazy">
-                    <span class="qr-hint">扫码支持</span>
-                </div>
-            '''
-        
+            methods_html.append(
+                f"""
+                <figure class="donation-qr-block">
+                    <img src="{qr_code_url}" alt="打赏二维码" class="donation-qr-image" loading="lazy">
+                    <figcaption class="donation-qr-hint">扫码赞赏</figcaption>
+                </figure>
+                """
+            )
         if has_link:
-            html += f'''
-                <div class="donation-link">
-                    <a href="{self.settings['link_url']}" target="_blank" rel="noopener" class="donation-button">
-                        <span>{link_text}</span>
-                    </a>
-                </div>
-            '''
-        
-        html += '</div></div>'
-        return html
-    
-    def _render_minimal_style(self) -> str:
-        """简洁风格的打赏组件"""
-        has_qr = bool(self.settings['qr_code_url'])
-        has_link = bool(self.settings['link_url'])
-        link_text = self.settings['link_text'] or '支持作者'
-        
-        if not has_qr and not has_link:
-            return ''
-        
-        html = f'''
-        <div class="donation-widget minimal-style">
-            <h4 class="donation-title">{self.settings['title']}</h4>
-            <div class="donation-methods">
-        '''
-        
-        if has_qr:
-            html += f'''
-                <div class="donation-qr">
-                    <img src="{self.settings['qr_code_url']}" alt="打赏二维码" class="qr-code" loading="lazy">
-                </div>
-            '''
-        
-        if has_link:
-            html += f'''
-                <div class="donation-link">
-                    <a href="{self.settings['link_url']}" target="_blank" rel="noopener" class="donation-button">
-                        {link_text}
-                    </a>
-                </div>
-            '''
-        
-        html += '</div></div>'
-        return html
-    
-    def _render_card_style(self) -> str:
-        """卡片风格的打赏组件"""
-        has_qr = bool(self.settings['qr_code_url'])
-        has_link = bool(self.settings['link_url'])
-        link_text = self.settings['link_text'] or '支持作者'
-        
-        if not has_qr and not has_link:
-            return ''
-        
-        html = f'''
-        <div class="donation-widget card-style">
-            <div class="donation-card">
-                <div class="card-header">
-                    <h4 class="donation-title">{self.settings['title']}</h4>
-                    <p class="donation-description">{self.settings['description']}</p>
-                </div>
-                <div class="card-body">
-        '''
-        
-        if has_qr:
-            html += f'''
-                    <div class="donation-qr">
-                        <img src="{self.settings['qr_code_url']}" alt="打赏二维码" class="qr-code" loading="lazy">
-                        <span class="qr-hint">扫码支持</span>
+            methods_html.append(
+                f"""
+                <a href="{link_url}" target="_blank" rel="noopener noreferrer nofollow" class="donation-action-btn">
+                    <span>{link_text}</span>
+                    <span class="donation-action-arrow" aria-hidden="true">↗</span>
+                </a>
+                """
+            )
+
+        return f"""
+        <div class="donation-widget donation-theme-elegant" data-donation-theme="elegant">
+            <div class="donation-shell">
+                <div class="donation-header">
+                    <div class="donation-mark" aria-hidden="true">赏</div>
+                    <div class="donation-copy">
+                        <p class="donation-kicker">Support Creator</p>
+                        <h4 class="donation-title">{title}</h4>
+                        <p class="donation-description">{description}</p>
                     </div>
-            '''
-        
-        if has_link:
-            html += f'''
-                    <div class="donation-link">
-                        <a href="{self.settings['link_url']}" target="_blank" rel="noopener" class="donation-button">
-                            {link_text}
-                        </a>
-                    </div>
-            '''
-        
-        html += '''
+                </div>
+                <div class="donation-methods">
+                    {''.join(methods_html)}
                 </div>
             </div>
         </div>
-        '''
-        return html
+        """
+    
+    def _render_minimal_style(self) -> str:
+        """简洁风格的打赏组件"""
+        title = self._escape_text(self.settings.get("title", "支持作者"))
+        description = self._escape_text(self.settings.get("description", ""))
+        qr_code_url = self._sanitize_image_src(self.settings.get("qr_code_url", ""))
+        link_url = self._sanitize_href(self.settings.get("link_url", ""))
+        link_text = self._escape_text(self.settings.get("link_text") or "支持作者")
+
+        has_qr = bool(qr_code_url)
+        has_link = bool(link_url)
+        if not has_qr and not has_link:
+            return ""
+
+        methods_html = []
+        if has_qr:
+            methods_html.append(
+                f"""
+                <figure class="donation-qr-block is-minimal">
+                    <img src="{qr_code_url}" alt="打赏二维码" class="donation-qr-image" loading="lazy">
+                    <figcaption class="donation-qr-hint">扫码</figcaption>
+                </figure>
+                """
+            )
+        if has_link:
+            methods_html.append(
+                f"""
+                <a href="{link_url}" target="_blank" rel="noopener noreferrer nofollow" class="donation-action-btn is-minimal">
+                    {link_text}
+                </a>
+                """
+            )
+
+        return f"""
+        <div class="donation-widget donation-theme-minimal" data-donation-theme="minimal">
+            <div class="donation-shell">
+                <div class="donation-header">
+                    <div class="donation-copy">
+                        <h4 class="donation-title">{title}</h4>
+                        <p class="donation-description">{description}</p>
+                    </div>
+                </div>
+                <div class="donation-methods">
+                    {''.join(methods_html)}
+                </div>
+            </div>
+        </div>
+        """
+    
+    def _render_card_style(self) -> str:
+        """卡片风格的打赏组件"""
+        title = self._escape_text(self.settings.get("title", "支持作者"))
+        description = self._escape_text(self.settings.get("description", ""))
+        qr_code_url = self._sanitize_image_src(self.settings.get("qr_code_url", ""))
+        link_url = self._sanitize_href(self.settings.get("link_url", ""))
+        link_text = self._escape_text(self.settings.get("link_text") or "支持作者")
+
+        has_qr = bool(qr_code_url)
+        has_link = bool(link_url)
+        if not has_qr and not has_link:
+            return ""
+
+        qr_html = ""
+        if has_qr:
+            qr_html = (
+                f"""
+                <figure class="donation-qr-block is-card">
+                    <img src="{qr_code_url}" alt="打赏二维码" class="donation-qr-image" loading="lazy">
+                    <figcaption class="donation-qr-hint">扫码支持作者</figcaption>
+                </figure>
+                """
+            )
+
+        link_html = ""
+        if has_link:
+            link_html = (
+                f"""
+                <a href="{link_url}" target="_blank" rel="noopener noreferrer nofollow" class="donation-action-btn is-card">
+                    <span>{link_text}</span>
+                    <span class="donation-action-arrow" aria-hidden="true">→</span>
+                </a>
+                """
+            )
+
+        card_shell_class = "donation-shell donation-card-shell"
+        if not has_qr:
+            card_shell_class += " is-no-qr"
+        if not has_link:
+            card_shell_class += " is-no-link"
+
+        return f"""
+        <div class="donation-widget donation-theme-card" data-donation-theme="card">
+            <div class="{card_shell_class}">
+                <div class="donation-card-main">
+                    <p class="donation-kicker">Creator Support</p>
+                    <h4 class="donation-title">{title}</h4>
+                    <p class="donation-description">{description}</p>
+                    {link_html}
+                </div>
+                <div class="donation-card-side">
+                    {qr_html}
+                </div>
+            </div>
+        </div>
+        """
     
     def get_position(self) -> str:
         """获取打赏组件显示位置"""
