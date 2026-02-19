@@ -8,6 +8,9 @@ class ThemeSync {
         this.syncInterval = null;
         this.lastSyncTime = null;
         this.isPolling = false;
+        this.currentHomepageMode = null;
+        this.syncPromise = null;
+        this.lastSettingsSignature = '';
         
         this.init();
     }
@@ -33,6 +36,11 @@ class ThemeSync {
     }
     
     async syncThemeSettings() {
+        if (this.syncPromise) {
+            return this.syncPromise;
+        }
+
+        this.syncPromise = (async () => {
         try {
             const response = await fetch('/api/v1/theme/sync');
             if (!response.ok) {
@@ -40,12 +48,37 @@ class ThemeSync {
             }
             
             const data = await response.json();
+            const atmosphereValue = data.atmosphere && data.atmosphere.value ? data.atmosphere.value : '';
+            const atmosphereEffects = data.atmosphere && Array.isArray(data.atmosphere.effects)
+                ? data.atmosphere.effects.join(',')
+                : '';
+            const backgroundType = data.background && data.background.type ? data.background.type : '';
+            const backgroundUrl = data.background && data.background.custom_url ? data.background.custom_url : '';
+            const signature = [
+                data.theme || '',
+                data.homepage_mode || '',
+                atmosphereValue,
+                atmosphereEffects,
+                backgroundType,
+                backgroundUrl,
+            ].join('|');
+
+            if (signature === this.lastSettingsSignature) {
+                return;
+            }
+
             this.applyThemeSettings(data);
+            this.lastSettingsSignature = signature;
             this.lastSyncTime = new Date(data.timestamp);
             
         } catch (error) {
             console.error('主题同步失败:', error);
+        } finally {
+            this.syncPromise = null;
         }
+        })();
+
+        return this.syncPromise;
     }
     
     applyThemeSettings(settings) {
@@ -142,6 +175,7 @@ class ThemeSync {
     
     applyHomepageMode(mode) {
         const body = document.body;
+        const normalizedMode = mode || 'default';
 
         const modeClassMap = {
             default: 'homepage-default',
@@ -149,49 +183,18 @@ class ThemeSync {
             fullscreen_video: 'homepage-fullscreen-video'
         };
 
+        if (this.currentHomepageMode === normalizedMode) {
+            return;
+        }
+
         // 清理已知的主页模式类
         Object.values(modeClassMap).forEach((cls) => body.classList.remove(cls));
         body.classList.remove('homepage-gallery', 'homepage-video');
 
         // 添加新的主页模式类
-        const normalizedClass = modeClassMap[mode] || `homepage-${String(mode || 'default').replace(/_/g, '-')}`;
+        const normalizedClass = modeClassMap[normalizedMode] || `homepage-${String(normalizedMode).replace(/_/g, '-')}`;
         body.classList.add(normalizedClass);
-        
-        // 如果在主页，重新加载内容
-        if (window.location.pathname === '/' || window.location.pathname === '/index') {
-            this.reloadHomepageContent(mode);
-        }
-    }
-    
-    async reloadHomepageContent(mode) {
-        try {
-            const response = await fetch(`/?mode=${mode}`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            
-            if (response.ok) {
-                const html = await response.text();
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                
-                // 更新主要内容区域
-                const newContent = doc.querySelector('.main-content');
-                const currentContent = document.querySelector('.main-content');
-                
-                if (newContent && currentContent) {
-                    currentContent.innerHTML = newContent.innerHTML;
-                    
-                    // 重新初始化相关功能
-                    if (window.multiFormatInteractions) {
-                        window.multiFormatInteractions.init();
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('主页内容重载失败:', error);
-        }
+        this.currentHomepageMode = normalizedMode;
     }
     
     startPolling() {

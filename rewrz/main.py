@@ -8,7 +8,8 @@ import os
 import hashlib
 import secrets
 from math import ceil
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse, quote
+from pathlib import Path
 from fastapi import FastAPI, Depends, HTTPException, Request, Response, Form, UploadFile, File, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
@@ -77,6 +78,7 @@ from .core.content_intents import (
     to_public_post_segment,
 )
 from .core.media_attachments import (
+    extract_image_urls,
     summarize_media_attachments,
     detect_media_flags,
     list_registered_media_attachment_keys,
@@ -115,6 +117,10 @@ app.mount("/media", StaticFiles(directory=settings.MEDIA_UPLOAD_DIR), name="medi
 
 # 配置Jinja2模板引擎（带自定义过滤器）
 templates = get_templates()
+
+_ARTICLE_FALLBACK_API_URL_DEFAULT = "https://www.loliapi.com/acg/"
+_ARTICLE_FALLBACK_LOCAL_DIR_DEFAULT = "rewrz/static/images/random"
+_SUPPORTED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif"}
 
 
 def _get_post_access_cookie_name(post_id: int) -> str:
@@ -247,6 +253,9 @@ def register_admin_routes():
         list_navigation_mode: str = Form("pagination"),
         related_posts_limit: int = Form(5), # 打赏功能相关参数之前的参数
         content_primary_mode: str = Form("markdown"),
+        article_card_fallback_source: str = Form("local"),
+        article_card_fallback_api_url: Optional[str] = Form(None),
+        article_card_fallback_local_dir: Optional[str] = Form(None),
         # 打赏功能相关参数
         donation_enabled: bool = Form(False),
         donation_title: str = Form('如果这篇文章对您有帮助，请考虑支持作者'),
@@ -273,6 +282,7 @@ def register_admin_routes():
             list_navigation_mode,
             related_posts_limit,
             content_primary_mode,
+            article_card_fallback_source, article_card_fallback_api_url, article_card_fallback_local_dir,
             # 打赏功能相关参数
             donation_enabled, donation_title, donation_description,
             donation_qr_code_url, donation_link_text, donation_link_url,
@@ -1703,6 +1713,140 @@ def _normalize_list_navigation_mode(raw_value: Any) -> str:
     return mode if mode in {"pagination", "infinite_scroll"} else "pagination"
 
 
+def _normalize_article_fallback_source(raw_value: Any) -> str:
+    source = str(raw_value or "local").strip().lower()
+    return source if source in {"local", "api"} else "local"
+
+
+def _resolve_article_fallback_local_dir(raw_value: Any) -> Optional[Path]:
+    raw_path = str(raw_value or "").strip()
+    if not raw_path:
+        raw_path = _ARTICLE_FALLBACK_LOCAL_DIR_DEFAULT
+
+    app_root = Path(__file__).resolve().parent
+    repo_root = app_root.parent
+    candidate = Path(raw_path).expanduser()
+    candidates: List[Path]
+
+    if candidate.is_absolute():
+        candidates = [candidate]
+    else:
+        candidates = [
+            repo_root / candidate,
+            app_root / candidate,
+        ]
+        if not raw_path.startswith("rewrz/") and not raw_path.startswith("rewrz\\"):
+            candidates.append(repo_root / "rewrz" / candidate)
+
+    for dir_path in candidates:
+        try:
+            resolved = dir_path.resolve()
+        except Exception:
+            continue
+        if resolved.exists() and resolved.is_dir():
+            return resolved
+    return None
+
+
+def _map_local_file_to_public_url(file_path: Path) -> Optional[str]:
+    app_root = Path(__file__).resolve().parent
+    static_root = (app_root / "static").resolve()
+    media_root = Path(settings.MEDIA_UPLOAD_DIR).resolve()
+
+    resolved = file_path.resolve()
+    try:
+        static_relative = resolved.relative_to(static_root)
+        return f"/static/{static_relative.as_posix()}"
+    except Exception:
+        pass
+
+    try:
+        media_relative = resolved.relative_to(media_root)
+        return f"/media/{media_relative.as_posix()}"
+    except Exception:
+        pass
+
+    return None
+
+
+def _collect_local_article_fallback_images(raw_dir: Any) -> List[str]:
+    directory = _resolve_article_fallback_local_dir(raw_dir)
+    if directory is None:
+        return []
+
+    image_urls: List[str] = []
+    try:
+        files = sorted(p for p in directory.rglob("*") if p.is_file())
+    except Exception:
+        return []
+
+    for image_file in files:
+        if image_file.suffix.lower() not in _SUPPORTED_IMAGE_EXTENSIONS:
+            continue
+        public_url = _map_local_file_to_public_url(image_file)
+        if public_url:
+            image_urls.append(public_url)
+    return image_urls
+
+
+def _build_seeded_remote_image_url(raw_api_url: Any, seed_value: str) -> str:
+    api_url = str(raw_api_url or "").strip()
+    if not api_url:
+        return ""
+
+    if "{seed}" in api_url:
+        return api_url.replace("{seed}", quote(seed_value, safe=""))
+
+    try:
+        parsed = urlparse(api_url)
+    except Exception:
+        return ""
+
+    if parsed.scheme not in {"http", "https"}:
+        return ""
+
+    query_items = parse_qsl(parsed.query, keep_blank_values=True)
+    query_items.append(("seed", seed_value))
+    rebuilt = parsed._replace(query=urlencode(query_items))
+    return urlunparse(rebuilt)
+
+
+def _resolve_article_archive_cover_url(
+    post: Post,
+    *,
+    fallback_source: str,
+    fallback_api_url: str,
+    fallback_local_images: List[str],
+) -> str:
+    featured_image_url = str(getattr(post, "featured_image_url", "") or "").strip()
+    if featured_image_url and featured_image_url != "None":
+        return featured_image_url
+
+    rendered_html = get_effective_content_html(
+        getattr(post, "content_markdown", ""),
+        getattr(post, "content_html", ""),
+    )
+    content_images = extract_image_urls(rendered_html, featured_image_url=featured_image_url, max_count=1)
+    if content_images:
+        return content_images[0]
+
+    seed_value = f"{getattr(post, 'id', 0)}-{getattr(post, 'slug', '')}"
+    if fallback_source == "api":
+        api_image = _build_seeded_remote_image_url(fallback_api_url, seed_value)
+        if api_image:
+            return api_image
+
+    if fallback_local_images:
+        stable_hash = hashlib.sha256(seed_value.encode("utf-8")).hexdigest()
+        index = int(stable_hash[:8], 16) % len(fallback_local_images)
+        return fallback_local_images[index]
+
+    if fallback_source != "api":
+        return _build_seeded_remote_image_url(fallback_api_url, seed_value)
+
+    return ""
+
+
 def _build_public_pagination(
     page: int,
     total_count: int,
@@ -1814,6 +1958,32 @@ async def homepage(request: Request, page: int = 1, append: int = 0, db: Session
     )
     offset = (page - 1) * homepage_posts_limit
     posts = crud_post.get_posts(db, skip=offset, limit=homepage_posts_limit, status="published")
+
+    # 首页时间轴封面：特色图 -> 正文首图 -> 随机二次元图（本地/在线）
+    fallback_source = _normalize_article_fallback_source(
+        get_page_config(db, "article_card_fallback_source", "local")
+    )
+    fallback_api_url = str(
+        get_page_config(db, "article_card_fallback_api_url", _ARTICLE_FALLBACK_API_URL_DEFAULT)
+        or _ARTICLE_FALLBACK_API_URL_DEFAULT
+    ).strip()
+    fallback_local_dir = get_page_config(db, "article_card_fallback_local_dir", _ARTICLE_FALLBACK_LOCAL_DIR_DEFAULT)
+    fallback_local_images = (
+        _collect_local_article_fallback_images(fallback_local_dir)
+        if fallback_source == "local"
+        else []
+    )
+    for post in posts:
+        setattr(
+            post,
+            "homepage_cover_url",
+            _resolve_article_archive_cover_url(
+                post,
+                fallback_source=fallback_source,
+                fallback_api_url=fallback_api_url,
+                fallback_local_images=fallback_local_images,
+            ),
+        )
     
     # 获取首页SEO元数据
     from .api.seo import _generate_homepage_seo_data
@@ -1826,6 +1996,7 @@ async def homepage(request: Request, page: int = 1, append: int = 0, db: Session
         "seo_data": seo_data,
         "pagination": pagination,
         "list_navigation_mode": list_navigation_mode,
+        "timeline_start_index": offset,
     })
 
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
@@ -1846,18 +2017,27 @@ async def format_page(request: Request, format_slug: str, page: int = 1, append:
     if format is None:
         raise HTTPException(status_code=404, detail="Format not found")
     page = max(1, int(page or 1))
+    canonical_format_slug = resolved_slug or format_slug
     archive_posts_limit = _resolve_posts_per_page(get_page_config(db, "archive_posts_limit", 20), 20, maximum=200)
     list_navigation_mode = _normalize_list_navigation_mode(get_page_config(db, "list_navigation_mode", "pagination"))
+    exclude_format_ids: List[int] = []
 
-    total_posts_count = db.execute(
-        select(func.count(Post.id)).where(
-            Post.formats.any(id=format.id),
-            Post.status == "published",
-            Post.published_at.isnot(None),
-            Post.post_type.in_(["post", "article"]),
-        )
-    ).scalar_one()
-    canonical_format_slug = resolved_slug or format_slug
+    # /formats/article 仅展示“标准文章”，排除带 micro/poem 身份的内容
+    if canonical_format_slug == "article":
+        for excluded_slug in ("micro", "poem"):
+            excluded_format = crud_format.get_format_by_slug(db, slug=excluded_slug)
+            if excluded_format and excluded_format.id != format.id:
+                exclude_format_ids.append(excluded_format.id)
+    count_query = select(func.count(Post.id)).where(
+        Post.formats.any(id=format.id),
+        Post.status == "published",
+        Post.published_at.isnot(None),
+        Post.post_type.in_(["post", "article"]),
+    )
+    for excluded_format_id in exclude_format_ids:
+        count_query = count_query.where(~Post.formats.any(id=excluded_format_id))
+
+    total_posts_count = db.execute(count_query).scalar_one()
     page, pagination = _build_public_pagination(
         page,
         total_posts_count,
@@ -1870,7 +2050,35 @@ async def format_page(request: Request, format_slug: str, page: int = 1, append:
         format_id=format.id,
         skip=offset,
         limit=archive_posts_limit,
+        exclude_format_ids=exclude_format_ids,
     )
+
+    # /formats/article 使用图文卡片：特色图 -> 正文首图 -> 随机二次元图
+    if canonical_format_slug == "article":
+        fallback_source = _normalize_article_fallback_source(
+            get_page_config(db, "article_card_fallback_source", "local")
+        )
+        fallback_api_url = str(
+            get_page_config(db, "article_card_fallback_api_url", _ARTICLE_FALLBACK_API_URL_DEFAULT)
+            or _ARTICLE_FALLBACK_API_URL_DEFAULT
+        ).strip()
+        fallback_local_dir = get_page_config(db, "article_card_fallback_local_dir", _ARTICLE_FALLBACK_LOCAL_DIR_DEFAULT)
+        fallback_local_images = (
+            _collect_local_article_fallback_images(fallback_local_dir)
+            if fallback_source == "local"
+            else []
+        )
+        for post in posts:
+            setattr(
+                post,
+                "archive_cover_url",
+                _resolve_article_archive_cover_url(
+                    post,
+                    fallback_source=fallback_source,
+                    fallback_api_url=fallback_api_url,
+                    fallback_local_images=fallback_local_images,
+                ),
+            )
     
     # 构建模板上下文（现在包含统一的设置数据）
     context = build_base_template_context(request)
@@ -2156,4 +2364,3 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
 # 添加设置加载中间件（在会话中间件之后）
 app.add_middleware(SettingsMiddleware)
-

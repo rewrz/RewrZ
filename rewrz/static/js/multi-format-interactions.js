@@ -244,20 +244,29 @@ class MultiFormatInteractions {
      * 初始化无限滚动
      */
     initInfiniteScroll() {
-        const hasLoader = !!document.querySelector('[data-infinite-loader="1"]');
+        const getLoader = () => document.querySelector('[data-infinite-loader="1"]');
+        const hasLoader = !!getLoader();
         if (!hasLoader) return;
 
-        // 优先使用 HTMX 原生触发，避免与自定义滚动监听重复触发导致闪烁/覆盖
-        if (window.htmx && typeof window.htmx.process === 'function') {
-            window.htmx.process(document.body);
-            return;
-        }
+        const hasHtmx = window.htmx && typeof window.htmx.process === 'function';
 
-        // HTMX 不可用时，使用最小回退逻辑
-        const getLoader = () => document.querySelector('[data-infinite-loader="1"]');
+        const processHtmxLoader = () => {
+            if (!hasHtmx) return;
+            document.querySelectorAll('[data-infinite-loader="1"]').forEach((loader) => {
+                if (!loader || loader.dataset.htmxProcessed === '1') return;
+                loader.dataset.htmxProcessed = '1';
+                window.htmx.process(loader);
+            });
+        };
+
+        // 优先尝试激活 HTMX loader（某些场景下仅依赖自动扫描可能不触发）
+        processHtmxLoader();
+
+        // 安全回退：HTMX 未加载或未触发时，使用 fetch 兜底继续加载
         const fallbackLoad = async () => {
             const loader = getLoader();
             if (!loader || loader.dataset.loading === '1') return;
+            if (loader.classList.contains('htmx-request')) return;
             const rect = loader.getBoundingClientRect();
             if (rect.top > window.innerHeight + 200) return;
 
@@ -281,7 +290,15 @@ class MultiFormatInteractions {
         const onScroll = () => { fallbackLoad(); };
         window.addEventListener('scroll', onScroll, { passive: true });
         window.addEventListener('resize', onScroll, { passive: true });
-        fallbackLoad();
+        document.body.addEventListener('htmx:afterSwap', () => {
+            processHtmxLoader();
+        });
+
+        if (hasHtmx) {
+            window.setTimeout(() => fallbackLoad(), 400);
+        } else {
+            fallbackLoad();
+        }
     }
 
     appendPosts(posts) {

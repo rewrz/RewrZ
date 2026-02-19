@@ -1,0 +1,92 @@
+{% set rendered_html = post | post_content_html %}
+{% set content_images = (rendered_html | extract_image_urls(post.featured_image_url)) if rendered_html else [] %}
+{% set has_featured_image = post.featured_image_url and post.featured_image_url != 'None' %}
+{% set post_url_value = post | post_url %}
+{% set content_text = post.excerpt if post.excerpt else (post | post_preview_text(240)) %}
+{% set published_text = post.published_at.strftime('%m月%d日 %H:%M') if post.published_at else post.created_at.strftime('%m月%d日 %H:%M') %}
+{% set profile_name = site_title if site_title else '博主' %}
+{% set avatar_letter = (profile_name[:1] if profile_name else 'R') %}
+
+{% set media_images = [] %}
+{% if has_featured_image %}
+    {% set _ = media_images.append(post.featured_image_url) %}
+{% endif %}
+{% for img in content_images[:8] %}
+    {% if img not in media_images %}
+        {% set _ = media_images.append(img) %}
+    {% endif %}
+{% endfor %}
+{% set display_images = media_images[:4] %}
+
+<article class="group overflow-hidden rounded-2xl border border-indigo-200/80 bg-white shadow-sm transition-all duration-300 hover:shadow-lg dark:border-indigo-700/50 dark:bg-gray-800">
+    <div class="flex gap-3 p-4 md:p-5">
+        <div class="mt-0.5 flex-shrink-0">
+            <a href="/" class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-sky-500 text-sm font-bold text-white ring-2 ring-indigo-100 dark:ring-indigo-900/60">
+                {{ avatar_letter }}
+            </a>
+        </div>
+
+        <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                <a href="/" class="font-semibold text-gray-900 hover:text-indigo-600 dark:text-white dark:hover:text-indigo-300">{{ profile_name }}</a>
+                <span class="text-gray-400">·</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">{{ published_text }}</span>
+                <a href="{{ post_url_value }}" class="ml-auto text-xs text-indigo-600 opacity-0 transition-opacity hover:underline group-hover:opacity-100 dark:text-indigo-300">查看详情</a>
+            </div>
+
+            {% if post.title and post.title.strip() %}
+            <h3 class="mt-2 text-base font-semibold leading-snug text-gray-900 dark:text-white">
+                <a href="{{ post_url_value }}" class="hover:text-indigo-600 dark:hover:text-indigo-300">{{ post.title }}</a>
+            </h3>
+            {% endif %}
+
+            {% if content_text %}
+            <p class="mt-2 whitespace-pre-line break-words text-[15px] leading-7 text-gray-700 dark:text-gray-200">
+                {{ content_text }}
+            </p>
+            {% endif %}
+
+            {% if display_images %}
+            <div class="mt-3 overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700">
+                {% if display_images|length == 1 %}
+                <a href="{{ post_url_value }}" class="block aspect-[16/10] overflow-hidden bg-gray-50 dark:bg-gray-900">
+                    <img src="{{ display_images[0] }}" alt="{{ post.title or '微博图片' }}" class="h-full w-full object-cover transition-transform duration-500 hover:scale-105" loading="lazy">
+                </a>
+                {% else %}
+                <div class="grid grid-cols-2 gap-[2px] bg-gray-200 dark:bg-gray-700">
+                    {% for img_url in display_images %}
+                    <a href="{{ post_url_value }}" class="relative block aspect-square overflow-hidden bg-gray-50 dark:bg-gray-900">
+                        <img src="{{ img_url }}" alt="{{ post.title or '微博图片' }}" class="h-full w-full object-cover transition-transform duration-500 hover:scale-105" loading="lazy">
+                        {% if loop.last and media_images|length > 4 %}
+                        <span class="absolute inset-0 flex items-center justify-center bg-black/45 text-sm font-semibold text-white">
+                            +{{ media_images|length - 4 }}
+                        </span>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2.5 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                <a href="{{ post_url_value }}" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <i class="far fa-comment-dots"></i>
+                    <span>评论</span>
+                </a>
+                <a href="{{ post_url_value }}" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <i class="fas fa-retweet"></i>
+                    <span>转发</span>
+                </a>
+                <a href="{{ post_url_value }}" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <i class="far fa-heart"></i>
+                    <span>收藏</span>
+                </a>
+                <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1">
+                    <i class="far fa-eye"></i>
+                    <span>{{ post.views_count or 0 }}</span>
+                </span>
+            </div>
+        </div>
+    </div>
+</article>

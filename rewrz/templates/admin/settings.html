@@ -300,6 +300,38 @@
                     </select>
                     <p class="text-sm text-gray-500 mt-1">决定文章/页面编辑器默认模式与保存字段。</p>
                 </div>
+                <div class="md:col-span-2 rounded-lg border border-purple-200 bg-purple-50/50 p-4">
+                    <h3 class="text-sm font-semibold text-purple-800">
+                        <i class="fas fa-image mr-2"></i>/formats/article 封面兜底图设置
+                    </h3>
+                    <p class="mt-1 text-sm text-purple-700">当文章没有特色图且正文无图片时，使用下方规则补图：特色图 -> 正文首图 -> 随机二次元图。</p>
+                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="article_card_fallback_source" class="block text-sm font-medium text-gray-700">随机图来源</label>
+                            <select id="article_card_fallback_source" name="article_card_fallback_source"
+                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                                <option value="local" {% if settings.article_card_fallback_source != 'api' %}selected{% endif %}>本地文件夹</option>
+                                <option value="api" {% if settings.article_card_fallback_source == 'api' %}selected{% endif %}>在线 API</option>
+                            </select>
+                        </div>
+                        <div id="article-card-fallback-api-wrap">
+                            <label for="article_card_fallback_api_url" class="block text-sm font-medium text-gray-700">在线 API 地址</label>
+                            <input type="text" id="article_card_fallback_api_url" name="article_card_fallback_api_url"
+                                   value="{{ settings.article_card_fallback_api_url if settings.article_card_fallback_api_url else 'https://www.loliapi.com/acg/' }}"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                   placeholder="可使用 {seed} 占位符，例如：https://example.com/image?seed={seed}">
+                            <p class="text-sm text-gray-500 mt-1">支持 `{seed}` 占位符；未使用时系统会自动拼接 seed 参数。</p>
+                        </div>
+                        <div id="article-card-fallback-local-wrap" class="md:col-span-2">
+                            <label for="article_card_fallback_local_dir" class="block text-sm font-medium text-gray-700">本地图片文件夹</label>
+                            <input type="text" id="article_card_fallback_local_dir" name="article_card_fallback_local_dir"
+                                   value="{{ settings.article_card_fallback_local_dir if settings.article_card_fallback_local_dir else 'rewrz/static/images/random' }}"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                   placeholder="例如：rewrz/static/images/random">
+                            <p class="text-sm text-gray-500 mt-1">建议填写 `rewrz/static` 或媒体目录下的路径，这样前台可直接访问。</p>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h3 class="text-sm font-medium text-blue-800 mb-2">
@@ -667,6 +699,9 @@
         const addSocialLinkBtn = document.getElementById('add-social-link');
         const socialLinksJsonInput = document.getElementById('social-links-json');
         const existingSocialLinks = {{ settings.social_links | tojson | safe }};
+        const articleCardFallbackSourceSelect = document.getElementById('article_card_fallback_source');
+        const articleCardFallbackApiWrap = document.getElementById('article-card-fallback-api-wrap');
+        const articleCardFallbackLocalWrap = document.getElementById('article-card-fallback-local-wrap');
 
         const SOCIAL_PLATFORM_META = {
             github: { label: 'GitHub', icon: 'fab fa-github', placeholder: 'https://github.com/yourname' },
@@ -874,6 +909,22 @@
         });
 
         bootstrapSocialLinks();
+
+        function updateArticleCardFallbackSettingVisibility() {
+            if (!articleCardFallbackSourceSelect) return;
+            const source = articleCardFallbackSourceSelect.value;
+            if (articleCardFallbackApiWrap) {
+                articleCardFallbackApiWrap.classList.toggle('hidden', source !== 'api');
+            }
+            if (articleCardFallbackLocalWrap) {
+                articleCardFallbackLocalWrap.classList.toggle('hidden', source !== 'local');
+            }
+        }
+
+        if (articleCardFallbackSourceSelect) {
+            articleCardFallbackSourceSelect.addEventListener('change', updateArticleCardFallbackSettingVisibility);
+            updateArticleCardFallbackSettingVisibility();
+        }
 
         // 后台路径配置管理
         const generateRandomPathBtn = document.getElementById('generate-random-path');

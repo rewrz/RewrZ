@@ -1,30 +1,8 @@
 {% if posts %}
+    {% set timeline_start = timeline_start_index if timeline_start_index is defined else 0 %}
     {% for post in posts %}
-    <article class="timeline-reveal relative mb-6 md:mb-8">
-        <div class="hidden md:flex items-center {{ 'justify-start' if loop.index0 % 2 == 0 else 'justify-end' }}">
-            <div class="timeline-node absolute left-1/2 z-10 h-4 w-4 -translate-x-1/2 rounded-full border-4 border-white dark:border-slate-900"></div>
-            <div class="w-5/12 {{ 'pr-8' if loop.index0 % 2 == 0 else 'pl-8' }}">
-                <div class="mb-2 text-sm text-gray-500 dark:text-gray-400 {{ 'text-right' if loop.index0 % 2 != 0 else 'text-left' }}">
-                    {{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}
-                </div>
-                <div class="timeline-card-shell p-4 md:p-5">
-                    {% include "components/timeline_card.html" %}
-                </div>
-            </div>
-        </div>
-
-        <div class="md:hidden flex items-start">
-            <div class="timeline-node absolute left-4 mt-2 h-3 w-3 -translate-x-1/2 rounded-full border-2 border-white dark:border-slate-900"></div>
-            <div class="ml-8 flex-1">
-                <div class="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                    {{ post.published_at.strftime('%m月%d日') if post.published_at else post.created_at.strftime('%m月%d日') }}
-                </div>
-                <div class="timeline-card-shell p-3.5">
-                    {% include "components/timeline_card.html" %}
-                </div>
-            </div>
-        </div>
-    </article>
+        {% set timeline_sequence_index = timeline_start + loop.index0 %}
+        {% include "components/homepage_timeline_item.html" %}
     {% endfor %}
 {% endif %}
 {% include "components/list_pagination.html" %}

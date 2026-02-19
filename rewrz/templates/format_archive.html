@@ -5,6 +5,7 @@
 {% block content %}
 {% set is_micro = format_slug == 'micro' %}
 {% set is_poem = format_slug == 'poem' %}
+{% set is_article = format_slug == 'article' %}
 
 <section class="py-8">
     <div class="container mx-auto max-w-6xl px-4">
@@ -25,6 +26,8 @@
                     <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">轻量表达与即时记录。媒体作为附件增强，不再决定内容类型。</p>
                     {% elif is_poem %}
                     <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">诗词歌赋等文学表达。支持图片、音频等附件增强阅读氛围。</p>
+                    {% elif is_article %}
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">仅展示标准文章，提供封面图、摘要与阅读元信息，便于连续阅读与检索。</p>
                     {% else %}
                     <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">长内容与结构化表达，适合深度阅读与归档检索。</p>
                     {% endif %}
@@ -57,9 +60,13 @@
                 {% if is_micro %}
                 <div class="mx-auto max-w-3xl space-y-5">
                     {% for post in posts %}
-                    <article class="rounded-2xl border border-indigo-200/70 bg-white/80 p-4 shadow-sm dark:border-indigo-700/40 dark:bg-gray-800/80">
-                        {% include "components/timeline_card.html" %}
-                    </article>
+                    {% include "components/micro_archive_card.html" %}
+                    {% endfor %}
+                </div>
+                {% elif is_article %}
+                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    {% for post in posts %}
+                    {% include "components/article_archive_card.html" %}
                     {% endfor %}
                 </div>
                 {% else %}

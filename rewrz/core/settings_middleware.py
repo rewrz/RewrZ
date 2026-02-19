@@ -63,6 +63,8 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                 
                 # 分页设置
                 "homepage_posts_limit", "archive_posts_limit", "search_results_limit", "related_posts_limit", "list_navigation_mode",
+                # /formats/article 图文卡片兜底图设置
+                "article_card_fallback_source", "article_card_fallback_api_url", "article_card_fallback_local_dir",
                 
                 # 打赏功能设置
                 "donation_enabled", "donation_title", "donation_description",
@@ -111,6 +113,14 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                     "search_results_limit": all_settings.get("search_results_limit", 15),
                     "related_posts_limit": all_settings.get("related_posts_limit", 5),
                     "list_navigation_mode": all_settings.get("list_navigation_mode", "pagination"),
+                },
+                "article_cards": {
+                    "fallback_source": all_settings.get("article_card_fallback_source", "local"),
+                    "fallback_api_url": all_settings.get(
+                        "article_card_fallback_api_url",
+                        "https://www.loliapi.com/acg/",
+                    ),
+                    "fallback_local_dir": all_settings.get("article_card_fallback_local_dir", "rewrz/static/images/random"),
                 },
                 "donation": {
                     "enabled": all_settings.get("donation_enabled", False),

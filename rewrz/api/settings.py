@@ -71,6 +71,9 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "search_results_limit": get_setting_value("search_results_limit", 15),
         "related_posts_limit": get_setting_value("related_posts_limit", 5),
         "list_navigation_mode": get_setting_value("list_navigation_mode", "pagination"),
+        "article_card_fallback_source": get_setting_value("article_card_fallback_source", "local"),
+        "article_card_fallback_api_url": get_setting_value("article_card_fallback_api_url", "https://www.loliapi.com/acg/"),
+        "article_card_fallback_local_dir": get_setting_value("article_card_fallback_local_dir", "rewrz/static/images/random"),
         "content_primary_mode": get_setting_value("content_primary_mode", "markdown"),
         "donation_enabled": get_setting_value("donation_enabled", False),
         "donation_title": get_setting_value("donation_title", '如果这篇文章对您有帮助，请考虑支持作者'),
@@ -131,6 +134,9 @@ async def update_admin_settings(
     list_navigation_mode: str = Form("pagination"),
     related_posts_limit: int = Form(5),
     content_primary_mode: str = Form("markdown"),
+    article_card_fallback_source: str = Form("local"),
+    article_card_fallback_api_url: Optional[str] = Form(None),
+    article_card_fallback_local_dir: Optional[str] = Form(None),
     # 打赏功能相关参数
     donation_enabled: bool = Form(False),
     donation_title: str = Form('如果这篇文章对您有帮助，请考虑支持作者'),
@@ -180,6 +186,15 @@ async def update_admin_settings(
     normalized_list_navigation_mode = (
         list_navigation_mode if list_navigation_mode in {"pagination", "infinite_scroll"} else "pagination"
     )
+    normalized_article_card_fallback_source = (
+        article_card_fallback_source if article_card_fallback_source in {"local", "api"} else "local"
+    )
+    normalized_article_card_fallback_api_url = (
+        (article_card_fallback_api_url or "https://www.loliapi.com/acg/").strip()
+    )
+    normalized_article_card_fallback_local_dir = (
+        (article_card_fallback_local_dir or "rewrz/static/images/random").strip()
+    )
 
     settings_to_update = {
         "site_title": site_title,
@@ -208,6 +223,9 @@ async def update_admin_settings(
         "search_results_limit": search_results_limit,
         "list_navigation_mode": normalized_list_navigation_mode,
         "related_posts_limit": related_posts_limit,
+        "article_card_fallback_source": normalized_article_card_fallback_source,
+        "article_card_fallback_api_url": normalized_article_card_fallback_api_url,
+        "article_card_fallback_local_dir": normalized_article_card_fallback_local_dir,
         "content_primary_mode": content_primary_mode if content_primary_mode in {"markdown", "html"} else "markdown",
         "donation_enabled": donation_enabled,
         "donation_title": donation_title,

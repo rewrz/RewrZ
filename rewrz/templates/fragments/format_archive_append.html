@@ -1,12 +1,17 @@
 {% set is_micro = format_slug == 'micro' %}
+{% set is_article = format_slug == 'article' %}
 
 {% if posts %}
     {% if is_micro %}
     <div class="mx-auto max-w-3xl space-y-5">
         {% for post in posts %}
-        <article class="rounded-2xl border border-indigo-200/70 bg-white/80 p-4 shadow-sm dark:border-indigo-700/40 dark:bg-gray-800/80">
-            {% include "components/timeline_card.html" %}
-        </article>
+        {% include "components/micro_archive_card.html" %}
+        {% endfor %}
+    </div>
+    {% elif is_article %}
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {% for post in posts %}
+        {% include "components/article_archive_card.html" %}
         {% endfor %}
     </div>
     {% else %}

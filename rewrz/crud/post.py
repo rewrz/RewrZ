@@ -232,15 +232,28 @@ def get_posts_by_category(db: Session, category_id: int, skip: int = 0, limit: i
     _attach_views_metrics(db, posts)
     return posts
 
-def get_posts_by_format(db: Session, format_id: int, skip: int = 0, limit: int = 100):
+def get_posts_by_format(
+    db: Session,
+    format_id: int,
+    skip: int = 0,
+    limit: int = 100,
+    exclude_format_ids: Optional[List[int]] = None,
+):
     """根据格式ID获取文章列表，仅返回已发布的文章"""
-    posts = db.execute(
+    query = (
         select(Post)
         .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
         .filter(Post.formats.any(id=format_id))
         .filter(Post.status == "published")
         .filter(Post.published_at.isnot(None))
         .filter(Post.post_type.in_(["post", "article"]))
+    )
+    for excluded_id in sorted({int(fid) for fid in (exclude_format_ids or []) if fid is not None}):
+        if excluded_id == format_id:
+            continue
+        query = query.filter(~Post.formats.any(id=excluded_id))
+    posts = db.execute(
+        query
         .order_by(Post.published_at.desc())
         .offset(skip)
         .limit(limit)
