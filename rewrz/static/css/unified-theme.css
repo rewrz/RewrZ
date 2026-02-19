@@ -56,7 +56,7 @@ body.site-shell::before {
     width: clamp(150px, 20vw, 230px);
     aspect-ratio: 1;
     border-radius: 1.2rem;
-    background: linear-gradient(155deg, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0.03)), url('/static/images/bg/1.jpg') center/cover;
+    background: linear-gradient(155deg, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0.03)), url('/static/images/anime/random/random-04.svg') center/cover;
     box-shadow: var(--ui-shadow-card);
     opacity: 0.28;
     filter: saturate(1.08);
@@ -319,7 +319,7 @@ body.admin-app {
     aspect-ratio: 1;
     border-radius: 1rem;
     border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
-    background: linear-gradient(145deg, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0.03)), url('/static/images/bg/2.jpg') center/cover;
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0.03)), url('/static/images/anime/random/random-02.svg') center/cover;
     box-shadow: var(--ui-shadow-card);
     opacity: 0.2;
     z-index: 10;

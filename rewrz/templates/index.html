@@ -33,6 +33,13 @@
 {% set current_homepage_mode = homepage_mode or 'default' %}
 {% set gallery_images = homepage_background_image_url.split('\n') if homepage_background_image_url else [] %}
 {% set gallery_images = gallery_images | map('trim') | reject('equalto', '') | list %}
+{% set profile = site_profile if site_profile is defined and site_profile else {} %}
+{% set profile_name = profile.display_name if profile.display_name else site_title %}
+{% set profile_bio = profile.bio if profile.bio else (tagline or '记录生活、灵感与创作瞬间。') %}
+{% set profile_avatar = profile.avatar_url if profile.avatar_url else '/static/images/default-avatar.png' %}
+{% set profile_cover = profile.cover_url if profile.cover_url else '/static/images/anime/covers/home-default.svg' %}
+{% set profile_website = profile.website if profile.website else '' %}
+{% set profile_public_email = profile.public_email if profile.public_email else '' %}
 
 <div class="main-content">
 {% if current_homepage_mode == 'fullscreen_gallery' %}
@@ -43,7 +50,7 @@
             <div class="hero-gallery-slide {% if loop.first %}is-active{% endif %}" style="background-image: url('{{ image_url }}');"></div>
             {% endfor %}
         {% else %}
-            <div class="hero-gallery-slide is-active" style="background-image: url('/static/images/bg/1.jpg');"></div>
+            <div class="hero-gallery-slide is-active" style="background-image: url('/static/images/anime/covers/home-default.svg');"></div>
         {% endif %}
     </div>
     <div class="relative z-10 flex min-h-[calc(100vh-5rem)] items-center justify-center bg-black/45 px-4">
@@ -78,32 +85,81 @@
 
 <section class="px-3 pb-8 pt-6 md:px-6 md:pt-10">
     <div class="container mx-auto max-w-6xl space-y-6">
-        <div class="hero-surface p-4 md:p-7">
-            <div class="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-                <div class="space-y-4">
-                    <div class="flex flex-wrap gap-2">
-                        <span class="anime-chip"><i class="fas fa-magic"></i> 主题联动</span>
-                        <span class="anime-chip"><i class="fas fa-bolt"></i> HTMX 驱动</span>
-                        <span class="anime-chip"><i class="fas fa-heart"></i> 二次元美学</span>
+        <div class="hero-surface overflow-hidden p-0">
+            <div class="relative">
+                <img src="{{ profile_cover }}" alt="站点封面" class="h-44 w-full object-cover md:h-56">
+                <div class="absolute inset-0 {% if current_homepage_mode == 'fullscreen_video' %}bg-gradient-to-r from-black/75 via-slate-900/70 to-black/25{% elif current_homepage_mode == 'fullscreen_gallery' %}bg-gradient-to-r from-indigo-900/70 via-fuchsia-900/40 to-cyan-900/30{% else %}bg-gradient-to-r from-slate-900/70 via-slate-800/55 to-slate-700/35{% endif %}"></div>
+                <div class="absolute -bottom-10 left-6 h-20 w-20 overflow-hidden rounded-2xl border-4 border-white shadow-xl md:h-24 md:w-24">
+                    <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="h-full w-full object-cover">
+                </div>
+            </div>
+            <div class="grid gap-5 px-5 pb-5 pt-12 md:grid-cols-[1.3fr_0.7fr] md:px-7 md:pb-7">
+                <div class="space-y-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="anime-chip"><i class="fas fa-user-astronaut"></i> 个人主页</span>
+                        <span class="anime-chip"><i class="fas fa-layer-group"></i> 模式：{{ '全屏画廊' if current_homepage_mode == 'fullscreen_gallery' else ('全屏视频' if current_homepage_mode == 'fullscreen_video' else '默认时间轴') }}</span>
                     </div>
-                    <h2 class="font-display text-3xl font-bold leading-tight md:text-5xl">
-                        {{ site_title }}
+                    <h2 class="font-display text-3xl font-bold leading-tight text-gray-900 dark:text-white md:text-5xl">
+                        {{ profile_name }}
                     </h2>
-                    <p class="text-sm md:text-base text-gray-600 dark:text-gray-300 max-w-2xl">
-                        {{ tagline or '记录生活、灵感与创作瞬间。' }}
-                    </p>
-                    <div class="flex flex-wrap items-center gap-3 text-xs md:text-sm">
-                        <span class="px-3 py-1.5 rounded-full bg-white/70 dark:bg-slate-700/70 border border-gray-200 dark:border-slate-600">
-                            当前时间线共 {{ pagination.total_count if pagination else (posts|length if posts else 0) }} 条内容
+                    <p class="max-w-2xl text-sm text-gray-600 dark:text-gray-300 md:text-base">{{ profile_bio }}</p>
+                    <div class="flex flex-wrap items-center gap-2 text-xs md:text-sm">
+                        <span class="rounded-full border border-gray-200 bg-white/75 px-3 py-1.5 dark:border-slate-600 dark:bg-slate-700/70">
+                            时间线 {{ pagination.total_count if pagination else (posts|length if posts else 0) }} 条
                         </span>
-                        <a href="/archives" class="px-3 py-1.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
+                        {% if profile_website %}
+                        <a href="{{ profile_website }}" target="_blank" rel="noopener" class="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-600/60 dark:bg-indigo-900/30 dark:text-indigo-300">
+                            <i class="fas fa-link mr-1"></i>个人网站
+                        </a>
+                        {% endif %}
+                        {% if profile_public_email %}
+                        <a href="mailto:{{ profile_public_email }}" class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-700/60 dark:bg-emerald-900/30 dark:text-emerald-300">
+                            <i class="fas fa-envelope mr-1"></i>联系邮箱
+                        </a>
+                        {% endif %}
+                        <a href="/archives" class="rounded-full bg-indigo-600 px-3 py-1.5 text-white transition hover:bg-indigo-700">
                             浏览归档
                         </a>
                     </div>
+                    {% if social_links and social_links | length > 0 %}
+                    <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                        {% for link in social_links %}
+                            {% set social_icon = (link.icon | fa_compat) if link.icon else 'fas fa-link' %}
+                            {% set social_icon_lower = social_icon | lower %}
+                            {% set social_label = '站外链接' %}
+                            {% if 'github' in social_icon_lower %}{% set social_label = 'GitHub' %}{% endif %}
+                            {% if 'weibo' in social_icon_lower %}{% set social_label = '微博' %}{% endif %}
+                            {% if 'zhihu' in social_icon_lower %}{% set social_label = '知乎' %}{% endif %}
+                            {% if 'x-twitter' in social_icon_lower or 'twitter' in social_icon_lower %}{% set social_label = 'X / Twitter' %}{% endif %}
+                            {% if 'youtube' in social_icon_lower %}{% set social_label = 'YouTube' %}{% endif %}
+                            {% if 'discord' in social_icon_lower %}{% set social_label = 'Discord' %}{% endif %}
+                            {% if 'telegram' in social_icon_lower %}{% set social_label = 'Telegram' %}{% endif %}
+                            {% if 'qq' in social_icon_lower %}{% set social_label = 'QQ' %}{% endif %}
+                            {% if 'weixin' in social_icon_lower %}{% set social_label = '微信' %}{% endif %}
+                            {% if 'envelope' in social_icon_lower %}{% set social_label = '邮箱' %}{% endif %}
+                            {% if 'rss' in social_icon_lower %}{% set social_label = 'RSS' %}{% endif %}
+                            {% if 'globe' in social_icon_lower %}{% set social_label = '个人网站' %}{% endif %}
+                            <a href="{{ link.url }}"
+                               class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/85 px-2.5 py-1.5 text-slate-600 transition hover:border-indigo-300 hover:text-indigo-700 dark:border-slate-600 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:border-indigo-500 dark:hover:text-indigo-300"
+                               target="_blank"
+                               rel="noopener"
+                               title="{{ link.url }}">
+                                <i class="{{ social_icon }}"></i>
+                                <span>{{ social_label }}</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
-                <div class="relative">
-                    <img src="/static/images/bg/1.jpg" alt="二次元装饰图" class="hero-anime-thumb w-full object-cover max-h-[290px]">
-                    <img src="/static/images/bg/2.jpg" alt="二次元装饰图" class="absolute -bottom-4 -right-3 h-20 w-20 rounded-2xl object-cover border border-white/70 shadow-xl md:h-28 md:w-28">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="rounded-2xl border border-white/70 bg-white/80 p-3 text-center shadow-sm dark:border-slate-600/80 dark:bg-slate-800/80">
+                        <div class="text-xl font-bold text-slate-900 dark:text-white">{{ pagination.total_count if pagination else (posts|length if posts else 0) }}</div>
+                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">已发布内容</div>
+                    </div>
+                    <div class="rounded-2xl border border-white/70 bg-white/80 p-3 text-center shadow-sm dark:border-slate-600/80 dark:bg-slate-800/80">
+                        <div class="text-xl font-bold text-slate-900 dark:text-white">{{ pagination.current_page if pagination else 1 }}</div>
+                        <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">当前页</div>
+                    </div>
                 </div>
             </div>
         </div>

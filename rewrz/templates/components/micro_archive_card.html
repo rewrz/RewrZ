@@ -4,8 +4,10 @@
 {% set post_url_value = post | post_url %}
 {% set content_text = post.excerpt if post.excerpt else (post | post_preview_text(240)) %}
 {% set published_text = post.published_at.strftime('%m月%d日 %H:%M') if post.published_at else post.created_at.strftime('%m月%d日 %H:%M') %}
-{% set profile_name = site_title if site_title else '博主' %}
-{% set avatar_letter = (profile_name[:1] if profile_name else 'R') %}
+{% set fallback_profile_name = format_profile.display_name if format_profile is defined and format_profile and format_profile.display_name else (site_title if site_title else '博主') %}
+{% set profile_name = post.author_display_name if post.author_display_name is defined and post.author_display_name else fallback_profile_name %}
+{% set fallback_avatar_url = format_profile.avatar_url if format_profile is defined and format_profile and format_profile.avatar_url else '/static/images/default-avatar.png' %}
+{% set profile_avatar_url = post.author_avatar_url if post.author_avatar_url is defined and post.author_avatar_url else fallback_avatar_url %}
 
 {% set media_images = [] %}
 {% if has_featured_image %}
@@ -21,8 +23,8 @@
 <article class="group overflow-hidden rounded-2xl border border-indigo-200/80 bg-white shadow-sm transition-all duration-300 hover:shadow-lg dark:border-indigo-700/50 dark:bg-gray-800">
     <div class="flex gap-3 p-4 md:p-5">
         <div class="mt-0.5 flex-shrink-0">
-            <a href="/" class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-sky-500 text-sm font-bold text-white ring-2 ring-indigo-100 dark:ring-indigo-900/60">
-                {{ avatar_letter }}
+            <a href="/" class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full ring-2 ring-indigo-100 dark:ring-indigo-900/60">
+                <img src="{{ profile_avatar_url }}" alt="{{ profile_name }}" class="h-full w-full object-cover" loading="lazy">
             </a>
         </div>
 

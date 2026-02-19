@@ -53,21 +53,50 @@
                 <label for="admin_email" class="block text-sm font-medium text-gray-700">管理员电子邮箱</label>
                 <input type="email" id="admin_email" name="admin_email" value="{{ settings.admin_email }}"
                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                <p class="mt-1 text-xs text-gray-500">仅用于后台登录与安全通知，不会在前台公开。</p>
+            </div>
+            <div>
+                <label for="public_contact_email" class="block text-sm font-medium text-gray-700">公开联系邮箱</label>
+                <input type="email" id="public_contact_email" name="public_contact_email" value="{{ settings.public_contact_email }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="contact@example.com">
+                <p class="mt-1 text-xs text-gray-500">前台可见，用于读者联系，不影响管理员登录。</p>
             </div>
             <div>
                 <label for="site_logo_light" class="block text-sm font-medium text-gray-700">网站 Logo (亮色)</label>
                 <input type="text" id="site_logo_light" name="site_logo_light" value="{{ settings.site_logo_light }}"
                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="图片URL">
+                <div class="mt-2 flex items-center gap-2">
+                    <input type="file" id="upload_site_logo_light_file" accept="image/*" class="block w-full text-xs text-gray-500">
+                    <button type="button" id="upload_site_logo_light_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                </div>
             </div>
             <div>
                 <label for="site_logo_dark" class="block text-sm font-medium text-gray-700">网站 Logo (暗色)</label>
                 <input type="text" id="site_logo_dark" name="site_logo_dark" value="{{ settings.site_logo_dark }}"
                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="图片URL">
+                <div class="mt-2 flex items-center gap-2">
+                    <input type="file" id="upload_site_logo_dark_file" accept="image/*" class="block w-full text-xs text-gray-500">
+                    <button type="button" id="upload_site_logo_dark_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                </div>
             </div>
             <div>
                 <label for="favicon" class="block text-sm font-medium text-gray-700">网站 Favicon</label>
                 <input type="text" id="favicon" name="favicon" value="{{ settings.favicon }}"
                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder=".ico 或 .png 文件URL">
+                <div class="mt-2 flex items-center gap-2">
+                    <input type="file" id="upload_favicon_file" accept="image/*,.ico" class="block w-full text-xs text-gray-500">
+                    <button type="button" id="upload_favicon_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                </div>
+            </div>
+            <div>
+                <label for="site_cover_url" class="block text-sm font-medium text-gray-700">站点资料卡封面</label>
+                <input type="text" id="site_cover_url" name="site_cover_url" value="{{ settings.site_cover_url }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="用于首页与聚合页头部卡片">
+                <p class="mt-1 text-xs text-gray-500">不填时会跟随首页模式自动选择默认封面。</p>
+                <div class="mt-2 flex items-center gap-2">
+                    <input type="file" id="upload_site_cover_file" accept="image/*" class="block w-full text-xs text-gray-500">
+                    <button type="button" id="upload_site_cover_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                </div>
             </div>
         </div>
     </div>
@@ -302,9 +331,9 @@
                 </div>
                 <div class="md:col-span-2 rounded-lg border border-purple-200 bg-purple-50/50 p-4">
                     <h3 class="text-sm font-semibold text-purple-800">
-                        <i class="fas fa-image mr-2"></i>/formats/article 封面兜底图设置
+                        <i class="fas fa-image mr-2"></i>全局列表封面兜底图设置
                     </h3>
-                    <p class="mt-1 text-sm text-purple-700">当文章没有特色图且正文无图片时，使用下方规则补图：特色图 -> 正文首图 -> 随机二次元图。</p>
+                    <p class="mt-1 text-sm text-purple-700">当列表内容缺少封面图时，统一使用下方规则补图：特色图 -> 正文首图 -> 随机二次元图。</p>
                     <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="article_card_fallback_source" class="block text-sm font-medium text-gray-700">随机图来源</label>
@@ -325,9 +354,9 @@
                         <div id="article-card-fallback-local-wrap" class="md:col-span-2">
                             <label for="article_card_fallback_local_dir" class="block text-sm font-medium text-gray-700">本地图片文件夹</label>
                             <input type="text" id="article_card_fallback_local_dir" name="article_card_fallback_local_dir"
-                                   value="{{ settings.article_card_fallback_local_dir if settings.article_card_fallback_local_dir else 'rewrz/static/images/random' }}"
+                                   value="{{ settings.article_card_fallback_local_dir if settings.article_card_fallback_local_dir else 'rewrz/static/images/anime/random' }}"
                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                                   placeholder="例如：rewrz/static/images/random">
+                                   placeholder="例如：rewrz/static/images/anime/random">
                             <p class="text-sm text-gray-500 mt-1">建议填写 `rewrz/static` 或媒体目录下的路径，这样前台可直接访问。</p>
                         </div>
                     </div>
@@ -693,6 +722,9 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        const adminPath = '{{ request.state.admin_path }}';
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+
         // Social Links Management
         const socialLinksContainer = document.getElementById('social-links-container');
         const socialLinkTemplate = document.getElementById('social-link-template');
@@ -925,6 +957,56 @@
             articleCardFallbackSourceSelect.addEventListener('change', updateArticleCardFallbackSettingVisibility);
             updateArticleCardFallbackSettingVisibility();
         }
+
+        function getCsrfToken() {
+            return csrfInput ? csrfInput.value : '';
+        }
+
+        async function uploadSiteAsset(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('title', file.name || 'site-asset');
+            formData.append('alt_text', '站点资源');
+
+            const response = await fetch(`${adminPath}/media/upload`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-CSRF-Token': getCsrfToken() },
+                body: formData
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.detail || '上传失败');
+            }
+            return response.json();
+        }
+
+        function bindSiteAssetUpload(fileInputId, buttonId, targetInputId, successMessage) {
+            const fileInput = document.getElementById(fileInputId);
+            const button = document.getElementById(buttonId);
+            const targetInput = document.getElementById(targetInputId);
+            if (!fileInput || !button || !targetInput) return;
+
+            button.addEventListener('click', async () => {
+                const file = fileInput.files && fileInput.files[0];
+                if (!file) {
+                    window.adminNotify('请先选择文件。', 'warning');
+                    return;
+                }
+                try {
+                    const data = await uploadSiteAsset(file);
+                    targetInput.value = data.url || '';
+                    window.adminNotify(successMessage, 'success');
+                } catch (error) {
+                    window.adminNotify(error.message || '上传失败。', 'error');
+                }
+            });
+        }
+
+        bindSiteAssetUpload('upload_site_logo_light_file', 'upload_site_logo_light_btn', 'site_logo_light', '亮色 Logo 已上传并填充。');
+        bindSiteAssetUpload('upload_site_logo_dark_file', 'upload_site_logo_dark_btn', 'site_logo_dark', '暗色 Logo 已上传并填充。');
+        bindSiteAssetUpload('upload_favicon_file', 'upload_favicon_btn', 'favicon', 'Favicon 已上传并填充。');
+        bindSiteAssetUpload('upload_site_cover_file', 'upload_site_cover_btn', 'site_cover_url', '封面已上传并填充。');
 
         // 后台路径配置管理
         const generateRandomPathBtn = document.getElementById('generate-random-path');

@@ -50,9 +50,11 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "tagline": get_setting_value("tagline", DEFAULT_BASE_SETTINGS["tagline"]),
         "site_url": get_setting_value("site_url", str(request.base_url)),
         "admin_email": get_setting_value("admin_email", current_user.email),
+        "public_contact_email": get_setting_value("public_contact_email", ""),
         "site_logo_light": get_setting_value("site_logo_light", ""),
         "site_logo_dark": get_setting_value("site_logo_dark", ""),
         "favicon": get_setting_value("favicon", ""),
+        "site_cover_url": get_setting_value("site_cover_url", ""),
         "copyright_info": get_setting_value("copyright_info", f"&copy; {datetime.now().year} RewrZ. All rights reserved."),
         "custom_footer_text": get_setting_value("custom_footer_text", ""),
         "icp_beian": get_setting_value("icp_beian", ""),
@@ -73,7 +75,7 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "list_navigation_mode": get_setting_value("list_navigation_mode", "pagination"),
         "article_card_fallback_source": get_setting_value("article_card_fallback_source", "local"),
         "article_card_fallback_api_url": get_setting_value("article_card_fallback_api_url", "https://www.loliapi.com/acg/"),
-        "article_card_fallback_local_dir": get_setting_value("article_card_fallback_local_dir", "rewrz/static/images/random"),
+        "article_card_fallback_local_dir": get_setting_value("article_card_fallback_local_dir", "rewrz/static/images/anime/random"),
         "content_primary_mode": get_setting_value("content_primary_mode", "markdown"),
         "donation_enabled": get_setting_value("donation_enabled", False),
         "donation_title": get_setting_value("donation_title", '如果这篇文章对您有帮助，请考虑支持作者'),
@@ -112,9 +114,11 @@ async def update_admin_settings(
     tagline: str = Form(...),
     site_url: str = Form(...),
     admin_email: str = Form(...),
+    public_contact_email: Optional[str] = Form(None),
     site_logo_light: Optional[str] = Form(None),
     site_logo_dark: Optional[str] = Form(None),
     favicon: Optional[str] = Form(None),
+    site_cover_url: Optional[str] = Form(None),
     copyright_info: str = Form(...),
     custom_footer_text: Optional[str] = Form(None),
     icp_beian: Optional[str] = Form(None),
@@ -193,7 +197,7 @@ async def update_admin_settings(
         (article_card_fallback_api_url or "https://www.loliapi.com/acg/").strip()
     )
     normalized_article_card_fallback_local_dir = (
-        (article_card_fallback_local_dir or "rewrz/static/images/random").strip()
+        (article_card_fallback_local_dir or "rewrz/static/images/anime/random").strip()
     )
 
     settings_to_update = {
@@ -201,9 +205,11 @@ async def update_admin_settings(
         "tagline": tagline,
         "site_url": site_url,
         "admin_email": admin_email,
+        "public_contact_email": (public_contact_email or "").strip(),
         "site_logo_light": site_logo_light,
         "site_logo_dark": site_logo_dark,
         "favicon": favicon,
+        "site_cover_url": site_cover_url or '',
         "copyright_info": copyright_info,
         "custom_footer_text": custom_footer_text,
         "icp_beian": icp_beian,

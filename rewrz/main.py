@@ -50,7 +50,9 @@ from .api import tags as tags_api # 导入标签API路由
 from .api import captcha as captcha_api # 导入验证码API路由
 from .api import anniversary_mode as anniversary_api # 导入纪念日氛围模式API路由
 from .api import theme_schedule as theme_schedule_api # 导入主题调度API路由
+from .api import users as users_api # 导入用户管理页面逻辑
 from .core.avatar import get_avatar_service
+from .core.public_profile import get_public_profile_resolver
 from .crud import post as crud_post
 from .crud import category as crud_category
 from .crud import tag as crud_tag
@@ -119,8 +121,8 @@ app.mount("/media", StaticFiles(directory=settings.MEDIA_UPLOAD_DIR), name="medi
 templates = get_templates()
 
 _ARTICLE_FALLBACK_API_URL_DEFAULT = "https://www.loliapi.com/acg/"
-_ARTICLE_FALLBACK_LOCAL_DIR_DEFAULT = "rewrz/static/images/random"
-_SUPPORTED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif"}
+_ARTICLE_FALLBACK_LOCAL_DIR_DEFAULT = "rewrz/static/images/anime/random"
+_SUPPORTED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif", ".svg"}
 
 
 def _get_post_access_cookie_name(post_id: int) -> str:
@@ -233,9 +235,11 @@ def register_admin_routes():
         block_ai_crawlers: bool = Form(DEFAULT_BASE_SETTINGS["block_ai_crawlers"]),
         site_url: str = Form(...),
         admin_email: str = Form(...),
+        public_contact_email: Optional[str] = Form(None),
         site_logo_light: Optional[str] = Form(None),
         site_logo_dark: Optional[str] = Form(None),
         favicon: Optional[str] = Form(None),
+        site_cover_url: Optional[str] = Form(None),
         copyright_info: str = Form(...),
         custom_footer_text: Optional[str] = Form(None),
         icp_beian: Optional[str] = Form(None),
@@ -275,7 +279,8 @@ def register_admin_routes():
     ):
         return await settings_api.update_admin_settings(
             request, db, current_user, site_title, tagline, site_url, admin_email,
-            site_logo_light, site_logo_dark, favicon, copyright_info, custom_footer_text,
+            public_contact_email,
+            site_logo_light, site_logo_dark, favicon, site_cover_url, copyright_info, custom_footer_text,
             icp_beian, gongan_beian, social_links_json, anniversaries_json, sitemap_enabled,
             noindex_site, block_ai_crawlers, rss_enabled, rss_items_limit, rss_cache_duration,
             rss_description, homepage_posts_limit, archive_posts_limit, search_results_limit,
@@ -291,6 +296,59 @@ def register_admin_routes():
             homepage_mode, homepage_background_image_url, homepage_background_video_url,
             homepage_background_music_url, homepage_music_autoplay,
             csrf_token
+        )
+
+    # 注册后台用户管理页面（当前登录用户资料）
+    @app.get(f"{admin_path}/users", response_class=HTMLResponse)
+    async def dynamic_admin_users_page(
+        request: Request,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+    ):
+        return await users_api.admin_users_page(request, db, current_user)
+
+    @app.post(f"{admin_path}/users", response_class=HTMLResponse)
+    async def dynamic_update_admin_user_profile(
+        request: Request,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+        username: str = Form(...),
+        email: str = Form(...),
+        display_name: Optional[str] = Form(None),
+        bio: Optional[str] = Form(None),
+        website: Optional[str] = Form(None),
+        use_gravatar: str = Form("auto"),
+        creator_profile_cover_url: Optional[str] = Form(None),
+        creator_profile_micro_cover_url: Optional[str] = Form(None),
+        creator_profile_poem_cover_url: Optional[str] = Form(None),
+        creator_profile_headline: Optional[str] = Form(None),
+        creator_profile_article_bio: Optional[str] = Form(None),
+        creator_profile_micro_bio: Optional[str] = Form(None),
+        creator_profile_poem_bio: Optional[str] = Form(None),
+        creator_profile_location: Optional[str] = Form(None),
+        creator_profile_motto: Optional[str] = Form(None),
+        csrf_token: str = Form(...),
+    ):
+        return await users_api.update_admin_user_profile(
+            request=request,
+            db=db,
+            current_user=current_user,
+            username=username,
+            email=email,
+            display_name=display_name,
+            bio=bio,
+            website=website,
+            use_gravatar=use_gravatar,
+            creator_profile_cover_url=creator_profile_cover_url,
+            creator_profile_micro_cover_url=creator_profile_micro_cover_url,
+            creator_profile_poem_cover_url=creator_profile_poem_cover_url,
+            creator_profile_headline=creator_profile_headline,
+            creator_profile_article_bio=creator_profile_article_bio,
+            creator_profile_micro_bio=creator_profile_micro_bio,
+            creator_profile_poem_bio=creator_profile_poem_bio,
+            creator_profile_location=creator_profile_location,
+            creator_profile_motto=creator_profile_motto,
+            csrf_token=csrf_token,
         )
     
     # 注册后台路径更新API端点
@@ -1408,6 +1466,9 @@ def register_admin_routes():
 
         # 自动目录（TOC）：达到阈值时生成
         display_content_html, toc_items = build_toc_from_html(display_content_html, min_headings=3)
+        profile_resolver = get_public_profile_resolver()
+        format_profile = profile_resolver.resolve_format_profile(request, db, active_format_slug)
+        _attach_post_author_profiles(db, [db_post], fallback_name=format_profile.get("display_name", "博主"))
 
         # 构建模板上下文（现在包含统一的设置数据）
         context = build_base_template_context(request)
@@ -1418,6 +1479,7 @@ def register_admin_routes():
             "display_content_html": display_content_html,
             "toc_items": toc_items,
             "active_format_slug": active_format_slug,
+            "format_profile": format_profile,
         })
         
         return templates.TemplateResponse("post_detail.html", context)
@@ -1847,6 +1909,30 @@ def _resolve_article_archive_cover_url(
     return ""
 
 
+def _attach_post_author_profiles(db: Session, posts: List[Post], *, fallback_name: str) -> None:
+    if not posts:
+        return
+    profile_resolver = get_public_profile_resolver()
+    fallback_display_name = str(fallback_name or "博主").strip() or "博主"
+
+    for post in posts:
+        author = getattr(post, "author", None)
+        author_id = getattr(author, "id", None) if author is not None else getattr(post, "author_id", None)
+        resolved_author_id: Optional[int] = None
+        if author_id is not None:
+            try:
+                resolved_author_id = int(author_id)
+            except (TypeError, ValueError):
+                resolved_author_id = None
+        author_profile = profile_resolver.resolve_author_profile(
+            db,
+            resolved_author_id,
+            fallback_name=fallback_display_name,
+        )
+        setattr(post, "author_display_name", author_profile.get("display_name", fallback_display_name))
+        setattr(post, "author_avatar_url", author_profile.get("avatar_url", "/static/images/default-avatar.png"))
+
+
 def _build_public_pagination(
     page: int,
     total_count: int,
@@ -1984,6 +2070,8 @@ async def homepage(request: Request, page: int = 1, append: int = 0, db: Session
                 fallback_local_images=fallback_local_images,
             ),
         )
+    profile_resolver = get_public_profile_resolver()
+    site_profile = profile_resolver.resolve_homepage_profile(request, db)
     
     # 获取首页SEO元数据
     from .api.seo import _generate_homepage_seo_data
@@ -1997,6 +2085,7 @@ async def homepage(request: Request, page: int = 1, append: int = 0, db: Session
         "pagination": pagination,
         "list_navigation_mode": list_navigation_mode,
         "timeline_start_index": offset,
+        "site_profile": site_profile,
     })
 
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
@@ -2052,6 +2141,9 @@ async def format_page(request: Request, format_slug: str, page: int = 1, append:
         limit=archive_posts_limit,
         exclude_format_ids=exclude_format_ids,
     )
+    profile_resolver = get_public_profile_resolver()
+    format_profile = profile_resolver.resolve_format_profile(request, db, canonical_format_slug)
+    _attach_post_author_profiles(db, posts, fallback_name=format_profile.get("display_name", "博主"))
 
     # /formats/article 使用图文卡片：特色图 -> 正文首图 -> 随机二次元图
     if canonical_format_slug == "article":
@@ -2088,6 +2180,7 @@ async def format_page(request: Request, format_slug: str, page: int = 1, append:
         "posts": posts,
         "pagination": pagination,
         "list_navigation_mode": list_navigation_mode,
+        "format_profile": format_profile,
     })
 
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":

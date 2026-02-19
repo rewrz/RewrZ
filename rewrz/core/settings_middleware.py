@@ -46,7 +46,9 @@ class SettingsMiddleware(BaseHTTPMiddleware):
             all_setting_keys = [
                 # 基础站点设置
                 "site_title", "tagline", "site_url", "admin_email",
+                "public_contact_email",
                 "site_logo_light", "site_logo_dark", "favicon",
+                "site_cover_url",
                 "copyright_info", "custom_footer_text", "icp_beian", "gongan_beian",
                 
                 # SEO设置
@@ -85,9 +87,11 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                     "tagline": all_settings.get("tagline", DEFAULT_BASE_SETTINGS["tagline"]),
                     "url": all_settings.get("site_url", ""),
                     "admin_email": all_settings.get("admin_email", ""),
+                    "public_contact_email": all_settings.get("public_contact_email", ""),
                     "logo_light": all_settings.get("site_logo_light", DEFAULT_BASE_SETTINGS["site_logo_light"]),
                     "logo_dark": all_settings.get("site_logo_dark", DEFAULT_BASE_SETTINGS["site_logo_dark"]),
                     "favicon": all_settings.get("favicon", DEFAULT_BASE_SETTINGS["favicon"]),
+                    "cover_url": all_settings.get("site_cover_url", DEFAULT_BASE_SETTINGS["site_cover_url"]),
                     "copyright_info": all_settings.get("copyright_info", DEFAULT_BASE_SETTINGS["copyright_info"]),
                     "custom_footer_text": all_settings.get("custom_footer_text", DEFAULT_BASE_SETTINGS["custom_footer_text"]),
                     "icp_beian": all_settings.get("icp_beian", DEFAULT_BASE_SETTINGS["icp_beian"]),
@@ -120,7 +124,7 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                         "article_card_fallback_api_url",
                         "https://www.loliapi.com/acg/",
                     ),
-                    "fallback_local_dir": all_settings.get("article_card_fallback_local_dir", "rewrz/static/images/random"),
+                    "fallback_local_dir": all_settings.get("article_card_fallback_local_dir", "rewrz/static/images/anime/random"),
                 },
                 "donation": {
                     "enabled": all_settings.get("donation_enabled", False),

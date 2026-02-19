@@ -29,6 +29,8 @@ DEFAULT_BASE_SETTINGS = {
     "site_logo_light": "",
     "site_logo_dark": "",
     "favicon": "",
+    "site_cover_url": "",
+    "public_contact_email": "",
     # 新增：社交与页脚相关
     "social_links": [],  # [{ icon: str, url: str }, ...]
     "custom_footer_text": "",
@@ -95,6 +97,8 @@ def build_base_template_context(request: Request) -> dict:
         "site_logo_light": settings.get("site", {}).get("logo_light") or getattr(request.state, "site_logo_light", DEFAULT_BASE_SETTINGS["site_logo_light"]),
         "site_logo_dark": settings.get("site", {}).get("logo_dark") or getattr(request.state, "site_logo_dark", DEFAULT_BASE_SETTINGS["site_logo_dark"]),
         "favicon": settings.get("site", {}).get("favicon") or getattr(request.state, "favicon", DEFAULT_BASE_SETTINGS["favicon"]),
+        "site_cover_url": settings.get("site", {}).get("cover_url") or getattr(request.state, "site_cover_url", DEFAULT_BASE_SETTINGS["site_cover_url"]),
+        "public_contact_email": settings.get("site", {}).get("public_contact_email") or getattr(request.state, "public_contact_email", DEFAULT_BASE_SETTINGS["public_contact_email"]),
         
         # 社交与页脚相关
         "social_links": getattr(request.state, "social_links", DEFAULT_BASE_SETTINGS["social_links"]),

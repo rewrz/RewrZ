@@ -28,6 +28,8 @@
 {% set is_poetry_song = active_format == 'poem' %}
 {% set content_images = (rendered_content | extract_image_urls(post.featured_image_url)) if rendered_content else [] %}
 {% set comment_count = post.comments | length %}
+{% set post_author_name = post.author_display_name if post.author_display_name is defined and post.author_display_name else ((post.author.display_name if post.author and post.author.display_name else post.author.username) if post.author else '博主') %}
+{% set post_author_avatar = post.author_avatar_url if post.author_avatar_url is defined and post.author_avatar_url else '/static/images/default-avatar.png' %}
 
 {% if is_micro_post %}
 <section class="py-8">
@@ -47,14 +49,9 @@
             <header class="p-5 border-b border-gray-100 dark:border-gray-700">
                 <div class="flex items-start justify-between gap-3">
                     <div class="flex items-center gap-3 min-w-0">
-                        {% if post.author.avatar_url %}
-                        <img src="{{ post.author.avatar_url }}" alt="{{ post.author.username }}" class="h-12 w-12 rounded-full object-cover ring-2 ring-indigo-200/80 dark:ring-indigo-800/80">
-                        {% else %}
-                        {% set author_email_hash = post.author.email | md5 if post.author.email else '' %}
-                        <img src="https://www.gravatar.com/avatar/{{ author_email_hash }}?s=48&d=identicon&r=g" alt="{{ post.author.username }}" class="h-12 w-12 rounded-full object-cover ring-2 ring-indigo-200/80 dark:ring-indigo-800/80" onerror="this.src='/static/images/default-avatar.png'">
-                        {% endif %}
+                        <img src="{{ post_author_avatar }}" alt="{{ post_author_name }}" class="h-12 w-12 rounded-full object-cover ring-2 ring-indigo-200/80 dark:ring-indigo-800/80">
                         <div class="min-w-0">
-                            <p class="font-semibold text-lg truncate">{{ post.author.username }}</p>
+                            <p class="font-semibold text-lg truncate">{{ post_author_name }}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
                                 <i class="far fa-clock"></i>
                                 {{ post.published_at.strftime('%Y年%m月%d日 %H:%M') if post.published_at else post.created_at.strftime('%Y年%m月%d日 %H:%M') }}

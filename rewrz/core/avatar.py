@@ -11,7 +11,7 @@
 
 import hashlib
 import os
-from typing import Optional, Union
+from typing import Optional
 from urllib.parse import urlencode
 from sqlalchemy.orm import Session
 from ..crud import setting as crud_setting
@@ -144,6 +144,14 @@ class AvatarService:
             return None
         
         return user.avatar_url
+
+    def _get_user_gravatar_mode(self, user_id: Optional[int]) -> str:
+        """读取用户 Gravatar 使用模式：auto / enabled / disabled。"""
+        if not user_id:
+            return "auto"
+        user = crud_user.get_user(self.db, user_id)
+        raw_mode = str(getattr(user, "use_gravatar", "auto") or "auto").strip().lower() if user else "auto"
+        return raw_mode if raw_mode in {"auto", "enabled", "disabled"} else "auto"
     
     def get_avatar_url(self, email: str, user_id: Optional[int] = None, 
                       size: Optional[int] = None) -> str:
@@ -165,9 +173,12 @@ class AvatarService:
             custom_avatar = self.get_user_custom_avatar_url(user_id)
             if custom_avatar:
                 return custom_avatar
-        
+
+        gravatar_mode = self._get_user_gravatar_mode(user_id)
+        allow_gravatar = gravatar_mode in {"auto", "enabled"}
+
         # 2. 使用Gravatar头像
-        if self.gravatar_enabled and email:
+        if allow_gravatar and self.gravatar_enabled and email:
             gravatar_url = self.get_gravatar_url(email, size)
             if gravatar_url:
                 return gravatar_url
@@ -259,15 +270,9 @@ class AvatarService:
         return f"/media/avatars/{filename}"
 
 
-# 全局头像服务实例（延迟初始化）
-_avatar_service: Optional[AvatarService] = None
-
 def get_avatar_service(db: Session) -> AvatarService:
-    """获取头像服务实例"""
-    global _avatar_service
-    if _avatar_service is None:
-        _avatar_service = AvatarService(db)
-    return _avatar_service
+    """获取头像服务实例（按请求创建，避免跨请求复用过期会话）。"""
+    return AvatarService(db)
 
 
 # 便捷函数

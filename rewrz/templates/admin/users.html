@@ -1,0 +1,336 @@
+{% extends "admin/base.html" %}
+
+{% block page_title %}用户管理{% endblock %}
+
+{% block content %}
+{% set profile_gravatar_mode = profile_user.use_gravatar if profile_user.use_gravatar else 'auto' %}
+{% set ps = profile_settings if profile_settings is defined and profile_settings else {} %}
+<form hx-post="{{ request.state.admin_path }}/users"
+      hx-target="#admin-content"
+      hx-swap="outerHTML"
+      hx-select="#admin-content"
+      class="space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+
+    {% if profile_message %}
+    <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+        <i class="fas fa-check-circle mr-1"></i>{{ profile_message }}
+    </div>
+    {% endif %}
+    {% if profile_error %}
+    <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <i class="fas fa-exclamation-circle mr-1"></i>{{ profile_error }}
+    </div>
+    {% endif %}
+
+    <div class="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+        <section class="space-y-5">
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <h2 class="mb-4 text-lg font-semibold text-gray-900">账号基础资料</h2>
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-gray-700">用户名</label>
+                        <input id="username" name="username" type="text" required value="{{ profile_user.username }}"
+                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700">邮箱</label>
+                        <input id="email" name="email" type="email" required value="{{ profile_user.email }}"
+                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                    </div>
+                </div>
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <label for="display_name" class="block text-sm font-medium text-gray-700">显示名称</label>
+                        <input id="display_name" name="display_name" type="text" value="{{ profile_user.display_name or '' }}"
+                               placeholder="前台个人资料显示名" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                    </div>
+                    <div>
+                        <label for="website" class="block text-sm font-medium text-gray-700">个人网站</label>
+                        <input id="website" name="website" type="text" value="{{ profile_user.website or '' }}"
+                               placeholder="https://example.com" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <label for="bio" class="block text-sm font-medium text-gray-700">默认个人简介</label>
+                    <textarea id="bio" name="bio" rows="3" placeholder="标准文章页默认使用"
+                              class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">{{ profile_user.bio or '' }}</textarea>
+                </div>
+                <div class="mt-4">
+                    <label for="use_gravatar" class="block text-sm font-medium text-gray-700">Gravatar 策略</label>
+                    <select id="use_gravatar" name="use_gravatar"
+                            class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                        <option value="auto" {% if profile_gravatar_mode == 'auto' %}selected{% endif %}>自动（推荐）</option>
+                        <option value="enabled" {% if profile_gravatar_mode == 'enabled' %}selected{% endif %}>始终启用</option>
+                        <option value="disabled" {% if profile_gravatar_mode == 'disabled' %}selected{% endif %}>禁用（仅自定义/默认）</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">头像优先级：自定义头像 > Gravatar > 默认头像。</p>
+                </div>
+            </div>
+
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <h2 class="mb-4 text-lg font-semibold text-gray-900">聚合页个人资料（文章/微博/诗词）</h2>
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <label for="creator_profile_headline" class="block text-sm font-medium text-gray-700">个性签名</label>
+                        <input id="creator_profile_headline" name="creator_profile_headline" type="text"
+                               value="{{ ps.creator_profile_headline or '' }}" placeholder="一句简短的个人宣言"
+                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                    </div>
+                    <div>
+                        <label for="creator_profile_location" class="block text-sm font-medium text-gray-700">所在地</label>
+                        <input id="creator_profile_location" name="creator_profile_location" type="text"
+                               value="{{ ps.creator_profile_location or '' }}" placeholder="如：杭州 / Beijing"
+                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <label for="creator_profile_motto" class="block text-sm font-medium text-gray-700">文案座右铭</label>
+                    <input id="creator_profile_motto" name="creator_profile_motto" type="text"
+                           value="{{ ps.creator_profile_motto or '' }}" placeholder="用于微博/诗词页面头部强调语"
+                           class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                </div>
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div>
+                        <label for="creator_profile_article_bio" class="block text-sm font-medium text-gray-700">文章页简介</label>
+                        <textarea id="creator_profile_article_bio" name="creator_profile_article_bio" rows="4"
+                                  class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm"
+                                  placeholder="标准文章聚合页使用">{{ ps.creator_profile_article_bio or '' }}</textarea>
+                    </div>
+                    <div>
+                        <label for="creator_profile_micro_bio" class="block text-sm font-medium text-gray-700">微博页简介</label>
+                        <textarea id="creator_profile_micro_bio" name="creator_profile_micro_bio" rows="4"
+                                  class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm"
+                                  placeholder="类似新浪/Twitter 风格">{{ ps.creator_profile_micro_bio or '' }}</textarea>
+                    </div>
+                    <div>
+                        <label for="creator_profile_poem_bio" class="block text-sm font-medium text-gray-700">诗词页简介</label>
+                        <textarea id="creator_profile_poem_bio" name="creator_profile_poem_bio" rows="4"
+                                  class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm"
+                                  placeholder="文艺古雅风格">{{ ps.creator_profile_poem_bio or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="space-y-5">
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <h2 class="mb-4 text-lg font-semibold text-gray-900">头像管理</h2>
+                <div class="flex items-center gap-4">
+                    <img id="profile-avatar-preview" src="{{ avatar_url }}" alt="avatar"
+                         class="h-20 w-20 rounded-full border border-gray-200 object-cover shadow-sm">
+                    <div class="text-sm text-gray-600">
+                        <div class="font-medium text-gray-800">{{ profile_user.display_name or profile_user.username }}</div>
+                        <div class="mt-1">当前来源：<span id="avatar-source-badge" class="font-medium text-indigo-600">{{ avatar_source }}</span></div>
+                    </div>
+                </div>
+                <div class="mt-4 space-y-2">
+                    <input id="avatar-upload-file" type="file" accept="image/*" class="block w-full text-sm text-gray-600">
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" id="upload-avatar-btn" class="rounded-md bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700">
+                            <i class="fas fa-upload mr-1"></i>上传头像
+                        </button>
+                        <button type="button" id="delete-avatar-btn" class="rounded-md bg-rose-600 px-3 py-2 text-sm text-white hover:bg-rose-700">
+                            <i class="fas fa-trash-alt mr-1"></i>删除头像
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <h2 class="mb-4 text-lg font-semibold text-gray-900">封面与上传</h2>
+                <div class="space-y-3">
+                    <div>
+                        <label for="creator_profile_cover_url" class="block text-xs font-medium text-gray-600">通用个人封面（文章默认）</label>
+                        <input id="creator_profile_cover_url" name="creator_profile_cover_url" type="text"
+                               value="{{ ps.creator_profile_cover_url or '' }}"
+                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm"
+                               placeholder="/media/2026/02/profile-cover.jpg">
+                        <div class="mt-2 flex gap-2">
+                            <input id="creator_profile_cover_url_file" type="file" accept="image/*" class="block w-full text-xs text-gray-500">
+                            <button type="button" data-upload-target="creator_profile_cover_url" class="upload-cover-btn rounded bg-slate-700 px-3 py-1.5 text-xs text-white hover:bg-slate-800">上传</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="creator_profile_micro_cover_url" class="block text-xs font-medium text-gray-600">微博页封面（可选）</label>
+                        <input id="creator_profile_micro_cover_url" name="creator_profile_micro_cover_url" type="text"
+                               value="{{ ps.creator_profile_micro_cover_url or '' }}"
+                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm"
+                               placeholder="/media/2026/02/micro-cover.jpg">
+                        <div class="mt-2 flex gap-2">
+                            <input id="creator_profile_micro_cover_url_file" type="file" accept="image/*" class="block w-full text-xs text-gray-500">
+                            <button type="button" data-upload-target="creator_profile_micro_cover_url" class="upload-cover-btn rounded bg-slate-700 px-3 py-1.5 text-xs text-white hover:bg-slate-800">上传</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="creator_profile_poem_cover_url" class="block text-xs font-medium text-gray-600">诗词页封面（可选）</label>
+                        <input id="creator_profile_poem_cover_url" name="creator_profile_poem_cover_url" type="text"
+                               value="{{ ps.creator_profile_poem_cover_url or '' }}"
+                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm"
+                               placeholder="/media/2026/02/poem-cover.jpg">
+                        <div class="mt-2 flex gap-2">
+                            <input id="creator_profile_poem_cover_url_file" type="file" accept="image/*" class="block w-full text-xs text-gray-500">
+                            <button type="button" data-upload-target="creator_profile_poem_cover_url" class="upload-cover-btn rounded bg-slate-700 px-3 py-1.5 text-xs text-white hover:bg-slate-800">上传</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 grid grid-cols-3 gap-2">
+                    <div class="overflow-hidden rounded-lg border border-gray-200">
+                        <img id="preview_creator_profile_cover_url" src="{{ ps.creator_profile_cover_url or '/static/images/anime/covers/format-article.svg' }}" alt="article-cover" class="h-20 w-full object-cover">
+                        <div class="px-2 py-1 text-center text-[11px] text-gray-500">文章</div>
+                    </div>
+                    <div class="overflow-hidden rounded-lg border border-gray-200">
+                        <img id="preview_creator_profile_micro_cover_url" src="{{ ps.creator_profile_micro_cover_url or (ps.creator_profile_cover_url or '/static/images/anime/covers/format-micro.svg') }}" alt="micro-cover" class="h-20 w-full object-cover">
+                        <div class="px-2 py-1 text-center text-[11px] text-gray-500">微博</div>
+                    </div>
+                    <div class="overflow-hidden rounded-lg border border-gray-200">
+                        <img id="preview_creator_profile_poem_cover_url" src="{{ ps.creator_profile_poem_cover_url or (ps.creator_profile_cover_url or '/static/images/anime/covers/format-poem.svg') }}" alt="poem-cover" class="h-20 w-full object-cover">
+                        <div class="px-2 py-1 text-center text-[11px] text-gray-500">诗词</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="flex items-center justify-end gap-3">
+        <button type="submit" class="rounded-md bg-blue-600 px-5 py-2.5 text-white hover:bg-blue-700">
+            <i class="fas fa-save mr-1"></i>保存资料
+        </button>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const adminPath = '{{ request.state.admin_path }}';
+    const userId = {{ profile_user.id }};
+    const csrfToken = '{{ request.state.csrf_token }}';
+    const avatarPreview = document.getElementById('profile-avatar-preview');
+    const avatarSourceBadge = document.getElementById('avatar-source-badge');
+    const avatarFileInput = document.getElementById('avatar-upload-file');
+
+    function setAvatar(url) {
+        if (!avatarPreview) return;
+        avatarPreview.src = url || '/static/images/default-avatar.png';
+    }
+
+    async function refreshAvatarInfo() {
+        try {
+            const response = await fetch(`/api/v1/users/${userId}/avatar`, { credentials: 'same-origin' });
+            if (!response.ok) return;
+            const data = await response.json();
+            setAvatar(data.final_avatar_url || '/static/images/default-avatar.png');
+            let source = 'default';
+            if (data.has_custom_avatar) {
+                source = 'custom';
+            } else if (data.gravatar_url && data.final_avatar_url === data.gravatar_url) {
+                source = 'gravatar';
+            }
+            if (avatarSourceBadge) avatarSourceBadge.textContent = source;
+        } catch (_) {}
+    }
+
+    async function uploadToMedia(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('title', file.name);
+        formData.append('alt_text', 'creator-profile-cover');
+
+        const response = await fetch(`${adminPath}/media/upload`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRF-Token': csrfToken },
+            body: formData
+        });
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.detail || '上传失败');
+        }
+        return response.json();
+    }
+
+    function refreshCoverPreview(fieldName) {
+        const input = document.getElementById(fieldName);
+        const preview = document.getElementById(`preview_${fieldName}`);
+        if (!input || !preview) return;
+        const value = (input.value || '').trim();
+        if (value) preview.src = value;
+    }
+
+    document.getElementById('upload-avatar-btn')?.addEventListener('click', async function() {
+        const file = avatarFileInput?.files?.[0];
+        if (!file) {
+            window.adminNotify('请先选择头像文件。', 'warning');
+            return;
+        }
+        const formData = new FormData();
+        formData.append('avatar_file', file);
+
+        try {
+            const response = await fetch(`/api/v1/users/${userId}/avatar/upload`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-CSRF-Token': csrfToken },
+                body: formData
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.detail || '头像上传失败');
+            }
+            const data = await response.json();
+            setAvatar(data.avatar_url || '/static/images/default-avatar.png');
+            if (avatarSourceBadge) avatarSourceBadge.textContent = 'custom';
+            window.adminNotify('头像上传成功。', 'success');
+        } catch (error) {
+            window.adminNotify(error.message || '头像上传失败。', 'error');
+        }
+    });
+
+    document.getElementById('delete-avatar-btn')?.addEventListener('click', async function() {
+        if (!(await window.adminConfirm('确认删除当前自定义头像吗？', { tone: 'danger', confirmText: '删除头像' }))) {
+            return;
+        }
+        try {
+            const response = await fetch(`/api/v1/users/${userId}/avatar`, {
+                method: 'DELETE',
+                credentials: 'same-origin'
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.detail || '删除头像失败');
+            }
+            await refreshAvatarInfo();
+            window.adminNotify('头像已删除。', 'success');
+        } catch (error) {
+            window.adminNotify(error.message || '删除头像失败。', 'error');
+        }
+    });
+
+    document.querySelectorAll('.upload-cover-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const fieldName = btn.getAttribute('data-upload-target');
+            const fileInput = document.getElementById(`${fieldName}_file`);
+            const targetInput = document.getElementById(fieldName);
+            const file = fileInput?.files?.[0];
+            if (!file || !targetInput) {
+                window.adminNotify('请先选择封面文件。', 'warning');
+                return;
+            }
+            try {
+                const data = await uploadToMedia(file);
+                targetInput.value = data.url || '';
+                refreshCoverPreview(fieldName);
+                window.adminNotify('封面上传成功，请点击“保存资料”生效。', 'success');
+            } catch (error) {
+                window.adminNotify(error.message || '封面上传失败。', 'error');
+            }
+        });
+    });
+
+    ['creator_profile_cover_url', 'creator_profile_micro_cover_url', 'creator_profile_poem_cover_url'].forEach(field => {
+        const input = document.getElementById(field);
+        input?.addEventListener('input', () => refreshCoverPreview(field));
+    });
+});
+</script>
+{% endblock %}
