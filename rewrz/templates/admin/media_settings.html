@@ -5,7 +5,7 @@
 {% block content %}
 <div class="bg-white p-6 rounded-lg shadow-md">
     <form method="post" action="{{ admin_path }}/api/v1/media/settings" id="media-settings-form">
-        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
         
         <!-- 图像处理设置 -->
         <div class="bg-white p-6 rounded-lg shadow-md mb-6">

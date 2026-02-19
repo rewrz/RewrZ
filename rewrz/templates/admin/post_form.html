@@ -186,7 +186,7 @@
 </style>
 
 <form id="post-form" hx-post="{% if post %}{{ request.state.admin_path }}/posts/{{ post.id }}{% else %}{{ request.state.admin_path }}/posts/new{% endif %}" hx-target="#admin-content" hx-swap="outerHTML" class="space-y-6">
-            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
             <input type="hidden" name="editor_mode" id="editor-mode-input" value="markdown">
             {% if post %}
             <input type="hidden" name="_method" value="PUT">

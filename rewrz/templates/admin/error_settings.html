@@ -5,7 +5,7 @@
 
 {% block content %}
 <form id="error-settings-form" method="POST" class="space-y-6">
-    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
 
     <div class="bg-gradient-to-r from-red-50 to-amber-50 border border-red-100 rounded-lg p-5">
         <h2 class="text-lg font-semibold text-gray-900">配置说明</h2>

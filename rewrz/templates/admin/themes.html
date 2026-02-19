@@ -3,7 +3,7 @@
 {% block title_text %}主题管理{% endblock %}
 {% block page_title %}<i class="fas fa-palette text-blue-600 mr-3"></i>主题管理{% endblock %}
 {% block content %}
-<div class="theme-admin-page max-w-6xl mx-auto space-y-6">
+<div class="theme-admin-page space-y-6">
     
     <!-- 优先级说明卡片 -->
     <div class="admin-panel theme-admin-panel bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
@@ -210,7 +210,7 @@
         
         <div class="p-6">
             <form id="theme-form" hx-post="{{ request.state.admin_path }}/themes/update" hx-trigger="change" hx-swap="none">
-                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- 当前主题 -->

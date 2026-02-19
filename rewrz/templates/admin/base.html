@@ -180,31 +180,33 @@
         {% include 'admin/components/sidebar.html' %}
 
         <div id="admin-content" class="admin-main-shell">
-            <header class="admin-topbar flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <button type="button" id="admin-sidebar-toggle" class="admin-sidebar-toggle md:hidden" aria-label="展开侧边栏菜单">
-                    <i class="fas fa-bars"></i>
-                    菜单
-                </button>
-                <h1 class="admin-page-title text-2xl md:text-3xl font-semibold">{% block page_title %}{% endblock %}</h1>
-                <div class="flex flex-wrap items-center gap-3 md:gap-4 text-sm">
-                    {% set admin_user_name = user.display_name if user.display_name else user.username %}
-                    {% set admin_avatar_url = user.avatar_url if user.avatar_url else ('https://www.gravatar.com/avatar/' ~ (user.email | md5) ~ '?s=48&d=identicon&r=g' if user.email else '/static/images/default-avatar.png') %}
-                    <span class="admin-chip">
-                        <img src="{{ admin_avatar_url }}" alt="{{ admin_user_name }}" class="h-6 w-6 rounded-full object-cover" onerror="this.src='/static/images/default-avatar.png'">
-                        {{ admin_user_name }}
-                    </span>
-                    <a href="/" target="_blank" class="admin-chip" title="访问前台">
-                        <i class="fas fa-external-link-alt"></i> 前台
-                    </a>
-                    <a href="/auth/logout" class="admin-chip" title="退出登录">
-                        <i class="fas fa-sign-out-alt"></i> 退出
-                    </a>
-                </div>
-            </header>
+            <div class="admin-page-shell">
+                <header class="admin-topbar flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <button type="button" id="admin-sidebar-toggle" class="admin-sidebar-toggle md:hidden" aria-label="展开侧边栏菜单">
+                        <i class="fas fa-bars"></i>
+                        菜单
+                    </button>
+                    <h1 class="admin-page-title text-2xl md:text-3xl font-semibold">{% block page_title %}{% endblock %}</h1>
+                    <div class="flex flex-wrap items-center gap-3 md:gap-4 text-sm">
+                        {% set admin_user_name = user.display_name if user.display_name else user.username %}
+                        {% set admin_avatar_url = user.avatar_url if user.avatar_url else ('https://www.gravatar.com/avatar/' ~ (user.email | md5) ~ '?s=48&d=identicon&r=g' if user.email else '/static/images/default-avatar.png') %}
+                        <span class="admin-chip">
+                            <img src="{{ admin_avatar_url }}" alt="{{ admin_user_name }}" class="h-6 w-6 rounded-full object-cover" onerror="this.src='/static/images/default-avatar.png'">
+                            {{ admin_user_name }}
+                        </span>
+                        <a href="/" target="_blank" class="admin-chip" title="访问前台">
+                            <i class="fas fa-external-link-alt"></i> 前台
+                        </a>
+                        <a href="/auth/logout" class="admin-chip" title="退出登录">
+                            <i class="fas fa-sign-out-alt"></i> 退出
+                        </a>
+                    </div>
+                </header>
 
-            <section class="space-y-6">
-                {% block content %}{% endblock %}
-            </section>
+                <section class="admin-page-content">
+                    {% block content %}{% endblock %}
+                </section>
+            </div>
         </div>
     </div>
 

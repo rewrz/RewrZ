@@ -5,7 +5,7 @@
 {% block content %}
 <div class="space-y-6">
     <form method="post" action="{{ admin_path }}/security-center" class="space-y-6">
-        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
 
         <div class="bg-white p-6 rounded-lg shadow-md">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">登录防护</h2>

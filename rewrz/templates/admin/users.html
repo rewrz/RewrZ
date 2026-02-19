@@ -10,7 +10,7 @@
       hx-swap="outerHTML"
       hx-select="#admin-content"
       class="space-y-6">
-    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
 
     {% if profile_message %}
     <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">

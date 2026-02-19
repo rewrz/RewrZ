@@ -178,12 +178,44 @@ body.admin-app {
     padding: 1rem;
 }
 
+.admin-page-shell {
+    width: min(100%, 110rem);
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-page-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.admin-page-content > :first-child {
+    margin-top: 0 !important;
+}
+
+/* Normalize first visible block spacing in stack forms.
+   Hidden csrf inputs as first children can accidentally add extra top gap via Tailwind space-y. */
+.admin-page-content form > input[type='hidden']:first-child + * {
+    margin-top: 0 !important;
+}
+
+.admin-page-content form > input[type='hidden']:first-child + input[type='hidden'] + * {
+    margin-top: 0 !important;
+}
+
+.admin-page-content form > input[type='hidden']:first-child + input[type='hidden'] + input[type='hidden'] + * {
+    margin-top: 0 !important;
+}
+
 .admin-topbar {
     position: sticky;
     top: 0.75rem;
     z-index: 40;
     padding: 0.95rem 1rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0;
     border: 1px solid var(--ui-border);
     border-radius: var(--ui-radius-lg);
     background: color-mix(in srgb, var(--color-card-bg) 92%, transparent);

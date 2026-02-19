@@ -70,7 +70,7 @@
                 <h2 class="text-lg font-semibold text-gray-800">快速草稿</h2>
             </div>
             <form id="quick-draft-form" class="space-y-3">
-                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
                 <div>
                     <label for="quick-draft-title" class="text-sm text-gray-600">标题</label>
                     <input
