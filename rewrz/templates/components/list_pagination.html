@@ -1,5 +1,4 @@
 {% if pagination %}
-{% set use_ajax_pagination = list_navigation_mode == 'ajax' %}
 {% set use_infinite_scroll = list_navigation_mode == 'infinite_scroll' %}
 {% if use_infinite_scroll %}
 {% include "components/infinite_scroll_loader.html" %}
@@ -12,13 +11,6 @@
         {% if pagination.has_prev %}
         <a
             href="{{ pagination.prev_url }}"
-            {% if use_ajax_pagination and pagination_target_id %}
-            hx-get="{{ pagination.prev_url }}"
-            hx-target="#{{ pagination_target_id }}"
-            hx-select="#{{ pagination_target_id }}"
-            hx-swap="outerHTML"
-            hx-push-url="true"
-            {% endif %}
             class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
         >
             上一页
@@ -31,13 +23,6 @@
             {% else %}
             <a
                 href="{{ link.url }}"
-                {% if use_ajax_pagination and pagination_target_id %}
-                hx-get="{{ link.url }}"
-                hx-target="#{{ pagination_target_id }}"
-                hx-select="#{{ pagination_target_id }}"
-                hx-swap="outerHTML"
-                hx-push-url="true"
-                {% endif %}
                 class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
                 {{ link.page }}
@@ -48,13 +33,6 @@
         {% if pagination.has_next %}
         <a
             href="{{ pagination.next_url }}"
-            {% if use_ajax_pagination and pagination_target_id %}
-            hx-get="{{ pagination.next_url }}"
-            hx-target="#{{ pagination_target_id }}"
-            hx-select="#{{ pagination_target_id }}"
-            hx-swap="outerHTML"
-            hx-push-url="true"
-            {% endif %}
             class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
         >
             下一页

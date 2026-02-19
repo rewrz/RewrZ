@@ -109,6 +109,7 @@
         </div>
 
         {% set pagination_target_id = "homepage-posts-panel" %}
+        {% set homepage_use_infinite = list_navigation_mode == 'infinite_scroll' %}
         <div id="{{ pagination_target_id }}">
             {% if posts %}
             <div class="timeline-shell px-3 py-4 md:px-6 md:py-7">
@@ -143,9 +144,15 @@
                         </div>
                     </article>
                     {% endfor %}
+
+                    {% if homepage_use_infinite %}
+                        {% include "components/list_pagination.html" %}
+                    {% endif %}
                 </div>
             </div>
-            {% include "components/list_pagination.html" %}
+            {% if not homepage_use_infinite %}
+                {% include "components/list_pagination.html" %}
+            {% endif %}
             {% else %}
             <div class="hero-surface p-10 text-center">
                 <p class="text-lg text-gray-600 dark:text-gray-300">暂无内容，先去后台发布第一篇吧。</p>

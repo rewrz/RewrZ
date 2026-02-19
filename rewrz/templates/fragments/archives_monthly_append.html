@@ -1,0 +1,104 @@
+{% if posts %}
+    {% set posts_by_month = {} %}
+    {% for post in posts %}
+        {% set year_month = post.published_at.strftime('%Y-%m') %}
+        {% if year_month not in posts_by_month %}
+            {% set _ = posts_by_month.update({year_month: []}) %}
+        {% endif %}
+        {% set _ = posts_by_month[year_month].append(post) %}
+    {% endfor %}
+
+    {% for year_month, month_posts in posts_by_month.items() | sort(reverse=True) %}
+    {% set year, month = year_month.split('-') %}
+    {% set month_name = month_posts[0].published_at.strftime('%B') %}
+    {% set month_zh = {
+        'January': '一月', 'February': '二月', 'March': '三月', 'April': '四月',
+        'May': '五月', 'June': '六月', 'July': '七月', 'August': '八月',
+        'September': '九月', 'October': '十月', 'November': '十一月', 'December': '十二月'
+    }[month_name] %}
+    <div class="archive-month-group" data-archive-group-type="monthly" data-archive-group-key="{{ year_month }}">
+
+    <div class="relative flex items-center mb-4">
+        <div class="absolute left-4 transform -translate-x-1/2 z-10">
+            <div class="w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-lg flex items-center justify-center">
+                <i class="fas fa-calendar text-white text-xs"></i>
+            </div>
+        </div>
+
+        <div class="ml-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-6 py-3">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+                    {{ year }} 年 {{ month_zh }}
+                </h3>
+                <span class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full text-sm font-medium" data-archive-count>
+                    {{ month_posts | length }} 条
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="ml-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+        <div class="divide-y divide-gray-100 dark:divide-gray-700" data-archive-items-list>
+            {% for post in month_posts | sort(attribute='published_at', reverse=True) %}
+            <div class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4 flex-1">
+                        <div class="text-sm text-gray-500 dark:text-gray-400 font-mono min-w-[3rem]">
+                            {{ post.published_at.strftime('%d日') }}
+                        </div>
+
+                        {% if post.formats %}
+                            {% set format_slugs = post.formats | map(attribute='slug') | list %}
+                            {% if 'micro' in format_slugs %}
+                                <i class="fas fa-comment-dots text-blue-500" title="微博"></i>
+                            {% elif 'poem' in format_slugs %}
+                                <i class="fas fa-feather-alt text-yellow-500" title="诗词歌赋"></i>
+                            {% elif 'article' in format_slugs %}
+                                <i class="fas fa-file-alt text-gray-600" title="文章"></i>
+                            {% else %}
+                                <i class="fas fa-pen-alt text-gray-600" title="内容"></i>
+                            {% endif %}
+                        {% else %}
+                            <i class="fas fa-pen text-gray-600" title="内容"></i>
+                        {% endif %}
+
+                        <div class="flex-1">
+                            <a href="{{ post | post_url }}"
+                               class="text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                                {% if post.title and post.title.strip() %}
+                                    {{ post.title }}
+                                {% elif post.excerpt %}
+                                    {{ post.excerpt[:50] }}{% if post.excerpt|length > 50 %}...{% endif %}
+                                {% else %}
+                                    无标题内容
+                                {% endif %}
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                        <span class="flex items-center">
+                            <i class="fas fa-clock mr-1"></i>
+                            {{ (post.content_markdown or post.content_html) | reading_time }}
+                        </span>
+                        {% set stats = (post.content_markdown or post.content_html) | reading_stats(post) %}
+                        <span class="hidden sm:flex items-center">
+                            <i class="fas fa-file-alt mr-1"></i>
+                            {{ stats.word_count }}字
+                        </span>
+                        <span class="hidden md:flex items-center">
+                            <i class="far fa-eye mr-1"></i>
+                            {{ post.views_count or 0 }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    </div>
+    {% endfor %}
+{% endif %}
+
+{% set infinite_append_query = 'append_view=monthly' %}
+{% include "components/list_pagination.html" %}

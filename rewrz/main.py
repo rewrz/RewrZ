@@ -1700,7 +1700,7 @@ def _resolve_posts_per_page(raw_value: Any, default_value: int, *, minimum: int 
 
 def _normalize_list_navigation_mode(raw_value: Any) -> str:
     mode = str(raw_value or "pagination").strip().lower()
-    return mode if mode in {"pagination", "ajax", "infinite_scroll"} else "pagination"
+    return mode if mode in {"pagination", "infinite_scroll"} else "pagination"
 
 
 def _build_public_pagination(
@@ -2097,19 +2097,54 @@ async def posts_by_month(request: Request, year: int, month: int, page: int = 1,
     return templates.TemplateResponse("monthly_archive.html", context)
 
 @app.get("/archives", response_class=HTMLResponse)
-async def archives_page(request: Request, db: Session = Depends(get_db)):
+async def archives_page(
+    request: Request,
+    page: int = 1,
+    append: int = 0,
+    append_view: str = "yearly",
+    db: Session = Depends(get_db),
+):
     """
     总归档页面
     
     显示所有文章的归档列表
     """
-    posts = crud_post.get_archive_posts(db)
+    page = max(1, int(page or 1))
+    archive_posts_limit = _resolve_posts_per_page(get_page_config(db, "archive_posts_limit", 20), 20, maximum=200)
+    list_navigation_mode = _normalize_list_navigation_mode(get_page_config(db, "list_navigation_mode", "pagination"))
+    total_posts_count = db.execute(
+        select(func.count(Post.id)).where(
+            Post.status == "published",
+            Post.published_at.isnot(None),
+            Post.post_type.in_(["post", "article"]),
+        )
+    ).scalar_one()
+    page, pagination = _build_public_pagination(
+        page,
+        total_posts_count,
+        archive_posts_limit,
+        lambda target_page: f"/archives?page={target_page}",
+    )
+    offset = (page - 1) * archive_posts_limit
+    posts = crud_post.get_archive_posts_paginated(
+        db,
+        skip=offset,
+        limit=archive_posts_limit,
+    )
     
     # 构建模板上下文（现在包含统一的设置数据）
     context = build_base_template_context(request)
     context.update({
         "posts": posts,
+        "pagination": pagination,
+        "list_navigation_mode": list_navigation_mode,
+        "append_view": append_view if append_view in {"yearly", "monthly"} else "yearly",
     })
+
+    if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
+        if context["append_view"] == "monthly":
+            return templates.TemplateResponse("fragments/archives_monthly_append.html", context)
+        return templates.TemplateResponse("fragments/archives_yearly_append.html", context)
     
     return templates.TemplateResponse("archives.html", context)
 

@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="max-w-6xl mx-auto">
-    {% set search_use_ajax = list_navigation_mode in ['ajax', 'infinite_scroll'] %}
+    {% set search_use_htmx = list_navigation_mode == 'infinite_scroll' %}
     <!-- 搜索表单 -->
     <div class="bg-white p-6 rounded-lg shadow-md mb-8">
         <h1 class="text-3xl font-bold text-gray-900 mb-6">全站搜索</h1>
@@ -14,7 +14,7 @@
             method="GET"
             action="/search"
             class="space-y-4"
-            {% if search_use_ajax %}
+            {% if search_use_htmx %}
             hx-get="/search"
             hx-target="#search-panel"
             hx-push-url="true"
@@ -214,21 +214,28 @@ function hideSuggestionError() {
 function highlightResults() {
     const queryTextEl = document.getElementById('query-text');
     if (!queryTextEl) return;
-    const q = queryTextEl.textContent || '';
-    if (!q.trim()) return;
+    const q = (queryTextEl.textContent || '').trim();
+    if (!q) return;
     const tokens = q.match(/[\u4e00-\u9fff]+|[A-Za-z0-9]+/g) || [q];
     const unique = [];
     tokens.forEach(t => { if (!unique.includes(t)) unique.push(t); });
     if (unique.length === 0) unique.push(q);
 
-    const wrapHighlight = (el) => {
-        let html = el.innerHTML;
+    const buildHighlightedHtml = (rawText) => {
+        let html = escapeHtml(rawText);
         unique.forEach(tok => {
             const esc = tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const re = new RegExp(`(${esc})`, 'gi');
             html = html.replace(re, '<mark class="bg-yellow-200 px-1 rounded">$1</mark>');
         });
-        el.innerHTML = html;
+        return html;
+    };
+
+    const wrapHighlight = (el) => {
+        if (!el.dataset.rawText) {
+            el.dataset.rawText = el.textContent || '';
+        }
+        el.innerHTML = buildHighlightedHtml(el.dataset.rawText);
     };
 
     document.querySelectorAll('.result-title').forEach(wrapHighlight);
@@ -274,7 +281,9 @@ function initSearchEnhancements() {
 
 document.addEventListener('DOMContentLoaded', initSearchEnhancements);
 document.body.addEventListener('htmx:afterSwap', function(event) {
-    if (event.target && event.target.id === 'search-panel') {
+    const target = event.detail && event.detail.target ? event.detail.target : event.target;
+    if (!target) return;
+    if (target.id === 'search-panel' || (target.closest && target.closest('#search-panel'))) {
         initSearchEnhancements();
     }
 });

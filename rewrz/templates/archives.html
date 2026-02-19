@@ -15,12 +15,13 @@
         </p>
         {% if posts %}
         <div class="mt-4 text-sm text-gray-500 dark:text-gray-400">
-            共收录 <span class="font-semibold text-blue-600 dark:text-blue-400">{{ posts | length }}</span> 条内容
+            共收录 <span class="font-semibold text-blue-600 dark:text-blue-400">{{ pagination.total_count if pagination else (posts | length) }}</span> 条内容
         </div>
         {% endif %}
     </div>
 
     {% if posts %}
+    {% set archives_use_infinite = list_navigation_mode == 'infinite_scroll' %}
     <!-- 归档模式切换 -->
     <div class="flex justify-center mb-8">
         <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-1 flex">
@@ -49,8 +50,9 @@
                 {% set _ = posts_by_year[year].append(post) %}
             {% endfor %}
 
-            <div class="space-y-8">
+            <div id="archives-yearly-list" class="space-y-8">
                 {% for year, year_posts in posts_by_year.items() | sort(reverse=True) %}
+                <div class="archive-year-group" data-archive-group-type="yearly" data-archive-group-key="{{ year }}">
                 <!-- 年份节点和标题 -->
                 <div class="relative flex items-center mb-6">
                     <!-- 年份节点 -->
@@ -66,7 +68,7 @@
                             <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
                                 {{ year }}
                             </h2>
-                            <span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm font-medium">
+                            <span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm font-medium" data-archive-count>
                                 {{ year_posts | length }} 条
                             </span>
                         </div>
@@ -75,7 +77,7 @@
                 
                 <!-- 该年份的文章列表 -->
                 <div class="ml-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-8">
-                    <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                    <div class="divide-y divide-gray-100 dark:divide-gray-700" data-archive-items-list>
                         {% for post in year_posts | sort(attribute='published_at', reverse=True) %}
                         <div class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
                             <div class="flex items-center justify-between">
@@ -137,7 +139,12 @@
                         {% endfor %}
                     </div>
                 </div>
+                </div>
                 {% endfor %}
+                {% if archives_use_infinite %}
+                    {% set infinite_append_query = 'append_view=yearly' %}
+                    {% include "components/list_pagination.html" %}
+                {% endif %}
             </div>
         </div>
 
@@ -152,7 +159,7 @@
                 {% set _ = posts_by_month[year_month].append(post) %}
             {% endfor %}
 
-            <div class="space-y-6">
+            <div id="archives-monthly-list" class="space-y-6">
                 {% for year_month, month_posts in posts_by_month.items() | sort(reverse=True) %}
                 {% set year, month = year_month.split('-') %}
                 {% set month_name = month_posts[0].published_at.strftime('%B') %}
@@ -161,6 +168,7 @@
                     'May': '五月', 'June': '六月', 'July': '七月', 'August': '八月',
                     'September': '九月', 'October': '十月', 'November': '十一月', 'December': '十二月'
                 }[month_name] %}
+                <div class="archive-month-group" data-archive-group-type="monthly" data-archive-group-key="{{ year_month }}">
                 
                 <!-- 月份节点和标题 -->
                 <div class="relative flex items-center mb-4">
@@ -177,7 +185,7 @@
                             <h3 class="text-xl font-bold text-gray-900 dark:text-white">
                                 {{ year }} 年 {{ month_zh }}
                             </h3>
-                            <span class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full text-sm font-medium">
+                            <span class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full text-sm font-medium" data-archive-count>
                                 {{ month_posts | length }} 条
                             </span>
                         </div>
@@ -186,7 +194,7 @@
                 
                 <!-- 该月份的文章列表 -->
                 <div class="ml-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
-                    <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                    <div class="divide-y divide-gray-100 dark:divide-gray-700" data-archive-items-list>
                         {% for post in month_posts | sort(attribute='published_at', reverse=True) %}
                         <div class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
                             <div class="flex items-center justify-between">
@@ -248,7 +256,12 @@
                         {% endfor %}
                     </div>
                 </div>
+                </div>
                 {% endfor %}
+                {% if archives_use_infinite %}
+                    {% set infinite_append_query = 'append_view=monthly' %}
+                    {% include "components/list_pagination.html" %}
+                {% endif %}
             </div>
         </div>
 
@@ -266,6 +279,9 @@
             </div>
         </div>
     </div>
+    {% if not archives_use_infinite %}
+    {% include "components/list_pagination.html" %}
+    {% endif %}
     
     {% else %}
     <!-- 空状态 -->
@@ -290,6 +306,50 @@ document.addEventListener('DOMContentLoaded', function() {
     const monthlyBtn = document.getElementById('monthly-mode');
     const yearlyView = document.getElementById('yearly-view');
     const monthlyView = document.getElementById('monthly-view');
+    if (!yearlyBtn || !monthlyBtn || !yearlyView || !monthlyView) {
+        return;
+    }
+
+    function updateArchiveGroupCount(group) {
+        const countEl = group.querySelector('[data-archive-count]');
+        const itemsList = group.querySelector('[data-archive-items-list]');
+        if (!countEl || !itemsList) return;
+        countEl.textContent = `${itemsList.children.length} 条`;
+    }
+
+    function mergeArchiveGroups(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const firstByKey = new Map();
+        const groups = Array.from(container.querySelectorAll('[data-archive-group-key]'));
+        groups.forEach(group => {
+            const key = group.getAttribute('data-archive-group-key');
+            if (!key) return;
+
+            const primaryGroup = firstByKey.get(key);
+            if (!primaryGroup) {
+                firstByKey.set(key, group);
+                updateArchiveGroupCount(group);
+                return;
+            }
+
+            const primaryItems = primaryGroup.querySelector('[data-archive-items-list]');
+            const duplicateItems = group.querySelector('[data-archive-items-list]');
+            if (primaryItems && duplicateItems) {
+                while (duplicateItems.firstElementChild) {
+                    primaryItems.appendChild(duplicateItems.firstElementChild);
+                }
+            }
+            group.remove();
+            updateArchiveGroupCount(primaryGroup);
+        });
+    }
+
+    function reconcileArchiveTimeline() {
+        mergeArchiveGroups('archives-yearly-list');
+        mergeArchiveGroups('archives-monthly-list');
+    }
     
     function switchMode(mode) {
         // 更新按钮状态
@@ -309,11 +369,20 @@ document.addEventListener('DOMContentLoaded', function() {
             yearlyView.classList.add('hidden');
             localStorage.setItem('archive_mode', 'monthly');
         }
+
+        if (window.htmx && typeof window.htmx.process === 'function') {
+            window.htmx.process(mode === 'yearly' ? yearlyView : monthlyView);
+        }
+        reconcileArchiveTimeline();
     }
     
     // 绑定事件
     yearlyBtn.addEventListener('click', () => switchMode('yearly'));
     monthlyBtn.addEventListener('click', () => switchMode('monthly'));
+
+    document.body.addEventListener('htmx:afterSwap', function() {
+        reconcileArchiveTimeline();
+    });
     
     // 恢复用户偏好
     const savedMode = localStorage.getItem('archive_mode') || 'yearly';

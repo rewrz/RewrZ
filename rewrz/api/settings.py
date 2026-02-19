@@ -178,7 +178,7 @@ async def update_admin_settings(
         custom_footer_text = ''
 
     normalized_list_navigation_mode = (
-        list_navigation_mode if list_navigation_mode in {"pagination", "ajax", "infinite_scroll"} else "pagination"
+        list_navigation_mode if list_navigation_mode in {"pagination", "infinite_scroll"} else "pagination"
     )
 
     settings_to_update = {

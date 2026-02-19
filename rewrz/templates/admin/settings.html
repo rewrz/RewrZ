@@ -277,8 +277,7 @@
                     <label for="list_navigation_mode" class="block text-sm font-medium text-gray-700">列表加载方式</label>
                     <select id="list_navigation_mode" name="list_navigation_mode"
                             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
-                        <option value="pagination" {% if settings.list_navigation_mode not in ['ajax', 'infinite_scroll'] %}selected{% endif %}>分页组件（整页刷新）</option>
-                        <option value="ajax" {% if settings.list_navigation_mode == 'ajax' %}selected{% endif %}>无刷新翻页（HTMX）</option>
+                        <option value="pagination" {% if settings.list_navigation_mode != 'infinite_scroll' %}selected{% endif %}>分页组件（整页刷新）</option>
                         <option value="infinite_scroll" {% if settings.list_navigation_mode == 'infinite_scroll' %}selected{% endif %}>滚动无限加载（HTMX）</option>
                     </select>
                     <p class="text-sm text-gray-500 mt-1">应用于首页、聚合页和搜索页。</p>

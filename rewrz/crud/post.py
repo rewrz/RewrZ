@@ -562,6 +562,23 @@ def get_archive_posts(db: Session) -> List[Post]:
     _attach_views_metrics(db, posts)
     return posts
 
+
+def get_archive_posts_paginated(db: Session, skip: int = 0, limit: int = 20) -> List[Post]:
+    """获取归档页使用的分页文章（仅 post/article）"""
+    query = (
+        select(Post)
+        .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
+        .filter(Post.status == "published")
+        .filter(Post.published_at.isnot(None))
+        .filter(Post.post_type.in_(["post", "article"]))
+        .order_by(Post.published_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    posts = db.execute(query).unique().scalars().all()
+    _attach_views_metrics(db, posts)
+    return posts
+
 def delete_post(db: Session, post_id: int, *, auto_commit: bool = True):
     """删除文章
     

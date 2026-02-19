@@ -1,17 +1,23 @@
 {% if pagination and pagination.has_next %}
 {% set next_page_url = pagination.next_url %}
-{% set append_url = next_page_url ~ ('&append=1' if '?' in next_page_url else '?append=1') %}
-<div class="mt-6 flex justify-center">
-    <div
-        data-infinite-loader="1"
-        class="inline-flex items-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-        hx-get="{{ append_url }}"
-        hx-push-url="{{ next_page_url }}"
-        hx-trigger="revealed once, intersect once"
-        hx-target="this"
-        hx-swap="outerHTML"
-    >
-        <i class="fas fa-spinner fa-spin mr-2"></i>正在加载更多内容...
+{% set append_params = 'append=1' %}
+{% if infinite_append_query %}
+    {% set append_params = append_params ~ '&' ~ infinite_append_query %}
+{% endif %}
+{% set append_url = next_page_url ~ ('&' if '?' in next_page_url else '?') ~ append_params %}
+<div
+    class="mt-6"
+    data-infinite-loader="1"
+    hx-get="{{ append_url }}"
+    hx-push-url="false"
+    hx-trigger="intersect once"
+    hx-target="this"
+    hx-swap="outerHTML"
+>
+    <div class="flex justify-center">
+        <div class="inline-flex items-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            <i class="fas fa-spinner fa-spin mr-2"></i>正在加载更多内容...
+        </div>
     </div>
 </div>
 {% elif pagination and pagination.current_page > 1 %}

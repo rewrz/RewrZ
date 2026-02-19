@@ -19,7 +19,6 @@ class MultiFormatInteractions {
         this.initAudioPlayers();
         this.initMediaPlayers();
         this.initLazyLoading();
-        this.initAjaxPaginationBridge();
         this.initInfiniteScroll();
         this.initImageGallery();
         this.initResponsiveGrid();
@@ -242,129 +241,47 @@ class MultiFormatInteractions {
     }
 
     /**
-     * 初始化无刷新分页增强（兜底）
-     * 当页面处于 ajax 模式时，为缺失 hx 属性的分页链接补齐配置
-     */
-    initAjaxPaginationBridge() {
-        const mode = String(document.body?.dataset?.listNavigationMode || '').trim().toLowerCase();
-        if (mode !== 'ajax') return;
-
-        const patchPaginationLinks = (root = document) => {
-            const scope = root && typeof root.querySelectorAll === 'function' ? root : document;
-            const links = scope.querySelectorAll('nav[aria-label="pagination"] a[href], #pagination a[href*="page="]');
-
-            links.forEach((link) => {
-                if (link.dataset.ajaxPatched === '1') return;
-
-                const href = link.getAttribute('href');
-                if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
-
-                const panel =
-                    link.closest('#search-panel, [id$="-posts-panel"]') ||
-                    document.querySelector('#search-panel, [id$="-posts-panel"]');
-                if (!panel || !panel.id) return;
-
-                link.setAttribute('hx-get', href);
-                link.setAttribute('hx-target', `#${panel.id}`);
-                link.setAttribute('hx-push-url', 'true');
-
-                if (panel.id === 'search-panel') {
-                    link.setAttribute('hx-swap', 'innerHTML');
-                    link.removeAttribute('hx-select');
-                } else {
-                    link.setAttribute('hx-select', `#${panel.id}`);
-                    link.setAttribute('hx-swap', 'outerHTML');
-                }
-
-                link.dataset.ajaxPatched = '1';
-            });
-        };
-
-        patchPaginationLinks(document);
-        document.body.addEventListener('htmx:afterSwap', (event) => {
-            patchPaginationLinks(event?.target || document);
-        });
-    }
-
-    /**
      * 初始化无限滚动
      */
     initInfiniteScroll() {
-        const mode = String(document.body?.dataset?.listNavigationMode || '').trim().toLowerCase();
-        if (mode !== 'infinite_scroll') return;
+        const hasLoader = !!document.querySelector('[data-infinite-loader="1"]');
+        if (!hasLoader) return;
 
-        let ticking = false;
+        // 优先使用 HTMX 原生触发，避免与自定义滚动监听重复触发导致闪烁/覆盖
+        if (window.htmx && typeof window.htmx.process === 'function') {
+            window.htmx.process(document.body);
+            return;
+        }
+
+        // HTMX 不可用时，使用最小回退逻辑
         const getLoader = () => document.querySelector('[data-infinite-loader="1"]');
+        const fallbackLoad = async () => {
+            const loader = getLoader();
+            if (!loader || loader.dataset.loading === '1') return;
+            const rect = loader.getBoundingClientRect();
+            if (rect.top > window.innerHeight + 200) return;
 
-        const fetchAndReplaceLoader = async (loader) => {
-            const url = loader?.getAttribute('hx-get');
+            const url = loader.getAttribute('hx-get');
             if (!url) return;
-
             loader.dataset.loading = '1';
             try {
                 const response = await fetch(url, {
                     headers: { 'HX-Request': 'true' },
                     credentials: 'same-origin',
                 });
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const html = await response.text();
                 loader.outerHTML = html;
             } catch (error) {
+                loader.dataset.loading = '0';
                 console.error('加载更多内容失败:', error);
-                if (loader && loader.isConnected) {
-                    loader.dataset.loading = '0';
-                }
             }
         };
 
-        const triggerLoadMore = () => {
-            const loader = getLoader();
-            if (!loader || loader.dataset.loading === '1') return;
-
-            const rect = loader.getBoundingClientRect();
-            if (rect.top > window.innerHeight + 220) return;
-
-            loader.dataset.loading = '1';
-            if (window.htmx && typeof window.htmx.trigger === 'function') {
-                window.htmx.trigger(loader, 'revealed');
-            } else {
-                fetchAndReplaceLoader(loader);
-            }
-        };
-
-        const scheduleCheck = () => {
-            if (ticking) return;
-            ticking = true;
-            window.requestAnimationFrame(() => {
-                ticking = false;
-                triggerLoadMore();
-            });
-        };
-
-        window.addEventListener('scroll', scheduleCheck, { passive: true });
-        window.addEventListener('resize', scheduleCheck, { passive: true });
-
-        document.body.addEventListener('htmx:beforeRequest', (event) => {
-            const source = event?.detail?.elt;
-            if (source && source.matches && source.matches('[data-infinite-loader="1"]')) {
-                source.dataset.loading = '1';
-            }
-        });
-
-        document.body.addEventListener('htmx:responseError', (event) => {
-            const source = event?.detail?.elt;
-            if (source && source.matches && source.matches('[data-infinite-loader="1"]')) {
-                source.dataset.loading = '0';
-            }
-        });
-
-        document.body.addEventListener('htmx:afterSwap', () => {
-            scheduleCheck();
-        });
-
-        scheduleCheck();
+        const onScroll = () => { fallbackLoad(); };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', onScroll, { passive: true });
+        fallbackLoad();
     }
 
     appendPosts(posts) {

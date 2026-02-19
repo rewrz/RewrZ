@@ -38,7 +38,7 @@ templates = get_templates()
 
 def _normalize_list_navigation_mode(raw_value: Any) -> str:
     mode = str(raw_value or "pagination").strip().lower()
-    return mode if mode in {"pagination", "ajax", "infinite_scroll"} else "pagination"
+    return mode if mode in {"pagination", "infinite_scroll"} else "pagination"
 
 
 @router.get("/search", response_class=HTMLResponse)

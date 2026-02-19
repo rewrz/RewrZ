@@ -31,21 +31,22 @@
 
     {% if search_info.total_pages > 1 %}
     {% set search_use_infinite = list_navigation_mode == 'infinite_scroll' %}
-    {% set search_use_ajax = list_navigation_mode == 'ajax' %}
     {% if search_use_infinite %}
     {% if search_info.page < search_info.total_pages %}
     {% set next_page_url = "/search?q=" ~ (search_info.query or '') ~ "&category=" ~ (search_info.category or '') ~ "&tag=" ~ (search_info.tag or '') ~ "&format=" ~ (search_info.format or '') ~ "&sort=" ~ (search_info.sort or 'relevance') ~ "&page=" ~ (search_info.page + 1) %}
-    <div class="mt-6 flex justify-center">
-        <div
-            data-infinite-loader="1"
-            class="inline-flex items-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-            hx-get="{{ next_page_url }}&append=1"
-            hx-push-url="{{ next_page_url }}"
-            hx-trigger="revealed once, intersect once"
-            hx-target="this"
-            hx-swap="outerHTML"
-        >
-            <i class="fas fa-spinner fa-spin mr-2"></i>正在加载更多结果...
+    <div
+        class="mt-6"
+        data-infinite-loader="1"
+        hx-get="{{ next_page_url }}&append=1"
+        hx-push-url="false"
+        hx-trigger="intersect once"
+        hx-target="this"
+        hx-swap="outerHTML"
+    >
+        <div class="flex justify-center">
+            <div class="inline-flex items-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                <i class="fas fa-spinner fa-spin mr-2"></i>正在加载更多结果...
+            </div>
         </div>
     </div>
     {% elif search_info.page > 1 %}
@@ -57,11 +58,6 @@
             {% if search_info.page > 1 %}
             <a
                 href="?q={{ search_info.query }}&category={{ search_info.category or '' }}&tag={{ search_info.tag or '' }}&format={{ search_info.format or '' }}&sort={{ search_info.sort }}&page={{ search_info.page - 1 }}"
-                {% if search_use_ajax %}
-                hx-get="/search?q={{ search_info.query }}&category={{ search_info.category or '' }}&tag={{ search_info.tag or '' }}&format={{ search_info.format or '' }}&sort={{ search_info.sort }}&page={{ search_info.page - 1 }}"
-                hx-target="#search-panel"
-                hx-push-url="true"
-                {% endif %}
                 class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
                 上一页
@@ -74,11 +70,6 @@
             {% elif page_num <= 3 or page_num > search_info.total_pages - 3 or (page_num >= search_info.page - 2 and page_num <= search_info.page + 2) %}
             <a
                 href="?q={{ search_info.query }}&category={{ search_info.category or '' }}&tag={{ search_info.tag or '' }}&format={{ search_info.format or '' }}&sort={{ search_info.sort }}&page={{ page_num }}"
-                {% if search_use_ajax %}
-                hx-get="/search?q={{ search_info.query }}&category={{ search_info.category or '' }}&tag={{ search_info.tag or '' }}&format={{ search_info.format or '' }}&sort={{ search_info.sort }}&page={{ page_num }}"
-                hx-target="#search-panel"
-                hx-push-url="true"
-                {% endif %}
                 class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
                 {{ page_num }}
@@ -91,11 +82,6 @@
             {% if search_info.page < search_info.total_pages %}
             <a
                 href="?q={{ search_info.query }}&category={{ search_info.category or '' }}&tag={{ search_info.tag or '' }}&format={{ search_info.format or '' }}&sort={{ search_info.sort }}&page={{ search_info.page + 1 }}"
-                {% if search_use_ajax %}
-                hx-get="/search?q={{ search_info.query }}&category={{ search_info.category or '' }}&tag={{ search_info.tag or '' }}&format={{ search_info.format or '' }}&sort={{ search_info.sort }}&page={{ search_info.page + 1 }}"
-                hx-target="#search-panel"
-                hx-push-url="true"
-                {% endif %}
                 class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
                 下一页
