@@ -142,6 +142,11 @@ class DefaultPublicProfileResolver:
             "micro": "creator_profile_micro_cover_url",
             "poem": "creator_profile_poem_cover_url",
         }
+        format_cover_fallback_map = {
+            "article": "/static/images/anime/covers/format-article.svg",
+            "micro": "/static/images/anime/covers/format-micro.svg",
+            "poem": "/static/images/anime/covers/format-poem.svg",
+        }
         format_bio_map = {
             "article": "creator_profile_article_bio",
             "micro": "creator_profile_micro_bio",
@@ -149,10 +154,13 @@ class DefaultPublicProfileResolver:
         }
         selected_cover_key = format_cover_map.get(normalized_slug, "creator_profile_cover_url")
         selected_bio_key = format_bio_map.get(normalized_slug, "creator_profile_article_bio")
+        selected_cover_fallback = format_cover_fallback_map.get(
+            normalized_slug,
+            "/static/images/anime/covers/format-article.svg",
+        )
 
-        common_cover = str(_get_setting_value(db, "creator_profile_cover_url", "") or "").strip()
         selected_cover = str(_get_setting_value(db, selected_cover_key, "") or "").strip()
-        cover_url = selected_cover or common_cover or self._resolve_site_cover_url(db)
+        cover_url = selected_cover or selected_cover_fallback
 
         selected_bio = str(_get_setting_value(db, selected_bio_key, "") or "").strip()
 
