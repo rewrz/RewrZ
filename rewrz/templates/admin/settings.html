@@ -350,6 +350,30 @@
                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                                    placeholder="可使用 {seed} 占位符，例如：https://example.com/image?seed={seed}">
                             <p class="text-sm text-gray-500 mt-1">支持 `{seed}` 占位符；未使用时系统会自动拼接 seed 参数。</p>
+                            <div class="mt-3 rounded-md border border-purple-200 bg-white/80 p-3 space-y-3">
+                                <label class="inline-flex items-center text-sm text-gray-700">
+                                    <input type="checkbox" id="article_card_api_cache_enabled" name="article_card_api_cache_enabled" class="form-checkbox"
+                                           {% if settings.article_card_api_cache_enabled is not defined or settings.article_card_api_cache_enabled %}checked{% endif %}>
+                                    <span class="ml-2 font-medium">启用 API 图片缓存（推荐）</span>
+                                </label>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div>
+                                        <label for="article_card_api_cache_ttl_minutes" class="block text-sm font-medium text-gray-700">缓存有效期（分钟）</label>
+                                        <input type="number" id="article_card_api_cache_ttl_minutes" name="article_card_api_cache_ttl_minutes"
+                                               value="{{ settings.article_card_api_cache_ttl_minutes if settings.article_card_api_cache_ttl_minutes else 360 }}"
+                                               min="5" max="10080"
+                                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                                    </div>
+                                    <div>
+                                        <label for="article_card_api_cache_cleanup_minutes" class="block text-sm font-medium text-gray-700">自动清理间隔（分钟）</label>
+                                        <input type="number" id="article_card_api_cache_cleanup_minutes" name="article_card_api_cache_cleanup_minutes"
+                                               value="{{ settings.article_card_api_cache_cleanup_minutes if settings.article_card_api_cache_cleanup_minutes else 120 }}"
+                                               min="1" max="10080"
+                                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-500">渲染页面时不会等待下载：缓存未命中时先使用原始 API 地址展示，并在后台异步预热本地缓存；到达清理间隔后会自动清理过期文件。</p>
+                            </div>
                         </div>
                         <div id="article-card-fallback-local-wrap" class="md:col-span-2">
                             <label for="article_card_fallback_local_dir" class="block text-sm font-medium text-gray-700">本地图片文件夹</label>
