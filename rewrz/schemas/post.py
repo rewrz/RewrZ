@@ -12,6 +12,7 @@ class PostBase(BaseModel):
     excerpt: Optional[str] = None
     featured_image_url: Optional[str] = None
     post_type: str = "post"
+    page_template: str = "default"
     status: str = "draft"
     visibility: str = "public"
     password: Optional[str] = None

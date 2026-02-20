@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ post.title }}{% endblock %}
+{% block title %}{{ post.title }} - {{ site_title }}{% if tagline %} | {{ tagline }}{% endif %}{% endblock %}
 
 {% block head %}
 {{ super() }}
@@ -16,8 +16,7 @@
 </script>
 {% endif %}
 
-<link rel="stylesheet" href="{{ url_for('static', path='css/post-detail.css') }}">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<link rel="stylesheet" href="{{ url_for('static', path='css/post-detail.css') }}?v=20260220-4">
 {% endblock %}
 
 {% block content %}
@@ -33,7 +32,7 @@
 
 {% if is_micro_post %}
 <section class="py-8">
-    <div class="container mx-auto px-4 max-w-3xl">
+    <div class="container mx-auto px-4 max-w-5xl">
         <!-- 返回导航 -->
         <nav class="mb-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
             <a href="/formats/micro" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
@@ -213,7 +212,7 @@
         <div class="particle particle-5"></div>
     </div>
 
-    <div class="relative container mx-auto px-4 max-w-4xl">
+    <div class="relative container mx-auto px-4 max-w-5xl">
         <!-- 返回导航 -->
         <nav class="mb-6 flex items-center justify-between text-sm text-white/70">
             <div class="flex items-center gap-2">
@@ -306,9 +305,9 @@
 </section>
 
 {% else %}
-<section class="py-8">
-    <div class="container mx-auto px-4 max-w-4xl">
-        <article class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 shadow-xl overflow-hidden">
+<section class="py-8 detail-article-section">
+    <div class="container mx-auto px-4 max-w-7xl">
+        <article class="article-detail-card rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 shadow-xl overflow-hidden">
             <header class="p-6 md:p-8 border-b border-gray-200 dark:border-gray-700">
                 <h1 class="text-3xl md:text-4xl font-bold mb-6 leading-tight">{{ post.title }}</h1>
 
@@ -357,7 +356,7 @@
             </header>
 
             <div class="p-6 md:p-8">
-                <div class="post-content prose prose-lg dark:prose-invert max-w-none">
+                <div class="post-content article-content prose prose-lg dark:prose-invert max-w-none">
                     {{ rendered_content | safe }}
                 </div>
             </div>
@@ -367,7 +366,7 @@
 {% endif %}
 
 <section class="pb-10">
-    <div class="container mx-auto px-4 max-w-5xl space-y-8">
+    <div class="container mx-auto px-4 max-w-7xl space-y-8">
         {% if post.license_type %}
         <div class="rounded-xl bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 p-4 md:p-5">
             <div class="flex items-start gap-3">
@@ -501,8 +500,18 @@ async function shareMicroPost() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    if (typeof window.safeHighlightCodeBlocks === 'function') {
+        window.safeHighlightCodeBlocks(document);
+        return;
+    }
     document.querySelectorAll('pre code').forEach((el) => {
-        hljs.highlightElement(el);
+        try {
+            hljs.highlightElement(el);
+        } catch (_) {
+            if (el) {
+                el.classList.add('hljs');
+            }
+        }
     });
 });
 </script>

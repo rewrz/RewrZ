@@ -101,6 +101,7 @@ def _normalize_wp_import_options(payload: Optional[Dict[str, Any]]) -> Dict[str,
 
     merged["import_comments"] = bool(merged.get("import_comments", True))
     merged["import_views"] = bool(merged.get("import_views", True))
+    merged["download_remote_media"] = bool(merged.get("download_remote_media", False))
     markdown_strategy = str(merged.get("markdown_strategy", "html_to_markdown")).strip() or "html_to_markdown"
     if markdown_strategy not in {"html_to_markdown", "raw_html"}:
         markdown_strategy = "html_to_markdown"

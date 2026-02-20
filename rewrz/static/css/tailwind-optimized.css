@@ -661,7 +661,6 @@ body {
 }
 
 .post-content code {
-  background-color: #f1f5f9;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
   padding-top: 0.25rem;
@@ -2058,17 +2057,6 @@ body {
   max-width: 100%;
   height: auto;
   border-radius: 0.5rem;
-}
-
-.post-content code {
-  background-color: #f3f4f6;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
 }
 
 .post-content pre {

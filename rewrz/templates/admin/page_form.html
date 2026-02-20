@@ -249,6 +249,23 @@
                     <input type="text" id="slug-input" name="slug" value="{% if post %}{{ post.slug }}{% endif %}" class="editor-input">
                     <p class="mt-1 text-xs text-gray-500">预览链接: <span id="slug-preview" class="font-mono"></span></p>
                 </div>
+                {% set current_page_template = post.page_template if post and post.page_template else 'default' %}
+                {% set resolved_page_template_options = page_template_options if page_template_options else [{'value': 'default', 'label': '默认页面（全宽）', 'description': 'WordPress 常见默认页风格，适合通用内容展示。'}] %}
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">页面模板</h3>
+                    <select id="page-template-select" name="page_template" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        {% for item in resolved_page_template_options %}
+                        <option value="{{ item.value }}" {% if item.value == current_page_template %}selected{% endif %}>
+                            {{ item.label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p id="page-template-hint" class="mt-2 text-xs text-gray-500">
+                        {% for item in resolved_page_template_options %}
+                        {% if item.value == current_page_template %}{{ item.description }}{% endif %}
+                        {% endfor %}
+                    </p>
+                </div>
                 <div>
                     <h3 class="text-lg font-semibold mb-2">可见性</h3>
                     <select id="visibility-select" name="visibility" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
@@ -364,6 +381,9 @@
     const titleInput = document.getElementById('title');
     const slugInput = document.getElementById('slug-input');
     const slugPreview = document.getElementById('slug-preview');
+    const pageTemplateSelect = document.getElementById('page-template-select');
+    const pageTemplateHint = document.getElementById('page-template-hint');
+    const pageTemplateOptions = {{ resolved_page_template_options | tojson }};
     let isDirty = false;
     let isSubmitting = false;
     let slugTouched = Boolean(slugInput && slugInput.value.trim());
@@ -522,6 +542,20 @@
             markDirty();
         });
         updateSlugPreview();
+    }
+
+    function updatePageTemplateHint() {
+        if (!pageTemplateSelect || !pageTemplateHint) return;
+        const selected = pageTemplateOptions.find((item) => item.value === pageTemplateSelect.value);
+        pageTemplateHint.textContent = selected && selected.description ? selected.description : '可在前台使用不同版式展示此页面。';
+    }
+
+    if (pageTemplateSelect) {
+        pageTemplateSelect.addEventListener('change', () => {
+            updatePageTemplateHint();
+            markDirty();
+        });
+        updatePageTemplateHint();
     }
 
     pageForm.addEventListener('input', markDirty);

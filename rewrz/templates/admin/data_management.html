@@ -126,6 +126,10 @@
                             <span>导入阅读量（postmeta）</span>
                         </label>
                         <label class="inline-flex items-center gap-2">
+                            <input type="checkbox" id="wp-download-remote-media" class="form-checkbox">
+                            <span>导入时自动下载远程图片/媒体到本地</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2">
                             <input type="checkbox" id="wp-import-type-post" class="form-checkbox" checked>
                             <span>导入 post</span>
                         </label>
@@ -291,6 +295,7 @@ function collectWordPressImportOptions() {
     return {
         import_comments: Boolean(document.getElementById('wp-import-comments')?.checked),
         import_views: Boolean(document.getElementById('wp-import-views')?.checked),
+        download_remote_media: Boolean(document.getElementById('wp-download-remote-media')?.checked),
         import_post_types: types,
         post_type_format_map: parsePostTypeFormatMap(postTypeFormatMapText),
         postmeta_whitelist: (document.getElementById('wp-postmeta-whitelist')?.value || '')
@@ -352,6 +357,7 @@ function applyWordPressImportOptions(options) {
     const safe = options || {};
     document.getElementById('wp-import-comments').checked = !!safe.import_comments;
     document.getElementById('wp-import-views').checked = !!safe.import_views;
+    document.getElementById('wp-download-remote-media').checked = !!safe.download_remote_media;
     const types = Array.isArray(safe.import_post_types) ? safe.import_post_types : [];
     document.getElementById('wp-import-type-post').checked = types.includes('post');
     document.getElementById('wp-import-type-page').checked = types.includes('page');

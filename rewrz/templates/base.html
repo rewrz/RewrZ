@@ -3,7 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ site_title }}{% if tagline %} - {{ tagline }}{% endif %}{% endblock %}</title>
+    {% set _page_title_raw %}{% block title %}{% endblock %}{% endset %}
+    {% set _page_title = (_page_title_raw or '') | striptags | trim %}
+    {% set _site_title = (site_title or 'RewrZ') | trim %}
+    {% set _tagline = (tagline or '') | trim %}
+    <title>
+        {% if _page_title %}
+            {{ _page_title }}{% if _site_title and (_site_title not in _page_title) %} - {{ _site_title }}{% endif %}{% if _tagline and (_tagline not in _page_title) %} | {{ _tagline }}{% endif %}
+        {% else %}
+            {{ _site_title }}{% if _tagline %} | {{ _tagline }}{% endif %}
+        {% endif %}
+    </title>
     {# 动态 favicon：优先使用设置中的 favicon，其次回退到默认静态文件 #}
     {% if favicon %}
     <link rel="icon" href="{{ favicon }}">
@@ -60,7 +70,9 @@
     {% block head %}{% endblock %}
     
     <!-- Code highlighting -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    {% set _code_highlight_themes = ['github-dark', 'github', 'atom-one-dark', 'atom-one-light', 'vs2015', 'monokai', 'stackoverflow-light', 'stackoverflow-dark', 'night-owl', 'nord'] %}
+    {% set _code_highlight_theme = code_highlight_theme if code_highlight_theme in _code_highlight_themes else 'github-dark' %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/{{ _code_highlight_theme }}.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     
     <!-- 动态主题CSS变量 -->
@@ -69,6 +81,33 @@
     <!-- 优化后的统一样式系统 -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/tailwind-optimized.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', path='css/unified-theme.css') }}?v=20260219-2">
+    <style id="hljs-theme-bridge">
+        /* 普通代码块兜底（当 hljs 未就绪时） */
+        .post-content pre > code:not(.hljs),
+        .prose pre > code:not(.hljs) {
+            display: block;
+            padding: 1rem 1.125rem;
+            border-radius: 0.75rem;
+            background: #0f172a;
+            color: #e5e7eb;
+            overflow-x: auto;
+        }
+
+        /* 仅对已高亮的容器清空外层 pre 的背景，让主题作用于 code.hljs */
+        .post-content pre.hljs-ready,
+        .prose pre.hljs-ready {
+            padding: 0 !important;
+            border: none !important;
+        }
+
+        .post-content pre.hljs-ready > code.hljs,
+        .prose pre.hljs-ready > code.hljs {
+            display: block;
+            padding: 1rem 1.125rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+        }
+    </style>
     
     <style>
         /* 自定义字体定义 */
@@ -402,25 +441,58 @@
             }
         }
 
+        function safeHighlightCodeBlocks(root = document) {
+            if (!window.hljs) {
+                return;
+            }
+            const scope = root && root.querySelectorAll ? root : document;
+            const blocks = scope.querySelectorAll('pre code');
+            blocks.forEach((block) => {
+                if (!block || !block.textContent) {
+                    return;
+                }
+                const pre = block.closest('pre');
+                try {
+                    hljs.highlightElement(block);
+                    block.classList.add('hljs');
+                    if (pre) {
+                        pre.classList.add('hljs-ready');
+                    }
+                } catch (_) {
+                    try {
+                        const source = block.textContent || '';
+                        const auto = hljs.highlightAuto(source);
+                        block.innerHTML = auto.value;
+                        block.classList.add('hljs');
+                        if (pre) {
+                            pre.classList.add('hljs-ready');
+                        }
+                    } catch (_) {
+                        block.classList.add('hljs');
+                        if (pre) {
+                            pre.classList.add('hljs-ready');
+                        }
+                    }
+                }
+            });
+        }
+        window.safeHighlightCodeBlocks = safeHighlightCodeBlocks;
+
         // DOM加载完成后执行初始化
         document.addEventListener('DOMContentLoaded', async function() {
-            await initializeTheme();
+            try {
+                await initializeTheme();
+            } catch (error) {
+                console.warn('主题初始化失败，继续执行其他初始化:', error);
+            }
             initMobileMenu();
             initThemeToggle();
-            hljs.highlightAll();
+            safeHighlightCodeBlocks(document);
         });
 
         // HTMX内容加载后重新高亮代码
         document.body.addEventListener('htmx:afterSwap', function(event) {
-            if (event.detail.target) {
-                event.detail.target.querySelectorAll('pre code').forEach((block) => {
-                    if (block && block.textContent) {
-                        hljs.highlightElement(block);
-                    }
-                });
-            } else {
-                hljs.highlightAll();
-            }
+            safeHighlightCodeBlocks(event && event.detail ? event.detail.target : document);
         });
 
         // 定期检查主题更新

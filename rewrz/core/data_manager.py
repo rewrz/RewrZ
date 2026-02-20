@@ -10,13 +10,18 @@
 
 import os
 import json
+import mimetypes
+import hashlib
 import xml.etree.ElementTree as ET
 import zipfile
 import shutil
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Tuple, Callable
+from urllib.parse import urljoin, urlparse
+from urllib.request import Request as UrlRequest, urlopen
 from sqlalchemy.orm import Session
 from sqlalchemy import select
+from bs4 import BeautifulSoup, Comment, NavigableString as BsNavigableString, Tag as BsTag
 from ..crud import post as crud_post
 from ..crud import category as crud_category
 from ..crud import tag as crud_tag
@@ -35,6 +40,7 @@ DEFAULT_WP_IMPORT_OPTIONS = {
     "import_post_types": ["post", "page"],
     "import_comments": True,
     "import_views": True,
+    "download_remote_media": False,
     "postmeta_whitelist": ["views", "post_views_count"],
     "post_type_format_map": {},
     "markdown_strategy": "html_to_markdown",
@@ -96,6 +102,7 @@ class DataExportManager:
                 "excerpt": post.excerpt,
                 "featured_image_url": post.featured_image_url,
                 "post_type": post.post_type,
+                "page_template": getattr(post, "page_template", "default"),
                 "status": post.status,
                 "visibility": post.visibility,
                 "password": post.password,
@@ -282,6 +289,10 @@ class WordPressImporter:
         self.options = self._normalize_import_options(options)
         self.progress_callback = progress_callback
         self._deferred_setting_cache_keys: set[str] = set()
+        self._attachment_url_map: Dict[int, str] = {}
+        self._site_base_url: str = ""
+        self._downloaded_media_url_map: Dict[str, str] = {}
+        self._downloaded_media_count: int = 0
 
     def _report_progress(
         self,
@@ -335,6 +346,7 @@ class WordPressImporter:
         )
         merged["import_comments"] = bool(merged.get("import_comments", True))
         merged["import_views"] = bool(merged.get("import_views", True))
+        merged["download_remote_media"] = bool(merged.get("download_remote_media", False))
         merged["markdown_strategy"] = str(merged.get("markdown_strategy", "html_to_markdown")).strip() or "html_to_markdown"
         return merged
     
@@ -352,6 +364,14 @@ class WordPressImporter:
             self._report_progress("prepare", "正在解析 WordPress 导出文件...")
             tree = ET.parse(wxr_file_path)
             root = tree.getroot()
+            self._site_base_url = (
+                (root.findtext("./channel/link") or "").strip()
+                if root is not None
+                else ""
+            )
+            self._attachment_url_map = self._build_wp_attachment_map(root)
+            self._downloaded_media_url_map = {}
+            self._downloaded_media_count = 0
             category_nodes = root.findall('.//wp:category', self.namespaces)
             tag_nodes = root.findall('.//wp:tag', self.namespaces)
             item_nodes = root.findall('.//item')
@@ -363,6 +383,7 @@ class WordPressImporter:
                 "tags_imported": 0,
                 "comments_imported": 0,
                 "views_imported": 0,
+                "media_downloaded": 0,
                 "errors": []
             }
             
@@ -373,6 +394,7 @@ class WordPressImporter:
                     "categories_total": len(category_nodes),
                     "tags_total": len(tag_nodes),
                     "items_total": len(item_nodes),
+                    "attachments_total": len(self._attachment_url_map),
                 },
             )
 
@@ -384,6 +406,7 @@ class WordPressImporter:
             
             # 导入文章
             self._import_wp_posts(root, stats, total=len(item_nodes))
+            stats["media_downloaded"] = self._downloaded_media_count
             self._clear_deferred_setting_cache()
 
             self._report_progress("completed", "WordPress 数据导入完成。", current=1, total=1, extra={"stats": stats})
@@ -399,6 +422,7 @@ class WordPressImporter:
                 "tags_imported": 0,
                 "comments_imported": 0,
                 "views_imported": 0,
+                "media_downloaded": self._downloaded_media_count,
                 "errors": [str(e)]
             }
     
@@ -543,11 +567,19 @@ class WordPressImporter:
                         html_content = content_text
                         editor_mode = "html"
                     else:
-                        markdown_content = self._html_to_markdown(content_text)
+                        markdown_content = self._html_to_markdown(
+                            content_text,
+                            source_link=(link.text if link is not None else ""),
+                        )
                         if not (markdown_content or "").strip():
                             markdown_content = content_text
                         html_content = ""
                         editor_mode = "markdown"
+                    featured_image_url = self._extract_wp_featured_image_url(
+                        item,
+                        content_text,
+                        source_link=(link.text if link is not None else ""),
+                    )
                     raw_excerpt = (excerpt.text or "").strip() if excerpt is not None else ""
                     description_text = (description.text or "").strip() if description is not None else ""
                     excerpt_text = raw_excerpt if raw_excerpt else (description_text if description_text else self._extract_excerpt(content_text))
@@ -582,6 +614,7 @@ class WordPressImporter:
                         content_html=html_content,
                         editor_mode=editor_mode,
                         excerpt=excerpt_text,
+                        featured_image_url=featured_image_url,
                         post_type=mapped_post_type,
                         status=mapped_status,
                         visibility=mapped_visibility,
@@ -602,6 +635,18 @@ class WordPressImporter:
                     if author is None:
                         stats["errors"].append(f"导入文章失败: 未找到可用作者账户（creator={creator_name or 'N/A'}）")
                         continue
+
+                    if self.options.get("download_remote_media", False):
+                        markdown_content, html_content, featured_image_url = self._localize_post_media_references(
+                            markdown_content=markdown_content,
+                            html_content=html_content,
+                            featured_image_url=featured_image_url,
+                            source_link=(link.text if link is not None else ""),
+                            uploaded_by_id=author.id,
+                        )
+                        post_data.content_markdown = markdown_content
+                        post_data.content_html = html_content
+                        post_data.featured_image_url = featured_image_url
 
                     new_post = crud_post.create_post(self.db, post_data, author.id, auto_commit=False)
                     
@@ -639,6 +684,7 @@ class WordPressImporter:
                         "posts_imported": stats["posts_imported"],
                         "comments_imported": stats["comments_imported"],
                         "views_imported": stats["views_imported"],
+                        "media_downloaded": self._downloaded_media_count,
                         "errors_count": len(stats["errors"]),
                     },
                 )
@@ -862,35 +908,658 @@ class WordPressImporter:
         slug = slug.strip('-')
         
         return slug or "untitled"
+
+    def _build_wp_attachment_map(self, root: ET.Element) -> Dict[int, str]:
+        """构建 WordPress 附件 ID -> URL 的映射，用于恢复特色图。"""
+        mapping: Dict[int, str] = {}
+        if root is None:
+            return mapping
+
+        for item in root.findall(".//item"):
+            post_type = (item.findtext("wp:post_type", default="", namespaces=self.namespaces) or "").strip().lower()
+            if post_type != "attachment":
+                continue
+
+            post_id = self._safe_int(
+                item.findtext("wp:post_id", default="", namespaces=self.namespaces),
+                default=None,
+            )
+            raw_url = (
+                item.findtext("wp:attachment_url", default="", namespaces=self.namespaces)
+                or item.findtext("link", default="")
+                or ""
+            ).strip()
+            if post_id is None or not raw_url:
+                continue
+            normalized = self._normalize_media_url(raw_url)
+            if normalized:
+                mapping[int(post_id)] = normalized
+
+        return mapping
+
+    def _extract_wp_postmeta_values(self, item: ET.Element, target_key: str) -> List[str]:
+        values: List[str] = []
+        if item is None or not target_key:
+            return values
+
+        for meta in item.findall("wp:postmeta", self.namespaces):
+            key_elem = meta.find("wp:meta_key", self.namespaces)
+            value_elem = meta.find("wp:meta_value", self.namespaces)
+            key_text = (key_elem.text or "").strip() if key_elem is not None else ""
+            if key_text != target_key:
+                continue
+            raw_value = (value_elem.text or "").strip() if value_elem is not None else ""
+            if raw_value:
+                values.append(raw_value)
+        return values
+
+    def _normalize_media_url(self, raw_url: str, source_link: str = "") -> str:
+        url = (raw_url or "").strip()
+        if not url:
+            return ""
+        if url.startswith("//"):
+            return f"https:{url}"
+        if url.startswith("http://") or url.startswith("https://"):
+            return url
+
+        base = (source_link or self._site_base_url or "").strip()
+        if base:
+            return urljoin(base, url)
+        return url
+
+    def _extract_first_image_url_from_html(self, html_content: str, source_link: str = "") -> Optional[str]:
+        if not (html_content or "").strip():
+            return None
+        soup = BeautifulSoup(html_content, "html.parser")
+        img = soup.find("img")
+        if not isinstance(img, BsTag):
+            return None
+        raw_src = (
+            img.get("src")
+            or img.get("data-src")
+            or img.get("data-original")
+            or img.get("data-lazy-src")
+            or ""
+        ).strip()
+        if not raw_src:
+            return None
+        normalized = self._normalize_media_url(raw_src, source_link=source_link)
+        return normalized or None
+
+    def _extract_wp_featured_image_url(self, item: ET.Element, html_content: str, source_link: str = "") -> Optional[str]:
+        """提取特色图：_thumbnail_id -> post_theme_color_meta.image_url -> 正文首图。"""
+        if item is None:
+            return self._extract_first_image_url_from_html(html_content, source_link=source_link)
+
+        # 1) _thumbnail_id => attachment_url
+        thumbnail_ids = self._extract_wp_postmeta_values(item, "_thumbnail_id")
+        for raw_id in thumbnail_ids:
+            attachment_id = self._safe_int(raw_id, default=None)
+            if attachment_id is None:
+                continue
+            attachment_url = self._attachment_url_map.get(int(attachment_id))
+            if attachment_url:
+                return attachment_url
+
+        # 2) 常见主题字段（序列化串中含 image_url）
+        theme_meta_values = self._extract_wp_postmeta_values(item, "post_theme_color_meta")
+        for raw_meta in theme_meta_values:
+            match = re.search(r'image_url";s:\d+:"([^"]+)"', raw_meta)
+            if match:
+                extracted = self._normalize_media_url(match.group(1), source_link=source_link)
+                if extracted:
+                    return extracted
+
+        # 3) 兜底正文首图
+        return self._extract_first_image_url_from_html(html_content, source_link=source_link)
+
+    def _get_media_upload_root(self) -> str:
+        return os.path.abspath("media_uploads")
+
+    def _is_remote_http_url(self, url: str) -> bool:
+        parsed = urlparse((url or "").strip())
+        return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+    def _looks_like_media_candidate(self, url: str, mime_type: str = "") -> bool:
+        if not url:
+            return False
+        mime = (mime_type or "").split(";", 1)[0].strip().lower()
+        if mime.startswith(("image/", "video/", "audio/")):
+            return True
+
+        parsed = urlparse(url)
+        path = (parsed.path or "").lower()
+        if "/wp-content/uploads/" in path:
+            return True
+
+        ext = os.path.splitext(path)[1].lower()
+        media_exts = {
+            ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".avif",
+            ".mp4", ".m4v", ".mov", ".webm", ".avi", ".mkv",
+            ".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac",
+            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+        }
+        return ext in media_exts
+
+    def _guess_extension_from_mime(self, mime_type: str) -> str:
+        mime = (mime_type or "").split(";", 1)[0].strip().lower()
+        if not mime:
+            return ""
+        ext = mimetypes.guess_extension(mime) or ""
+        if ext == ".jpe":
+            return ".jpg"
+        return ext.lower()
+
+    def _guess_file_type(self, mime_type: str, url_or_path: str = "") -> str:
+        mime = (mime_type or "").split(";", 1)[0].strip().lower()
+        if mime.startswith("image/"):
+            return "image"
+        if mime.startswith("video/"):
+            return "video"
+        if mime.startswith("audio/"):
+            return "audio"
+        if mime:
+            return "document"
+        ext = os.path.splitext((url_or_path or "").lower())[1]
+        if ext in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".avif"}:
+            return "image"
+        if ext in {".mp4", ".m4v", ".mov", ".webm", ".avi", ".mkv"}:
+            return "video"
+        if ext in {".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac"}:
+            return "audio"
+        return "document"
+
+    def _fetch_remote_media_bytes(self, url: str, timeout_seconds: int, max_bytes: int) -> Tuple[bytes, str]:
+        request = UrlRequest(
+            url,
+            headers={"User-Agent": "RewrZ-WordPressImporter/1.0"},
+        )
+        with urlopen(request, timeout=max(1, timeout_seconds)) as response:
+            content_type = (response.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+            chunks: List[bytes] = []
+            total = 0
+            while True:
+                chunk = response.read(65536)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > max_bytes:
+                    raise ValueError(f"远程媒体文件过大（>{max_bytes} bytes）")
+                chunks.append(chunk)
+        return b"".join(chunks), content_type
+
+    def _persist_downloaded_media(
+        self,
+        source_url: str,
+        payload: bytes,
+        mime_type: str,
+        uploaded_by_id: int,
+    ) -> str:
+        upload_root = os.path.abspath(self._get_media_upload_root())
+        now = datetime.utcnow()
+        target_dir = os.path.join(upload_root, now.strftime("%Y"), now.strftime("%m"))
+        os.makedirs(target_dir, exist_ok=True)
+
+        parsed = urlparse(source_url)
+        original_name = os.path.basename(parsed.path or "").strip()
+        stem, ext = os.path.splitext(original_name)
+        ext = ext.lower()
+        if not ext:
+            ext = self._guess_extension_from_mime(mime_type)
+        if not ext:
+            ext = ".bin"
+        stem = re.sub(r"[^a-zA-Z0-9._-]+", "-", (stem or "wp-media")).strip("-") or "wp-media"
+
+        digest = hashlib.sha1(source_url.encode("utf-8")).hexdigest()[:12]
+        filename = f"{stem}-{digest}{ext}"
+        filepath = os.path.join(target_dir, filename)
+
+        file_already_exists = os.path.exists(filepath)
+        if not file_already_exists:
+            with open(filepath, "wb") as handle:
+                handle.write(payload)
+            self._downloaded_media_count += 1
+
+        existing_media = crud_media.get_media_by_filepath(self.db, filepath)
+        if existing_media is None:
+            title = os.path.splitext(original_name)[0] if original_name else stem
+            db_media = Media(
+                filename=original_name or filename,
+                filepath=filepath,
+                file_type=self._guess_file_type(mime_type, source_url),
+                mime_type=mime_type or (mimetypes.guess_type(filename)[0] or "application/octet-stream"),
+                title=title[:255] if title else stem,
+                alt_text="",
+                description=f"Imported from WordPress: {source_url}",
+                uploaded_by_id=uploaded_by_id,
+            )
+            self.db.add(db_media)
+            self.db.flush()
+
+        relative_path = os.path.relpath(filepath, upload_root).replace("\\", "/")
+        return f"/media/{relative_path}"
+
+    def _download_media_and_get_local_url(
+        self,
+        url: str,
+        source_link: str,
+        uploaded_by_id: int,
+    ) -> str:
+        normalized = self._normalize_media_url(url, source_link=source_link)
+        if not normalized:
+            return url
+        if not self._is_remote_http_url(normalized):
+            return normalized
+        if not self._looks_like_media_candidate(normalized):
+            return normalized
+        if normalized in self._downloaded_media_url_map:
+            return self._downloaded_media_url_map[normalized]
+
+        timeout_seconds = int(self.options.get("media_download_timeout_seconds", 20) or 20)
+        max_megabytes = int(self.options.get("media_download_max_mb", 30) or 30)
+        max_bytes = max(1, max_megabytes) * 1024 * 1024
+
+        try:
+            payload, mime_type = self._fetch_remote_media_bytes(
+                normalized,
+                timeout_seconds=timeout_seconds,
+                max_bytes=max_bytes,
+            )
+            if not payload:
+                return normalized
+            if not self._looks_like_media_candidate(normalized, mime_type=mime_type):
+                return normalized
+            local_url = self._persist_downloaded_media(
+                source_url=normalized,
+                payload=payload,
+                mime_type=mime_type,
+                uploaded_by_id=uploaded_by_id,
+            )
+            self._downloaded_media_url_map[normalized] = local_url
+            return local_url
+        except Exception:
+            return normalized
+
+    def _split_trailing_url_punctuation(self, url: str) -> Tuple[str, str]:
+        if not url:
+            return "", ""
+        trailing_chars = ".,;:!?)]}>。，；：！？）】》"
+        core = url
+        suffix = ""
+        while core and core[-1] in trailing_chars:
+            suffix = core[-1] + suffix
+            core = core[:-1]
+        return core, suffix
+
+    def _localize_media_urls_in_text(self, text: str, source_link: str, uploaded_by_id: int) -> str:
+        if not text:
+            return text
+
+        pattern = re.compile(r"https?://[^\s<>'\"]+")
+        matches = sorted(set(pattern.findall(text)), key=len, reverse=True)
+        if not matches:
+            return text
+
+        updated = text
+        for matched in matches:
+            core, suffix = self._split_trailing_url_punctuation(matched)
+            if not core:
+                continue
+            local_url = self._download_media_and_get_local_url(
+                core,
+                source_link=source_link,
+                uploaded_by_id=uploaded_by_id,
+            )
+            if local_url and local_url != core:
+                updated = updated.replace(matched, f"{local_url}{suffix}")
+
+        return updated
+
+    def _localize_media_urls_in_html(self, html_content: str, source_link: str, uploaded_by_id: int) -> str:
+        if not html_content:
+            return html_content
+
+        soup = BeautifulSoup(html_content, "html.parser")
+        changed = False
+        for node in soup.find_all(True):
+            tag_name = (node.name or "").lower()
+            attrs: List[str] = []
+            if tag_name in {"img", "source", "video", "audio", "iframe"}:
+                attrs = ["src", "poster"]
+            elif tag_name == "a":
+                attrs = ["href"]
+            if not attrs:
+                continue
+
+            for attr_name in attrs:
+                raw_value = (node.get(attr_name) or "").strip()
+                if not raw_value:
+                    continue
+                normalized = self._normalize_media_url(raw_value, source_link=source_link)
+                local_url = self._download_media_and_get_local_url(
+                    normalized,
+                    source_link=source_link,
+                    uploaded_by_id=uploaded_by_id,
+                )
+                if local_url != raw_value:
+                    node[attr_name] = local_url
+                    changed = True
+
+        return str(soup) if changed else html_content
+
+    def _localize_post_media_references(
+        self,
+        markdown_content: str,
+        html_content: str,
+        featured_image_url: Optional[str],
+        source_link: str,
+        uploaded_by_id: int,
+    ) -> Tuple[str, str, Optional[str]]:
+        localized_markdown = self._localize_media_urls_in_text(
+            markdown_content,
+            source_link=source_link,
+            uploaded_by_id=uploaded_by_id,
+        ) if markdown_content else markdown_content
+
+        localized_html = self._localize_media_urls_in_html(
+            html_content,
+            source_link=source_link,
+            uploaded_by_id=uploaded_by_id,
+        ) if html_content else html_content
+
+        localized_featured = featured_image_url
+        if featured_image_url:
+            normalized_featured = self._normalize_media_url(featured_image_url, source_link=source_link)
+            localized_featured = self._download_media_and_get_local_url(
+                normalized_featured,
+                source_link=source_link,
+                uploaded_by_id=uploaded_by_id,
+            )
+
+        return localized_markdown, localized_html, localized_featured
     
-    def _html_to_markdown(self, html_content: str) -> str:
-        """简单的HTML到Markdown转换"""
+    def _strip_wp_block_comments(self, raw_html: str) -> str:
+        """去掉 Gutenberg 的注释型区块标记。"""
+        if not raw_html:
+            return ""
+        cleaned = re.sub(r"<!--\s*/?wp:[\s\S]*?-->", "", raw_html, flags=re.IGNORECASE)
+        return cleaned.strip()
+
+    def _rewrite_wp_shortcodes(self, raw_html: str) -> str:
+        """处理常见短代码，避免导入后丢语义。"""
+        if not raw_html:
+            return ""
+        content = raw_html
+
+        # [dm href='...']text[/dm] -> 链接
+        content = re.sub(
+            r"\[dm\s+href=['\"]([^'\"]+)['\"]\](.*?)\[/dm\]",
+            r'<a href="\1">\2</a>',
+            content,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        # [caption ...]...[/caption] -> 保留内部内容（一般含图片）
+        content = re.sub(
+            r"\[caption[^\]]*\](.*?)\[/caption\]",
+            r"\1",
+            content,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        # [embed]url[/embed] -> 普通链接
+        content = re.sub(
+            r"\[embed\](.*?)\[/embed\]",
+            r'<a href="\1">\1</a>',
+            content,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        # [audio src="..."] [video src="..."]
+        content = re.sub(
+            r"\[audio[^\]]*src=['\"]([^'\"]+)['\"][^\]]*\]",
+            r'<audio src="\1"></audio>',
+            content,
+            flags=re.IGNORECASE,
+        )
+        content = re.sub(
+            r"\[video[^\]]*src=['\"]([^'\"]+)['\"][^\]]*\]",
+            r'<video src="\1"></video>',
+            content,
+            flags=re.IGNORECASE,
+        )
+        return content
+
+    def _clean_markdown_text(self, text: str) -> str:
+        cleaned = (text or "").replace("\xa0", " ")
+        cleaned = re.sub(r"[ \t]+", " ", cleaned)
+        cleaned = re.sub(r"[ \t]*\n[ \t]*", "\n", cleaned)
+        return cleaned
+
+    def _inline_node_to_markdown(self, node: Any, source_link: str = "") -> str:
+        if isinstance(node, Comment):
+            return ""
+        if isinstance(node, BsNavigableString):
+            return self._clean_markdown_text(str(node))
+        if not isinstance(node, BsTag):
+            return ""
+
+        name = (node.name or "").lower()
+        if name in {"script", "style", "noscript"}:
+            return ""
+        if name == "br":
+            return "\n"
+        if name in {"strong", "b"}:
+            return f"**{self._inline_children_to_markdown(node, source_link=source_link).strip()}**"
+        if name in {"em", "i"}:
+            return f"*{self._inline_children_to_markdown(node, source_link=source_link).strip()}*"
+        if name == "code" and node.parent and node.parent.name != "pre":
+            return f"`{node.get_text(strip=True)}`"
+        if name == "a":
+            href = self._normalize_media_url((node.get("href") or "").strip(), source_link=source_link)
+            text = self._inline_children_to_markdown(node, source_link=source_link).strip() or href
+            if href:
+                return f"[{text}]({href})"
+            return text
+        if name == "img":
+            src = self._normalize_media_url((node.get("src") or node.get("data-src") or "").strip(), source_link=source_link)
+            if not src:
+                return ""
+            alt = (node.get("alt") or "").strip()
+            return f"![{alt}]({src})"
+
+        return self._inline_children_to_markdown(node, source_link=source_link)
+
+    def _inline_children_to_markdown(self, parent: BsTag, source_link: str = "") -> str:
+        parts = [self._inline_node_to_markdown(child, source_link=source_link) for child in parent.children]
+        return self._clean_markdown_text("".join(parts))
+
+    def _list_to_markdown(self, list_node: BsTag, depth: int = 0, source_link: str = "") -> str:
+        ordered = (list_node.name or "").lower() == "ol"
+        lines: List[str] = []
+        index = 1
+
+        for li in list_node.find_all("li", recursive=False):
+            if not isinstance(li, BsTag):
+                continue
+            direct_text_parts: List[str] = []
+            nested_lists: List[BsTag] = []
+            for child in li.children:
+                if isinstance(child, BsTag) and (child.name or "").lower() in {"ul", "ol"}:
+                    nested_lists.append(child)
+                else:
+                    rendered = self._inline_node_to_markdown(child, source_link=source_link).strip()
+                    if rendered:
+                        direct_text_parts.append(rendered)
+
+            indent = "  " * depth
+            bullet = f"{index}. " if ordered else "- "
+            item_text = self._clean_markdown_text(" ".join(direct_text_parts)).strip()
+            lines.append(f"{indent}{bullet}{item_text}".rstrip())
+
+            for nested in nested_lists:
+                nested_md = self._list_to_markdown(nested, depth=depth + 1, source_link=source_link).rstrip()
+                if nested_md:
+                    lines.append(nested_md)
+
+            if ordered:
+                index += 1
+
+        return "\n".join(lines).strip()
+
+    def _table_to_markdown(self, table_node: BsTag, source_link: str = "") -> str:
+        rows = table_node.find_all("tr")
+        if not rows:
+            return ""
+
+        header_cells = rows[0].find_all(["th", "td"])
+        headers = [
+            (self._inline_children_to_markdown(cell, source_link=source_link).strip() or "-")
+            for cell in header_cells
+        ]
+        if not headers:
+            return ""
+
+        lines = [
+            "| " + " | ".join(headers) + " |",
+            "| " + " | ".join(["---"] * len(headers)) + " |",
+        ]
+
+        for row in rows[1:]:
+            cells = row.find_all(["td", "th"])
+            if not cells:
+                continue
+            values = [
+                self._inline_children_to_markdown(cell, source_link=source_link).strip()
+                for cell in cells[:len(headers)]
+            ]
+            if len(values) < len(headers):
+                values.extend([""] * (len(headers) - len(values)))
+            lines.append("| " + " | ".join(values) + " |")
+
+        return "\n".join(lines).strip()
+
+    def _block_node_to_markdown(self, node: Any, source_link: str = "") -> str:
+        if isinstance(node, Comment):
+            return ""
+        if isinstance(node, BsNavigableString):
+            text = self._clean_markdown_text(str(node)).strip()
+            return f"{text}\n\n" if text else ""
+        if not isinstance(node, BsTag):
+            return ""
+
+        name = (node.name or "").lower()
+        if name in {"script", "style", "noscript"}:
+            return ""
+        if name in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+            level = int(name[1])
+            text = self._inline_children_to_markdown(node, source_link=source_link).strip()
+            return f"{'#' * level} {text}\n\n" if text else ""
+        if name in {"p", "div", "section", "article"}:
+            text = self._inline_children_to_markdown(node, source_link=source_link).strip()
+            return f"{text}\n\n" if text else ""
+        if name in {"ul", "ol"}:
+            text = self._list_to_markdown(node, depth=0, source_link=source_link)
+            return f"{text}\n\n" if text else ""
+        if name == "blockquote":
+            inner_parts = [self._block_node_to_markdown(child, source_link=source_link) for child in node.children]
+            inner = "\n".join(part.strip() for part in inner_parts if part and part.strip()).strip()
+            if not inner:
+                inner = self._inline_children_to_markdown(node, source_link=source_link).strip()
+            if not inner:
+                return ""
+            quoted = []
+            for line in inner.splitlines():
+                quoted.append(f"> {line}" if line.strip() else ">")
+            return "\n".join(quoted).strip() + "\n\n"
+        if name == "pre":
+            code_tag = node.find("code")
+            code_text = (code_tag.get_text("\n", strip=False) if code_tag else node.get_text("\n", strip=False)).strip("\n")
+            language = ""
+            class_values = []
+            if code_tag and code_tag.get("class"):
+                class_values = code_tag.get("class") or []
+            elif node.get("class"):
+                class_values = node.get("class") or []
+            for cls_name in class_values:
+                if cls_name.startswith("language-"):
+                    language = cls_name.split("language-", 1)[1].strip()
+                    break
+            return f"```{language}\n{code_text}\n```\n\n"
+        if name == "code":
+            return f"`{node.get_text(strip=True)}`\n\n"
+        if name == "hr":
+            return "---\n\n"
+        if name == "img":
+            inline = self._inline_node_to_markdown(node, source_link=source_link).strip()
+            return f"{inline}\n\n" if inline else ""
+        if name in {"video", "audio", "iframe"}:
+            media_src = (
+                (node.get("src") or "").strip()
+                or ((node.find("source") or {}).get("src") if node.find("source") else "")
+            )
+            media_src = self._normalize_media_url(media_src, source_link=source_link)
+            if not media_src:
+                return ""
+            label = "视频" if name == "video" else ("音频" if name == "audio" else "嵌入内容")
+            return f"[{label}]({media_src})\n\n"
+        if name == "figure":
+            image_markdown = ""
+            figure_img = node.find("img")
+            if isinstance(figure_img, BsTag):
+                image_markdown = self._inline_node_to_markdown(figure_img, source_link=source_link).strip()
+            caption_node = node.find("figcaption")
+            caption = (
+                self._inline_children_to_markdown(caption_node, source_link=source_link).strip()
+                if isinstance(caption_node, BsTag)
+                else ""
+            )
+            result_parts: List[str] = []
+            if image_markdown:
+                result_parts.append(image_markdown)
+            if caption:
+                result_parts.append(f"*{caption}*")
+            if result_parts:
+                return "\n".join(result_parts).strip() + "\n\n"
+            return ""
+        if name == "table":
+            table_md = self._table_to_markdown(node, source_link=source_link)
+            return f"{table_md}\n\n" if table_md else ""
+
+        # 默认兜底：先尝试块级递归，再尝试行内文本。
+        child_blocks = [self._block_node_to_markdown(child, source_link=source_link) for child in node.children]
+        merged_blocks = "\n".join(part.strip() for part in child_blocks if part and part.strip()).strip()
+        if merged_blocks:
+            return merged_blocks + "\n\n"
+        inline = self._inline_children_to_markdown(node, source_link=source_link).strip()
+        return f"{inline}\n\n" if inline else ""
+
+    def _html_to_markdown(self, html_content: str, source_link: str = "") -> str:
+        """增强版 HTML -> Markdown 转换（兼容 Gutenberg 与常见媒体块）。"""
         if not html_content:
             return ""
-        
-        # 这是一个简化的转换，实际项目中可能需要使用专门的库如html2text
-        content = html_content
-        
-        # 基本的HTML标签转换
-        content = re.sub(r'<h1[^>]*>(.*?)</h1>', r'# \1', content, flags=re.DOTALL)
-        content = re.sub(r'<h2[^>]*>(.*?)</h2>', r'## \1', content, flags=re.DOTALL)
-        content = re.sub(r'<h3[^>]*>(.*?)</h3>', r'### \1', content, flags=re.DOTALL)
-        content = re.sub(r'<h4[^>]*>(.*?)</h4>', r'#### \1', content, flags=re.DOTALL)
-        content = re.sub(r'<p[^>]*>(.*?)</p>', r'\1\n\n', content, flags=re.DOTALL)
-        content = re.sub(r'<br[^>]*/?>', '\n', content)
-        content = re.sub(r'<strong[^>]*>(.*?)</strong>', r'**\1**', content, flags=re.DOTALL)
-        content = re.sub(r'<b[^>]*>(.*?)</b>', r'**\1**', content, flags=re.DOTALL)
-        content = re.sub(r'<em[^>]*>(.*?)</em>', r'*\1*', content, flags=re.DOTALL)
-        content = re.sub(r'<i[^>]*>(.*?)</i>', r'*\1*', content, flags=re.DOTALL)
-        content = re.sub(r'<a[^>]*href=["\']([^"\']*)["\'][^>]*>(.*?)</a>', r'[\2](\1)', content, flags=re.DOTALL)
-        
-        # 移除其他HTML标签
-        content = re.sub(r'<[^>]+>', '', content)
-        
-        # 清理多余的空行
-        content = re.sub(r'\n\n+', '\n\n', content)
-        
-        return content.strip()
+
+        prepared = self._rewrite_wp_shortcodes(self._strip_wp_block_comments(html_content))
+        if not prepared.strip():
+            return ""
+
+        soup = BeautifulSoup(prepared, "html.parser")
+        for tag in soup.find_all(["script", "style", "noscript"]):
+            tag.decompose()
+        for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
+            comment.extract()
+
+        container = soup.body if soup.body else soup
+        chunks: List[str] = []
+        for child in container.children:
+            rendered = self._block_node_to_markdown(child, source_link=source_link)
+            if rendered and rendered.strip():
+                chunks.append(rendered.strip())
+
+        if not chunks:
+            fallback = self._inline_children_to_markdown(container, source_link=source_link).strip()
+            return fallback
+
+        markdown = "\n\n".join(chunks)
+        markdown = re.sub(r"\n{3,}", "\n\n", markdown).strip()
+        return markdown
     
     def _extract_excerpt(self, content: str, max_length: int = 120) -> str:
         """从内容中提取摘要"""
@@ -1351,6 +2020,7 @@ class RewrZImporter:
                         excerpt=post_data.get("excerpt", ""),
                         featured_image_url=post_data.get("featured_image_url"),
                         post_type=post_data.get("post_type", "post"),
+                        page_template=post_data.get("page_template", "default"),
                         status=post_data.get("status", "published"),
                         visibility=post_data.get("visibility", "public"),
                         password=post_data.get("password"),

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title if post else title }} - {{ site_title }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', path='css/page-detail.css') }}?v=20260220-1">
+<link rel="stylesheet" href="{{ url_for('static', path='css/page-anime-templates.css') }}?v=20260220-1">
+{% endblock %}
+
+{% block content %}
+{% set template_variant = 'timeline' %}
+{% include "components/page_anime_template_layout.html" %}
+{% endblock %}

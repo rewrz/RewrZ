@@ -15,7 +15,8 @@ from ..core.database import get_db
 from ..core.template_context import (
     HOMEPAGE_SETTING_KEYS, 
     DEFAULT_HOMEPAGE_SETTINGS, 
-    DEFAULT_BASE_SETTINGS
+    DEFAULT_BASE_SETTINGS,
+    CODE_HIGHLIGHT_THEME_OPTIONS,
 )
 
 
@@ -65,6 +66,8 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                 
                 # 分页设置
                 "homepage_posts_limit", "archive_posts_limit", "search_results_limit", "related_posts_limit", "list_navigation_mode",
+                # 展示设置
+                "code_highlight_theme",
                 # /formats/article 图文卡片兜底图设置
                 "article_card_fallback_source", "article_card_fallback_api_url", "article_card_fallback_local_dir",
                 "article_card_api_cache_enabled", "article_card_api_cache_ttl_minutes", "article_card_api_cache_cleanup_minutes",
@@ -80,6 +83,16 @@ class SettingsMiddleware(BaseHTTPMiddleware):
             
             # 批量加载所有设置
             all_settings = crud_setting.get_settings_by_keys(db, all_setting_keys)
+            raw_code_highlight_theme = all_settings.get(
+                "code_highlight_theme",
+                DEFAULT_BASE_SETTINGS["code_highlight_theme"],
+            )
+            code_highlight_theme = (
+                raw_code_highlight_theme
+                if isinstance(raw_code_highlight_theme, str) and raw_code_highlight_theme in CODE_HIGHLIGHT_THEME_OPTIONS
+                else DEFAULT_BASE_SETTINGS["code_highlight_theme"]
+            )
+            all_settings["code_highlight_theme"] = code_highlight_theme
             
             # 创建结构化的设置对象
             settings_dict = {
@@ -118,6 +131,9 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                     "search_results_limit": all_settings.get("search_results_limit", 15),
                     "related_posts_limit": all_settings.get("related_posts_limit", 5),
                     "list_navigation_mode": all_settings.get("list_navigation_mode", "pagination"),
+                },
+                "display": {
+                    "code_highlight_theme": code_highlight_theme,
                 },
                 "article_cards": {
                     "fallback_source": all_settings.get("article_card_fallback_source", "local"),
@@ -160,6 +176,7 @@ class SettingsMiddleware(BaseHTTPMiddleware):
             for key, value in all_settings.items():
                 if not hasattr(request.state, key):
                     setattr(request.state, key, value)
+            request.state.code_highlight_theme = code_highlight_theme
             
             # 设置默认值（如果数据库中没有对应设置）
             for key, default_value in DEFAULT_BASE_SETTINGS.items():

@@ -18,6 +18,7 @@ from ..core.content_utils import (
     render_markdown_html,
 )
 from ..core.content_intents import choose_primary_intent_slug, normalize_intent_slug, INTENT_NAME_MAP
+from ..core.page_templates import normalize_page_template
 
 from typing import Optional, List
 
@@ -31,6 +32,12 @@ def _normalize_featured_image_url(url: Optional[str]) -> Optional[str]:
         return None
 
     return normalized
+
+
+def _normalize_page_template_for_post(post_type: Optional[str], template_value: Optional[str]) -> str:
+    if str(post_type or "").strip().lower() != "page":
+        return "default"
+    return normalize_page_template(template_value)
 
 
 def _extract_setting_int_value(raw) -> int:
@@ -338,6 +345,7 @@ def create_post(
         "excerpt": excerpt,
         "featured_image_url": _normalize_featured_image_url(post.featured_image_url),
         "post_type": post.post_type,
+        "page_template": _normalize_page_template_for_post(post.post_type, post.page_template),
         "status": post.status,
         "visibility": post.visibility,
         "password": get_password_hash(post.password) if post.password else None,
@@ -416,6 +424,8 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
         incoming_editor_mode = update_data.pop("editor_mode", None)
         incoming_status = update_data.get("status")
         incoming_visibility = update_data.get("visibility")
+        incoming_post_type = update_data.get("post_type")
+        incoming_page_template = update_data.pop("page_template", None)
         incoming_password = update_data.pop("password", None)
         
         # 可见性为 public/private 时，清空访问密码
@@ -479,6 +489,12 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
             # 跳过featured_image_url，因为它已经在上面处理过了
             elif key not in {"featured_image_url", "category_ids", "tag_ids", "format_ids", "content_markdown", "content_html", "editor_mode"}:
                 setattr(db_post, key, value)
+
+        if incoming_page_template is not None:
+            target_post_type = incoming_post_type if incoming_post_type is not None else db_post.post_type
+            db_post.page_template = _normalize_page_template_for_post(target_post_type, incoming_page_template)
+        elif incoming_post_type is not None and str(incoming_post_type).strip().lower() != "page":
+            db_post.page_template = "default"
         
         # 如果状态变为已发布，更新发布时间
         if incoming_status == "published" and db_post.published_at is None:

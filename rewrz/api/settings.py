@@ -11,7 +11,11 @@ from typing import List, Dict, Any, Optional
 import json
 import os
 from datetime import datetime
-from ..core.template_context import DEFAULT_HOMEPAGE_SETTINGS, DEFAULT_BASE_SETTINGS
+from ..core.template_context import (
+    DEFAULT_HOMEPAGE_SETTINGS,
+    DEFAULT_BASE_SETTINGS,
+    CODE_HIGHLIGHT_THEME_OPTIONS,
+)
 import bleach
 
 router = APIRouter()
@@ -39,6 +43,11 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
             except json.JSONDecodeError:
                 return fallback
         return fallback
+
+    def normalize_code_highlight_theme(raw_value: Any) -> str:
+        if isinstance(raw_value, str) and raw_value in CODE_HIGHLIGHT_THEME_OPTIONS:
+            return raw_value
+        return DEFAULT_BASE_SETTINGS["code_highlight_theme"]
 
     social_links = parse_json_list(get_setting_value("social_links", []), [])
     anniversaries = parse_json_list(get_setting_value("anniversaries", None), None)
@@ -75,6 +84,9 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "search_results_limit": get_setting_value("search_results_limit", 15),
         "related_posts_limit": get_setting_value("related_posts_limit", 5),
         "list_navigation_mode": get_setting_value("list_navigation_mode", "pagination"),
+        "code_highlight_theme": normalize_code_highlight_theme(
+            get_setting_value("code_highlight_theme", DEFAULT_BASE_SETTINGS["code_highlight_theme"])
+        ),
         "article_card_fallback_source": get_setting_value("article_card_fallback_source", "local"),
         "article_card_fallback_api_url": get_setting_value("article_card_fallback_api_url", "https://www.loliapi.com/acg/"),
         "article_card_fallback_local_dir": get_setting_value("article_card_fallback_local_dir", "rewrz/static/images/anime/random"),
@@ -145,6 +157,7 @@ async def update_admin_settings(
     list_navigation_mode: str = Form("pagination"),
     related_posts_limit: int = Form(5),
     content_primary_mode: str = Form("markdown"),
+    code_highlight_theme: str = Form(DEFAULT_BASE_SETTINGS["code_highlight_theme"]),
     article_card_fallback_source: str = Form("local"),
     article_card_fallback_api_url: Optional[str] = Form(None),
     article_card_fallback_local_dir: Optional[str] = Form(None),
@@ -209,6 +222,11 @@ async def update_admin_settings(
     normalized_article_card_fallback_local_dir = (
         (article_card_fallback_local_dir or "rewrz/static/images/anime/random").strip()
     )
+    normalized_code_highlight_theme = (
+        code_highlight_theme
+        if code_highlight_theme in CODE_HIGHLIGHT_THEME_OPTIONS
+        else DEFAULT_BASE_SETTINGS["code_highlight_theme"]
+    )
     try:
         normalized_article_card_api_cache_ttl_minutes = int(article_card_api_cache_ttl_minutes)
     except (TypeError, ValueError):
@@ -255,6 +273,7 @@ async def update_admin_settings(
         "article_card_fallback_source": normalized_article_card_fallback_source,
         "article_card_fallback_api_url": normalized_article_card_fallback_api_url,
         "article_card_fallback_local_dir": normalized_article_card_fallback_local_dir,
+        "code_highlight_theme": normalized_code_highlight_theme,
         "article_card_api_cache_enabled": bool(article_card_api_cache_enabled),
         "article_card_api_cache_ttl_minutes": normalized_article_card_api_cache_ttl_minutes,
         "article_card_api_cache_cleanup_minutes": normalized_article_card_api_cache_cleanup_minutes,

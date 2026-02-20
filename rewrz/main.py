@@ -91,6 +91,11 @@ from .core.media_attachments import (
     list_registered_media_attachment_keys,
     get_default_media_navigation,
 )
+from .core.page_templates import (
+    DEFAULT_PAGE_TEMPLATE,
+    normalize_page_template,
+    resolve_page_template_file,
+)
 
 # 全局状态，用于标记后台路由是否已注册
 ADMIN_ROUTES_REGISTERED = False
@@ -275,6 +280,7 @@ def register_admin_routes():
         list_navigation_mode: str = Form("pagination"),
         related_posts_limit: int = Form(5), # 打赏功能相关参数之前的参数
         content_primary_mode: str = Form("markdown"),
+        code_highlight_theme: str = Form(DEFAULT_BASE_SETTINGS["code_highlight_theme"]),
         article_card_fallback_source: str = Form("local"),
         article_card_fallback_api_url: Optional[str] = Form(None),
         article_card_fallback_local_dir: Optional[str] = Form(None),
@@ -308,6 +314,7 @@ def register_admin_routes():
             list_navigation_mode,
             related_posts_limit,
             content_primary_mode,
+            code_highlight_theme,
             article_card_fallback_source, article_card_fallback_api_url, article_card_fallback_local_dir,
             article_card_api_cache_enabled, article_card_api_cache_ttl_minutes, article_card_api_cache_cleanup_minutes,
             # 打赏功能相关参数
@@ -1203,6 +1210,7 @@ def register_admin_routes():
         slug: Optional[str] = Form(None),
         excerpt: Optional[str] = Form(None),
         featured_image_url: Optional[str] = Form(None),
+        page_template: str = Form(DEFAULT_PAGE_TEMPLATE),
         status: str = Form("draft"),
         visibility: str = Form("public"),
         password: Optional[str] = Form(None),
@@ -1221,6 +1229,7 @@ def register_admin_routes():
             slug=slug,
             excerpt=excerpt,
             featured_image_url=featured_image_url,
+            page_template=page_template,
             status=status,
             visibility=visibility,
             password=password,
@@ -1242,6 +1251,7 @@ def register_admin_routes():
         slug: Optional[str] = Form(None),
         excerpt: Optional[str] = Form(None),
         featured_image_url: Optional[str] = Form(None),
+        page_template: str = Form(DEFAULT_PAGE_TEMPLATE),
         status: str = Form("draft"),
         visibility: str = Form("public"),
         password: Optional[str] = Form(None),
@@ -1261,6 +1271,7 @@ def register_admin_routes():
             slug=slug,
             excerpt=excerpt,
             featured_image_url=featured_image_url,
+            page_template=page_template,
             status=status,
             visibility=visibility,
             password=password,
@@ -1499,6 +1510,20 @@ def register_admin_routes():
         profile_resolver = get_public_profile_resolver()
         format_profile = profile_resolver.resolve_format_profile(request, db, active_format_slug)
         _attach_post_author_profiles(db, [db_post], fallback_name=format_profile.get("display_name", "博主"))
+        related_articles: List[Post] = []
+        try:
+            from .core.blog_enhancements import get_related_posts as get_enhanced_related_posts
+
+            related_limit = _resolve_posts_per_page(
+                get_page_config(db, "related_posts_limit", 5),
+                5,
+                minimum=1,
+                maximum=20,
+            )
+            related_articles = get_enhanced_related_posts(db, db_post, related_limit)
+            _attach_article_cover_urls(db, related_articles, attr_name="related_cover_url")
+        except Exception:
+            related_articles = []
 
         # 构建模板上下文（现在包含统一的设置数据）
         context = build_base_template_context(request)
@@ -1510,6 +1535,7 @@ def register_admin_routes():
             "toc_items": toc_items,
             "active_format_slug": active_format_slug,
             "format_profile": format_profile,
+            "related_articles": related_articles,
         })
         
         return templates.TemplateResponse("post_detail.html", context)
@@ -1574,14 +1600,16 @@ def register_admin_routes():
         
         # 构建模板上下文（现在包含统一的设置数据）
         context = build_base_template_context(request)
+        selected_page_template = normalize_page_template(getattr(db_page, "page_template", DEFAULT_PAGE_TEMPLATE))
         context.update({
             "post": db_page,
             "seo_data": seo_data,
             "display_content_html": display_content_html,
             "toc_items": toc_items,
+            "selected_page_template": selected_page_template,
         })
-        
-        return templates.TemplateResponse("page.html", context)
+
+        return templates.TemplateResponse(resolve_page_template_file(selected_page_template), context)
 
 # 包含安装向导路由
 app.include_router(installer_api.router)
@@ -2342,6 +2370,118 @@ def _resolve_article_archive_cover_url(
     return ""
 
 
+def _attach_article_cover_urls(
+    db: Session,
+    posts: List[Post],
+    *,
+    attr_name: str,
+) -> None:
+    """为文章列表附加统一兜底封面 URL。"""
+    if not posts:
+        return
+
+    fallback_source = _normalize_article_fallback_source(
+        get_page_config(db, "article_card_fallback_source", "local")
+    )
+    fallback_api_url = str(
+        get_page_config(db, "article_card_fallback_api_url", _ARTICLE_FALLBACK_API_URL_DEFAULT)
+        or _ARTICLE_FALLBACK_API_URL_DEFAULT
+    ).strip()
+    fallback_local_dir = get_page_config(db, "article_card_fallback_local_dir", _ARTICLE_FALLBACK_LOCAL_DIR_DEFAULT)
+    api_cache_enabled = _parse_bool(
+        get_page_config(db, "article_card_api_cache_enabled", _ARTICLE_API_CACHE_ENABLED_DEFAULT),
+        _ARTICLE_API_CACHE_ENABLED_DEFAULT,
+    )
+    api_cache_ttl_minutes = _parse_bounded_int(
+        get_page_config(db, "article_card_api_cache_ttl_minutes", _ARTICLE_API_CACHE_TTL_MINUTES_DEFAULT),
+        _ARTICLE_API_CACHE_TTL_MINUTES_DEFAULT,
+        5,
+        10080,
+    )
+    api_cache_cleanup_minutes = _parse_bounded_int(
+        get_page_config(db, "article_card_api_cache_cleanup_minutes", _ARTICLE_API_CACHE_CLEANUP_MINUTES_DEFAULT),
+        _ARTICLE_API_CACHE_CLEANUP_MINUTES_DEFAULT,
+        1,
+        10080,
+    )
+    fallback_local_images = (
+        _collect_local_article_fallback_images(fallback_local_dir)
+        if fallback_source == "local"
+        else []
+    )
+    api_cache_index: Dict[str, Dict[str, Any]] = {}
+    api_cache_dir: Optional[Path] = None
+    api_cache_changed = False
+    now_utc = datetime.now(timezone.utc)
+
+    if fallback_source == "api" and api_cache_enabled:
+        api_cache_dir = _ensure_article_api_cache_dir()
+        api_cache_index = _load_article_api_cache_index(db)
+        if _should_run_article_api_cache_cleanup(
+            db,
+            now_utc=now_utc,
+            cleanup_interval_minutes=api_cache_cleanup_minutes,
+        ):
+            api_cache_index, cleanup_changed = _cleanup_article_api_cache(
+                api_cache_index,
+                cache_dir=api_cache_dir,
+                now_utc=now_utc,
+            )
+            api_cache_changed = api_cache_changed or cleanup_changed
+            _upsert_runtime_setting(
+                db,
+                _ARTICLE_API_CACHE_LAST_CLEANUP_KEY,
+                now_utc.isoformat(),
+                "Article fallback API cache last cleanup time",
+            )
+
+    def resolve_cached_api_image(seed_value: str) -> str:
+        nonlocal api_cache_changed
+        if fallback_source != "api":
+            return _build_seeded_remote_image_url(fallback_api_url, seed_value)
+        if not api_cache_enabled or api_cache_dir is None:
+            return _build_seeded_remote_image_url(fallback_api_url, seed_value)
+
+        resolved_url, changed = _resolve_cached_remote_article_image(
+            seed_value=seed_value,
+            fallback_api_url=fallback_api_url,
+            cache_index=api_cache_index,
+            cache_ttl_minutes=api_cache_ttl_minutes,
+            cache_dir=api_cache_dir,
+            now_utc=now_utc,
+            download_if_missing=False,
+        )
+        api_cache_changed = api_cache_changed or changed
+        if not _is_article_api_cached_url(resolved_url):
+            _schedule_article_api_cache_prefetch(
+                seed_value=seed_value,
+                fallback_api_url=fallback_api_url,
+                cache_ttl_minutes=api_cache_ttl_minutes,
+            )
+        return resolved_url
+
+    for post in posts:
+        setattr(
+            post,
+            attr_name,
+            _resolve_article_archive_cover_url(
+                post,
+                fallback_source=fallback_source,
+                fallback_api_url=fallback_api_url,
+                fallback_local_images=fallback_local_images,
+                remote_image_resolver=resolve_cached_api_image,
+            ),
+        )
+
+    if fallback_source == "api" and api_cache_enabled and api_cache_changed:
+        _upsert_runtime_setting(
+            db,
+            _ARTICLE_API_CACHE_INDEX_KEY,
+            api_cache_index,
+            "Article fallback API cache index",
+        )
+
+
 def _attach_post_author_profiles(db: Session, posts: List[Post], *, fallback_name: str) -> None:
     if not posts:
         return
@@ -2478,106 +2618,8 @@ async def homepage(request: Request, page: int = 1, append: int = 0, db: Session
     offset = (page - 1) * homepage_posts_limit
     posts = crud_post.get_posts(db, skip=offset, limit=homepage_posts_limit, status="published")
 
-    # 首页时间轴封面：特色图 -> 正文首图 -> 随机二次元图（本地/在线）
-    fallback_source = _normalize_article_fallback_source(
-        get_page_config(db, "article_card_fallback_source", "local")
-    )
-    fallback_api_url = str(
-        get_page_config(db, "article_card_fallback_api_url", _ARTICLE_FALLBACK_API_URL_DEFAULT)
-        or _ARTICLE_FALLBACK_API_URL_DEFAULT
-    ).strip()
-    fallback_local_dir = get_page_config(db, "article_card_fallback_local_dir", _ARTICLE_FALLBACK_LOCAL_DIR_DEFAULT)
-    api_cache_enabled = _parse_bool(
-        get_page_config(db, "article_card_api_cache_enabled", _ARTICLE_API_CACHE_ENABLED_DEFAULT),
-        _ARTICLE_API_CACHE_ENABLED_DEFAULT,
-    )
-    api_cache_ttl_minutes = _parse_bounded_int(
-        get_page_config(db, "article_card_api_cache_ttl_minutes", _ARTICLE_API_CACHE_TTL_MINUTES_DEFAULT),
-        _ARTICLE_API_CACHE_TTL_MINUTES_DEFAULT,
-        5,
-        10080,
-    )
-    api_cache_cleanup_minutes = _parse_bounded_int(
-        get_page_config(db, "article_card_api_cache_cleanup_minutes", _ARTICLE_API_CACHE_CLEANUP_MINUTES_DEFAULT),
-        _ARTICLE_API_CACHE_CLEANUP_MINUTES_DEFAULT,
-        1,
-        10080,
-    )
-    fallback_local_images = (
-        _collect_local_article_fallback_images(fallback_local_dir)
-        if fallback_source == "local"
-        else []
-    )
-    api_cache_index: Dict[str, Dict[str, Any]] = {}
-    api_cache_dir: Optional[Path] = None
-    api_cache_changed = False
-    now_utc = datetime.now(timezone.utc)
-
-    if fallback_source == "api" and api_cache_enabled:
-        api_cache_dir = _ensure_article_api_cache_dir()
-        api_cache_index = _load_article_api_cache_index(db)
-        if _should_run_article_api_cache_cleanup(
-            db,
-            now_utc=now_utc,
-            cleanup_interval_minutes=api_cache_cleanup_minutes,
-        ):
-            api_cache_index, cleanup_changed = _cleanup_article_api_cache(
-                api_cache_index,
-                cache_dir=api_cache_dir,
-                now_utc=now_utc,
-            )
-            api_cache_changed = api_cache_changed or cleanup_changed
-            _upsert_runtime_setting(
-                db,
-                _ARTICLE_API_CACHE_LAST_CLEANUP_KEY,
-                now_utc.isoformat(),
-                "Article fallback API cache last cleanup time",
-            )
-
-    def resolve_cached_api_image(seed_value: str) -> str:
-        nonlocal api_cache_changed
-        if fallback_source != "api":
-            return _build_seeded_remote_image_url(fallback_api_url, seed_value)
-        if not api_cache_enabled or api_cache_dir is None:
-            return _build_seeded_remote_image_url(fallback_api_url, seed_value)
-
-        resolved_url, changed = _resolve_cached_remote_article_image(
-            seed_value=seed_value,
-            fallback_api_url=fallback_api_url,
-            cache_index=api_cache_index,
-            cache_ttl_minutes=api_cache_ttl_minutes,
-            cache_dir=api_cache_dir,
-            now_utc=now_utc,
-            download_if_missing=False,
-        )
-        api_cache_changed = api_cache_changed or changed
-        if not _is_article_api_cached_url(resolved_url):
-            _schedule_article_api_cache_prefetch(
-                seed_value=seed_value,
-                fallback_api_url=fallback_api_url,
-                cache_ttl_minutes=api_cache_ttl_minutes,
-            )
-        return resolved_url
-
-    for post in posts:
-        setattr(
-            post,
-            "homepage_cover_url",
-            _resolve_article_archive_cover_url(
-                post,
-                fallback_source=fallback_source,
-                fallback_api_url=fallback_api_url,
-                fallback_local_images=fallback_local_images,
-                remote_image_resolver=resolve_cached_api_image,
-            ),
-        )
-    if fallback_source == "api" and api_cache_enabled and api_cache_changed:
-        _upsert_runtime_setting(
-            db,
-            _ARTICLE_API_CACHE_INDEX_KEY,
-            api_cache_index,
-            "Article fallback API cache index",
-        )
+    # 首页时间轴封面：特色图 -> 正文首图 -> 随机二次元图（复用统一兜底逻辑）
+    _attach_article_cover_urls(db, posts, attr_name="homepage_cover_url")
     profile_resolver = get_public_profile_resolver()
     site_profile = profile_resolver.resolve_homepage_profile(request, db)
 
@@ -2851,105 +2893,7 @@ async def format_page(request: Request, format_slug: str, page: int = 1, append:
 
     # /formats/article 使用图文卡片：特色图 -> 正文首图 -> 随机二次元图
     if canonical_format_slug == "article":
-        fallback_source = _normalize_article_fallback_source(
-            get_page_config(db, "article_card_fallback_source", "local")
-        )
-        fallback_api_url = str(
-            get_page_config(db, "article_card_fallback_api_url", _ARTICLE_FALLBACK_API_URL_DEFAULT)
-            or _ARTICLE_FALLBACK_API_URL_DEFAULT
-        ).strip()
-        fallback_local_dir = get_page_config(db, "article_card_fallback_local_dir", _ARTICLE_FALLBACK_LOCAL_DIR_DEFAULT)
-        api_cache_enabled = _parse_bool(
-            get_page_config(db, "article_card_api_cache_enabled", _ARTICLE_API_CACHE_ENABLED_DEFAULT),
-            _ARTICLE_API_CACHE_ENABLED_DEFAULT,
-        )
-        api_cache_ttl_minutes = _parse_bounded_int(
-            get_page_config(db, "article_card_api_cache_ttl_minutes", _ARTICLE_API_CACHE_TTL_MINUTES_DEFAULT),
-            _ARTICLE_API_CACHE_TTL_MINUTES_DEFAULT,
-            5,
-            10080,
-        )
-        api_cache_cleanup_minutes = _parse_bounded_int(
-            get_page_config(db, "article_card_api_cache_cleanup_minutes", _ARTICLE_API_CACHE_CLEANUP_MINUTES_DEFAULT),
-            _ARTICLE_API_CACHE_CLEANUP_MINUTES_DEFAULT,
-            1,
-            10080,
-        )
-        fallback_local_images = (
-            _collect_local_article_fallback_images(fallback_local_dir)
-            if fallback_source == "local"
-            else []
-        )
-        api_cache_index: Dict[str, Dict[str, Any]] = {}
-        api_cache_dir: Optional[Path] = None
-        api_cache_changed = False
-        now_utc = datetime.now(timezone.utc)
-
-        if fallback_source == "api" and api_cache_enabled:
-            api_cache_dir = _ensure_article_api_cache_dir()
-            api_cache_index = _load_article_api_cache_index(db)
-            if _should_run_article_api_cache_cleanup(
-                db,
-                now_utc=now_utc,
-                cleanup_interval_minutes=api_cache_cleanup_minutes,
-            ):
-                api_cache_index, cleanup_changed = _cleanup_article_api_cache(
-                    api_cache_index,
-                    cache_dir=api_cache_dir,
-                    now_utc=now_utc,
-                )
-                api_cache_changed = api_cache_changed or cleanup_changed
-                _upsert_runtime_setting(
-                    db,
-                    _ARTICLE_API_CACHE_LAST_CLEANUP_KEY,
-                    now_utc.isoformat(),
-                    "Article fallback API cache last cleanup time",
-                )
-
-        def resolve_cached_api_image(seed_value: str) -> str:
-            nonlocal api_cache_changed
-            if fallback_source != "api":
-                return _build_seeded_remote_image_url(fallback_api_url, seed_value)
-            if not api_cache_enabled or api_cache_dir is None:
-                return _build_seeded_remote_image_url(fallback_api_url, seed_value)
-
-            resolved_url, changed = _resolve_cached_remote_article_image(
-                seed_value=seed_value,
-                fallback_api_url=fallback_api_url,
-                cache_index=api_cache_index,
-                cache_ttl_minutes=api_cache_ttl_minutes,
-                cache_dir=api_cache_dir,
-                now_utc=now_utc,
-                download_if_missing=False,
-            )
-            api_cache_changed = api_cache_changed or changed
-            if not _is_article_api_cached_url(resolved_url):
-                _schedule_article_api_cache_prefetch(
-                    seed_value=seed_value,
-                    fallback_api_url=fallback_api_url,
-                    cache_ttl_minutes=api_cache_ttl_minutes,
-                )
-            return resolved_url
-
-        for post in posts:
-            setattr(
-                post,
-                "archive_cover_url",
-                _resolve_article_archive_cover_url(
-                    post,
-                    fallback_source=fallback_source,
-                    fallback_api_url=fallback_api_url,
-                    fallback_local_images=fallback_local_images,
-                    remote_image_resolver=resolve_cached_api_image,
-                ),
-            )
-        if fallback_source == "api" and api_cache_enabled and api_cache_changed:
-            _upsert_runtime_setting(
-                db,
-                _ARTICLE_API_CACHE_INDEX_KEY,
-                api_cache_index,
-                "Article fallback API cache index",
-            )
+        _attach_article_cover_urls(db, posts, attr_name="archive_cover_url")
     
     # 构建模板上下文（现在包含统一的设置数据）
     context = build_base_template_context(request)

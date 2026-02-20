@@ -1,95 +1,110 @@
-{% extends "base.html" %}
-
-{% block title %}{{ post.title if post else title }} - {{ site_title }}{% endblock %}
-
-{% block head %}
-{{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', path='css/page-detail.css') }}?v=20260220-1">
-{% endblock %}
-
-{% block content %}
-{# 确保 settings 变量存在并提供默认值 #}
 {% set settings = settings or {} %}
 {% set rendered_content = display_content_html if display_content_html is defined else (post.content_html if post else content) %}
 {% set is_published = post and post.status == "published" %}
 {% set is_draft = post and post.status == "draft" %}
 {% set page_title = post.title if post else title %}
 {% set page_content = rendered_content if post else (content if content is defined else '') %}
+{% set variant = template_variant if template_variant is defined and template_variant else 'about' %}
 
-<section class="page-detail-section py-8">
+<section class="anime-page-shell anime-{{ variant }} py-8">
     <div class="container mx-auto max-w-7xl px-4">
         {% if is_draft %}
-        <div class="page-status-banner mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-200">
+        <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-200">
             <i class="fas fa-triangle-exclamation mr-2"></i>
             这是一个草稿页面，仅管理员可见。
         </div>
         {% endif %}
 
-        <article class="page-detail-card overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl dark:border-slate-700 dark:bg-slate-900/90">
-            <header class="page-hero relative">
+        <article class="anime-page-card overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-2xl dark:border-slate-700 dark:bg-slate-900/90">
+            <header class="anime-hero relative">
                 {% if post and post.featured_image_url %}
-                <div class="page-hero-media">
-                    <img src="{{ post.featured_image_url }}" alt="{{ page_title }}" class="page-hero-image" loading="lazy">
+                <div class="anime-hero-bg">
+                    <img src="{{ post.featured_image_url }}" alt="{{ page_title }}" loading="lazy">
                 </div>
                 {% else %}
-                <div class="page-hero-fallback"></div>
+                <div class="anime-hero-fallback"></div>
                 {% endif %}
+                <div class="anime-hero-overlay"></div>
+                <div class="anime-hero-content relative z-10">
+                    <div class="anime-kicker-wrap flex flex-wrap items-center gap-2">
+                        {% if variant == 'about' %}
+                        <span class="anime-kicker"><i class="fas fa-id-card mr-1"></i>关于页模板</span>
+                        {% elif variant == 'links' %}
+                        <span class="anime-kicker"><i class="fas fa-link mr-1"></i>友链页模板</span>
+                        {% elif variant == 'timeline' %}
+                        <span class="anime-kicker"><i class="fas fa-stream mr-1"></i>时间轴模板</span>
+                        {% else %}
+                        <span class="anime-kicker"><i class="fas fa-rocket mr-1"></i>着陆页模板</span>
+                        {% endif %}
+                        {% if is_draft %}
+                        <span class="anime-kicker is-draft"><i class="fas fa-pen mr-1"></i>草稿</span>
+                        {% endif %}
+                    </div>
 
-                <div class="page-hero-overlay"></div>
-                <div class="page-hero-content">
-                    <span class="page-type-badge inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold">
-                        {% if is_draft %}<i class="fas fa-pen-to-square mr-1"></i>草稿页面{% else %}<i class="fas fa-file-lines mr-1"></i>页面{% endif %}
-                    </span>
-                    <h1 class="page-title mt-4">{{ page_title }}</h1>
+                    <h1 class="anime-page-title">{{ page_title }}</h1>
                     {% if post and post.excerpt %}
-                    <p class="page-excerpt mt-3">{{ post.excerpt }}</p>
+                    <p class="anime-page-excerpt">{{ post.excerpt }}</p>
                     {% endif %}
 
                     {% if post %}
-                    <div class="page-meta-list mt-5">
-                        <span class="page-meta-item">
-                            <i class="fas fa-calendar-alt"></i>
-                            {{ (post.published_at if post.published_at else post.created_at).strftime('%Y年%m月%d日') if (post.published_at or post.created_at) else '-' }}
-                        </span>
-                        <span class="page-meta-item">
-                            <i class="far fa-eye"></i>
-                            {{ (post.views_count or 0) | compact_number_cn }}
-                        </span>
+                    <div class="anime-page-meta mt-4">
+                        <span><i class="fas fa-calendar-alt mr-1"></i>{{ (post.published_at if post.published_at else post.created_at).strftime('%Y年%m月%d日') if (post.published_at or post.created_at) else '-' }}</span>
+                        <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
                         {% if post.updated_at and post.created_at and post.updated_at != post.created_at %}
-                        <span class="page-meta-item">
-                            <i class="fas fa-rotate"></i>
-                            更新于 {{ post.updated_at.strftime('%Y年%m月%d日') }}
-                        </span>
+                        <span><i class="fas fa-rotate mr-1"></i>更新于 {{ post.updated_at.strftime('%Y年%m月%d日') }}</span>
                         {% endif %}
                     </div>
                     {% endif %}
                 </div>
             </header>
 
-            <div class="page-body p-5 md:p-8">
-                <div class="page-layout-grid {% if toc_items %}has-toc{% endif %}">
+            <div class="anime-page-body p-5 md:p-8">
+                <div class="anime-layout {% if toc_items %}has-toc{% endif %}">
                     {% if toc_items %}
-                    <aside class="page-toc-panel">
-                        <h2 class="page-toc-title">页面目录</h2>
-                        <ul class="page-toc-list">
+                    <aside class="anime-side-panel">
+                        <h2>目录导航</h2>
+                        <ul class="anime-toc-list">
                             {% for item in toc_items %}
                             <li class="{% if item.level == 'h3' %}is-sub{% endif %}">
-                                <a href="#{{ item.id }}" data-toc-link="{{ item.id }}" class="page-toc-link">{{ item.title }}</a>
+                                <a href="#{{ item.id }}" data-toc-link="{{ item.id }}">{{ item.title }}</a>
                             </li>
                             {% endfor %}
                         </ul>
                     </aside>
                     {% endif %}
 
-                    <div class="page-content-wrap">
-                        <div class="post-content page-content prose prose-lg max-w-none dark:prose-invert">
+                    <div class="anime-content-wrap">
+                        {% if variant == 'landing' %}
+                        <div class="anime-cta-strip mb-5">
+                            <a href="/" class="anime-cta-btn"><i class="fas fa-house mr-1"></i>返回首页</a>
+                            <a href="/archives" class="anime-cta-btn is-outline"><i class="fas fa-folder-open mr-1"></i>浏览归档</a>
+                        </div>
+                        {% elif variant == 'about' %}
+                        <div class="anime-info-grid mb-5">
+                            <div class="anime-info-card"><span>身份</span><strong>站点维护者</strong></div>
+                            <div class="anime-info-card"><span>标签</span><strong>ACG / 技术 / 生活</strong></div>
+                            <div class="anime-info-card"><span>状态</span><strong>持续更新中</strong></div>
+                        </div>
+                        {% elif variant == 'links' %}
+                        <div class="anime-link-tip mb-5">
+                            <i class="fas fa-circle-info mr-2"></i>
+                            推荐在正文中使用无序列表维护友链，模板会自动将列表渲染为卡片风格。
+                        </div>
+                        {% elif variant == 'timeline' %}
+                        <div class="anime-link-tip mb-5">
+                            <i class="fas fa-hourglass-half mr-2"></i>
+                            推荐使用 `## 年份` + 列表 的写法，时间线视觉会更清晰。
+                        </div>
+                        {% endif %}
+
+                        <div class="post-content anime-content prose prose-lg max-w-none dark:prose-invert">
                             {{ page_content | safe }}
                         </div>
                     </div>
                 </div>
 
                 {% if post and post.license_type %}
-                <div class="page-license-box mt-8 rounded-xl border border-indigo-200/70 bg-indigo-50/70 p-4 text-sm text-slate-700 dark:border-indigo-800/70 dark:bg-indigo-900/20 dark:text-slate-200">
+                <div class="anime-license-box mt-8 rounded-xl border border-indigo-200/70 bg-indigo-50/70 p-4 text-sm text-slate-700 dark:border-indigo-800/70 dark:bg-indigo-900/20 dark:text-slate-200">
                     <p>
                         <i class="fas fa-copyright mr-2 text-indigo-500"></i>
                         <strong>版权声明：</strong>
@@ -117,7 +132,7 @@
         </article>
 
         {% if is_published and post and post.allow_comments %}
-        <div class="page-comments-panel mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-lg dark:border-slate-700 dark:bg-slate-900/80">
+        <div class="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-lg dark:border-slate-700 dark:bg-slate-900/80">
             <div class="border-b border-slate-200/90 px-5 py-4 dark:border-slate-700/80 md:px-6">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-3">
@@ -142,4 +157,3 @@
         {% endif %}
     </div>
 </section>
-{% endblock %}

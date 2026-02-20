@@ -41,7 +41,22 @@ DEFAULT_BASE_SETTINGS = {
     "rss_enabled": True,
     "copyright_info": "",
     "list_navigation_mode": "pagination",
+    "code_highlight_theme": "github-dark",
 }
+
+# highlight.js 可选主题（需与 CDN 实际样式文件名一致）
+CODE_HIGHLIGHT_THEME_OPTIONS = (
+    "github-dark",
+    "github",
+    "atom-one-dark",
+    "atom-one-light",
+    "vs2015",
+    "monokai",
+    "stackoverflow-light",
+    "stackoverflow-dark",
+    "night-owl",
+    "nord",
+)
 
 # 主页个性化设置的集中默认值，供全局读取与回退使用
 DEFAULT_HOMEPAGE_SETTINGS = {
@@ -123,6 +138,7 @@ def build_base_template_context(request: Request) -> dict:
         "search_results_limit": settings.get("pagination", {}).get("search_results_limit") if settings.get("pagination", {}).get("search_results_limit") is not None else getattr(request.state, "search_results_limit", 15),
         "related_posts_limit": settings.get("pagination", {}).get("related_posts_limit") if settings.get("pagination", {}).get("related_posts_limit") is not None else getattr(request.state, "related_posts_limit", 5),
         "list_navigation_mode": settings.get("pagination", {}).get("list_navigation_mode") or getattr(request.state, "list_navigation_mode", "pagination"),
+        "code_highlight_theme": settings.get("display", {}).get("code_highlight_theme") or getattr(request.state, "code_highlight_theme", DEFAULT_BASE_SETTINGS["code_highlight_theme"]),
         
         # 动态导航菜单数据
         "post_formats": post_formats,

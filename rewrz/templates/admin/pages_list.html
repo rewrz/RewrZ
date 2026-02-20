@@ -3,6 +3,13 @@
 {% block title_text %}页面管理{% endblock %}
 {% block page_title %}<i class="fas fa-file text-blue-600 mr-3"></i>页面管理{% endblock %}
 {% block content %}
+{% set page_template_label_map = {
+    'default': '默认页面（全宽）',
+    'about': '关于页面（Profile）',
+    'links': '友情链接（Blogroll）',
+    'timeline': '时间轴（Archives）',
+    'landing': '落地页（Landing）'
+} %}
 <div class="admin-panel p-4 md:p-6 space-y-5">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex flex-wrap items-center gap-2">
@@ -136,6 +143,11 @@
                             <span class="ml-1 italic">{{ page.excerpt[:80] if page.excerpt else '' }}{% if page.excerpt and page.excerpt|length > 80 %}...{% endif %}</span>
                         </div>
                         <div class="mt-1 text-xs text-gray-400">/{{ page.slug }}</div>
+                        <div class="mt-1">
+                            <span class="inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700">
+                                模板：{{ page_template_label_map.get(page.page_template or 'default', '默认页面（全宽）') }}
+                            </span>
+                        </div>
                     </td>
                     <td class="px-4 py-4 align-top">
                         {% if page.status == 'published' %}

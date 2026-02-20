@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from rewrz.core.data_manager import RewrZImporter, WordPressImporter
+from rewrz.models import Base, Media
 from rewrz.crud import category as crud_category
 from rewrz.crud import comment as crud_comment
 from rewrz.crud import format as crud_format
@@ -13,7 +14,6 @@ from rewrz.crud import post as crud_post
 from rewrz.crud import setting as crud_setting
 from rewrz.crud import tag as crud_tag
 from rewrz.crud import user as crud_user
-from rewrz.models import Base
 from rewrz.schemas import CategoryCreate, TagCreate, UserCreate
 
 
@@ -671,4 +671,170 @@ def test_wordpress_import_raw_html_strategy_uses_html_mode(db, tmp_path):
     assert post is not None
     assert post.content_markdown == ""
     assert "<h2>标题</h2>" in post.content_html
+
+
+def test_wordpress_import_gutenberg_blocks_media_and_shortcode_to_markdown(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin9", email="admin9@example.com", password="password123"),
+    )
+
+    wxr_content = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <link>https://rewrz.com</link>
+    <item>
+      <title>Gutenberg 转换测试</title>
+      <link>https://rewrz.com/archive/wp-gutenberg</link>
+      <content:encoded><![CDATA[
+        <!-- wp:heading -->
+        <h2 class="wp-block-heading">2025年7月5日大灾难预言</h2>
+        <!-- /wp:heading -->
+        <!-- wp:list -->
+        <ul class="wp-block-list"><li><strong>时间与地点</strong>：内容A</li><li>内容B</li></ul>
+        <!-- /wp:list -->
+        <!-- wp:quote -->
+        <blockquote class="wp-block-quote"><p>引用段落</p></blockquote>
+        <!-- /wp:quote -->
+        <!-- wp:image -->
+        <figure class="wp-block-image size-large"><img src="/wp-content/uploads/2025/04/sample-1024x768.jpg" alt="sample"/></figure>
+        <!-- /wp:image -->
+        <p>[dm href='https://example.com/wiki']维基百科[/dm]</p>
+      ]]></content:encoded>
+      <wp:post_name>wp-gutenberg</wp:post_name>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2025-04-18 00:41:41</wp:post_date>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_gutenberg.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    importer = WordPressImporter(db)
+    stats = importer.import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+
+    post = crud_post.get_post_by_slug(db, "wp-gutenberg")
+    assert post is not None
+    assert "## 2025年7月5日大灾难预言" in post.content_markdown
+    assert "- **时间与地点**" in post.content_markdown
+    assert "内容A" in post.content_markdown
+    assert "> 引用段落" in post.content_markdown
+    assert "![sample](https://rewrz.com/wp-content/uploads/2025/04/sample-1024x768.jpg)" in post.content_markdown
+    assert "[维基百科](https://example.com/wiki)" in post.content_markdown
+
+
+def test_wordpress_import_uses_thumbnail_id_as_featured_image(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin10", email="admin10@example.com", password="password123"),
+    )
+
+    wxr_content = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <link>https://rewrz.com</link>
+    <item>
+      <title>Attachment</title>
+      <wp:post_id>2217</wp:post_id>
+      <wp:post_type>attachment</wp:post_type>
+      <wp:status>inherit</wp:status>
+      <wp:attachment_url>https://rewrz.com/wp-content/uploads/2025/04/1744906867-2025-04-17_213227.jpg</wp:attachment_url>
+    </item>
+    <item>
+      <title>特色图恢复测试</title>
+      <content:encoded><![CDATA[<p>正文</p>]]></content:encoded>
+      <wp:post_name>featured-image-post</wp:post_name>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2025-04-18 00:41:41</wp:post_date>
+      <wp:postmeta>
+        <wp:meta_key>_thumbnail_id</wp:meta_key>
+        <wp:meta_value>2217</wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_thumbnail.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    importer = WordPressImporter(db)
+    stats = importer.import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+
+    post = crud_post.get_post_by_slug(db, "featured-image-post")
+    assert post is not None
+    assert post.featured_image_url == "https://rewrz.com/wp-content/uploads/2025/04/1744906867-2025-04-17_213227.jpg"
+
+
+def test_wordpress_import_can_download_remote_media_to_local(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin11", email="admin11@example.com", password="password123"),
+    )
+
+    wxr_content = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <link>https://rewrz.com</link>
+    <item>
+      <title>媒体下载测试</title>
+      <link>https://rewrz.com/archive/media-download-post</link>
+      <content:encoded><![CDATA[<p><img src="https://assets.example.com/images/a.png" alt="a"/></p>]]></content:encoded>
+      <wp:post_name>media-download-post</wp:post_name>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2025-04-18 00:41:41</wp:post_date>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_media_download.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    importer = WordPressImporter(
+        db,
+        options={
+            "import_comments": True,
+            "import_views": True,
+            "import_post_types": ["post", "page"],
+            "postmeta_whitelist": ["views", "post_views_count"],
+            "markdown_strategy": "html_to_markdown",
+            "download_remote_media": True,
+        },
+    )
+    local_media_root = tmp_path / "media_uploads"
+    importer._get_media_upload_root = lambda: str(local_media_root)
+    importer._fetch_remote_media_bytes = lambda url, timeout_seconds, max_bytes: (b"fake-png-bytes", "image/png")
+
+    stats = importer.import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+    assert stats.get("media_downloaded", 0) == 1
+
+    post = crud_post.get_post_by_slug(db, "media-download-post")
+    assert post is not None
+    assert "/media/" in post.content_markdown
+    assert "/imports/wordpress/" not in post.content_markdown
+    assert post.featured_image_url and post.featured_image_url.startswith("/media/")
+    assert "/imports/wordpress/" not in post.featured_image_url
+
+    media_items = db.query(Media).all()
+    assert len(media_items) >= 1
+    assert media_items[0].filepath.startswith(str(local_media_root))
 

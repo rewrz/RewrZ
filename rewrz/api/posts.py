@@ -7,6 +7,7 @@ from ..core.database import get_db
 from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..core.config import settings
+from ..core.page_templates import DEFAULT_PAGE_TEMPLATE, get_page_template_options, normalize_page_template
 from ..crud import post as crud_post, category as crud_category, tag as crud_tag, format as crud_format, setting as crud_setting
 from ..schemas import Post, PostCreate, PostUpdate, User, PostBatchUpdate, FormatCreate
 from ..core.content_intents import INTENT_SLUGS, INTENT_NAME_MAP
@@ -409,6 +410,7 @@ async def new_page_page(request: Request, db: Session = Depends(get_db), current
         "user": current_user,
         "admin_path": settings.ADMIN_PATH.rstrip('/'),
         "post": None,  # 新建页面时没有post对象
+        "page_template_options": get_page_template_options(),
         "content_primary_mode": content_primary_mode,
         "license_options": get_license_options_filter
     })
@@ -429,6 +431,7 @@ async def edit_page_page(page_id: int, request: Request, db: Session = Depends(g
         "user": current_user,
         "admin_path": settings.ADMIN_PATH.rstrip('/'),
         "post": page,
+        "page_template_options": get_page_template_options(),
         "content_primary_mode": content_primary_mode,
         "license_options": get_license_options_filter
     })
@@ -443,6 +446,7 @@ async def create_page_api(
     slug: Optional[str] = Form(None),
     excerpt: Optional[str] = Form(None),
     featured_image_url: Optional[str] = Form(None),
+    page_template: str = Form(DEFAULT_PAGE_TEMPLATE),
     status: str = Form("draft"),
     visibility: str = Form("public"),
     password: Optional[str] = Form(None),
@@ -468,6 +472,7 @@ async def create_page_api(
         slug=slug,
         excerpt=excerpt,
         featured_image_url=featured_image_url,
+        page_template=normalize_page_template(page_template),
         status=status,
         visibility=visibility,
         password=normalized_password,
@@ -498,6 +503,7 @@ async def update_page_api(
     slug: Optional[str] = Form(None),
     excerpt: Optional[str] = Form(None),
     featured_image_url: Optional[str] = Form(None),
+    page_template: str = Form(DEFAULT_PAGE_TEMPLATE),
     status: str = Form("draft"),
     visibility: str = Form("public"),
     password: Optional[str] = Form(None),
@@ -531,6 +537,7 @@ async def update_page_api(
         slug=slug,
         excerpt=excerpt,
         featured_image_url=featured_image_url,
+        page_template=normalize_page_template(page_template),
         status=status,
         visibility=visibility,
         password=normalized_password,

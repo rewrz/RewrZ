@@ -247,7 +247,7 @@
 }
 
 /* 代码样式 */
-.post-content code {
+.post-content :not(pre) > code {
     font-family: var(--font-family-mono);
     font-size: 0.9em;
     background: var(--color-surface-secondary);
@@ -258,19 +258,25 @@
 
 .post-content pre {
     margin: var(--spacing-6) 0;
-    padding: var(--spacing-4);
-    background: var(--color-surface-tertiary);
-    border-radius: var(--radius-md);
+    padding: 0;
     overflow-x: auto;
-    border: 1px solid var(--color-border-secondary);
+    border: none;
     position: relative;
 }
 
 .post-content pre code {
-    background: none;
     padding: 0;
     border: none;
-    font-size: var(--font-size-sm);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+/* 让 highlight.js 主题样式完整接管代码块视觉 */
+.post-content pre code.hljs {
+    display: block;
+    padding: var(--spacing-4);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border-secondary);
 }
 
 /* 图片样式 */
@@ -698,5 +704,227 @@
 @media (prefers-reduced-motion: reduce) {
     .donation-widget .donation-action-btn {
         transition: none;
+    }
+}
+
+/* ===== Format-specific Reading Typography ===== */
+/* Article (book-like, strong heading hierarchy) */
+.article-detail-card .article-content {
+    font-size: clamp(1.02rem, 0.98rem + 0.25vw, 1.14rem);
+    line-height: 1.95;
+    letter-spacing: 0.01em;
+}
+
+.article-detail-card .article-content > * {
+    max-width: 108ch;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.article-detail-card .article-content h1,
+.article-detail-card .article-content h2,
+.article-detail-card .article-content h3,
+.article-detail-card .article-content h4,
+.article-detail-card .article-content h5,
+.article-detail-card .article-content h6 {
+    text-align: center;
+    font-weight: 700;
+    letter-spacing: 0.015em;
+    margin-top: 2.2em;
+    margin-bottom: 0.9em;
+    padding-top: 0.1em;
+}
+
+.article-detail-card .article-content h2::before,
+.article-detail-card .article-content h3::before,
+.article-detail-card .article-content h4::before,
+.article-detail-card .article-content h5::before,
+.article-detail-card .article-content h6::before {
+    position: static;
+    display: inline-block;
+    margin-right: 0.45em;
+    font-family: "Consolas", "SFMono-Regular", monospace;
+    font-size: 0.8em;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text-light));
+    opacity: 0.9;
+    transform: none;
+    width: auto;
+    height: auto;
+    background: none;
+}
+
+.article-detail-card .article-content h2::before { content: "##"; }
+.article-detail-card .article-content h3::before { content: "###"; }
+.article-detail-card .article-content h4::before { content: "####"; }
+.article-detail-card .article-content h5::before { content: "#####"; }
+.article-detail-card .article-content h6::before { content: "######"; }
+
+.article-detail-card .article-content h2 {
+    font-size: clamp(1.5rem, 1.35rem + 0.55vw, 1.9rem);
+}
+
+.article-detail-card .article-content h3 {
+    font-size: clamp(1.26rem, 1.12rem + 0.45vw, 1.58rem);
+}
+
+.article-detail-card .article-content h4 {
+    font-size: clamp(1.12rem, 1.05rem + 0.3vw, 1.32rem);
+}
+
+.article-detail-card .article-content p {
+    text-wrap: pretty;
+}
+
+/* Micro (snappy, social-feed style readability) */
+.micro-detail-card .micro-content {
+    font-size: clamp(1rem, 0.98rem + 0.2vw, 1.1rem);
+    line-height: 1.9;
+    letter-spacing: 0.005em;
+}
+
+.micro-detail-card .micro-content h1,
+.micro-detail-card .micro-content h2,
+.micro-detail-card .micro-content h3,
+.micro-detail-card .micro-content h4,
+.micro-detail-card .micro-content h5,
+.micro-detail-card .micro-content h6 {
+    margin-top: 1.3em;
+    margin-bottom: 0.55em;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.micro-detail-card .micro-content h2::before,
+.micro-detail-card .micro-content h3::before,
+.micro-detail-card .micro-content h4::before,
+.micro-detail-card .micro-content h5::before,
+.micro-detail-card .micro-content h6::before {
+    position: static;
+    display: inline-block;
+    margin-right: 0.42em;
+    font-family: "Consolas", "SFMono-Regular", monospace;
+    font-size: 0.78em;
+    color: color-mix(in srgb, #fb7185 66%, var(--color-text-light));
+    transform: none;
+    width: auto;
+    height: auto;
+    background: none;
+}
+
+.micro-detail-card .micro-content h2::before { content: "##"; }
+.micro-detail-card .micro-content h3::before { content: "###"; }
+.micro-detail-card .micro-content h4::before { content: "####"; }
+.micro-detail-card .micro-content h5::before { content: "#####"; }
+.micro-detail-card .micro-content h6::before { content: "######"; }
+
+.micro-detail-card .micro-content p {
+    margin-bottom: 1.05rem;
+    text-wrap: pretty;
+}
+
+.micro-detail-card .micro-content p:first-of-type::first-letter {
+    float: none;
+    font-size: inherit;
+    line-height: inherit;
+    margin: 0;
+    font-family: inherit;
+    font-weight: inherit;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+}
+
+/* Poem (centered, elegant, high-contrast heading rhythm) */
+.poetry-content {
+    line-height: 2.15;
+    letter-spacing: 0.04em;
+}
+
+.poetry-content > * {
+    max-width: 42em;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.poetry-content h1,
+.poetry-content h2,
+.poetry-content h3,
+.poetry-content h4,
+.poetry-content h5,
+.poetry-content h6 {
+    text-align: center;
+    margin-top: 1.9em;
+    margin-bottom: 0.85em;
+    letter-spacing: 0.08em;
+}
+
+.poetry-content h2::before,
+.poetry-content h3::before,
+.poetry-content h4::before,
+.poetry-content h5::before,
+.poetry-content h6::before {
+    position: static;
+    display: inline-block;
+    margin-right: 0.45em;
+    font-family: "Consolas", "SFMono-Regular", monospace;
+    font-size: 0.8em;
+    color: color-mix(in srgb, #8b5cf6 70%, var(--color-text-light));
+    transform: none;
+    width: auto;
+    height: auto;
+    background: none;
+}
+
+.poetry-content h2::before { content: "##"; }
+.poetry-content h3::before { content: "###"; }
+.poetry-content h4::before { content: "####"; }
+.poetry-content h5::before { content: "#####"; }
+.poetry-content h6::before { content: "######"; }
+
+.poetry-content p {
+    margin-bottom: 1.2em;
+    text-align: center;
+    text-wrap: pretty;
+}
+
+.poetry-content blockquote {
+    text-align: left;
+    max-width: 44em;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+@media (max-width: 768px) {
+    .article-detail-card .article-content,
+    .micro-detail-card .micro-content {
+        font-size: 1rem;
+        line-height: 1.85;
+    }
+
+    .article-detail-card .article-content h1,
+    .article-detail-card .article-content h2,
+    .article-detail-card .article-content h3,
+    .article-detail-card .article-content h4,
+    .article-detail-card .article-content h5,
+    .article-detail-card .article-content h6 {
+        text-align: left;
+    }
+
+    .article-detail-card .article-content h2::before,
+    .article-detail-card .article-content h3::before,
+    .article-detail-card .article-content h4::before,
+    .article-detail-card .article-content h5::before,
+    .article-detail-card .article-content h6::before {
+        margin-right: 0.34em;
+    }
+
+    .poetry-content {
+        letter-spacing: 0.02em;
+        line-height: 2;
+    }
+
+    .poetry-content > * {
+        max-width: 100%;
     }
 }

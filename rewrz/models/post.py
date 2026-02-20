@@ -41,6 +41,7 @@ class Post(Base):
     excerpt = Column(Text, nullable=True)
     featured_image_url = Column(String, nullable=True)
     post_type = Column(String, nullable=False, default="article") # 'article' or 'page'
+    page_template = Column(String, nullable=False, default="default") # 页面模板，仅 page 类型生效
     status = Column(String, nullable=False, default="draft") # 'published' or 'draft'
     visibility = Column(String, nullable=False, default="public") # 'public', 'private', 'password'
     password = Column(String, nullable=True) # Hashed password
