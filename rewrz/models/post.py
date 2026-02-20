@@ -40,7 +40,7 @@ class Post(Base):
     content_html = Column(Text, nullable=False)
     excerpt = Column(Text, nullable=True)
     featured_image_url = Column(String, nullable=True)
-    post_type = Column(String, nullable=False, default="article") # 'article' or 'page'
+    post_type = Column(String, nullable=False, default="post") # 'post'（文章）或 'page'（页面）
     page_template = Column(String, nullable=False, default="default") # 页面模板，仅 page 类型生效
     status = Column(String, nullable=False, default="draft") # 'published' or 'draft'
     visibility = Column(String, nullable=False, default="public") # 'public', 'private', 'password'

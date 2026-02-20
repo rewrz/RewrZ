@@ -42,7 +42,7 @@ def test_post(db: Session, test_user: User):
         title="Test Post for Comments",
         slug="test-post-comments",
         content_markdown="Content",
-        post_type="article",
+        post_type="post",
         status="published",
         visibility="public"
     )
@@ -188,3 +188,4 @@ def test_bulk_comment_operations_support_chunked_ids(db: Session, test_post: Pos
     deleted = crud_comment.bulk_delete_comments(db, ids)
     assert deleted == len(ids)
     assert db.query(Comment).count() == 0
+

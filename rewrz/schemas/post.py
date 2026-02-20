@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 from .category import Category
@@ -19,6 +19,14 @@ class PostBase(BaseModel):
     allow_comments: bool = True
     license_type: Optional[str] = "cc_by_nc_sa_4"  # 版权协议类型
     version_snapshots: List[dict] = Field(default_factory=list)
+
+    @field_validator("post_type")
+    @classmethod
+    def validate_post_type(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"post", "page"}:
+            raise ValueError("post_type 仅允许为 post（文章）或 page（页面）")
+        return normalized
 
 class PostCreate(PostBase):
     category_ids: Optional[List[int]] = None

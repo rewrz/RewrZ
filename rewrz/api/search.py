@@ -212,10 +212,8 @@ async def search_suggestions(
     
     # 搜索匹配的文章标题
     posts = db.query(Post).filter(
-        and_(
-            Post.status == "published",
-            Post.title.ilike(f"%{q}%")
-        )
+        *crud_post.get_public_post_conditions(),
+        Post.title.ilike(f"%{q}%"),
     ).limit(limit).all()
     
     for post in posts:
@@ -282,7 +280,7 @@ def perform_search(
         包含搜索结果和统计信息的字典
     """
     # 构建基础查询
-    base_query = db.query(Post).filter(Post.status == "published")
+    base_query = db.query(Post).filter(*crud_post.get_public_post_conditions())
     
     # 多关键词分词（支持空格与中文连续字符），示例："python 入门 教程" 或 "中文分词测试"
     tokens: List[str] = re.findall(r"[\u4e00-\u9fff]+|[A-Za-z0-9]+", query)
@@ -360,3 +358,4 @@ def perform_search(
         "page": page,
         "per_page": per_page
     }
+

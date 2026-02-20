@@ -108,6 +108,12 @@ async def lifespan(app: FastAPI):
         print("INFO: .env file not found. Redirecting to installer.")
         # 这不会立即重定向，但会为根路由设置条件
     create_all_tables()
+    db = db_manager.get_session()
+    if db is not None:
+        try:
+            crud_post.normalize_legacy_article_post_type(db)
+        finally:
+            db.close()
     yield
     # 关闭时的清理工作（如果需要）
 
@@ -477,7 +483,7 @@ def register_admin_routes():
         if resolved_page_size not in allowed_page_sizes:
             resolved_page_size = 20
 
-        base_conditions = [Post.post_type.in_(["post", "article"])]
+        base_conditions = list(crud_post.get_public_post_conditions(published_only=False))
         filter_conditions = list(base_conditions)
 
         if status:
@@ -2607,7 +2613,7 @@ async def homepage(request: Request, page: int = 1, append: int = 0, db: Session
     list_navigation_mode = _normalize_list_navigation_mode(get_page_config(db, "list_navigation_mode", "pagination"))
 
     total_posts_count = db.execute(
-        select(func.count(Post.id)).where(Post.status == "published", Post.published_at.isnot(None))
+        select(func.count(Post.id)).where(*crud_post.get_public_post_conditions())
     ).scalar_one()
     page, pagination = _build_public_pagination(
         page,
@@ -2616,7 +2622,13 @@ async def homepage(request: Request, page: int = 1, append: int = 0, db: Session
         lambda target_page: f"/?page={target_page}",
     )
     offset = (page - 1) * homepage_posts_limit
-    posts = crud_post.get_posts(db, skip=offset, limit=homepage_posts_limit, status="published")
+    posts = crud_post.get_posts(
+        db,
+        skip=offset,
+        limit=homepage_posts_limit,
+        status="published",
+        post_type="post",
+    )
 
     # 首页时间轴封面：特色图 -> 正文首图 -> 随机二次元图（复用统一兜底逻辑）
     _attach_article_cover_urls(db, posts, attr_name="homepage_cover_url")
@@ -2682,9 +2694,7 @@ async def format_page(request: Request, format_slug: str, page: int = 1, append:
                 exclude_format_ids.append(excluded_format.id)
     count_query = select(func.count(Post.id)).where(
         Post.formats.any(id=format.id),
-        Post.status == "published",
-        Post.published_at.isnot(None),
-        Post.post_type.in_(["post", "article"]),
+        *crud_post.get_public_post_conditions(),
     )
     for excluded_format_id in exclude_format_ids:
         count_query = count_query.where(~Post.formats.any(id=excluded_format_id))
@@ -2720,9 +2730,7 @@ async def format_page(request: Request, format_slug: str, page: int = 1, append:
 
     format_post_ids_query = select(Post.id).where(
         Post.formats.any(id=format.id),
-        Post.status == "published",
-        Post.published_at.isnot(None),
-        Post.post_type.in_(["post", "article"]),
+        *crud_post.get_public_post_conditions(),
     )
     for excluded_format_id in exclude_format_ids:
         format_post_ids_query = format_post_ids_query.where(~Post.formats.any(id=excluded_format_id))
@@ -3006,9 +3014,7 @@ async def posts_by_category(request: Request, category_slug: str, page: int = 1,
     total_posts_count = db.execute(
         select(func.count(Post.id)).where(
             Post.categories.any(id=category.id),
-            Post.status == "published",
-            Post.published_at.isnot(None),
-            Post.post_type.in_(["post", "article"]),
+            *crud_post.get_public_post_conditions(),
         )
     ).scalar_one()
     page, pagination = _build_public_pagination(
@@ -3056,9 +3062,7 @@ async def posts_by_tag(request: Request, tag_slug: str, page: int = 1, append: i
     total_posts_count = db.execute(
         select(func.count(Post.id)).where(
             Post.tags.any(id=tag.id),
-            Post.status == "published",
-            Post.published_at.isnot(None),
-            Post.post_type.in_(["post", "article"]),
+            *crud_post.get_public_post_conditions(),
         )
     ).scalar_one()
     page, pagination = _build_public_pagination(
@@ -3146,11 +3150,7 @@ async def archives_page(
     archive_posts_limit = _resolve_posts_per_page(get_page_config(db, "archive_posts_limit", 20), 20, maximum=200)
     list_navigation_mode = _normalize_list_navigation_mode(get_page_config(db, "list_navigation_mode", "pagination"))
     total_posts_count = db.execute(
-        select(func.count(Post.id)).where(
-            Post.status == "published",
-            Post.published_at.isnot(None),
-            Post.post_type.in_(["post", "article"]),
-        )
+        select(func.count(Post.id)).where(*crud_post.get_public_post_conditions())
     ).scalar_one()
     page, pagination = _build_public_pagination(
         page,
@@ -3189,3 +3189,4 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
 # 添加设置加载中间件（在会话中间件之后）
 app.add_middleware(SettingsMiddleware)
+

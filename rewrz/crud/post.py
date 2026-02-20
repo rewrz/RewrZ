@@ -4,7 +4,7 @@
 支持多重身份内容系统和版本快照功能。
 """
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, update
 from ..models import Post, Format, Category, Tag, Setting, Comment
 from ..schemas import PostCreate, PostUpdate, FormatCreate
 from datetime import datetime
@@ -21,6 +21,33 @@ from ..core.content_intents import choose_primary_intent_slug, normalize_intent_
 from ..core.page_templates import normalize_page_template
 
 from typing import Optional, List
+
+
+def _normalize_post_type_value(post_type: Optional[str], *, allow_none: bool = False) -> Optional[str]:
+    if post_type is None:
+        if allow_none:
+            return None
+        raise ValueError("post_type 不能为空")
+
+    normalized = str(post_type).strip().lower()
+    if not normalized:
+        if allow_none:
+            return None
+        raise ValueError("post_type 不能为空")
+    if normalized not in {"post", "page"}:
+        raise ValueError("post_type 仅允许为 post（文章）或 page（页面）")
+    return normalized
+
+
+def get_public_post_conditions(*, published_only: bool = True):
+    """公开文章列表统一过滤条件。"""
+    conditions = [Post.post_type == "post"]
+    if published_only:
+        conditions.extend([
+            Post.status == "published",
+            Post.published_at.isnot(None),
+        ])
+    return tuple(conditions)
 
 
 def _normalize_featured_image_url(url: Optional[str]) -> Optional[str]:
@@ -177,18 +204,20 @@ def get_post_by_slug(db: Session, slug: str):
 def get_posts(db: Session, skip: int = 0, limit: int = 100, status: Optional[str] = None, post_type: Optional[str] = None):
     """获取文章列表，支持分页和状态过滤"""
     query = select(Post).options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
-    if status:
-        # 确保文章状态为 'published' 且 published_at 不为空
-        if status == "published":
-            query = query.filter(Post.status == status, Post.published_at.isnot(None))
-        else:
-            query = query.filter(Post.status == status)
-    if post_type:
-        # 兼容历史数据：article 与 post 均视为文章
-        if post_type in {"post", "article"}:
-            query = query.filter(Post.post_type.in_(["post", "article"]))
-        else:
-            query = query.filter(Post.post_type == post_type)
+    normalized_post_type = _normalize_post_type_value(post_type, allow_none=True) if post_type is not None else None
+
+    # 公开文章列表统一走公共 helper，避免各处条件漂移。
+    if status == "published" and normalized_post_type == "post":
+        query = query.filter(*get_public_post_conditions())
+    else:
+        if status:
+            # 仅已发布内容要求 published_at 非空
+            if status == "published":
+                query = query.filter(Post.status == status, Post.published_at.isnot(None))
+            else:
+                query = query.filter(Post.status == status)
+        if normalized_post_type:
+            query = query.filter(Post.post_type == normalized_post_type)
     # 默认按发布时间降序排列
     query = query.order_by(Post.published_at.desc())
     posts = db.execute(query.offset(skip).limit(limit)).unique().scalars().all()
@@ -229,9 +258,7 @@ def get_posts_by_category(db: Session, category_id: int, skip: int = 0, limit: i
         select(Post)
         .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
         .filter(Post.categories.any(id=category_id))
-        .filter(Post.status == "published")
-        .filter(Post.published_at.isnot(None))
-        .filter(Post.post_type.in_(["post", "article"]))
+        .filter(*get_public_post_conditions())
         .order_by(Post.published_at.desc())
         .offset(skip)
         .limit(limit)
@@ -251,9 +278,7 @@ def get_posts_by_format(
         select(Post)
         .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
         .filter(Post.formats.any(id=format_id))
-        .filter(Post.status == "published")
-        .filter(Post.published_at.isnot(None))
-        .filter(Post.post_type.in_(["post", "article"]))
+        .filter(*get_public_post_conditions())
     )
     for excluded_id in sorted({int(fid) for fid in (exclude_format_ids or []) if fid is not None}):
         if excluded_id == format_id:
@@ -275,9 +300,7 @@ def get_posts_by_tag(db: Session, tag_id: int, skip: int = 0, limit: int = 100):
         select(Post)
         .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
         .filter(Post.tags.any(id=tag_id))
-        .filter(Post.status == "published")
-        .filter(Post.published_at.isnot(None))
-        .filter(Post.post_type.in_(["post", "article"]))
+        .filter(*get_public_post_conditions())
         .order_by(Post.published_at.desc())
         .offset(skip)
         .limit(limit)
@@ -302,6 +325,8 @@ def create_post(
     - 自动生成唯一别名
     - 密码哈希加密
     """
+    normalized_post_type = _normalize_post_type_value(post.post_type)
+
     editor_mode = infer_editor_mode(
         requested_mode=post.editor_mode,
         content_markdown=post.content_markdown,
@@ -344,8 +369,8 @@ def create_post(
         "content_html": resolved_html,
         "excerpt": excerpt,
         "featured_image_url": _normalize_featured_image_url(post.featured_image_url),
-        "post_type": post.post_type,
-        "page_template": _normalize_page_template_for_post(post.post_type, post.page_template),
+        "post_type": normalized_post_type,
+        "page_template": _normalize_page_template_for_post(normalized_post_type, post.page_template),
         "status": post.status,
         "visibility": post.visibility,
         "password": get_password_hash(post.password) if post.password else None,
@@ -385,7 +410,7 @@ def create_post(
     if normalized_format_ids is not None:
         formats = db.execute(select(Format).filter(Format.id.in_(normalized_format_ids))).scalars().all()
         db_post.formats.extend(formats)
-    elif post.post_type in {"post", "article"}:
+    elif normalized_post_type == "post":
         default_intent = _ensure_intent_format(db, "article")
         if default_intent is not None:
             db_post.formats.append(default_intent)
@@ -424,7 +449,9 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
         incoming_editor_mode = update_data.pop("editor_mode", None)
         incoming_status = update_data.get("status")
         incoming_visibility = update_data.get("visibility")
-        incoming_post_type = update_data.get("post_type")
+        incoming_post_type = _normalize_post_type_value(update_data.get("post_type"), allow_none=True)
+        if incoming_post_type is not None:
+            update_data["post_type"] = incoming_post_type
         incoming_page_template = update_data.pop("page_template", None)
         incoming_password = update_data.pop("password", None)
         
@@ -532,7 +559,7 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
             if normalized_format_ids:
                 formats = db.execute(select(Format).filter(Format.id.in_(normalized_format_ids))).scalars().all()
                 db_post.formats.extend(formats)
-        elif db_post.post_type in {"post", "article"} and not db_post.formats:
+        elif db_post.post_type == "post" and not db_post.formats:
             default_intent = _ensure_intent_format(db, "article")
             if default_intent is not None:
                 db_post.formats.append(default_intent)
@@ -563,10 +590,8 @@ def get_posts_by_year_month(
     query = (
         select(Post)
         .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
-        .filter(Post.status == "published")
-        .filter(Post.published_at.isnot(None))
+        .filter(*get_public_post_conditions())
         .filter(Post.published_at >= start, Post.published_at < end)
-        .filter(Post.post_type.in_(["post", "article"]))
         .order_by(Post.published_at.desc())
     )
     if limit is not None:
@@ -582,9 +607,7 @@ def get_archive_posts(db: Session) -> List[Post]:
     query = (
         select(Post)
         .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
-        .filter(Post.status == "published")
-        .filter(Post.published_at.isnot(None))
-        .filter(Post.post_type.in_(["post", "article"]))
+        .filter(*get_public_post_conditions())
         .order_by(Post.published_at.desc())
     )
     posts = db.execute(query).unique().scalars().all()
@@ -593,13 +616,11 @@ def get_archive_posts(db: Session) -> List[Post]:
 
 
 def get_archive_posts_paginated(db: Session, skip: int = 0, limit: int = 20) -> List[Post]:
-    """获取归档页使用的分页文章（仅 post/article）"""
+    """获取归档页使用的分页文章（仅 post）。"""
     query = (
         select(Post)
         .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
-        .filter(Post.status == "published")
-        .filter(Post.published_at.isnot(None))
-        .filter(Post.post_type.in_(["post", "article"]))
+        .filter(*get_public_post_conditions())
         .order_by(Post.published_at.desc())
         .offset(skip)
         .limit(limit)
@@ -627,6 +648,19 @@ def delete_post(db: Session, post_id: int, *, auto_commit: bool = True):
         if auto_commit:
             db.commit()
     return db_post
+
+
+def normalize_legacy_article_post_type(db: Session, *, auto_commit: bool = True) -> int:
+    """将历史 article 主类型归一化为 post。"""
+    result = db.execute(
+        update(Post)
+        .where(Post.post_type == "article")
+        .values(post_type="post")
+    )
+    updated = int(result.rowcount or 0)
+    if auto_commit and updated > 0:
+        db.commit()
+    return updated
 
 
 def delete_posts_by_ids(db: Session, post_ids: List[int], author_id: Optional[int] = None) -> int:
@@ -687,4 +721,5 @@ def bulk_update_posts_status_by_ids(
 
     db.commit()
     return len(db_posts)
+
 

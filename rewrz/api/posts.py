@@ -105,7 +105,7 @@ async def edit_post_page(post_id: int, request: Request, db: Session = Depends(g
     显示编辑文章页面
     """
     post = crud_post.get_post(db, post_id=post_id)
-    if not post or post.post_type not in {"post", "article"}:
+    if not post or post.post_type != "post":
         raise HTTPException(status_code=404, detail="Post not found or is not an article")
     
     categories = crud_category.get_categories(db)
@@ -225,7 +225,7 @@ async def update_post_api(
         raise HTTPException(status_code=404, detail="Post not found")
     
     # 确保文章类型不被修改
-    if db_post.post_type not in {"post", "article"}:
+    if db_post.post_type != "post":
         raise HTTPException(status_code=400, detail="Cannot update non-article type via this endpoint")
     normalized_password = (password or "").strip() or None
     if visibility == "password" and not normalized_password and not db_post.password:
@@ -572,4 +572,5 @@ async def delete_page_api(page_id: int, db: Session = Depends(get_db), current_u
 
     crud_post.delete_post(db, post_id=page_id)
     return {"success": True, "message": "页面删除成功"}
+
 

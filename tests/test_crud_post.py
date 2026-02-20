@@ -1,6 +1,7 @@
 import pytest
 import time
-from sqlalchemy import create_engine
+from pydantic import ValidationError
+from sqlalchemy import create_engine, select, func
 from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime, timedelta
 from rewrz.models.base import Base
@@ -57,7 +58,7 @@ def test_create_post(db: Session, test_user: User, test_category: Category, test
         title="Test Post",
         slug="test-post",
         content_markdown="## Hello World\nThis is a test post.",
-        post_type="article",
+        post_type="post",
         status="draft",
         visibility="public",
         author_id=test_user.id,
@@ -70,7 +71,7 @@ def test_create_post(db: Session, test_user: User, test_category: Category, test
     assert post.content_markdown == "## Hello World\nThis is a test post."
     assert post.content_html == ""
     assert post.excerpt == "Hello World This is a test post."
-    assert post.post_type == "article"
+    assert post.post_type == "post"
     assert post.status == "draft"
     assert post.visibility == "public"
     assert post.author_id == test_user.id
@@ -86,7 +87,7 @@ def test_get_post(db: Session, test_user: User):
         title="Another Post",
         slug="another-post",
         content_markdown="Content",
-        post_type="article",
+        post_type="post",
         status="published",
         visibility="public",
         author_id=test_user.id
@@ -102,7 +103,7 @@ def test_get_post_by_slug(db: Session, test_user: User):
         title="Slug Post",
         slug="slug-post",
         content_markdown="Content",
-        post_type="article",
+        post_type="post",
         status="published",
         visibility="public",
         author_id=test_user.id
@@ -113,8 +114,8 @@ def test_get_post_by_slug(db: Session, test_user: User):
     assert fetched_post.slug == "slug-post"
 
 def test_get_posts(db: Session, test_user: User):
-    crud_post.create_post(db, PostCreate(title="Post 1", slug="post-1", content_markdown="C1", post_type="article", status="published", visibility="public", author_id=test_user.id), author_id=test_user.id)
-    crud_post.create_post(db, PostCreate(title="Post 2", slug="post-2", content_markdown="C2", post_type="article", status="draft", visibility="public", author_id=test_user.id), author_id=test_user.id)
+    crud_post.create_post(db, PostCreate(title="Post 1", slug="post-1", content_markdown="C1", post_type="post", status="published", visibility="public", author_id=test_user.id), author_id=test_user.id)
+    crud_post.create_post(db, PostCreate(title="Post 2", slug="post-2", content_markdown="C2", post_type="post", status="draft", visibility="public", author_id=test_user.id), author_id=test_user.id)
     crud_post.create_post(db, PostCreate(title="Post 3", slug="post-3", content_markdown="C3", post_type="page", status="published", visibility="public", author_id=test_user.id), author_id=test_user.id)
 
     published_posts = crud_post.get_posts(db, status="published")
@@ -123,15 +124,70 @@ def test_get_posts(db: Session, test_user: User):
     all_posts = crud_post.get_posts(db)
     assert len(all_posts) == 3
 
-    articles = crud_post.get_posts(db, post_type="article")
+    articles = crud_post.get_posts(db, post_type="post")
     assert len(articles) == 2 # Post 1 and Post 2
+
+    with pytest.raises(ValueError):
+        crud_post.get_posts(db, post_type="article")
+
+
+def test_get_public_post_conditions_helper(db: Session, test_user: User):
+    crud_post.create_post(
+        db,
+        PostCreate(
+            title="Published Post",
+            slug="published-post",
+            content_markdown="C1",
+            post_type="post",
+            status="published",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+    )
+    crud_post.create_post(
+        db,
+        PostCreate(
+            title="Draft Post",
+            slug="draft-post",
+            content_markdown="C2",
+            post_type="post",
+            status="draft",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+    )
+    crud_post.create_post(
+        db,
+        PostCreate(
+            title="Published Page",
+            slug="published-page",
+            content_markdown="C3",
+            post_type="page",
+            status="published",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+    )
+
+    public_count = db.execute(
+        select(func.count(Post.id)).where(*crud_post.get_public_post_conditions())
+    ).scalar_one()
+    type_only_count = db.execute(
+        select(func.count(Post.id)).where(*crud_post.get_public_post_conditions(published_only=False))
+    ).scalar_one()
+
+    assert public_count == 1
+    assert type_only_count == 2
 
 def test_update_post(db: Session, test_user: User, test_category: Category):
     post_data = PostCreate(
         title="Original Title",
         slug="original-slug",
         content_markdown="Original Content",
-        post_type="article",
+        post_type="post",
         status="draft",
         visibility="public",
         author_id=test_user.id
@@ -170,7 +226,7 @@ def test_delete_post(db: Session, test_user: User):
         title="Delete Me",
         slug="delete-me",
         content_markdown="Content",
-        post_type="article",
+        post_type="post",
         status="draft",
         visibility="public",
         author_id=test_user.id
@@ -189,7 +245,7 @@ def test_delete_post_also_deletes_related_comments(db: Session, test_user: User)
             title="Delete With Comments",
             slug="delete-with-comments",
             content_markdown="Content",
-            post_type="article",
+            post_type="post",
             status="published",
             visibility="public",
             author_id=test_user.id,
@@ -237,7 +293,7 @@ def test_delete_posts_by_ids_only_deletes_target_author_posts(db: Session, test_
             title="Owned Post 1",
             slug="owned-post-1",
             content_markdown="Content",
-            post_type="article",
+            post_type="post",
             status="draft",
             visibility="public",
             author_id=test_user.id,
@@ -250,7 +306,7 @@ def test_delete_posts_by_ids_only_deletes_target_author_posts(db: Session, test_
             title="Owned Post 2",
             slug="owned-post-2",
             content_markdown="Content",
-            post_type="article",
+            post_type="post",
             status="draft",
             visibility="public",
             author_id=test_user.id,
@@ -263,7 +319,7 @@ def test_delete_posts_by_ids_only_deletes_target_author_posts(db: Session, test_
             title="Other User Post",
             slug="other-user-post",
             content_markdown="Content",
-            post_type="article",
+            post_type="post",
             status="draft",
             visibility="public",
             author_id=another_user.id,
@@ -295,7 +351,7 @@ def test_delete_posts_by_ids_also_deletes_comments_for_deleted_posts(db: Session
             title="Owned Post With Comment",
             slug="owned-post-with-comment",
             content_markdown="Content",
-            post_type="article",
+            post_type="post",
             status="published",
             visibility="public",
             author_id=test_user.id,
@@ -308,7 +364,7 @@ def test_delete_posts_by_ids_also_deletes_comments_for_deleted_posts(db: Session
             title="Other Post With Comment",
             slug="other-post-with-comment",
             content_markdown="Content",
-            post_type="article",
+            post_type="post",
             status="published",
             visibility="public",
             author_id=another_user.id,
@@ -362,7 +418,7 @@ def test_bulk_update_posts_status_by_ids_only_updates_target_author_posts(db: Se
             title="Owned Draft",
             slug="owned-draft",
             content_markdown="Content",
-            post_type="article",
+            post_type="post",
             status="draft",
             visibility="public",
             author_id=test_user.id,
@@ -375,7 +431,7 @@ def test_bulk_update_posts_status_by_ids_only_updates_target_author_posts(db: Se
             title="Owned Published",
             slug="owned-published",
             content_markdown="Content",
-            post_type="article",
+            post_type="post",
             status="published",
             visibility="public",
             author_id=test_user.id,
@@ -388,7 +444,7 @@ def test_bulk_update_posts_status_by_ids_only_updates_target_author_posts(db: Se
             title="Other User Draft",
             slug="other-user-draft",
             content_markdown="Content",
-            post_type="article",
+            post_type="post",
             status="draft",
             visibility="public",
             author_id=another_user.id,
@@ -426,7 +482,7 @@ def test_post_excerpt_generation(db: Session, test_user: User):
         title="Long Content Post",
         slug="long-content-post",
         content_markdown=long_content,
-        post_type="article",
+        post_type="post",
         status="draft",
         visibility="public",
         author_id=test_user.id,
@@ -441,7 +497,7 @@ def test_post_excerpt_generation(db: Session, test_user: User):
         title="Manual Excerpt Post",
         slug="manual-excerpt-post",
         content_markdown=long_content,
-        post_type="article",
+        post_type="post",
         status="draft",
         visibility="public",
         author_id=test_user.id,
@@ -455,7 +511,7 @@ def test_post_password_visibility(db: Session, test_user: User):
         title="Password Protected",
         slug="password-protected",
         content_markdown="Secret Content",
-        post_type="article",
+        post_type="post",
         status="published",
         visibility="password",
         password="secretpassword",
@@ -481,7 +537,7 @@ def test_create_post_html_mode_stores_only_html(db: Session, test_user: User):
         content_markdown="",
         content_html="<p><strong>HTML</strong> content</p>",
         editor_mode="html",
-        post_type="article",
+        post_type="post",
         status="draft",
         visibility="public",
         author_id=test_user.id,
@@ -496,7 +552,7 @@ def test_update_post_html_mode_clears_markdown(db: Session, test_user: User):
         title="Switch Me",
         slug="switch-me",
         content_markdown="Markdown content",
-        post_type="article",
+        post_type="post",
         status="draft",
         visibility="public",
         author_id=test_user.id,
@@ -515,3 +571,38 @@ def test_update_post_html_mode_clears_markdown(db: Session, test_user: User):
 
     assert updated.content_markdown == ""
     assert updated.content_html == "<h2>HTML body</h2>"
+
+
+def test_post_schema_rejects_legacy_article_post_type():
+    with pytest.raises(ValidationError):
+        PostCreate(
+            title="Invalid Type",
+            slug="invalid-type",
+            content_markdown="x",
+            post_type="article",
+            status="draft",
+            visibility="public",
+        )
+
+
+def test_normalize_legacy_article_post_type(db: Session, test_user: User):
+    post = Post(
+        title="Legacy Type",
+        slug="legacy-type",
+        content_markdown="legacy",
+        content_html="",
+        post_type="article",
+        status="published",
+        visibility="public",
+        author_id=test_user.id,
+    )
+    db.add(post)
+    db.commit()
+
+    updated_count = crud_post.normalize_legacy_article_post_type(db)
+    assert updated_count == 1
+
+    refreshed = crud_post.get_post_by_slug(db, "legacy-type")
+    assert refreshed is not None
+    assert refreshed.post_type == "post"
+

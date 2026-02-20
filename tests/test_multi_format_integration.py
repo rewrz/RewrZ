@@ -67,7 +67,7 @@ def test_create_posts_with_single_intent(db: Session, test_user: User, test_form
         PostCreate(
             title="标准文章",
             content_markdown="content",
-            post_type="article",
+            post_type="post",
             status="published",
             visibility="public",
             format_ids=[article_fmt.id],
@@ -79,7 +79,7 @@ def test_create_posts_with_single_intent(db: Session, test_user: User, test_form
         PostCreate(
             title="短动态",
             content_markdown="hello micro",
-            post_type="article",
+            post_type="post",
             status="published",
             visibility="public",
             format_ids=[micro_fmt.id],
@@ -91,7 +91,7 @@ def test_create_posts_with_single_intent(db: Session, test_user: User, test_form
         PostCreate(
             title="诗词",
             content_markdown="春眠不觉晓",
-            post_type="article",
+            post_type="post",
             status="published",
             visibility="public",
             format_ids=[poetry_fmt.id],
@@ -112,7 +112,7 @@ def test_non_intent_format_falls_back_to_article(db: Session, test_user: User, t
         PostCreate(
             title="旧格式输入",
             content_markdown="legacy",
-            post_type="article",
+            post_type="post",
             status="published",
             visibility="public",
             format_ids=[legacy_video.id],
@@ -133,7 +133,7 @@ def test_multiple_format_ids_normalize_to_one_primary_intent(db: Session, test_u
         PostCreate(
             title="多意图输入",
             content_markdown="priority",
-            post_type="article",
+            post_type="post",
             status="published",
             visibility="public",
             format_ids=[article_fmt.id, poetry_fmt.id, micro_fmt.id],
@@ -159,7 +159,7 @@ def test_get_posts_by_intent(db: Session, test_user: User, test_formats: list):
             PostCreate(
                 title=title,
                 content_markdown=title,
-                post_type="article",
+                post_type="post",
                 status="published",
                 visibility="public",
                 format_ids=format_ids,
@@ -182,7 +182,7 @@ def test_auto_slug_generation(db: Session, test_user: User, test_formats: list):
     post_without_slug = PostCreate(
         title="测试自动生成Slug的文章",
         content_markdown="这是测试内容",
-        post_type="article",
+        post_type="post",
         status="published",
         visibility="public",
         format_ids=[article_fmt.id],
@@ -195,7 +195,7 @@ def test_auto_slug_generation(db: Session, test_user: User, test_formats: list):
     duplicate_post = PostCreate(
         title="测试自动生成Slug的文章",
         content_markdown="这是另一篇测试内容",
-        post_type="article",
+        post_type="post",
         status="published",
         visibility="public",
         format_ids=[article_fmt.id],
@@ -204,5 +204,6 @@ def test_auto_slug_generation(db: Session, test_user: User, test_formats: list):
 
     assert created_duplicate.slug != created_post.slug
     assert created_duplicate.slug == "ce-shi-zi-dong-sheng-cheng-slugde-wen-zhang-1"
+
 
 

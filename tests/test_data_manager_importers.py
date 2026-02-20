@@ -838,3 +838,205 @@ def test_wordpress_import_can_download_remote_media_to_local(db, tmp_path):
     assert len(media_items) >= 1
     assert media_items[0].filepath.startswith(str(local_media_root))
 
+
+def test_wordpress_import_download_media_can_preserve_original_relative_path(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin12", email="admin12@example.com", password="password123"),
+    )
+
+    wxr_content = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <link>https://rewrz.com</link>
+    <item>
+      <title>媒体路径还原测试</title>
+      <link>https://rewrz.com/archive/media-preserve-path-post</link>
+      <content:encoded><![CDATA[
+        <p>
+          <img src="https://cdn.example.com/wp-content/uploads/2024/03/gallery/pic-a.png" alt="a"/>
+        </p>
+      ]]></content:encoded>
+      <wp:post_name>media-preserve-path-post</wp:post_name>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2025-04-18 00:41:41</wp:post_date>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_media_preserve_path.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    importer = WordPressImporter(
+        db,
+        options={
+            "import_comments": True,
+            "import_views": True,
+            "import_post_types": ["post", "page"],
+            "postmeta_whitelist": ["views", "post_views_count"],
+            "markdown_strategy": "html_to_markdown",
+            "download_remote_media": True,
+            "remote_media_path_strategy": "preserve_relative_path",
+        },
+    )
+    local_media_root = tmp_path / "media_uploads"
+    importer._get_media_upload_root = lambda: str(local_media_root)
+    importer._fetch_remote_media_bytes = lambda url, timeout_seconds, max_bytes: (b"fake-png-bytes-2", "image/png")
+
+    stats = importer.import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+    assert stats.get("media_downloaded", 0) == 1
+
+    post = crud_post.get_post_by_slug(db, "media-preserve-path-post")
+    assert post is not None
+    assert "/media/2024/03/gallery/" in (post.content_markdown or "")
+    assert post.featured_image_url and "/media/2024/03/gallery/" in post.featured_image_url
+
+    media_items = db.query(Media).all()
+    assert len(media_items) >= 1
+    normalized_path = media_items[0].filepath.replace("\\", "/")
+    assert "/2024/03/gallery/" in normalized_path
+
+
+def test_wordpress_import_preserve_relative_path_prefers_year_month_segments(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin13", email="admin13@example.com", password="password123"),
+    )
+
+    wxr_content = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <link>https://rewrz.com</link>
+    <item>
+      <title>年月路径优先测试</title>
+      <link>https://rewrz.com/archive/media-year-month-post</link>
+      <content:encoded><![CDATA[
+        <p>
+          <img src="https://cdn.example.com/custom/path/assets/25/03/gallery/pic-b.png" alt="b"/>
+        </p>
+      ]]></content:encoded>
+      <wp:post_name>media-year-month-post</wp:post_name>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2025-04-18 00:41:41</wp:post_date>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_media_year_month.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    importer = WordPressImporter(
+        db,
+        options={
+            "import_comments": True,
+            "import_views": True,
+            "import_post_types": ["post", "page"],
+            "postmeta_whitelist": ["views", "post_views_count"],
+            "markdown_strategy": "html_to_markdown",
+            "download_remote_media": True,
+            "remote_media_path_strategy": "preserve_relative_path",
+        },
+    )
+    local_media_root = tmp_path / "media_uploads"
+    importer._get_media_upload_root = lambda: str(local_media_root)
+    importer._fetch_remote_media_bytes = lambda url, timeout_seconds, max_bytes: (b"fake-png-bytes-3", "image/png")
+
+    stats = importer.import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+    assert stats.get("media_downloaded", 0) == 1
+
+    post = crud_post.get_post_by_slug(db, "media-year-month-post")
+    assert post is not None
+    assert "/media/25/03/gallery/" in (post.content_markdown or "")
+    assert post.featured_image_url and "/media/25/03/gallery/" in post.featured_image_url
+
+    media_items = db.query(Media).all()
+    assert len(media_items) >= 1
+    normalized_path = media_items[0].filepath.replace("\\", "/")
+    assert "/25/03/gallery/" in normalized_path
+
+
+def test_wordpress_import_decodes_percent_encoded_post_name_slug(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin14", email="admin14@example.com", password="password123"),
+    )
+
+    encoded_slug = "%E6%B5%8B%E8%AF%95-%E6%96%87%E7%AB%A0-2025"
+    decoded_slug = "测试-文章-2025"
+    wxr_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>编码别名测试</title>
+      <link>https://rewrz.com/article/{encoded_slug}</link>
+      <content:encoded><![CDATA[<p>slug test</p>]]></content:encoded>
+      <wp:post_name>{encoded_slug}</wp:post_name>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2025-04-18 00:41:41</wp:post_date>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_percent_post_name.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    importer = WordPressImporter(db)
+    stats = importer.import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+    assert crud_post.get_post_by_slug(db, decoded_slug) is not None
+    assert crud_post.get_post_by_slug(db, encoded_slug) is None
+
+
+def test_wordpress_import_decodes_percent_encoded_link_slug_when_post_name_missing(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin15", email="admin15@example.com", password="password123"),
+    )
+
+    encoded_slug = "%E6%B5%8B%E8%AF%95-%E5%9B%BE%E9%9B%86-02"
+    decoded_slug = "测试-图集-02"
+    wxr_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>链接别名测试</title>
+      <link>https://rewrz.com/article/{encoded_slug}</link>
+      <content:encoded><![CDATA[<p>slug test by link</p>]]></content:encoded>
+      <wp:post_name></wp:post_name>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2025-04-18 00:41:41</wp:post_date>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_percent_link_slug.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    importer = WordPressImporter(db)
+    stats = importer.import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+    assert crud_post.get_post_by_slug(db, decoded_slug) is not None
+    assert crud_post.get_post_by_slug(db, encoded_slug) is None
+

@@ -17,7 +17,7 @@ import zipfile
 import shutil
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Tuple, Callable
-from urllib.parse import urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 from urllib.request import Request as UrlRequest, urlopen
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -41,6 +41,7 @@ DEFAULT_WP_IMPORT_OPTIONS = {
     "import_comments": True,
     "import_views": True,
     "download_remote_media": False,
+    "remote_media_path_strategy": "latest_month",
     "postmeta_whitelist": ["views", "post_views_count"],
     "post_type_format_map": {},
     "markdown_strategy": "html_to_markdown",
@@ -347,6 +348,10 @@ class WordPressImporter:
         merged["import_comments"] = bool(merged.get("import_comments", True))
         merged["import_views"] = bool(merged.get("import_views", True))
         merged["download_remote_media"] = bool(merged.get("download_remote_media", False))
+        strategy = str(merged.get("remote_media_path_strategy", "latest_month")).strip().lower() or "latest_month"
+        if strategy not in {"latest_month", "preserve_relative_path"}:
+            strategy = "latest_month"
+        merged["remote_media_path_strategy"] = strategy
         merged["markdown_strategy"] = str(merged.get("markdown_strategy", "html_to_markdown")).strip() or "html_to_markdown"
         return merged
     
@@ -550,7 +555,7 @@ class WordPressImporter:
                 if title is not None:
                     content_text = content.text if (content is not None and content.text is not None) else ""
                     # 优先使用WordPress保存的post_name作为slug，保持原始链接一致。
-                    slug = (post_name.text or "").strip() if post_name is not None else ""
+                    slug = self._normalize_imported_slug((post_name.text or "").strip()) if post_name is not None else ""
                     if not slug:
                         slug = self._extract_slug_from_url(link.text if link is not None else "")
                     if not slug:
@@ -884,29 +889,54 @@ class WordPressImporter:
             cache.pop(cache_key_for_setting(setting_key), None)
         self._deferred_setting_cache_keys.clear()
     
+    def _normalize_imported_slug(self, raw_slug: str) -> str:
+        """规范化导入得到的 slug，兼容 URL 编码与 Unicode。"""
+        candidate = (raw_slug or "").strip()
+        if not candidate:
+            return ""
+
+        parsed = urlparse(candidate)
+        if parsed.scheme or parsed.netloc:
+            candidate = (parsed.path or "").strip()
+
+        candidate = candidate.split("?", 1)[0].split("#", 1)[0].strip()
+        if "/" in candidate:
+            candidate = candidate.rsplit("/", 1)[-1]
+
+        for _ in range(2):
+            decoded = unquote(candidate)
+            if decoded == candidate:
+                break
+            candidate = decoded
+
+        candidate = candidate.replace("+", " ")
+        candidate = re.sub(r"\s+", "-", candidate, flags=re.UNICODE)
+        candidate = re.sub(r"[^\w\-]+", "-", candidate, flags=re.UNICODE)
+        candidate = re.sub(r"-{2,}", "-", candidate).strip("-_")
+
+        return candidate.lower()
+
     def _extract_slug_from_url(self, url: str) -> str:
         """从URL中提取slug"""
         if not url:
             return ""
-        
-        # 移除域名和协议
-        path = url.split('/')[-1]
-        # 移除文件扩展名
-        slug = path.split('.')[0]
-        # 清理slug
-        slug = re.sub(r'[^\w\-]', '', slug)
-        return slug.lower()
+
+        parsed = urlparse(url)
+        path = (parsed.path or "").strip()
+        if not path:
+            return ""
+
+        path_tail = path.rsplit("/", 1)[-1]
+        stem, ext = os.path.splitext(path_tail)
+        slug_source = stem if ext else path_tail
+        return self._normalize_imported_slug(slug_source)
     
     def _generate_slug_from_title(self, title: str) -> str:
         """从标题生成slug"""
         if not title:
             return "untitled"
-        
-        # 转换为小写并替换空格和特殊字符
-        slug = re.sub(r'[^\w\s\-]', '', title.lower())
-        slug = re.sub(r'[\s\-]+', '-', slug)
-        slug = slug.strip('-')
-        
+
+        slug = self._normalize_imported_slug(title)
         return slug or "untitled"
 
     def _build_wp_attachment_map(self, root: ET.Element) -> Dict[int, str]:
@@ -1016,6 +1046,47 @@ class WordPressImporter:
     def _get_media_upload_root(self) -> str:
         return os.path.abspath("media_uploads")
 
+    def _sanitize_path_segment(self, value: str, fallback: str = "file") -> str:
+        cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1F]+', "-", str(value or "").strip())
+        cleaned = cleaned.replace("..", "-")
+        cleaned = re.sub(r"\s+", "-", cleaned)
+        cleaned = re.sub(r"-{2,}", "-", cleaned)
+        cleaned = cleaned.strip(" .-")
+        if not cleaned:
+            return fallback
+        return cleaned[:128]
+
+    def _extract_preserved_relative_dir_parts(self, source_url: str) -> List[str]:
+        parsed = urlparse(source_url)
+        raw_parts = [part for part in (parsed.path or "").split("/") if part]
+        if len(raw_parts) <= 1:
+            return []
+
+        dir_parts = raw_parts[:-1]
+        sliced = None
+
+        # 优先按原路径中的 年/月 结构保留（例如 25/03 或 2025/03）。
+        for idx in range(len(dir_parts) - 1):
+            year_seg = str(dir_parts[idx] or "").strip()
+            month_seg = str(dir_parts[idx + 1] or "").strip()
+            if (
+                re.fullmatch(r"\d{2}(\d{2})?", year_seg)
+                and re.fullmatch(r"(0?[1-9]|1[0-2])", month_seg)
+            ):
+                sliced = dir_parts[idx:]
+                break
+
+        # 若路径中没有明显的 年/月 段，则退回为原始目录层级（不含文件名）。
+        if sliced is None:
+            sliced = dir_parts
+
+        normalized_parts: List[str] = []
+        for part in sliced:
+            segment = self._sanitize_path_segment(part, fallback="")
+            if segment:
+                normalized_parts.append(segment)
+        return normalized_parts
+
     def _is_remote_http_url(self, url: str) -> bool:
         parsed = urlparse((url or "").strip())
         return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
@@ -1096,9 +1167,9 @@ class WordPressImporter:
         uploaded_by_id: int,
     ) -> str:
         upload_root = os.path.abspath(self._get_media_upload_root())
-        now = datetime.utcnow()
-        target_dir = os.path.join(upload_root, now.strftime("%Y"), now.strftime("%m"))
-        os.makedirs(target_dir, exist_ok=True)
+        strategy = str(self.options.get("remote_media_path_strategy", "latest_month") or "latest_month").strip().lower()
+        if strategy not in {"latest_month", "preserve_relative_path"}:
+            strategy = "latest_month"
 
         parsed = urlparse(source_url)
         original_name = os.path.basename(parsed.path or "").strip()
@@ -1108,11 +1179,32 @@ class WordPressImporter:
             ext = self._guess_extension_from_mime(mime_type)
         if not ext:
             ext = ".bin"
-        stem = re.sub(r"[^a-zA-Z0-9._-]+", "-", (stem or "wp-media")).strip("-") or "wp-media"
+        stem = self._sanitize_path_segment(stem or "wp-media", fallback="wp-media")
 
         digest = hashlib.sha1(source_url.encode("utf-8")).hexdigest()[:12]
-        filename = f"{stem}-{digest}{ext}"
+        if strategy == "preserve_relative_path":
+            relative_parts = self._extract_preserved_relative_dir_parts(source_url)
+            if not relative_parts:
+                now = datetime.utcnow()
+                relative_parts = [now.strftime("%Y"), now.strftime("%m")]
+            filename = f"{stem}{ext}"
+        else:
+            now = datetime.utcnow()
+            relative_parts = [now.strftime("%Y"), now.strftime("%m")]
+            filename = f"{stem}-{digest}{ext}"
+
+        target_dir = os.path.join(upload_root, *relative_parts) if relative_parts else upload_root
+        os.makedirs(target_dir, exist_ok=True)
         filepath = os.path.join(target_dir, filename)
+
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, "rb") as existing_handle:
+                    existing_payload = existing_handle.read()
+            except Exception:
+                existing_payload = None
+            if existing_payload is not None and existing_payload != payload:
+                filepath = os.path.join(target_dir, f"{stem}-{digest}{ext}")
 
         file_already_exists = os.path.exists(filepath)
         if not file_already_exists:
@@ -1122,9 +1214,10 @@ class WordPressImporter:
 
         existing_media = crud_media.get_media_by_filepath(self.db, filepath)
         if existing_media is None:
-            title = os.path.splitext(original_name)[0] if original_name else stem
+            media_filename = original_name or os.path.basename(filepath)
+            title = os.path.splitext(media_filename)[0] if media_filename else stem
             db_media = Media(
-                filename=original_name or filename,
+                filename=media_filename,
                 filepath=filepath,
                 file_type=self._guess_file_type(mime_type, source_url),
                 mime_type=mime_type or (mimetypes.guess_type(filename)[0] or "application/octet-stream"),
@@ -1664,7 +1757,7 @@ class WordPressImporter:
         if not wp_post_type:
             return None
 
-        if wp_post_type in {"post", "article"}:
+        if wp_post_type == "post":
             return "post"
         if wp_post_type == "page":
             return "page"
@@ -2101,5 +2194,6 @@ def get_wordpress_importer(
 def get_rewrz_importer(db: Session) -> RewrZImporter:
     """获取RewrZ导入器实例"""
     return RewrZImporter(db)
+
 
 

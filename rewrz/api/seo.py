@@ -56,7 +56,7 @@ async def generate_sitemap(request: Request, db: Session = Depends(get_db)):
     _add_url_to_sitemap(urlset, base_url, changefreq="daily", priority="1.0")
     
     # 添加已发布的文章
-    posts = crud_post.get_posts(db, status="published", limit=1000)
+    posts = crud_post.get_posts(db, status="published", limit=1000, post_type="post")
     for post in posts:
         format_slugs = [fmt.slug for fmt in post.formats if getattr(fmt, "slug", None)] if post.formats else []
         primary_intent = choose_primary_intent_slug(format_slugs)
@@ -454,3 +454,4 @@ def _generate_homepage_seo_data(request, db: Session) -> Dict:
         "twitter_cards": twitter_cards,
         "structured_data": structured_data
     }
+

@@ -149,7 +149,7 @@ async def create_quick_draft(
         content_markdown=normalized_content,
         excerpt=None,
         featured_image_url=None,
-        post_type="article",
+        post_type="post",
         status="draft",
         visibility="public",
         password=None,
@@ -169,3 +169,4 @@ async def create_quick_draft(
             "redirect_url": f"{admin_path}/posts/{created.id}/edit",
         }
     )
+

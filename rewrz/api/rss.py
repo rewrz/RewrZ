@@ -241,7 +241,13 @@ def get_filtered_posts(
 ) -> List[Post]:
     """获取筛选后的文章列表"""
     # 获取已发布的文章
-    posts = crud_post.get_posts(db, skip=0, limit=limit, status="published")
+    posts = crud_post.get_posts(
+        db,
+        skip=0,
+        limit=limit,
+        status="published",
+        post_type="post",
+    )
     
     # 应用筛选条件
     filtered_posts = []
@@ -355,3 +361,4 @@ def generate_atom_xml(title: str, subtitle: str, link: str, posts: List[Post], s
     ])
     
     return '\n'.join(xml_lines)
+

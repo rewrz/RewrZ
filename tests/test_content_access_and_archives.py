@@ -79,7 +79,7 @@ def test_get_posts_by_year_month_and_archives(db: Session, test_user: User):
             content_markdown="b",
             content_html="<p>b</p>",
             excerpt="b",
-            post_type="article",
+            post_type="post",
             status="published",
             visibility="public",
             author_id=test_user.id,
@@ -218,4 +218,5 @@ def test_extract_image_urls_filter_deduplicates_and_skips_featured():
     )
     urls = extract_image_urls_filter(html, featured_image_url="/media/featured.jpg")
     assert urls == ["/media/a.jpg", "/media/b.jpg"]
+
 
