@@ -268,8 +268,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearSelectionButton = document.getElementById('clear-selection-button');
 
     const selectedFiles = new Set();
+    const mediaCardState = new Map();
     let currentViewMode = 'grid';
     let currentFolders = Array.isArray(bootstrapFolders) ? bootstrapFolders : [];
+    let toolbarRefreshPending = false;
+
+    function rebuildMediaCardState() {
+        mediaCardState.clear();
+        mediaGrid.querySelectorAll('.media-card').forEach((card) => {
+            const mediaId = String(card.dataset.id || '');
+            if (!mediaId) return;
+            const checkbox = card.querySelector('.media-checkbox');
+            mediaCardState.set(mediaId, { card, checkbox });
+        });
+    }
 
     function setViewMode(mode) {
         currentViewMode = mode;
@@ -409,6 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateBatchToolbar() {
+        toolbarRefreshPending = false;
         if (selectedFiles.size > 0) {
             batchActionsToolbar.classList.remove('hidden');
             batchActionsToolbar.classList.add('inline-flex');
@@ -420,10 +433,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function scheduleBatchToolbarUpdate() {
+        if (toolbarRefreshPending) return;
+        toolbarRefreshPending = true;
+        requestAnimationFrame(updateBatchToolbar);
+    }
+
     function setCardSelection(card, checked) {
-        const mediaId = card.dataset.id;
-        const checkbox = card.querySelector('.media-checkbox');
-        checkbox.checked = checked;
+        const mediaId = String(card.dataset.id || '');
+        if (!mediaId) return;
+        const state = mediaCardState.get(mediaId);
+        const checkbox = state?.checkbox || card.querySelector('.media-checkbox');
+        if (checkbox) checkbox.checked = checked;
         if (checked) {
             selectedFiles.add(mediaId);
             card.classList.add('selected');
@@ -431,25 +452,30 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedFiles.delete(mediaId);
             card.classList.remove('selected');
         }
-        updateBatchToolbar();
+        scheduleBatchToolbarUpdate();
     }
 
     window.toggleSelect = (card, event) => {
         if (event.target.closest('button')) return;
-        const checkbox = card.querySelector('.media-checkbox');
+        const mediaId = String(card.dataset.id || '');
+        const state = mediaCardState.get(mediaId);
+        const checkbox = state?.checkbox || card.querySelector('.media-checkbox');
+        if (!checkbox) return;
         const isCheckboxClick = event.target === checkbox;
         const nextChecked = isCheckboxClick ? checkbox.checked : !checkbox.checked;
         setCardSelection(card, nextChecked);
     };
 
     clearSelectionButton.addEventListener('click', () => {
+        const selectedIds = Array.from(selectedFiles);
         selectedFiles.clear();
-        mediaGrid.querySelectorAll('.media-card').forEach((card) => {
-            card.classList.remove('selected');
-            const checkbox = card.querySelector('.media-checkbox');
-            if (checkbox) checkbox.checked = false;
+        selectedIds.forEach((mediaId) => {
+            const state = mediaCardState.get(String(mediaId));
+            if (!state) return;
+            state.card.classList.remove('selected');
+            if (state.checkbox) state.checkbox.checked = false;
         });
-        updateBatchToolbar();
+        scheduleBatchToolbarUpdate();
     });
 
     batchMoveButton.addEventListener('click', async () => {
@@ -509,10 +535,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const selector = `.media-card[data-id="${deletedId}"]`;
                 const card = mediaGrid.querySelector(selector);
                 if (card) card.remove();
+                mediaCardState.delete(String(deletedId));
                 selectedFiles.delete(String(deletedId));
             });
 
-            updateBatchToolbar();
+            scheduleBatchToolbarUpdate();
 
             if (!mediaGrid.querySelector('.media-card')) {
                 mediaGrid.innerHTML = `
@@ -679,6 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     setViewMode('grid');
+    rebuildMediaCardState();
     loadFolders().finally(() => {
         if (folderFilter && !folderFilter.value) {
             folderFilter.value = '__all__';

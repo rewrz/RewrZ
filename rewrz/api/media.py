@@ -151,7 +151,13 @@ def _safe_unlink(path: Path) -> None:
 
 
 def _delete_media_files(db_media: MediaModel) -> None:
-    original_path = Path(db_media.filepath)
+    _delete_media_files_by_filepath(db_media.filepath)
+
+
+def _delete_media_files_by_filepath(filepath: str) -> None:
+    if not filepath:
+        return
+    original_path = Path(filepath)
     _safe_unlink(original_path)
 
     thumbnails_dir = original_path.parent / "thumbnails"
@@ -1019,25 +1025,29 @@ def bulk_delete_media_items(
     if not media_ids:
         raise HTTPException(status_code=400, detail="未提供有效的媒体ID")
 
-    media_items = db.execute(select(MediaModel).filter(MediaModel.id.in_(media_ids))).scalars().all()
-    media_map = {item.id: item for item in media_items}
+    media_rows = db.execute(
+        select(MediaModel.id, MediaModel.uploaded_by_id, MediaModel.filepath)
+        .filter(MediaModel.id.in_(media_ids))
+    ).all()
+    media_map = {int(row.id): row for row in media_rows}
 
-    deletable_items: List[MediaModel] = []
     deletable_ids: List[int] = []
+    deletable_filepaths: List[str] = []
     deleted_ids: List[int] = []
     skipped: List[dict] = []
 
     for media_id in media_ids:
-        db_media = media_map.get(media_id)
-        if db_media is None:
+        media_row = media_map.get(media_id)
+        if media_row is None:
             skipped.append({"id": media_id, "reason": "not_found"})
             continue
-        if db_media.uploaded_by_id != current_user.id:
+        if int(media_row.uploaded_by_id or 0) != int(current_user.id):
             skipped.append({"id": media_id, "reason": "forbidden"})
             continue
 
-        deletable_items.append(db_media)
         deletable_ids.append(media_id)
+        if media_row.filepath:
+            deletable_filepaths.append(str(media_row.filepath))
 
     if deletable_ids:
         try:
@@ -1047,8 +1057,8 @@ def bulk_delete_media_items(
             db.rollback()
             raise HTTPException(status_code=500, detail=f"批量删除媒体记录失败: {exc}") from exc
 
-        for media_item in deletable_items:
-            _delete_media_files(media_item)
+        for filepath in deletable_filepaths:
+            _delete_media_files_by_filepath(filepath)
         deleted_ids = deletable_ids
 
     return {
