@@ -179,14 +179,13 @@
                  data-title="{{ media.title or media.filename }}"
                  data-file-type="{{ media.file_type }}"
                  data-upload-date="{{ media.uploaded_at.strftime('%Y-%m-%d') }}"
-                 data-folder="{{ media.folder or '' }}"
-                 onclick="toggleSelect(this, event)">
+                 data-folder="{{ media.folder or '' }}">
                 <div class="media-checkbox-wrap absolute top-2 left-2 z-10">
                     <input type="checkbox" class="media-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" value="{{ media.id }}">
                 </div>
                 <div class="media-preview-shell relative w-full aspect-w-1 aspect-h-1 bg-gray-100 dark:bg-gray-700 rounded-t-lg overflow-hidden">
                     {% if media.file_type.startswith('image') %}
-                        <img src="{{ media.url or (media.filepath | url) }}" alt="{{ media.alt_text or media.title }}" class="w-full h-full object-cover" loading="lazy">
+                        <img src="{{ media.url or (media.filepath | url) }}" alt="{{ media.alt_text or media.title }}" class="w-full h-full object-cover" loading="lazy" decoding="async">
                     {% else %}
                         <div class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
                             {% if media.file_type.startswith('video') %}
@@ -272,6 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentViewMode = 'grid';
     let currentFolders = Array.isArray(bootstrapFolders) ? bootstrapFolders : [];
     let toolbarRefreshPending = false;
+    let filterApplyPending = false;
 
     function rebuildMediaCardState() {
         mediaCardState.clear();
@@ -279,7 +279,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const mediaId = String(card.dataset.id || '');
             if (!mediaId) return;
             const checkbox = card.querySelector('.media-checkbox');
-            mediaCardState.set(mediaId, { card, checkbox });
+            const uploadDateMs = Date.parse(card.dataset.uploadDate || '');
+            mediaCardState.set(mediaId, {
+                card,
+                checkbox,
+                title: (card.dataset.title || '').toLowerCase(),
+                fileType: card.dataset.fileType || '',
+                folder: card.dataset.folder || '',
+                uploadDateMs: Number.isFinite(uploadDateMs) ? uploadDateMs : null,
+                visible: true,
+            });
         });
     }
 
@@ -395,29 +404,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function applyFilters() {
+        filterApplyPending = false;
         const searchTerm = (searchInput.value || '').toLowerCase().trim();
         const selectedType = typeFilter.value;
         const selectedFolder = folderFilter ? folderFilter.value : '__all__';
-        const fromDate = dateFromFilter.value ? new Date(dateFromFilter.value) : null;
-        const toDate = dateToFilter.value ? new Date(dateToFilter.value) : null;
-        if (toDate) toDate.setHours(23, 59, 59, 999);
+        const fromDateMs = dateFromFilter.value ? Date.parse(dateFromFilter.value) : null;
+        const toDateMs = dateToFilter.value ? Date.parse(`${dateToFilter.value}T23:59:59.999`) : null;
 
-        const cards = mediaGrid.querySelectorAll('.media-card');
-        cards.forEach((card) => {
-            const title = (card.dataset.title || '').toLowerCase();
-            const fileType = card.dataset.fileType || '';
-            const uploadDateRaw = card.dataset.uploadDate || '';
-            const uploadDate = uploadDateRaw ? new Date(uploadDateRaw) : null;
-            const cardFolder = card.dataset.folder || '';
-
-            const matchSearch = title.includes(searchTerm);
-            const matchType = !selectedType || fileType.startsWith(selectedType);
-            const matchFolder = selectedFolder === '__all__' || selectedFolder === cardFolder;
-            const matchFrom = !fromDate || (uploadDate && uploadDate >= fromDate);
-            const matchTo = !toDate || (uploadDate && uploadDate <= toDate);
-
-            card.style.display = matchSearch && matchType && matchFolder && matchFrom && matchTo ? '' : 'none';
+        mediaCardState.forEach((state) => {
+            const hasDate = typeof state.uploadDateMs === 'number';
+            const matchSearch = state.title.includes(searchTerm);
+            const matchType = !selectedType || state.fileType.startsWith(selectedType);
+            const matchFolder = selectedFolder === '__all__' || selectedFolder === state.folder;
+            const matchFrom = fromDateMs === null || (hasDate && state.uploadDateMs >= fromDateMs);
+            const matchTo = toDateMs === null || (hasDate && state.uploadDateMs <= toDateMs);
+            const shouldShow = matchSearch && matchType && matchFolder && matchFrom && matchTo;
+            if (state.visible === shouldShow) return;
+            state.visible = shouldShow;
+            state.card.style.display = shouldShow ? '' : 'none';
         });
+    }
+
+    function scheduleApplyFilters() {
+        if (filterApplyPending) return;
+        filterApplyPending = true;
+        requestAnimationFrame(applyFilters);
     }
 
     function updateBatchToolbar() {
@@ -455,7 +466,9 @@ document.addEventListener('DOMContentLoaded', () => {
         scheduleBatchToolbarUpdate();
     }
 
-    window.toggleSelect = (card, event) => {
+    function handleMediaGridClick(event) {
+        const card = event.target.closest('.media-card');
+        if (!card || !mediaGrid.contains(card)) return;
         if (event.target.closest('button')) return;
         const mediaId = String(card.dataset.id || '');
         const state = mediaCardState.get(mediaId);
@@ -464,7 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isCheckboxClick = event.target === checkbox;
         const nextChecked = isCheckboxClick ? checkbox.checked : !checkbox.checked;
         setCardSelection(card, nextChecked);
-    };
+    }
 
     clearSelectionButton.addEventListener('click', () => {
         const selectedIds = Array.from(selectedFiles);
@@ -532,8 +545,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             (result.deleted_ids || []).forEach((deletedId) => {
-                const selector = `.media-card[data-id="${deletedId}"]`;
-                const card = mediaGrid.querySelector(selector);
+                const state = mediaCardState.get(String(deletedId));
+                const card = state?.card || null;
                 if (card) card.remove();
                 mediaCardState.delete(String(deletedId));
                 selectedFiles.delete(String(deletedId));
@@ -701,17 +714,18 @@ document.addEventListener('DOMContentLoaded', () => {
     listViewButton.addEventListener('click', () => setViewMode('list'));
 
     [searchInput, folderFilter, typeFilter, dateFromFilter, dateToFilter].forEach((element) => {
-        element.addEventListener('input', applyFilters);
-        element.addEventListener('change', applyFilters);
+        element.addEventListener('input', scheduleApplyFilters);
+        element.addEventListener('change', scheduleApplyFilters);
     });
 
     setViewMode('grid');
     rebuildMediaCardState();
+    mediaGrid.addEventListener('click', handleMediaGridClick);
     loadFolders().finally(() => {
         if (folderFilter && !folderFilter.value) {
             folderFilter.value = '__all__';
         }
-        applyFilters();
+        scheduleApplyFilters();
     });
 
     window.showMediaDetails = async (mediaId, event) => {

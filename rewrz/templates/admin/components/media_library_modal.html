@@ -82,13 +82,18 @@
 
     const state = {
         selectedItem: null,
+        selectedItemId: null,
+        selectedCardEl: null,
         page: 1,
         perPage: 12,
         hasMore: false,
         loading: false,
         onSelect: null,
         folders: [],
+        itemIndex: new Map(),
     };
+    const MAX_RENDERED_MEDIA_ITEMS = 240;
+    const TRIMMED_MEDIA_ITEMS = 180;
 
     function switchTab(tabName) {
         const isLibrary = tabName === "library";
@@ -104,8 +109,44 @@
 
     function clearSelection() {
         state.selectedItem = null;
+        state.selectedItemId = null;
+        if (state.selectedCardEl && state.selectedCardEl.isConnected) {
+            state.selectedCardEl.classList.remove("ring-2", "ring-blue-500");
+        }
+        state.selectedCardEl = null;
         elements.selectBtn.disabled = true;
-        modal.querySelectorAll(".media-lib-item").forEach((item) => item.classList.remove("ring-2", "ring-blue-500"));
+    }
+
+    function setSelectionByCard(card) {
+        const itemId = String(card?.dataset?.id || "");
+        if (!itemId) return;
+        const item = state.itemIndex.get(itemId);
+        if (!item) return;
+
+        if (state.selectedCardEl && state.selectedCardEl !== card && state.selectedCardEl.isConnected) {
+            state.selectedCardEl.classList.remove("ring-2", "ring-blue-500");
+        }
+        state.selectedItem = item;
+        state.selectedItemId = itemId;
+        state.selectedCardEl = card;
+        card.classList.add("ring-2", "ring-blue-500");
+        elements.selectBtn.disabled = false;
+    }
+
+    function trimRenderedMediaItems() {
+        const cards = elements.grid.querySelectorAll(".media-lib-item");
+        if (cards.length <= MAX_RENDERED_MEDIA_ITEMS) return;
+        let removeCount = cards.length - TRIMMED_MEDIA_ITEMS;
+        cards.forEach((card) => {
+            if (removeCount <= 0) return;
+            if (state.selectedCardEl === card) return;
+            const mediaId = String(card.dataset.id || "");
+            if (mediaId) {
+                state.itemIndex.delete(mediaId);
+            }
+            card.remove();
+            removeCount -= 1;
+        });
     }
 
     function renderFolderOptions() {
@@ -158,10 +199,10 @@
         const card = document.createElement("button");
         card.type = "button";
         card.className = "media-lib-item overflow-hidden rounded-md border border-gray-200 text-left transition hover:shadow";
-        card.dataset.id = item.id;
+        card.dataset.id = String(item.id);
 
         const preview = String(item.file_type || "").startsWith("image")
-            ? `<img src="${item.url}" alt="${item.alt_text || item.title || item.filename}" class="h-28 w-full object-cover">`
+            ? `<img src="${item.url}" alt="${item.alt_text || item.title || item.filename}" class="h-28 w-full object-cover" loading="lazy" decoding="async">`
             : `<div class="flex h-28 w-full items-center justify-center bg-gray-100 text-xs text-gray-500">非图片文件</div>`;
         card.innerHTML = `
             ${preview}
@@ -170,14 +211,6 @@
                 <div class="truncate text-xs text-gray-500">${item.filename}</div>
             </div>
         `;
-
-        card.addEventListener("click", () => {
-            clearSelection();
-            state.selectedItem = item;
-            card.classList.add("ring-2", "ring-blue-500");
-            elements.selectBtn.disabled = false;
-        });
-
         return card;
     }
 
@@ -188,6 +221,7 @@
         if (!loadMore) {
             state.page = 1;
             clearSelection();
+            state.itemIndex.clear();
             elements.grid.innerHTML = "";
             elements.loading.classList.remove("hidden");
             elements.grid.appendChild(elements.loading);
@@ -209,7 +243,16 @@
             if (!items.length && !loadMore) {
                 elements.grid.innerHTML = `<div class="col-span-full py-8 text-center text-sm text-gray-500">暂无媒体文件</div>`;
             } else {
-                items.forEach((item) => elements.grid.appendChild(renderMediaCard(item)));
+                const fragment = document.createDocumentFragment();
+                items.forEach((item) => {
+                    const mediaId = String(item.id);
+                    state.itemIndex.set(mediaId, item);
+                    fragment.appendChild(renderMediaCard(item));
+                });
+                elements.grid.appendChild(fragment);
+                if (loadMore) {
+                    trimRenderedMediaItems();
+                }
             }
 
             state.hasMore = items.length === state.perPage;
@@ -324,6 +367,11 @@
     elements.tabUpload.addEventListener("click", () => switchTab("upload"));
     elements.searchBtn.addEventListener("click", () => loadMediaItems(false));
     elements.folderFilter?.addEventListener("change", () => loadMediaItems(false));
+    elements.grid.addEventListener("click", (event) => {
+        const card = event.target.closest(".media-lib-item");
+        if (!card || !elements.grid.contains(card)) return;
+        setSelectionByCard(card);
+    });
     elements.searchInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
             event.preventDefault();
