@@ -3,10 +3,11 @@
 
 {% if posts %}
     {% if is_micro %}
-    <div class="mx-auto max-w-3xl space-y-5">
+    <div class="mx-auto w-full max-w-3xl space-y-5" data-micro-append-batch="1">
         {% for post in posts %}
         {% include "components/micro_archive_card.html" %}
         {% endfor %}
+        {% include "components/list_pagination.html" %}
     </div>
     {% elif is_article %}
     <div class="archive-grid-equal grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -23,6 +24,7 @@
         {% endfor %}
     </div>
     {% endif %}
+    {% if not is_micro %}
+    {% include "components/list_pagination.html" %}
+    {% endif %}
 {% endif %}
-
-{% include "components/list_pagination.html" %}

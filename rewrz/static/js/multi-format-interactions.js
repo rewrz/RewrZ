@@ -36,6 +36,7 @@ class MultiFormatInteractions {
         this.initPoetryAutoScroll();
         this.initVideoTheaterMode();
         this.initReadingProgress();
+        this.initFloatingTocPanels();
         this.initTocHighlight();
         this.initKeyboardNavigation();
         this.bindGlobalHtmxHooks();
@@ -76,9 +77,12 @@ class MultiFormatInteractions {
         document.body.dataset.multiFormatHtmxBound = '1';
 
         document.body.addEventListener('htmx:afterSwap', (event) => {
-            const target = (event && event.detail && event.detail.target) ? event.detail.target : document;
-            this.initMicroArchiveActions(target);
-            this.initReactionWidgets(target);
+            const rawTarget = (event && event.detail && event.detail.target) ? event.detail.target : null;
+            const scope = rawTarget && rawTarget.isConnected ? rawTarget : document;
+            this.initMicroArchiveActions(scope);
+            this.initReactionWidgets(scope);
+            this.initLightboxFromDataset(scope);
+            this.initFloatingTocPanels(scope);
         });
     }
 
@@ -448,11 +452,19 @@ class MultiFormatInteractions {
         // 优先尝试激活 HTMX loader（某些场景下仅依赖自动扫描可能不触发）
         processHtmxLoader();
 
-        // 安全回退：HTMX 未加载或未触发时，使用 fetch 兜底继续加载
+        // 当 HTMX 可用时，避免并发 fetch 回退与 HTMX 竞争同一个 loader，
+        // 否则可能触发 htmx swapError（目标节点已被替换）。
+        if (hasHtmx) {
+            document.body.addEventListener('htmx:afterSwap', () => {
+                processHtmxLoader();
+            });
+            return;
+        }
+
+        // 安全回退：仅在 HTMX 不可用时使用 fetch 兜底继续加载
         const fallbackLoad = async () => {
             const loader = getLoader();
             if (!loader || loader.dataset.loading === '1') return;
-            if (loader.classList.contains('htmx-request')) return;
             const rect = loader.getBoundingClientRect();
             if (rect.top > window.innerHeight + 200) return;
 
@@ -469,6 +481,7 @@ class MultiFormatInteractions {
                 loader.outerHTML = html;
                 this.initMicroArchiveActions(document);
                 this.initReactionWidgets(document);
+                this.initLightboxFromDataset(document);
             } catch (error) {
                 loader.dataset.loading = '0';
                 console.error('加载更多内容失败:', error);
@@ -478,15 +491,7 @@ class MultiFormatInteractions {
         const onScroll = () => { fallbackLoad(); };
         window.addEventListener('scroll', onScroll, { passive: true });
         window.addEventListener('resize', onScroll, { passive: true });
-        document.body.addEventListener('htmx:afterSwap', () => {
-            processHtmxLoader();
-        });
-
-        if (hasHtmx) {
-            window.setTimeout(() => fallbackLoad(), 400);
-        } else {
-            fallbackLoad();
-        }
+        fallbackLoad();
     }
 
     appendPosts(posts) {
@@ -1049,9 +1054,7 @@ class MultiFormatInteractions {
         }
     }
 
-    initLightboxFromDataset() {
-        if (document.getElementById('format-lightbox')) return;
-
+    initLightboxFromDataset(root = document) {
         const lightboxButtons = Array.from(document.querySelectorAll('[data-lightbox-image]'));
         if (!lightboxButtons.length) return;
 
@@ -1156,8 +1159,19 @@ class MultiFormatInteractions {
             renderLightboxState(state);
         };
 
-        lightboxButtons.forEach((btn) => {
-            btn.addEventListener('click', function() {
+        const scope = root && root.querySelectorAll ? root : document;
+        const scopedButtons = Array.from(scope.querySelectorAll('[data-lightbox-image]'));
+        if (scope && scope.matches && scope.matches('[data-lightbox-image]')) {
+            scopedButtons.unshift(scope);
+        }
+
+        scopedButtons.forEach((btn) => {
+            if (btn.dataset.lightboxBound === '1') return;
+            btn.dataset.lightboxBound = '1';
+            btn.addEventListener('click', function(event) {
+                if (event && typeof event.preventDefault === 'function') {
+                    event.preventDefault();
+                }
                 const group = this.dataset.lightboxGroup;
                 const position = Number(this.dataset.lightboxPosition || '0');
                 openLightbox(group, Number.isNaN(position) ? 0 : position);
@@ -1268,6 +1282,60 @@ class MultiFormatInteractions {
         window.addEventListener('scroll', handleScroll, { passive: true });
         window.addEventListener('resize', handleScroll, { passive: true });
         updateReadingProgress();
+    }
+
+    initFloatingTocPanels(root = document) {
+        const scope = root && root.querySelectorAll ? root : document;
+        const panels = scope.querySelectorAll('[data-floating-toc]');
+        if (!panels.length) return;
+
+        panels.forEach((panel, index) => {
+            if (panel.dataset.floatingTocBound === '1') return;
+            panel.dataset.floatingTocBound = '1';
+
+            const toggle = panel.querySelector('[data-floating-toc-toggle]');
+            if (!toggle) return;
+
+            const tocTitle = panel.dataset.tocTitle || '目录';
+            const storageKey = `rewrz_toc_collapsed_${window.location.pathname}_${index}`;
+
+            const applyState = (collapsed) => {
+                panel.classList.toggle('is-collapsed', collapsed);
+                toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                toggle.setAttribute('aria-label', collapsed ? `展开${tocTitle}` : `收起${tocTitle}`);
+
+                const icon = toggle.querySelector('i');
+                if (icon) {
+                    icon.classList.toggle('fa-angles-right', collapsed);
+                    icon.classList.toggle('fa-angles-left', !collapsed);
+                }
+
+                const label = toggle.querySelector('span');
+                if (label) {
+                    label.textContent = collapsed ? '目录' : '收起目录';
+                }
+            };
+
+            let collapsed = panel.classList.contains('is-collapsed');
+            try {
+                const saved = window.localStorage.getItem(storageKey);
+                if (saved === '1') collapsed = true;
+                if (saved === '0') collapsed = false;
+            } catch (_) {
+                // 隐私模式下 localStorage 可能不可用，忽略即可
+            }
+            applyState(collapsed);
+
+            toggle.addEventListener('click', () => {
+                const nextCollapsed = !panel.classList.contains('is-collapsed');
+                applyState(nextCollapsed);
+                try {
+                    window.localStorage.setItem(storageKey, nextCollapsed ? '1' : '0');
+                } catch (_) {
+                    // localStorage 不可用时不阻塞交互
+                }
+            });
+        });
     }
 
     initTocHighlight() {

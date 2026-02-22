@@ -9,6 +9,7 @@
 {% set has_featured_image = post.featured_image_url and post.featured_image_url != 'None' %}
 {% set has_video = rendered_html and ('<video' in rendered_html or 'youtube.com' in rendered_html or 'bilibili.com' in rendered_html or 'vimeo.com' in rendered_html) %}
 {% set has_audio = rendered_html and ('<audio' in rendered_html or 'music.163.com' in rendered_html or 'spotify.com' in rendered_html) %}
+{% set summary_text = post | post_summary_text(200) %}
 
 {% if is_micro %}
 <div class="archive-card-equal bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-all duration-300">
@@ -28,8 +29,8 @@
     </h3>
     {% endif %}
 
-    {% if post.excerpt %}
-    <div class="result-excerpt line-clamp-4 text-gray-700 dark:text-gray-300 text-sm leading-relaxed mb-3">{{ post.excerpt }}</div>
+    {% if summary_text %}
+    <div class="result-excerpt line-clamp-4 text-gray-700 dark:text-gray-300 text-sm leading-relaxed mb-3">{{ summary_text }}</div>
     {% endif %}
 
     {% if has_featured_image or content_images %}
@@ -93,8 +94,8 @@
     </h3>
     {% endif %}
 
-    {% if post.excerpt %}
-    <p class="result-excerpt text-sm text-gray-700 dark:text-gray-300 leading-7 text-center italic mb-3 line-clamp-4">{{ post.excerpt }}</p>
+    {% if summary_text %}
+    <p class="result-excerpt text-sm text-gray-700 dark:text-gray-300 leading-7 text-center italic mb-3 line-clamp-4">{{ summary_text }}</p>
     {% endif %}
 
     <div class="archive-card-meta pt-2 border-t border-purple-100 dark:border-slate-700 flex items-center justify-between">
@@ -136,8 +137,8 @@
         </h3>
         {% endif %}
 
-        {% if post.excerpt %}
-        <p class="result-excerpt text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-3">{{ post.excerpt }}</p>
+        {% if summary_text %}
+        <p class="result-excerpt text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-3">{{ summary_text }}</p>
         {% endif %}
 
         <div class="flex flex-wrap items-center gap-2 mb-3 text-xs">

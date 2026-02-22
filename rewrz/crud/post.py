@@ -67,6 +67,12 @@ def _normalize_page_template_for_post(post_type: Optional[str], template_value: 
     return normalize_page_template(template_value)
 
 
+def _normalize_excerpt_value(excerpt: Optional[str]) -> str:
+    if excerpt is None:
+        return ""
+    return str(excerpt).strip()
+
+
 def _extract_setting_int_value(raw) -> int:
     if isinstance(raw, dict):
         value = raw.get("value")
@@ -339,11 +345,7 @@ def create_post(
         content_html=post.content_html,
     )
 
-    if post.excerpt:
-        excerpt = post.excerpt
-    else:
-        plain_text = get_effective_plain_text(resolved_markdown, resolved_html)
-        excerpt = plain_text[:120] if plain_text else ""
+    excerpt = _normalize_excerpt_value(post.excerpt)
 
     # 如果没有提供别名，则从标题生成，并确保唯一性
     if post.slug:
@@ -510,9 +512,8 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
             db_post.content_html = next_html
 
         for key, value in update_data.items():
-            if key == "excerpt" and not value:
-                plain_text = get_effective_plain_text(db_post.content_markdown, db_post.content_html)
-                db_post.excerpt = plain_text[:120] if plain_text else ""
+            if key == "excerpt":
+                db_post.excerpt = _normalize_excerpt_value(value)
             # 跳过featured_image_url，因为它已经在上面处理过了
             elif key not in {"featured_image_url", "category_ids", "tag_ids", "format_ids", "content_markdown", "content_html", "editor_mode"}:
                 setattr(db_post, key, value)

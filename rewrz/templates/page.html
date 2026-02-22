@@ -4,7 +4,7 @@
 
 {% block head %}
 {{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', path='css/page-detail.css') }}?v=20260220-1">
+<link rel="stylesheet" href="{{ url_for('static', path='css/page-detail.css') }}?v=20260222-2">
 {% endblock %}
 
 {% block content %}
@@ -69,7 +69,11 @@
             <div class="page-body p-5 md:p-8">
                 <div class="page-layout-grid {% if toc_items %}has-toc{% endif %}">
                     {% if toc_items %}
-                    <aside class="page-toc-panel">
+                    <aside class="page-toc-panel is-collapsed" data-floating-toc data-toc-title="页面目录">
+                        <button type="button" class="floating-toc-toggle" data-floating-toc-toggle aria-expanded="false" aria-label="展开页面目录">
+                            <i class="fas fa-angles-right" aria-hidden="true"></i>
+                            <span>目录</span>
+                        </button>
                         <h2 class="page-toc-title">页面目录</h2>
                         <ul class="page-toc-list">
                             {% for item in toc_items %}

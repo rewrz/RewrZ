@@ -93,19 +93,23 @@
 }
 
 .page-layout-grid.has-toc {
-    display: grid;
-    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-    gap: 1.1rem;
-    align-items: start;
+    display: block;
 }
 
 .page-toc-panel {
-    position: sticky;
-    top: 6.25rem;
+    position: fixed;
+    left: 1rem;
+    top: 6.2rem;
+    z-index: 35;
+    width: min(320px, 34vw);
     border-radius: 0.95rem;
     border: 1px solid rgba(148, 163, 184, 0.28);
     background: linear-gradient(180deg, rgba(248, 250, 252, 0.9), rgba(241, 245, 249, 0.75));
     padding: 1rem 0.85rem;
+    max-height: calc(100vh - 8.1rem);
+    overflow: hidden;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+    transition: width 0.22s ease, padding 0.22s ease, transform 0.22s ease;
 }
 
 .dark .page-toc-panel {
@@ -133,6 +137,10 @@
     display: flex;
     flex-direction: column;
     gap: 0.22rem;
+    max-height: calc(100vh - 11rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
 }
 
 .page-toc-list li.is-sub {
@@ -159,9 +167,70 @@
     transform: translateX(2px);
 }
 
+.page-toc-link.is-active {
+    color: #1e40af;
+    background: rgba(59, 130, 246, 0.18);
+    font-weight: 700;
+}
+
 .dark .page-toc-link:hover {
     color: #bfdbfe;
     background: rgba(59, 130, 246, 0.2);
+}
+
+.dark .page-toc-link.is-active {
+    color: #dbeafe;
+    background: rgba(59, 130, 246, 0.28);
+}
+
+.floating-toc-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    background: rgba(255, 255, 255, 0.82);
+    color: #1e40af;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0.34rem 0.62rem;
+    margin-bottom: 0.55rem;
+}
+
+.floating-toc-toggle i {
+    font-size: 0.76rem;
+}
+
+.page-toc-panel.is-collapsed {
+    width: 48px;
+    min-width: 48px;
+    padding: 0.36rem;
+    border-radius: 999px;
+}
+
+.page-toc-panel.is-collapsed .page-toc-title,
+.page-toc-panel.is-collapsed .page-toc-list {
+    display: none;
+}
+
+.page-toc-panel.is-collapsed .floating-toc-toggle {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border-radius: 999px;
+}
+
+.page-toc-panel.is-collapsed .floating-toc-toggle span {
+    display: none;
+}
+
+.dark .floating-toc-toggle {
+    border-color: rgba(59, 130, 246, 0.45);
+    background: rgba(30, 41, 59, 0.9);
+    color: #bfdbfe;
 }
 
 .page-content-wrap {
@@ -202,14 +271,13 @@
     backdrop-filter: blur(4px);
 }
 
-@media (max-width: 1024px) {
-    .page-layout-grid.has-toc {
-        grid-template-columns: 1fr;
-    }
-
+@media (max-width: 1023px) {
     .page-toc-panel {
-        position: relative;
+        left: 0.75rem;
         top: auto;
+        bottom: 0.75rem;
+        width: min(320px, calc(100vw - 1.5rem));
+        max-height: min(62vh, 420px);
     }
 }
 

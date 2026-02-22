@@ -70,7 +70,7 @@ def test_create_post(db: Session, test_user: User, test_category: Category, test
     assert post.slug == "test-post"
     assert post.content_markdown == "## Hello World\nThis is a test post."
     assert post.content_html == ""
-    assert post.excerpt == "Hello World This is a test post."
+    assert post.excerpt == ""
     assert post.post_type == "post"
     assert post.status == "draft"
     assert post.visibility == "public"
@@ -489,7 +489,7 @@ def test_post_excerpt_generation(db: Session, test_user: User):
         excerpt="" # Empty excerpt
     )
     post = crud_post.create_post(db, post_data, author_id=test_user.id)
-    assert post.excerpt == long_content[:120]
+    assert post.excerpt == ""
 
     # Test with manual excerpt
     manual_excerpt = "This is a manual excerpt."
@@ -505,6 +505,13 @@ def test_post_excerpt_generation(db: Session, test_user: User):
     )
     post_manual = crud_post.create_post(db, post_data_manual, author_id=test_user.id)
     assert post_manual.excerpt == manual_excerpt
+
+    updated_post = crud_post.update_post(
+        db,
+        post_id=post_manual.id,
+        post=PostUpdate(excerpt=""),
+    )
+    assert updated_post.excerpt == ""
 
 def test_post_password_visibility(db: Session, test_user: User):
     post_data = PostCreate(

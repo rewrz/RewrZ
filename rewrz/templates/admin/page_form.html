@@ -296,7 +296,8 @@
                 </div>
                 <div>
                     <h3 class="text-lg font-semibold mb-2">摘要</h3>
-                    <textarea name="excerpt" rows="4" class="editor-input">{% if post %}{{ post.excerpt }}{% endif %}</textarea>
+                    <textarea name="excerpt" rows="4" class="editor-input" placeholder="选填：仅在需要时手动填写摘要，不会自动生成">{% if post %}{{ post.excerpt }}{% endif %}</textarea>
+                    <p class="mt-1 text-xs text-gray-500">仅手动填写时才会展示；留空时前台聚合页会自动截取正文。</p>
                 </div>
                 {% if post %}
                 <div>

@@ -2,7 +2,7 @@
 {% set info_on_left = sequence_index % 2 == 0 %}
 {% set format_slugs = post.formats | map(attribute='slug') | list if post.formats else [] %}
 {% set cover_url = post.homepage_cover_url if post.homepage_cover_url is defined and post.homepage_cover_url else '' %}
-{% set summary_text = post.excerpt if post.excerpt else (post | post_preview_text(200)) %}
+{% set summary_text = post | post_summary_text(200) %}
 {% set post_url_value = post | post_url %}
 {% set publish_dt = post.published_at or post.created_at %}
 {% set publish_marker = publish_dt.strftime('%m%d') %}

@@ -1,5 +1,5 @@
 {% set cover_url = post.archive_cover_url if post.archive_cover_url is defined and post.archive_cover_url else '' %}
-{% set summary_text = post.excerpt if post.excerpt else (post | post_preview_text(220)) %}
+{% set summary_text = post | post_summary_text(200) %}
 
 <article class="archive-card-equal group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
     <a href="{{ post | post_url }}" class="block overflow-hidden">

@@ -1,6 +1,29 @@
 {% extends "base.html" %}
 
-{% block title %}{{ post.title }} - {{ site_title }}{% if tagline %} | {{ tagline }}{% endif %}{% endblock %}
+{% block title %}
+{% set _title_text = (post.title or '') | trim %}
+{% set _format_for_title = active_format_slug if active_format_slug is defined and active_format_slug else '' %}
+{% if not _format_for_title and post.formats %}
+    {% set _format_for_title = post.formats[0].slug %}
+{% endif %}
+{% set _published_time = post.published_at if post.published_at else post.created_at %}
+{% if _title_text %}
+    {{ _title_text }}
+{% else %}
+    {% if _published_time %}
+        {% set _fallback_prefix = _published_time.year ~ '年' ~ _published_time.month ~ '月' ~ _published_time.day ~ '日' ~ _published_time.hour ~ '时发布的' %}
+    {% else %}
+        {% set _fallback_prefix = '未记录发布时间的' %}
+    {% endif %}
+    {% if _format_for_title == 'micro' %}
+        {{ _fallback_prefix }}动态
+    {% elif _format_for_title == 'poem' %}
+        {{ _fallback_prefix }}诗词
+    {% else %}
+        {{ _fallback_prefix }}文章
+    {% endif %}
+{% endif %}
+{% endblock %}
 
 {% block head %}
 {{ super() }}
@@ -16,7 +39,7 @@
 </script>
 {% endif %}
 
-<link rel="stylesheet" href="{{ url_for('static', path='css/post-detail.css') }}?v=20260220-4">
+<link rel="stylesheet" href="{{ url_for('static', path='css/post-detail.css') }}?v=20260222-3">
 {% endblock %}
 
 {% block content %}
@@ -29,21 +52,31 @@
 {% set comment_count = post.comments | length %}
 {% set post_author_name = post.author_display_name if post.author_display_name is defined and post.author_display_name else ((post.author.display_name if post.author and post.author.display_name else '博主') if post.author else '博主') %}
 {% set post_author_avatar = post.author_avatar_url if post.author_avatar_url is defined and post.author_avatar_url else '/static/images/default-avatar.png' %}
+{% set detail_cover_url = post.detail_cover_url if post.detail_cover_url is defined and post.detail_cover_url else '' %}
+{% set manual_excerpt = (post.excerpt or '') | trim %}
+{% set plain_text_value = post | post_plain_text %}
+{% set show_micro_excerpt = manual_excerpt and (plain_text_value|length > 280) %}
 
 {% if is_micro_post %}
-<section class="py-8">
-    <div class="container mx-auto px-4 max-w-5xl">
+<section class="py-8 detail-cover-shell detail-cover-micro">
+    {% if detail_cover_url %}
+    <div class="detail-cover-bg" style="background-image: url('{{ detail_cover_url | e }}');"></div>
+    <div class="detail-cover-overlay"></div>
+    {% endif %}
+
+    <div class="container relative mx-auto px-4 max-w-7xl">
         <!-- 返回导航 -->
-        <nav class="mb-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <a href="/formats/micro" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+        <nav class="mb-4 flex items-center gap-2 text-sm text-gray-200/90">
+            <a href="/formats/micro" class="hover:text-white transition-colors">
                 <i class="fas fa-arrow-left mr-1"></i>返回动态列表
             </a>
-            <span class="text-gray-300 dark:text-gray-600">|</span>
-            <a href="/archives" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+            <span class="text-white/35">|</span>
+            <a href="/archives" class="hover:text-white transition-colors">
                 <i class="fas fa-stream mr-1"></i>全部归档
             </a>
         </nav>
 
+        <div class="detail-layout {% if toc_items %}has-toc{% endif %}">
         <article id="micro-article" class="micro-detail-card rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 shadow-xl overflow-hidden transition-all duration-300">
             <header class="p-5 border-b border-gray-100 dark:border-gray-700">
                 <div class="flex items-start justify-between gap-3">
@@ -72,35 +105,20 @@
                 <h1 class="text-2xl md:text-3xl font-bold leading-tight bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">{{ post.title }}</h1>
                 {% endif %}
 
-                {% if post.excerpt %}
-                <p class="text-base text-gray-600 dark:text-gray-300 leading-relaxed border-l-4 border-indigo-400 pl-4 italic">{{ post.excerpt }}</p>
+                {% if show_micro_excerpt %}
+                <p class="text-base text-gray-600 dark:text-gray-300 leading-relaxed border-l-4 border-indigo-400 pl-4 italic">{{ manual_excerpt }}</p>
                 {% endif %}
 
                 <div class="post-content prose dark:prose-invert max-w-none micro-content">
                     {{ rendered_content | safe }}
                 </div>
 
-                {% if post.featured_image_url or content_images %}
+                {% if content_images %}
                 <div class="space-y-3 micro-gallery">
-                    {% if post.featured_image_url %}
-                    <div class="micro-main-image relative group">
-                        <button type="button" class="block w-full text-left overflow-hidden rounded-2xl" data-lightbox-group="micro-gallery" data-lightbox-position="0" data-lightbox-image="{{ post.featured_image_url }}" data-lightbox-title="{{ post.title }}">
-                            {{ post.featured_image_url | responsive_image(post.title, "w-full max-h-[520px] object-cover rounded-2xl transition-transform duration-500 group-hover:scale-[1.02]", "(max-width: 768px) 100vw, 680px", request.state.db) | safe }}
-                        </button>
-                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 rounded-2xl pointer-events-none"></div>
-                        <div class="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <span class="bg-black/60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
-                                <i class="fas fa-search-plus mr-1"></i>点击查看大图
-                            </span>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if content_images %}
                     {% set grid_cols = 2 if content_images|length in [2, 4] else 3 %}
                     <div class="micro-image-grid grid grid-cols-{{ grid_cols }} gap-2" data-image-count="{{ content_images|length }}">
                         {% for image_url in content_images[:9] %}
-                        <button type="button" class="micro-grid-item overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 group relative" data-lightbox-group="micro-gallery" data-lightbox-position="{{ loop.index if post.featured_image_url else loop.index0 }}" data-lightbox-image="{{ image_url }}" data-lightbox-title="{{ post.title }} - 图{{ loop.index if post.featured_image_url else loop.index }}">
+                        <button type="button" class="micro-grid-item overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 group relative" data-lightbox-group="micro-gallery" data-lightbox-position="{{ loop.index0 }}" data-lightbox-image="{{ image_url }}" data-lightbox-title="{{ post.title }} - 图{{ loop.index }}">
                             <img src="{{ image_url }}" alt="{{ post.title }}" class="h-32 md:h-40 w-full object-cover transition-all duration-300 group-hover:scale-110" loading="lazy">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                         </button>
@@ -111,9 +129,11 @@
                         <i class="fas fa-images mr-1"></i>共 {{ content_images|length }} 张图片，点击查看更多
                     </p>
                     {% endif %}
-                    {% endif %}
                 </div>
                 {% endif %}
+
+                {% set license_box_class = "rounded-xl bg-gray-50 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-700 p-4 md:p-5" %}
+                {% include "components/post_license_inline.html" %}
             </div>
 
             <div class="border-t border-gray-100 bg-gray-50/50 px-5 py-3 dark:border-gray-700 dark:bg-gray-900/50">
@@ -185,16 +205,32 @@
                 </div>
             </footer>
         </article>
-
+        {% if toc_items %}
+        <aside class="detail-toc-panel detail-toc-panel-micro is-collapsed" data-floating-toc data-toc-title="内容目录" aria-label="文章目录">
+            <button type="button" class="floating-toc-toggle" data-floating-toc-toggle aria-expanded="false" aria-label="展开内容目录">
+                <i class="fas fa-angles-right" aria-hidden="true"></i>
+                <span>目录</span>
+            </button>
+            <h2 class="detail-toc-title">内容目录</h2>
+            <ul class="detail-toc-list">
+                {% for item in toc_items %}
+                <li class="{% if item.level == 'h3' %}is-sub{% endif %}">
+                    <a href="#{{ item.id }}" data-toc-link="{{ item.id }}" class="detail-toc-link">{{ item.title }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </aside>
+        {% endif %}
+        </div>
     </div>
 </section>
 
 {% elif is_poetry_song %}
-<section class="poetry-section relative min-h-[85vh] flex items-center py-8 overflow-hidden">
+<section class="poetry-section detail-cover-shell relative min-h-[85vh] flex items-center py-8 overflow-hidden">
     <!-- 背景氛围层 -->
-    {% if post.featured_image_url %}
+    {% if detail_cover_url %}
     <div class="poetry-bg absolute inset-0">
-        {{ post.featured_image_url | responsive_image(post.title, "w-full h-full object-cover", "100vw", request.state.db) | safe }}
+        {{ detail_cover_url | responsive_image(post.title, "w-full h-full object-cover", "100vw", request.state.db) | safe }}
         <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/60"></div>
     </div>
     {% else %}
@@ -202,6 +238,7 @@
         <div class="absolute inset-0 opacity-30" id="poetry-particles"></div>
     </div>
     {% endif %}
+    <div class="detail-cover-overlay detail-cover-overlay-soft"></div>
     
     <!-- 浮动粒子效果 -->
     <div class="poetry-particles absolute inset-0 pointer-events-none overflow-hidden" id="poetry-float-particles">
@@ -212,7 +249,7 @@
         <div class="particle particle-5"></div>
     </div>
 
-    <div class="relative container mx-auto px-4 max-w-5xl">
+    <div class="relative container mx-auto px-4 max-w-7xl">
         <!-- 返回导航 -->
         <nav class="mb-6 flex items-center justify-between text-sm text-white/70">
             <div class="flex items-center gap-2">
@@ -226,6 +263,7 @@
             </div>
         </nav>
 
+        <div class="detail-layout detail-layout-poetry {% if toc_items %}has-toc{% endif %}">
         <article class="poetry-article rounded-2xl border border-white/20 dark:border-gray-700/50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl shadow-2xl overflow-hidden transition-all duration-500">
             <!-- 头部区域 -->
             <div class="poetry-header text-center p-6 md:p-10 border-b border-white/10 dark:border-gray-700/30">
@@ -237,8 +275,8 @@
                 
                 <h1 class="poetry-title text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-4 transition-all duration-300">{{ post.title }}</h1>
                 
-                {% if post.excerpt %}
-                <p class="poetry-excerpt text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-4 italic">{{ post.excerpt }}</p>
+                {% if manual_excerpt %}
+                <p class="poetry-excerpt text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-4 italic">{{ manual_excerpt }}</p>
                 {% endif %}
                 
                 <div class="poetry-meta flex items-center justify-center gap-4 text-sm text-gray-500 dark:text-gray-400">
@@ -282,10 +320,12 @@
             </div>
 
             <!-- 内容区域 -->
-            <div class="poetry-body p-6 md:p-10">
+            <div class="poetry-body p-6 md:p-10 space-y-5">
                 <div id="poetry-lyrics-content" class="post-content poetry-content prose dark:prose-invert max-w-none text-center leading-loose max-h-[60vh] overflow-y-auto pr-2 text-lg md:text-xl transition-all duration-300" data-font="sans">
                     {{ rendered_content | safe }}
                 </div>
+                {% set license_box_class = "rounded-xl bg-white/70 dark:bg-gray-900/60 border border-white/40 dark:border-gray-700/60 p-4 md:p-5" %}
+                {% include "components/post_license_inline.html" %}
             </div>
 
             <!-- 标签区域 -->
@@ -301,17 +341,43 @@
             </div>
             {% endif %}
         </article>
+        {% if toc_items %}
+        <aside class="detail-toc-panel detail-toc-panel-poetry is-collapsed" data-floating-toc data-toc-title="内容目录" aria-label="文章目录">
+            <button type="button" class="floating-toc-toggle" data-floating-toc-toggle aria-expanded="false" aria-label="展开内容目录">
+                <i class="fas fa-angles-right" aria-hidden="true"></i>
+                <span>目录</span>
+            </button>
+            <h2 class="detail-toc-title">内容目录</h2>
+            <ul class="detail-toc-list">
+                {% for item in toc_items %}
+                <li class="{% if item.level == 'h3' %}is-sub{% endif %}">
+                    <a href="#{{ item.id }}" data-toc-link="{{ item.id }}" class="detail-toc-link">{{ item.title }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </aside>
+        {% endif %}
+        </div>
     </div>
 </section>
 
 {% else %}
-<section class="py-8 detail-article-section">
-    <div class="container mx-auto px-4 max-w-7xl">
+<section class="py-8 detail-article-section detail-cover-shell detail-cover-article">
+    {% if detail_cover_url %}
+    <div class="detail-cover-bg" style="background-image: url('{{ detail_cover_url | e }}');"></div>
+    <div class="detail-cover-overlay"></div>
+    {% endif %}
+
+    <div class="container relative mx-auto px-4 max-w-7xl">
+        <div class="detail-layout {% if toc_items %}has-toc{% endif %}">
         <article class="article-detail-card rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 shadow-xl overflow-hidden">
             <header class="p-6 md:p-8 border-b border-gray-200 dark:border-gray-700">
-                <h1 class="text-3xl md:text-4xl font-bold mb-6 leading-tight">{{ post.title }}</h1>
+                <h1 class="text-3xl md:text-4xl font-bold mb-4 leading-tight">{{ post.title }}</h1>
+                {% if manual_excerpt %}
+                <p class="mb-6 rounded-xl border border-blue-100 bg-blue-50/80 p-4 text-gray-700 dark:border-blue-900/60 dark:bg-blue-900/20 dark:text-gray-200">{{ manual_excerpt }}</p>
+                {% endif %}
 
-                <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
+                <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                     <span><i class="fas fa-calendar-alt mr-2 text-blue-500"></i>{{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}</span>
                     <span><i class="fas fa-user mr-2 text-green-500"></i>{{ post_author_name }}</span>
                     <span><i class="far fa-eye mr-2 text-indigo-500"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
@@ -334,67 +400,39 @@
                     </div>
                     {% endif %}
                 </div>
-
-                {% if post.featured_image_url %}
-                <div class="mb-6 overflow-hidden rounded-xl">
-                    {{ post.featured_image_url | responsive_image(post.title, "w-full", "(max-width: 768px) 100vw, 800px", request.state.db) | safe }}
-                </div>
-                {% endif %}
-
-                {% if toc_items %}
-                <nav class="mb-2 rounded-lg border border-blue-100 bg-blue-50 p-4" aria-label="文章目录">
-                    <h2 class="mb-3 text-sm font-semibold text-blue-800">文章目录</h2>
-                    <ul class="space-y-2">
-                        {% for item in toc_items %}
-                        <li class="{% if item.level == 'h3' %}ml-4{% endif %}">
-                            <a href="#{{ item.id }}" data-toc-link="{{ item.id }}" class="toc-link text-sm text-blue-700 hover:text-blue-900">{{ item.title }}</a>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </nav>
-                {% endif %}
             </header>
 
-            <div class="p-6 md:p-8">
+            <div class="p-6 md:p-8 space-y-5">
                 <div class="post-content article-content prose prose-lg dark:prose-invert max-w-none">
                     {{ rendered_content | safe }}
                 </div>
+                {% set license_box_class = "rounded-xl bg-gray-50 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-700 p-4 md:p-5" %}
+                {% include "components/post_license_inline.html" %}
             </div>
         </article>
+        {% if toc_items %}
+        <aside class="detail-toc-panel detail-toc-panel-article is-collapsed" data-floating-toc data-toc-title="文章目录" aria-label="文章目录">
+            <button type="button" class="floating-toc-toggle" data-floating-toc-toggle aria-expanded="false" aria-label="展开文章目录">
+                <i class="fas fa-angles-right" aria-hidden="true"></i>
+                <span>目录</span>
+            </button>
+            <h2 class="detail-toc-title">文章目录</h2>
+            <ul class="detail-toc-list">
+                {% for item in toc_items %}
+                <li class="{% if item.level == 'h3' %}is-sub{% endif %}">
+                    <a href="#{{ item.id }}" data-toc-link="{{ item.id }}" class="detail-toc-link">{{ item.title }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </aside>
+        {% endif %}
+        </div>
     </div>
 </section>
 {% endif %}
 
 <section class="pb-10">
     <div class="container mx-auto px-4 max-w-7xl space-y-8">
-        {% if post.license_type %}
-        <div class="rounded-xl bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 p-4 md:p-5">
-            <div class="flex items-start gap-3">
-                <i class="fas fa-copyright text-blue-500 mt-1"></i>
-                <p class="text-sm text-gray-700 dark:text-gray-300">
-                    <strong>版权声明：</strong>
-                    {% if post.license_type == "cc_by_4" %}
-                        本作品采用 <a href="https://creativecommons.org/licenses/by/4.0/deed.zh" class="text-blue-600 dark:text-blue-400 hover:underline" target="_blank">知识共享署名 4.0 国际许可协议</a> 进行许可。
-                    {% elif post.license_type == "cc_by_sa_4" %}
-                        本作品采用 <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.zh" class="text-blue-600 dark:text-blue-400 hover:underline" target="_blank">知识共享署名-相同方式共享 4.0 国际许可协议</a> 进行许可。
-                    {% elif post.license_type == "cc_by_nd_4" %}
-                        本作品采用 <a href="https://creativecommons.org/licenses/by-nd/4.0/deed.zh" class="text-blue-600 dark:text-blue-400 hover:underline" target="_blank">知识共享署名-禁止演绎 4.0 国际许可协议</a> 进行许可。
-                    {% elif post.license_type == "cc_by_nc_4" %}
-                        本作品采用 <a href="https://creativecommons.org/licenses/by-nc/4.0/deed.zh" class="text-blue-600 dark:text-blue-400 hover:underline" target="_blank">知识共享署名-非商业性使用 4.0 国际许可协议</a> 进行许可。
-                    {% elif post.license_type == "cc_by_nc_sa_4" %}
-                        本作品采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="text-blue-600 dark:text-blue-400 hover:underline" target="_blank">知识共享署名-非商业性使用-相同方式共享 4.0 国际许可协议</a> 进行许可。
-                    {% elif post.license_type == "cc_by_nc_nd_4" %}
-                        本作品采用 <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.zh" class="text-blue-600 dark:text-blue-400 hover:underline" target="_blank">知识共享署名-非商业性使用-禁止演绎 4.0 国际许可协议</a> 进行许可。
-                    {% elif post.license_type == "all_rights_reserved" %}
-                        本作品版权所有，保留所有权利。转载请注明出处。
-                    {% else %}
-                        本文版权归作者所有，转载请注明出处。
-                    {% endif %}
-                </p>
-            </div>
-        </div>
-        {% endif %}
-
         {% set donation_widget_html = (request.state.db | donation_widget) if request.state.db else '' %}
         {% if donation_config and donation_config.enabled and donation_widget_html %}
             {% if donation_config.show_position == 'sidebar' %}

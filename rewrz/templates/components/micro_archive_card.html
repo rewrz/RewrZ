@@ -1,8 +1,8 @@
 {% set rendered_html = post | post_content_html %}
+{% set rendered_text_html = rendered_html | strip_media_nodes %}
 {% set content_images = (rendered_html | extract_image_urls(post.featured_image_url)) if rendered_html else [] %}
 {% set has_featured_image = post.featured_image_url and post.featured_image_url != 'None' %}
 {% set post_url_value = post | post_url %}
-{% set content_text = post.excerpt if post.excerpt else (post | post_preview_text(240)) %}
 {% set published_text = (post.published_at if post.published_at else post.created_at) | micro_datetime_cn %}
 {% set fallback_profile_name = format_profile.display_name if format_profile is defined and format_profile and format_profile.display_name else (site_title if site_title else '博主') %}
 {% set profile_name = post.author_display_name if post.author_display_name is defined and post.author_display_name else fallback_profile_name %}
@@ -20,6 +20,7 @@
     {% endif %}
 {% endfor %}
 {% set display_images = media_images[:4] %}
+{% set micro_lightbox_group = "micro-card-" ~ post.id %}
 
 <article class="group overflow-hidden rounded-2xl border border-indigo-200/80 bg-white shadow-sm transition-all duration-300 hover:shadow-lg dark:border-indigo-700/50 dark:bg-gray-800" data-micro-card="{{ post.id }}">
     <div class="flex gap-3 p-4 md:p-5">
@@ -43,10 +44,10 @@
             </h3>
             {% endif %}
 
-            {% if content_text %}
-            <p class="mt-2 whitespace-pre-line break-words text-[15px] leading-7 text-gray-700 dark:text-gray-200">
-                {{ content_text }}
-            </p>
+            {% if rendered_text_html and rendered_text_html | striptags | trim %}
+            <div class="mt-2 post-content prose prose-sm max-w-none text-[15px] leading-7 text-gray-700 dark:prose-invert dark:text-gray-200 micro-content">
+                {{ rendered_text_html | safe }}
+            </div>
             {% endif %}
 
             {% if post.tags %}
@@ -65,20 +66,52 @@
             {% if display_images %}
             <div class="mt-3 overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700">
                 {% if display_images|length == 1 %}
-                <a href="{{ post_url_value }}" class="block aspect-[16/10] overflow-hidden bg-gray-50 dark:bg-gray-900">
+                <button
+                    type="button"
+                    class="block w-full aspect-[16/10] overflow-hidden bg-gray-50 p-0 text-left dark:bg-gray-900"
+                    data-lightbox-group="{{ micro_lightbox_group }}"
+                    data-lightbox-position="0"
+                    data-lightbox-image="{{ display_images[0] }}"
+                    data-lightbox-title="{{ (post.title if post.title else '微博图片') ~ ' - 图1' }}"
+                    aria-label="查看大图"
+                >
                     <img src="{{ display_images[0] }}" alt="{{ post.title or '微博图片' }}" class="h-full w-full object-cover transition-transform duration-500 hover:scale-105" loading="lazy">
-                </a>
+                </button>
                 {% else %}
                 <div class="grid grid-cols-2 gap-[2px] bg-gray-200 dark:bg-gray-700">
                     {% for img_url in display_images %}
-                    <a href="{{ post_url_value }}" class="relative block aspect-square overflow-hidden bg-gray-50 dark:bg-gray-900">
+                    <button
+                        type="button"
+                        class="relative block w-full aspect-square overflow-hidden bg-gray-50 p-0 text-left dark:bg-gray-900"
+                        data-lightbox-group="{{ micro_lightbox_group }}"
+                        data-lightbox-position="{{ loop.index0 }}"
+                        data-lightbox-image="{{ img_url }}"
+                        data-lightbox-title="{{ (post.title if post.title else '微博图片') ~ ' - 图' ~ loop.index }}"
+                        aria-label="查看第{{ loop.index }}张图片"
+                    >
                         <img src="{{ img_url }}" alt="{{ post.title or '微博图片' }}" class="h-full w-full object-cover transition-transform duration-500 hover:scale-105" loading="lazy">
                         {% if loop.last and media_images|length > 4 %}
                         <span class="absolute inset-0 flex items-center justify-center bg-black/45 text-sm font-semibold text-white">
                             +{{ media_images|length - 4 }}
                         </span>
                         {% endif %}
-                    </a>
+                    </button>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if media_images|length > display_images|length %}
+                <div class="hidden" aria-hidden="true">
+                    {% for img_url in media_images[display_images|length:] %}
+                    <button
+                        type="button"
+                        class="hidden"
+                        tabindex="-1"
+                        data-lightbox-group="{{ micro_lightbox_group }}"
+                        data-lightbox-position="{{ loop.index0 + display_images|length }}"
+                        data-lightbox-image="{{ img_url }}"
+                        data-lightbox-title="{{ (post.title if post.title else '微博图片') ~ ' - 图' ~ (loop.index0 + display_images|length + 1) }}"
+                    ></button>
                     {% endfor %}
                 </div>
                 {% endif %}

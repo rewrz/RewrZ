@@ -15,7 +15,11 @@ from rewrz.core.content_access import (
     render_markdown_with_hide_blocks,
 )
 from rewrz.core.toc import build_toc_from_html
-from rewrz.core.template_filters import extract_image_urls_filter, post_url_filter
+from rewrz.core.template_filters import (
+    extract_image_urls_filter,
+    post_url_filter,
+    strip_media_nodes_filter,
+)
 
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./tests/test_content_access.db"
@@ -218,5 +222,23 @@ def test_extract_image_urls_filter_deduplicates_and_skips_featured():
     )
     urls = extract_image_urls_filter(html, featured_image_url="/media/featured.jpg")
     assert urls == ["/media/a.jpg", "/media/b.jpg"]
+
+
+def test_strip_media_nodes_filter_keeps_text_formatting():
+    html = (
+        '<p>开头文字</p>'
+        '<p><img src="/media/a.jpg" alt="a"></p>'
+        '<blockquote><strong>加粗引用</strong></blockquote>'
+        '<video src="/media/v.mp4"></video>'
+        '<p>结尾 <a href="/x">链接</a></p>'
+    )
+
+    cleaned = strip_media_nodes_filter(html)
+    assert "<img" not in cleaned
+    assert "<video" not in cleaned
+    assert "<blockquote>" in cleaned
+    assert "<strong>加粗引用</strong>" in cleaned
+    assert "开头文字" in cleaned
+    assert "结尾" in cleaned
 
 

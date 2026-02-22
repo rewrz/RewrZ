@@ -394,6 +394,54 @@ def post_preview_text_filter(post_obj, length: int = 200) -> str:
     return f"{plain_text[:length]}..."
 
 
+def post_plain_text_filter(post_obj) -> str:
+    if not post_obj:
+        return ""
+    return get_effective_plain_text(
+        getattr(post_obj, "content_markdown", ""),
+        getattr(post_obj, "content_html", ""),
+    )
+
+
+def post_summary_text_filter(post_obj, length: int = 200) -> str:
+    if not post_obj:
+        return ""
+    manual_excerpt = str(getattr(post_obj, "excerpt", "") or "").strip()
+    if manual_excerpt:
+        return manual_excerpt
+
+    plain_text = post_plain_text_filter(post_obj)
+    if len(plain_text) <= length:
+        return plain_text
+    return f"{plain_text[:length]}..."
+
+
+def strip_media_nodes_filter(content_html: str) -> str:
+    """
+    剔除正文中的媒体标签，保留文本与基础格式标签。
+    用于微博聚合页：正文仅展示文字格式，媒体由九宫格单独承载。
+    """
+    if not content_html:
+        return ""
+
+    try:
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(content_html, "html.parser")
+        media_tags = ["img", "video", "audio", "iframe", "figure", "picture", "source", "embed", "object"]
+        for media_node in soup.find_all(media_tags):
+            media_node.decompose()
+
+        # 清理剔除媒体后留下的空段落，减少无意义留白
+        for paragraph in soup.find_all("p"):
+            if not paragraph.get_text(strip=True) and not paragraph.find(True):
+                paragraph.decompose()
+
+        return str(soup)
+    except Exception:
+        return content_html
+
+
 def reading_time_filter(content_value: str) -> str:
     """
     计算阅读时间的过滤器
@@ -532,6 +580,9 @@ def register_template_filters(app):
     templates.env.filters['fa_compat'] = fa_compat_filter # 注册Font Awesome兼容过滤器
     templates.env.filters['post_content_html'] = post_content_html_filter
     templates.env.filters['post_preview_text'] = post_preview_text_filter
+    templates.env.filters['post_plain_text'] = post_plain_text_filter
+    templates.env.filters['post_summary_text'] = post_summary_text_filter
+    templates.env.filters['strip_media_nodes'] = strip_media_nodes_filter
     
     return templates
 
@@ -569,5 +620,8 @@ def get_templates():
         _templates.env.filters['post_url'] = post_url_filter # 注册文章URL生成过滤器
         _templates.env.filters['post_content_html'] = post_content_html_filter
         _templates.env.filters['post_preview_text'] = post_preview_text_filter
-    
+        _templates.env.filters['post_plain_text'] = post_plain_text_filter
+        _templates.env.filters['post_summary_text'] = post_summary_text_filter
+        _templates.env.filters['strip_media_nodes'] = strip_media_nodes_filter
+
     return _templates

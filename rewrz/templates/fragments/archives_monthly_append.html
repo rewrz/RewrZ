@@ -67,8 +67,8 @@
                                class="text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400">
                                 {% if post.title and post.title.strip() %}
                                     {{ post.title }}
-                                {% elif post.excerpt %}
-                                    {{ post.excerpt[:50] }}{% if post.excerpt|length > 50 %}...{% endif %}
+                                {% elif post | post_summary_text(50) %}
+                                    {{ post | post_summary_text(50) }}
                                 {% else %}
                                     无标题内容
                                 {% endif %}

@@ -1516,6 +1516,7 @@ def register_admin_routes():
         profile_resolver = get_public_profile_resolver()
         format_profile = profile_resolver.resolve_format_profile(request, db, active_format_slug)
         _attach_post_author_profiles(db, [db_post], fallback_name=format_profile.get("display_name", "博主"))
+        _attach_article_cover_urls(db, [db_post], attr_name="detail_cover_url")
         related_articles: List[Post] = []
         try:
             from .core.blog_enhancements import get_related_posts as get_enhanced_related_posts
