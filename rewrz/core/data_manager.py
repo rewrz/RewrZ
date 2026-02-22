@@ -17,7 +17,7 @@ import zipfile
 import shutil
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Tuple, Callable
-from urllib.parse import unquote, urljoin, urlparse
+from urllib.parse import ParseResult, unquote, urljoin, urlparse
 from urllib.request import Request as UrlRequest, urlopen
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -642,12 +642,14 @@ class WordPressImporter:
                         continue
 
                     if self.options.get("download_remote_media", False):
+                        media_reference_datetime = published_at or created_at or updated_at
                         markdown_content, html_content, featured_image_url = self._localize_post_media_references(
                             markdown_content=markdown_content,
                             html_content=html_content,
                             featured_image_url=featured_image_url,
                             source_link=(link.text if link is not None else ""),
                             uploaded_by_id=author.id,
+                            reference_datetime=media_reference_datetime,
                         )
                         post_data.content_markdown = markdown_content
                         post_data.content_html = html_content
@@ -895,8 +897,8 @@ class WordPressImporter:
         if not candidate:
             return ""
 
-        parsed = urlparse(candidate)
-        if parsed.scheme or parsed.netloc:
+        parsed = self._safe_urlparse(candidate)
+        if parsed and (parsed.scheme or parsed.netloc):
             candidate = (parsed.path or "").strip()
 
         candidate = candidate.split("?", 1)[0].split("#", 1)[0].strip()
@@ -921,7 +923,9 @@ class WordPressImporter:
         if not url:
             return ""
 
-        parsed = urlparse(url)
+        parsed = self._safe_urlparse(url)
+        if parsed is None:
+            return ""
         path = (parsed.path or "").strip()
         if not path:
             return ""
@@ -930,6 +934,13 @@ class WordPressImporter:
         stem, ext = os.path.splitext(path_tail)
         slug_source = stem if ext else path_tail
         return self._normalize_imported_slug(slug_source)
+
+    def _safe_urlparse(self, raw_url: str) -> Optional[ParseResult]:
+        """安全解析 URL，避免异常输入导致导入中断。"""
+        try:
+            return urlparse((raw_url or "").strip())
+        except ValueError:
+            return None
     
     def _generate_slug_from_title(self, title: str) -> str:
         """从标题生成slug"""
@@ -1057,7 +1068,9 @@ class WordPressImporter:
         return cleaned[:128]
 
     def _extract_preserved_relative_dir_parts(self, source_url: str) -> List[str]:
-        parsed = urlparse(source_url)
+        parsed = self._safe_urlparse(source_url)
+        if parsed is None:
+            return []
         raw_parts = [part for part in (parsed.path or "").split("/") if part]
         if len(raw_parts) <= 1:
             return []
@@ -1076,9 +1089,9 @@ class WordPressImporter:
                 sliced = dir_parts[idx:]
                 break
 
-        # 若路径中没有明显的 年/月 段，则退回为原始目录层级（不含文件名）。
+        # 若路径中没有明显的 年/月 段，交给外层回退到文章发布时间生成目录。
         if sliced is None:
-            sliced = dir_parts
+            return []
 
         normalized_parts: List[str] = []
         for part in sliced:
@@ -1088,7 +1101,9 @@ class WordPressImporter:
         return normalized_parts
 
     def _is_remote_http_url(self, url: str) -> bool:
-        parsed = urlparse((url or "").strip())
+        parsed = self._safe_urlparse(url)
+        if parsed is None:
+            return False
         return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
     def _looks_like_media_candidate(self, url: str, mime_type: str = "") -> bool:
@@ -1098,7 +1113,9 @@ class WordPressImporter:
         if mime.startswith(("image/", "video/", "audio/")):
             return True
 
-        parsed = urlparse(url)
+        parsed = self._safe_urlparse(url)
+        if parsed is None:
+            return False
         path = (parsed.path or "").lower()
         if "/wp-content/uploads/" in path:
             return True
@@ -1165,14 +1182,16 @@ class WordPressImporter:
         payload: bytes,
         mime_type: str,
         uploaded_by_id: int,
+        reference_datetime: Optional[datetime] = None,
     ) -> str:
         upload_root = os.path.abspath(self._get_media_upload_root())
         strategy = str(self.options.get("remote_media_path_strategy", "latest_month") or "latest_month").strip().lower()
         if strategy not in {"latest_month", "preserve_relative_path"}:
             strategy = "latest_month"
 
-        parsed = urlparse(source_url)
-        original_name = os.path.basename(parsed.path or "").strip()
+        parsed = self._safe_urlparse(source_url)
+        raw_path = (parsed.path or "") if parsed is not None else ""
+        original_name = os.path.basename(unquote(raw_path)).strip()
         stem, ext = os.path.splitext(original_name)
         ext = ext.lower()
         if not ext:
@@ -1180,17 +1199,16 @@ class WordPressImporter:
         if not ext:
             ext = ".bin"
         stem = self._sanitize_path_segment(stem or "wp-media", fallback="wp-media")
+        year_month = self._resolve_media_year_month(reference_datetime)
 
         digest = hashlib.sha1(source_url.encode("utf-8")).hexdigest()[:12]
         if strategy == "preserve_relative_path":
             relative_parts = self._extract_preserved_relative_dir_parts(source_url)
             if not relative_parts:
-                now = datetime.utcnow()
-                relative_parts = [now.strftime("%Y"), now.strftime("%m")]
+                relative_parts = [year_month[0], year_month[1]]
             filename = f"{stem}{ext}"
         else:
-            now = datetime.utcnow()
-            relative_parts = [now.strftime("%Y"), now.strftime("%m")]
+            relative_parts = [year_month[0], year_month[1]]
             filename = f"{stem}-{digest}{ext}"
 
         target_dir = os.path.join(upload_root, *relative_parts) if relative_parts else upload_root
@@ -1238,11 +1256,28 @@ class WordPressImporter:
         relative_path = os.path.relpath(filepath, upload_root).replace("\\", "/")
         return f"/media/{relative_path}"
 
+    def _resolve_media_year_month(self, reference_datetime: Optional[datetime]) -> Tuple[str, str]:
+        chosen = reference_datetime or datetime.utcnow()
+        if chosen.tzinfo is not None:
+            chosen = chosen.astimezone(timezone.utc).replace(tzinfo=None)
+        return chosen.strftime("%Y"), chosen.strftime("%m")
+
+    def _build_media_download_cache_key(self, normalized_url: str, reference_datetime: Optional[datetime]) -> str:
+        strategy = str(self.options.get("remote_media_path_strategy", "latest_month") or "latest_month").strip().lower()
+        if strategy not in {"latest_month", "preserve_relative_path"}:
+            strategy = "latest_month"
+        if strategy == "preserve_relative_path":
+            if self._extract_preserved_relative_dir_parts(normalized_url):
+                return normalized_url
+        year, month = self._resolve_media_year_month(reference_datetime)
+        return f"{normalized_url}|{year}/{month}"
+
     def _download_media_and_get_local_url(
         self,
         url: str,
         source_link: str,
         uploaded_by_id: int,
+        reference_datetime: Optional[datetime] = None,
     ) -> str:
         normalized = self._normalize_media_url(url, source_link=source_link)
         if not normalized:
@@ -1251,8 +1286,9 @@ class WordPressImporter:
             return normalized
         if not self._looks_like_media_candidate(normalized):
             return normalized
-        if normalized in self._downloaded_media_url_map:
-            return self._downloaded_media_url_map[normalized]
+        cache_key = self._build_media_download_cache_key(normalized, reference_datetime)
+        if cache_key in self._downloaded_media_url_map:
+            return self._downloaded_media_url_map[cache_key]
 
         timeout_seconds = int(self.options.get("media_download_timeout_seconds", 20) or 20)
         max_megabytes = int(self.options.get("media_download_max_mb", 30) or 30)
@@ -1273,8 +1309,9 @@ class WordPressImporter:
                 payload=payload,
                 mime_type=mime_type,
                 uploaded_by_id=uploaded_by_id,
+                reference_datetime=reference_datetime,
             )
-            self._downloaded_media_url_map[normalized] = local_url
+            self._downloaded_media_url_map[cache_key] = local_url
             return local_url
         except Exception:
             return normalized
@@ -1290,7 +1327,13 @@ class WordPressImporter:
             core = core[:-1]
         return core, suffix
 
-    def _localize_media_urls_in_text(self, text: str, source_link: str, uploaded_by_id: int) -> str:
+    def _localize_media_urls_in_text(
+        self,
+        text: str,
+        source_link: str,
+        uploaded_by_id: int,
+        reference_datetime: Optional[datetime] = None,
+    ) -> str:
         if not text:
             return text
 
@@ -1308,13 +1351,20 @@ class WordPressImporter:
                 core,
                 source_link=source_link,
                 uploaded_by_id=uploaded_by_id,
+                reference_datetime=reference_datetime,
             )
             if local_url and local_url != core:
                 updated = updated.replace(matched, f"{local_url}{suffix}")
 
         return updated
 
-    def _localize_media_urls_in_html(self, html_content: str, source_link: str, uploaded_by_id: int) -> str:
+    def _localize_media_urls_in_html(
+        self,
+        html_content: str,
+        source_link: str,
+        uploaded_by_id: int,
+        reference_datetime: Optional[datetime] = None,
+    ) -> str:
         if not html_content:
             return html_content
 
@@ -1339,6 +1389,7 @@ class WordPressImporter:
                     normalized,
                     source_link=source_link,
                     uploaded_by_id=uploaded_by_id,
+                    reference_datetime=reference_datetime,
                 )
                 if local_url != raw_value:
                     node[attr_name] = local_url
@@ -1353,17 +1404,20 @@ class WordPressImporter:
         featured_image_url: Optional[str],
         source_link: str,
         uploaded_by_id: int,
+        reference_datetime: Optional[datetime] = None,
     ) -> Tuple[str, str, Optional[str]]:
         localized_markdown = self._localize_media_urls_in_text(
             markdown_content,
             source_link=source_link,
             uploaded_by_id=uploaded_by_id,
+            reference_datetime=reference_datetime,
         ) if markdown_content else markdown_content
 
         localized_html = self._localize_media_urls_in_html(
             html_content,
             source_link=source_link,
             uploaded_by_id=uploaded_by_id,
+            reference_datetime=reference_datetime,
         ) if html_content else html_content
 
         localized_featured = featured_image_url
@@ -1373,6 +1427,7 @@ class WordPressImporter:
                 normalized_featured,
                 source_link=source_link,
                 uploaded_by_id=uploaded_by_id,
+                reference_datetime=reference_datetime,
             )
 
         return localized_markdown, localized_html, localized_featured

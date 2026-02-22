@@ -830,13 +830,76 @@ def test_wordpress_import_can_download_remote_media_to_local(db, tmp_path):
     post = crud_post.get_post_by_slug(db, "media-download-post")
     assert post is not None
     assert "/media/" in post.content_markdown
+    assert "/media/2025/04/" in post.content_markdown
     assert "/imports/wordpress/" not in post.content_markdown
     assert post.featured_image_url and post.featured_image_url.startswith("/media/")
+    assert "/media/2025/04/" in post.featured_image_url
     assert "/imports/wordpress/" not in post.featured_image_url
 
     media_items = db.query(Media).all()
     assert len(media_items) >= 1
     assert media_items[0].filepath.startswith(str(local_media_root))
+
+
+def test_wordpress_import_download_media_decodes_percent_encoded_unicode_filename(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin11b", email="admin11b@example.com", password="password123"),
+    )
+
+    wxr_content = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <link>https://rewrz.com</link>
+    <item>
+      <title>中文文件名下载测试</title>
+      <link>https://rewrz.com/archive/media-download-unicode-name</link>
+      <content:encoded><![CDATA[<p><img src="https://assets.example.com/images/2020%E5%B9%B4%E6%97%A5%E9%A3%9F.jpg" alt="a"/></p>]]></content:encoded>
+      <wp:post_name>media-download-unicode-name</wp:post_name>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2020-07-10 00:00:00</wp:post_date>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_media_download_unicode.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    importer = WordPressImporter(
+        db,
+        options={
+            "import_comments": True,
+            "import_views": True,
+            "import_post_types": ["post", "page"],
+            "postmeta_whitelist": ["views", "post_views_count"],
+            "markdown_strategy": "html_to_markdown",
+            "download_remote_media": True,
+        },
+    )
+    local_media_root = tmp_path / "media_uploads"
+    importer._get_media_upload_root = lambda: str(local_media_root)
+    importer._fetch_remote_media_bytes = lambda url, timeout_seconds, max_bytes: (b"fake-jpg-bytes", "image/jpeg")
+
+    stats = importer.import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+    assert stats.get("media_downloaded", 0) == 1
+
+    post = crud_post.get_post_by_slug(db, "media-download-unicode-name")
+    assert post is not None
+    assert post.content_markdown and "/media/2020/07/" in post.content_markdown
+    assert "2020年日食" in post.content_markdown
+    assert "%E5%B9%B4" not in post.content_markdown
+
+    media_items = db.query(Media).all()
+    assert len(media_items) >= 1
+    normalized_path = media_items[0].filepath.replace("\\", "/")
+    assert "/2020/07/" in normalized_path
+    assert "2020年日食" in normalized_path
 
 
 def test_wordpress_import_download_media_can_preserve_original_relative_path(db, tmp_path):
@@ -965,6 +1028,120 @@ def test_wordpress_import_preserve_relative_path_prefers_year_month_segments(db,
     assert len(media_items) >= 1
     normalized_path = media_items[0].filepath.replace("\\", "/")
     assert "/25/03/gallery/" in normalized_path
+
+
+def test_wordpress_import_preserve_relative_path_without_year_month_falls_back_to_post_month(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin13b", email="admin13b@example.com", password="password123"),
+    )
+
+    wxr_content = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <link>https://rewrz.com</link>
+    <item>
+      <title>外链无年月路径回落测试</title>
+      <link>https://rewrz.com/archive/media-fallback-month-post</link>
+      <content:encoded><![CDATA[
+        <p>
+          <img src="https://cdn.example.com/custom/path/assets/gallery/pic-c.png" alt="c"/>
+        </p>
+      ]]></content:encoded>
+      <wp:post_name>media-fallback-month-post</wp:post_name>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2019-12-26 08:00:00</wp:post_date>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_media_fallback_month.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    importer = WordPressImporter(
+        db,
+        options={
+            "import_comments": True,
+            "import_views": True,
+            "import_post_types": ["post", "page"],
+            "postmeta_whitelist": ["views", "post_views_count"],
+            "markdown_strategy": "html_to_markdown",
+            "download_remote_media": True,
+            "remote_media_path_strategy": "preserve_relative_path",
+        },
+    )
+    local_media_root = tmp_path / "media_uploads"
+    importer._get_media_upload_root = lambda: str(local_media_root)
+    importer._fetch_remote_media_bytes = lambda url, timeout_seconds, max_bytes: (b"fake-png-bytes-4", "image/png")
+
+    stats = importer.import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+    assert stats.get("media_downloaded", 0) == 1
+
+    post = crud_post.get_post_by_slug(db, "media-fallback-month-post")
+    assert post is not None
+    assert "/media/2019/12/" in (post.content_markdown or "")
+    assert post.featured_image_url and "/media/2019/12/" in post.featured_image_url
+
+    media_items = db.query(Media).all()
+    assert len(media_items) >= 1
+    normalized_path = media_items[0].filepath.replace("\\", "/")
+    assert "/2019/12/" in normalized_path
+
+
+def test_wordpress_import_invalid_url_text_does_not_break_post_import(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin15b", email="admin15b@example.com", password="password123"),
+    )
+
+    wxr_content = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>异常URL容错测试</title>
+      <content:encoded><![CDATA[
+        <p>今天上了一下http://moeacg.eu5.org，也就是我以前架设的免费博客，记录一下。</p>
+      ]]></content:encoded>
+      <wp:post_name>invalid-url-tolerance-post</wp:post_name>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2012-12-12 23:33:00</wp:post_date>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_invalid_url_tolerance.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    importer = WordPressImporter(
+        db,
+        options={
+            "import_comments": True,
+            "import_views": True,
+            "import_post_types": ["post", "page"],
+            "postmeta_whitelist": ["views", "post_views_count"],
+            "markdown_strategy": "html_to_markdown",
+            "download_remote_media": True,
+        },
+    )
+    local_media_root = tmp_path / "media_uploads"
+    importer._get_media_upload_root = lambda: str(local_media_root)
+
+    stats = importer.import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+
+    post = crud_post.get_post_by_slug(db, "invalid-url-tolerance-post")
+    assert post is not None
 
 
 def test_wordpress_import_decodes_percent_encoded_post_name_slug(db, tmp_path):
