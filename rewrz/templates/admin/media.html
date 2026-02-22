@@ -141,6 +141,8 @@
                     <button id="grid-view-button" class="px-3 py-2 text-sm bg-indigo-600 text-white">网格</button>
                     <button id="list-view-button" class="px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200">列表</button>
                 </div>
+                <button id="select-filtered-button" class="px-3 py-2 text-sm font-semibold text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-100">全选筛选结果</button>
+                <button id="select-all-button" class="px-3 py-2 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg border border-gray-300 hover:bg-gray-200">全选当前页</button>
                 <div id="batch-actions-toolbar" class="hidden items-center space-x-2">
                     <span id="selected-count" class="text-sm font-medium text-gray-700 dark:text-gray-200"></span>
                     <select id="move-folder-select" class="px-3 py-2 border border-gray-300 rounded-lg text-sm"></select>
@@ -204,7 +206,7 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ media.uploaded_at.strftime('%Y-%m-%d') }}</p>
                 </div>
                 <div class="media-overlay absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button class="text-white font-semibold" onclick="showMediaDetails('{{ media.id }}', event)">查看详情</button>
+                    <button class="text-white font-semibold" data-action="details" data-media-id="{{ media.id }}">查看详情</button>
                 </div>
             </div>
             {% endfor %}
@@ -215,6 +217,12 @@
                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">点击“上传文件”开始添加内容。</p>
             </div>
         {% endif %}
+    </div>
+    <div id="media-load-more-container" class="flex items-center justify-center gap-3">
+        <button id="media-load-more-button" class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 {% if not media_has_more %}hidden{% endif %}">
+            加载更多
+        </button>
+        <span id="media-load-more-status" class="text-sm text-gray-500"></span>
     </div>
 </div>
 
@@ -260,36 +268,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const gridViewButton = document.getElementById('grid-view-button');
     const listViewButton = document.getElementById('list-view-button');
     const mediaGrid = document.getElementById('media-grid');
+    const mediaLoadMoreButton = document.getElementById('media-load-more-button');
+    const mediaLoadMoreStatus = document.getElementById('media-load-more-status');
     const batchActionsToolbar = document.getElementById('batch-actions-toolbar');
     const selectedCountSpan = document.getElementById('selected-count');
     const batchMoveButton = document.getElementById('batch-move-button');
     const batchDeleteButton = document.getElementById('batch-delete-button');
     const clearSelectionButton = document.getElementById('clear-selection-button');
+    const selectFilteredButton = document.getElementById('select-filtered-button');
+    const selectAllButton = document.getElementById('select-all-button');
 
     const selectedFiles = new Set();
     const mediaCardState = new Map();
     let currentViewMode = 'grid';
     let currentFolders = Array.isArray(bootstrapFolders) ? bootstrapFolders : [];
     let toolbarRefreshPending = false;
-    let filterApplyPending = false;
+    const mediaPageSize = Number({{ media_page_size | default(60) }}) || 60;
+    let mediaCurrentPage = 1;
+    let mediaHasMore = {{ 1 if media_has_more else 0 }} === 1;
+    let mediaLoading = false;
+    let filterReloadTimer = null;
 
     function rebuildMediaCardState() {
         mediaCardState.clear();
         mediaGrid.querySelectorAll('.media-card').forEach((card) => {
-            const mediaId = String(card.dataset.id || '');
-            if (!mediaId) return;
-            const checkbox = card.querySelector('.media-checkbox');
-            const uploadDateMs = Date.parse(card.dataset.uploadDate || '');
-            mediaCardState.set(mediaId, {
-                card,
-                checkbox,
-                title: (card.dataset.title || '').toLowerCase(),
-                fileType: card.dataset.fileType || '',
-                folder: card.dataset.folder || '',
-                uploadDateMs: Number.isFinite(uploadDateMs) ? uploadDateMs : null,
-                visible: true,
-            });
+            registerMediaCard(card);
         });
+    }
+
+    function registerMediaCard(card) {
+        const mediaId = String(card.dataset.id || '');
+        if (!mediaId) return;
+        const checkbox = card.querySelector('.media-checkbox');
+        mediaCardState.set(mediaId, { card, checkbox });
     }
 
     function setViewMode(mode) {
@@ -303,6 +314,203 @@ document.addEventListener('DOMContentLoaded', () => {
         listViewButton.className = isGrid
             ? 'px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200'
             : 'px-3 py-2 text-sm bg-indigo-600 text-white';
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function normalizeDateText(raw) {
+        const value = String(raw || '');
+        if (!value) return '';
+        if (value.length >= 10) {
+            return value.slice(0, 10);
+        }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return '';
+        const year = parsed.getFullYear();
+        const month = String(parsed.getMonth() + 1).padStart(2, '0');
+        const day = String(parsed.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function getMediaEmptyHtml() {
+        return `
+            <div class="col-span-full text-center py-16">
+                <svg class="mx-auto h-16 w-16 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-gray-200">媒体库为空</h3>
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">点击“上传文件”开始添加内容。</p>
+            </div>
+        `;
+    }
+
+    function createMediaCardElement(item) {
+        const mediaId = String(item?.id ?? '');
+        const title = String(item?.title || item?.filename || '');
+        const filename = String(item?.filename || '');
+        const folder = String(item?.folder || '');
+        const uploadDate = normalizeDateText(item?.uploaded_at);
+        const fileType = String(item?.file_type || '');
+        const mediaUrl = String(item?.url || '');
+        const altText = String(item?.alt_text || title || filename);
+        const isImage = fileType.startsWith('image');
+
+        const card = document.createElement('div');
+        card.className = 'media-card group relative border bg-white dark:bg-gray-800 rounded-lg shadow-sm cursor-pointer';
+        card.dataset.id = mediaId;
+        card.dataset.title = title;
+        card.dataset.fileType = fileType;
+        card.dataset.uploadDate = uploadDate;
+        card.dataset.folder = folder;
+
+        const mediaPreview = isImage
+            ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(altText)}" class="w-full h-full object-cover" loading="lazy" decoding="async">`
+            : `<div class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
+                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+            </div>`;
+
+        card.innerHTML = `
+            <div class="media-checkbox-wrap absolute top-2 left-2 z-10">
+                <input type="checkbox" class="media-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" value="${escapeHtml(mediaId)}">
+            </div>
+            <div class="media-preview-shell relative w-full aspect-w-1 aspect-h-1 bg-gray-100 dark:bg-gray-700 rounded-t-lg overflow-hidden">
+                ${mediaPreview}
+            </div>
+            <div class="media-meta p-3">
+                <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate" title="${escapeHtml(title)}">${escapeHtml(title)}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 truncate">${escapeHtml(folder || '根目录')}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">${escapeHtml(uploadDate)}</p>
+            </div>
+            <div class="media-overlay absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <button class="text-white font-semibold" data-action="details" data-media-id="${escapeHtml(mediaId)}">查看详情</button>
+            </div>
+        `;
+        return card;
+    }
+
+    function appendMediaItems(items) {
+        const fragment = document.createDocumentFragment();
+        items.forEach((item) => {
+            const card = createMediaCardElement(item);
+            registerMediaCard(card);
+            fragment.appendChild(card);
+        });
+        mediaGrid.appendChild(fragment);
+        updateSelectAllButtonState();
+    }
+
+    function buildMediaApiUrl(page) {
+        const params = new URLSearchParams();
+        params.set('page', String(page));
+        params.set('limit', String(mediaPageSize));
+        const search = (searchInput.value || '').trim();
+        if (search) params.set('search', search);
+        if (folderFilter && folderFilter.value && folderFilter.value !== '__all__') {
+            params.set('folder', folderFilter.value);
+        }
+        if (typeFilter.value) {
+            params.set('file_type', typeFilter.value);
+        }
+        if (dateFromFilter.value) {
+            params.set('date_from', dateFromFilter.value);
+        }
+        if (dateToFilter.value) {
+            params.set('date_to', dateToFilter.value);
+        }
+        return `${adminPath}/api/v1/media?${params.toString()}`;
+    }
+
+    function buildMediaIdsApiUrl(limit = 20000) {
+        const params = new URLSearchParams();
+        params.set('limit', String(limit));
+        const search = (searchInput.value || '').trim();
+        if (search) params.set('search', search);
+        if (folderFilter && folderFilter.value && folderFilter.value !== '__all__') {
+            params.set('folder', folderFilter.value);
+        }
+        if (typeFilter.value) {
+            params.set('file_type', typeFilter.value);
+        }
+        if (dateFromFilter.value) {
+            params.set('date_from', dateFromFilter.value);
+        }
+        if (dateToFilter.value) {
+            params.set('date_to', dateToFilter.value);
+        }
+        return `${adminPath}/api/v1/media/ids?${params.toString()}`;
+    }
+
+    function updateLoadMoreState(customText = '') {
+        if (!mediaLoadMoreButton || !mediaLoadMoreStatus) return;
+        mediaLoadMoreButton.disabled = mediaLoading;
+        mediaLoadMoreButton.classList.toggle('hidden', !mediaHasMore);
+        if (customText) {
+            mediaLoadMoreStatus.textContent = customText;
+            return;
+        }
+        if (mediaLoading) {
+            mediaLoadMoreStatus.textContent = '正在加载...';
+            return;
+        }
+        if (mediaHasMore) {
+            mediaLoadMoreStatus.textContent = `当前已加载 ${mediaCardState.size} 项`;
+            return;
+        }
+        mediaLoadMoreStatus.textContent = mediaCardState.size > 0 ? `已加载全部 ${mediaCardState.size} 项` : '';
+    }
+
+    async function loadMediaPage(page, { replace = false } = {}) {
+        if (mediaLoading) return;
+        mediaLoading = true;
+        updateLoadMoreState(page > 1 ? '正在加载更多媒体...' : '正在加载媒体...');
+
+        try {
+            const response = await fetch(buildMediaApiUrl(page), { credentials: 'same-origin' });
+            const items = await response.json();
+            if (!response.ok) {
+                throw new Error(items.detail || response.statusText);
+            }
+            if (!Array.isArray(items)) {
+                throw new Error('媒体接口返回格式异常');
+            }
+
+            if (replace) {
+                selectedFiles.clear();
+                scheduleBatchToolbarUpdate();
+                mediaCardState.clear();
+                mediaGrid.innerHTML = '';
+            }
+
+            if (!items.length && page === 1) {
+                mediaGrid.innerHTML = getMediaEmptyHtml();
+            } else {
+                appendMediaItems(items);
+            }
+
+            mediaCurrentPage = page;
+            mediaHasMore = items.length === mediaPageSize;
+            updateLoadMoreState();
+        } catch (error) {
+            updateLoadMoreState('');
+            window.adminNotify(`媒体加载失败：${error.message}`, 'error', { duration: 4200 });
+        } finally {
+            mediaLoading = false;
+            updateLoadMoreState();
+        }
+    }
+
+    function scheduleServerReload() {
+        if (filterReloadTimer) {
+            clearTimeout(filterReloadTimer);
+        }
+        filterReloadTimer = setTimeout(() => {
+            loadMediaPage(1, { replace: true });
+        }, 220);
     }
 
     function renderFolderOptions(targetSelect, options) {
@@ -403,32 +611,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function applyFilters() {
-        filterApplyPending = false;
-        const searchTerm = (searchInput.value || '').toLowerCase().trim();
-        const selectedType = typeFilter.value;
-        const selectedFolder = folderFilter ? folderFilter.value : '__all__';
-        const fromDateMs = dateFromFilter.value ? Date.parse(dateFromFilter.value) : null;
-        const toDateMs = dateToFilter.value ? Date.parse(`${dateToFilter.value}T23:59:59.999`) : null;
-
-        mediaCardState.forEach((state) => {
-            const hasDate = typeof state.uploadDateMs === 'number';
-            const matchSearch = state.title.includes(searchTerm);
-            const matchType = !selectedType || state.fileType.startsWith(selectedType);
-            const matchFolder = selectedFolder === '__all__' || selectedFolder === state.folder;
-            const matchFrom = fromDateMs === null || (hasDate && state.uploadDateMs >= fromDateMs);
-            const matchTo = toDateMs === null || (hasDate && state.uploadDateMs <= toDateMs);
-            const shouldShow = matchSearch && matchType && matchFolder && matchFrom && matchTo;
-            if (state.visible === shouldShow) return;
-            state.visible = shouldShow;
-            state.card.style.display = shouldShow ? '' : 'none';
-        });
+    function allLoadedCardsSelected() {
+        const cards = Array.from(mediaGrid.querySelectorAll('.media-card'));
+        if (!cards.length) return false;
+        return cards.every((card) => selectedFiles.has(String(card.dataset.id || '')));
     }
 
-    function scheduleApplyFilters() {
-        if (filterApplyPending) return;
-        filterApplyPending = true;
-        requestAnimationFrame(applyFilters);
+    function updateSelectAllButtonState() {
+        if (!selectAllButton) return;
+        const cardCount = mediaGrid.querySelectorAll('.media-card').length;
+        if (!cardCount) {
+            selectAllButton.disabled = true;
+            selectAllButton.classList.add('opacity-50', 'cursor-not-allowed');
+            selectAllButton.textContent = '全选当前页';
+            return;
+        }
+        selectAllButton.disabled = false;
+        selectAllButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        selectAllButton.textContent = allLoadedCardsSelected() ? '取消全选' : '全选当前页';
     }
 
     function updateBatchToolbar() {
@@ -442,6 +642,7 @@ document.addEventListener('DOMContentLoaded', () => {
             batchActionsToolbar.classList.remove('inline-flex');
             selectedCountSpan.textContent = '';
         }
+        updateSelectAllButtonState();
     }
 
     function scheduleBatchToolbarUpdate() {
@@ -467,6 +668,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleMediaGridClick(event) {
+        const detailsButton = event.target.closest('[data-action="details"]');
+        if (detailsButton && mediaGrid.contains(detailsButton)) {
+            const mediaId = String(detailsButton.dataset.mediaId || '');
+            if (mediaId) {
+                window.showMediaDetails(mediaId, event);
+            }
+            return;
+        }
         const card = event.target.closest('.media-card');
         if (!card || !mediaGrid.contains(card)) return;
         if (event.target.closest('button')) return;
@@ -489,6 +698,48 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.checkbox) state.checkbox.checked = false;
         });
         scheduleBatchToolbarUpdate();
+    });
+
+    selectAllButton?.addEventListener('click', () => {
+        const cards = Array.from(mediaGrid.querySelectorAll('.media-card'));
+        if (!cards.length) return;
+        const nextChecked = !allLoadedCardsSelected();
+        cards.forEach((card) => setCardSelection(card, nextChecked));
+    });
+
+    selectFilteredButton?.addEventListener('click', async () => {
+        selectFilteredButton.disabled = true;
+        try {
+            const response = await fetch(buildMediaIdsApiUrl(), { credentials: 'same-origin' });
+            const payload = await response.json();
+            if (!response.ok) {
+                throw new Error(payload.detail || response.statusText);
+            }
+            if (!Array.isArray(payload)) {
+                throw new Error('接口返回格式异常');
+            }
+
+            selectedFiles.clear();
+            payload.forEach((rawId) => {
+                const mediaId = Number.parseInt(String(rawId), 10);
+                if (Number.isFinite(mediaId) && mediaId > 0) {
+                    selectedFiles.add(String(mediaId));
+                }
+            });
+
+            mediaCardState.forEach((state, mediaId) => {
+                const checked = selectedFiles.has(String(mediaId));
+                if (state.checkbox) state.checkbox.checked = checked;
+                state.card.classList.toggle('selected', checked);
+            });
+
+            scheduleBatchToolbarUpdate();
+            window.adminNotify(`已选中筛选结果 ${selectedFiles.size} 项。`, 'success');
+        } catch (error) {
+            window.adminNotify(`全选筛选结果失败：${error.message}`, 'error', { duration: 4200 });
+        } finally {
+            selectFilteredButton.disabled = false;
+        }
     });
 
     batchMoveButton.addEventListener('click', async () => {
@@ -555,14 +806,9 @@ document.addEventListener('DOMContentLoaded', () => {
             scheduleBatchToolbarUpdate();
 
             if (!mediaGrid.querySelector('.media-card')) {
-                mediaGrid.innerHTML = `
-                    <div class="col-span-full text-center py-16">
-                        <svg class="mx-auto h-16 w-16 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-gray-200">媒体库为空</h3>
-                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">点击“上传文件”开始添加内容。</p>
-                    </div>
-                `;
+                mediaGrid.innerHTML = getMediaEmptyHtml();
             }
+            updateLoadMoreState();
 
             const deletedCount = Number(result.deleted_count || 0);
             const skippedCount = Array.isArray(result.skipped) ? result.skipped.length : 0;
@@ -713,19 +959,26 @@ document.addEventListener('DOMContentLoaded', () => {
     gridViewButton.addEventListener('click', () => setViewMode('grid'));
     listViewButton.addEventListener('click', () => setViewMode('list'));
 
-    [searchInput, folderFilter, typeFilter, dateFromFilter, dateToFilter].forEach((element) => {
-        element.addEventListener('input', scheduleApplyFilters);
-        element.addEventListener('change', scheduleApplyFilters);
+    searchInput.addEventListener('input', scheduleServerReload);
+    [folderFilter, typeFilter, dateFromFilter, dateToFilter].forEach((element) => {
+        element.addEventListener('change', () => {
+            loadMediaPage(1, { replace: true });
+        });
+    });
+    mediaLoadMoreButton?.addEventListener('click', () => {
+        if (!mediaHasMore || mediaLoading) return;
+        loadMediaPage(mediaCurrentPage + 1, { replace: false });
     });
 
     setViewMode('grid');
     rebuildMediaCardState();
+    updateSelectAllButtonState();
     mediaGrid.addEventListener('click', handleMediaGridClick);
+    updateLoadMoreState();
     loadFolders().finally(() => {
         if (folderFilter && !folderFilter.value) {
             folderFilter.value = '__all__';
         }
-        scheduleApplyFilters();
     });
 
     window.showMediaDetails = async (mediaId, event) => {

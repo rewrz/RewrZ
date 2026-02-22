@@ -13,7 +13,9 @@ class MediaBase(BaseModel):
     description: Optional[str] = None
 
 class MediaCreate(MediaBase):
-    pass
+    folder: str = ""
+    file_hash: str = ""
+    file_size: int = 0
 
 class MediaUpdate(BaseModel):
     title: Optional[str] = None

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -10,7 +11,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session, joinedload
 
 from ..core.config import settings
@@ -58,6 +59,8 @@ os.makedirs(UPLOAD_ROOT, exist_ok=True)
 THUMBNAIL_SIZE_NAMES = ("thumbnail", "small", "medium", "large", "cover")
 DEFAULT_MEDIA_FOLDERS = ("covers", "avatars", "backgrounds", "articles", "misc")
 FILE_HASH_CACHE: Dict[str, Tuple[int, float, str]] = {}
+FOLDER_CACHE_TTL_SECONDS = 60
+MEDIA_FOLDER_CACHE: Dict[str, Any] = {"expires_at": 0.0, "items": None}
 
 
 def _get_setting_value(db: Session, key: str, default):
@@ -83,6 +86,11 @@ def _get_media_cdn_base(db: Session) -> Optional[str]:
 def _ensure_default_folders() -> None:
     for folder in DEFAULT_MEDIA_FOLDERS:
         (UPLOAD_ROOT / folder).mkdir(parents=True, exist_ok=True)
+
+
+def _invalidate_media_folder_cache() -> None:
+    MEDIA_FOLDER_CACHE["expires_at"] = 0.0
+    MEDIA_FOLDER_CACHE["items"] = None
 
 
 def _normalize_folder_path(folder: Optional[str]) -> str:
@@ -125,6 +133,18 @@ def _folder_from_filepath(filepath: str) -> str:
     return "" if parent == "." else parent
 
 
+def _stat_media_file(filepath: str) -> Tuple[str, int]:
+    if not filepath:
+        return "", 0
+    file_path = Path(filepath)
+    if not file_path.exists() or not file_path.is_file():
+        return "", 0
+    try:
+        return _compute_sha256_from_file(file_path), int(file_path.stat().st_size)
+    except OSError:
+        return "", 0
+
+
 def _media_url_from_filepath(filepath: str, cdn_base: Optional[str] = None) -> str:
     relative_path = _relative_media_path(filepath)
     if not relative_path:
@@ -136,7 +156,7 @@ def _media_url_from_filepath(filepath: str, cdn_base: Optional[str] = None) -> s
 
 def _attach_media_url(media_obj: MediaModel, cdn_base: Optional[str] = None) -> MediaModel:
     media_obj.url = _media_url_from_filepath(media_obj.filepath, cdn_base=cdn_base)
-    media_obj.folder = _folder_from_filepath(media_obj.filepath)
+    media_obj.folder = str(getattr(media_obj, "folder", "") or _folder_from_filepath(media_obj.filepath))
     if not hasattr(media_obj, "is_duplicate"):
         media_obj.is_duplicate = False
     return media_obj
@@ -158,6 +178,10 @@ def _delete_media_files_by_filepath(filepath: str) -> None:
     if not filepath:
         return
     original_path = Path(filepath)
+    try:
+        FILE_HASH_CACHE.pop(str(original_path.resolve()), None)
+    except Exception:
+        pass
     _safe_unlink(original_path)
 
     thumbnails_dir = original_path.parent / "thumbnails"
@@ -254,18 +278,16 @@ def _compute_sha256_from_file(path: Path) -> str:
 
 
 def _find_duplicate_media(db: Session, upload_hash: str, file_size: int) -> Optional[MediaModel]:
-    media_items = db.execute(select(MediaModel)).scalars().all()
+    if not upload_hash or file_size < 0:
+        return None
+    media_items = db.execute(
+        select(MediaModel)
+        .filter(MediaModel.file_hash == upload_hash)
+        .filter(MediaModel.file_size == int(file_size))
+        .order_by(MediaModel.id.asc())
+    ).scalars().all()
     for item in media_items:
-        file_path = Path(item.filepath)
-        if not file_path.exists() or not file_path.is_file():
-            continue
-        try:
-            if file_path.stat().st_size != file_size:
-                continue
-            existing_hash = _compute_sha256_from_file(file_path)
-        except OSError:
-            continue
-        if existing_hash == upload_hash:
+        if Path(item.filepath).is_file():
             return item
     return None
 
@@ -419,6 +441,19 @@ def _sanitize_media_ids(raw_media_ids: List[int]) -> List[int]:
     return media_ids
 
 
+def _parse_media_filter_date(date_text: Optional[str], *, end_of_day: bool = False) -> Optional[datetime]:
+    raw = str(date_text or "").strip()
+    if not raw:
+        return None
+    try:
+        parsed = datetime.strptime(raw, "%Y-%m-%d")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="日期格式不正确，请使用 YYYY-MM-DD") from exc
+    if end_of_day:
+        return parsed.replace(hour=23, minute=59, second=59, microsecond=999999)
+    return parsed
+
+
 def _move_media_record_to_folder(db_media: MediaModel, target_folder: str) -> Tuple[str, str]:
     old_path = Path(db_media.filepath).resolve()
     if old_path != UPLOAD_ROOT and UPLOAD_ROOT not in old_path.parents:
@@ -437,23 +472,42 @@ def _move_media_record_to_folder(db_media: MediaModel, target_folder: str) -> Tu
     shutil.move(str(old_path), str(new_path))
     _move_related_media_files(old_path, new_path)
     db_media.filepath = str(new_path)
+    db_media.folder = _folder_from_filepath(db_media.filepath)
+    if not db_media.file_hash or int(db_media.file_size or 0) <= 0:
+        file_hash, file_size = _stat_media_file(db_media.filepath)
+        if file_hash:
+            db_media.file_hash = file_hash
+        if file_size > 0:
+            db_media.file_size = file_size
     return str(old_path), str(new_path)
 
 
 def _list_media_folders(db: Session) -> List[Dict[str, Any]]:
     _ensure_default_folders()
-    media_items = db.execute(select(MediaModel.filepath)).scalars().all()
+    now_ts = time.time()
+    cached_items = MEDIA_FOLDER_CACHE.get("items")
+    expires_at = float(MEDIA_FOLDER_CACHE.get("expires_at") or 0.0)
+    if isinstance(cached_items, list) and cached_items and now_ts < expires_at:
+        return [dict(item) for item in cached_items]
+
+    folder_rows = db.execute(
+        select(MediaModel.folder, func.count(MediaModel.id)).group_by(MediaModel.folder)
+    ).all()
     folder_counts: Dict[str, int] = {}
-    for filepath in media_items:
-        folder = _folder_from_filepath(filepath)
-        folder_counts[folder] = folder_counts.get(folder, 0) + 1
+    for folder_value, count_value in folder_rows:
+        folder_key = str(folder_value or "")
+        folder_counts[folder_key] = int(count_value or 0)
 
     disk_folders: Set[str] = set()
     for folder_path in UPLOAD_ROOT.rglob("*"):
-        if folder_path.is_dir():
+        if not folder_path.is_dir():
+            continue
+        try:
             rel = folder_path.resolve().relative_to(UPLOAD_ROOT).as_posix()
-            if rel and rel != "." and "thumbnails" not in rel.split("/"):
-                disk_folders.add(rel)
+        except Exception:
+            continue
+        if rel and rel != "." and "thumbnails" not in rel.split("/"):
+            disk_folders.add(rel)
 
     all_folders: Set[str] = set(DEFAULT_MEDIA_FOLDERS) | set(folder_counts.keys()) | disk_folders
     all_folders.discard("__all__")
@@ -473,6 +527,8 @@ def _list_media_folders(db: Session) -> List[Dict[str, Any]]:
                 "count": folder_counts.get(folder, 0),
             }
         )
+    MEDIA_FOLDER_CACHE["items"] = [dict(item) for item in result]
+    MEDIA_FOLDER_CACHE["expires_at"] = now_ts + FOLDER_CACHE_TTL_SECONDS
     return result
 
 
@@ -481,9 +537,29 @@ def _collect_duplicate_groups(
     current_user_id: int,
     cdn_base: Optional[str],
 ) -> Dict[str, Any]:
+    duplicate_keys_subquery = (
+        select(
+            MediaModel.file_hash.label("file_hash"),
+            MediaModel.file_size.label("file_size"),
+        )
+        .filter(MediaModel.uploaded_by_id == current_user_id)
+        .filter(MediaModel.file_hash != "")
+        .filter(MediaModel.file_size > 0)
+        .group_by(MediaModel.file_hash, MediaModel.file_size)
+        .having(func.count(MediaModel.id) > 1)
+        .subquery()
+    )
+
     media_items = (
         db.execute(
             select(MediaModel)
+            .join(
+                duplicate_keys_subquery,
+                and_(
+                    MediaModel.file_hash == duplicate_keys_subquery.c.file_hash,
+                    MediaModel.file_size == duplicate_keys_subquery.c.file_size,
+                ),
+            )
             .filter(MediaModel.uploaded_by_id == current_user_id)
             .order_by(MediaModel.uploaded_at.asc(), MediaModel.id.asc())
         )
@@ -493,13 +569,9 @@ def _collect_duplicate_groups(
 
     grouped: Dict[str, Dict[str, Any]] = {}
     for item in media_items:
-        file_path = Path(item.filepath)
-        if not file_path.exists() or not file_path.is_file():
-            continue
-        try:
-            file_size = int(file_path.stat().st_size)
-            file_hash = _compute_sha256_from_file(file_path)
-        except OSError:
+        file_hash = str(item.file_hash or "")
+        file_size = int(item.file_size or 0)
+        if not file_hash or file_size <= 0:
             continue
 
         key = f"{file_size}:{file_hash}"
@@ -611,6 +683,8 @@ def _cleanup_duplicate_groups(
     else:
         try:
             db.commit()
+            if removed_ids:
+                _invalidate_media_folder_cache()
         except Exception as exc:
             db.rollback()
             raise HTTPException(status_code=500, detail=f"清理重复文件失败: {exc}") from exc
@@ -632,7 +706,10 @@ async def media_library_page(
     current_user: User = Depends(get_current_user),
 ):
     _ensure_default_folders()
-    media_items = crud_media.get_all_media(db=db)
+    page_size = 60
+    initial_batch = crud_media.get_all_media(db=db, skip=0, limit=page_size + 1)
+    has_more = len(initial_batch) > page_size
+    media_items = initial_batch[:page_size]
     cdn_base = _get_media_cdn_base(db)
     for item in media_items:
         _attach_media_url(item, cdn_base=cdn_base)
@@ -644,6 +721,8 @@ async def media_library_page(
             "user": current_user,
             "media_items": media_items,
             "media_folders": _list_media_folders(db),
+            "media_page_size": page_size,
+            "media_has_more": has_more,
         },
     )
 
@@ -656,12 +735,18 @@ async def get_media_items_api(
     limit: int = 12,
     search: Optional[str] = None,
     folder: Optional[str] = None,
+    file_type: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     page = max(1, int(page))
     limit = max(1, min(200, int(limit)))
     skip = (page - 1) * limit
+    file_type_prefix = (file_type or "").strip().lower() or None
+    uploaded_from = _parse_media_filter_date(date_from, end_of_day=False)
+    uploaded_to = _parse_media_filter_date(date_to, end_of_day=True)
 
     folder_filter: Optional[str] = None
     if folder is not None and folder != "__all__":
@@ -670,18 +755,56 @@ async def get_media_items_api(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    if folder_filter is None:
-        media_items = crud_media.get_all_media(db=db, skip=skip, limit=limit, search=search)
-    else:
-        # Folder filter is path-based and easy to maintain in Python layer.
-        all_items = crud_media.get_all_media(db=db, skip=0, limit=5000, search=search)
-        filtered_items = [item for item in all_items if _folder_from_filepath(item.filepath) == folder_filter]
-        media_items = filtered_items[skip : skip + limit]
+    media_items = crud_media.get_all_media(
+        db=db,
+        skip=skip,
+        limit=limit,
+        search=search,
+        folder=folder_filter,
+        file_type_prefix=file_type_prefix,
+        uploaded_from=uploaded_from,
+        uploaded_to=uploaded_to,
+    )
 
     cdn_base = _get_media_cdn_base(db)
     for item in media_items:
         _attach_media_url(item, cdn_base=cdn_base)
     return media_items
+
+
+@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/ids", response_model=List[int])
+@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/ids", response_model=List[int])
+async def get_media_item_ids_api(
+    request: Request,
+    search: Optional[str] = None,
+    folder: Optional[str] = None,
+    file_type: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    limit: int = 10000,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    file_type_prefix = (file_type or "").strip().lower() or None
+    uploaded_from = _parse_media_filter_date(date_from, end_of_day=False)
+    uploaded_to = _parse_media_filter_date(date_to, end_of_day=True)
+
+    folder_filter: Optional[str] = None
+    if folder is not None and folder != "__all__":
+        try:
+            folder_filter = _normalize_folder_path(folder)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return crud_media.get_media_ids(
+        db=db,
+        search=search,
+        folder=folder_filter,
+        file_type_prefix=file_type_prefix,
+        uploaded_from=uploaded_from,
+        uploaded_to=uploaded_to,
+        limit=limit,
+    )
 
 
 @router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/folders")
@@ -712,6 +835,7 @@ def create_media_folder(
 
     target_dir = (UPLOAD_ROOT / folder).resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
+    _invalidate_media_folder_cache()
     return {"folder": folder, "message": "文件夹创建成功"}
 
 
@@ -782,8 +906,8 @@ async def upload_media(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     cdn_base = _get_media_cdn_base(db)
+    upload_hash = _compute_sha256_from_bytes(file_content)
     if deduplicate:
-        upload_hash = _compute_sha256_from_bytes(file_content)
         duplicate = _find_duplicate_media(db, upload_hash, file_size)
         if duplicate is not None:
             _attach_media_url(duplicate, cdn_base=cdn_base)
@@ -825,13 +949,20 @@ async def upload_media(
     media_create = MediaCreate(
         filename=original_name,
         filepath=str(filepath),
+        folder=_folder_from_filepath(str(filepath)),
         file_type=file_info.get("file_type", "other"),
         mime_type=file.content_type or file_info.get("mime_type") or "application/octet-stream",
+        file_hash="",
+        file_size=0,
         title=title or Path(original_name).stem,
         alt_text=alt_text,
         description=description,
     )
+    stored_hash, stored_size = _stat_media_file(str(filepath))
+    media_create.file_hash = stored_hash or upload_hash
+    media_create.file_size = stored_size or file_size
     db_media = crud_media.create_media(db=db, media=media_create, uploaded_by_id=current_user.id)
+    _invalidate_media_folder_cache()
 
     _attach_media_url(db_media, cdn_base=cdn_base)
     db_media.is_duplicate = False
@@ -923,6 +1054,7 @@ def move_media_item(
     try:
         db.commit()
         db.refresh(db_media)
+        _invalidate_media_folder_cache()
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"移动媒体失败: {exc}") from exc
@@ -977,6 +1109,8 @@ def bulk_move_media_items(
     _replace_media_references(db, replacements)
     try:
         db.commit()
+        if moved_ids:
+            _invalidate_media_folder_cache()
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"批量移动失败: {exc}") from exc
@@ -1008,6 +1142,7 @@ def delete_media_item(
 
     _delete_media_files(db_media)
     crud_media.delete_media(db=db, media_id=media_id)
+    _invalidate_media_folder_cache()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -1053,6 +1188,7 @@ def bulk_delete_media_items(
         try:
             db.query(MediaModel).filter(MediaModel.id.in_(deletable_ids)).delete(synchronize_session=False)
             db.commit()
+            _invalidate_media_folder_cache()
         except Exception as exc:
             db.rollback()
             raise HTTPException(status_code=500, detail=f"批量删除媒体记录失败: {exc}") from exc

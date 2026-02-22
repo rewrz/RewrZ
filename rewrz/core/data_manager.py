@@ -1216,11 +1216,17 @@ class WordPressImporter:
         if existing_media is None:
             media_filename = original_name or os.path.basename(filepath)
             title = os.path.splitext(media_filename)[0] if media_filename else stem
+            relative_dir = os.path.dirname(os.path.relpath(filepath, upload_root)).replace("\\", "/")
+            folder = "" if relative_dir in {"", "."} else relative_dir
+            file_hash = hashlib.sha256(payload).hexdigest()
             db_media = Media(
                 filename=media_filename,
                 filepath=filepath,
+                folder=folder,
                 file_type=self._guess_file_type(mime_type, source_url),
                 mime_type=mime_type or (mimetypes.guess_type(filename)[0] or "application/octet-stream"),
+                file_hash=file_hash,
+                file_size=len(payload),
                 title=title[:255] if title else stem,
                 alt_text="",
                 description=f"Imported from WordPress: {source_url}",
