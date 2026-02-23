@@ -28,6 +28,7 @@ class Media(MediaBase):
     uploaded_by_id: int
     uploaded_by: Optional[User] = None
     url: str # 修改为str类型
+    preview_url: str = ""
     folder: Optional[str] = ""
     is_duplicate: bool = False
 

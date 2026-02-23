@@ -10,6 +10,12 @@ class Media(Base):
         Index("ix_media_uploaded_by_folder", "uploaded_by_id", "folder"),
         Index("ix_media_file_hash", "file_hash"),
         Index("ix_media_uploaded_by_hash_size", "uploaded_by_id", "file_hash", "file_size"),
+        # 优化按文件夹过滤+时间排序的分页查询
+        Index("ix_media_folder_uploaded_at", "folder", "uploaded_at"),
+        # 优化按上传时间排序的查询
+        Index("ix_media_uploaded_at_desc", "uploaded_at"),
+        # 优化按类型+时间排序的查询
+        Index("ix_media_file_type_uploaded_at", "file_type", "uploaded_at"),
     )
 
     id = Column(Integer, primary_key=True, index=True)

@@ -9,9 +9,9 @@
     {% else %}
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     {% endif %}
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/admin-tailwind.css') }}">
+    <script src="{{ url_for('static', path='vendor/htmx/htmx.min.js') }}" defer></script>
+    <link rel="stylesheet" href="{{ url_for('static', path='vendor/font-awesome/css/all.min.css') }}">
     <link id="admin-theme-variables" rel="stylesheet" href="/api/v1/theme/variables.css">
     <link rel="stylesheet" href="{{ url_for('static', path='css/unified-theme.css') }}">
     {% set login_background_url = request.state.admin_login_background_image_url if request.state.admin_login_background_image_url else '/static/images/anime/covers/home-default.svg' %}

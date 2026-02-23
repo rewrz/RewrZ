@@ -5,16 +5,70 @@
 {% block head %}
 {{ super() }}
 <style>
-    /* Custom styles for media library */
+    /* 媒体库交互性能优化：固定尺寸，减少重排与重绘 */
+    #media-grid {
+        align-items: start;
+    }
     .media-card {
-        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        contain: layout style paint;
+        content-visibility: auto;
+        contain-intrinsic-size: 280px 320px;
+        box-shadow: none !important;
+        outline: 2px solid transparent;
+        outline-offset: -2px;
+        transition: outline-color 0.08s linear;
+    }
+    .media-preview-shell {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        overflow: hidden;
+    }
+    .media-preview-shell img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .media-meta {
+        min-height: 72px;
+    }
+    .media-detail-button {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        z-index: 15;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.38rem 0.62rem;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(79, 70, 229, 0.95);
+        background: rgba(79, 70, 229, 0.95);
+        color: #ffffff;
+        font-size: 0.76rem;
+        font-weight: 600;
+        line-height: 1;
+        pointer-events: auto;
+        box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+    }
+    .media-detail-button:hover {
+        background: #4338ca;
+        border-color: #4338ca;
+    }
+    .media-detail-button:focus-visible {
+        outline: 2px solid #c7d2fe;
+        outline-offset: 1px;
     }
     .media-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        outline-color: rgba(99, 102, 241, 0.4);
     }
     .media-card.selected {
-        box-shadow: 0 0 0 3px #4f46e5; /* Indigo-600 */
+        outline: 3px solid #4f46e5; /* Indigo-600 */
+        outline-offset: -3px;
         border-color: #4f46e5;
     }
     .upload-drop-zone.dragover {
@@ -54,17 +108,14 @@
     #media-grid.list-view .media-meta {
         padding: 0;
     }
-    #media-grid.list-view .media-overlay {
+    #media-grid.list-view .media-detail-button {
         position: static;
-        opacity: 1;
-        background: transparent;
-        justify-content: flex-end;
-    }
-    #media-grid.list-view .media-overlay button {
-        color: #374151;
-        background: #f3f4f6;
-        border-radius: 0.5rem;
-        padding: 0.4rem 0.75rem;
+        justify-self: end;
+        margin-left: auto;
+        margin-right: 0;
+        background: #4f46e5;
+        color: #ffffff;
+        border-color: #4f46e5;
     }
     #media-grid.list-view .media-checkbox-wrap {
         left: 0.75rem;
@@ -73,8 +124,8 @@
         #media-grid.list-view .media-card {
             grid-template-columns: 1fr;
         }
-        #media-grid.list-view .media-overlay {
-            justify-content: flex-start;
+        #media-grid.list-view .media-detail-button {
+            justify-self: start;
         }
     }
 </style>
@@ -185,9 +236,9 @@
                 <div class="media-checkbox-wrap absolute top-2 left-2 z-10">
                     <input type="checkbox" class="media-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" value="{{ media.id }}">
                 </div>
-                <div class="media-preview-shell relative w-full aspect-w-1 aspect-h-1 bg-gray-100 dark:bg-gray-700 rounded-t-lg overflow-hidden">
+                <div class="media-preview-shell bg-gray-100 dark:bg-gray-700 rounded-t-lg">
                     {% if media.file_type.startswith('image') %}
-                        <img src="{{ media.url or (media.filepath | url) }}" alt="{{ media.alt_text or media.title }}" class="w-full h-full object-cover" loading="lazy" decoding="async">
+                        <img src="{{ media.preview_url or media.url or (media.filepath | url) }}" alt="{{ media.alt_text or media.title }}" loading="lazy" decoding="async">
                     {% else %}
                         <div class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
                             {% if media.file_type.startswith('video') %}
@@ -205,16 +256,17 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ media.folder or '根目录' }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ media.uploaded_at.strftime('%Y-%m-%d') }}</p>
                 </div>
-                <div class="media-overlay absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button class="text-white font-semibold" data-action="details" data-media-id="{{ media.id }}">查看详情</button>
-                </div>
+                <button class="media-detail-button" data-action="details" data-media-id="{{ media.id }}" aria-label="查看详情">
+                    <i class="fas fa-eye" aria-hidden="true"></i>
+                    <span>查看详情</span>
+                </button>
             </div>
             {% endfor %}
         {% else %}
             <div class="col-span-full text-center py-16">
                 <svg class="mx-auto h-16 w-16 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-gray-200">媒体库为空</h3>
-                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">点击“上传文件”开始添加内容。</p>
+                <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-gray-200">正在加载媒体</h3>
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">首次加载可能需要几秒，请稍候。</p>
             </div>
         {% endif %}
     </div>
@@ -283,7 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentViewMode = 'grid';
     let currentFolders = Array.isArray(bootstrapFolders) ? bootstrapFolders : [];
     let toolbarRefreshPending = false;
-    const mediaPageSize = Number({{ media_page_size | default(60) }}) || 60;
+    const mediaPageSize = Number({{ media_page_size | default(24) }}) || 24;
     let mediaCurrentPage = 1;
     let mediaHasMore = {{ 1 if media_has_more else 0 }} === 1;
     let mediaLoading = false;
@@ -356,12 +408,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const folder = String(item?.folder || '');
         const uploadDate = normalizeDateText(item?.uploaded_at);
         const fileType = String(item?.file_type || '');
-        const mediaUrl = String(item?.url || '');
+        const previewUrl = String(item?.preview_url || item?.url || '');
         const altText = String(item?.alt_text || title || filename);
         const isImage = fileType.startsWith('image');
 
         const card = document.createElement('div');
-        card.className = 'media-card group relative border bg-white dark:bg-gray-800 rounded-lg shadow-sm cursor-pointer';
+        card.className = 'media-card relative border bg-white dark:bg-gray-800 rounded-lg cursor-pointer';
         card.dataset.id = mediaId;
         card.dataset.title = title;
         card.dataset.fileType = fileType;
@@ -369,7 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
         card.dataset.folder = folder;
 
         const mediaPreview = isImage
-            ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(altText)}" class="w-full h-full object-cover" loading="lazy" decoding="async">`
+            ? `<img src="${escapeHtml(previewUrl)}" alt="${escapeHtml(altText)}" loading="lazy" decoding="async">`
             : `<div class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
                 <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
             </div>`;
@@ -378,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="media-checkbox-wrap absolute top-2 left-2 z-10">
                 <input type="checkbox" class="media-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" value="${escapeHtml(mediaId)}">
             </div>
-            <div class="media-preview-shell relative w-full aspect-w-1 aspect-h-1 bg-gray-100 dark:bg-gray-700 rounded-t-lg overflow-hidden">
+            <div class="media-preview-shell bg-gray-100 dark:bg-gray-700 rounded-t-lg">
                 ${mediaPreview}
             </div>
             <div class="media-meta p-3">
@@ -386,9 +438,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p class="text-xs text-gray-500 dark:text-gray-400 truncate">${escapeHtml(folder || '根目录')}</p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">${escapeHtml(uploadDate)}</p>
             </div>
-            <div class="media-overlay absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <button class="text-white font-semibold" data-action="details" data-media-id="${escapeHtml(mediaId)}">查看详情</button>
-            </div>
+            <button class="media-detail-button" data-action="details" data-media-id="${escapeHtml(mediaId)}" aria-label="查看详情">
+                <i class="fas fa-eye" aria-hidden="true"></i>
+                <span>查看详情</span>
+            </button>
         `;
         return card;
     }
@@ -975,11 +1028,19 @@ document.addEventListener('DOMContentLoaded', () => {
     updateSelectAllButtonState();
     mediaGrid.addEventListener('click', handleMediaGridClick);
     updateLoadMoreState();
-    loadFolders().finally(() => {
-        if (folderFilter && !folderFilter.value) {
-            folderFilter.value = '__all__';
-        }
-    });
+    loadMediaPage(1, { replace: true });
+    const scheduleLoadFolders = () => {
+        loadFolders().finally(() => {
+            if (folderFilter && !folderFilter.value) {
+                folderFilter.value = '__all__';
+            }
+        });
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => scheduleLoadFolders(), { timeout: 1200 });
+    } else {
+        setTimeout(scheduleLoadFolders, 350);
+    }
 
     window.showMediaDetails = async (mediaId, event) => {
         event.stopPropagation();
@@ -1087,4 +1148,3 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 {% endblock %}
-

@@ -59,8 +59,9 @@ os.makedirs(UPLOAD_ROOT, exist_ok=True)
 THUMBNAIL_SIZE_NAMES = ("thumbnail", "small", "medium", "large", "cover")
 DEFAULT_MEDIA_FOLDERS = ("covers", "avatars", "backgrounds", "articles", "misc")
 FILE_HASH_CACHE: Dict[str, Tuple[int, float, str]] = {}
-FOLDER_CACHE_TTL_SECONDS = 60
+FOLDER_CACHE_TTL_SECONDS = 300
 MEDIA_FOLDER_CACHE: Dict[str, Any] = {"expires_at": 0.0, "items": None}
+MEDIA_LIBRARY_PAGE_SIZE = 24
 
 
 def _get_setting_value(db: Session, key: str, default):
@@ -154,8 +155,28 @@ def _media_url_from_filepath(filepath: str, cdn_base: Optional[str] = None) -> s
     return f"/media/{relative_path}"
 
 
+def _media_preview_url_from_filepath(filepath: str, file_type: str, cdn_base: Optional[str] = None) -> str:
+    original_url = _media_url_from_filepath(filepath, cdn_base=cdn_base)
+    if not str(file_type or "").startswith("image"):
+        return original_url
+
+    original_path = Path(filepath)
+    thumbnail_path = original_path.parent / "thumbnails" / f"{original_path.stem}_thumbnail{original_path.suffix}"
+    try:
+        if thumbnail_path.is_file():
+            return _media_url_from_filepath(str(thumbnail_path), cdn_base=cdn_base)
+    except OSError:
+        pass
+    return original_url
+
+
 def _attach_media_url(media_obj: MediaModel, cdn_base: Optional[str] = None) -> MediaModel:
     media_obj.url = _media_url_from_filepath(media_obj.filepath, cdn_base=cdn_base)
+    media_obj.preview_url = _media_preview_url_from_filepath(
+        media_obj.filepath,
+        str(getattr(media_obj, "file_type", "") or ""),
+        cdn_base=cdn_base,
+    )
     media_obj.folder = str(getattr(media_obj, "folder", "") or _folder_from_filepath(media_obj.filepath))
     if not hasattr(media_obj, "is_duplicate"):
         media_obj.is_duplicate = False
@@ -483,13 +504,14 @@ def _move_media_record_to_folder(db_media: MediaModel, target_folder: str) -> Tu
 
 
 def _list_media_folders(db: Session) -> List[Dict[str, Any]]:
-    _ensure_default_folders()
+    """获取媒体文件夹列表（仅从数据库获取，不扫描磁盘）"""
     now_ts = time.time()
     cached_items = MEDIA_FOLDER_CACHE.get("items")
     expires_at = float(MEDIA_FOLDER_CACHE.get("expires_at") or 0.0)
     if isinstance(cached_items, list) and cached_items and now_ts < expires_at:
         return [dict(item) for item in cached_items]
 
+    # 仅从数据库获取文件夹统计，不再扫描磁盘
     folder_rows = db.execute(
         select(MediaModel.folder, func.count(MediaModel.id)).group_by(MediaModel.folder)
     ).all()
@@ -498,18 +520,8 @@ def _list_media_folders(db: Session) -> List[Dict[str, Any]]:
         folder_key = str(folder_value or "")
         folder_counts[folder_key] = int(count_value or 0)
 
-    disk_folders: Set[str] = set()
-    for folder_path in UPLOAD_ROOT.rglob("*"):
-        if not folder_path.is_dir():
-            continue
-        try:
-            rel = folder_path.resolve().relative_to(UPLOAD_ROOT).as_posix()
-        except Exception:
-            continue
-        if rel and rel != "." and "thumbnails" not in rel.split("/"):
-            disk_folders.add(rel)
-
-    all_folders: Set[str] = set(DEFAULT_MEDIA_FOLDERS) | set(folder_counts.keys()) | disk_folders
+    # 合并默认文件夹（仅包含数据库中已有的和预设的默认文件夹）
+    all_folders: Set[str] = set(DEFAULT_MEDIA_FOLDERS) | set(folder_counts.keys())
     all_folders.discard("__all__")
 
     total_count = sum(folder_counts.values())
@@ -705,24 +717,18 @@ async def media_library_page(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _ensure_default_folders()
-    page_size = 60
-    initial_batch = crud_media.get_all_media(db=db, skip=0, limit=page_size + 1)
-    has_more = len(initial_batch) > page_size
-    media_items = initial_batch[:page_size]
-    cdn_base = _get_media_cdn_base(db)
-    for item in media_items:
-        _attach_media_url(item, cdn_base=cdn_base)
+    # 首屏仅渲染页面框架，媒体列表改为前端异步加载，降低首次访问耗时。
+    page_size = MEDIA_LIBRARY_PAGE_SIZE
 
     return templates.TemplateResponse(
         "admin/media.html",
         {
             "request": request,
             "user": current_user,
-            "media_items": media_items,
-            "media_folders": _list_media_folders(db),
+            "media_items": [],
+            "media_folders": [],
             "media_page_size": page_size,
-            "media_has_more": has_more,
+            "media_has_more": False,
         },
     )
 
