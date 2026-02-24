@@ -6,12 +6,14 @@ import json
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
+from ..core.security import get_current_user, verify_csrf_token
 from ..crud import setting as crud_setting
 from ..schemas.setting import SettingUpdate
+from ..schemas import User
 
 logger = logging.getLogger(__name__)
 
@@ -153,10 +155,13 @@ async def toggle_theme(theme_data: Dict, db: Session = Depends(get_db)) -> Dict:
 @router.post("/anniversary-mode/save")
 async def save_anniversaries(
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     """保存纪念日氛围设置"""
     try:
+        verify_csrf_token(request, csrf_token)
         # 获取JSON数据
         data = await request.json()
         anniversaries = data.get("anniversaries", [])

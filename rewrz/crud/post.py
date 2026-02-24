@@ -147,6 +147,7 @@ def _ensure_intent_format(db: Session, intent_slug: str) -> Optional[Format]:
         return crud_format.create_format(
             db,
             FormatCreate(name=INTENT_NAME_MAP.get(normalized_slug, normalized_slug), slug=normalized_slug),
+            auto_commit=False,
         )
     except Exception:
         db.rollback()
@@ -387,6 +388,7 @@ def create_post(
         post_kwargs["updated_at"] = post.updated_at
 
     db_post = Post(**post_kwargs)
+    db.add(db_post)
 
     # 如果指定了分类ID，则关联对应的分类
     if post.category_ids:
@@ -417,7 +419,6 @@ def create_post(
         if default_intent is not None:
             db_post.formats.append(default_intent)
 
-    db.add(db_post)
     if auto_commit:
         db.commit()
         db.refresh(db_post)

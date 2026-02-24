@@ -7,9 +7,9 @@ from ..core.database import get_db
 from ..core.security import (
     verify_password,
     create_access_token,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
     get_current_user,
     decode_access_token,
+    should_use_secure_cookie,
 )
 from ..core.config import settings
 from ..core.public_alias import resolve_public_display_name
@@ -177,11 +177,18 @@ async def login_for_access_token_impl(
                     time_text,
                 )
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=int(settings.ACCESS_TOKEN_EXPIRE_MINUTES))
     access_token = create_access_token(
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
-    response.set_cookie(key="access_token", value=access_token, httponly=True, expires=ACCESS_TOKEN_EXPIRE_MINUTES * 60, samesite='Lax')
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        expires=int(settings.ACCESS_TOKEN_EXPIRE_MINUTES) * 60,
+        samesite="lax",
+        secure=should_use_secure_cookie(request),
+    )
     admin_path = settings.ADMIN_PATH.rstrip('/')
     response.headers["HX-Redirect"] = f"{admin_path}/dashboard"
     # 返回空内容，只设置头部信息

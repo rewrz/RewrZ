@@ -284,6 +284,13 @@
 <script>
 let categorySlugTouched = false;
 let categoryBatchDeleteInProgress = false;
+const categoryCsrfToken = '{{ request.state.csrf_token }}';
+
+function buildCategoryCsrfHeaders(extra = {}) {
+    return Object.assign({
+        'X-CSRF-Token': categoryCsrfToken
+    }, extra);
+}
 
 function refreshCategoriesList() {
     window.location.href = '{{ request.state.admin_path }}/categories';
@@ -391,7 +398,11 @@ async function saveCategory() {
 
     try {
         saveBtn.disabled = true;
-        const response = await fetch(url, { method, body: formData });
+        const response = await fetch(url, {
+            method,
+            headers: buildCategoryCsrfHeaders(),
+            body: formData
+        });
         if (!response.ok) {
             window.adminNotify(`保存失败：${await parseApiError(response)}`, 'error', { duration: 4200 });
             return;
@@ -413,7 +424,8 @@ async function saveCategory() {
 
 async function requestDeleteCategory(categoryId) {
     const response = await fetch(`{{ request.state.admin_path }}/api/v1/categories/${categoryId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: buildCategoryCsrfHeaders()
     });
     if (!response.ok) {
         return { success: false, error: await parseApiError(response) };
@@ -462,9 +474,9 @@ async function batchDeleteCategories() {
     try {
         const response = await fetch(`{{ request.state.admin_path }}/api/v1/categories/bulk-action`, {
             method: 'POST',
-            headers: {
+            headers: buildCategoryCsrfHeaders({
                 'Content-Type': 'application/json'
-            },
+            }),
             body: JSON.stringify({
                 action: 'delete',
                 category_ids: selected.map((item) => item.id)

@@ -26,7 +26,7 @@ def get_formats(db: Session, skip: int = 0, limit: int = 100) -> List[Format]:
     """获取所有格式列表，支持分页"""
     return db.execute(select(Format).offset(skip).limit(limit)).scalars().all()
 
-def create_format(db: Session, format: FormatCreate) -> Format:
+def create_format(db: Session, format: FormatCreate, *, auto_commit: bool = True) -> Format:
     """创建新格式
     
     如果未提供别名，则自动从名称生成
@@ -42,14 +42,20 @@ def create_format(db: Session, format: FormatCreate) -> Format:
     if existing_by_name:
         if existing_by_name.slug != slug:
             existing_by_name.slug = slug
-            db.commit()
-            db.refresh(existing_by_name)
+            if auto_commit:
+                db.commit()
+                db.refresh(existing_by_name)
+            else:
+                db.flush()
         return existing_by_name
 
     db_format = Format(name=format.name, slug=slug)
     db.add(db_format)
-    db.commit()
-    db.refresh(db_format)
+    if auto_commit:
+        db.commit()
+        db.refresh(db_format)
+    else:
+        db.flush()
     return db_format
 
 def update_format(db: Session, format_id: int, format_update: FormatUpdate) -> Optional[Format]:

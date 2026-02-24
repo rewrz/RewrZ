@@ -1,7 +1,9 @@
 import pytest
 import time
+import warnings
 from pydantic import ValidationError
 from sqlalchemy import create_engine, select, func
+from sqlalchemy.exc import SAWarning
 from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime, timedelta
 from rewrz.models.base import Base
@@ -612,4 +614,26 @@ def test_normalize_legacy_article_post_type(db: Session, test_user: User):
     refreshed = crud_post.get_post_by_slug(db, "legacy-type")
     assert refreshed is not None
     assert refreshed.post_type == "post"
+
+
+def test_create_post_auto_create_default_format_without_sawarning(db: Session, test_user: User):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", SAWarning)
+        created_post = crud_post.create_post(
+            db,
+            PostCreate(
+                title="自动格式测试",
+                slug="auto-format-check",
+                content_markdown="内容",
+                post_type="post",
+                status="draft",
+                visibility="public",
+                author_id=test_user.id,
+            ),
+            author_id=test_user.id,
+        )
+
+    sa_warnings = [item for item in caught if issubclass(item.category, SAWarning)]
+    assert sa_warnings == []
+    assert any(fmt.slug == "article" for fmt in created_post.formats)
 

@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
+from ..core.security import should_use_secure_cookie
 from ..crud import reaction as crud_reaction
 from ..models import Comment, Post
 
@@ -36,13 +37,14 @@ def _ensure_visitor_token(request: Request) -> tuple[str, bool]:
     return secrets.token_urlsafe(24), True
 
 
-def _attach_visitor_cookie(response: JSONResponse, token: str) -> None:
+def _attach_visitor_cookie(request: Request, response: JSONResponse, token: str) -> None:
     response.set_cookie(
         key=VISITOR_TOKEN_COOKIE,
         value=token,
         max_age=VISITOR_TOKEN_MAX_AGE,
         httponly=True,
         samesite="lax",
+        secure=should_use_secure_cookie(request),
     )
 
 
@@ -94,7 +96,7 @@ async def get_reaction_summary(
 
     response = JSONResponse({"success": True, "summary": summary})
     if should_set_cookie:
-        _attach_visitor_cookie(response, token)
+        _attach_visitor_cookie(request, response, token)
     return response
 
 
@@ -120,7 +122,7 @@ async def set_like(
 
     response = JSONResponse({"success": True, "liked": liked, "summary": summary})
     if should_set_cookie:
-        _attach_visitor_cookie(response, token)
+        _attach_visitor_cookie(request, response, token)
     return response
 
 
@@ -146,5 +148,5 @@ async def set_reaction(
 
     response = JSONResponse({"success": True, "reaction_type": reaction_type, "summary": summary})
     if should_set_cookie:
-        _attach_visitor_cookie(response, token)
+        _attach_visitor_cookie(request, response, token)
     return response

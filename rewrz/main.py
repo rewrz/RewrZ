@@ -28,7 +28,7 @@ from .core.database import get_db, create_all_tables, db_manager
 from .core.config import settings  # 导入settings实例
 from .schemas import UserCreate, User, PostCreate, PostUpdate, SettingCreate, SettingUpdate
 from .crud import user as crud_user
-from .core.security import get_current_user, verify_password, decode_access_token  # 导入安全函数
+from .core.security import get_current_user, verify_password, decode_access_token, should_use_secure_cookie  # 导入安全函数
 from .api import auth as auth_api
 from .api import installer as installer_api
 from .api import posts as posts_api
@@ -2590,6 +2590,7 @@ async def unlock_password_protected_post(
         value=_build_post_access_cookie_value(post_id, db_post.password),
         httponly=True,
         samesite="lax",
+        secure=should_use_secure_cookie(request),
     )
     return response
 
@@ -3211,7 +3212,12 @@ app.mount("/media", StaticFiles(directory=settings.MEDIA_UPLOAD_DIR), name="medi
 error_handler.register_error_handlers(app)
 
 # 为CSRF保护添加会话中间件
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    same_site="lax",
+    https_only=bool(getattr(settings, "SESSION_HTTPS_ONLY", False)),
+)
 
 # 添加设置加载中间件（在会话中间件之后）
 app.add_middleware(SettingsMiddleware)

@@ -67,6 +67,7 @@ FILE_HASH_CACHE: Dict[str, Tuple[int, float, str]] = {}
 FOLDER_CACHE_TTL_SECONDS = 300
 MEDIA_FOLDER_CACHE: Dict[str, Any] = {"expires_at": 0.0, "items": None}
 MEDIA_LIBRARY_PAGE_SIZE = 12
+UPLOAD_STREAM_CHUNK_SIZE = 1024 * 1024
 
 
 def _get_setting_value(db: Session, key: str, default):
@@ -256,12 +257,6 @@ def _cleanup_orphan_media_files(db: Session, cleanup_days: int) -> int:
     return deleted_count
 
 
-def _compute_sha256_from_bytes(data: bytes) -> str:
-    digest = hashlib.sha256()
-    digest.update(data)
-    return digest.hexdigest()
-
-
 def _compute_sha256_from_file(path: Path) -> str:
     cache_key = str(path.resolve())
     stat = path.stat()
@@ -276,6 +271,23 @@ def _compute_sha256_from_file(path: Path) -> str:
     file_hash = digest.hexdigest()
     FILE_HASH_CACHE[cache_key] = (stat.st_size, stat.st_mtime, file_hash)
     return file_hash
+
+
+async def _write_upload_stream_to_file(upload_file: UploadFile, target_path: Path, max_size: int) -> Tuple[int, str]:
+    """流式写入上传文件并计算哈希，避免一次性读入内存。"""
+    digest = hashlib.sha256()
+    total_size = 0
+    with target_path.open("wb") as handle:
+        while True:
+            chunk = await upload_file.read(UPLOAD_STREAM_CHUNK_SIZE)
+            if not chunk:
+                break
+            total_size += len(chunk)
+            if total_size > max_size:
+                raise HTTPException(status_code=400, detail=f"文件大小超过限制（最大 {max_size // (1024 * 1024)}MB）")
+            digest.update(chunk)
+            handle.write(chunk)
+    return total_size, digest.hexdigest()
 
 
 def _find_duplicate_media(db: Session, upload_hash: str, file_size: int) -> Optional[MediaModel]:
@@ -920,12 +932,9 @@ async def upload_media(
     _ensure_default_folders()
 
     original_name = Path(file.filename or "upload.bin").name
-    file_content = await file.read()
-    file_size = len(file_content)
-
     is_valid, error_msg = media_processor.validate_upload_file(
         original_name,
-        file_size,
+        0,
         file.content_type,
     )
     if not is_valid:
@@ -936,15 +945,6 @@ async def upload_media(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    cdn_base = _get_media_cdn_base(db)
-    upload_hash = _compute_sha256_from_bytes(file_content)
-    if deduplicate:
-        duplicate = _find_duplicate_media(db, upload_hash, file_size)
-        if duplicate is not None:
-            _attach_media_url(duplicate, cdn_base=cdn_base)
-            duplicate.is_duplicate = True
-            return duplicate
-
     if normalized_folder:
         target_dir = (UPLOAD_ROOT / normalized_folder).resolve()
     else:
@@ -954,69 +954,99 @@ async def upload_media(
 
     unique_name = f"{os.urandom(8).hex()}_{original_name}"
     filepath = target_dir / unique_name
+    temp_filepath = target_dir / f".uploading_{os.urandom(8).hex()}_{unique_name}"
+    max_file_size = int(getattr(media_processor, "max_file_size", 50 * 1024 * 1024) or 50 * 1024 * 1024)
+    cleanup_saved_file = False
 
     try:
-        filepath.write_bytes(file_content)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to save file: {exc}") from exc
+        file_size, upload_hash = await _write_upload_stream_to_file(file, temp_filepath, max_size=max_file_size)
 
-    file_info = media_processor.get_file_info(str(filepath))
+        is_valid, error_msg = media_processor.validate_upload_file(
+            original_name,
+            file_size,
+            file.content_type,
+        )
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=error_msg)
 
-    if file_info.get("file_type") == "image" and auto_process:
+        cdn_base = _get_media_cdn_base(db)
+        if deduplicate:
+            duplicate = _find_duplicate_media(db, upload_hash, file_size)
+            if duplicate is not None:
+                _safe_unlink(temp_filepath)
+                _attach_media_url(duplicate, cdn_base=cdn_base)
+                duplicate.is_duplicate = True
+                return duplicate
+
+        os.replace(temp_filepath, filepath)
+        cleanup_saved_file = True
+
+        file_info = media_processor.get_file_info(str(filepath))
+
+        if file_info.get("file_type") == "image" and auto_process:
+            try:
+                media_processor.extract_image_metadata(str(filepath))
+                if media_processor.auto_compress:
+                    media_processor.optimize_image(str(filepath))
+            except Exception:
+                # 图像优化失败不应阻塞上传主流程。
+                pass
+
+        media_create = MediaCreate(
+            filename=original_name,
+            filepath=str(filepath),
+            folder=_folder_from_filepath(str(filepath)),
+            file_type=file_info.get("file_type", "other"),
+            mime_type=file.content_type or file_info.get("mime_type") or "application/octet-stream",
+            file_hash="",
+            file_size=0,
+            title=title or Path(original_name).stem,
+            alt_text=alt_text,
+            description=description,
+        )
+        stored_hash, stored_size = _stat_media_file(str(filepath))
+        media_create.file_hash = stored_hash or upload_hash
+        media_create.file_size = stored_size or file_size
+        db_media = crud_media.create_media(db=db, media=media_create, uploaded_by_id=current_user.id)
+        _invalidate_media_folder_cache()
+
+        # 上传成功后预热媒体库预览变体，降低首次打开媒体库的首屏 miss 抖动。
+        if str(db_media.file_type or "").startswith("image"):
+            try:
+                generate_media_variant(
+                    db=db,
+                    media_obj=db_media,
+                    preset_name="media_lib_card",
+                    dpr=1,
+                    fmt="jpg",
+                    accept_header="image/jpeg,image/*,*/*",
+                )
+            except Exception:
+                pass
+
+        _attach_media_url(db_media, cdn_base=cdn_base)
+        db_media.is_duplicate = False
+
+        auto_cleanup = bool(_get_setting_value(db, "media_auto_cleanup", False))
+        if auto_cleanup:
+            try:
+                cleanup_days = int(_get_setting_value(db, "media_cleanup_days", 30))
+            except (TypeError, ValueError):
+                cleanup_days = 30
+            try:
+                _cleanup_orphan_media_files(db, cleanup_days)
+            except Exception:
+                pass
+        cleanup_saved_file = False
+        return db_media
+    finally:
         try:
-            media_processor.extract_image_metadata(str(filepath))
-            if media_processor.auto_compress:
-                media_processor.optimize_image(str(filepath))
+            await file.close()
         except Exception:
-            # 图像优化失败不应阻塞上传主流程。
             pass
-
-    media_create = MediaCreate(
-        filename=original_name,
-        filepath=str(filepath),
-        folder=_folder_from_filepath(str(filepath)),
-        file_type=file_info.get("file_type", "other"),
-        mime_type=file.content_type or file_info.get("mime_type") or "application/octet-stream",
-        file_hash="",
-        file_size=0,
-        title=title or Path(original_name).stem,
-        alt_text=alt_text,
-        description=description,
-    )
-    stored_hash, stored_size = _stat_media_file(str(filepath))
-    media_create.file_hash = stored_hash or upload_hash
-    media_create.file_size = stored_size or file_size
-    db_media = crud_media.create_media(db=db, media=media_create, uploaded_by_id=current_user.id)
-    _invalidate_media_folder_cache()
-
-    # 上传成功后预热媒体库预览变体，降低首次打开媒体库的首屏 miss 抖动。
-    if str(db_media.file_type or "").startswith("image"):
-        try:
-            generate_media_variant(
-                db=db,
-                media_obj=db_media,
-                preset_name="media_lib_card",
-                dpr=1,
-                fmt="jpg",
-                accept_header="image/jpeg,image/*,*/*",
-            )
-        except Exception:
-            pass
-
-    _attach_media_url(db_media, cdn_base=cdn_base)
-    db_media.is_duplicate = False
-
-    auto_cleanup = bool(_get_setting_value(db, "media_auto_cleanup", False))
-    if auto_cleanup:
-        try:
-            cleanup_days = int(_get_setting_value(db, "media_cleanup_days", 30))
-        except (TypeError, ValueError):
-            cleanup_days = 30
-        try:
-            _cleanup_orphan_media_files(db, cleanup_days)
-        except Exception:
-            pass
-    return db_media
+        _safe_unlink(temp_filepath)
+        if cleanup_saved_file:
+            _safe_unlink(filepath)
 
 
 @router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/{{media_id}}", response_model=Media)

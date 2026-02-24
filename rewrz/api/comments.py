@@ -13,7 +13,7 @@ from ..crud import post as crud_post
 from ..crud import setting as crud_setting
 from ..crud import user as crud_user
 from ..schemas import CommentCreate, Comment, User
-from ..core.security import get_current_user, verify_csrf_token, decode_access_token
+from ..core.security import get_current_user, verify_csrf_token, decode_access_token, should_use_secure_cookie
 from pydantic import BaseModel
 from typing import List, Optional
 import bleach # 导入bleach用于HTML净化
@@ -30,12 +30,13 @@ from ..core.public_alias import resolve_public_display_name
 router = APIRouter()
 
 
-def _set_comment_unlock_cookie(response: HTMLResponse, post_id: int) -> None:
+def _set_comment_unlock_cookie(request: Request, response: HTMLResponse, post_id: int) -> None:
     response.set_cookie(
         key=get_comment_unlock_cookie_name(post_id),
         value="true",
         max_age=30 * 24 * 60 * 60,  # 30天
         samesite="lax",
+        secure=should_use_secure_cookie(request),
     )
 
 
@@ -255,7 +256,7 @@ async def create_comment_api(
             ),
             status_code=200
         )
-        _set_comment_unlock_cookie(pending_response, post_id)
+        _set_comment_unlock_cookie(request, pending_response, post_id)
         return pending_response
     
     # 返回评论组件，包含头像信息
@@ -268,7 +269,7 @@ async def create_comment_api(
             "avatar_url": comment_avatar_url
         }
     )
-    _set_comment_unlock_cookie(approved_response, post_id)
+    _set_comment_unlock_cookie(request, approved_response, post_id)
     return approved_response
 
 

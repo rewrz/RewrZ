@@ -234,6 +234,13 @@
 let currentTab = 'export';
 let activeWordPressImportJobId = null;
 const WORDPRESS_IMPORT_POLL_INTERVAL_MS = 1000;
+const dataManagementCsrfToken = '{{ request.state.csrf_token }}';
+
+function buildDataManagementCsrfHeaders(extraHeaders = {}) {
+    return Object.assign({}, extraHeaders, {
+        'X-CSRF-Token': dataManagementCsrfToken
+    });
+}
 
 // 页面加载时获取数据统计
 document.addEventListener('DOMContentLoaded', function() {
@@ -404,7 +411,7 @@ async function saveWordPressImportOptions() {
         const payload = collectWordPressImportOptions();
         const response = await fetch('{{ admin_path }}/api/v1/import/wordpress/options', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: buildDataManagementCsrfHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(payload)
         });
         const result = await response.json();
@@ -579,6 +586,7 @@ document.getElementById('wordpress-import-form').addEventListener('submit', asyn
     try {
         const response = await fetch('{{ admin_path }}/api/v1/import/wordpress/tasks', {
             method: 'POST',
+            headers: buildDataManagementCsrfHeaders(),
             body: formData
         });
 
@@ -615,6 +623,7 @@ document.getElementById('rewrz-import-form').addEventListener('submit', async fu
     try {
         const response = await fetch('{{ admin_path }}/api/v1/import/rewrz', {
             method: 'POST',
+            headers: buildDataManagementCsrfHeaders(),
             body: formData
         });
         
@@ -651,6 +660,7 @@ document.getElementById('backup-restore-form').addEventListener('submit', async 
     try {
         const response = await fetch('{{ admin_path }}/api/v1/import/backup', {
             method: 'POST',
+            headers: buildDataManagementCsrfHeaders(),
             body: formData
         });
         

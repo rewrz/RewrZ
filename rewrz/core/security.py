@@ -16,7 +16,6 @@ from .database import get_db  # 导入get_db函数
 # 静音passlib的bcrypt警告
 logging.getLogger('passlib').setLevel(logging.ERROR)
 
-SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 CSRF_TOKEN_LENGTH = 32 # Length of CSRF token in bytes
@@ -48,17 +47,27 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=int(settings.ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, str(settings.SECRET_KEY), algorithm=ALGORITHM)
     return encoded_jwt
 
 def decode_access_token(token: str):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, str(settings.SECRET_KEY), algorithms=[ALGORITHM])
         return payload
     except JWTError:
         return None
+
+
+def should_use_secure_cookie(request: Request) -> bool:
+    """根据配置和请求上下文决定是否启用 Secure Cookie。"""
+    if bool(getattr(settings, "COOKIE_SECURE", False)):
+        return True
+    forwarded_proto = str(request.headers.get("x-forwarded-proto", "")).split(",")[0].strip().lower()
+    if forwarded_proto == "https":
+        return True
+    return str(getattr(request.url, "scheme", "")).lower() == "https"
 
 # Dependency to get current user (for protected routes)
 async def get_current_user(token: str = Depends(get_token_from_cookie), db: Session = Depends(get_db)):
@@ -99,5 +108,5 @@ def verify_csrf_token(request: Request, form_csrf_token: str):
     if not session_csrf_token or not secrets.compare_digest(session_csrf_token, form_csrf_token):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="CSRF token mismatch or missing."
+            detail="CSRF 令牌缺失或不匹配。"
         )

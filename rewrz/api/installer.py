@@ -33,6 +33,22 @@ from typing import Dict, Any
 router = APIRouter()
 templates = get_templates()
 
+
+def _ensure_installer_csrf_token(request: Request) -> str:
+    """确保安装向导使用会话内一致的 CSRF 令牌。"""
+    csrf_token = ""
+    try:
+        csrf_token = str(request.session.get("csrf_token") or "").strip()
+    except Exception:
+        csrf_token = ""
+    if not csrf_token:
+        csrf_token = generate_csrf_token()
+        try:
+            request.session["csrf_token"] = csrf_token
+        except Exception:
+            pass
+    return csrf_token
+
 @router.get("/installer", response_class=HTMLResponse)
 async def installer_page(request: Request):
     """
@@ -44,8 +60,8 @@ async def installer_page(request: Request):
     if os.path.exists(".env"):
         return RedirectResponse(url="/")
     
-    # 初始化 CSRF 令牌
-    csrf_token = generate_csrf_token()
+    # 初始化 CSRF 令牌（绑定到会话）
+    csrf_token = _ensure_installer_csrf_token(request)
     
     return templates.TemplateResponse("installer/welcome.html", {
         "request": request,
@@ -137,7 +153,7 @@ async def get_install_step(step_number: float, request: Request):
     if os.path.exists(".env"):
         return JSONResponse({"error": "系统已安装"}, status_code=400)
     
-    csrf_token = generate_csrf_token()
+    csrf_token = _ensure_installer_csrf_token(request)
     
     step_templates = {
         1.0: "installer/step1_environment.html",
@@ -159,13 +175,20 @@ async def get_install_step(step_number: float, request: Request):
     })
 
 @router.post("/installer/initialize-database")
-async def initialize_database(request: Request, database_path: str = Form("./data/rewrz.db")):
+async def initialize_database(
+    request: Request,
+    database_path: str = Form("./data/rewrz.db"),
+    csrf_token: str = Form(...),
+):
     """
     初始化数据库
     
     创建数据库表结构和运行初始迁移
     """
     try:
+        # 验证 CSRF 令牌
+        verify_csrf_token(request, csrf_token)
+
         # 保存数据库路径到会话中，供后续步骤使用
         request.session["database_path"] = database_path
         
@@ -211,7 +234,7 @@ async def create_admin_user(
     """
     try:
         # 验证 CSRF 令牌
-        # verify_csrf_token(request, csrf_token)
+        verify_csrf_token(request, csrf_token)
         
         # 获取数据库会话
         from ..core.database import SessionLocal
@@ -286,7 +309,7 @@ async def configure_site(
     """
     try:
         # 验证 CSRF 令牌
-        # verify_csrf_token(request, csrf_token)
+        verify_csrf_token(request, csrf_token)
         
         # 获取数据库会话
         from ..core.database import SessionLocal
@@ -370,7 +393,7 @@ async def create_initial_content(
     """
     try:
         # 验证 CSRF 令牌
-        # verify_csrf_token(request, csrf_token)
+        verify_csrf_token(request, csrf_token)
         
         # 获取数据库会话
         from ..core.database import SessionLocal
@@ -467,7 +490,7 @@ async def configure_admin_path(
     """
     try:
         # 验证 CSRF 令牌
-        # verify_csrf_token(request, csrf_token)
+        verify_csrf_token(request, csrf_token)
         
         # 导入后台路径生成器
         from ..core.admin_path_generator import generate_admin_path, validate_admin_path
@@ -529,7 +552,7 @@ async def finalize_installation(
     """
     try:
         # 验证 CSRF 令牌
-        # verify_csrf_token(request, csrf_token)
+        verify_csrf_token(request, csrf_token)
         
         # 检查是否已安装
         if os.path.exists(".env"):
@@ -661,7 +684,7 @@ async def run_installer(
     env_created = False
     try:
         # 验证 CSRF 令牌
-        # verify_csrf_token(request, csrf_token)
+        verify_csrf_token(request, csrf_token)
 
         # 检查是否已安装
         if os.path.exists(".env"):

@@ -264,6 +264,13 @@
 <script>
 let tagSlugTouched = false;
 let tagBatchDeleteInProgress = false;
+const tagCsrfToken = '{{ request.state.csrf_token }}';
+
+function buildTagCsrfHeaders(extra = {}) {
+    return Object.assign({
+        'X-CSRF-Token': tagCsrfToken
+    }, extra);
+}
 
 function refreshTagsList() {
     window.location.href = '{{ request.state.admin_path }}/tags';
@@ -370,7 +377,11 @@ async function saveTag() {
 
     try {
         saveBtn.disabled = true;
-        const response = await fetch(url, { method, body: formData });
+        const response = await fetch(url, {
+            method,
+            headers: buildTagCsrfHeaders(),
+            body: formData
+        });
         if (!response.ok) {
             window.adminNotify(`保存失败：${await parseApiError(response)}`, 'error', { duration: 4200 });
             return;
@@ -392,7 +403,8 @@ async function saveTag() {
 
 async function requestDeleteTag(tagId) {
     const response = await fetch(`{{ request.state.admin_path }}/api/v1/tags/${tagId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: buildTagCsrfHeaders()
     });
     if (!response.ok) {
         return { success: false, error: await parseApiError(response) };
@@ -441,9 +453,9 @@ async function batchDeleteTags() {
     try {
         const response = await fetch(`{{ request.state.admin_path }}/api/v1/tags/bulk-action`, {
             method: 'POST',
-            headers: {
+            headers: buildTagCsrfHeaders({
                 'Content-Type': 'application/json'
-            },
+            }),
             body: JSON.stringify({
                 action: 'delete',
                 tag_ids: selected.map((item) => item.id)

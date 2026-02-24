@@ -15,13 +15,15 @@ import tempfile
 import threading
 import uuid
 import re
+import shutil
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
-from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile, Body
+from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile, Body, Header
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 from ..core.database import get_db, db_manager
-from ..core.security import get_current_user
+from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..core.data_manager import (
     get_data_export_manager, 
@@ -43,6 +45,101 @@ _IMPORT_JOBS: Dict[str, Dict[str, Any]] = {}
 _IMPORT_JOBS_LOCK = threading.Lock()
 _IMPORT_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="import-jobs")
 _MAX_IMPORT_JOB_COUNT = 200
+_UPLOAD_CHUNK_SIZE = 1024 * 1024
+_MAX_WXR_IMPORT_SIZE = 50 * 1024 * 1024
+_MAX_JSON_IMPORT_SIZE = 10 * 1024 * 1024
+_MAX_BACKUP_IMPORT_SIZE = 100 * 1024 * 1024
+_MAX_BACKUP_ZIP_ENTRIES = 2000
+_MAX_BACKUP_ZIP_SINGLE_FILE_BYTES = 100 * 1024 * 1024
+_MAX_BACKUP_ZIP_TOTAL_BYTES = 300 * 1024 * 1024
+_MAX_BACKUP_ZIP_RATIO = 200.0
+
+
+async def _save_upload_to_temp_file(
+    upload_file: UploadFile,
+    *,
+    suffix: str,
+    max_size: int,
+    dir_path: Optional[str] = None,
+) -> str:
+    """将上传文件流式写入临时文件，并在写入阶段执行大小限制。"""
+    temp_file = tempfile.NamedTemporaryFile(mode="wb", suffix=suffix, delete=False, dir=dir_path)
+    total_size = 0
+    try:
+        while True:
+            chunk = await upload_file.read(_UPLOAD_CHUNK_SIZE)
+            if not chunk:
+                break
+            total_size += len(chunk)
+            if total_size > max_size:
+                raise HTTPException(status_code=400, detail=f"文件大小超过限制（最大{max_size // (1024 * 1024)}MB）")
+            temp_file.write(chunk)
+    except Exception:
+        temp_file.close()
+        try:
+            os.unlink(temp_file.name)
+        except OSError:
+            pass
+        raise
+    finally:
+        try:
+            await upload_file.close()
+        except Exception:
+            pass
+    temp_file.close()
+    return temp_file.name
+
+
+def _normalize_zip_member_name(member_name: str) -> str:
+    normalized = str(member_name or "").replace("\\", "/").strip()
+    if not normalized:
+        return ""
+    normalized = normalized.lstrip("/")
+    parts = [part for part in normalized.split("/") if part not in {"", "."}]
+    if not parts:
+        return ""
+    for part in parts:
+        if part == ".." or ":" in part:
+            raise HTTPException(status_code=400, detail="备份包包含非法路径，导入已拒绝")
+    return "/".join(parts)
+
+
+def _extract_backup_zip_safely(zip_path: str, extract_dir: str) -> None:
+    os.makedirs(extract_dir, exist_ok=True)
+    extract_root = os.path.realpath(extract_dir)
+    total_uncompressed = 0
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        entries = zip_ref.infolist()
+        if len(entries) > _MAX_BACKUP_ZIP_ENTRIES:
+            raise HTTPException(status_code=400, detail="备份包文件数量过多，导入已拒绝")
+
+        for info in entries:
+            safe_member = _normalize_zip_member_name(info.filename)
+            if not safe_member:
+                continue
+
+            destination_path = os.path.realpath(os.path.join(extract_root, safe_member))
+            if os.path.commonpath([extract_root, destination_path]) != extract_root:
+                raise HTTPException(status_code=400, detail="备份包包含越界路径，导入已拒绝")
+
+            if info.is_dir():
+                os.makedirs(destination_path, exist_ok=True)
+                continue
+
+            file_size = max(0, int(info.file_size or 0))
+            compressed_size = max(0, int(info.compress_size or 0))
+            if file_size > _MAX_BACKUP_ZIP_SINGLE_FILE_BYTES:
+                raise HTTPException(status_code=400, detail="备份包存在超大文件，导入已拒绝")
+            if compressed_size > 0 and (file_size / compressed_size) > _MAX_BACKUP_ZIP_RATIO:
+                raise HTTPException(status_code=400, detail="备份包压缩比异常，导入已拒绝")
+
+            total_uncompressed += file_size
+            if total_uncompressed > _MAX_BACKUP_ZIP_TOTAL_BYTES:
+                raise HTTPException(status_code=400, detail="备份包解压后体积过大，导入已拒绝")
+
+            os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+            with zip_ref.open(info, "r") as source, open(destination_path, "wb") as target:
+                shutil.copyfileobj(source, target, _UPLOAD_CHUNK_SIZE)
 
 
 def _normalize_wp_import_options(payload: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -399,39 +496,32 @@ async def export_backup_package(
 @router.post("/api/v1/import/wordpress")
 @router.post("/api/import/wordpress")
 async def import_wordpress_data(
+    request: Request,
     wxr_file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     """
     导入WordPress WXR文件
     
     支持WordPress标准导出格式
     """
-    if not wxr_file.filename.endswith('.xml'):
+    verify_csrf_token(request, csrf_token)
+    filename = str(wxr_file.filename or "").lower()
+    if not filename.endswith('.xml'):
         raise HTTPException(status_code=400, detail="请上传XML格式的WXR文件")
-    
-    # 检查文件大小（限制50MB）
-    max_size = 50 * 1024 * 1024  # 50MB
-    content = await wxr_file.read()
-    if len(content) > max_size:
-        raise HTTPException(status_code=400, detail="文件大小超过限制（最大50MB）")
-    
-    # 创建临时文件
-    temp_file = tempfile.NamedTemporaryFile(
-        mode='wb',
-        suffix='.xml',
-        delete=False
+    temp_file_path = await _save_upload_to_temp_file(
+        wxr_file,
+        suffix=".xml",
+        max_size=_MAX_WXR_IMPORT_SIZE,
     )
-    
+
     try:
-        temp_file.write(content)
-        temp_file.close()
-        
         # 执行导入
         wp_options = _get_wp_import_options(db)
         importer = get_wordpress_importer(db, options=wp_options)
-        result = importer.import_from_wxr(temp_file.name)
+        result = importer.import_from_wxr(temp_file_path)
         
         return JSONResponse({
             "success": True,
@@ -446,40 +536,40 @@ async def import_wordpress_data(
         }, status_code=500)
         
     finally:
-        if os.path.exists(temp_file.name):
-            os.unlink(temp_file.name)
+        if os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
 
 
 @router.post("/api/v1/import/wordpress/tasks")
 @router.post("/api/import/wordpress/tasks")
 async def create_wordpress_import_task(
+    request: Request,
     wxr_file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     """
     创建 WordPress 导入异步任务，并返回任务ID用于查询进度。
     """
+    verify_csrf_token(request, csrf_token)
     filename = wxr_file.filename or ""
     if not filename.lower().endswith(".xml"):
         raise HTTPException(status_code=400, detail="请上传XML格式的WXR文件")
 
-    max_size = 50 * 1024 * 1024  # 50MB
-    content = await wxr_file.read()
-    if len(content) > max_size:
-        raise HTTPException(status_code=400, detail="文件大小超过限制（最大50MB）")
-
-    temp_file = tempfile.NamedTemporaryFile(mode="wb", suffix=".xml", delete=False)
+    temp_file_path = await _save_upload_to_temp_file(
+        wxr_file,
+        suffix=".xml",
+        max_size=_MAX_WXR_IMPORT_SIZE,
+    )
     try:
-        temp_file.write(content)
-        temp_file.close()
         wp_options = _get_wp_import_options(db)
         job = _create_import_job(
             user_id=current_user.id,
             job_type="wordpress_import",
             filename=filename,
         )
-        _IMPORT_EXECUTOR.submit(_run_wordpress_import_job, job["id"], temp_file.name, wp_options)
+        _IMPORT_EXECUTOR.submit(_run_wordpress_import_job, job["id"], temp_file_path, wp_options)
         return JSONResponse(
             {
                 "success": True,
@@ -490,8 +580,8 @@ async def create_wordpress_import_task(
         )
     except Exception:
         try:
-            if os.path.exists(temp_file.name):
-                os.unlink(temp_file.name)
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
         except Exception:
             pass
         raise
@@ -528,10 +618,13 @@ async def get_wordpress_import_options(
 @router.post("/api/v1/import/wordpress/options")
 @router.post("/api/import/wordpress/options")
 async def update_wordpress_import_options(
+    request: Request,
     payload: Dict[str, Any] = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
+    verify_csrf_token(request, csrf_token)
     options = _save_wp_import_options(db, payload)
     return JSONResponse({"success": True, "options": options})
 
@@ -539,38 +632,31 @@ async def update_wordpress_import_options(
 @router.post("/api/v1/import/rewrz")
 @router.post("/api/import/rewrz")
 async def import_rewrz_data(
+    request: Request,
     json_file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     """
     导入RewrZ JSON文件
     
     支持RewrZ标准导出格式
     """
-    if not json_file.filename.endswith('.json'):
+    verify_csrf_token(request, csrf_token)
+    filename = str(json_file.filename or "").lower()
+    if not filename.endswith('.json'):
         raise HTTPException(status_code=400, detail="请上传JSON格式的数据文件")
-    
-    # 检查文件大小（限制10MB）
-    max_size = 10 * 1024 * 1024  # 10MB
-    content = await json_file.read()
-    if len(content) > max_size:
-        raise HTTPException(status_code=400, detail="文件大小超过限制（最大10MB）")
-    
-    # 创建临时文件
-    temp_file = tempfile.NamedTemporaryFile(
-        mode='wb',
-        suffix='.json',
-        delete=False
+    temp_file_path = await _save_upload_to_temp_file(
+        json_file,
+        suffix=".json",
+        max_size=_MAX_JSON_IMPORT_SIZE,
     )
-    
+
     try:
-        temp_file.write(content)
-        temp_file.close()
-        
         # 执行导入
         importer = get_rewrz_importer(db)
-        result = importer.import_from_json(temp_file.name)
+        result = importer.import_from_json(temp_file_path)
         
         return JSONResponse({
             "success": True,
@@ -585,47 +671,44 @@ async def import_rewrz_data(
         }, status_code=500)
         
     finally:
-        if os.path.exists(temp_file.name):
-            os.unlink(temp_file.name)
+        if os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
 
 
 @router.post("/api/v1/import/backup")
 @router.post("/api/import/backup")
 async def import_backup_package(
+    request: Request,
     backup_file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     """
     导入完整备份包
     
     支持RewrZ备份ZIP文件
     """
-    if not backup_file.filename.endswith('.zip'):
+    verify_csrf_token(request, csrf_token)
+    filename = str(backup_file.filename or "").lower()
+    if not filename.endswith('.zip'):
         raise HTTPException(status_code=400, detail="请上传ZIP格式的备份文件")
-    
-    # 检查文件大小（限制100MB）
-    max_size = 100 * 1024 * 1024  # 100MB
-    content = await backup_file.read()
-    if len(content) > max_size:
-        raise HTTPException(status_code=400, detail="文件大小超过限制（最大100MB）")
-    
-    import zipfile
-    import shutil
-    
+
     # 创建临时目录
     temp_dir = tempfile.mkdtemp()
-    
+
     try:
-        # 保存上传的ZIP文件
-        zip_path = os.path.join(temp_dir, backup_file.filename)
-        with open(zip_path, 'wb') as f:
-            f.write(content)
-        
+        # 流式保存上传文件，避免一次性读入内存。
+        zip_path = await _save_upload_to_temp_file(
+            backup_file,
+            suffix=".zip",
+            max_size=_MAX_BACKUP_IMPORT_SIZE,
+            dir_path=temp_dir,
+        )
+
         # 解压ZIP文件
         extract_dir = os.path.join(temp_dir, "extracted")
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_dir)
+        _extract_backup_zip_safely(zip_path, extract_dir)
         
         # 查找数据文件
         data_file = None
