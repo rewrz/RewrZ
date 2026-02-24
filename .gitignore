@@ -101,7 +101,6 @@ ENV/
 # mypy
 .mypy_cache/
 rewrz/media/uploads/
-old-version
 /alembic/versions/
 *.sqlite3
 *.db
