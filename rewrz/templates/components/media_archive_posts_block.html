@@ -45,39 +45,130 @@
     {% endfor %}
 </div>
 
-{% elif media_slug == 'gallery' %}
-<div class="media-masonry columns-1 gap-5 sm:columns-2 xl:columns-3">
+{% elif media_slug == 'images' %}
+<div class="media-photo-wall columns-1 gap-4 sm:columns-2 xl:columns-3 2xl:columns-4">
     {% for post in posts %}
-    {% set cover_url = post.featured_image_url or (post.all_image_urls[0] if post.all_image_urls else '') %}
-    <article class="mb-5 break-inside-avoid overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:shadow-xl dark:border-gray-700 dark:bg-gray-800">
-        <a href="{{ post | post_url }}" class="group block">
-            <div class="relative overflow-hidden bg-gray-100 dark:bg-gray-900">
-                {% if cover_url %}
-                <img src="{{ cover_url | thumb_url('related_card', request.state.db) }}"
-                     srcset="{{ cover_url | thumb_srcset('related_card', request.state.db) }}"
-                     sizes="(max-width: 768px) 100vw, 480px"
-                     alt="{{ post.title }}"
-                     class="w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                     loading="lazy"
-                     decoding="async">
-                {% else %}
-                <div class="flex h-56 items-center justify-center text-gray-400 dark:text-gray-600">
-                    <i class="fas fa-images text-5xl"></i>
-                </div>
-                {% endif %}
-                <div class="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent"></div>
-                <div class="absolute bottom-3 left-3 rounded-full bg-white/90 px-2 py-1 text-[11px] font-semibold text-gray-700">
-                    {{ post.media_attachment_summary.image_count if post.media_attachment_summary else 0 }} 张
+    {% set image_urls = post.all_image_urls if post.all_image_urls else ([post.featured_image_url] if post.featured_image_url else []) %}
+    {% if image_urls %}
+    {% set photo_url = image_urls[0] %}
+    {% set format_slugs = post.formats | map(attribute='slug') | list if post.formats else [] %}
+    {% set is_micro = 'micro' in format_slugs %}
+    {% set plain_text = post | post_plain_text %}
+    {% set fallback_summary = post | post_summary_text(140) %}
+    {% if post.title and post.title.strip() %}
+        {% set overlay_text = post.title.strip() %}
+    {% elif is_micro and plain_text %}
+        {% set overlay_text = plain_text %}
+    {% elif fallback_summary %}
+        {% set overlay_text = fallback_summary %}
+    {% else %}
+        {% set overlay_text = "无标题内容" %}
+    {% endif %}
+    {% set lightbox_title = overlay_text %}
+    <article class="media-photo-card mb-4 break-inside-avoid overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:shadow-xl dark:border-gray-700 dark:bg-gray-800">
+        <button
+            type="button"
+            class="group relative block w-full overflow-hidden bg-gray-100 text-left dark:bg-gray-900"
+            data-lightbox-group="media-images-{{ post.id }}"
+            data-lightbox-position="0"
+            data-lightbox-image="{{ photo_url }}"
+            data-lightbox-title="{{ lightbox_title }}"
+            aria-label="查看大图：{{ lightbox_title }}"
+        >
+            <img src="{{ photo_url | thumb_url('related_card', request.state.db) }}"
+                 srcset="{{ photo_url | thumb_srcset('related_card', request.state.db) }}"
+                 sizes="(max-width: 768px) 100vw, (max-width: 1440px) 33vw, 420px"
+                 alt="{{ overlay_text }}"
+                 class="h-auto w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                 loading="lazy"
+                 decoding="async">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/72 via-black/30 to-transparent opacity-95 transition-opacity group-hover:opacity-100"></div>
+            <div class="absolute inset-x-0 bottom-0 p-3 text-white">
+                <p class="{% if is_micro %}line-clamp-5{% else %}line-clamp-3{% endif %} text-sm font-medium leading-6">{{ overlay_text }}</p>
+                <div class="mt-1 flex items-center justify-between text-[11px] text-white/75">
+                    <span>{{ post.published_at.strftime('%Y-%m-%d') if post.published_at else '-' }}</span>
+                    <span class="inline-flex items-center rounded-full bg-black/35 px-2 py-0.5">观影</span>
                 </div>
             </div>
-        </a>
-        <div class="p-4">
-            <a href="{{ post | post_url }}" class="line-clamp-2 text-base font-semibold text-gray-900 hover:text-cyan-600 dark:text-white dark:hover:text-cyan-300">
-                {{ post.title or "相册内容" }}
-            </a>
-            <p class="mt-2 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">{{ post | post_summary_text(200) }}</p>
+        </button>
+        <div class="flex items-center justify-between px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+            <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
+            <a href="{{ post | post_url }}" class="text-cyan-700 hover:underline dark:text-cyan-300">阅读原文</a>
         </div>
     </article>
+    {% endif %}
+    {% endfor %}
+</div>
+
+{% elif media_slug == 'gallery' %}
+<div class="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
+    {% for post in posts %}
+    {% set image_urls = post.all_image_urls if post.all_image_urls else ([post.featured_image_url] if post.featured_image_url else []) %}
+    {% if image_urls %}
+    {% set cover_url = image_urls[0] %}
+    {% set summary_text = post | post_summary_text(180) %}
+    {% set album_title = post.title or summary_text or "未命名相册" %}
+    <article class="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl dark:border-gray-700 dark:bg-gray-800">
+        <button
+            type="button"
+            class="relative block w-full overflow-hidden bg-gray-100 text-left dark:bg-gray-900"
+            data-lightbox-group="media-gallery-{{ post.id }}"
+            data-lightbox-position="0"
+            data-lightbox-image="{{ cover_url }}"
+            data-lightbox-title="{{ album_title }} · 第1张"
+            aria-label="进入相册观影模式：{{ album_title }}"
+        >
+            <img src="{{ cover_url | thumb_url('related_card', request.state.db) }}"
+                 srcset="{{ cover_url | thumb_srcset('related_card', request.state.db) }}"
+                 sizes="(max-width: 768px) 100vw, 540px"
+                 alt="{{ album_title }}"
+                 class="h-60 w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                 loading="lazy"
+                 decoding="async">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+            <div class="absolute inset-x-0 bottom-0 p-3 text-white">
+                <h3 class="line-clamp-2 text-base font-semibold">{{ album_title }}</h3>
+                <p class="mt-1 text-xs text-white/80">{{ image_urls|length }} 张图片 · 点击进入观影模式</p>
+            </div>
+        </button>
+
+        {% for image_url in image_urls[1:] %}
+        <button
+            type="button"
+            class="hidden"
+            tabindex="-1"
+            aria-hidden="true"
+            data-lightbox-group="media-gallery-{{ post.id }}"
+            data-lightbox-position="{{ loop.index }}"
+            data-lightbox-image="{{ image_url }}"
+            data-lightbox-title="{{ album_title }} · 第{{ loop.index + 1 }}张"
+        ></button>
+        {% endfor %}
+
+        <div class="space-y-3 p-4">
+            <p class="line-clamp-3 text-sm leading-6 text-gray-600 dark:text-gray-300">{{ summary_text or "该相册暂无描述" }}</p>
+            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span>{{ post.published_at.strftime('%Y-%m-%d') if post.published_at else '-' }}</span>
+                <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
+            </div>
+            <div class="flex items-center gap-3 pt-1">
+                <button
+                    type="button"
+                    class="inline-flex items-center rounded-full bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-700"
+                    data-lightbox-group="media-gallery-{{ post.id }}"
+                    data-lightbox-position="0"
+                    data-lightbox-image="{{ cover_url }}"
+                    data-lightbox-title="{{ album_title }} · 第1张"
+                >
+                    <i class="fas fa-expand mr-1"></i>观影模式
+                </button>
+                <a href="{{ post | post_url }}" class="inline-flex items-center rounded-full border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+                    阅读原文
+                </a>
+            </div>
+        </div>
+    </article>
+    {% endif %}
     {% endfor %}
 </div>
 
@@ -155,9 +246,6 @@
                     <i class="fas fa-image text-4xl"></i>
                 </div>
                 {% endif %}
-                <div class="absolute bottom-3 right-3 rounded-full bg-black/65 px-2 py-1 text-[11px] font-semibold text-white">
-                    {{ post.media_attachment_summary.image_count if post.media_attachment_summary else 0 }} 图
-                </div>
             </div>
         </a>
         <div class="p-4">

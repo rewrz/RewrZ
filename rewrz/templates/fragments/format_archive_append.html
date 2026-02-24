@@ -1,5 +1,6 @@
 {% set is_micro = format_slug == 'micro' %}
 {% set is_article = format_slug == 'article' %}
+{% set is_poem = format_slug == 'poem' %}
 
 {% if posts %}
     {% if is_micro %}
@@ -15,12 +16,16 @@
         {% include "components/article_archive_card.html" %}
         {% endfor %}
     </div>
+    {% elif is_poem %}
+    <div class="archive-grid-equal grid grid-cols-1 gap-5 md:grid-cols-2">
+        {% for post in posts %}
+        {% include "components/timeline_card.html" %}
+        {% endfor %}
+    </div>
     {% else %}
     <div class="archive-grid-equal grid grid-cols-1 gap-5 md:grid-cols-2">
         {% for post in posts %}
-        <article class="archive-card-equal rounded-2xl border border-gray-200/70 bg-white/80 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/80">
-            {% include "components/timeline_card.html" %}
-        </article>
+        {% include "components/timeline_card.html" %}
         {% endfor %}
     </div>
     {% endif %}

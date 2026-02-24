@@ -2950,13 +2950,35 @@ async def posts_by_media_attachment(request: Request, media_slug: str, page: int
             featured_image_url=post.featured_image_url,
         )
         media_flags = detect_media_flags(summary)
-        if not media_flags.get(normalized_media_slug, False):
+
+        featured_image_url = str(getattr(post, "featured_image_url", "") or "").strip()
+        all_image_urls: List[str] = []
+        if featured_image_url:
+            all_image_urls.append(featured_image_url)
+        for image_url in list(summary.image_urls):
+            normalized_image_url = str(image_url or "").strip()
+            if not normalized_image_url:
+                continue
+            if normalized_image_url in all_image_urls:
+                continue
+            all_image_urls.append(normalized_image_url)
+
+        image_count = len(all_image_urls)
+        if normalized_media_slug == "images":
+            if image_count != 1:
+                continue
+        elif normalized_media_slug == "gallery":
+            if image_count < 2:
+                continue
+        elif not media_flags.get(normalized_media_slug, False):
             continue
 
         summary_dict = summary.to_dict()
+        summary_dict["image_urls"] = list(all_image_urls)
+        summary_dict["image_count"] = image_count
         setattr(post, "media_attachment_summary", summary_dict)
         setattr(post, "media_flags", media_flags)
-        setattr(post, "all_image_urls", list(summary.image_urls))
+        setattr(post, "all_image_urls", list(all_image_urls))
         primary_link = summary.external_links[0] if summary.external_links else ""
         setattr(post, "media_primary_external_link", primary_link)
         setattr(post, "media_primary_external_domain", urlparse(primary_link).netloc if primary_link else "")

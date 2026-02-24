@@ -11,8 +11,8 @@
     {% for year, year_posts in posts_by_year.items() | sort(reverse=True) %}
     <div class="archive-year-group" data-archive-group-type="yearly" data-archive-group-key="{{ year }}">
     <div class="relative flex items-center mb-6">
-        <div class="absolute left-4 transform -translate-x-1/2 z-10">
-            <div class="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full shadow-lg flex items-center justify-center">
+        <div class="absolute left-6 transform -translate-x-1/2 z-10">
+            <div class="archive-timeline-node w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full shadow-lg flex items-center justify-center">
                 <i class="fas fa-calendar-alt text-white text-xs"></i>
             </div>
         </div>

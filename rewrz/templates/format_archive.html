@@ -382,12 +382,17 @@
                     {% endfor %}
                 </div>
                 {% include "components/list_pagination.html" %}
+                {% elif is_poem %}
+                <div class="archive-grid-equal grid grid-cols-1 gap-5 md:grid-cols-2">
+                    {% for post in posts %}
+                    {% include "components/timeline_card.html" %}
+                    {% endfor %}
+                </div>
+                {% include "components/list_pagination.html" %}
                 {% else %}
                 <div class="archive-grid-equal grid grid-cols-1 gap-5 md:grid-cols-2">
                     {% for post in posts %}
-                    <article class="archive-card-equal rounded-2xl border border-amber-200/60 bg-white/85 p-4 shadow-sm dark:border-amber-800/40 dark:bg-gray-800/80">
-                        {% include "components/timeline_card.html" %}
-                    </article>
+                    {% include "components/timeline_card.html" %}
                     {% endfor %}
                 </div>
                 {% include "components/list_pagination.html" %}

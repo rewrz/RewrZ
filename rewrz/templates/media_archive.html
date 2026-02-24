@@ -13,7 +13,13 @@
                         <i class="fas {{ media_item.icon }} mr-2"></i>{{ media_item.name }}
                     </h1>
                     <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        {% if media_slug == 'images' %}
+                        仅展示恰好 1 张图片的内容，点击图片直接进入全屏观影模式。
+                        {% elif media_slug == 'gallery' %}
+                        仅展示包含 2 张及以上图片的内容，一篇内容即一个相册。
+                        {% else %}
                         过滤出含有「{{ media_item.name }}」附件的内容，跨文章 / 微博 / 诗词歌赋统一展示。
+                        {% endif %}
                     </p>
                 </div>
                 <div class="rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm dark:bg-gray-800 dark:text-gray-200">
@@ -59,8 +65,8 @@
     box-shadow: 0 12px 30px rgba(8, 145, 178, 0.45);
 }
 
-.media-masonry img {
-    max-height: 520px;
+.media-photo-wall .media-photo-card img {
+    display: block;
 }
 
 .line-clamp-1 {
@@ -75,6 +81,22 @@
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.line-clamp-5 {
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }

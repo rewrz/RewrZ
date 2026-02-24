@@ -56,8 +56,8 @@
                 <!-- 年份节点和标题 -->
                 <div class="relative flex items-center mb-6">
                     <!-- 年份节点 -->
-                    <div class="absolute left-4 transform -translate-x-1/2 z-10">
-                        <div class="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full shadow-lg flex items-center justify-center">
+                    <div class="absolute left-6 transform -translate-x-1/2 z-10">
+                        <div class="archive-timeline-node w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full shadow-lg flex items-center justify-center">
                             <i class="fas fa-calendar-alt text-white text-xs"></i>
                         </div>
                     </div>
@@ -173,8 +173,8 @@
                 <!-- 月份节点和标题 -->
                 <div class="relative flex items-center mb-4">
                     <!-- 月份节点 -->
-                    <div class="absolute left-4 transform -translate-x-1/2 z-10">
-                        <div class="w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-lg flex items-center justify-center">
+                    <div class="absolute left-6 transform -translate-x-1/2 z-10">
+                        <div class="archive-timeline-node w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-lg flex items-center justify-center">
                             <i class="fas fa-calendar text-white text-xs"></i>
                         </div>
                     </div>
@@ -267,8 +267,8 @@
 
         <!-- 时间轴结束 -->
         <div class="relative flex items-center justify-start mt-8">
-            <div class="absolute left-4 transform -translate-x-1/2">
-                <div class="w-4 h-4 bg-gradient-to-r from-pink-400 to-red-500 rounded-full shadow-lg flex items-center justify-center">
+            <div class="absolute left-6 transform -translate-x-1/2">
+                <div class="archive-timeline-node w-4 h-4 bg-gradient-to-r from-pink-400 to-red-500 rounded-full shadow-lg flex items-center justify-center">
                     <i class="fas fa-heart text-white text-xs"></i>
                 </div>
             </div>
@@ -419,6 +419,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .dark .archive-mode-btn:hover:not(.active) {
     color: #ffffff; /* Corresponds to dark:text-white */
+}
+
+.archive-timeline-node i {
+    line-height: 1;
 }
 </style>
 {% endblock %}
