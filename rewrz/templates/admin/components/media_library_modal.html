@@ -91,6 +91,7 @@
         onSelect: null,
         folders: [],
         itemIndex: new Map(),
+        imageObserver: null,
     };
     const MAX_RENDERED_MEDIA_ITEMS = 240;
     const TRIMMED_MEDIA_ITEMS = 180;
@@ -140,6 +141,10 @@
         cards.forEach((card) => {
             if (removeCount <= 0) return;
             if (state.selectedCardEl === card) return;
+            const img = card.querySelector("img[data-src]");
+            if (img && state.imageObserver) {
+                state.imageObserver.unobserve(img);
+            }
             const mediaId = String(card.dataset.id || "");
             if (mediaId) {
                 state.itemIndex.delete(mediaId);
@@ -147,6 +152,47 @@
             card.remove();
             removeCount -= 1;
         });
+    }
+
+    function ensureImageObserver() {
+        if (state.imageObserver || typeof IntersectionObserver === "undefined") return;
+        state.imageObserver = new IntersectionObserver(
+            (entries, observer) => {
+                entries.forEach((entry) => {
+                    if (!entry.isIntersecting) return;
+                    const img = entry.target;
+                    const nextSrc = img.dataset.src || "";
+                    if (!nextSrc) return;
+                    if (img.dataset.loaded !== "1") {
+                        img.src = nextSrc;
+                        img.dataset.loaded = "1";
+                    }
+                    observer.unobserve(img);
+                });
+            },
+            {
+                root: elements.grid,
+                rootMargin: "240px 0px",
+                threshold: 0.01,
+            },
+        );
+    }
+
+    function observeLazyImage(img) {
+        if (!img) return;
+        const nextSrc = img.dataset.src || "";
+        if (!nextSrc) return;
+
+        if (typeof IntersectionObserver === "undefined") {
+            img.src = nextSrc;
+            img.dataset.loaded = "1";
+            return;
+        }
+
+        ensureImageObserver();
+        if (state.imageObserver) {
+            state.imageObserver.observe(img);
+        }
     }
 
     function renderFolderOptions() {
@@ -201,8 +247,11 @@
         card.className = "media-lib-item overflow-hidden rounded-md border border-gray-200 text-left transition hover:shadow";
         card.dataset.id = String(item.id);
 
+        const previewUrl = item.preview_url || item.url || "";
+        const fullUrl = item.url || previewUrl;
+        const imageAlt = item.alt_text || item.title || item.filename || "image";
         const preview = String(item.file_type || "").startsWith("image")
-            ? `<img src="${item.url}" alt="${item.alt_text || item.title || item.filename}" class="h-28 w-full object-cover" loading="lazy" decoding="async">`
+            ? `<img data-src="${previewUrl}" data-full-src="${fullUrl}" alt="${imageAlt}" class="h-28 w-full bg-gray-100 object-cover" loading="lazy" decoding="async" fetchpriority="low" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">`
             : `<div class="flex h-28 w-full items-center justify-center bg-gray-100 text-xs text-gray-500">非图片文件</div>`;
         card.innerHTML = `
             ${preview}
@@ -211,12 +260,25 @@
                 <div class="truncate text-xs text-gray-500">${item.filename}</div>
             </div>
         `;
+
+        const img = card.querySelector("img[data-src]");
+        if (img) {
+            img.addEventListener("error", () => {
+                const fullSrc = img.dataset.fullSrc || "";
+                if (!fullSrc) return;
+                if (img.dataset.fallbackApplied === "1") return;
+                img.dataset.fallbackApplied = "1";
+                img.src = fullSrc;
+            });
+            observeLazyImage(img);
+        }
         return card;
     }
 
     async function loadMediaItems(loadMore = false) {
         if (state.loading) return;
         state.loading = true;
+        const originalLoadMoreText = elements.loadMoreBtn.textContent;
 
         if (!loadMore) {
             state.page = 1;
@@ -227,6 +289,9 @@
             elements.grid.appendChild(elements.loading);
         } else {
             state.page += 1;
+            elements.loadMoreBtn.disabled = true;
+            elements.loadMoreBtn.classList.add("opacity-70", "cursor-not-allowed");
+            elements.loadMoreBtn.textContent = "加载中...";
         }
 
         const search = encodeURIComponent(elements.searchInput.value || "");
@@ -258,10 +323,22 @@
             state.hasMore = items.length === state.perPage;
             elements.loadMoreBtn.classList.toggle("hidden", !state.hasMore);
         } catch (error) {
-            elements.grid.innerHTML = `<div class="col-span-full py-8 text-center text-sm text-red-600">加载失败：${error.message}</div>`;
+            if (loadMore) {
+                state.page = Math.max(1, state.page - 1);
+                if (typeof window.adminNotify === "function") {
+                    window.adminNotify(`加载更多失败：${error.message}`, "warning", { duration: 3200 });
+                }
+            } else {
+                elements.grid.innerHTML = `<div class="col-span-full py-8 text-center text-sm text-red-600">加载失败：${error.message}</div>`;
+            }
         } finally {
             state.loading = false;
             elements.loading.classList.add("hidden");
+            elements.loadMoreBtn.disabled = false;
+            elements.loadMoreBtn.classList.remove("opacity-70", "cursor-not-allowed");
+            if (originalLoadMoreText) {
+                elements.loadMoreBtn.textContent = originalLoadMoreText;
+            }
         }
     }
 
@@ -339,8 +416,7 @@
         state.onSelect = typeof options.onSelect === "function" ? options.onSelect : null;
         modal.classList.remove("hidden");
         switchTab("library");
-        await loadFolders();
-        await loadMediaItems(false);
+        await Promise.all([loadFolders(), loadMediaItems(false)]);
     }
 
     function close() {
@@ -350,6 +426,10 @@
         elements.uploadStatus.classList.add("hidden");
         elements.uploadStatus.textContent = "";
         elements.uploadedPreview.innerHTML = "";
+        if (state.imageObserver) {
+            state.imageObserver.disconnect();
+            state.imageObserver = null;
+        }
     }
 
     function confirmSelect() {

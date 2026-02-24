@@ -196,6 +196,9 @@
                     <button type="button" id="insert-media-button" class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700">
                         <i class="fas fa-paperclip mr-2"></i>插入媒体
                     </button>
+                    <button type="button" id="insert-hide-block-button" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700" title="插入 [hide] 评论后可见块（仅 Markdown 模式）">
+                        <i class="fas fa-comment-dots mr-2"></i>评论后可见
+                    </button>
                     </div>
                 </div>
                 <div id="editor" class="editor-surface">
@@ -606,14 +609,20 @@
 
     pageForm.addEventListener('htmx:configRequest', function (event) {
         const mode = getActiveEditorMode();
-        setEditorMode(mode, false);
-        event.detail.parameters.editor_mode = mode;
-        if (mode === 'html') {
+        const markdownContent = editor.getMarkdown();
+        const shouldForceMarkdown = mode === 'html' && hasHideBlock(markdownContent);
+        const submitMode = shouldForceMarkdown ? 'markdown' : mode;
+        setEditorMode(submitMode, false);
+        event.detail.parameters.editor_mode = submitMode;
+        if (submitMode === 'html') {
             event.detail.parameters.content = '';
             event.detail.parameters.content_html = editor.getHTML();
         } else {
-            event.detail.parameters.content = editor.getMarkdown();
+            event.detail.parameters.content = markdownContent;
             event.detail.parameters.content_html = '';
+        }
+        if (shouldForceMarkdown) {
+            window.adminNotify('检测到评论后可见块，已自动按 Markdown 模式保存。', 'warning', { duration: 3200 });
         }
     });
 
@@ -633,6 +642,10 @@
             console.error('Failed to insert text at cursor:', error);
         }
         editor.setMarkdown(`${editor.getMarkdown()}\n${text}`);
+    }
+
+    function hasHideBlock(content) {
+        return /\[hide\][\s\S]*?\[\/hide\]/i.test(String(content || ''));
     }
 
     function escapeHtml(text) {
@@ -757,6 +770,18 @@
                     }
                 },
             });
+        });
+    }
+
+    const insertHideBlockButton = document.getElementById('insert-hide-block-button');
+    if (insertHideBlockButton) {
+        insertHideBlockButton.addEventListener('click', () => {
+            if (getActiveEditorMode() !== 'markdown') {
+                setEditorMode('markdown');
+                window.adminNotify('已自动切换到 Markdown 模式。', 'info', { duration: 2000 });
+            }
+            insertEditorText('\n[hide]\n这里填写评论后可见内容\n[/hide]\n');
+            markDirty();
         });
     }
 

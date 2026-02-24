@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, select
 from ..models import Media
 from ..schemas import MediaCreate, MediaUpdate
@@ -37,7 +37,11 @@ def get_all_media(
     Returns:
         List[Media]: 媒体项目列表，按上传时间降序排列.
     """
-    query = select(Media).order_by(desc(Media.uploaded_at))
+    query = (
+        select(Media)
+        .options(joinedload(Media.uploaded_by))
+        .order_by(desc(Media.uploaded_at))
+    )
     if search:
         query = query.filter(Media.filename.ilike(f"%{search}%") | Media.title.ilike(f"%{search}%"))
     if folder is not None:
