@@ -1,4 +1,4 @@
-aiohttp==3.12.15
+aiohttp==3.13.3
 beautifulsoup4==4.13.4
 bleach==6.2.0
 cachetools==6.1.0
@@ -6,7 +6,7 @@ fastapi==0.116.1
 Jinja2==3.1.6
 Markdown==3.8.2
 passlib==1.7.4
-Pillow==11.3.0
+Pillow==12.1.1
 psutil==7.0.0
 pydantic==2.11.7
 pytest==8.4.1
