@@ -658,7 +658,12 @@ class WordPressImporter:
                     new_post = crud_post.create_post(self.db, post_data, author.id, auto_commit=False)
                     
                     # 关联分类和标签
-                    self._associate_wp_taxonomies(item, new_post, raw_post_type=raw_post_type)
+                    self._associate_wp_taxonomies(
+                        item,
+                        new_post,
+                        raw_post_type=raw_post_type,
+                        mapped_post_type=mapped_post_type,
+                    )
 
                     # 导入评论
                     if self.options.get("import_comments", True):
@@ -1842,7 +1847,13 @@ class WordPressImporter:
         # 自定义 post_type 统一按文章导入，避免内容丢失。
         return "post"
     
-    def _associate_wp_taxonomies(self, item: ET.Element, post: Post, raw_post_type: str = ""):
+    def _associate_wp_taxonomies(
+        self,
+        item: ET.Element,
+        post: Post,
+        raw_post_type: str = "",
+        mapped_post_type: str = "post",
+    ):
         """关联WordPress的分类和标签到文章"""
         try:
             # 关联分类
@@ -1860,6 +1871,10 @@ class WordPressImporter:
                     tag = crud_tag.get_tag_by_name(self.db, tag_elem.text)
                     if tag:
                         post.tags.append(tag)
+
+            # 页面不绑定内容意图格式，避免 page 混入文章/micro/poem 流程。
+            if str(mapped_post_type or "").strip().lower() == "page":
+                return
 
             format_bound = False
             # 优先使用 post_type -> format 映射，便于将自定义类型（如 shuoshuo）导入到指定格式。

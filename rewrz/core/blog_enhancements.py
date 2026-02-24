@@ -14,7 +14,7 @@ import hashlib
 import time
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, select
 from ..models.post import Post
 from ..models.tag import Tag
 from ..models.category import Category
@@ -239,11 +239,11 @@ class BlogEnhancementEngine:
                 # 从缓存中获取文章ID列表，然后查询完整文章对象
                 post_ids = cached_result
                 if post_ids:
-                    from sqlalchemy import select
                     related_posts = db.execute(
                         select(Post)
                         .filter(Post.id.in_(post_ids))
                         .filter(Post.status == "published")
+                        .filter(Post.post_type == "post")
                     ).scalars().all()
                     # 按缓存中的顺序排序
                     post_map = {post.id: post for post in related_posts}
@@ -254,7 +254,6 @@ class BlogEnhancementEngine:
         
         # 策略1: 基于标签的相关性
         if current_post.tags:
-            from sqlalchemy import select
             tag_ids = [tag.id for tag in current_post.tags]
             tag_related = db.execute(
                 select(Post)
@@ -263,7 +262,8 @@ class BlogEnhancementEngine:
                     and_(
                         Tag.id.in_(tag_ids),
                         Post.id != current_post.id,
-                        Post.status == "published"
+                        Post.status == "published",
+                        Post.post_type == "post",
                     )
                 )
                 .limit(max(limit * strategy_multiplier, limit))
@@ -280,7 +280,8 @@ class BlogEnhancementEngine:
                     and_(
                         Category.id.in_(category_ids),
                         Post.id != current_post.id,
-                        Post.status == "published"
+                        Post.status == "published",
+                        Post.post_type == "post",
                     )
                 )
                 .limit(max(limit * strategy_multiplier, limit))
@@ -294,7 +295,6 @@ class BlogEnhancementEngine:
         # 策略3: 基于格式的相关性
         if current_post.formats and len(related_posts) < limit:
             format_ids = [fmt.id for fmt in current_post.formats]
-            from sqlalchemy import select
             from ..models.format import Format
             
             format_related = db.execute(
@@ -304,7 +304,8 @@ class BlogEnhancementEngine:
                     and_(
                         Format.id.in_(format_ids),
                         Post.id != current_post.id,
-                        Post.status == "published"
+                        Post.status == "published",
+                        Post.post_type == "post",
                     )
                 )
                 .limit(max(limit * strategy_multiplier, limit))
@@ -322,7 +323,8 @@ class BlogEnhancementEngine:
                 .filter(
                     and_(
                         Post.id != current_post.id,
-                        Post.status == "published"
+                        Post.status == "published",
+                        Post.post_type == "post",
                     )
                 )
                 .order_by(Post.published_at.desc())
