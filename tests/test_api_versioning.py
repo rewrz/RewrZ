@@ -2,6 +2,7 @@ from rewrz import main as main_module
 from pathlib import Path
 from fastapi.testclient import TestClient
 from rewrz.api import (
+    auth,
     categories,
     comments,
     data_import_export,
@@ -33,6 +34,12 @@ def test_search_api_has_v1_and_legacy_paths():
     assert "/api/search" in paths
     assert "/api/v1/search/suggestions" in paths
     assert "/api/search/suggestions" in paths
+
+
+def test_auth_api_has_v1_and_legacy_status_paths():
+    paths = _paths(auth.router)
+    assert "/api/v1/auth/status" in paths
+    assert "/api/auth/status" in paths
 
 
 def test_category_api_has_v1_and_legacy_paths():
@@ -144,6 +151,10 @@ def test_comment_settings_api_has_v1_and_legacy_paths():
 def test_posts_api_has_v1_and_legacy_paths():
     paths = _paths(posts.router)
     admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+    assert "/api/v1/posts/quick" in paths
+    assert "/api/posts/quick" in paths
+    assert "/api/v1/posts/quick/media" in paths
+    assert "/api/posts/quick/media" in paths
     assert f"{admin_prefix}/api/v1/posts/{{post_id}}" in paths
     assert f"{admin_prefix}/api/posts/{{post_id}}" in paths
     assert f"{admin_prefix}/api/v1/posts/batch-publish" in paths

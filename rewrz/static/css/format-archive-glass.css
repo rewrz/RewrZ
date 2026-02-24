@@ -1,0 +1,157 @@
+/*
+ * 聚合页玻璃化分层样式
+ * 设计原则：
+ * 1) 卡片、头图、操作层使用毛玻璃（适合）
+ * 2) 长文本正文与可读文本区域保持清晰对比（不适合高透玻璃）
+ */
+
+.format-archive-glass {
+    --archive-glass-weak-bg: rgba(255, 255, 255, 0.68);
+    --archive-glass-medium-bg: rgba(255, 255, 255, 0.62);
+    --archive-glass-strong-bg: rgba(255, 255, 255, 0.78);
+    --archive-glass-border: rgba(203, 213, 225, 0.72);
+    --archive-glass-shadow: 0 24px 50px rgba(15, 23, 42, 0.16);
+    --archive-glass-blur: blur(18px) saturate(140%);
+}
+
+.dark .format-archive-glass {
+    --archive-glass-weak-bg: rgba(15, 23, 42, 0.52);
+    --archive-glass-medium-bg: rgba(15, 23, 42, 0.58);
+    --archive-glass-strong-bg: rgba(15, 23, 42, 0.72);
+    --archive-glass-border: rgba(71, 85, 105, 0.72);
+    --archive-glass-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+}
+
+:root[data-glass-intensity="weak"] .format-archive-glass {
+    --archive-glass-weak-bg: rgba(255, 255, 255, 0.56);
+    --archive-glass-medium-bg: rgba(255, 255, 255, 0.5);
+    --archive-glass-strong-bg: rgba(255, 255, 255, 0.66);
+    --archive-glass-border: rgba(203, 213, 225, 0.58);
+    --archive-glass-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+    --archive-glass-blur: blur(12px) saturate(130%);
+}
+
+:root.dark[data-glass-intensity="weak"] .format-archive-glass {
+    --archive-glass-weak-bg: rgba(15, 23, 42, 0.42);
+    --archive-glass-medium-bg: rgba(15, 23, 42, 0.48);
+    --archive-glass-strong-bg: rgba(15, 23, 42, 0.58);
+    --archive-glass-border: rgba(71, 85, 105, 0.62);
+    --archive-glass-shadow: 0 16px 34px rgba(2, 6, 23, 0.34);
+}
+
+:root[data-glass-intensity="strong"] .format-archive-glass {
+    --archive-glass-weak-bg: rgba(255, 255, 255, 0.8);
+    --archive-glass-medium-bg: rgba(255, 255, 255, 0.76);
+    --archive-glass-strong-bg: rgba(255, 255, 255, 0.88);
+    --archive-glass-border: rgba(203, 213, 225, 0.84);
+    --archive-glass-shadow: 0 28px 58px rgba(15, 23, 42, 0.2);
+    --archive-glass-blur: blur(24px) saturate(148%);
+}
+
+:root.dark[data-glass-intensity="strong"] .format-archive-glass {
+    --archive-glass-weak-bg: rgba(15, 23, 42, 0.62);
+    --archive-glass-medium-bg: rgba(15, 23, 42, 0.68);
+    --archive-glass-strong-bg: rgba(15, 23, 42, 0.78);
+    --archive-glass-border: rgba(71, 85, 105, 0.82);
+    --archive-glass-shadow: 0 30px 62px rgba(2, 6, 23, 0.5);
+}
+
+/* 顶部聚合头图区：强玻璃 */
+.format-archive-glass > .container > header {
+    border-color: var(--archive-glass-border) !important;
+    background: var(--archive-glass-strong-bg) !important;
+    backdrop-filter: var(--archive-glass-blur);
+    -webkit-backdrop-filter: var(--archive-glass-blur);
+    box-shadow: var(--archive-glass-shadow);
+}
+
+/* 登录发布框：中玻璃 */
+.format-archive-glass .micro-composer-shell {
+    border-color: var(--archive-glass-border) !important;
+    background: var(--archive-glass-medium-bg) !important;
+    backdrop-filter: var(--archive-glass-blur);
+    -webkit-backdrop-filter: var(--archive-glass-blur);
+    box-shadow: var(--archive-glass-shadow);
+}
+
+.format-archive-glass .micro-composer-shell textarea {
+    background: rgba(255, 255, 255, 0.6) !important;
+    border-color: rgba(148, 163, 184, 0.45) !important;
+}
+
+.dark .format-archive-glass .micro-composer-shell textarea {
+    background: rgba(15, 23, 42, 0.52) !important;
+    border-color: rgba(71, 85, 105, 0.62) !important;
+}
+
+/* 聚合卡片：中玻璃 */
+.format-archive-glass #format-posts-panel .archive-card-equal,
+.format-archive-glass #format-posts-panel article[data-micro-card] {
+    border-color: var(--archive-glass-border) !important;
+    background: var(--archive-glass-medium-bg) !important;
+    backdrop-filter: var(--archive-glass-blur);
+    -webkit-backdrop-filter: var(--archive-glass-blur);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.14);
+}
+
+.format-archive-glass #format-posts-panel .archive-card-equal:hover,
+.format-archive-glass #format-posts-panel article[data-micro-card]:hover {
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.2);
+}
+
+/* 卡片内部边框统一为轻透边框 */
+.format-archive-glass #format-posts-panel .archive-card-equal [class*="border-"],
+.format-archive-glass #format-posts-panel article[data-micro-card] [class*="border-"] {
+    border-color: rgba(148, 163, 184, 0.38) !important;
+}
+
+.dark .format-archive-glass #format-posts-panel .archive-card-equal [class*="border-"],
+.dark .format-archive-glass #format-posts-panel article[data-micro-card] [class*="border-"] {
+    border-color: rgba(100, 116, 139, 0.52) !important;
+}
+
+/* 适合玻璃化：标签、统计、操作按钮 */
+.format-archive-glass #format-posts-panel .archive-card-equal a.rounded-full,
+.format-archive-glass #format-posts-panel .archive-card-equal span.rounded-full,
+.format-archive-glass #format-posts-panel .archive-card-equal button.rounded-full,
+.format-archive-glass #format-posts-panel article[data-micro-card] a.rounded-full,
+.format-archive-glass #format-posts-panel article[data-micro-card] span.rounded-full,
+.format-archive-glass #format-posts-panel article[data-micro-card] button.rounded-full {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* 不适合高透玻璃：长文本内容层保持纯净可读 */
+.format-archive-glass #format-posts-panel .post-content,
+.format-archive-glass #format-posts-panel .result-excerpt,
+.format-archive-glass #format-posts-panel .archive-card-body p {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    text-shadow: none;
+}
+
+/* 分页层：弱玻璃 */
+.format-archive-glass #format-posts-panel nav[aria-label="pagination"] a,
+.format-archive-glass #format-posts-panel nav[aria-label="pagination"] span {
+    border-color: var(--archive-glass-border) !important;
+    background: var(--archive-glass-weak-bg) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* 浏览器不支持 backdrop-filter 时，自动回退为半透明实底 */
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+    .format-archive-glass > .container > header,
+    .format-archive-glass .micro-composer-shell,
+    .format-archive-glass #format-posts-panel .archive-card-equal,
+    .format-archive-glass #format-posts-panel article[data-micro-card] {
+        background: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    .dark .format-archive-glass > .container > header,
+    .dark .format-archive-glass .micro-composer-shell,
+    .dark .format-archive-glass #format-posts-panel .archive-card-equal,
+    .dark .format-archive-glass #format-posts-panel article[data-micro-card] {
+        background: rgba(15, 23, 42, 0.88) !important;
+    }
+}

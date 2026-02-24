@@ -120,7 +120,8 @@
     </style>
 </head>
 <body class="site-shell min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300 {{ atmosphere_class if atmosphere_class else '' }}"
-      data-list-navigation-mode="{{ list_navigation_mode if list_navigation_mode else 'pagination' }}">
+      data-list-navigation-mode="{{ list_navigation_mode if list_navigation_mode else 'pagination' }}"
+      data-glass-intensity="medium">
     <script>
         // 动态主题系统
         let currentThemeConfig = null;
@@ -145,10 +146,14 @@
         // 应用主题配置
         function applyThemeConfig(config) {
             const root = document.documentElement;
+            const glassIntensity = config.glass_intensity || 'medium';
             
             Object.entries(config.variables).forEach(([name, value]) => {
                 root.style.setProperty(name, value);
             });
+
+            root.dataset.glassIntensity = glassIntensity;
+            document.body.dataset.glassIntensity = glassIntensity;
             
             localStorage.setItem('current_theme', config.theme);
             if (config.atmosphere) {

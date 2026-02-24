@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, Form, Header
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Form, Header, File, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
+from datetime import datetime
+import re
+import json
 
 from ..core.database import get_db
 from ..core.security import get_current_user, verify_csrf_token
@@ -10,7 +13,8 @@ from ..core.config import settings
 from ..core.page_templates import DEFAULT_PAGE_TEMPLATE, get_page_template_options, normalize_page_template
 from ..crud import post as crud_post, category as crud_category, tag as crud_tag, format as crud_format, setting as crud_setting
 from ..schemas import Post, PostCreate, PostUpdate, User, PostBatchUpdate, FormatCreate
-from ..core.content_intents import INTENT_SLUGS, INTENT_NAME_MAP
+from ..core.content_intents import INTENT_SLUGS, INTENT_NAME_MAP, to_public_post_segment
+from . import media as media_api
 
 router = APIRouter()
 templates = get_templates()
@@ -77,7 +81,228 @@ def _normalize_category_ids_for_intent(category_ids: Optional[List[int]], intent
     })
     return cleaned
 
+
+_MICRO_QUICK_TAG_PATTERN = re.compile(r"#([0-9A-Za-z_\u4e00-\u9fff-]{1,24})#?")
+
+
+def _build_micro_quick_title(content: str) -> str:
+    compact = " ".join((content or "").strip().split())
+    if not compact:
+        return f"动态 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    if len(compact) <= 28:
+        return compact
+    return f"{compact[:28]}..."
+
+
+def _extract_micro_quick_tags(content: str, limit: int = 8) -> List[str]:
+    tags: List[str] = []
+    for match in _MICRO_QUICK_TAG_PATTERN.finditer(content or ""):
+        raw = (match.group(1) or "").strip().strip("-_")
+        if not raw or raw in tags:
+            continue
+        tags.append(raw)
+        if len(tags) >= limit:
+            break
+    return tags
+
+
+def _parse_micro_media_items(raw_media_items: Optional[str], limit: int = 9) -> List[Dict[str, str]]:
+    raw = (raw_media_items or "").strip()
+    if not raw:
+        return []
+
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="媒体数据格式无效") from exc
+
+    if not isinstance(payload, list):
+        raise HTTPException(status_code=400, detail="媒体数据格式无效")
+
+    parsed_items: List[Dict[str, str]] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("url", "")).strip()
+        file_type = str(item.get("file_type", "")).strip().lower()
+        name = str(item.get("name", "")).strip()[:80]
+        if not url.startswith("/media/"):
+            continue
+        if file_type not in {"image", "video", "audio"}:
+            continue
+        parsed_items.append(
+            {
+                "url": url,
+                "file_type": file_type,
+                "name": name,
+            }
+        )
+        if len(parsed_items) >= limit:
+            break
+    return parsed_items
+
+
+def _merge_micro_content_with_media(content: str, media_items: List[Dict[str, str]]) -> tuple[str, Optional[str]]:
+    normalized_content = (content or "").strip()
+    if not media_items:
+        return normalized_content, None
+
+    media_lines: List[str] = []
+    featured_image_url: Optional[str] = None
+    for index, media_item in enumerate(media_items, start=1):
+        media_url = media_item.get("url", "")
+        media_type = media_item.get("file_type", "")
+        media_name = media_item.get("name", "") or f"附件{index}"
+        if media_type == "image":
+            media_lines.append(f"![动态配图{index}]({media_url})")
+            if featured_image_url is None:
+                featured_image_url = media_url
+            continue
+        if media_type == "video":
+            media_lines.append(f"[视频：{media_name}]({media_url})")
+            continue
+        if media_type == "audio":
+            media_lines.append(f"[音频：{media_name}]({media_url})")
+
+    if not media_lines:
+        return normalized_content, featured_image_url
+
+    if normalized_content:
+        merged_content = f"{normalized_content}\n\n" + "\n\n".join(media_lines)
+    else:
+        merged_content = "\n\n".join(media_lines)
+    return merged_content, featured_image_url
+
 # --- 文章管理路由 ---
+
+
+@router.post("/api/v1/posts/quick/media", response_model=dict)
+@router.post("/api/posts/quick/media", response_model=dict)
+async def upload_public_quick_micro_media(
+    request: Request,
+    files: List[UploadFile] = File(...),
+    csrf_token: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    前台快捷发布媒体上传接口。
+
+    仅允许登录用户上传图片/视频/音频，且不暴露后台管理路径。
+    """
+    verify_csrf_token(request, csrf_token)
+
+    selected_files = [item for item in files if item is not None]
+    if not selected_files:
+        raise HTTPException(status_code=400, detail="请选择要上传的媒体文件")
+    if len(selected_files) > 9:
+        raise HTTPException(status_code=400, detail="单次最多上传 9 个文件")
+
+    uploaded_items: List[Dict[str, Any]] = []
+    for media_file in selected_files:
+        mime_type = str(getattr(media_file, "content_type", "") or "").strip().lower()
+        if not mime_type.startswith(("image/", "video/", "audio/")):
+            raise HTTPException(status_code=400, detail="仅支持图片、视频或音频文件")
+
+        uploaded_media = await media_api.upload_media(
+            request=request,
+            file=media_file,
+            title=None,
+            alt_text=None,
+            description=None,
+            target_folder="micro",
+            deduplicate=False,
+            auto_process=True,
+            db=db,
+            current_user=current_user,
+            csrf_token=csrf_token,
+        )
+
+        media_url = str(getattr(uploaded_media, "url", "") or "").strip()
+        if not media_url:
+            continue
+
+        uploaded_items.append(
+            {
+                "id": int(getattr(uploaded_media, "id", 0) or 0),
+                "url": media_url,
+                "file_type": str(getattr(uploaded_media, "file_type", "") or "").strip().lower(),
+                "name": str(getattr(uploaded_media, "filename", "") or "media"),
+                "preview_url": str(getattr(uploaded_media, "preview_url", "") or media_url),
+            }
+        )
+
+    return {
+        "success": True,
+        "items": uploaded_items,
+    }
+
+
+@router.post("/api/v1/posts/quick", response_model=dict)
+@router.post("/api/posts/quick", response_model=dict)
+async def create_public_quick_micro_post(
+    request: Request,
+    content: str = Form(""),
+    media_items: Optional[str] = Form(None),
+    csrf_token: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    前台快捷发布接口。
+
+    设计约束：
+    - 仅允许 post_type=post
+    - 仅允许内容意图为 micro
+    """
+    verify_csrf_token(request, csrf_token)
+
+    normalized_content = (content or "").strip()
+    parsed_media_items = _parse_micro_media_items(media_items)
+    if not normalized_content and not parsed_media_items:
+        raise HTTPException(status_code=400, detail="动态内容或媒体至少填写一项")
+    if len(normalized_content) > 2000:
+        raise HTTPException(status_code=400, detail="动态内容最多 2000 字")
+    merged_content, featured_image_url = _merge_micro_content_with_media(normalized_content, parsed_media_items)
+
+    intent_formats = {fmt.slug: fmt for fmt in _get_or_create_intent_formats(db)}
+    micro_format = intent_formats.get("micro")
+    if micro_format is None:
+        raise HTTPException(status_code=500, detail="未找到微博格式配置")
+
+    post_create_data = PostCreate(
+        title=_build_micro_quick_title(normalized_content or "多媒体动态"),
+        slug=None,
+        content_markdown=merged_content,
+        excerpt=None,
+        featured_image_url=featured_image_url,
+        post_type="post",
+        status="published",
+        visibility="public",
+        password=None,
+        allow_comments=True,
+        category_ids=[],
+        tag_ids=[],
+        format_ids=[micro_format.id],
+        license_type="cc_by_nc_sa_4",
+    )
+    parsed_tags = _extract_micro_quick_tags(normalized_content)
+    created = crud_post.create_post(
+        db=db,
+        post=post_create_data,
+        author_id=current_user.id,
+        tag_names=parsed_tags,
+        format_ids=[micro_format.id],
+    )
+
+    created_time = getattr(created, "published_at", None) or getattr(created, "created_at", None)
+    return {
+        "success": True,
+        "id": created.id,
+        "post_url": f"/{to_public_post_segment('micro')}/{created.slug}",
+        "published_at": created_time.isoformat() if created_time else "",
+        "media_count": len(parsed_media_items),
+    }
 
 @router.get(f"{settings.ADMIN_PATH.rstrip('/')}/posts/new", response_class=HTMLResponse)
 async def new_post_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

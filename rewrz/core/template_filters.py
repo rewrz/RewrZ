@@ -13,6 +13,7 @@ from html import escape
 from datetime import datetime
 from typing import Optional
 from pathlib import Path
+from urllib.parse import urlparse
 from jinja2 import Environment
 from .license_manager import render_license, LicenseManager
 from .donation_system import render_donation_widget
@@ -210,6 +211,132 @@ def extract_image_urls_filter(content_html: str, featured_image_url: Optional[st
             break
 
     return image_urls
+
+
+_MEDIA_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif", ".svg"}
+_MEDIA_VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".m4v", ".mkv", ".avi"}
+_MEDIA_AUDIO_EXTENSIONS = {".mp3", ".m4a", ".aac", ".ogg", ".wav", ".flac"}
+
+
+def _is_local_media_url(url: str) -> bool:
+    normalized = str(url or "").strip()
+    if not normalized:
+        return False
+    return normalized.startswith("/media/") or "/media/" in normalized
+
+
+def _guess_media_kind(url: str) -> Optional[str]:
+    normalized = str(url or "").strip()
+    if not normalized:
+        return None
+    try:
+        path = (urlparse(normalized).path or "").lower()
+    except Exception:
+        path = normalized.lower()
+    suffix = Path(path).suffix.lower()
+    if suffix in _MEDIA_IMAGE_EXTENSIONS:
+        return "image"
+    if suffix in _MEDIA_VIDEO_EXTENSIONS:
+        return "video"
+    if suffix in _MEDIA_AUDIO_EXTENSIONS:
+        return "audio"
+    return None
+
+
+def extract_media_assets_filter(content_html: str, featured_image_url: Optional[str] = None) -> dict:
+    """
+    从正文 HTML 中提取本地媒体资源。
+
+    返回结构：
+    {
+        "images": [...],
+        "videos": [...],
+        "audio": [...],
+    }
+    """
+    result = {
+        "images": [],
+        "videos": [],
+        "audio": [],
+    }
+    if not content_html:
+        return result
+
+    featured = str(featured_image_url or "").strip()
+    if featured:
+        result["images"].append(featured)
+
+    seen = {
+        "images": {featured} if featured else set(),
+        "videos": set(),
+        "audio": set(),
+    }
+
+    try:
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(content_html, "html.parser")
+
+        for image_node in soup.find_all("img"):
+            src = str(image_node.get("src") or "").strip()
+            if not _is_local_media_url(src):
+                continue
+            if src in seen["images"]:
+                continue
+            seen["images"].add(src)
+            result["images"].append(src)
+
+        for video_node in soup.find_all("video"):
+            src = str(video_node.get("src") or "").strip()
+            if _is_local_media_url(src) and src not in seen["videos"]:
+                seen["videos"].add(src)
+                result["videos"].append(src)
+            for source_node in video_node.find_all("source"):
+                source_src = str(source_node.get("src") or "").strip()
+                if not _is_local_media_url(source_src):
+                    continue
+                if source_src in seen["videos"]:
+                    continue
+                seen["videos"].add(source_src)
+                result["videos"].append(source_src)
+
+        for audio_node in soup.find_all("audio"):
+            src = str(audio_node.get("src") or "").strip()
+            if _is_local_media_url(src) and src not in seen["audio"]:
+                seen["audio"].add(src)
+                result["audio"].append(src)
+            for source_node in audio_node.find_all("source"):
+                source_src = str(source_node.get("src") or "").strip()
+                if not _is_local_media_url(source_src):
+                    continue
+                if source_src in seen["audio"]:
+                    continue
+                seen["audio"].add(source_src)
+                result["audio"].append(source_src)
+
+        for link_node in soup.find_all("a"):
+            href = str(link_node.get("href") or "").strip()
+            if not _is_local_media_url(href):
+                continue
+            kind = _guess_media_kind(href)
+            if kind == "image":
+                if href not in seen["images"]:
+                    seen["images"].add(href)
+                    result["images"].append(href)
+                continue
+            if kind == "video":
+                if href not in seen["videos"]:
+                    seen["videos"].add(href)
+                    result["videos"].append(href)
+                continue
+            if kind == "audio":
+                if href not in seen["audio"]:
+                    seen["audio"].add(href)
+                    result["audio"].append(href)
+    except Exception:
+        # 保底退化：仅使用现有图片提取逻辑，避免模板崩溃。
+        result["images"] = extract_image_urls_filter(content_html, featured_image_url=featured_image_url)
+    return result
 
 
 def license_html_filter(license_type: str, author: str, site_url: str = "") -> str:
@@ -512,6 +639,15 @@ def strip_media_nodes_filter(content_html: str) -> str:
         for media_node in soup.find_all(media_tags):
             media_node.decompose()
 
+        # 清理正文中仅用于媒体占位的本地媒体链接，避免与下方播放器重复。
+        for link_node in soup.find_all("a"):
+            href = str(link_node.get("href") or "").strip()
+            if not _is_local_media_url(href):
+                continue
+            if _guess_media_kind(href) is None:
+                continue
+            link_node.decompose()
+
         # 清理剔除媒体后留下的空段落，减少无意义留白
         for paragraph in soup.find_all("p"):
             if not paragraph.get_text(strip=True) and not paragraph.find(True):
@@ -650,6 +786,7 @@ def register_template_filters(app):
     templates.env.filters['micro_datetime_cn'] = micro_datetime_cn_filter
     templates.env.filters['truncate_html'] = truncate_html_filter
     templates.env.filters['extract_image_urls'] = extract_image_urls_filter
+    templates.env.filters['extract_media_assets'] = extract_media_assets_filter
     templates.env.filters['date'] = date_filter
     templates.env.filters['compact_number_cn'] = compact_number_cn_filter
     templates.env.filters['license_html'] = license_html_filter
@@ -687,6 +824,7 @@ def get_templates():
         _templates.env.filters['micro_datetime_cn'] = micro_datetime_cn_filter
         _templates.env.filters['truncate_html'] = truncate_html_filter
         _templates.env.filters['extract_image_urls'] = extract_image_urls_filter
+        _templates.env.filters['extract_media_assets'] = extract_media_assets_filter
         _templates.env.filters['date'] = date_filter
         _templates.env.filters['compact_number_cn'] = compact_number_cn_filter
         _templates.env.filters['license_html'] = license_html_filter

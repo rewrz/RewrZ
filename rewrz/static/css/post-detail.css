@@ -3,6 +3,57 @@
  * 融入二次元科技感元素，提供沉浸式阅读体验
  */
 
+:root {
+    --detail-glass-card-bg: rgba(255, 255, 255, 0.66);
+    --detail-glass-card-border: rgba(203, 213, 225, 0.7);
+    --detail-glass-filter: blur(20px) saturate(145%);
+    --detail-glass-shadow: 0 24px 54px rgba(15, 23, 42, 0.22);
+    --detail-glass-header-top: rgba(255, 255, 255, 0.2);
+    --detail-glass-header-bottom: rgba(255, 255, 255, 0.06);
+}
+
+:root.dark {
+    --detail-glass-card-bg: rgba(15, 23, 42, 0.64);
+    --detail-glass-card-border: rgba(71, 85, 105, 0.74);
+    --detail-glass-shadow: 0 26px 56px rgba(2, 6, 23, 0.5);
+    --detail-glass-header-top: rgba(15, 23, 42, 0.24);
+    --detail-glass-header-bottom: rgba(15, 23, 42, 0.12);
+}
+
+:root[data-glass-intensity="weak"] {
+    --detail-glass-card-bg: rgba(255, 255, 255, 0.56);
+    --detail-glass-card-border: rgba(203, 213, 225, 0.56);
+    --detail-glass-filter: blur(12px) saturate(132%);
+    --detail-glass-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
+    --detail-glass-header-top: rgba(255, 255, 255, 0.14);
+    --detail-glass-header-bottom: rgba(255, 255, 255, 0.04);
+}
+
+:root.dark[data-glass-intensity="weak"] {
+    --detail-glass-card-bg: rgba(15, 23, 42, 0.52);
+    --detail-glass-card-border: rgba(71, 85, 105, 0.62);
+    --detail-glass-shadow: 0 18px 38px rgba(2, 6, 23, 0.36);
+    --detail-glass-header-top: rgba(15, 23, 42, 0.18);
+    --detail-glass-header-bottom: rgba(15, 23, 42, 0.08);
+}
+
+:root[data-glass-intensity="strong"] {
+    --detail-glass-card-bg: rgba(255, 255, 255, 0.8);
+    --detail-glass-card-border: rgba(203, 213, 225, 0.84);
+    --detail-glass-filter: blur(26px) saturate(150%);
+    --detail-glass-shadow: 0 30px 62px rgba(15, 23, 42, 0.24);
+    --detail-glass-header-top: rgba(255, 255, 255, 0.28);
+    --detail-glass-header-bottom: rgba(255, 255, 255, 0.1);
+}
+
+:root.dark[data-glass-intensity="strong"] {
+    --detail-glass-card-bg: rgba(15, 23, 42, 0.72);
+    --detail-glass-card-border: rgba(71, 85, 105, 0.84);
+    --detail-glass-shadow: 0 32px 66px rgba(2, 6, 23, 0.56);
+    --detail-glass-header-top: rgba(15, 23, 42, 0.3);
+    --detail-glass-header-bottom: rgba(15, 23, 42, 0.16);
+}
+
 /* ===== 详情背景与目录布局 ===== */
 .detail-cover-shell {
     position: relative;
@@ -49,21 +100,33 @@
     z-index: 2;
 }
 
-/* 正文卡片毛玻璃：让背景图可见但不影响可读性 */
+/* 正文卡片玻璃化：保留背景氛围，同时保证阅读可读性 */
 .detail-cover-shell .article-detail-card,
 .detail-cover-shell .micro-detail-card {
-    background: rgba(255, 255, 255, 0.74) !important;
-    border-color: rgba(203, 213, 225, 0.72) !important;
-    backdrop-filter: blur(16px) saturate(135%);
-    -webkit-backdrop-filter: blur(16px) saturate(135%);
-    box-shadow: 0 20px 44px rgba(15, 23, 42, 0.2);
+    background: var(--detail-glass-card-bg) !important;
+    border-color: var(--detail-glass-card-border) !important;
+    backdrop-filter: var(--detail-glass-filter);
+    -webkit-backdrop-filter: var(--detail-glass-filter);
+    box-shadow: var(--detail-glass-shadow);
 }
 
-.dark .detail-cover-shell .article-detail-card,
-.dark .detail-cover-shell .micro-detail-card {
-    background: rgba(15, 23, 42, 0.62) !important;
-    border-color: rgba(71, 85, 105, 0.74) !important;
-    box-shadow: 0 22px 46px rgba(2, 6, 23, 0.48);
+/* 适合玻璃化：卡片头部等操作层 */
+.detail-cover-shell .article-detail-card > header,
+.detail-cover-shell .micro-detail-card > header {
+    background: linear-gradient(
+        180deg,
+        var(--detail-glass-header-top) 0%,
+        var(--detail-glass-header-bottom) 100%
+    );
+}
+
+/* 不适合高透玻璃：长文本阅读区域保持纯净可读 */
+.article-detail-card .article-content,
+.micro-detail-card .micro-content,
+.poetry-content {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    text-shadow: none;
 }
 
 .detail-layout {
@@ -1153,3 +1216,176 @@
         max-width: 100%;
     }
 }
+
+/* ===== 诗词详情毛玻璃主题（覆盖版） ===== */
+.poetry-section .detail-cover-overlay-soft {
+    background: linear-gradient(
+        180deg,
+        rgba(15, 23, 42, 0.2) 0%,
+        rgba(15, 23, 42, 0.14) 34%,
+        rgba(15, 23, 42, 0.3) 100%
+    ) !important;
+}
+
+.poetry-section .poetry-bg .absolute.inset-0 {
+    background: linear-gradient(
+        180deg,
+        rgba(15, 23, 42, 0.26) 0%,
+        rgba(15, 23, 42, 0.1) 45%,
+        rgba(15, 23, 42, 0.38) 100%
+    ) !important;
+}
+
+.poetry-section .poetry-article {
+    background: linear-gradient(
+        140deg,
+        rgba(255, 255, 255, 0.54) 0%,
+        rgba(255, 255, 255, 0.34) 50%,
+        rgba(248, 250, 252, 0.3) 100%
+    ) !important;
+    border-color: rgba(255, 255, 255, 0.52) !important;
+    backdrop-filter: blur(22px) saturate(145%);
+    -webkit-backdrop-filter: blur(22px) saturate(145%);
+    box-shadow: 0 30px 70px rgba(15, 23, 42, 0.34);
+}
+
+.dark .poetry-section .poetry-article {
+    background: linear-gradient(
+        140deg,
+        rgba(15, 23, 42, 0.62) 0%,
+        rgba(15, 23, 42, 0.46) 55%,
+        rgba(30, 41, 59, 0.42) 100%
+    ) !important;
+    border-color: rgba(148, 163, 184, 0.26) !important;
+    box-shadow: 0 34px 72px rgba(2, 6, 23, 0.56);
+}
+
+.poetry-section .poetry-header {
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.26) 0%,
+        rgba(255, 255, 255, 0.12) 100%
+    );
+    border-bottom-color: rgba(226, 232, 240, 0.46) !important;
+}
+
+.dark .poetry-section .poetry-header {
+    background: linear-gradient(
+        180deg,
+        rgba(15, 23, 42, 0.26) 0%,
+        rgba(15, 23, 42, 0.14) 100%
+    );
+    border-bottom-color: rgba(71, 85, 105, 0.54) !important;
+}
+
+.poetry-section .poetry-controls {
+    background: rgba(255, 255, 255, 0.22) !important;
+    border-bottom-color: rgba(226, 232, 240, 0.4) !important;
+}
+
+.dark .poetry-section .poetry-controls {
+    background: rgba(15, 23, 42, 0.34) !important;
+    border-bottom-color: rgba(71, 85, 105, 0.58) !important;
+}
+
+.poetry-section .poetry-title {
+    color: #1f2937 !important;
+    background: linear-gradient(135deg, #312e81 0%, #4f46e5 50%, #7c3aed 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 2px 18px rgba(255, 255, 255, 0.28);
+}
+
+.dark .poetry-section .poetry-title {
+    background: linear-gradient(135deg, #dbeafe 0%, #c4b5fd 48%, #e9d5ff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 2px 18px rgba(2, 6, 23, 0.55);
+}
+
+.poetry-section .poetry-excerpt {
+    color: rgba(51, 65, 85, 0.92) !important;
+}
+
+.dark .poetry-section .poetry-excerpt {
+    color: rgba(226, 232, 240, 0.92) !important;
+}
+
+.poetry-section .poetry-meta {
+    color: rgba(51, 65, 85, 0.8) !important;
+}
+
+.dark .poetry-section .poetry-meta {
+    color: rgba(203, 213, 225, 0.82) !important;
+}
+
+.poetry-section #poetry-lyrics-content {
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.32) 0%,
+        rgba(255, 255, 255, 0.18) 100%
+    );
+    border: 1px solid rgba(226, 232, 240, 0.52);
+    border-radius: 1rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38);
+    color: rgba(15, 23, 42, 0.92);
+}
+
+.dark .poetry-section #poetry-lyrics-content {
+    background: linear-gradient(
+        180deg,
+        rgba(30, 41, 59, 0.42) 0%,
+        rgba(15, 23, 42, 0.22) 100%
+    );
+    border-color: rgba(71, 85, 105, 0.72);
+    color: rgba(241, 245, 249, 0.92);
+}
+
+.poetry-section .font-btn,
+.poetry-section .poetry-control-btn,
+.poetry-section .poetry-tag {
+    background: rgba(255, 255, 255, 0.58) !important;
+    border: 1px solid rgba(203, 213, 225, 0.6);
+    color: rgba(30, 41, 59, 0.9) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.poetry-section .font-btn:hover,
+.poetry-section .poetry-control-btn:hover,
+.poetry-section .poetry-tag:hover {
+    background: rgba(255, 255, 255, 0.76) !important;
+    border-color: rgba(99, 102, 241, 0.45);
+    transform: translateY(-1px);
+}
+
+.poetry-section .font-btn.active {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(139, 92, 246, 0.24)) !important;
+    border-color: rgba(99, 102, 241, 0.52);
+    color: #3730a3 !important;
+}
+
+.dark .poetry-section .font-btn,
+.dark .poetry-section .poetry-control-btn,
+.dark .poetry-section .poetry-tag {
+    background: rgba(30, 41, 59, 0.62) !important;
+    border-color: rgba(100, 116, 139, 0.7);
+    color: rgba(226, 232, 240, 0.92) !important;
+}
+
+.dark .poetry-section .font-btn:hover,
+.dark .poetry-section .poetry-control-btn:hover,
+.dark .poetry-section .poetry-tag:hover {
+    background: rgba(51, 65, 85, 0.8) !important;
+    border-color: rgba(165, 180, 252, 0.56);
+}
+
+.dark .poetry-section .font-btn.active {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.38)) !important;
+    border-color: rgba(196, 181, 253, 0.72);
+    color: #ede9fe !important;
+}
+
+

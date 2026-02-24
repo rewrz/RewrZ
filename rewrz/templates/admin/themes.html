@@ -263,6 +263,18 @@
                                     <div class="text-sm text-gray-500">根据时间段自动切换主题</div>
                                 </label>
                             </div>
+
+                            <div class="p-4 border border-gray-200 rounded-lg">
+                                <label for="glass-intensity" class="block text-sm font-medium text-gray-700 mb-2">
+                                    毛玻璃强度
+                                </label>
+                                <select id="glass-intensity" name="glass_intensity" class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
+                                    <option value="weak" {% if glass_intensity == 'weak' %}selected{% endif %}>弱（通透，模糊更轻）</option>
+                                    <option value="medium" {% if glass_intensity == 'medium' %}selected{% endif %}>中（推荐）</option>
+                                    <option value="strong" {% if glass_intensity == 'strong' %}selected{% endif %}>强（更实、更稳重）</option>
+                                </select>
+                                <p class="mt-2 text-xs text-gray-500">影响聚合卡片、发布框和详情卡片，不影响长文本可读性层。</p>
+                            </div>
                             
                             <!-- 背景图片选择 -->
                             <div class="p-4 border border-gray-200 rounded-lg">

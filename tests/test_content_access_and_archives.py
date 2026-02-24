@@ -16,6 +16,7 @@ from rewrz.core.content_access import (
 )
 from rewrz.core.toc import build_toc_from_html
 from rewrz.core.template_filters import (
+    extract_media_assets_filter,
     extract_image_urls_filter,
     post_url_filter,
     strip_media_nodes_filter,
@@ -240,5 +241,34 @@ def test_strip_media_nodes_filter_keeps_text_formatting():
     assert "<strong>加粗引用</strong>" in cleaned
     assert "开头文字" in cleaned
     assert "结尾" in cleaned
+
+
+def test_extract_media_assets_filter_collects_local_video_audio_and_images():
+    html = (
+        '<p>内容</p>'
+        '<img src="/media/a.jpg">'
+        '<video src="/media/clip.mp4"></video>'
+        '<audio><source src="/media/sound.mp3"></audio>'
+        '<a href="/media/extra.webm">视频链接</a>'
+        '<a href="/media/voice.m4a">音频链接</a>'
+        '<a href="/archives">非媒体链接</a>'
+    )
+    assets = extract_media_assets_filter(html, featured_image_url="/media/cover.jpg")
+    assert assets["images"][:2] == ["/media/cover.jpg", "/media/a.jpg"]
+    assert "/media/clip.mp4" in assets["videos"]
+    assert "/media/extra.webm" in assets["videos"]
+    assert "/media/sound.mp3" in assets["audio"]
+    assert "/media/voice.m4a" in assets["audio"]
+
+
+def test_strip_media_nodes_filter_removes_local_media_links_only():
+    html = (
+        '<p>正文</p>'
+        '<p><a href="/media/clip.mp4">视频资源</a></p>'
+        '<p><a href="/archives">站内归档</a></p>'
+    )
+    cleaned = strip_media_nodes_filter(html)
+    assert "视频资源" not in cleaned
+    assert "/archives" in cleaned
 
 

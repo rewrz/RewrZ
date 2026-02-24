@@ -4,8 +4,15 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 from ..core.database import get_db
-from ..core.security import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
+from ..core.security import (
+    verify_password,
+    create_access_token,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    get_current_user,
+    decode_access_token,
+)
 from ..core.config import settings
+from ..core.public_alias import resolve_public_display_name
 from ..core.admin_security import (
     get_admin_email,
     get_client_ip,
@@ -20,6 +27,25 @@ from ..crud import user as crud_user
 from ..schemas import User
 
 router = APIRouter()
+
+
+def _resolve_optional_authenticated_user(request: Request, db: Session):
+    """解析当前请求中的登录用户，不抛异常，失败时返回 None。"""
+    token = (request.cookies.get("access_token") or "").strip()
+    if not token:
+        return None
+
+    payload = decode_access_token(token)
+    if not payload:
+        return None
+
+    raw_user_id = payload.get("sub")
+    try:
+        user_id = int(raw_user_id)
+    except (TypeError, ValueError):
+        return None
+
+    return crud_user.get_user(db, user_id=user_id)
 
 # 登录端点已移至main.py中的动态路由注册系统以确保安全性
 # @router.post("/token")
@@ -160,6 +186,32 @@ async def login_for_access_token_impl(
     response.headers["HX-Redirect"] = f"{admin_path}/dashboard"
     # 返回空内容，只设置头部信息
     return {"message": "Login successful"}
+
+
+@router.get("/api/v1/auth/status")
+@router.get("/api/auth/status")
+async def auth_status(request: Request, db: Session = Depends(get_db)):
+    """前台登录态探针，不返回后台路径。"""
+    current_user = _resolve_optional_authenticated_user(request, db)
+    if current_user is None:
+        return {
+            "logged_in": False,
+            "user": None,
+        }
+
+    display_name = resolve_public_display_name(
+        getattr(current_user, "display_name", None),
+        seed_value=getattr(current_user, "id", None),
+        fallback="已登录用户",
+    )
+    return {
+        "logged_in": True,
+        "user": {
+            "id": int(getattr(current_user, "id", 0) or 0),
+            "username": (getattr(current_user, "username", "") or "").strip(),
+            "display_name": display_name,
+        },
+    }
 
 @router.get("/users/me/", response_model=User)
 async def read_users_me(current_user: User = Depends(get_current_user)):

@@ -2,6 +2,11 @@
 
 {% block title %}{{ format.name }} - {{ site_title }}{% endblock %}
 
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', path='css/format-archive-glass.css') }}?v=20260224-2">
+{% endblock %}
+
 {% block content %}
 {% set is_micro = format_slug == 'micro' %}
 {% set is_poem = format_slug == 'poem' %}
@@ -18,7 +23,7 @@
 {% set profile_website = profile.website if profile.website else '' %}
 {% set profile_public_email = profile.public_email if profile.public_email else '' %}
 
-<section class="py-8">
+<section class="py-8 format-archive-glass">
     <div class="container mx-auto max-w-6xl px-4">
         {% if is_article %}
         <header class="mb-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
@@ -244,6 +249,122 @@
             </a>
         </div>
 
+        {% if is_micro and is_logged_in %}
+        <section class="mb-6">
+            <div class="micro-composer-shell mx-auto max-w-3xl overflow-hidden rounded-3xl border border-sky-200 bg-white shadow-sm dark:border-sky-800/70 dark:bg-gray-800/90">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 to-cyan-50 px-4 py-3 dark:border-sky-900/40 dark:from-slate-900 dark:to-slate-800">
+                    <div class="flex min-w-0 items-center gap-3">
+                        <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="h-10 w-10 flex-shrink-0 rounded-full border border-sky-100 object-cover dark:border-sky-900/70">
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{{ profile_name }}</p>
+                            <p class="truncate text-xs text-slate-500 dark:text-slate-400">写点什么吧，发布后会出现在第一条动态位置</p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300">
+                        <i class="fas fa-user-check mr-1"></i>登录可发
+                    </span>
+                </div>
+                <div class="p-4 md:p-5">
+                    <form id="micro-quick-post-form" class="space-y-3">
+                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                        <input id="micro-quick-media-input" type="file" class="hidden" accept="image/*,video/*,audio/*" multiple>
+
+                        <div class="relative">
+                            <textarea
+                                id="micro-quick-content"
+                                name="content"
+                                rows="4"
+                                maxlength="2000"
+                                class="w-full resize-none rounded-2xl border border-sky-200 bg-sky-50/40 px-4 py-3 text-[15px] leading-7 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 dark:border-sky-900/60 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-sky-900/50"
+                                placeholder="有什么新鲜事想分享？支持 #话题#、多媒体和 Ctrl+Enter 快捷发布"
+                            ></textarea>
+                        </div>
+
+                        <div id="micro-quick-topic-hints" class="flex flex-wrap items-center gap-2">
+                            {% if format_hot_tags and format_hot_tags | length > 0 %}
+                                {% for tag_item in format_hot_tags[:5] %}
+                                <button type="button" data-insert-topic="{{ tag_item.name }}" class="inline-flex items-center rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-medium text-sky-700 transition hover:border-sky-300 hover:bg-sky-50 dark:border-sky-700/70 dark:bg-slate-800 dark:text-sky-200 dark:hover:bg-slate-700">
+                                    #{{ tag_item.name }}
+                                </button>
+                                {% endfor %}
+                            {% else %}
+                                <button type="button" data-insert-topic="今日碎片" class="inline-flex items-center rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-medium text-sky-700 transition hover:border-sky-300 hover:bg-sky-50 dark:border-sky-700/70 dark:bg-slate-800 dark:text-sky-200 dark:hover:bg-slate-700">#今日碎片</button>
+                                <button type="button" data-insert-topic="开发记录" class="inline-flex items-center rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-medium text-sky-700 transition hover:border-sky-300 hover:bg-sky-50 dark:border-sky-700/70 dark:bg-slate-800 dark:text-sky-200 dark:hover:bg-slate-700">#开发记录</button>
+                                <button type="button" data-insert-topic="灵感速记" class="inline-flex items-center rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-medium text-sky-700 transition hover:border-sky-300 hover:bg-sky-50 dark:border-sky-700/70 dark:bg-slate-800 dark:text-sky-200 dark:hover:bg-slate-700">#灵感速记</button>
+                            {% endif %}
+                        </div>
+
+                        <div id="micro-quick-media-list" class="hidden grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4"></div>
+                        <p id="micro-quick-upload-status" class="hidden text-xs text-slate-500 dark:text-slate-400"></p>
+
+                        <div id="micro-quick-detected-topics" class="hidden flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800/70"></div>
+
+                        <div id="micro-quick-preview-panel" class="hidden rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-900/60">
+                            <p class="mb-2 text-xs font-semibold tracking-wide text-slate-500 dark:text-slate-400">预览</p>
+                            <div id="micro-quick-preview" class="break-words text-sm leading-7 text-slate-700 dark:text-slate-200"></div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-700/70">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button id="micro-quick-upload-trigger" type="button" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                    <i class="far fa-image mr-1"></i>多媒体
+                                </button>
+                                <button type="button" data-insert-topic="话题" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                    <i class="fas fa-hashtag mr-1"></i>话题
+                                </button>
+                                <button type="button" data-insert-text="@" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                    <i class="fas fa-at mr-1"></i>@提及
+                                </button>
+                                <div class="relative">
+                                    <button id="micro-quick-emoji-toggle" type="button" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                        <i class="far fa-face-smile mr-1"></i>表情
+                                    </button>
+                                    <div id="micro-quick-emoji-panel" class="fixed z-[140] hidden w-80 max-w-[92vw] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                                        <div class="mb-2 flex flex-wrap items-center gap-1.5">
+                                            <button type="button" data-emoji-tab="recent" class="micro-emoji-tab rounded-full bg-sky-100 px-2 py-1 text-[11px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">常用</button>
+                                            <button type="button" data-emoji-tab="emotion" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">情绪</button>
+                                            <button type="button" data-emoji-tab="gesture" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">手势</button>
+                                            <button type="button" data-emoji-tab="symbol" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">符号</button>
+                                            <button type="button" data-emoji-tab="celebration" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">庆祝</button>
+                                        </div>
+                                        <div id="micro-quick-emoji-grid" class="grid grid-cols-10 gap-1">
+                                        </div>
+                                    </div>
+                                </div>
+                                <button id="micro-quick-preview-toggle" type="button" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                    <i class="far fa-eye mr-1"></i>预览
+                                </button>
+                                <button id="micro-quick-clear-draft" type="button" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-rose-900/20 dark:hover:text-rose-300">
+                                    <i class="far fa-trash-alt mr-1"></i>清草稿
+                                </button>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-28">
+                                    <div class="h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                                        <span id="micro-quick-progress" class="block h-full w-0 rounded-full bg-sky-500 transition-all"></span>
+                                    </div>
+                                    <div id="micro-quick-counter" class="mt-1 text-right text-[11px] text-slate-400 dark:text-slate-500">0 / 2000</div>
+                                </div>
+                                <button
+                                    id="micro-quick-submit"
+                                    type="submit"
+                                    class="inline-flex items-center rounded-full bg-sky-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    disabled
+                                >
+                                    发布动态
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p id="micro-quick-message" class="text-xs text-slate-500 dark:text-slate-400"></p>
+                            <span id="micro-quick-draft-state" class="text-[11px] text-slate-400 dark:text-slate-500"></span>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
         {% set pagination_target_id = "format-posts-panel" %}
         <div id="{{ pagination_target_id }}">
             {% if posts %}
@@ -280,4 +401,752 @@
         </div>
     </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, reason: "bootstrap_loaded" };
+</script>
+<script>
+(() => {
+    try {
+        window.__rewrzMicroComposer = { ready: false, reason: "init" };
+        const form = document.getElementById("micro-quick-post-form");
+        if (!form) {
+            window.__rewrzMicroComposer.reason = "form_not_found";
+            return;
+        }
+
+        const textarea = document.getElementById("micro-quick-content");
+        const submitButton = document.getElementById("micro-quick-submit");
+        const progressBar = document.getElementById("micro-quick-progress");
+        const counter = document.getElementById("micro-quick-counter");
+        const message = document.getElementById("micro-quick-message");
+        const draftState = document.getElementById("micro-quick-draft-state");
+        const detectedTopics = document.getElementById("micro-quick-detected-topics");
+        const previewPanel = document.getElementById("micro-quick-preview-panel");
+        const previewBody = document.getElementById("micro-quick-preview");
+        const previewToggle = document.getElementById("micro-quick-preview-toggle");
+        const emojiToggle = document.getElementById("micro-quick-emoji-toggle");
+        const emojiPanel = document.getElementById("micro-quick-emoji-panel");
+        const emojiGrid = document.getElementById("micro-quick-emoji-grid");
+        const emojiTabs = Array.from(form.querySelectorAll("[data-emoji-tab]"));
+        const clearDraftButton = document.getElementById("micro-quick-clear-draft");
+        const mediaInput = document.getElementById("micro-quick-media-input");
+        const mediaUploadTrigger = document.getElementById("micro-quick-upload-trigger");
+        const mediaList = document.getElementById("micro-quick-media-list");
+        const uploadStatus = document.getElementById("micro-quick-upload-status");
+        if (!textarea || !submitButton || !progressBar || !counter || !message) {
+            window.__rewrzMicroComposer.reason = "required_elements_missing";
+            return;
+        }
+        const maxLength = 2000;
+        const maxMediaCount = 9;
+        const draftKey = "rewrz_micro_quick_draft_v1";
+        const recentEmojiKey = "rewrz_micro_recent_emojis_v1";
+        const topicPattern = /#([0-9A-Za-z_\u4e00-\u9fff-]{1,24})#/g;
+        const emojiCatalog = {
+            emotion: ["😀", "😄", "😁", "😂", "🤣", "😊", "😉", "😍", "😘", "😋", "😎", "🤩", "🥳", "🤔", "😴", "😇", "😅", "😭", "😤", "😡", "😱", "🤯", "😌", "😏", "😬", "🙃", "🥲", "😳", "🤗", "🤓"],
+            gesture: ["🙌", "👏", "👍", "👎", "👌", "🙏", "💪", "🤝", "✌️", "👋", "🤞", "🤟", "🤘", "🫶", "🫡", "👀", "💤", "💯", "✅", "❌"],
+            symbol: ["❤️", "💛", "💚", "💙", "💜", "🖤", "🤍", "💔", "🔥", "✨", "⭐", "🌈", "☀️", "🌙", "⚡", "🍀", "🌸", "🍎", "☕", "🎵"],
+            celebration: ["🎉", "🎊", "🎁", "🚀", "🏆", "🎬", "📸", "📌", "💡", "🧠", "⌛", "📣", "📝", "🧩", "🎯", "🏅", "🥂", "🍻", "🍰", "🎈"],
+        };
+        let isSubmitting = false;
+        let isUploadingMedia = false;
+        let previewEnabled = false;
+        let draftTimer = null;
+        let attachedMedia = [];
+        let activeEmojiTab = "recent";
+
+    const syncTextareaHeight = () => {
+        textarea.style.height = "auto";
+        textarea.style.height = `${Math.min(textarea.scrollHeight, 240)}px`;
+    };
+
+    const escapeHtml = (raw) => String(raw || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+    const getErrorMessage = (error, fallbackText) => {
+        if (error && typeof error === "object" && "message" in error && error.message) {
+            return String(error.message);
+        }
+        return fallbackText;
+    };
+
+    const setDraftText = (text, level = "muted") => {
+        if (!draftState) {
+            return;
+        }
+        draftState.textContent = text || "";
+        if (level === "warn") {
+            draftState.className = "text-[11px] text-amber-500 dark:text-amber-300";
+            return;
+        }
+        if (level === "ok") {
+            draftState.className = "text-[11px] text-emerald-500 dark:text-emerald-300";
+            return;
+        }
+        draftState.className = "text-[11px] text-slate-400 dark:text-slate-500";
+    };
+
+    const setMessage = (text, type = "info") => {
+        message.textContent = text || "";
+        if (type === "error") {
+            message.className = "text-xs text-rose-600 dark:text-rose-300";
+            return;
+        }
+        if (type === "success") {
+            message.className = "text-xs text-emerald-600 dark:text-emerald-300";
+            return;
+        }
+        message.className = "text-xs text-slate-500 dark:text-slate-400";
+    };
+
+    const setUploadStatus = (text, type = "info") => {
+        if (!uploadStatus) {
+            return;
+        }
+        uploadStatus.textContent = text || "";
+        if (!text) {
+            uploadStatus.className = "hidden text-xs text-slate-500 dark:text-slate-400";
+            return;
+        }
+        if (type === "error") {
+            uploadStatus.className = "text-xs text-rose-600 dark:text-rose-300";
+            return;
+        }
+        if (type === "success") {
+            uploadStatus.className = "text-xs text-emerald-600 dark:text-emerald-300";
+            return;
+        }
+        uploadStatus.className = "text-xs text-slate-500 dark:text-slate-400";
+    };
+
+    const contentLength = (content) => Array.from(content || "").length;
+
+        const mediaTypeName = (fileType) => {
+            if (fileType === "video") {
+                return "视频";
+            }
+        if (fileType === "audio") {
+            return "音频";
+        }
+            return "图片";
+        };
+
+        const readRecentEmojis = () => {
+            try {
+                const raw = localStorage.getItem(recentEmojiKey);
+                if (!raw) {
+                    return [];
+                }
+                const parsed = JSON.parse(raw);
+                if (!Array.isArray(parsed)) {
+                    return [];
+                }
+                return parsed.filter((item) => typeof item === "string" && item.trim()).slice(0, 20);
+            } catch (error) {
+                return [];
+            }
+        };
+
+        const saveRecentEmoji = (emojiText) => {
+            const normalized = String(emojiText || "").trim();
+            if (!normalized) {
+                return;
+            }
+            const history = readRecentEmojis().filter((item) => item !== normalized);
+            history.unshift(normalized);
+            try {
+                localStorage.setItem(recentEmojiKey, JSON.stringify(history.slice(0, 20)));
+            } catch (error) {
+                // ignore
+            }
+        };
+
+        const resolveEmojiListByTab = (tabKey) => {
+            const normalized = String(tabKey || "recent").trim();
+            if (normalized === "recent") {
+                const recentList = readRecentEmojis();
+                if (recentList.length > 0) {
+                    return recentList;
+                }
+                return emojiCatalog.emotion.slice(0, 20);
+            }
+            return emojiCatalog[normalized] || emojiCatalog.emotion;
+        };
+
+        const syncEmojiTabs = () => {
+            emojiTabs.forEach((tabButton) => {
+                const tabName = tabButton.getAttribute("data-emoji-tab") || "";
+                if (tabName === activeEmojiTab) {
+                    tabButton.className = "micro-emoji-tab rounded-full bg-sky-100 px-2 py-1 text-[11px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200";
+                    return;
+                }
+                tabButton.className = "micro-emoji-tab rounded-full px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800";
+            });
+        };
+
+        const renderEmojiGrid = () => {
+            if (!emojiGrid) {
+                return;
+            }
+            const emojiList = resolveEmojiListByTab(activeEmojiTab);
+            emojiGrid.innerHTML = emojiList.map((emojiText) => (
+                `<button type="button" data-emoji-choice="${escapeHtml(emojiText)}" class="rounded-lg px-1 py-1 text-lg transition hover:bg-slate-100 dark:hover:bg-slate-800">${escapeHtml(emojiText)}</button>`
+            )).join("");
+            syncEmojiTabs();
+        };
+
+    const extractTopics = (content) => {
+        const tags = [];
+        const source = String(content || "");
+        topicPattern.lastIndex = 0;
+        let matched = topicPattern.exec(source);
+        while (matched) {
+            const topic = String(matched[1] || "").trim();
+            if (!topic || tags.includes(topic)) {
+                matched = topicPattern.exec(source);
+                continue;
+            }
+            tags.push(topic);
+            if (tags.length >= 8) {
+                break;
+            }
+            matched = topicPattern.exec(source);
+        }
+        topicPattern.lastIndex = 0;
+        return tags;
+    };
+
+    const renderDetectedTopics = (content) => {
+        if (!detectedTopics) {
+            return;
+        }
+        const tags = extractTopics(content);
+        if (!tags.length) {
+            detectedTopics.classList.add("hidden");
+            detectedTopics.innerHTML = "";
+            return;
+        }
+
+        detectedTopics.classList.remove("hidden");
+        const chips = tags.map((tag) => (
+            `<span class="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">#${escapeHtml(tag)}#</span>`
+        )).join("");
+        detectedTopics.innerHTML = `<span class="text-slate-500 dark:text-slate-400">识别话题：</span>${chips}`;
+    };
+
+    const renderMediaList = () => {
+        if (!mediaList) {
+            return;
+        }
+        if (!attachedMedia.length) {
+            mediaList.classList.add("hidden");
+            mediaList.innerHTML = "";
+            return;
+        }
+
+        mediaList.classList.remove("hidden");
+        mediaList.innerHTML = attachedMedia.map((item, index) => {
+            const typeName = mediaTypeName(item.file_type);
+            const escapedName = escapeHtml(item.name || `${typeName}${index + 1}`);
+            const coverUrl = escapeHtml(item.preview_url || item.url || "");
+            const hasImageThumb = item.file_type === "image";
+            return `
+                <div class="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+                    ${hasImageThumb
+                        ? `<img src="${coverUrl}" alt="${escapedName}" class="h-24 w-full object-cover">`
+                        : `<div class="flex h-24 w-full items-center justify-center bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                <i class="fas ${item.file_type === "video" ? "fa-video" : "fa-music"} mr-1"></i>${typeName}
+                           </div>`}
+                    <div class="flex items-center justify-between gap-2 border-t border-slate-100 px-2 py-1 text-[11px] dark:border-slate-700">
+                        <span class="truncate text-slate-500 dark:text-slate-400">${escapedName}</span>
+                        <button type="button" data-remove-media-index="${index}" class="inline-flex h-5 w-5 items-center justify-center rounded-full text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20 dark:hover:text-rose-300">
+                            <i class="fas fa-times text-[10px]"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    };
+
+    const renderPreview = (content) => {
+        if (!previewPanel || !previewBody) {
+            return;
+        }
+        if (!previewEnabled) {
+            previewPanel.classList.add("hidden");
+            return;
+        }
+
+        const trimmed = (content || "").trim();
+        if (!trimmed) {
+            previewBody.innerHTML = "<span class='text-slate-400 dark:text-slate-500'>输入内容后将显示预览</span>";
+            previewPanel.classList.remove("hidden");
+            return;
+        }
+
+        topicPattern.lastIndex = 0;
+        const html = escapeHtml(trimmed)
+            .replace(topicPattern, "<span class='font-semibold text-sky-600 dark:text-sky-300'>#$1#</span>")
+            .replace(/\n/g, "<br>");
+        topicPattern.lastIndex = 0;
+        const mediaHint = attachedMedia.length
+            ? `<div class="mt-2 text-xs text-slate-500 dark:text-slate-400">已附加 ${attachedMedia.length} 个媒体文件</div>`
+            : "";
+        previewBody.innerHTML = html + mediaHint;
+        previewPanel.classList.remove("hidden");
+    };
+
+    const scheduleDraftSave = (content) => {
+        if (draftTimer) {
+            window.clearTimeout(draftTimer);
+        }
+        draftTimer = window.setTimeout(() => {
+            try {
+                if ((content || "").trim()) {
+                    localStorage.setItem(draftKey, content);
+                    setDraftText("草稿已自动保存", "ok");
+                } else {
+                    localStorage.removeItem(draftKey);
+                    setDraftText("");
+                }
+            } catch (error) {
+                setDraftText("浏览器不支持草稿存储", "warn");
+            }
+        }, 250);
+    };
+
+    const insertTextAtCursor = (textToInsert) => {
+        const start = textarea.selectionStart || 0;
+        const end = textarea.selectionEnd || 0;
+        const currentValue = textarea.value || "";
+        textarea.value = `${currentValue.slice(0, start)}${textToInsert}${currentValue.slice(end)}`;
+        const cursor = start + textToInsert.length;
+        textarea.focus();
+        textarea.setSelectionRange(cursor, cursor);
+        textarea.dispatchEvent(new Event("input"));
+    };
+
+    const refreshState = () => {
+        const content = (textarea.value || "");
+        const trimmed = content.trim();
+        const currentLength = contentLength(trimmed);
+        counter.textContent = `${currentLength} / ${maxLength}`;
+        const ratio = Math.min(currentLength / maxLength, 1);
+        progressBar.style.width = `${Math.max(ratio * 100, currentLength > 0 ? 3 : 0)}%`;
+        if (ratio < 0.8) {
+            progressBar.className = "block h-full rounded-full bg-sky-500 transition-all";
+        } else if (ratio < 0.95) {
+            progressBar.className = "block h-full rounded-full bg-amber-500 transition-all";
+        } else {
+            progressBar.className = "block h-full rounded-full bg-rose-500 transition-all";
+        }
+        renderDetectedTopics(content);
+        renderPreview(content);
+        const hasPublishableData = currentLength > 0 || attachedMedia.length > 0;
+        submitButton.disabled = isSubmitting || isUploadingMedia || !hasPublishableData || currentLength > maxLength;
+    };
+
+    const closeEmojiPanel = () => {
+        if (!emojiPanel) {
+            return;
+        }
+        emojiPanel.classList.add("hidden");
+    };
+
+    const isEmojiPanelVisible = () => {
+        if (!emojiPanel) {
+            return false;
+        }
+        return !emojiPanel.classList.contains("hidden");
+    };
+
+    const positionEmojiPanel = () => {
+        if (!emojiPanel || !emojiToggle || !isEmojiPanelVisible()) {
+            return;
+        }
+
+        const gap = 8;
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+        const toggleRect = emojiToggle.getBoundingClientRect();
+        const panelRect = emojiPanel.getBoundingClientRect();
+
+        const panelWidth = panelRect.width || 320;
+        const panelHeight = panelRect.height || 260;
+
+        let left = toggleRect.left;
+        if (left + panelWidth > viewportWidth - gap) {
+            left = viewportWidth - panelWidth - gap;
+        }
+        if (left < gap) {
+            left = gap;
+        }
+
+        const preferredBelowTop = toggleRect.bottom + gap;
+        const preferredAboveTop = toggleRect.top - panelHeight - gap;
+        let top = preferredBelowTop;
+        if (preferredBelowTop + panelHeight > viewportHeight - gap) {
+            top = preferredAboveTop;
+        }
+        if (top < gap) {
+            top = gap;
+        }
+
+        emojiPanel.style.left = `${Math.round(left)}px`;
+        emojiPanel.style.top = `${Math.round(top)}px`;
+    };
+
+    const openEmojiPanel = () => {
+        if (!emojiPanel) {
+            return;
+        }
+        activeEmojiTab = "recent";
+        renderEmojiGrid();
+        emojiPanel.classList.remove("hidden");
+        positionEmojiPanel();
+    };
+
+    const uploadMediaFiles = async (fileList) => {
+        const selectedFiles = Array.from(fileList || []);
+        if (!selectedFiles.length) {
+            return;
+        }
+
+        if (attachedMedia.length >= maxMediaCount) {
+            setUploadStatus(`最多可附加 ${maxMediaCount} 个媒体文件`, "error");
+            return;
+        }
+
+        const remaining = maxMediaCount - attachedMedia.length;
+        const uploadingBatch = selectedFiles.slice(0, remaining);
+        const hasUnsupported = uploadingBatch.some((file) => {
+            const mimeType = String(file.type || "").toLowerCase();
+            return !mimeType.startsWith("image/") && !mimeType.startsWith("video/") && !mimeType.startsWith("audio/");
+        });
+        if (hasUnsupported) {
+            setUploadStatus("仅支持图片、视频、音频文件", "error");
+            return;
+        }
+
+        const csrfInput = form.querySelector("input[name='csrf_token']");
+        const csrfToken = csrfInput ? csrfInput.value : "";
+        if (!csrfToken) {
+            setUploadStatus("缺少安全令牌，请刷新页面后重试", "error");
+            return;
+        }
+
+        isUploadingMedia = true;
+        refreshState();
+        setUploadStatus(`正在上传 ${uploadingBatch.length} 个文件...`);
+        try {
+            const uploadFormData = new FormData();
+            uploadFormData.append("csrf_token", csrfToken);
+            uploadingBatch.forEach((file) => {
+                uploadFormData.append("files", file);
+            });
+
+            const response = await fetch("/api/v1/posts/quick/media", {
+                method: "POST",
+                body: uploadFormData,
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.success) {
+                const detail = payload.detail || payload.error || "媒体上传失败";
+                throw new Error(detail);
+            }
+
+            const uploadedItems = Array.isArray(payload.items) ? payload.items : [];
+            if (!uploadedItems.length) {
+                setUploadStatus("未获取到有效媒体文件", "error");
+                return;
+            }
+
+            attachedMedia = attachedMedia.concat(
+                uploadedItems.map((item) => ({
+                    id: Number(item.id || 0),
+                    url: String(item.url || "").trim(),
+                    file_type: String(item.file_type || "image").trim().toLowerCase(),
+                    name: String(item.name || "media").trim(),
+                    preview_url: String(item.preview_url || item.url || "").trim(),
+                })).filter((item) => item.url)
+            ).slice(0, maxMediaCount);
+
+            renderMediaList();
+            renderPreview(textarea.value || "");
+            setUploadStatus(`已附加 ${attachedMedia.length} 个媒体文件`, "success");
+        } catch (error) {
+            setUploadStatus(getErrorMessage(error, "媒体上传失败，请稍后重试"), "error");
+        } finally {
+            isUploadingMedia = false;
+            if (mediaInput) {
+                mediaInput.value = "";
+            }
+            refreshState();
+        }
+    };
+
+    form.querySelectorAll("[data-insert-text]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const insertValue = button.getAttribute("data-insert-text") || "";
+            if (!insertValue) {
+                return;
+            }
+            insertTextAtCursor(insertValue);
+            closeEmojiPanel();
+        });
+    });
+
+    form.querySelectorAll("[data-insert-topic]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const rawTopic = (button.getAttribute("data-insert-topic") || "").trim();
+            if (!rawTopic) {
+                return;
+            }
+            const topicText = rawTopic === "话题" ? "#话题# " : `#${rawTopic}# `;
+            insertTextAtCursor(topicText);
+            closeEmojiPanel();
+        });
+    });
+
+    textarea.addEventListener("input", () => {
+        scheduleDraftSave(textarea.value || "");
+        refreshState();
+        syncTextareaHeight();
+    });
+
+    textarea.addEventListener("keydown", (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+            event.preventDefault();
+            form.requestSubmit();
+        }
+    });
+
+    if (previewToggle) {
+        previewToggle.addEventListener("click", () => {
+            previewEnabled = !previewEnabled;
+            previewToggle.className = previewEnabled
+                ? "inline-flex items-center rounded-full bg-sky-100 px-2.5 py-1.5 text-xs text-sky-700 transition dark:bg-sky-900/40 dark:text-sky-200"
+                : "inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100";
+            refreshState();
+        });
+    }
+
+    if (emojiToggle && emojiPanel) {
+        emojiToggle.addEventListener("click", (event) => {
+            event.stopPropagation();
+            if (isEmojiPanelVisible()) {
+                closeEmojiPanel();
+                return;
+            }
+            openEmojiPanel();
+        });
+    }
+
+    if (emojiPanel) {
+        emojiPanel.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const clickTarget = event.target;
+            if (!clickTarget || typeof clickTarget.closest !== "function") {
+                return;
+            }
+
+            const tabButton = clickTarget.closest("[data-emoji-tab]");
+            if (tabButton) {
+                const nextTab = String(tabButton.getAttribute("data-emoji-tab") || "emotion").trim();
+                if (nextTab && nextTab !== activeEmojiTab) {
+                    activeEmojiTab = nextTab;
+                    renderEmojiGrid();
+                    positionEmojiPanel();
+                }
+                return;
+            }
+
+            const emojiButton = clickTarget.closest("[data-emoji-choice]");
+            if (!emojiButton) {
+                return;
+            }
+            const emojiText = String(emojiButton.getAttribute("data-emoji-choice") || "").trim();
+            if (!emojiText) {
+                return;
+            }
+
+            insertTextAtCursor(emojiText);
+            saveRecentEmoji(emojiText);
+            if (activeEmojiTab === "recent") {
+                renderEmojiGrid();
+            }
+            closeEmojiPanel();
+        });
+    }
+
+    if (clearDraftButton) {
+        clearDraftButton.addEventListener("click", () => {
+            textarea.value = "";
+            attachedMedia = [];
+            try {
+                localStorage.removeItem(draftKey);
+                setDraftText("草稿已清空");
+            } catch (error) {
+                setDraftText("无法清空草稿", "warn");
+            }
+            setMessage("");
+            setUploadStatus("");
+            renderMediaList();
+            syncTextareaHeight();
+            refreshState();
+            closeEmojiPanel();
+            textarea.focus();
+        });
+    }
+
+    if (mediaUploadTrigger && mediaInput) {
+        mediaUploadTrigger.addEventListener("click", () => {
+            mediaInput.click();
+        });
+    }
+
+    if (mediaInput) {
+        mediaInput.addEventListener("change", async () => {
+            await uploadMediaFiles(mediaInput.files);
+        });
+    }
+
+    if (mediaList) {
+        mediaList.addEventListener("click", (event) => {
+            const clickTarget = event.target;
+            if (!clickTarget || typeof clickTarget.closest !== "function") {
+                return;
+            }
+            const removeButton = clickTarget.closest("[data-remove-media-index]");
+            if (!removeButton) {
+                return;
+            }
+            const index = Number(removeButton.getAttribute("data-remove-media-index"));
+            if (Number.isNaN(index) || index < 0 || index >= attachedMedia.length) {
+                return;
+            }
+            attachedMedia.splice(index, 1);
+            renderMediaList();
+            setUploadStatus(attachedMedia.length ? `已附加 ${attachedMedia.length} 个媒体文件` : "");
+            refreshState();
+        });
+    }
+
+    document.addEventListener("click", (event) => {
+        if (!emojiPanel || !emojiToggle) {
+            return;
+        }
+        const clickTarget = event.target;
+        const clickedToggle = clickTarget && typeof clickTarget.closest === "function"
+            ? clickTarget.closest("#micro-quick-emoji-toggle")
+            : null;
+        if (!emojiPanel.contains(clickTarget) && !clickedToggle) {
+            closeEmojiPanel();
+        }
+    });
+
+    window.addEventListener("resize", positionEmojiPanel);
+    window.addEventListener("scroll", positionEmojiPanel, true);
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (isSubmitting) {
+            return;
+        }
+
+        const content = (textarea.value || "").trim();
+        if (!content && attachedMedia.length === 0) {
+            setMessage("请输入动态内容或附加媒体后再发布。", "error");
+            refreshState();
+            return;
+        }
+        if (contentLength(content) > maxLength) {
+            setMessage("动态内容超出长度限制。", "error");
+            refreshState();
+            return;
+        }
+
+        isSubmitting = true;
+        submitButton.textContent = "发布中...";
+        setMessage("");
+        setDraftText("");
+        refreshState();
+
+        try {
+            const formData = new FormData(form);
+            formData.set("content", content);
+            if (attachedMedia.length > 0) {
+                const serializedMedia = attachedMedia.map((item) => ({
+                    url: item.url,
+                    file_type: item.file_type,
+                    name: item.name,
+                }));
+                formData.set("media_items", JSON.stringify(serializedMedia));
+            }
+            const response = await fetch("/api/v1/posts/quick", {
+                method: "POST",
+                body: formData,
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.success) {
+                const detail = payload.detail || payload.error || "发布失败，请稍后重试。";
+                throw new Error(detail);
+            }
+
+            textarea.value = "";
+            attachedMedia = [];
+            try {
+                localStorage.removeItem(draftKey);
+            } catch (error) {
+                // ignore
+            }
+            renderMediaList();
+            setUploadStatus("");
+            refreshState();
+            syncTextareaHeight();
+            renderDetectedTopics("");
+            renderPreview("");
+            setMessage("发布成功，正在刷新动态流...", "success");
+            setDraftText("已发布");
+            window.setTimeout(() => {
+                window.location.reload();
+            }, 450);
+        } catch (error) {
+            setMessage(getErrorMessage(error, "发布失败，请稍后重试。"), "error");
+        } finally {
+            isSubmitting = false;
+            submitButton.textContent = "发布动态";
+            refreshState();
+        }
+    });
+
+    try {
+        const savedDraft = localStorage.getItem(draftKey) || "";
+        if (savedDraft.trim()) {
+            textarea.value = savedDraft;
+            setDraftText("已恢复上次草稿");
+        }
+    } catch (error) {
+        setDraftText("浏览器不支持草稿存储", "warn");
+    }
+
+        syncTextareaHeight();
+        renderEmojiGrid();
+        renderMediaList();
+        refreshState();
+        window.__rewrzMicroComposer = { ready: true, reason: "ok" };
+    } catch (error) {
+        const errorText = error && error.message ? String(error.message) : "unknown_error";
+        window.__rewrzMicroComposer = { ready: false, reason: "runtime_error", detail: errorText };
+    }
+})();
+</script>
 {% endblock %}

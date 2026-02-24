@@ -415,6 +415,7 @@ def register_admin_routes():
             current_theme=form_data.get("current_theme", "light"),
             current_atmosphere=form_data.get("current_atmosphere"),
             auto_theme_enabled=bool(form_data.get("auto_theme_enabled")),
+            glass_intensity=form_data.get("glass_intensity", "medium"),
             csrf_token=form_data.get("csrf_token", "")
         )
     

@@ -294,6 +294,9 @@ ATMOSPHERE_EFFECT_PRESETS = {
     "thunderstorm": ["thunder", "rain"]
 }
 
+GLASS_INTENSITY_LEVELS = {"weak", "medium", "strong"}
+DEFAULT_GLASS_INTENSITY = "medium"
+
 
 def _extract_setting_value(setting: Optional[Setting], default: Any = None) -> Any:
     if not setting or setting.value is None:
@@ -362,6 +365,15 @@ def normalize_atmosphere_name(atmosphere: Optional[str]) -> Optional[str]:
     return ATMOSPHERE_THEME_ALIASES.get(normalized, normalized)
 
 
+def normalize_glass_intensity(intensity: Optional[str]) -> str:
+    if not intensity:
+        return DEFAULT_GLASS_INTENSITY
+    normalized = str(intensity).strip().lower()
+    if normalized in GLASS_INTENSITY_LEVELS:
+        return normalized
+    return DEFAULT_GLASS_INTENSITY
+
+
 def get_atmosphere_effects(atmosphere: Optional[str], explicit_effects: Optional[List[str]] = None) -> List[str]:
     if explicit_effects:
         return explicit_effects
@@ -389,6 +401,7 @@ async def admin_themes_page(request: Request, db: Session, current_user: User):
     custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
     atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
     auto_theme_setting = crud_setting.get_setting(db, key="auto_theme_enabled")
+    glass_intensity_setting = crud_setting.get_setting(db, key="glass_intensity")
     theme_schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
     background_setting = crud_setting.get_setting(db, key="background_image_settings")
     
@@ -396,6 +409,7 @@ async def admin_themes_page(request: Request, db: Session, current_user: User):
     custom_themes = custom_themes_setting.value.get("value") if custom_themes_setting else {}
     current_atmosphere, _ = parse_atmosphere_setting(atmosphere_setting)
     auto_theme_enabled = bool(_extract_setting_value(auto_theme_setting, False))
+    glass_intensity = normalize_glass_intensity(_extract_setting_value(glass_intensity_setting, DEFAULT_GLASS_INTENSITY))
     theme_schedule = theme_schedule_setting.value.get("value") if theme_schedule_setting else []
     background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
     
@@ -424,6 +438,7 @@ async def admin_themes_page(request: Request, db: Session, current_user: User):
         "atmosphere_themes": ATMOSPHERE_THEMES,
         "current_atmosphere": current_atmosphere,
         "auto_theme_enabled": auto_theme_enabled,
+        "glass_intensity": glass_intensity,
         "theme_schedule": theme_schedule,
         "background_settings": background_settings,
         "settings": settings
@@ -437,12 +452,14 @@ async def update_theme_settings(
     current_theme: str,
     current_atmosphere: Optional[str],
     auto_theme_enabled: bool,
+    glass_intensity: str,
     csrf_token: str
 ):
     """更新主题设置"""
     verify_csrf_token(request, csrf_token)
     
     normalized_current_theme = normalize_theme_name(current_theme)
+    normalized_glass_intensity = normalize_glass_intensity(glass_intensity)
 
     # 更新当前主题
     theme_setting = crud_setting.get_setting(db, key="current_theme")
@@ -479,6 +496,25 @@ async def update_theme_settings(
             description="是否启用自动主题切换",
             category="theme"
         ))
+
+    # 更新毛玻璃强度档位
+    glass_intensity_setting = crud_setting.get_setting(db, key="glass_intensity")
+    if glass_intensity_setting:
+        crud_setting.update_setting(
+            db,
+            key="glass_intensity",
+            setting_update=SettingUpdate(value={"value": normalized_glass_intensity}),
+        )
+    else:
+        crud_setting.create_setting(
+            db,
+            setting=SettingCreate(
+                key="glass_intensity",
+                value={"value": normalized_glass_intensity},
+                description="毛玻璃强度档位",
+                category="theme",
+            ),
+        )
     
     # 对于HTMX请求，返回空响应或者重新渲染部分页面
     if request.headers.get("HX-Request"):
@@ -665,6 +701,8 @@ async def get_current_theme(request: Request, db: Session = Depends(get_db)):
     # 获取背景图片设置
     background_setting = crud_setting.get_setting(db, key="background_image_settings")
     background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
+    glass_intensity_setting = crud_setting.get_setting(db, key="glass_intensity")
+    glass_intensity = normalize_glass_intensity(_extract_setting_value(glass_intensity_setting, DEFAULT_GLASS_INTENSITY))
     
     # 构建主题配置
     theme_variables: Dict[str, Any] = {}
@@ -696,6 +734,7 @@ async def get_current_theme(request: Request, db: Session = Depends(get_db)):
         "atmosphere_class": atmosphere_class,
         "atmosphere_effects": current_effects,
         "background": background_settings,
+        "glass_intensity": glass_intensity,
         "variables": theme_variables
     })
 
@@ -848,11 +887,14 @@ async def sync_theme_settings(request: Request, db: Session = Depends(get_db)):
     # 获取背景图片设置
     background_setting = crud_setting.get_setting(db, key="background_image_settings")
     background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
+    glass_intensity_setting = crud_setting.get_setting(db, key="glass_intensity")
+    glass_intensity = normalize_glass_intensity(_extract_setting_value(glass_intensity_setting, DEFAULT_GLASS_INTENSITY))
     
     return JSONResponse({
         "theme": current_theme,
         "atmosphere": atmosphere_payload,
         "homepage_mode": homepage_mode,
         "background": background_settings,
+        "glass_intensity": glass_intensity,
         "timestamp": datetime.now().isoformat()
     })

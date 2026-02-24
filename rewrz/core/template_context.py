@@ -7,8 +7,10 @@ from fastapi import Request
 from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..crud import format as crud_format, post as crud_post
+from ..crud import user as crud_user
 from ..core.content_intents import INTENT_SLUGS, normalize_intent_slug
 from ..core.media_attachments import get_default_media_navigation
+from ..core.security import decode_access_token
 
 # 主页个性化设置键常量，集中管理，避免魔法字符串分散各处
 HOMEPAGE_SETTING_KEYS = [
@@ -81,6 +83,19 @@ def build_base_template_context(request: Request) -> dict:
         db_gen = get_db()
         db = next(db_gen)
     
+    token = str((request.cookies.get("access_token") or "")).strip()
+    is_logged_in = False
+    if token:
+        payload = decode_access_token(token)
+        if payload:
+            raw_user_id = payload.get("sub")
+            try:
+                user_id = int(raw_user_id)
+            except (TypeError, ValueError):
+                user_id = 0
+            if user_id > 0:
+                is_logged_in = crud_user.get_user(db, user_id=user_id) is not None
+
     # 仅保留三种内容类型，避免旧格式继续出现在导航中
     all_formats = crud_format.get_formats(db)
     intent_order = {slug: index for index, slug in enumerate(INTENT_SLUGS)}
@@ -144,6 +159,7 @@ def build_base_template_context(request: Request) -> dict:
         "post_formats": post_formats,
         "media_nav_items": get_default_media_navigation(),
         "custom_pages": custom_pages,
+        "is_logged_in": is_logged_in,
     }
     
     if db_gen is not None:
