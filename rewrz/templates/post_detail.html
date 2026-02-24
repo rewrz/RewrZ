@@ -230,7 +230,7 @@
     <!-- 背景氛围层 -->
     {% if detail_cover_url %}
     <div class="poetry-bg absolute inset-0">
-        {{ detail_cover_url | responsive_image(post.title, "w-full h-full object-cover", "100vw", request.state.db) | safe }}
+        {{ detail_cover_url | responsive_image(post.title, "w-full h-full object-cover", "100vw", request.state.db, "post_cover") | safe }}
         <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/60"></div>
     </div>
     {% else %}

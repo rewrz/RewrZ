@@ -130,8 +130,6 @@ app = FastAPI(
 
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="rewrz/static"), name="static")
-# 挂载媒体上传目录
-app.mount("/media", StaticFiles(directory=settings.MEDIA_UPLOAD_DIR), name="media")
 
 # 配置Jinja2模板引擎（带自定义过滤器）
 templates = get_templates()
@@ -3181,6 +3179,10 @@ async def archives_page(
         return templates.TemplateResponse("fragments/archives_yearly_append.html", context)
     
     return templates.TemplateResponse("archives.html", context)
+
+# 挂载媒体上传目录
+# 放在业务路由之后，确保 /media/variant/... 先命中动态缩略图路由。
+app.mount("/media", StaticFiles(directory=settings.MEDIA_UPLOAD_DIR), name="media")
 
 # 统一注册全局异常处理器（集中管理，降低重复与维护成本）
 error_handler.register_error_handlers(app)

@@ -29,7 +29,13 @@
             <header class="page-hero relative">
                 {% if post and post.featured_image_url %}
                 <div class="page-hero-media">
-                    <img src="{{ post.featured_image_url }}" alt="{{ page_title }}" class="page-hero-image" loading="lazy">
+                    <img src="{{ post.featured_image_url | thumb_url('post_cover', request.state.db) }}"
+                         srcset="{{ post.featured_image_url | thumb_srcset('post_cover', request.state.db) }}"
+                         sizes="100vw"
+                         alt="{{ page_title }}"
+                         class="page-hero-image"
+                         loading="lazy"
+                         decoding="async">
                 </div>
                 {% else %}
                 <div class="page-hero-fallback"></div>

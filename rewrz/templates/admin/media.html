@@ -335,11 +335,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentViewMode = 'grid';
     let currentFolders = Array.isArray(bootstrapFolders) ? bootstrapFolders : [];
     let toolbarRefreshPending = false;
-    const mediaPageSize = Number({{ media_page_size | default(24) }}) || 24;
+    const mediaPageSize = Number({{ media_page_size | default(12) }}) || 12;
     let mediaCurrentPage = 1;
     let mediaHasMore = {{ 1 if media_has_more else 0 }} === 1;
     let mediaLoading = false;
     let filterReloadTimer = null;
+    let imageObserver = null;
+    const MEDIA_APPEND_CHUNK = 6;
+    const PLACEHOLDER_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
     function rebuildMediaCardState() {
         mediaCardState.clear();
@@ -391,6 +394,48 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${year}-${month}-${day}`;
     }
 
+    function ensureImageObserver() {
+        if (imageObserver || typeof IntersectionObserver === 'undefined') return;
+        imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting) return;
+                const img = entry.target;
+                const nextSrc = String(img.dataset.src || '');
+                if (!nextSrc) return;
+                if (img.dataset.loaded !== '1') {
+                    img.src = nextSrc;
+                    img.dataset.loaded = '1';
+                }
+                observer.unobserve(img);
+            });
+        }, {
+            root: null,
+            rootMargin: '120px 0px',
+            threshold: 0.01,
+        });
+    }
+
+    function observeLazyImage(img) {
+        if (!img) return;
+        const nextSrc = String(img.dataset.src || '');
+        if (!nextSrc) return;
+        if (typeof IntersectionObserver === 'undefined') {
+            img.src = nextSrc;
+            img.dataset.loaded = '1';
+            return;
+        }
+        ensureImageObserver();
+        if (imageObserver) {
+            imageObserver.observe(img);
+        }
+    }
+
+    function disconnectImageObserver() {
+        if (!imageObserver) return;
+        imageObserver.disconnect();
+        imageObserver = null;
+    }
+
     function getMediaEmptyHtml() {
         return `
             <div class="col-span-full text-center py-16">
@@ -421,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
         card.dataset.folder = folder;
 
         const mediaPreview = isImage
-            ? `<img src="${escapeHtml(previewUrl)}" alt="${escapeHtml(altText)}" loading="lazy" decoding="async">`
+            ? `<img src="${PLACEHOLDER_IMAGE}" data-src="${escapeHtml(previewUrl)}" alt="${escapeHtml(altText)}" loading="lazy" decoding="async" fetchpriority="low">`
             : `<div class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
                 <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
             </div>`;
@@ -446,15 +491,34 @@ document.addEventListener('DOMContentLoaded', () => {
         return card;
     }
 
-    function appendMediaItems(items) {
-        const fragment = document.createDocumentFragment();
-        items.forEach((item) => {
-            const card = createMediaCardElement(item);
-            registerMediaCard(card);
-            fragment.appendChild(card);
+    function rafYield() {
+        return new Promise((resolve) => {
+            requestAnimationFrame(() => resolve());
         });
-        mediaGrid.appendChild(fragment);
-        updateSelectAllButtonState();
+    }
+
+    async function appendMediaItems(items) {
+        const safeItems = Array.isArray(items) ? items : [];
+        for (let start = 0; start < safeItems.length; start += MEDIA_APPEND_CHUNK) {
+            const fragment = document.createDocumentFragment();
+            const lazyImages = [];
+            const chunk = safeItems.slice(start, start + MEDIA_APPEND_CHUNK);
+            chunk.forEach((item) => {
+                const card = createMediaCardElement(item);
+                registerMediaCard(card);
+                const lazyImage = card.querySelector('img[data-src]');
+                if (lazyImage) {
+                    lazyImages.push(lazyImage);
+                }
+                fragment.appendChild(card);
+            });
+            mediaGrid.appendChild(fragment);
+            lazyImages.forEach((img) => observeLazyImage(img));
+            if (start + MEDIA_APPEND_CHUNK < safeItems.length) {
+                await rafYield();
+            }
+        }
+        scheduleBatchToolbarUpdate();
     }
 
     function buildMediaApiUrl(page) {
@@ -536,13 +600,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedFiles.clear();
                 scheduleBatchToolbarUpdate();
                 mediaCardState.clear();
+                disconnectImageObserver();
                 mediaGrid.innerHTML = '';
             }
 
             if (!items.length && page === 1) {
                 mediaGrid.innerHTML = getMediaEmptyHtml();
             } else {
-                appendMediaItems(items);
+                await appendMediaItems(items);
             }
 
             mediaCurrentPage = page;
@@ -851,7 +916,13 @@ document.addEventListener('DOMContentLoaded', () => {
             (result.deleted_ids || []).forEach((deletedId) => {
                 const state = mediaCardState.get(String(deletedId));
                 const card = state?.card || null;
-                if (card) card.remove();
+                if (card) {
+                    const img = card.querySelector('img[data-src]');
+                    if (img && imageObserver) {
+                        imageObserver.unobserve(img);
+                    }
+                    card.remove();
+                }
                 mediaCardState.delete(String(deletedId));
                 selectedFiles.delete(String(deletedId));
             });

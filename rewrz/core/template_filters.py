@@ -9,6 +9,7 @@ Jinja2模板过滤器
 
 import hashlib
 import re
+from html import escape
 from datetime import datetime
 from typing import Optional
 from pathlib import Path
@@ -25,6 +26,11 @@ from .content_utils import (
 from .content_intents import choose_primary_intent_slug, to_public_post_segment
 from ..core.config import settings # 导入settings
 from ..core.database import get_db
+from ..core.thumbnail_service import (
+    build_variant_url,
+    is_local_media_url,
+    resolve_media_id_from_url,
+)
 
 
 def md5_filter(text: str) -> str:
@@ -305,8 +311,73 @@ def fa_compat_filter(icon_class: str) -> str:
     return ' '.join(normalized)
 
 
+def _resolve_thumb_media_id(source, db) -> Optional[int]:
+    if source is None:
+        return None
+    try:
+        if isinstance(source, int):
+            return int(source)
+        raw_text = str(source).strip()
+        if not raw_text:
+            return None
+        if raw_text.isdigit():
+            return int(raw_text)
+        if not db:
+            return None
+        return resolve_media_id_from_url(db, raw_text)
+    except Exception:
+        return None
+
+
+def thumb_url_filter(source, preset: str = "post_cover", db=None, dpr: int = 1, fmt: str = "auto") -> str:
+    if source is None:
+        return ""
+
+    raw_text = str(source).strip()
+    if not raw_text:
+        return ""
+
+    media_id = _resolve_thumb_media_id(source, db)
+    if media_id is None:
+        return raw_text
+
+    try:
+        return build_variant_url(media_id=media_id, preset=str(preset or "post_cover"), dpr=int(dpr), fmt=str(fmt or "auto"))
+    except Exception:
+        return raw_text
+
+
+def thumb_srcset_filter(source, preset: str = "post_cover", db=None, dprs="1,2", fmt: str = "auto") -> str:
+    media_id = _resolve_thumb_media_id(source, db)
+    if media_id is None:
+        return ""
+
+    if isinstance(dprs, (list, tuple, set)):
+        dpr_values = list(dprs)
+    else:
+        dpr_values = str(dprs or "1,2").split(",")
+
+    entries = []
+    seen = set()
+    for item in dpr_values:
+        try:
+            dpr_value = int(str(item).strip())
+        except (TypeError, ValueError):
+            continue
+        if dpr_value in seen:
+            continue
+        seen.add(dpr_value)
+        if dpr_value < 1:
+            continue
+        url = thumb_url_filter(media_id, preset=preset, db=db, dpr=dpr_value, fmt=fmt)
+        if not url:
+            continue
+        entries.append(f"{url} {dpr_value}x")
+    return ", ".join(entries)
+
+
 def responsive_image_filter(image_url: str, alt_text: str = "", 
-                           css_classes: str = "", sizes: str = "", db=None) -> str:
+                           css_classes: str = "", sizes: str = "", db=None, preset: str = "post_cover") -> str:
     """
     生成响应式图像 HTML 的过滤器
     
@@ -320,20 +391,29 @@ def responsive_image_filter(image_url: str, alt_text: str = "",
     Returns:
         响应式图像 HTML
     """
-    if not image_url:
+    raw_url = str(image_url or "").strip()
+    if not raw_url:
         return ""
-    
-    # 如果有数据库会话，使用媒体处理器
-    if db:
-        try:
-            from .media_processor import get_media_processor
-            media_processor = get_media_processor(db)
-            return media_processor.get_responsive_image_html(image_url, alt_text, css_classes, sizes)
-        except Exception as e:
-            print(f"使用媒体处理器生成响应式图像失败: {e}")
-    
-    # 退回简单的 img 标签
-    return f'<img src="{image_url}" alt="{alt_text}" class="{css_classes}" loading="lazy">'
+
+    src_url = raw_url
+    srcset_attr = ""
+    if db and (is_local_media_url(raw_url) or str(raw_url).isdigit()):
+        src_url = thumb_url_filter(raw_url, preset=preset, db=db, dpr=1, fmt="auto")
+        srcset_attr = thumb_srcset_filter(raw_url, preset=preset, db=db, dprs="1,2", fmt="auto")
+
+    safe_alt = escape(str(alt_text or ""), quote=True)
+    safe_class = escape(str(css_classes or ""), quote=True)
+    safe_sizes = escape(str(sizes or "(max-width: 768px) 100vw, 1200px"), quote=True)
+    safe_src = escape(str(src_url or raw_url), quote=True)
+
+    if srcset_attr:
+        safe_srcset = escape(srcset_attr, quote=True)
+        return (
+            f'<img src="{safe_src}" alt="{safe_alt}" class="{safe_class}" '
+            f'loading="lazy" decoding="async" srcset="{safe_srcset}" sizes="{safe_sizes}">'
+        )
+
+    return f'<img src="{safe_src}" alt="{safe_alt}" class="{safe_class}" loading="lazy" decoding="async">'
 
 
 def date_filter(value, format_string: str = "%Y-%m-%d") -> str:
@@ -576,6 +656,8 @@ def register_template_filters(app):
     templates.env.filters['license_options'] = get_license_options_filter
     templates.env.filters['donation_widget'] = donation_widget_filter
     templates.env.filters['responsive_image'] = responsive_image_filter
+    templates.env.filters['thumb_url'] = thumb_url_filter
+    templates.env.filters['thumb_srcset'] = thumb_srcset_filter
     templates.env.filters['url'] = url_filter # 注册url过滤器
     templates.env.filters['fa_compat'] = fa_compat_filter # 注册Font Awesome兼容过滤器
     templates.env.filters['post_content_html'] = post_content_html_filter
@@ -611,6 +693,8 @@ def get_templates():
         _templates.env.filters['license_options'] = get_license_options_filter
         _templates.env.filters['donation_widget'] = donation_widget_filter
         _templates.env.filters['responsive_image'] = responsive_image_filter
+        _templates.env.filters['thumb_url'] = thumb_url_filter
+        _templates.env.filters['thumb_srcset'] = thumb_srcset_filter
         _templates.env.filters['url'] = url_filter # 注册url过滤器
         # 新增的现代化博客功能过滤器
         _templates.env.filters['reading_time'] = reading_time_filter

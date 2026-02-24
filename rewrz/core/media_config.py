@@ -10,200 +10,43 @@ from ..crud import setting as crud_setting
 
 # 默认媒体处理设置
 DEFAULT_MEDIA_SETTINGS = [
-    # 图像处理设置
-    {
-        "key": "media_image_quality",
-        "value": {"value": 85},
-        "description": "图像压缩质量（1-100）",
-        "category": "media",
-        "type": "integer"
-    },
-    {
-        "key": "media_max_image_size",
-        "value": {"value": 2048},
-        "description": "图像最大尺寸（像素）",
-        "category": "media",
-        "type": "integer"
-    },
-    {
-        "key": "media_enable_webp",
-        "value": {"value": True},
-        "description": "启用WebP格式转换",
-        "category": "media",
-        "type": "boolean"
-    },
-    {
-        "key": "media_auto_compress",
-        "value": {"value": True},
-        "description": "自动压缩上传的图像",
-        "category": "media",
-        "type": "boolean"
-    },
-    
-    # 缩略图设置
-    {
-        "key": "media_generate_thumbnails",
-        "value": {"value": True},
-        "description": "自动生成缩略图",
-        "category": "media",
-        "type": "boolean"
-    },
-    {
-        "key": "media_thumbnail_quality",
-        "value": {"value": 80},
-        "description": "缩略图压缩质量（1-100）",
-        "category": "media",
-        "type": "integer"
-    },
-    
-    # 上传设置
-    {
-        "key": "media_upload_path",
-        "value": {"value": "media_uploads/"},
-        "description": "媒体文件上传路径",
-        "category": "media",
-        "type": "string"
-    },
-    {
-        "key": "media_max_file_size",
-        "value": {"value": 52428800},  # 50MB
-        "description": "最大文件上传大小（字节）",
-        "category": "media",
-        "type": "integer"
-    },
-    
-    # 安全设置
-    {
-        "key": "media_extract_exif",
-        "value": {"value": True},
-        "description": "提取图像EXIF元数据",
-        "category": "media",
-        "type": "boolean"
-    },
-    {
-        "key": "media_remove_exif",
-        "value": {"value": False},
-        "description": "保存时移除EXIF数据（隐私保护）",
-        "category": "media",
-        "type": "boolean"
-    },
-    
-    # 文件格式配置
-    {
-        "key": "media_allowed_image_formats",
-        "value": {"value": "jpg,jpeg,png,gif,bmp,webp,tiff"},
-        "description": "允许的图像文件格式（逗号分隔）",
-        "category": "media",
-        "type": "string"
-    },
-    {
-        "key": "media_allowed_video_formats",
-        "value": {"value": "mp4,avi,mov,wmv,flv,webm,mkv"},
-        "description": "允许的视频文件格式（逗号分隔）",
-        "category": "media",
-        "type": "string"
-    },
-    {
-        "key": "media_allowed_audio_formats",
-        "value": {"value": "mp3,wav,flac,aac,ogg,m4a"},
-        "description": "允许的音频文件格式（逗号分隔）",
-        "category": "media",
-        "type": "string"
-    },
-    {
-        "key": "media_allowed_document_formats",
-        "value": {"value": "pdf,doc,docx,txt,md"},
-        "description": "允许的文档文件格式（逗号分隔）",
-        "category": "media",
-        "type": "string"
-    },
-    
-    # 优化设置
-    {
-        "key": "media_enable_responsive",
-        "value": {"value": True},
-        "description": "启用响应式图片生成",
-        "category": "media",
-        "type": "boolean"
-    },
-    {
-        "key": "media_progressive_jpeg",
-        "value": {"value": True},
-        "description": "启用渐进式JPEG",
-        "category": "media",
-        "type": "boolean"
-    },
-    
-    # 缓存和存储设置
-    {
-        "key": "media_enable_cdn",
-        "value": {"value": False},
-        "description": "启用CDN加速",
-        "category": "media",
-        "type": "boolean"
-    },
-    {
-        "key": "media_cdn_url",
-        "value": {"value": ""},
-        "description": "CDN基础URL",
-        "category": "media",
-        "type": "string"
-    },
-    
-    # 批量处理设置
-    {
-        "key": "media_batch_process_limit",
-        "value": {"value": 10},
-        "description": "批量处理文件数量限制",
-        "category": "media",
-        "type": "integer"
-    },
-    {
-        "key": "media_parallel_processing",
-        "value": {"value": True},
-        "description": "启用并行处理",
-        "category": "media",
-        "type": "boolean"
-    },
-    
-    # 图像水印设置
-    {
-        "key": "media_enable_watermark",
-        "value": {"value": False},
-        "description": "启用图像水印",
-        "category": "media",
-        "type": "boolean"
-    },
-    {
-        "key": "media_watermark_text",
-        "value": {"value": "RewrZ"},
-        "description": "水印文字",
-        "category": "media",
-        "type": "string"
-    },
-    {
-        "key": "media_watermark_opacity",
-        "value": {"value": 0.5},
-        "description": "水印透明度（0.0-1.0）",
-        "category": "media",
-        "type": "float"
-    },
-    
-    # 存储清理设置
-    {
-        "key": "media_auto_cleanup",
-        "value": {"value": False},
-        "description": "自动清理未使用的媒体文件",
-        "category": "media",
-        "type": "boolean"
-    },
-    {
-        "key": "media_cleanup_days",
-        "value": {"value": 30},
-        "description": "未使用文件保留天数",
-        "category": "media",
-        "type": "integer"
-    }
+    {"key": "media_image_quality", "value": {"value": 85}, "description": "图像压缩质量（1-100）", "category": "media", "type": "integer"},
+    {"key": "media_max_image_size", "value": {"value": 2048}, "description": "图像最大尺寸（像素）", "category": "media", "type": "integer"},
+    {"key": "media_auto_compress", "value": {"value": True}, "description": "自动压缩上传图像", "category": "media", "type": "boolean"},
+    {"key": "media_max_file_size", "value": {"value": 52428800}, "description": "最大文件上传大小（字节）", "category": "media", "type": "integer"},
+    {"key": "media_extract_exif", "value": {"value": True}, "description": "提取图像 EXIF 元数据", "category": "media", "type": "boolean"},
+    {"key": "media_remove_exif", "value": {"value": False}, "description": "保存时移除 EXIF 数据", "category": "media", "type": "boolean"},
+    {"key": "media_allowed_image_formats", "value": {"value": "jpg,jpeg,png,gif,bmp,webp,tiff"}, "description": "允许的图像格式", "category": "media", "type": "string"},
+    {"key": "media_allowed_video_formats", "value": {"value": "mp4,avi,mov,wmv,flv,webm,mkv"}, "description": "允许的视频格式", "category": "media", "type": "string"},
+    {"key": "media_allowed_audio_formats", "value": {"value": "mp3,wav,flac,aac,ogg,m4a"}, "description": "允许的音频格式", "category": "media", "type": "string"},
+    {"key": "media_allowed_document_formats", "value": {"value": "pdf,doc,docx,txt,md"}, "description": "允许的文档格式", "category": "media", "type": "string"},
+    {"key": "media_enable_watermark", "value": {"value": False}, "description": "启用图像水印", "category": "media", "type": "boolean"},
+    {"key": "media_watermark_text", "value": {"value": "RewrZ"}, "description": "水印文字", "category": "media", "type": "string"},
+    {"key": "media_watermark_opacity", "value": {"value": 0.5}, "description": "水印透明度（0.0-1.0）", "category": "media", "type": "float"},
+    {"key": "media_progressive_jpeg", "value": {"value": True}, "description": "启用渐进式 JPEG", "category": "media", "type": "boolean"},
+    {"key": "media_enable_cdn", "value": {"value": False}, "description": "启用 CDN 加速", "category": "media", "type": "boolean"},
+    {"key": "media_cdn_url", "value": {"value": ""}, "description": "CDN 基础 URL", "category": "media", "type": "string"},
+    {"key": "media_auto_cleanup", "value": {"value": False}, "description": "自动清理未使用媒体文件", "category": "media", "type": "boolean"},
+    {"key": "media_cleanup_days", "value": {"value": 30}, "description": "未使用文件保留天数", "category": "media", "type": "integer"},
+    {"key": "thumbnail_enabled", "value": {"value": True}, "description": "启用动态缩略图服务", "category": "media", "type": "boolean"},
+    {"key": "thumbnail_cache_dir", "value": {"value": "media_uploads/_variant_cache"}, "description": "缩略图缓存目录", "category": "media", "type": "string"},
+    {"key": "thumbnail_allowed_dpr", "value": {"value": "1,2"}, "description": "允许的 DPR 集合", "category": "media", "type": "string"},
+    {"key": "thumbnail_allowed_fmt", "value": {"value": "auto,avif,webp,jpg,png"}, "description": "允许的输出格式集合", "category": "media", "type": "string"},
+    {"key": "thumbnail_default_fmt", "value": {"value": "auto"}, "description": "默认输出格式策略", "category": "media", "type": "string"},
+    {"key": "thumbnail_processor_version", "value": {"value": "v1"}, "description": "图像处理器版本号", "category": "media", "type": "string"},
+    {"key": "thumbnail_lock_timeout_ms", "value": {"value": 15000}, "description": "同变体互斥锁超时", "category": "media", "type": "integer"},
+    {"key": "thumbnail_negative_cache_ttl_seconds", "value": {"value": 30}, "description": "失败负缓存时长（秒）", "category": "media", "type": "integer"},
+    {"key": "thumbnail_generate_timeout_ms", "value": {"value": 4000}, "description": "单次生成超时（毫秒）", "category": "media", "type": "integer"},
+    {"key": "thumbnail_source_max_megapixels", "value": {"value": 40}, "description": "原图像素上限（MP）", "category": "media", "type": "integer"},
+    {"key": "thumbnail_cleanup_interval_hours", "value": {"value": 168}, "description": "缓存清理周期（小时）", "category": "media", "type": "integer"},
+    {"key": "external_image_policy", "value": {"value": "passthrough"}, "description": "外链图片策略", "category": "media", "type": "string"},
+    {"key": "external_image_allowlist", "value": {"value": ""}, "description": "外链域名白名单", "category": "media", "type": "string"},
+    {"key": "external_image_max_bytes", "value": {"value": 10485760}, "description": "外链图片单文件大小上限（字节）", "category": "media", "type": "integer"},
+    {"key": "external_image_timeout_ms", "value": {"value": 3000}, "description": "外链抓取超时（毫秒）", "category": "media", "type": "integer"},
+    {"key": "external_image_redirect_limit", "value": {"value": 2}, "description": "外链最大跳转次数", "category": "media", "type": "integer"},
+    {"key": "external_image_allowed_mime", "value": {"value": "image/jpeg,image/png,image/webp,image/avif,image/gif"}, "description": "允许的外链 MIME 列表", "category": "media", "type": "string"},
+    {"key": "external_image_localize_concurrency", "value": {"value": 2}, "description": "外链本地化并发任务数", "category": "media", "type": "integer"},
+    {"key": "external_image_localize_max_retries", "value": {"value": 2}, "description": "外链本地化最大重试次数", "category": "media", "type": "integer"},
 ]
 
 
@@ -390,108 +233,56 @@ def get_media_settings_schema():
         Dict: 设置配置模式
     """
     return {
-        "图像处理": {
-            "media_image_quality": {
-                "type": "range",
-                "min": 1,
-                "max": 100,
-                "step": 1,
-                "label": "图像压缩质量"
-            },
-            "media_max_image_size": {
-                "type": "number",
-                "min": 500,
-                "max": 5000,
-                "label": "图像最大尺寸（像素）"
-            },
-            "media_enable_webp": {
-                "type": "checkbox",
-                "label": "启用WebP格式转换"
-            },
-            "media_auto_compress": {
-                "type": "checkbox",
-                "label": "自动压缩上传图像"
-            }
+        "图像基础处理": {
+            "media_image_quality": {"type": "range", "min": 1, "max": 100, "step": 1, "label": "原图压缩质量"},
+            "media_max_image_size": {"type": "number", "min": 500, "max": 12000, "label": "原图最大尺寸（像素）"},
+            "media_auto_compress": {"type": "checkbox", "label": "上传后自动压缩原图"},
+            "media_extract_exif": {"type": "checkbox", "label": "提取 EXIF 元数据"},
+            "media_remove_exif": {"type": "checkbox", "label": "写盘时移除 EXIF"},
+            "media_progressive_jpeg": {"type": "checkbox", "label": "启用渐进式 JPEG"},
         },
-        "缩略图设置": {
-            "media_generate_thumbnails": {
-                "type": "checkbox",
-                "label": "自动生成缩略图"
-            },
-            "media_thumbnail_quality": {
-                "type": "range",
-                "min": 50,
-                "max": 100,
-                "step": 5,
-                "label": "缩略图压缩质量"
-            }
+        "动态缩略图引擎": {
+            "thumbnail_enabled": {"type": "checkbox", "label": "启用动态缩略图服务"},
+            "thumbnail_cache_dir": {"type": "text", "label": "缓存目录"},
+            "thumbnail_allowed_dpr": {"type": "text", "label": "允许的 DPR"},
+            "thumbnail_allowed_fmt": {"type": "text", "label": "允许的输出格式集合"},
+            "thumbnail_default_fmt": {"type": "select", "label": "默认输出格式", "options": {"auto": "auto", "avif": "avif", "webp": "webp", "jpg": "jpg", "png": "png"}},
+            "thumbnail_processor_version": {"type": "text", "label": "处理器版本"},
+            "thumbnail_lock_timeout_ms": {"type": "number", "label": "生成锁超时（毫秒）"},
+            "thumbnail_negative_cache_ttl_seconds": {"type": "number", "label": "失败负缓存时长（秒）"},
+            "thumbnail_generate_timeout_ms": {"type": "number", "label": "单次生成超时（毫秒）"},
+            "thumbnail_source_max_megapixels": {"type": "number", "label": "原图像素上限（MP）"},
+            "thumbnail_cleanup_interval_hours": {"type": "number", "label": "缓存清理周期（小时）"},
         },
-        "上传限制": {
+        "外链图片策略": {
+            "external_image_policy": {
+                "type": "select",
+                "label": "外链策略",
+                "options": {"passthrough": "passthrough", "localize_async": "localize_async", "block": "block"},
+            },
+            "external_image_allowlist": {"type": "text", "label": "域名白名单"},
+            "external_image_max_bytes": {"type": "number", "label": "单文件大小上限（字节）"},
+            "external_image_timeout_ms": {"type": "number", "label": "抓取超时（毫秒）"},
+            "external_image_redirect_limit": {"type": "number", "label": "最大重定向次数"},
+            "external_image_allowed_mime": {"type": "text", "label": "允许 MIME 列表"},
+            "external_image_localize_concurrency": {"type": "number", "label": "本地化并发"},
+            "external_image_localize_max_retries": {"type": "number", "label": "本地化最大重试"},
+        },
+        "上传限制与格式": {
             "media_max_file_size": {
                 "type": "select",
+                "label": "最大文件上传大小",
                 "options": {
                     "10485760": "10MB",
                     "26214400": "25MB",
                     "52428800": "50MB",
                     "104857600": "100MB",
-                    "209715200": "200MB"
+                    "209715200": "200MB",
                 },
-                "label": "最大文件上传大小"
-            }
+            },
+            "media_allowed_image_formats": {"type": "text", "label": "允许的图像格式"},
+            "media_allowed_video_formats": {"type": "text", "label": "允许的视频格式"},
+            "media_allowed_audio_formats": {"type": "text", "label": "允许的音频格式"},
+            "media_allowed_document_formats": {"type": "text", "label": "允许的文档格式"},
         },
-        "安全设置": {
-            "media_extract_exif": {
-                "type": "checkbox",
-                "label": "提取EXIF元数据"
-            },
-            "media_remove_exif": {
-                "type": "checkbox",
-                "label": "移除EXIF数据（隐私保护）"
-            }
-        },
-        "文件格式配置": {
-            "media_allowed_image_formats": {
-                "type": "text",
-                "label": "允许的图像格式",
-                "placeholder": "jpg,jpeg,png,gif,bmp,webp,tiff",
-                "help": "用逗号分隔，不包含点号"
-            },
-            "media_allowed_video_formats": {
-                "type": "text",
-                "label": "允许的视频格式",
-                "placeholder": "mp4,avi,mov,wmv,flv,webm,mkv",
-                "help": "用逗号分隔，不包含点号"
-            },
-            "media_allowed_audio_formats": {
-                "type": "text",
-                "label": "允许的音频格式",
-                "placeholder": "mp3,wav,flac,aac,ogg,m4a",
-                "help": "用逗号分隔，不包含点号"
-            },
-            "media_allowed_document_formats": {
-                "type": "text",
-                "label": "允许的文档格式",
-                "placeholder": "pdf,doc,docx,txt,md",
-                "help": "用逗号分隔，不包含点号"
-            }
-        },
-        "高级功能": {
-            "media_enable_watermark": {
-                "type": "checkbox",
-                "label": "启用图像水印"
-            },
-            "media_watermark_text": {
-                "type": "text",
-                "label": "水印文字",
-                "dependency": "media_enable_watermark"
-            },
-            "media_watermark_opacity": {
-                "type": "range",
-                "min": 0.1,
-                "max": 1.0,
-                "step": 0.1,
-                "label": "水印透明度",
-                "dependency": "media_enable_watermark"
-            }
-        }
     }

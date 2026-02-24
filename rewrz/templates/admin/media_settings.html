@@ -5,176 +5,272 @@
 {% block content %}
 <div class="bg-white p-6 rounded-lg shadow-md">
     <form method="post" action="{{ admin_path }}/api/v1/media/settings" id="media-settings-form">
-    <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
-        
-        <!-- 图像处理设置 -->
+        <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
+        <div class="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            <p class="font-semibold">推荐基线（本地开发 / 小站默认）</p>
+            <p class="mt-1 text-xs text-blue-800">`thumbnail_enabled=true`、`thumbnail_allowed_dpr=1,2`、`thumbnail_allowed_fmt=auto,avif,webp,jpg,png`、`external_image_policy=passthrough`。</p>
+            <p class="mt-1 text-xs text-blue-800">如果切到 `localize_async`，请先收紧白名单与超时，不建议直接全开放。</p>
+        </div>
+
         <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">图像处理设置</h2>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">图像基础处理</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label for="media_image_quality" class="block text-sm font-medium text-gray-700 mb-2">图像压缩质量</label>
-                    <input type="range" id="media_image_quality" name="media_image_quality" 
-                           min="1" max="100" step="1" 
-                           value="{{ media_settings.get('media_image_quality', 85) }}"
-                           class="w-full">
+                    <label for="media_image_quality" class="block text-sm font-medium text-gray-700 mb-2">原图压缩质量</label>
+                    <input type="range" id="media_image_quality" name="media_image_quality" min="1" max="100" step="1"
+                           value="{{ media_settings.get('media_image_quality', 85) }}" class="w-full">
                     <div class="flex justify-between text-xs text-gray-500 mt-1">
-                        <span>低质量</span>
+                        <span>低</span>
                         <span id="quality-value">{{ media_settings.get('media_image_quality', 85) }}</span>
-                        <span>高质量</span>
+                        <span>高</span>
                     </div>
+                    <p class="mt-1 text-xs text-gray-500">推荐 `82-88`。过高会显著增大原图体积，过低会导致细节涂抹。</p>
                 </div>
-                
                 <div>
-                    <label for="media_max_image_size" class="block text-sm font-medium text-gray-700">图像最大尺寸（像素）</label>
-                    <input type="number" id="media_max_image_size" name="media_max_image_size" 
-                           min="500" max="5000" step="50"
+                    <label for="media_max_image_size" class="block text-sm font-medium text-gray-700">原图最大尺寸（像素）</label>
+                    <input type="number" id="media_max_image_size" name="media_max_image_size" min="500" max="12000" step="50"
                            value="{{ media_settings.get('media_max_image_size', 2048) }}"
                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500">推荐 `2048-4096`。过大会增加 CPU 与解码压力，过小会影响大图场景。</p>
                 </div>
-                
-                <div class="flex items-center">
-                    <input type="checkbox" id="media_enable_webp" name="media_enable_webp" value="true"
-                           {{ 'checked' if media_settings.get('media_enable_webp', True) }}
-                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <label for="media_enable_webp" class="ml-2 block text-sm text-gray-900">启用WebP格式转换</label>
-                </div>
-                
-                <div class="flex items-center">
-                    <input type="checkbox" id="media_auto_compress" name="media_auto_compress" value="true"
-                           {{ 'checked' if media_settings.get('media_auto_compress', True) }}
-                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <label for="media_auto_compress" class="ml-2 block text-sm text-gray-900">自动压缩上传图像</label>
-                </div>
-            </div>
-        </div>
-
-        <!-- 缩略图设置 -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">缩略图设置</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="flex items-center">
-                    <input type="checkbox" id="media_generate_thumbnails" name="media_generate_thumbnails" value="true"
-                           {{ 'checked' if media_settings.get('media_generate_thumbnails', True) }}
-                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <label for="media_generate_thumbnails" class="ml-2 block text-sm text-gray-900">自动生成缩略图</label>
-                </div>
-                
                 <div>
-                    <label for="media_thumbnail_quality" class="block text-sm font-medium text-gray-700 mb-2">缩略图压缩质量</label>
-                    <input type="range" id="media_thumbnail_quality" name="media_thumbnail_quality" 
-                           min="50" max="100" step="5" 
-                           value="{{ media_settings.get('media_thumbnail_quality', 80) }}"
-                           class="w-full">
-                    <div class="flex justify-between text-xs text-gray-500 mt-1">
-                        <span>50</span>
-                        <span id="thumbnail-quality-value">{{ media_settings.get('media_thumbnail_quality', 80) }}</span>
-                        <span>100</span>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="media_auto_compress" name="media_auto_compress" value="true"
+                               {{ 'checked' if media_settings.get('media_auto_compress', True) }}
+                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                        <label for="media_auto_compress" class="ml-2 block text-sm text-gray-900">上传后自动压缩原图</label>
                     </div>
+                    <p class="mt-1 text-xs text-gray-500">推荐开启。关闭后原图体积会更大，影响备份与传输成本。</p>
                 </div>
-            </div>
-        </div>
-
-        <!-- 上传限制 -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">上传限制</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label for="media_max_file_size" class="block text-sm font-medium text-gray-700">最大文件上传大小</label>
-                    <select id="media_max_file_size" name="media_max_file_size" 
-                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        <option value="10485760" {{ 'selected' if media_settings.get('media_max_file_size', 52428800) == 10485760 }}>10MB</option>
-                        <option value="26214400" {{ 'selected' if media_settings.get('media_max_file_size', 52428800) == 26214400 }}>25MB</option>
-                        <option value="52428800" {{ 'selected' if media_settings.get('media_max_file_size', 52428800) == 52428800 }}>50MB</option>
-                        <option value="104857600" {{ 'selected' if media_settings.get('media_max_file_size', 52428800) == 104857600 }}>100MB</option>
-                        <option value="209715200" {{ 'selected' if media_settings.get('media_max_file_size', 52428800) == 209715200 }}>200MB</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <!-- 文件格式配置 -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">文件格式配置</h2>
-            <div class="space-y-4">
-                <div>
-                    <label for="media_allowed_image_formats" class="block text-sm font-medium text-gray-700">允许的图像格式</label>
-                    <input type="text" id="media_allowed_image_formats" name="media_allowed_image_formats" 
-                           value="{{ media_settings.get('media_allowed_image_formats', 'jpg,jpeg,png,gif,bmp,webp,tiff') }}"
-                           placeholder="jpg,jpeg,png,gif,bmp,webp,tiff"
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                    <p class="mt-1 text-sm text-gray-500">用逗号分隔，不包含点号</p>
-                </div>
-                
-                <div>
-                    <label for="media_allowed_video_formats" class="block text-sm font-medium text-gray-700">允许的视频格式</label>
-                    <input type="text" id="media_allowed_video_formats" name="media_allowed_video_formats" 
-                           value="{{ media_settings.get('media_allowed_video_formats', 'mp4,avi,mov,wmv,flv,webm,mkv') }}"
-                           placeholder="mp4,avi,mov,wmv,flv,webm,mkv"
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                    <p class="mt-1 text-sm text-gray-500">用逗号分隔，不包含点号</p>
-                </div>
-                
-                <div>
-                    <label for="media_allowed_audio_formats" class="block text-sm font-medium text-gray-700">允许的音频格式</label>
-                    <input type="text" id="media_allowed_audio_formats" name="media_allowed_audio_formats" 
-                           value="{{ media_settings.get('media_allowed_audio_formats', 'mp3,wav,flac,aac,ogg,m4a') }}"
-                           placeholder="mp3,wav,flac,aac,ogg,m4a"
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                    <p class="mt-1 text-sm text-gray-500">用逗号分隔，不包含点号</p>
-                </div>
-                
-                <div>
-                    <label for="media_allowed_document_formats" class="block text-sm font-medium text-gray-700">允许的文档格式</label>
-                    <input type="text" id="media_allowed_document_formats" name="media_allowed_document_formats" 
-                           value="{{ media_settings.get('media_allowed_document_formats', 'pdf,doc,docx,txt,md') }}"
-                           placeholder="pdf,doc,docx,txt,md"
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                    <p class="mt-1 text-sm text-gray-500">用逗号分隔，不包含点号</p>
-                </div>
-            </div>
-            
-            <!-- 安全提示 -->
-            <div class="bg-yellow-50 border border-yellow-200 rounded-md p-4 mt-4">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="media_progressive_jpeg" name="media_progressive_jpeg" value="true"
+                               {{ 'checked' if media_settings.get('media_progressive_jpeg', True) }}
+                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                        <label for="media_progressive_jpeg" class="ml-2 block text-sm text-gray-900">启用渐进式 JPEG</label>
                     </div>
-                    <div class="ml-3">
-                        <h3 class="text-sm font-medium text-yellow-800">安全建议</h3>
-                        <ul class="mt-2 text-sm text-yellow-700 list-disc list-inside">
-                            <li>谨慎允许可执行文件格式（如exe、bat、sh等）</li>
-                            <li>限制文档格式可以降低安全风险</li>
-                            <li>定期检查上传的文件内容</li>
-                            <li>建议保持文件大小限制在合理范围内</li>
-                        </ul>
-                    </div>
+                    <p class="mt-1 text-xs text-gray-500">推荐开启。首屏视觉更平滑；极少数旧环境兼容性略差。</p>
                 </div>
-            </div>
-        </div>
-
-        <!-- 安全设置 -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">安全设置</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="flex items-center">
                     <input type="checkbox" id="media_extract_exif" name="media_extract_exif" value="true"
                            {{ 'checked' if media_settings.get('media_extract_exif', True) }}
                            class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <label for="media_extract_exif" class="ml-2 block text-sm text-gray-900">提取EXIF元数据</label>
+                    <label for="media_extract_exif" class="ml-2 block text-sm text-gray-900">提取 EXIF 元数据</label>
                 </div>
-                
                 <div class="flex items-center">
                     <input type="checkbox" id="media_remove_exif" name="media_remove_exif" value="true"
                            {{ 'checked' if media_settings.get('media_remove_exif', False) }}
                            class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <label for="media_remove_exif" class="ml-2 block text-sm text-gray-900">移除EXIF数据（隐私保护）</label>
+                    <label for="media_remove_exif" class="ml-2 block text-sm text-gray-900">写盘时移除 EXIF</label>
                 </div>
             </div>
         </div>
 
-        <!-- 高级功能 -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">动态缩略图引擎</h2>
+            <div class="space-y-4">
+                <div class="flex items-center">
+                    <input type="checkbox" id="thumbnail_enabled" name="thumbnail_enabled" value="true"
+                           {{ 'checked' if media_settings.get('thumbnail_enabled', True) }}
+                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <label for="thumbnail_enabled" class="ml-2 block text-sm text-gray-900">启用动态缩略图服务</label>
+                </div>
+                <p class="text-xs text-gray-500">推荐开启。关闭后会回退原图输出，媒体库与卡片首屏性能会明显下降。</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="thumbnail_cache_dir" class="block text-sm font-medium text-gray-700">缓存目录</label>
+                        <input type="text" id="thumbnail_cache_dir" name="thumbnail_cache_dir"
+                               value="{{ media_settings.get('thumbnail_cache_dir', 'media_uploads/_variant_cache') }}"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="mt-1 text-xs text-gray-500">推荐独立目录，例如 `media_uploads/_variant_cache`，便于单独清理与容量统计。</p>
+                    </div>
+                    <div>
+                        <label for="thumbnail_processor_version" class="block text-sm font-medium text-gray-700">处理器版本</label>
+                        <input type="text" id="thumbnail_processor_version" name="thumbnail_processor_version"
+                               value="{{ media_settings.get('thumbnail_processor_version', 'v1') }}"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="mt-1 text-xs text-gray-500">仅在算法变更时升级（如 `v2`），用于触发缓存失效与重建。</p>
+                    </div>
+                    <div>
+                        <label for="thumbnail_allowed_dpr" class="block text-sm font-medium text-gray-700">允许的 DPR</label>
+                        <input type="text" id="thumbnail_allowed_dpr" name="thumbnail_allowed_dpr"
+                               value="{{ media_settings.get('thumbnail_allowed_dpr', '1,2') }}"
+                               placeholder="1,2"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="mt-1 text-xs text-gray-500">推荐 `1,2`。加入更多档位会显著增加变体数量与缓存膨胀风险。</p>
+                    </div>
+                    <div>
+                        <label for="thumbnail_allowed_fmt" class="block text-sm font-medium text-gray-700">允许的输出格式</label>
+                        <input type="text" id="thumbnail_allowed_fmt" name="thumbnail_allowed_fmt"
+                               value="{{ media_settings.get('thumbnail_allowed_fmt', 'auto,avif,webp,jpg,png') }}"
+                               placeholder="auto,avif,webp,jpg,png"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="mt-1 text-xs text-gray-500">必须包含 `auto`。建议保留 `jpg,png` 兜底，避免终端协商失败。</p>
+                    </div>
+                    <div>
+                        <label for="thumbnail_default_fmt" class="block text-sm font-medium text-gray-700">默认输出格式</label>
+                        <select id="thumbnail_default_fmt" name="thumbnail_default_fmt"
+                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            {% set default_fmt = media_settings.get('thumbnail_default_fmt', 'auto') %}
+                            {% for fmt in ['auto', 'avif', 'webp', 'jpg', 'png'] %}
+                            <option value="{{ fmt }}" {{ 'selected' if default_fmt == fmt else '' }}>{{ fmt }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">推荐 `auto`。强制单格式可能导致兼容性回退或体积异常。</p>
+                    </div>
+                    <div>
+                        <label for="thumbnail_lock_timeout_ms" class="block text-sm font-medium text-gray-700">生成锁超时（ms）</label>
+                        <input type="number" id="thumbnail_lock_timeout_ms" name="thumbnail_lock_timeout_ms" min="1000" max="60000"
+                               value="{{ media_settings.get('thumbnail_lock_timeout_ms', 15000) }}"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="mt-1 text-xs text-gray-500">推荐 `15000`。过低易误判繁忙，过高会拖慢异常请求释放。</p>
+                    </div>
+                    <div>
+                        <label for="thumbnail_negative_cache_ttl_seconds" class="block text-sm font-medium text-gray-700">失败负缓存（秒）</label>
+                        <input type="number" id="thumbnail_negative_cache_ttl_seconds" name="thumbnail_negative_cache_ttl_seconds" min="1" max="600"
+                               value="{{ media_settings.get('thumbnail_negative_cache_ttl_seconds', 30) }}"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="mt-1 text-xs text-gray-500">推荐 `15-60`。过低会重复打失败请求，过高会延长恢复时间。</p>
+                    </div>
+                    <div>
+                        <label for="thumbnail_generate_timeout_ms" class="block text-sm font-medium text-gray-700">单次生成超时（ms）</label>
+                        <input type="number" id="thumbnail_generate_timeout_ms" name="thumbnail_generate_timeout_ms" min="500" max="30000"
+                               value="{{ media_settings.get('thumbnail_generate_timeout_ms', 4000) }}"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="mt-1 text-xs text-gray-500">推荐 `3000-6000`。过短会误杀大图，过长会占用工作线程。</p>
+                    </div>
+                    <div>
+                        <label for="thumbnail_source_max_megapixels" class="block text-sm font-medium text-gray-700">原图像素上限（MP）</label>
+                        <input type="number" id="thumbnail_source_max_megapixels" name="thumbnail_source_max_megapixels" min="1" max="200"
+                               value="{{ media_settings.get('thumbnail_source_max_megapixels', 40) }}"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="mt-1 text-xs text-gray-500">推荐 `40`。过高可能触发内存峰值，过低会拒绝部分高分辨率素材。</p>
+                    </div>
+                    <div>
+                        <label for="thumbnail_cleanup_interval_hours" class="block text-sm font-medium text-gray-700">缓存清理周期（小时）</label>
+                        <input type="number" id="thumbnail_cleanup_interval_hours" name="thumbnail_cleanup_interval_hours" min="1" max="8760"
+                               value="{{ media_settings.get('thumbnail_cleanup_interval_hours', 168) }}"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="mt-1 text-xs text-gray-500">推荐 `168`（每周）。过于频繁会增加磁盘抖动。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">外链图片策略</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="external_image_policy" class="block text-sm font-medium text-gray-700">策略模式</label>
+                    {% set external_policy = media_settings.get('external_image_policy', 'passthrough') %}
+                    <select id="external_image_policy" name="external_image_policy"
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <option value="passthrough" {{ 'selected' if external_policy == 'passthrough' else '' }}>passthrough（默认直出）</option>
+                        <option value="localize_async" {{ 'selected' if external_policy == 'localize_async' else '' }}>localize_async（异步本地化）</option>
+                        <option value="block" {{ 'selected' if external_policy == 'block' else '' }}>block（阻止渲染）</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">推荐 `passthrough` 起步。`localize_async` 需要额外队列与安全治理。</p>
+                </div>
+                <div>
+                    <label for="external_image_allowlist" class="block text-sm font-medium text-gray-700">域名白名单</label>
+                    <input type="text" id="external_image_allowlist" name="external_image_allowlist"
+                           value="{{ media_settings.get('external_image_allowlist', '') }}"
+                           placeholder="img.example.com,cdn.example.org"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500">推荐只放可信域名。全开放会提高 SSRF 与恶意资源风险。</p>
+                </div>
+                <div>
+                    <label for="external_image_max_bytes" class="block text-sm font-medium text-gray-700">单文件大小上限（字节）</label>
+                    <input type="number" id="external_image_max_bytes" name="external_image_max_bytes" min="1048576" max="104857600"
+                           value="{{ media_settings.get('external_image_max_bytes', 10485760) }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500">推荐 `10485760`（10MB）。过大易拉高带宽与磁盘占用峰值。</p>
+                </div>
+                <div>
+                    <label for="external_image_timeout_ms" class="block text-sm font-medium text-gray-700">抓取超时（ms）</label>
+                    <input type="number" id="external_image_timeout_ms" name="external_image_timeout_ms" min="500" max="30000"
+                           value="{{ media_settings.get('external_image_timeout_ms', 3000) }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500">推荐 `3000`。过高会拖慢请求释放，过低会增加误失败。</p>
+                </div>
+                <div>
+                    <label for="external_image_redirect_limit" class="block text-sm font-medium text-gray-700">最大重定向次数</label>
+                    <input type="number" id="external_image_redirect_limit" name="external_image_redirect_limit" min="0" max="5"
+                           value="{{ media_settings.get('external_image_redirect_limit', 2) }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500">推荐 `2`。次数过大容易被恶意跳转链消耗资源。</p>
+                </div>
+                <div>
+                    <label for="external_image_allowed_mime" class="block text-sm font-medium text-gray-700">允许 MIME 列表</label>
+                    <input type="text" id="external_image_allowed_mime" name="external_image_allowed_mime"
+                           value="{{ media_settings.get('external_image_allowed_mime', 'image/jpeg,image/png,image/webp,image/avif,image/gif') }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500">仅保留 `image/*`。不要加入 `text/*` 或可执行内容类型。</p>
+                </div>
+                <div id="external-localize-settings" class="{{ '' if external_policy == 'localize_async' else 'hidden' }}">
+                    <label for="external_image_localize_concurrency" class="block text-sm font-medium text-gray-700">本地化并发</label>
+                    <input type="number" id="external_image_localize_concurrency" name="external_image_localize_concurrency" min="1" max="16"
+                           value="{{ media_settings.get('external_image_localize_concurrency', 2) }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500">推荐 `2-4`。并发过高会抢占本机 CPU/IO。</p>
+                </div>
+                <div id="external-localize-retry-settings" class="{{ '' if external_policy == 'localize_async' else 'hidden' }}">
+                    <label for="external_image_localize_max_retries" class="block text-sm font-medium text-gray-700">本地化最大重试</label>
+                    <input type="number" id="external_image_localize_max_retries" name="external_image_localize_max_retries" min="0" max="10"
+                           value="{{ media_settings.get('external_image_localize_max_retries', 2) }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500">推荐 `1-2`。重试过多会放大故障时的任务堆积。</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">上传限制与格式</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="media_max_file_size" class="block text-sm font-medium text-gray-700">最大文件上传大小</label>
+                    <select id="media_max_file_size" name="media_max_file_size"
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        {% set max_file_size = media_settings.get('media_max_file_size', 52428800) %}
+                        <option value="10485760" {{ 'selected' if max_file_size == 10485760 else '' }}>10MB</option>
+                        <option value="26214400" {{ 'selected' if max_file_size == 26214400 else '' }}>25MB</option>
+                        <option value="52428800" {{ 'selected' if max_file_size == 52428800 else '' }}>50MB</option>
+                        <option value="104857600" {{ 'selected' if max_file_size == 104857600 else '' }}>100MB</option>
+                        <option value="209715200" {{ 'selected' if max_file_size == 209715200 else '' }}>200MB</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">推荐 `50MB`。过大会提高异常上传和存储成本风险。</p>
+                </div>
+                <div>
+                    <label for="media_allowed_image_formats" class="block text-sm font-medium text-gray-700">允许的图像格式</label>
+                    <input type="text" id="media_allowed_image_formats" name="media_allowed_image_formats"
+                           value="{{ media_settings.get('media_allowed_image_formats', 'jpg,jpeg,png,gif,bmp,webp,tiff') }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500">推荐保留常用格式即可，格式越多验证面越大。</p>
+                </div>
+                <div>
+                    <label for="media_allowed_video_formats" class="block text-sm font-medium text-gray-700">允许的视频格式</label>
+                    <input type="text" id="media_allowed_video_formats" name="media_allowed_video_formats"
+                           value="{{ media_settings.get('media_allowed_video_formats', 'mp4,avi,mov,wmv,flv,webm,mkv') }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500">推荐优先 `mp4,webm`，其余按实际需要开启。</p>
+                </div>
+                <div>
+                    <label for="media_allowed_audio_formats" class="block text-sm font-medium text-gray-700">允许的音频格式</label>
+                    <input type="text" id="media_allowed_audio_formats" name="media_allowed_audio_formats"
+                           value="{{ media_settings.get('media_allowed_audio_formats', 'mp3,wav,flac,aac,ogg,m4a') }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500">推荐优先 `mp3,ogg,m4a`，减少冷门格式兼容成本。</p>
+                </div>
+                <div>
+                    <label for="media_allowed_document_formats" class="block text-sm font-medium text-gray-700">允许的文档格式</label>
+                    <input type="text" id="media_allowed_document_formats" name="media_allowed_document_formats"
+                           value="{{ media_settings.get('media_allowed_document_formats', 'pdf,doc,docx,txt,md') }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500">建议最小化开启，文档类型越多潜在安全面越广。</p>
+                </div>
+            </div>
+        </div>
+
         <div class="bg-white p-6 rounded-lg shadow-md mb-6">
             <h2 class="text-2xl font-semibold text-gray-800 mb-4">高级功能</h2>
             <div class="space-y-4">
@@ -184,71 +280,48 @@
                            class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
                     <label for="media_enable_watermark" class="ml-2 block text-sm text-gray-900">启用图像水印</label>
                 </div>
-                
-                <div id="watermark-settings" class="{{ 'hidden' if not media_settings.get('media_enable_watermark', False) }}">
+                <p class="text-xs text-gray-500">建议仅在版权敏感场景开启，默认关闭以保证图像观感。</p>
+                <div id="watermark-settings" class="{{ '' if media_settings.get('media_enable_watermark', False) else 'hidden' }}">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
                         <div>
                             <label for="media_watermark_text" class="block text-sm font-medium text-gray-700">水印文字</label>
-                            <input type="text" id="media_watermark_text" name="media_watermark_text" 
+                        <input type="text" id="media_watermark_text" name="media_watermark_text"
                                    value="{{ media_settings.get('media_watermark_text', '') }}"
                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            <p class="mt-1 text-xs text-gray-500">推荐短文本（站点名），避免遮挡主体内容。</p>
                         </div>
-                        
                         <div>
                             <label for="media_watermark_opacity" class="block text-sm font-medium text-gray-700 mb-2">水印透明度</label>
-                            <input type="range" id="media_watermark_opacity" name="media_watermark_opacity" 
-                                   min="0.1" max="1.0" step="0.1" 
-                                   value="{{ media_settings.get('media_watermark_opacity', 0.5) }}"
-                                   class="w-full">
+                            <input type="range" id="media_watermark_opacity" name="media_watermark_opacity" min="0.0" max="1.0" step="0.1"
+                                   value="{{ media_settings.get('media_watermark_opacity', 0.5) }}" class="w-full">
                             <div class="flex justify-between text-xs text-gray-500 mt-1">
                                 <span>透明</span>
                                 <span id="watermark-opacity-value">{{ media_settings.get('media_watermark_opacity', 0.5) }}</span>
                                 <span>不透明</span>
                             </div>
+                            <p class="mt-1 text-xs text-gray-500">推荐 `0.2-0.4`，过高会明显影响画面可读性。</p>
                         </div>
                     </div>
                 </div>
-                
-                <div class="flex items-center">
-                    <input type="checkbox" id="media_enable_responsive" name="media_enable_responsive" value="true"
-                           {{ 'checked' if media_settings.get('media_enable_responsive', True) }}
-                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <label for="media_enable_responsive" class="ml-2 block text-sm text-gray-900">启用响应式图片生成</label>
-                </div>
-                
-                <div class="flex items-center">
-                    <input type="checkbox" id="media_progressive_jpeg" name="media_progressive_jpeg" value="true"
-                           {{ 'checked' if media_settings.get('media_progressive_jpeg', True) }}
-                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <label for="media_progressive_jpeg" class="ml-2 block text-sm text-gray-900">启用渐进式JPEG</label>
-                </div>
-            </div>
-        </div>
-
-        <!-- CDN设置 -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">CDN设置</h2>
-            <div class="space-y-4">
                 <div class="flex items-center">
                     <input type="checkbox" id="media_enable_cdn" name="media_enable_cdn" value="true"
                            {{ 'checked' if media_settings.get('media_enable_cdn', False) }}
                            class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <label for="media_enable_cdn" class="ml-2 block text-sm text-gray-900">启用CDN加速</label>
+                    <label for="media_enable_cdn" class="ml-2 block text-sm text-gray-900">启用 CDN 加速</label>
                 </div>
-                
-                <div id="cdn-settings" class="{{ 'hidden' if not media_settings.get('media_enable_cdn', False) }}">
+                <div id="cdn-settings" class="{{ '' if media_settings.get('media_enable_cdn', False) else 'hidden' }}">
                     <div class="pl-6">
-                        <label for="media_cdn_url" class="block text-sm font-medium text-gray-700">CDN基础URL</label>
-                        <input type="url" id="media_cdn_url" name="media_cdn_url" 
+                        <label for="media_cdn_url" class="block text-sm font-medium text-gray-700">CDN 基础 URL</label>
+                        <input type="url" id="media_cdn_url" name="media_cdn_url"
                                value="{{ media_settings.get('media_cdn_url', '') }}"
                                placeholder="https://cdn.example.com"
                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="mt-1 text-xs text-gray-500">必须以 `http://` 或 `https://` 开头，建议使用独立媒体域名。</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 清理设置 -->
         <div class="bg-white p-6 rounded-lg shadow-md mb-6">
             <h2 class="text-2xl font-semibold text-gray-800 mb-4">存储清理</h2>
             <div class="space-y-4">
@@ -256,28 +329,27 @@
                     <input type="checkbox" id="media_auto_cleanup" name="media_auto_cleanup" value="true"
                            {{ 'checked' if media_settings.get('media_auto_cleanup', False) }}
                            class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <label for="media_auto_cleanup" class="ml-2 block text-sm text-gray-900">自动清理未使用的媒体文件</label>
+                    <label for="media_auto_cleanup" class="ml-2 block text-sm text-gray-900">自动清理未使用原始文件</label>
                 </div>
-                
-                <div id="cleanup-settings" class="{{ 'hidden' if not media_settings.get('media_auto_cleanup', False) }}">
+                <p class="text-xs text-gray-500">建议先在测试环境验证引用关系，再在生产开启。</p>
+                <div id="cleanup-settings" class="{{ '' if media_settings.get('media_auto_cleanup', False) else 'hidden' }}">
                     <div class="pl-6">
                         <label for="media_cleanup_days" class="block text-sm font-medium text-gray-700">未使用文件保留天数</label>
-                        <input type="number" id="media_cleanup_days" name="media_cleanup_days" 
-                               min="1" max="365" step="1"
+                        <input type="number" id="media_cleanup_days" name="media_cleanup_days" min="1" max="365"
                                value="{{ media_settings.get('media_cleanup_days', 30) }}"
-                               class="mt-1 block w-32 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                               class="mt-1 block w-40 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="mt-1 text-xs text-gray-500">推荐 `30` 或更高，避免误删近期内容引用的资源。</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 提交按钮 -->
         <div class="flex justify-end space-x-3">
-            <button type="button" onclick="window.location.href='{{ admin_path }}/media'" 
+            <button type="button" onclick="window.location.href='{{ admin_path }}/media'"
                     class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
                 返回媒体库
             </button>
-            <button type="submit" 
+            <button type="submit"
                     class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
                 保存设置
             </button>
@@ -287,75 +359,66 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 图像质量滑块
     const qualitySlider = document.getElementById('media_image_quality');
     const qualityValue = document.getElementById('quality-value');
-    qualitySlider.addEventListener('input', function() {
-        qualityValue.textContent = this.value;
-    });
+    if (qualitySlider && qualityValue) {
+        qualitySlider.addEventListener('input', function() {
+            qualityValue.textContent = this.value;
+        });
+    }
 
-    // 缩略图质量滑块
-    const thumbnailQualitySlider = document.getElementById('media_thumbnail_quality');
-    const thumbnailQualityValue = document.getElementById('thumbnail-quality-value');
-    thumbnailQualitySlider.addEventListener('input', function() {
-        thumbnailQualityValue.textContent = this.value;
-    });
-
-    // 水印透明度滑块
     const watermarkOpacitySlider = document.getElementById('media_watermark_opacity');
     const watermarkOpacityValue = document.getElementById('watermark-opacity-value');
-    watermarkOpacitySlider.addEventListener('input', function() {
-        watermarkOpacityValue.textContent = this.value;
-    });
+    if (watermarkOpacitySlider && watermarkOpacityValue) {
+        watermarkOpacitySlider.addEventListener('input', function() {
+            watermarkOpacityValue.textContent = this.value;
+        });
+    }
 
-    // 水印设置显示/隐藏
     const watermarkCheckbox = document.getElementById('media_enable_watermark');
     const watermarkSettings = document.getElementById('watermark-settings');
-    watermarkCheckbox.addEventListener('change', function() {
-        if (this.checked) {
-            watermarkSettings.classList.remove('hidden');
-        } else {
-            watermarkSettings.classList.add('hidden');
-        }
-    });
+    if (watermarkCheckbox && watermarkSettings) {
+        watermarkCheckbox.addEventListener('change', function() {
+            watermarkSettings.classList.toggle('hidden', !this.checked);
+        });
+    }
 
-    // CDN设置显示/隐藏
     const cdnCheckbox = document.getElementById('media_enable_cdn');
     const cdnSettings = document.getElementById('cdn-settings');
-    cdnCheckbox.addEventListener('change', function() {
-        if (this.checked) {
-            cdnSettings.classList.remove('hidden');
-        } else {
-            cdnSettings.classList.add('hidden');
-        }
-    });
+    if (cdnCheckbox && cdnSettings) {
+        cdnCheckbox.addEventListener('change', function() {
+            cdnSettings.classList.toggle('hidden', !this.checked);
+        });
+    }
 
-    // 清理设置显示/隐藏
     const cleanupCheckbox = document.getElementById('media_auto_cleanup');
     const cleanupSettings = document.getElementById('cleanup-settings');
-    cleanupCheckbox.addEventListener('change', function() {
-        if (this.checked) {
-            cleanupSettings.classList.remove('hidden');
-        } else {
-            cleanupSettings.classList.add('hidden');
-        }
-    });
+    if (cleanupCheckbox && cleanupSettings) {
+        cleanupCheckbox.addEventListener('change', function() {
+            cleanupSettings.classList.toggle('hidden', !this.checked);
+        });
+    }
 
-    // 表单提交处理
+    const externalPolicySelect = document.getElementById('external_image_policy');
+    const externalLocalizeBlockA = document.getElementById('external-localize-settings');
+    const externalLocalizeBlockB = document.getElementById('external-localize-retry-settings');
+    if (externalPolicySelect && externalLocalizeBlockA && externalLocalizeBlockB) {
+        const toggleLocalizeSettings = () => {
+            const enabled = externalPolicySelect.value === 'localize_async';
+            externalLocalizeBlockA.classList.toggle('hidden', !enabled);
+            externalLocalizeBlockB.classList.toggle('hidden', !enabled);
+        };
+        externalPolicySelect.addEventListener('change', toggleLocalizeSettings);
+        toggleLocalizeSettings();
+    }
+
     const form = document.getElementById('media-settings-form');
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        
         const formData = new FormData(this);
-        
         try {
-            const response = await fetch(this.action, {
-                method: 'POST',
-                body: formData
-            });
-            
+            const response = await fetch(this.action, { method: 'POST', body: formData });
             const result = await response.json();
-            
             if (result.success) {
                 window.adminSetFlash('媒体设置保存成功', 'success');
                 if (result.redirect_url) {
@@ -363,11 +426,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 window.adminNotify('媒体设置保存成功', 'success');
-            } else {
-                window.adminNotify(`保存失败：${result.error || '未知错误'}`, 'error', { duration: 4200 });
-                if (result.details && result.details.length > 0) {
-                    window.adminNotify(`详细错误：\n${result.details.join('\n')}`, 'warning', { duration: 6200 });
-                }
+                return;
+            }
+            window.adminNotify(`保存失败：${result.error || '未知错误'}`, 'error', { duration: 4200 });
+            if (result.details && result.details.length > 0) {
+                window.adminNotify(`详细错误：\n${result.details.join('\n')}`, 'warning', { duration: 6200 });
             }
         } catch (error) {
             window.adminNotify(`保存失败：${error.message}`, 'error', { duration: 4200 });

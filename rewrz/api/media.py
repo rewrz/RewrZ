@@ -8,8 +8,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile, status
-from fastapi.responses import HTMLResponse, Response
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, UploadFile, status
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session, joinedload
@@ -17,6 +17,12 @@ from sqlalchemy.orm import Session, joinedload
 from ..core.config import settings
 from ..core.database import get_db
 from ..core.media_processor import get_media_processor
+from ..core.thumbnail_service import (
+    ThumbnailServiceError,
+    build_variant_url,
+    generate_media_variant,
+    purge_media_variant_cache,
+)
 from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..crud import media as crud_media
@@ -56,12 +62,11 @@ class MediaDuplicateCleanupRequest(BaseModel):
 UPLOAD_ROOT = Path(settings.MEDIA_UPLOAD_DIR).resolve()
 os.makedirs(UPLOAD_ROOT, exist_ok=True)
 
-THUMBNAIL_SIZE_NAMES = ("thumbnail", "small", "medium", "large", "cover")
 DEFAULT_MEDIA_FOLDERS = ("covers", "avatars", "backgrounds", "articles", "misc")
 FILE_HASH_CACHE: Dict[str, Tuple[int, float, str]] = {}
 FOLDER_CACHE_TTL_SECONDS = 300
 MEDIA_FOLDER_CACHE: Dict[str, Any] = {"expires_at": 0.0, "items": None}
-MEDIA_LIBRARY_PAGE_SIZE = 24
+MEDIA_LIBRARY_PAGE_SIZE = 12
 
 
 def _get_setting_value(db: Session, key: str, default):
@@ -134,6 +139,14 @@ def _folder_from_filepath(filepath: str) -> str:
     return "" if parent == "." else parent
 
 
+def _folder_display_name(folder: str) -> str:
+    normalized = str(folder or "").strip().replace("\\", "/")
+    if not normalized:
+        return "根目录"
+    # 显示完整相对路径，避免 01/02 等月份目录在下拉框中重名难以区分。
+    return normalized
+
+
 def _stat_media_file(filepath: str) -> Tuple[str, int]:
     if not filepath:
         return "", 0
@@ -155,28 +168,20 @@ def _media_url_from_filepath(filepath: str, cdn_base: Optional[str] = None) -> s
     return f"/media/{relative_path}"
 
 
-def _media_preview_url_from_filepath(filepath: str, file_type: str, cdn_base: Optional[str] = None) -> str:
-    original_url = _media_url_from_filepath(filepath, cdn_base=cdn_base)
-    if not str(file_type or "").startswith("image"):
+def _media_preview_url(media_obj: MediaModel, cdn_base: Optional[str] = None) -> str:
+    original_url = _media_url_from_filepath(media_obj.filepath, cdn_base=cdn_base)
+    if not str(getattr(media_obj, "file_type", "") or "").startswith("image"):
         return original_url
-
-    original_path = Path(filepath)
-    thumbnail_path = original_path.parent / "thumbnails" / f"{original_path.stem}_thumbnail{original_path.suffix}"
     try:
-        if thumbnail_path.is_file():
-            return _media_url_from_filepath(str(thumbnail_path), cdn_base=cdn_base)
-    except OSError:
-        pass
-    return original_url
+        # 媒体库预览固定走 jpg，降低首轮编码成本，减少打开瞬时卡顿。
+        return build_variant_url(int(media_obj.id), "media_lib_card", dpr=1, fmt="jpg")
+    except Exception:
+        return original_url
 
 
 def _attach_media_url(media_obj: MediaModel, cdn_base: Optional[str] = None) -> MediaModel:
     media_obj.url = _media_url_from_filepath(media_obj.filepath, cdn_base=cdn_base)
-    media_obj.preview_url = _media_preview_url_from_filepath(
-        media_obj.filepath,
-        str(getattr(media_obj, "file_type", "") or ""),
-        cdn_base=cdn_base,
-    )
+    media_obj.preview_url = _media_preview_url(media_obj, cdn_base=cdn_base)
     media_obj.folder = str(getattr(media_obj, "folder", "") or _folder_from_filepath(media_obj.filepath))
     if not hasattr(media_obj, "is_duplicate"):
         media_obj.is_duplicate = False
@@ -191,7 +196,8 @@ def _safe_unlink(path: Path) -> None:
         pass
 
 
-def _delete_media_files(db_media: MediaModel) -> None:
+def _delete_media_files(db: Session, db_media: MediaModel) -> None:
+    purge_media_variant_cache(db, int(db_media.id))
     _delete_media_files_by_filepath(db_media.filepath)
 
 
@@ -205,13 +211,6 @@ def _delete_media_files_by_filepath(filepath: str) -> None:
         pass
     _safe_unlink(original_path)
 
-    thumbnails_dir = original_path.parent / "thumbnails"
-    if thumbnails_dir.exists():
-        for thumb_file in thumbnails_dir.glob(f"{original_path.stem}_*"):
-            _safe_unlink(thumb_file)
-
-    _safe_unlink(original_path.with_suffix(".webp"))
-
 
 def _cleanup_orphan_media_files(db: Session, cleanup_days: int) -> int:
     if cleanup_days < 1:
@@ -219,17 +218,12 @@ def _cleanup_orphan_media_files(db: Session, cleanup_days: int) -> int:
 
     tracked_files = db.execute(select(MediaModel.filepath)).scalars().all()
     tracked_paths: Set[str] = set()
-    tracked_stems_by_dir: Dict[str, Set[str]] = {}
     for filepath in tracked_files:
         try:
             resolved = Path(filepath).resolve()
         except Exception:
             continue
         tracked_paths.add(str(resolved))
-        dir_key = str(resolved.parent)
-        if dir_key not in tracked_stems_by_dir:
-            tracked_stems_by_dir[dir_key] = set()
-        tracked_stems_by_dir[dir_key].add(resolved.stem)
 
     cutoff = datetime.now() - timedelta(days=cleanup_days)
     deleted_count = 0
@@ -242,26 +236,12 @@ def _cleanup_orphan_media_files(db: Session, cleanup_days: int) -> int:
             resolved = candidate.resolve()
         except Exception:
             continue
+        if "_variant_cache" in resolved.parts:
+            continue
 
         resolved_str = str(resolved)
         if resolved_str in tracked_paths:
             continue
-
-        candidate_dir_key = str(resolved.parent)
-        if resolved.suffix.lower() == ".webp" and resolved.stem in tracked_stems_by_dir.get(candidate_dir_key, set()):
-            continue
-
-        if resolved.parent.name == "thumbnails":
-            original_stem = None
-            for size_name in THUMBNAIL_SIZE_NAMES:
-                suffix = f"_{size_name}"
-                if resolved.stem.endswith(suffix):
-                    original_stem = resolved.stem[: -len(suffix)]
-                    break
-            if original_stem:
-                parent_dir_key = str(resolved.parent.parent)
-                if original_stem in tracked_stems_by_dir.get(parent_dir_key, set()):
-                    continue
 
         try:
             modified_at = datetime.fromtimestamp(resolved.stat().st_mtime)
@@ -329,19 +309,8 @@ def _make_unique_path(path: Path) -> Path:
 
 
 def _move_related_media_files(old_path: Path, new_path: Path) -> None:
-    old_webp_path = old_path.with_suffix(".webp")
-    if old_webp_path.exists():
-        new_webp_path = _make_unique_path(new_path.with_suffix(".webp"))
-        shutil.move(str(old_webp_path), str(new_webp_path))
-
-    old_thumb_dir = old_path.parent / "thumbnails"
-    if old_thumb_dir.exists():
-        new_thumb_dir = new_path.parent / "thumbnails"
-        new_thumb_dir.mkdir(parents=True, exist_ok=True)
-        for thumb_file in old_thumb_dir.glob(f"{old_path.stem}_*"):
-            suffix_part = thumb_file.stem[len(old_path.stem) :]
-            new_thumb_path = _make_unique_path(new_thumb_dir / f"{new_path.stem}{suffix_part}{thumb_file.suffix}")
-            shutil.move(str(thumb_file), str(new_thumb_path))
+    # 动态缩略图缓存按 media_id + source_hash 管理，移动原图无需搬迁派生文件。
+    return
 
 
 def _replace_text_value(text: Any, replacements: List[Tuple[str, str]]) -> Tuple[Any, bool]:
@@ -535,7 +504,7 @@ def _list_media_folders(db: Session) -> List[Dict[str, Any]]:
         result.append(
             {
                 "path": folder,
-                "name": Path(folder).name,
+                "name": _folder_display_name(folder),
                 "count": folder_counts.get(folder, 0),
             }
         )
@@ -685,7 +654,7 @@ def _cleanup_duplicate_groups(
             replacements.extend(_build_url_replacements(duplicate_path, keeper_path, cdn_base))
             removed_ids.append(duplicate_media.id)
             if not dry_run:
-                _delete_media_files(duplicate_media)
+                _delete_media_files(db, duplicate_media)
                 db.delete(duplicate_media)
 
     reference_changes = _replace_media_references(db, replacements)
@@ -875,6 +844,63 @@ def cleanup_duplicate_media_groups(
     )
 
 
+@router.get("/media/variant/{media_id}/{preset}")
+def get_media_variant_file(
+    request: Request,
+    media_id: int,
+    preset: str,
+    dpr: int = Query(1),
+    fmt: str = Query("auto"),
+    db: Session = Depends(get_db),
+):
+    db_media = db.execute(select(MediaModel).filter(MediaModel.id == media_id)).scalar_one_or_none()
+    if db_media is None:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error_code": "media_not_found",
+                "message": "媒体不存在",
+                "request_id": request.headers.get("X-Request-Id", ""),
+            },
+        )
+
+    try:
+        variant = generate_media_variant(
+            db=db,
+            media_obj=db_media,
+            preset_name=preset,
+            dpr=dpr,
+            fmt=fmt,
+            accept_header=request.headers.get("accept", ""),
+        )
+    except ThumbnailServiceError as exc:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error_code": exc.error_code,
+                "message": exc.message,
+                "request_id": request.headers.get("X-Request-Id", ""),
+            },
+        )
+
+    response_headers = {
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "ETag": variant.etag,
+        "X-Thumb-Cache": "hit" if variant.cache_hit else "miss",
+        "X-Thumb-Preset": variant.preset,
+        "X-Thumb-DPR": str(variant.dpr),
+        "X-Thumb-Fmt": variant.fmt,
+    }
+    if request.headers.get("if-none-match", "").strip() == variant.etag:
+        return Response(status_code=304, headers=response_headers)
+
+    return FileResponse(
+        path=str(variant.file_path),
+        media_type=variant.mime_type,
+        headers=response_headers,
+    )
+
+
 @router.post(f"{settings.ADMIN_PATH.rstrip('/')}/media/upload", response_model=Media)
 async def upload_media(
     request: Request,
@@ -885,7 +911,6 @@ async def upload_media(
     target_folder: Optional[str] = Form(None),
     deduplicate: bool = Form(True),
     auto_process: bool = Form(True),
-    generate_thumbnails: bool = Form(True),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
@@ -942,14 +967,8 @@ async def upload_media(
             media_processor.extract_image_metadata(str(filepath))
             if media_processor.auto_compress:
                 media_processor.optimize_image(str(filepath))
-            if generate_thumbnails:
-                thumb_dir = target_dir / "thumbnails"
-                thumb_dir.mkdir(parents=True, exist_ok=True)
-                media_processor.generate_thumbnails(str(filepath), str(thumb_dir))
-            if media_processor.enable_webp:
-                media_processor.generate_webp_version(str(filepath), str(target_dir))
         except Exception:
-            # Processing failures should not block upload persistence.
+            # 图像优化失败不应阻塞上传主流程。
             pass
 
     media_create = MediaCreate(
@@ -969,6 +988,20 @@ async def upload_media(
     media_create.file_size = stored_size or file_size
     db_media = crud_media.create_media(db=db, media=media_create, uploaded_by_id=current_user.id)
     _invalidate_media_folder_cache()
+
+    # 上传成功后预热媒体库预览变体，降低首次打开媒体库的首屏 miss 抖动。
+    if str(db_media.file_type or "").startswith("image"):
+        try:
+            generate_media_variant(
+                db=db,
+                media_obj=db_media,
+                preset_name="media_lib_card",
+                dpr=1,
+                fmt="jpg",
+                accept_header="image/jpeg,image/*,*/*",
+            )
+        except Exception:
+            pass
 
     _attach_media_url(db_media, cdn_base=cdn_base)
     db_media.is_duplicate = False
@@ -1146,7 +1179,7 @@ def delete_media_item(
     if db_media.uploaded_by_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this media file")
 
-    _delete_media_files(db_media)
+    _delete_media_files(db, db_media)
     crud_media.delete_media(db=db, media_id=media_id)
     _invalidate_media_folder_cache()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -1201,6 +1234,8 @@ def bulk_delete_media_items(
 
         for filepath in deletable_filepaths:
             _delete_media_files_by_filepath(filepath)
+        for media_id in deletable_ids:
+            purge_media_variant_cache(db, media_id)
         deleted_ids = deletable_ids
 
     return {

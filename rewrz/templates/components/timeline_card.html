@@ -37,7 +37,13 @@
     <div class="mb-3 space-y-2">
         {% if has_featured_image %}
         <a href="{{ post | post_url }}" class="block overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-            <img src="{{ post.featured_image_url }}" alt="{{ post.title or '微博配图' }}" class="w-full h-48 object-cover hover:scale-[1.02] transition-transform duration-300">
+            <img src="{{ post.featured_image_url | thumb_url('related_card', request.state.db) }}"
+                 srcset="{{ post.featured_image_url | thumb_srcset('related_card', request.state.db) }}"
+                 sizes="(max-width: 768px) 100vw, 480px"
+                 alt="{{ post.title or '微博配图' }}"
+                 class="w-full h-48 object-cover hover:scale-[1.02] transition-transform duration-300"
+                 loading="lazy"
+                 decoding="async">
         </a>
         {% endif %}
 
@@ -47,7 +53,13 @@
         <div class="grid {{ grid_cols }} gap-1.5">
             {% for img_url in thumb_images %}
             <a href="{{ post | post_url }}" class="block overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
-                <img src="{{ img_url }}" alt="{{ post.title or '微博图片' }}" class="h-24 w-full object-cover hover:scale-105 transition-transform duration-300" loading="lazy">
+                <img src="{{ img_url | thumb_url('media_lib_card', request.state.db) }}"
+                     srcset="{{ img_url | thumb_srcset('media_lib_card', request.state.db) }}"
+                     sizes="160px"
+                     alt="{{ post.title or '微博图片' }}"
+                     class="h-24 w-full object-cover hover:scale-105 transition-transform duration-300"
+                     loading="lazy"
+                     decoding="async">
             </a>
             {% endfor %}
         </div>
@@ -84,7 +96,13 @@
 
     {% if has_featured_image %}
     <a href="{{ post | post_url }}" class="block overflow-hidden rounded-lg mb-3 border border-white/50 dark:border-slate-600">
-        <img src="{{ post.featured_image_url }}" alt="{{ post.title or '诗词封面' }}" class="w-full h-44 object-cover hover:scale-[1.02] transition-transform duration-300">
+        <img src="{{ post.featured_image_url | thumb_url('related_card', request.state.db) }}"
+             srcset="{{ post.featured_image_url | thumb_srcset('related_card', request.state.db) }}"
+             sizes="(max-width: 768px) 100vw, 480px"
+             alt="{{ post.title or '诗词封面' }}"
+             class="w-full h-44 object-cover hover:scale-[1.02] transition-transform duration-300"
+             loading="lazy"
+             decoding="async">
     </a>
     {% endif %}
 
@@ -115,11 +133,23 @@
 <div class="archive-card-equal bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all duration-300">
     {% if has_featured_image %}
     <a href="{{ post | post_url }}" class="block overflow-hidden">
-        <img src="{{ post.featured_image_url }}" alt="{{ post.title or '文章配图' }}" class="w-full h-48 object-cover hover:scale-[1.02] transition-transform duration-300">
+        <img src="{{ post.featured_image_url | thumb_url('related_card', request.state.db) }}"
+             srcset="{{ post.featured_image_url | thumb_srcset('related_card', request.state.db) }}"
+             sizes="(max-width: 768px) 100vw, 480px"
+             alt="{{ post.title or '文章配图' }}"
+             class="w-full h-48 object-cover hover:scale-[1.02] transition-transform duration-300"
+             loading="lazy"
+             decoding="async">
     </a>
     {% elif content_images %}
     <a href="{{ post | post_url }}" class="block overflow-hidden">
-        <img src="{{ content_images[0] }}" alt="{{ post.title or '文章图片' }}" class="w-full h-48 object-cover hover:scale-[1.02] transition-transform duration-300">
+        <img src="{{ content_images[0] | thumb_url('related_card', request.state.db) }}"
+             srcset="{{ content_images[0] | thumb_srcset('related_card', request.state.db) }}"
+             sizes="(max-width: 768px) 100vw, 480px"
+             alt="{{ post.title or '文章图片' }}"
+             class="w-full h-48 object-cover hover:scale-[1.02] transition-transform duration-300"
+             loading="lazy"
+             decoding="async">
     </a>
     {% endif %}
 

@@ -85,14 +85,20 @@
         selectedItemId: null,
         selectedCardEl: null,
         page: 1,
-        perPage: 12,
+        perPage: 24,
         hasMore: false,
         loading: false,
         onSelect: null,
         folders: [],
         itemIndex: new Map(),
         imageObserver: null,
+        hasBootstrapped: false,
+        lastLoadedAt: 0,
+        scrollLoadScheduled: false,
     };
+    const DATA_CACHE_TTL_MS = 60000;
+    const RENDER_CHUNK_SIZE = 8;
+    const SCROLL_LOAD_THRESHOLD_PX = 140;
     const MAX_RENDERED_MEDIA_ITEMS = 240;
     const TRIMMED_MEDIA_ITEMS = 180;
 
@@ -172,7 +178,7 @@
             },
             {
                 root: elements.grid,
-                rootMargin: "240px 0px",
+                rootMargin: "80px 0px",
                 threshold: 0.01,
             },
         );
@@ -275,6 +281,29 @@
         return card;
     }
 
+    function rafYield() {
+        return new Promise((resolve) => {
+            requestAnimationFrame(() => resolve());
+        });
+    }
+
+    async function appendMediaCards(items) {
+        const safeItems = Array.isArray(items) ? items : [];
+        for (let start = 0; start < safeItems.length; start += RENDER_CHUNK_SIZE) {
+            const chunk = safeItems.slice(start, start + RENDER_CHUNK_SIZE);
+            const fragment = document.createDocumentFragment();
+            chunk.forEach((item) => {
+                const mediaId = String(item.id);
+                state.itemIndex.set(mediaId, item);
+                fragment.appendChild(renderMediaCard(item));
+            });
+            elements.grid.appendChild(fragment);
+            if (start + RENDER_CHUNK_SIZE < safeItems.length) {
+                await rafYield();
+            }
+        }
+    }
+
     async function loadMediaItems(loadMore = false) {
         if (state.loading) return;
         state.loading = true;
@@ -308,19 +337,14 @@
             if (!items.length && !loadMore) {
                 elements.grid.innerHTML = `<div class="col-span-full py-8 text-center text-sm text-gray-500">暂无媒体文件</div>`;
             } else {
-                const fragment = document.createDocumentFragment();
-                items.forEach((item) => {
-                    const mediaId = String(item.id);
-                    state.itemIndex.set(mediaId, item);
-                    fragment.appendChild(renderMediaCard(item));
-                });
-                elements.grid.appendChild(fragment);
+                await appendMediaCards(items);
                 if (loadMore) {
                     trimRenderedMediaItems();
                 }
             }
 
             state.hasMore = items.length === state.perPage;
+            state.lastLoadedAt = Date.now();
             elements.loadMoreBtn.classList.toggle("hidden", !state.hasMore);
         } catch (error) {
             if (loadMore) {
@@ -340,6 +364,23 @@
                 elements.loadMoreBtn.textContent = originalLoadMoreText;
             }
         }
+    }
+
+    function maybeLoadMoreByScroll() {
+        if (!elements.grid || !state.hasMore || state.loading) return;
+        const remain = elements.grid.scrollHeight - elements.grid.scrollTop - elements.grid.clientHeight;
+        if (remain <= SCROLL_LOAD_THRESHOLD_PX) {
+            loadMediaItems(true);
+        }
+    }
+
+    function scheduleLoadMoreByScroll() {
+        if (state.scrollLoadScheduled) return;
+        state.scrollLoadScheduled = true;
+        requestAnimationFrame(() => {
+            state.scrollLoadScheduled = false;
+            maybeLoadMoreByScroll();
+        });
     }
 
     function defaultSelectHandler(item) {
@@ -412,11 +453,32 @@
         switchTab("library");
     }
 
+    function prewarmLibraryData() {
+        if (state.hasBootstrapped || state.loading) return;
+        Promise.all([loadFolders(), loadMediaItems(false)])
+            .then(() => {
+                state.hasBootstrapped = true;
+            })
+            .catch(() => {
+                // 预热失败不影响手动打开时再加载。
+            });
+    }
+
     async function open(options = {}) {
         state.onSelect = typeof options.onSelect === "function" ? options.onSelect : null;
         modal.classList.remove("hidden");
         switchTab("library");
-        await Promise.all([loadFolders(), loadMediaItems(false)]);
+
+        const now = Date.now();
+        const isStale = !state.lastLoadedAt || now - state.lastLoadedAt > DATA_CACHE_TTL_MS;
+        if (!state.hasBootstrapped) {
+            await Promise.all([loadFolders(), loadMediaItems(false)]);
+            state.hasBootstrapped = true;
+            return;
+        }
+        if (isStale) {
+            loadFolders();
+        }
     }
 
     function close() {
@@ -460,6 +522,7 @@
     });
     elements.loadMoreBtn.addEventListener("click", () => loadMediaItems(true));
     elements.selectBtn.addEventListener("click", confirmSelect);
+    elements.grid.addEventListener("scroll", scheduleLoadMoreByScroll, { passive: true });
 
     elements.dropArea.addEventListener("click", () => elements.fileInput.click());
     elements.fileInput.addEventListener("change", (event) => uploadFiles(event.target.files));
@@ -480,5 +543,14 @@
     window.openMediaLibraryModal = () => open();
     window.closeMediaLibraryModal = () => close();
     window.selectMediaItem = () => confirmSelect();
+
+    const shouldPrewarm = Boolean(document.getElementById("insert-media-button") || document.getElementById("feature-image-upload-button"));
+    if (shouldPrewarm) {
+        if (typeof window.requestIdleCallback === "function") {
+            window.requestIdleCallback(() => prewarmLibraryData(), { timeout: 2200 });
+        } else {
+            setTimeout(() => prewarmLibraryData(), 1200);
+        }
+    }
 })();
 </script>

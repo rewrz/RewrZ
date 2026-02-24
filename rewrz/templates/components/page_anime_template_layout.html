@@ -19,7 +19,12 @@
             <header class="anime-hero relative">
                 {% if post and post.featured_image_url %}
                 <div class="anime-hero-bg">
-                    <img src="{{ post.featured_image_url }}" alt="{{ page_title }}" loading="lazy">
+                    <img src="{{ post.featured_image_url | thumb_url('post_cover', request.state.db) }}"
+                         srcset="{{ post.featured_image_url | thumb_srcset('post_cover', request.state.db) }}"
+                         sizes="100vw"
+                         alt="{{ page_title }}"
+                         loading="lazy"
+                         decoding="async">
                 </div>
                 {% else %}
                 <div class="anime-hero-fallback"></div>
