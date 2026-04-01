@@ -1,4 +1,4 @@
-aiohttp==3.13.3
+aiohttp==3.13.4
 beautifulsoup4==4.14.3
 bleach==6.3.0
 cachetools==7.0.1
