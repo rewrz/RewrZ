@@ -74,8 +74,8 @@ class DefaultPublicProfileResolver:
         if gallery_images:
             return gallery_images[0]
         if homepage_mode == "fullscreen_video":
-            return "/static/images/anime/covers/home-video.svg"
-        return "/static/images/anime/covers/home-default.svg"
+            return "/static/images/covers/home-video.jpg"
+        return "/static/images/covers/home-default.jpg"
 
     @staticmethod
     def _resolve_site_avatar_url(db: Session) -> str:
@@ -144,9 +144,9 @@ class DefaultPublicProfileResolver:
             "poem": "creator_profile_poem_cover_url",
         }
         format_cover_fallback_map = {
-            "article": "/static/images/anime/covers/format-article.svg",
-            "micro": "/static/images/anime/covers/format-micro.svg",
-            "poem": "/static/images/anime/covers/format-poem.svg",
+            "article": "/static/images/covers/format-article.jpg",
+            "micro": "/static/images/covers/format-micro.jpg",
+            "poem": "/static/images/covers/format-poem.jpg",
         }
         format_bio_map = {
             "article": "creator_profile_article_bio",
@@ -157,7 +157,7 @@ class DefaultPublicProfileResolver:
         selected_bio_key = format_bio_map.get(normalized_slug, "creator_profile_article_bio")
         selected_cover_fallback = format_cover_fallback_map.get(
             normalized_slug,
-            "/static/images/anime/covers/format-article.svg",
+            "/static/images/covers/format-article.jpg",
         )
 
         selected_cover = str(_get_setting_value(db, selected_cover_key, "") or "").strip()

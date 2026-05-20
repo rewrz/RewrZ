@@ -14,7 +14,7 @@
 {% set profile = format_profile if format_profile is defined and format_profile else {} %}
 {% set profile_name = profile.display_name if profile.display_name else site_title %}
 {% set profile_avatar = profile.avatar_url if profile.avatar_url else '/static/images/default-avatar.png' %}
-{% set profile_cover = profile.cover_url if profile.cover_url else ('/static/images/anime/covers/format-micro.svg' if is_micro else ('/static/images/anime/covers/format-poem.svg' if is_poem else '/static/images/anime/covers/format-article.svg')) %}
+{% set profile_cover = profile.cover_url if profile.cover_url else ('/static/images/covers/format-micro.jpg' if is_micro else ('/static/images/covers/format-poem.jpg' if is_poem else '/static/images/covers/format-article.jpg')) %}
 {% set profile_headline = profile.headline if profile.headline else '' %}
 {% set profile_bio = profile.bio if profile.bio else '' %}
 {% set profile_motto = profile.motto if profile.motto else '' %}

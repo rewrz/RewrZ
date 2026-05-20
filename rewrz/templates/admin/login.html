@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="{{ url_for('static', path='vendor/font-awesome/css/all.min.css') }}">
     <link id="admin-theme-variables" rel="stylesheet" href="/api/v1/theme/variables.css">
     <link rel="stylesheet" href="{{ url_for('static', path='css/unified-theme.css') }}">
-    {% set login_background_url = request.state.admin_login_background_image_url if request.state.admin_login_background_image_url else '/static/images/anime/covers/home-default.svg' %}
+    {% set login_background_url = request.state.admin_login_background_image_url if request.state.admin_login_background_image_url else '/static/images/covers/home-default.jpg' %}
     {% set login_background_video_url = request.state.admin_login_background_video_url if request.state.admin_login_background_video_url else '' %}
     {% set has_login_video = login_background_video_url and login_background_video_url.strip() %}
     <style>

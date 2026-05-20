@@ -37,7 +37,7 @@
 {% set profile_name = profile.display_name if profile.display_name else site_title %}
 {% set profile_bio = profile.bio if profile.bio else (tagline or '记录生活、灵感与创作瞬间。') %}
 {% set profile_avatar = profile.avatar_url if profile.avatar_url else '/static/images/default-avatar.png' %}
-{% set profile_cover = profile.cover_url if profile.cover_url else '/static/images/anime/covers/home-default.svg' %}
+{% set profile_cover = profile.cover_url if profile.cover_url else '/static/images/covers/home-default.jpg' %}
 {% set profile_website = profile.website if profile.website else '' %}
 {% set profile_public_email = profile.public_email if profile.public_email else '' %}
 
@@ -50,7 +50,7 @@
             <div class="hero-gallery-slide {% if loop.first %}is-active{% endif %}" style="background-image: url('{{ image_url }}');"></div>
             {% endfor %}
         {% else %}
-            <div class="hero-gallery-slide is-active" style="background-image: url('/static/images/anime/covers/home-default.svg');"></div>
+            <div class="hero-gallery-slide is-active" style="background-image: url('/static/images/covers/home-default.jpg');"></div>
         {% endif %}
     </div>
     <div class="relative z-10 flex min-h-[calc(100vh-5rem)] items-center justify-center bg-black/45 px-4">
