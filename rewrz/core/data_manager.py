@@ -17,7 +17,7 @@ import zipfile
 import shutil
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Tuple, Callable
-from urllib.parse import ParseResult, unquote, urljoin, urlparse
+from urllib.parse import ParseResult, quote, unquote, urljoin, urlparse
 from urllib.request import Request as UrlRequest, urlopen
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -294,6 +294,7 @@ class WordPressImporter:
         self._site_base_url: str = ""
         self._downloaded_media_url_map: Dict[str, str] = {}
         self._downloaded_media_count: int = 0
+        self._media_download_failures: List[Dict[str, str]] = []
 
     def _report_progress(
         self,
@@ -377,6 +378,7 @@ class WordPressImporter:
             self._attachment_url_map = self._build_wp_attachment_map(root)
             self._downloaded_media_url_map = {}
             self._downloaded_media_count = 0
+            self._media_download_failures = []
             category_nodes = root.findall('.//wp:category', self.namespaces)
             tag_nodes = root.findall('.//wp:tag', self.namespaces)
             item_nodes = root.findall('.//item')
@@ -389,6 +391,8 @@ class WordPressImporter:
                 "comments_imported": 0,
                 "views_imported": 0,
                 "media_downloaded": 0,
+                "media_download_failed": 0,
+                "media_download_failures": [],
                 "errors": []
             }
             
@@ -412,6 +416,8 @@ class WordPressImporter:
             # 导入文章
             self._import_wp_posts(root, stats, total=len(item_nodes))
             stats["media_downloaded"] = self._downloaded_media_count
+            stats["media_download_failed"] = len(self._media_download_failures)
+            stats["media_download_failures"] = list(self._media_download_failures)
             self._clear_deferred_setting_cache()
 
             self._report_progress("completed", "WordPress 数据导入完成。", current=1, total=1, extra={"stats": stats})
@@ -428,8 +434,18 @@ class WordPressImporter:
                 "comments_imported": 0,
                 "views_imported": 0,
                 "media_downloaded": self._downloaded_media_count,
+                "media_download_failed": len(self._media_download_failures),
+                "media_download_failures": list(self._media_download_failures),
                 "errors": [str(e)]
             }
+
+    def _record_media_download_failure(self, url: str, reason: str) -> None:
+        failure_entry = {
+            "url": str(url or "").strip(),
+            "reason": str(reason or "").strip() or "未知错误",
+        }
+        if failure_entry not in self._media_download_failures:
+            self._media_download_failures.append(failure_entry)
     
     def _import_wp_categories(self, root: ET.Element, stats: Dict[str, Any], total: Optional[int] = None):
         """导入WordPress分类"""
@@ -1163,8 +1179,14 @@ class WordPressImporter:
         return "document"
 
     def _fetch_remote_media_bytes(self, url: str, timeout_seconds: int, max_bytes: int) -> Tuple[bytes, str]:
+        parsed = self._safe_urlparse(url)
+        request_url = url
+        if parsed is not None:
+            encoded_path = quote(unquote(parsed.path or ""), safe="/%")
+            encoded_query = quote(unquote(parsed.query or ""), safe="=&?/%:+,;%@")
+            request_url = parsed._replace(path=encoded_path, query=encoded_query).geturl()
         request = UrlRequest(
-            url,
+            request_url,
             headers={"User-Agent": "RewrZ-WordPressImporter/1.0"},
         )
         with urlopen(request, timeout=max(1, timeout_seconds)) as response:
@@ -1306,8 +1328,13 @@ class WordPressImporter:
                 max_bytes=max_bytes,
             )
             if not payload:
+                self._record_media_download_failure(normalized, "远程媒体响应为空")
                 return normalized
             if not self._looks_like_media_candidate(normalized, mime_type=mime_type):
+                self._record_media_download_failure(
+                    normalized,
+                    f"远程资源不是可导入的媒体类型：{mime_type or '未知类型'}",
+                )
                 return normalized
             local_url = self._persist_downloaded_media(
                 source_url=normalized,
@@ -1318,7 +1345,8 @@ class WordPressImporter:
             )
             self._downloaded_media_url_map[cache_key] = local_url
             return local_url
-        except Exception:
+        except Exception as exc:
+            self._record_media_download_failure(normalized, str(exc))
             return normalized
 
     def _split_trailing_url_punctuation(self, url: str) -> Tuple[str, str]:

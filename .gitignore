@@ -105,3 +105,4 @@ rewrz/media/uploads/
 *.sqlite3
 *.db
 media_uploads/
+AGENTS.md

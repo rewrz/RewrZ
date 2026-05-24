@@ -111,7 +111,6 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
     }
     return settings_data
 
-@router.get("/settings", response_class=HTMLResponse)
 async def admin_settings_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     settings_data = _get_settings_data(db, request, current_user)
     
@@ -122,7 +121,6 @@ async def admin_settings_page(request: Request, db: Session = Depends(get_db), c
         "admin_path": getattr(request.state, 'admin_path', os.getenv('ADMIN_PATH', '/admin'))
     })
 
-@router.post("/settings", response_class=HTMLResponse)
 async def update_admin_settings(
     request: Request,
     db: Session = Depends(get_db),

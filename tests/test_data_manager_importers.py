@@ -841,6 +841,70 @@ def test_wordpress_import_can_download_remote_media_to_local(db, tmp_path):
     assert media_items[0].filepath.startswith(str(local_media_root))
 
 
+def test_wordpress_import_reports_remote_media_download_failures(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin11c", email="admin11c@example.com", password="password123"),
+    )
+
+    wxr_content = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <link>https://rewrz.com</link>
+    <item>
+      <title>媒体下载失败统计测试</title>
+      <link>https://rewrz.com/archive/media-download-failure-post</link>
+      <content:encoded><![CDATA[<p><img src="https://assets.example.com/images/fail.png" alt="a"/></p>]]></content:encoded>
+      <wp:post_name>media-download-failure-post</wp:post_name>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2025-04-18 00:41:41</wp:post_date>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_media_download_failure.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    importer = WordPressImporter(
+        db,
+        options={
+            "import_comments": True,
+            "import_views": True,
+            "import_post_types": ["post", "page"],
+            "postmeta_whitelist": ["views", "post_views_count"],
+            "markdown_strategy": "html_to_markdown",
+            "download_remote_media": True,
+        },
+    )
+    importer._get_media_upload_root = lambda: str(tmp_path / "media_uploads")
+
+    def raise_fetch_error(url, timeout_seconds, max_bytes):
+        raise RuntimeError("模拟下载失败")
+
+    importer._fetch_remote_media_bytes = raise_fetch_error
+
+    stats = importer.import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+    assert stats.get("media_downloaded", 0) == 0
+    assert stats.get("media_download_failed", 0) == 1
+    assert stats.get("media_download_failures") == [
+        {
+            "url": "https://assets.example.com/images/fail.png",
+            "reason": "模拟下载失败",
+        }
+    ]
+
+    post = crud_post.get_post_by_slug(db, "media-download-failure-post")
+    assert post is not None
+    assert "https://assets.example.com/images/fail.png" in (post.content_markdown or "")
+    assert post.featured_image_url == "https://assets.example.com/images/fail.png"
+
+
 def test_wordpress_import_download_media_decodes_percent_encoded_unicode_filename(db, tmp_path):
     crud_user.create_user(
         db,
@@ -900,6 +964,42 @@ def test_wordpress_import_download_media_decodes_percent_encoded_unicode_filenam
     normalized_path = media_items[0].filepath.replace("\\", "/")
     assert "/2020/07/" in normalized_path
     assert "2020年日食" in normalized_path
+
+
+def test_wordpress_fetch_remote_media_bytes_encodes_unicode_url(monkeypatch, db):
+    importer = WordPressImporter(db, options={"download_remote_media": True})
+    captured = {}
+
+    class FakeResponse:
+        headers = {"Content-Type": "image/png"}
+
+        def read(self, chunk_size):
+            return b""
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def fake_urlopen(request, timeout):
+        captured["full_url"] = request.full_url
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr("rewrz.core.data_manager.urlopen", fake_urlopen)
+
+    payload, mime_type = importer._fetch_remote_media_bytes(
+        "https://rewrz.com/wp-content/uploads/2025/04/1745339325-云缨纸片人起舞5.png",
+        timeout_seconds=8,
+        max_bytes=1024,
+    )
+
+    assert payload == b""
+    assert mime_type == "image/png"
+    assert captured["timeout"] == 8
+    assert "%E4%BA%91%E7%BC%A8" in captured["full_url"]
+    assert "云缨纸片人起舞5.png" not in captured["full_url"]
 
 
 def test_wordpress_import_download_media_can_preserve_original_relative_path(db, tmp_path):

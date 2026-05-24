@@ -93,7 +93,6 @@ def _normalize_error_config(config_data: Dict[str, Any]) -> Dict[str, Any]:
     return normalized
 
 
-@router.get("/error-settings", response_class=HTMLResponse)
 async def error_settings_page(
     request: Request,
     db: Session = Depends(get_db),
@@ -116,7 +115,6 @@ async def error_settings_page(
     })
 
 
-@router.post("/error-settings")
 async def update_error_settings(
     request: Request,
     db: Session = Depends(get_db),
