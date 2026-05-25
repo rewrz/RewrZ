@@ -4,7 +4,7 @@
 
 {% block head %}
 {{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', path='css/format-archive-glass.css') }}?v=20260224-2">
+<link rel="stylesheet" href="{{ static_asset(request, 'css/format-archive-glass.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -26,26 +26,26 @@
 <section class="py-8 format-archive-glass">
     <div class="container mx-auto max-w-6xl px-4">
         {% if is_article %}
-        <header class="mb-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div class="relative">
-                <img src="{{ profile_cover }}" alt="文章聚合封面" class="h-44 w-full object-cover md:h-56">
-                <div class="absolute inset-0 bg-gradient-to-r from-slate-950/75 via-slate-900/55 to-slate-900/25"></div>
-                <div class="absolute bottom-5 left-5 right-5 flex items-end justify-between">
-                    <div class="flex items-center gap-3 text-white">
-                        <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="h-14 w-14 rounded-full border-2 border-white/70 object-cover">
-                        <div>
+        <header class="format-hero-card mb-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div class="format-hero-media">
+                <img src="{{ profile_cover }}" alt="文章聚合封面" class="format-hero-image">
+                <div class="format-hero-overlay"></div>
+                <div class="format-hero-content absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 px-5 pb-5 pt-16 md:px-6 md:pb-6">
+                    <div class="min-w-0 flex flex-1 items-center gap-3 text-white">
+                        <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="h-14 w-14 shrink-0 rounded-full border-2 border-white/70 object-cover">
+                        <div class="min-w-0">
                             <p class="text-xs uppercase tracking-[0.2em] text-slate-200">Article</p>
-                            <h1 class="text-2xl font-bold md:text-3xl">{{ profile_name }}</h1>
+                            <h1 class="truncate text-2xl font-bold md:text-3xl">{{ profile_name }}</h1>
                         </div>
                     </div>
-                    <div class="hidden rounded-xl bg-black/35 px-4 py-2 text-right text-white backdrop-blur md:block">
+                    <div class="format-hero-meta-card hidden shrink-0 rounded-xl px-4 py-2 text-right text-white md:block">
                         <p class="text-xs text-slate-200">标准文章聚合</p>
                         <p class="text-lg font-semibold">{{ pagination.total_count if pagination else (posts|length) }} 篇</p>
                     </div>
                 </div>
             </div>
-            <div class="grid gap-4 border-t border-slate-200/80 px-5 py-5 md:grid-cols-[1.3fr_0.7fr] md:px-7 dark:border-gray-700/80">
-                <div>
+            <div class="format-hero-content grid gap-4 border-t border-slate-200/80 px-5 py-5 md:grid-cols-[1.3fr_0.7fr] md:px-7 dark:border-gray-700/80">
+                <div class="format-hero-summary">
                     {% if profile_headline %}
                     <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ profile_headline }}</p>
                     {% endif %}
@@ -54,12 +54,12 @@
                     {% endif %}
                     <div class="mt-3 flex flex-wrap gap-2 text-xs">
                         {% if profile_location %}
-                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-slate-700 dark:text-slate-100">
+                        <span class="format-hero-chip inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-slate-700 dark:text-slate-100">
                             <i class="fas fa-location-dot mr-1"></i>{{ profile_location }}
                         </span>
                         {% endif %}
                         {% if profile_joined_text %}
-                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-slate-700 dark:text-slate-100">
+                        <span class="format-hero-chip inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-slate-700 dark:text-slate-100">
                             <i class="fas fa-calendar-alt mr-1"></i>加入于 {{ profile_joined_text }}
                         </span>
                         {% endif %}
@@ -67,11 +67,11 @@
                 </div>
                 <div class="flex flex-wrap items-start justify-start gap-2 md:justify-end">
                     <div class="grid w-full grid-cols-2 gap-2 md:max-w-xs">
-                        <div class="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-center dark:border-slate-600 dark:bg-slate-700/40">
+                        <div class="format-hero-stat rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-center dark:border-slate-600 dark:bg-slate-700/40">
                             <div class="text-base font-bold text-slate-900 dark:text-white">{{ (format_category_topic_count if format_category_topic_count is defined else 0) | compact_number_cn }}</div>
                             <div class="text-[11px] text-slate-500 dark:text-slate-300">分类数量</div>
                         </div>
-                        <div class="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-center dark:border-slate-600 dark:bg-slate-700/40">
+                        <div class="format-hero-stat rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-center dark:border-slate-600 dark:bg-slate-700/40">
                             <div class="text-base font-bold text-slate-900 dark:text-white">{{ (format_tag_topic_count if format_tag_topic_count is defined else 0) | compact_number_cn }}</div>
                             <div class="text-[11px] text-slate-500 dark:text-slate-300">标签数量</div>
                         </div>
@@ -111,11 +111,11 @@
             </div>
         </header>
         {% elif is_micro %}
-        <header class="mb-8 overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-indigo-50 shadow-sm dark:border-sky-700/50 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30">
+        <header class="format-hero-card mb-8 overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-indigo-50 shadow-sm dark:border-sky-700/50 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30">
             <div class="relative p-5 md:p-7">
-                <img src="{{ profile_cover }}" alt="微博聚合封面" class="absolute inset-0 h-full w-full object-cover opacity-25">
-                <div class="absolute inset-0 bg-gradient-to-r from-sky-900/25 via-sky-800/20 to-indigo-900/30 dark:from-sky-900/40 dark:via-slate-900/65 dark:to-indigo-950/60"></div>
-                <div class="relative">
+                <img src="{{ profile_cover }}" alt="微博聚合封面" class="format-hero-image absolute inset-0 h-full w-full object-cover opacity-25">
+                <div class="format-hero-overlay"></div>
+                <div class="format-hero-content relative">
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div class="flex min-w-0 items-center gap-3">
                             <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="h-16 w-16 rounded-full border-2 border-white object-cover shadow-lg dark:border-slate-700">
@@ -134,19 +134,19 @@
                         {{ profile_motto if profile_motto else (profile_bio if profile_bio else '记录即时想法、碎片灵感与日常动态。') }}
                     </p>
                     <div class="mt-4 grid grid-cols-2 gap-3 text-center md:grid-cols-4">
-                        <div class="rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
+                        <div class="format-hero-stat rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
                             <div class="text-xl font-bold text-slate-900 dark:text-white">{{ pagination.total_count if pagination else (posts|length) }}</div>
                             <div class="text-xs text-slate-500 dark:text-slate-400">动态</div>
                         </div>
-                        <div class="rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
+                        <div class="format-hero-stat rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
                             <div class="text-xl font-bold text-slate-900 dark:text-white">{{ (micro_interaction_count if micro_interaction_count is defined else 0) | compact_number_cn }}</div>
                             <div class="text-xs text-slate-500 dark:text-slate-400">互动</div>
                         </div>
-                        <div class="rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
+                        <div class="format-hero-stat rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
                             <div class="text-xl font-bold text-slate-900 dark:text-white">{{ (format_tag_topic_count if format_tag_topic_count is defined else 0) | compact_number_cn }}</div>
                             <div class="text-xs text-slate-500 dark:text-slate-400">话题</div>
                         </div>
-                        <div class="rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
+                        <div class="format-hero-stat rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
                             <div class="text-xl font-bold text-slate-900 dark:text-white">{{ profile_location if profile_location else 'Online' }}</div>
                             <div class="text-xs text-slate-500 dark:text-slate-400">位置</div>
                         </div>
@@ -179,11 +179,11 @@
             </div>
         </header>
         {% else %}
-        <header class="mb-8 overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-orange-50 to-stone-50 shadow-sm dark:border-amber-700/50 dark:from-stone-900 dark:via-stone-900 dark:to-amber-950/20">
+        <header class="format-hero-card mb-8 overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-orange-50 to-stone-50 shadow-sm dark:border-amber-700/50 dark:from-stone-900 dark:via-stone-900 dark:to-amber-950/20">
             <div class="relative p-6 md:p-8">
-                <img src="{{ profile_cover }}" alt="诗词聚合封面" class="absolute inset-0 h-full w-full object-cover opacity-20">
-                <div class="absolute inset-0 bg-gradient-to-r from-amber-900/15 via-orange-900/10 to-stone-900/20 dark:from-stone-950/70 dark:via-stone-900/80 dark:to-amber-950/50"></div>
-                <div class="relative text-center">
+                <img src="{{ profile_cover }}" alt="诗词聚合封面" class="format-hero-image absolute inset-0 h-full w-full object-cover opacity-20">
+                <div class="format-hero-overlay"></div>
+                <div class="format-hero-content relative text-center">
                     <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="mx-auto h-16 w-16 rounded-full border-2 border-white object-cover shadow-md dark:border-stone-700">
                     <p class="mt-3 text-xs tracking-[0.28em] text-amber-700 dark:text-amber-300">POEM ARCHIVE</p>
                     <h1 class="mt-2 font-serif text-3xl font-semibold text-stone-900 dark:text-amber-100 md:text-4xl">{{ profile_name }}</h1>
@@ -199,19 +199,19 @@
                     </p>
                     {% endif %}
                     <div class="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs">
-                        <span class="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
+                        <span class="format-hero-chip inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
                             卷数 {{ pagination.total_count if pagination else (posts|length) }}
                         </span>
-                        <span class="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
+                        <span class="format-hero-chip inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
                             话题 {{ (format_tag_topic_count if format_tag_topic_count is defined else 0) | compact_number_cn }}
                         </span>
                         {% if profile_location %}
-                        <span class="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
+                        <span class="format-hero-chip inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
                             <i class="fas fa-location-dot mr-1"></i>{{ profile_location }}
                         </span>
                         {% endif %}
                         {% if profile_public_email %}
-                        <a href="mailto:{{ profile_public_email }}" class="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 hover:bg-white dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700">
+                        <a href="mailto:{{ profile_public_email }}" class="format-hero-chip inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 hover:bg-white dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700">
                             <i class="fas fa-envelope mr-1"></i>通信
                         </a>
                         {% endif %}

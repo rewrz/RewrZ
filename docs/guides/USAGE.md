@@ -6,6 +6,7 @@
 - Python 3.10+
 - 建议 512MB 以上内存
 - Linux/Windows/macOS 均可运行（生产推荐 Linux）
+- 生产部署默认不要求安装 Node；仓库已提交编译后的前端 CSS 产物
 
 ## 2. 本地运行（开发/测试）
 
@@ -18,6 +19,12 @@ python -m venv .venv
 # Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn rewrz.main:app --reload
+```
+
+如果你要修改站点样式或模板中的 Tailwind 类名，再额外执行：
+```bash
+npm install
+npm run build:css
 ```
 
 启动后访问：`http://127.0.0.1:8000/installer`
@@ -54,6 +61,10 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+说明：
+- 默认部署直接使用仓库已提交的 CSS 产物
+- 如果你只是部署站点，不修改前端样式，不需要安装 Node 或执行 `npm run build:css`
 
 ### 3.3 配置生产环境变量
 创建 `/srv/rewrz/.env`，示例：

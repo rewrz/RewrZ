@@ -13,9 +13,7 @@ class UIEnhancements {
         this.setupScrollEffects();
         this.setupLazyLoading();
         this.setupAnimations();
-        this.setupBackToTop();
         this.setupTooltips();
-        this.setupDropdowns();
         this.setupNotifications();
         this.setupKeyboardNavigation();
     }
@@ -50,17 +48,8 @@ class UIEnhancements {
                 }
             }
             
-            // 滚动进度指示器
-            const scrollIndicator = document.querySelector('.scroll-indicator');
-            if (scrollIndicator) {
-                const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
-                const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-                const scrolled = (winScroll / height) * 100;
-                scrollIndicator.style.width = scrolled + '%';
-            }
-            
-            // 时间轴项目动画
-            this.animateTimelineItems();
+        // 时间轴项目动画
+        this.animateTimelineItems();
             
             ticking = false;
         };
@@ -72,12 +61,6 @@ class UIEnhancements {
             }
         });
         
-        // 创建滚动进度指示器
-        if (!document.querySelector('.scroll-indicator')) {
-            const indicator = document.createElement('div');
-            indicator.className = 'scroll-indicator';
-            document.body.appendChild(indicator);
-        }
     }
     
     // 时间轴项目动画
@@ -139,37 +122,8 @@ class UIEnhancements {
                 childList: true,
                 subtree: true
             });
+            this.animationObserver = observer;
         }
-    }
-    
-    // 返回顶部按钮
-    setupBackToTop() {
-        let backToTopBtn = document.querySelector('.back-to-top');
-        
-        if (!backToTopBtn) {
-            backToTopBtn = document.createElement('button');
-            backToTopBtn.className = 'back-to-top';
-            backToTopBtn.innerHTML = '<i class="fas fa-arrow-up"></i>';
-            backToTopBtn.setAttribute('aria-label', '返回顶部');
-            document.body.appendChild(backToTopBtn);
-        }
-        
-        // 显示/隐藏按钮
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 300) {
-                backToTopBtn.classList.add('visible');
-            } else {
-                backToTopBtn.classList.remove('visible');
-            }
-        });
-        
-        // 点击返回顶部
-        backToTopBtn.addEventListener('click', () => {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        });
     }
     
     // 工具提示
@@ -224,38 +178,11 @@ class UIEnhancements {
         });
     }
     
-    // 下拉菜单
-    setupDropdowns() {
-        document.addEventListener('click', (e) => {
-            const dropdown = e.target.closest('.dropdown');
-            
-            if (dropdown) {
-                const toggle = dropdown.querySelector('.dropdown-toggle');
-                const menu = dropdown.querySelector('.dropdown-menu');
-                
-                if (e.target === toggle || toggle.contains(e.target)) {
-                    e.preventDefault();
-                    dropdown.classList.toggle('open');
-                    
-                    // 更新 aria-expanded
-                    const expanded = dropdown.classList.contains('open');
-                    toggle.setAttribute('aria-expanded', expanded);
-                }
-            } else {
-                // 点击外部关闭所有下拉菜单
-                document.querySelectorAll('.dropdown.open').forEach(dropdown => {
-                    dropdown.classList.remove('open');
-                    const toggle = dropdown.querySelector('.dropdown-toggle');
-                    if (toggle) {
-                        toggle.setAttribute('aria-expanded', 'false');
-                    }
-                });
-            }
-        });
-    }
-    
     // 通知系统
     setupNotifications() {
+        if (window.showNotification) {
+            return;
+        }
         window.showNotification = (message, type = 'info', duration = 3000) => {
             const notification = document.createElement('div');
             notification.className = `notification notification-${type}`;

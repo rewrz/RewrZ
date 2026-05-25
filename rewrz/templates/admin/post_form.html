@@ -4,8 +4,8 @@
 {% block page_title %}{% if post %}<i class="fas fa-edit text-yellow-600 mr-3"></i>编辑文章{% else %}<i class="fas fa-plus-circle text-green-600 mr-3"></i>新建文章{% endif %}{% endblock %}
 {% block content %}
 <!-- Toast UI Editor -->
-<link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" />
-<script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+<link rel="stylesheet" href="{{ static_asset(request, 'vendor/toastui/toastui-editor.min.css') }}" />
+<script src="{{ static_asset(request, 'vendor/toastui/toastui-editor-all.min.js') }}"></script>
 <style>
     .editor-hero {
         position: relative;

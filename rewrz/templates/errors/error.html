@@ -4,96 +4,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ error_title or ('错误 - ' ~ status_code) }} - {{ site_title }}</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        {% set variant = error_page_template or 'default' %}
-        body {
-            {% if variant == 'minimal' %}
-            background: #f5f7fb;
-            {% elif variant == 'friendly' %}
-            background: linear-gradient(135deg, #7dd3fc 0%, #a78bfa 100%);
-            {% elif variant == 'detailed' %}
-            background: linear-gradient(135deg, #475569 0%, #0f172a 100%);
-            {% else %}
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            {% endif %}
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .error-container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-        }
-        .error-icon {
-            animation: bounce 2s infinite;
-        }
-        @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
-            40% {transform: translateY(-20px);}
-            60% {transform: translateY(-10px);}
-        }
-    </style>
+    <link rel="stylesheet" href="{{ static_asset(request, 'vendor/font-awesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ static_asset(request, 'css/error-pages.css') }}">
 </head>
 <body>
-    <div class="error-container p-8 max-w-2xl w-full mx-4 text-center">
-        <div class="error-icon text-6xl mb-6 text-red-500">
-            {% if variant == 'friendly' %}
-            <i class="fas fa-face-smile-beam"></i>
-            {% elif status_code == 404 %}
-            <i class="fas fa-question-circle"></i>
-            {% elif status_code == 403 %}
-            <i class="fas fa-ban"></i>
-            {% elif status_code == 400 %}
-            <i class="fas fa-circle-exclamation"></i>
-            {% else %}
-            <i class="fas fa-exclamation-triangle"></i>
-            {% endif %}
+    {% set variant = error_page_template or 'default' %}
+    {% set icon_class = 'fas fa-exclamation-triangle' %}
+    {% set icon_tone = 'danger' %}
+    {% if variant == 'friendly' %}
+        {% set icon_class = 'fas fa-face-smile-beam' %}
+        {% set icon_tone = 'warning' %}
+    {% elif status_code == 404 %}
+        {% set icon_class = 'fas fa-question-circle' %}
+        {% set icon_tone = 'warning' %}
+    {% elif status_code == 403 %}
+        {% set icon_class = 'fas fa-ban' %}
+        {% set icon_tone = 'warning' %}
+    {% elif status_code == 400 %}
+        {% set icon_class = 'fas fa-circle-exclamation' %}
+        {% set icon_tone = 'warning' %}
+    {% elif status_code == 500 %}
+        {% set icon_class = 'fas fa-server' %}
+        {% set icon_tone = 'neutral' %}
+    {% endif %}
+    <div class="error-shell">
+        <div class="error-card">
+            <div class="error-content">
+                <div class="error-badge">
+                    <i class="fas fa-shield-halved"></i>
+                    <span>RewrZ 错误页</span>
+                </div>
+
+                <div class="error-icon {{ icon_tone }}">
+                    <i class="{{ icon_class }}"></i>
+                </div>
+
+                <h1 class="error-title">{{ error_title or (status_code ~ ' 错误') }}</h1>
+
+                <p class="error-message">
+                    {% if error_message %}
+                        {{ error_message }}
+                    {% else %}
+                        抱歉，服务器遇到了一些问题。
+                    {% endif %}
+                </p>
+
+                <div class="error-meta">
+                    <p><strong>错误代码：</strong>{{ error_code or 'UNKNOWN_ERROR' }}</p>
+                    <p><strong>请求路径：</strong>{{ request.url.path }}</p>
+                    {% if variant == 'detailed' %}
+                    <p><strong>请求方法：</strong>{{ request.method }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="error-actions">
+                    <button type="button" onclick="history.back()" class="error-action primary">
+                        <i class="fas fa-arrow-left"></i>
+                        返回上一页
+                    </button>
+                    <a href="/" class="error-action secondary">
+                        <i class="fas fa-home"></i>
+                        返回首页
+                    </a>
+                </div>
+
+                <p class="error-note">请稍后再试；如果问题持续出现，请检查输入或联系站点管理员。</p>
+            </div>
         </div>
-        
-        <h1 class="text-4xl font-bold text-gray-800 mb-4">{{ error_title or (status_code ~ ' 错误') }}</h1>
-        
-        <p class="text-xl text-gray-600 mb-6">
-            {% if error_message %}
-                {{ error_message }}
-            {% else %}
-                抱歉，服务器遇到了一些问题。
-            {% endif %}
-        </p>
-        
-        <div class="bg-gray-100 rounded-lg p-4 mb-6 text-left">
-            <p class="text-sm text-gray-600">
-                <strong>错误代码:</strong> {{ error_code or 'UNKNOWN_ERROR' }}
-            </p>
-            <p class="text-sm text-gray-600 mt-1">
-                <strong>请求路径:</strong> {{ request.url.path }}
-            </p>
-            {% if variant == 'detailed' %}
-            <p class="text-sm text-gray-600 mt-1">
-                <strong>请求方法:</strong> {{ request.method }}
-            </p>
-            {% endif %}
-        </div>
-        
-        <div class="flex flex-col sm:flex-row justify-center gap-4">
-            <button onclick="history.back()" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center justify-center">
-                <i class="fas fa-arrow-left mr-2"></i>
-                返回上一页
-            </button>
-            
-            <a href="/" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center justify-center">
-                <i class="fas fa-home mr-2"></i>
-                返回首页
-            </a>
-        </div>
-        
-        <p class="text-sm text-gray-500 mt-6">
-            请稍后再试。
-        </p>
     </div>
 </body>
 </html>

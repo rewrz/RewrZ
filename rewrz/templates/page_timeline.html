@@ -4,8 +4,8 @@
 
 {% block head %}
 {{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', path='css/page-detail.css') }}?v=20260222-2">
-<link rel="stylesheet" href="{{ url_for('static', path='css/page-anime-templates.css') }}?v=20260222-2">
+<link rel="stylesheet" href="{{ static_asset(request, 'css/page-detail.css') }}">
+<link rel="stylesheet" href="{{ static_asset(request, 'css/page-anime-templates.css') }}">
 {% endblock %}
 
 {% block content %}

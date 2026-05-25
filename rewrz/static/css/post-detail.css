@@ -59,6 +59,8 @@
     position: relative;
     overflow: hidden;
     isolation: isolate;
+    padding-top: clamp(1rem, 2vw, 1.5rem);
+    padding-bottom: clamp(1rem, 2vw, 1.5rem);
 }
 
 .detail-cover-bg {
@@ -66,10 +68,11 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background-position: center;
+    background-position: center 34%;
     background-repeat: no-repeat;
     background-size: cover;
     background-attachment: fixed;
+    transform: scale(1.03);
 }
 
 .detail-cover-overlay {
@@ -79,10 +82,10 @@
     pointer-events: none;
     background: linear-gradient(
         180deg,
-        rgba(2, 6, 23, 0.72) 0%,
-        rgba(2, 6, 23, 0.52) 24%,
-        rgba(2, 6, 23, 0.28) 44%,
-        rgba(2, 6, 23, 0.6) 100%
+        rgba(2, 6, 23, 0.68) 0%,
+        rgba(2, 6, 23, 0.48) 24%,
+        rgba(2, 6, 23, 0.22) 44%,
+        rgba(2, 6, 23, 0.72) 100%
     );
 }
 
@@ -108,6 +111,16 @@
     backdrop-filter: var(--detail-glass-filter);
     -webkit-backdrop-filter: var(--detail-glass-filter);
     box-shadow: var(--detail-glass-shadow);
+}
+
+.detail-cover-article .article-detail-card {
+    max-width: min(100%, 72rem);
+    margin-inline: auto;
+}
+
+.detail-cover-micro .micro-detail-card {
+    max-width: min(100%, 58rem);
+    margin-inline: auto;
 }
 
 /* 适合玻璃化：卡片头部等操作层 */
@@ -1184,6 +1197,11 @@
 }
 
 @media (max-width: 768px) {
+    .detail-cover-bg {
+        background-attachment: scroll;
+        transform: none;
+    }
+
     .article-detail-card .article-content,
     .micro-detail-card .micro-content {
         font-size: 1rem;

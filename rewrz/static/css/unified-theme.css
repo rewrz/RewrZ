@@ -1,7 +1,7 @@
 :root {
-    --font-family-base: 'SourceHanSansCN', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
-    --font-family-heading: 'Noto Serif SC', 'SourceHanSansCN', serif;
-    --font-family-decorative: 'KaiTi', 'STKaiti', serif;
+    --font-family-base: 'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
+    --font-family-heading: 'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
+    --font-family-decorative: 'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
     /* 二次元风格圆角系统 - 更圆润的设计 */
     --ui-radius-sm: 0.75rem;
     --ui-radius-md: 1rem;
@@ -56,7 +56,7 @@ body.site-shell::before {
     width: clamp(150px, 20vw, 230px);
     aspect-ratio: 1;
     border-radius: 1.2rem;
-    background: linear-gradient(155deg, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0.03)), url('/static/images/anime/random/random-04.svg') center/cover;
+    background: linear-gradient(155deg, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0.03)), url('/static/images/anime/random/random-04.jpg') center/cover;
     box-shadow: var(--ui-shadow-card);
     opacity: 0.28;
     filter: saturate(1.08);
@@ -69,6 +69,8 @@ body.site-shell > header {
     border-color: var(--ui-border) !important;
     background: color-mix(in srgb, var(--color-nav-bg) 86%, transparent) !important;
     backdrop-filter: blur(14px);
+    z-index: 85;
+    isolation: isolate;
 }
 
 body.site-shell main,
@@ -81,6 +83,22 @@ body.site-shell footer {
     border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
     background: color-mix(in srgb, var(--color-card-bg) 94%, transparent) !important;
     color: var(--color-text) !important;
+    position: fixed;
+    top: 5rem;
+    right: 1rem;
+    z-index: 70;
+    padding: 0.8rem 1rem;
+    border-radius: 1rem;
+    box-shadow: var(--ui-shadow-card);
+    opacity: 0;
+    transform: translate3d(0, -6px, 0);
+    transition: opacity 180ms ease, transform 180ms ease;
+    pointer-events: none;
+}
+
+.theme-toast.is-visible {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
 }
 
 .timeline-shell {
@@ -163,8 +181,57 @@ body.site-shell footer {
     border-radius: 999px;
     border: 1px solid color-mix(in srgb, var(--color-primary) 40%, transparent);
     background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-    color: color-mix(in srgb, var(--color-text) 70%, var(--color-primary) 30%);
+    color: color-mix(in srgb, var(--color-text) 82%, var(--color-primary) 18%);
     font-size: 0.76rem;
+}
+
+body.site-shell .text-gray-900,
+body.site-shell .text-gray-800,
+body.site-shell .text-gray-700 {
+    color: var(--color-text) !important;
+}
+
+body.site-shell .text-gray-600,
+body.site-shell .text-gray-500,
+body.site-shell .text-gray-400 {
+    color: var(--color-text-light) !important;
+}
+
+body.site-shell .border-gray-100,
+body.site-shell .border-gray-200,
+body.site-shell .border-gray-300,
+body.site-shell .border-gray-700,
+body.site-shell .border-gray-800 {
+    border-color: var(--ui-border) !important;
+}
+
+body.site-shell .bg-white,
+body.site-shell .bg-slate-50,
+body.site-shell .bg-gray-50 {
+    background-color: color-mix(in srgb, var(--color-card-bg) 96%, transparent) !important;
+}
+
+body.site-shell .bg-gray-100,
+body.site-shell .bg-gray-800,
+body.site-shell .bg-gray-900 {
+    background-color: color-mix(in srgb, var(--color-background-alt) 88%, transparent) !important;
+}
+
+body.site-shell input[type='text'],
+body.site-shell input[type='search'],
+body.site-shell input[type='email'],
+body.site-shell textarea,
+body.site-shell select {
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+    border-color: var(--ui-border);
+}
+
+body.site-shell input:focus,
+body.site-shell textarea:focus,
+body.site-shell select:focus {
+    border-color: color-mix(in srgb, var(--color-primary) 72%, var(--color-border) 28%) !important;
+    box-shadow: var(--ui-ring) !important;
 }
 
 .hero-surface {
@@ -175,6 +242,86 @@ body.site-shell footer {
         color-mix(in srgb, var(--color-card-bg) 96%, transparent);
     box-shadow: var(--ui-shadow-card);
     overflow: hidden;
+}
+
+.hero-cover-media {
+    position: relative;
+    min-height: clamp(14rem, 34vw, 21rem);
+}
+
+.hero-cover-image {
+    width: 100%;
+    height: clamp(14rem, 34vw, 21rem);
+    object-fit: cover;
+    object-position: center 34%;
+    transform: scale(1.02);
+}
+
+.hero-cover-overlay {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(15, 23, 42, 0.12) 0%, rgba(15, 23, 42, 0.3) 46%, rgba(15, 23, 42, 0.82) 100%),
+        linear-gradient(120deg, color-mix(in srgb, var(--color-primary) 26%, transparent), transparent 55%);
+    pointer-events: none;
+}
+
+.hero-avatar-shell {
+    background: color-mix(in srgb, var(--color-card-bg) 92%, transparent);
+    box-shadow: 0 14px 34px -18px rgba(15, 23, 42, 0.65);
+}
+
+.hero-stats-grid > div {
+    min-height: 5.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 88%, transparent) !important;
+    backdrop-filter: blur(10px);
+}
+
+.format-hero-card {
+    overflow: hidden;
+}
+
+.format-hero-media {
+    position: relative;
+    min-height: clamp(13rem, 28vw, 18rem);
+}
+
+.format-hero-image {
+    width: 100%;
+    object-fit: cover;
+    object-position: center 34%;
+}
+
+.format-hero-media > .format-hero-image {
+    height: clamp(13rem, 28vw, 18rem);
+}
+
+.format-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(15, 23, 42, 0.08) 0%, rgba(15, 23, 42, 0.18) 44%, rgba(15, 23, 42, 0.68) 100%),
+        linear-gradient(120deg, color-mix(in srgb, var(--color-primary) 20%, transparent), transparent 58%);
+    pointer-events: none;
+}
+
+.format-hero-content {
+    position: relative;
+    z-index: 2;
+}
+
+.format-hero-meta-card {
+    border: 1px solid color-mix(in srgb, white 18%, transparent);
+    background: rgba(15, 23, 42, 0.42);
+    backdrop-filter: blur(10px);
+}
+
+.page-hero {
+    min-height: clamp(17rem, 34vw, 25rem);
 }
 
 .hero-anime-thumb {
@@ -393,7 +540,7 @@ body.admin-app {
     aspect-ratio: 1;
     border-radius: 1rem;
     border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
-    background: linear-gradient(145deg, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0.03)), url('/static/images/anime/random/random-02.svg') center/cover;
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0.03)), url('/static/images/anime/random/random-02.jpg') center/cover;
     box-shadow: var(--ui-shadow-card);
     opacity: 0.2;
     z-index: 10;
@@ -436,9 +583,9 @@ body.admin-app {
 
 /* 时间线卡片悬浮发光效果 */
 .timeline-card-shell:hover {
-    box-shadow: var(--ui-shadow-glow), var(--ui-shadow-hover);
-    transform: translateY(-4px);
-    transition: all var(--anime-normal) var(--anime-smooth);
+    box-shadow: var(--ui-shadow-hover);
+    transform: translateY(-3px);
+    transition: transform var(--anime-normal) var(--anime-smooth), box-shadow var(--anime-normal) var(--anime-smooth);
 }
 
 /* 标签胶囊美化 */
@@ -452,8 +599,8 @@ body.admin-app {
 }
 
 .anime-chip:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--color-primary) 30%, transparent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--color-primary) 24%, transparent);
 }
 
 /* Hero区域增强 */
@@ -471,7 +618,7 @@ body.admin-app {
     width: 200%;
     height: 200%;
     background: radial-gradient(circle, color-mix(in srgb, var(--color-primary) 8%, transparent) 0%, transparent 70%);
-    animation: heroFloat 20s ease-in-out infinite;
+    animation: heroFloat 28s ease-in-out infinite;
     pointer-events: none;
 }
 
@@ -488,8 +635,8 @@ body.admin-app {
 }
 
 .hero-anime-thumb:hover {
-    transform: scale(1.03) rotate(1deg);
-    box-shadow: var(--ui-shadow-glow);
+    transform: scale(1.015);
+    box-shadow: var(--ui-shadow-soft);
 }
 
 /* 时间轴节点动画 */
@@ -505,7 +652,7 @@ body.admin-app {
     border-radius: 50%;
     background: var(--color-primary);
     opacity: 0;
-    animation: nodePulse 2s ease-in-out infinite;
+    animation: nodePulse 3.2s ease-in-out infinite;
 }
 
 @keyframes nodePulse {
@@ -1195,15 +1342,15 @@ body.site-shell .dark\:border-slate-700 {
 
 body.site-shell > header nav a,
 body.site-shell > header nav button {
-    border: 1px solid transparent;
     border-radius: var(--ui-radius-md);
+    box-shadow: inset 0 0 0 1px transparent;
     transition: transform var(--anime-fast) var(--anime-bounce), border-color var(--anime-fast) ease, background-color var(--anime-fast) ease;
 }
 
 body.site-shell > header nav a:hover,
 body.site-shell > header nav button:hover {
     transform: translateY(-1px);
-    border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
 body.site-shell > header .absolute.top-full {
@@ -1212,6 +1359,7 @@ body.site-shell > header .absolute.top-full {
     background: color-mix(in srgb, var(--color-card-bg) 97%, transparent) !important;
     box-shadow: var(--ui-shadow-card) !important;
     backdrop-filter: blur(12px);
+    z-index: 90;
 }
 
 body.site-shell > header input[type="text"] {
@@ -1227,6 +1375,117 @@ body.site-shell #mobile-nav-menu {
     border: 1px solid var(--ui-border);
     background: color-mix(in srgb, var(--color-card-bg) 94%, transparent);
     box-shadow: var(--ui-shadow-soft);
+    position: relative;
+    z-index: 88;
+    backdrop-filter: blur(14px);
+}
+
+body.site-shell[data-current-theme="sakura"] {
+    --ui-border: color-mix(in srgb, #d94687 28%, var(--color-border) 72%);
+}
+
+body.site-shell[data-current-theme="sakura"] #mobile-nav-menu,
+body.site-shell[data-current-theme="sakura"] > header .absolute.top-full,
+body.site-shell[data-current-theme="sakura"] .theme-toast {
+    background: color-mix(in srgb, #fff7fb 90%, var(--color-card-bg)) !important;
+}
+
+body.site-shell[data-current-theme="mint"] {
+    --ui-border: color-mix(in srgb, #0f766e 24%, var(--color-border) 76%);
+}
+
+body.site-shell[data-current-theme="mint"] #mobile-nav-menu,
+body.site-shell[data-current-theme="mint"] > header .absolute.top-full,
+body.site-shell[data-current-theme="mint"] .theme-toast {
+    background: color-mix(in srgb, #f4fffb 90%, var(--color-card-bg)) !important;
+}
+
+body.site-shell[data-current-theme="sunset"] {
+    --ui-border: color-mix(in srgb, #c96a08 24%, var(--color-border) 76%);
+}
+
+body.site-shell[data-current-theme="sunset"] #mobile-nav-menu,
+body.site-shell[data-current-theme="sunset"] > header .absolute.top-full,
+body.site-shell[data-current-theme="sunset"] .theme-toast {
+    background: color-mix(in srgb, #fffaf0 90%, var(--color-card-bg)) !important;
+}
+
+body.site-shell[data-current-theme="galaxy"] {
+    --ui-border: color-mix(in srgb, #b26bff 38%, var(--color-border) 62%);
+}
+
+body.site-shell[data-current-theme="galaxy"] #mobile-nav-menu,
+body.site-shell[data-current-theme="galaxy"] > header .absolute.top-full,
+body.site-shell[data-current-theme="galaxy"] .theme-toast {
+    background: color-mix(in srgb, #18172c 92%, var(--color-card-bg)) !important;
+}
+
+body.site-shell[data-current-theme="galaxy"] .hero-stats-grid > div,
+body.site-shell[data-current-theme="galaxy"] .format-hero-meta-card {
+    border-color: rgba(192, 132, 252, 0.34) !important;
+    background: rgba(17, 24, 39, 0.56) !important;
+}
+
+body.site-shell[data-current-theme="galaxy"] .hero-cover-overlay,
+body.site-shell[data-current-theme="galaxy"] .format-hero-overlay {
+    background:
+        linear-gradient(180deg, rgba(10, 10, 24, 0.16) 0%, rgba(10, 10, 24, 0.46) 48%, rgba(10, 10, 24, 0.9) 100%),
+        linear-gradient(135deg, rgba(178, 107, 255, 0.22), transparent 58%);
+}
+
+body.site-shell[data-current-theme="sakura"] .hero-cover-overlay,
+body.site-shell[data-current-theme="sakura"] .format-hero-overlay {
+    background:
+        linear-gradient(180deg, rgba(80, 19, 50, 0.08) 0%, rgba(80, 19, 50, 0.28) 50%, rgba(80, 19, 50, 0.72) 100%),
+        linear-gradient(135deg, rgba(227, 79, 150, 0.18), transparent 58%);
+}
+
+body.site-shell[data-current-theme="mint"] .hero-cover-overlay,
+body.site-shell[data-current-theme="mint"] .format-hero-overlay {
+    background:
+        linear-gradient(180deg, rgba(8, 58, 56, 0.08) 0%, rgba(8, 58, 56, 0.26) 50%, rgba(8, 58, 56, 0.74) 100%),
+        linear-gradient(135deg, rgba(18, 165, 148, 0.16), transparent 58%);
+}
+
+body.site-shell[data-current-theme="sunset"] .hero-cover-overlay,
+body.site-shell[data-current-theme="sunset"] .format-hero-overlay {
+    background:
+        linear-gradient(180deg, rgba(102, 45, 14, 0.08) 0%, rgba(102, 45, 14, 0.24) 52%, rgba(102, 45, 14, 0.72) 100%),
+        linear-gradient(135deg, rgba(234, 138, 18, 0.18), transparent 58%);
+}
+
+@media (max-width: 768px) {
+    .hero-cover-media,
+    .hero-cover-image,
+    .format-hero-media,
+    .format-hero-media > .format-hero-image {
+        min-height: 11.75rem;
+        height: 11.75rem;
+    }
+
+    .hero-avatar-shell {
+        left: 1rem !important;
+        bottom: -2.4rem !important;
+        height: 4.5rem !important;
+        width: 4.5rem !important;
+    }
+
+    .hero-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .hero-stats-grid > div {
+        min-height: 4.9rem;
+    }
+
+    body.site-shell #mobile-nav-menu {
+        margin-top: 0.9rem;
+        padding: 0.95rem;
+    }
+
+    .page-hero {
+        min-height: 15rem;
+    }
 }
 
 #desktop-theme-toggle:hover,

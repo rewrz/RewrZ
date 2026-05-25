@@ -1,0 +1,215 @@
+@font-face {
+  font-family: 'SourceHanSansCN';
+  src: url('/static/fonts/SourceHanSansCN-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --error-bg: linear-gradient(145deg, #e2e8f0 0%, #c7d2fe 45%, #eff6ff 100%);
+  --error-card-bg: rgba(255, 255, 255, 0.9);
+  --error-card-border: rgba(148, 163, 184, 0.28);
+  --error-text: #0f172a;
+  --error-muted: #475569;
+  --error-soft: #f8fafc;
+  --error-primary: #4f46e5;
+  --error-primary-hover: #4338ca;
+  --error-secondary: #0f766e;
+  --error-secondary-hover: #115e59;
+  --error-warning: #d97706;
+  --error-danger: #dc2626;
+  --error-shadow: 0 28px 80px -32px rgba(15, 23, 42, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'SourceHanSansCN', 'Microsoft YaHei', system-ui, sans-serif;
+  background: var(--error-bg);
+  color: var(--error-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.error-shell {
+  width: min(100%, 46rem);
+}
+
+.error-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--error-card-border);
+  border-radius: 1.75rem;
+  background: var(--error-card-bg);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--error-shadow);
+  padding: 2rem;
+}
+
+.error-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top right, rgba(99, 102, 241, 0.18), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.16), transparent 28%);
+  pointer-events: none;
+}
+
+.error-content {
+  position: relative;
+  z-index: 1;
+}
+
+.error-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  color: var(--error-muted);
+  font-size: 0.8rem;
+}
+
+.error-icon {
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 1.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 1.2rem 0 0.9rem;
+  font-size: 2rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--error-primary), #7c3aed);
+  box-shadow: 0 16px 36px -20px rgba(79, 70, 229, 0.8);
+}
+
+.error-icon.warning {
+  background: linear-gradient(135deg, #f59e0b, #ea580c);
+}
+
+.error-icon.danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.error-icon.neutral {
+  background: linear-gradient(135deg, #475569, #0f172a);
+}
+
+.error-title {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.05;
+}
+
+.error-message {
+  margin: 0.9rem 0 1.4rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  color: var(--error-muted);
+}
+
+.error-meta {
+  border-radius: 1.1rem;
+  background: var(--error-soft);
+  border: 1px solid rgba(203, 213, 225, 0.72);
+  padding: 1rem 1.1rem;
+  color: var(--error-muted);
+}
+
+.error-meta p {
+  margin: 0.25rem 0;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-top: 1.5rem;
+}
+
+.error-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-width: 11rem;
+  padding: 0.9rem 1.2rem;
+  border-radius: 1rem;
+  border: 1px solid transparent;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.error-action:hover {
+  transform: translateY(-1px);
+}
+
+.error-action.primary {
+  background: var(--error-primary);
+  color: #fff;
+  box-shadow: 0 14px 30px -18px rgba(79, 70, 229, 0.8);
+}
+
+.error-action.primary:hover {
+  background: var(--error-primary-hover);
+}
+
+.error-action.secondary {
+  background: #ffffff;
+  color: var(--error-secondary);
+  border-color: rgba(15, 118, 110, 0.18);
+}
+
+.error-action.secondary:hover {
+  background: #f8fafc;
+  color: var(--error-secondary-hover);
+}
+
+.error-note {
+  margin: 1.25rem 0 0;
+  color: var(--error-muted);
+  font-size: 0.94rem;
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 1rem;
+  }
+
+  .error-card {
+    padding: 1.4rem;
+    border-radius: 1.4rem;
+  }
+
+  .error-actions {
+    flex-direction: column;
+  }
+
+  .error-action {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .error-action {
+    transition: none;
+  }
+
+  .error-action:hover {
+    transform: none;
+  }
+}

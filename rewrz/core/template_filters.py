@@ -33,6 +33,8 @@ from ..core.thumbnail_service import (
     resolve_media_id_from_url,
 )
 
+_STATIC_ROOT = Path(__file__).resolve().parents[1] / "static"
+
 
 def md5_filter(text: str) -> str:
     """
@@ -767,6 +769,27 @@ def post_url_filter(post) -> str:
     return f"/{path_segment}/{post.slug}"
 
 
+def static_asset(request, path: str) -> str:
+    """
+    生成带文件时间戳的静态资源链接，避免浏览器继续使用旧缓存。
+
+    Args:
+        request: 当前请求对象
+        path: 相对 static 目录的资源路径
+
+    Returns:
+        附带版本参数的静态资源 URL
+    """
+    asset_url = str(request.url_for("static", path=path))
+    asset_path = _STATIC_ROOT / Path(path)
+    if not asset_path.is_file():
+        return asset_url
+
+    version = int(asset_path.stat().st_mtime_ns)
+    separator = "&" if "?" in asset_url else "?"
+    return f"{asset_url}{separator}v={version}"
+
+
 def register_template_filters(app):
     """
     注册所有模板过滤器到FastAPI应用
@@ -802,6 +825,7 @@ def register_template_filters(app):
     templates.env.filters['post_plain_text'] = post_plain_text_filter
     templates.env.filters['post_summary_text'] = post_summary_text_filter
     templates.env.filters['strip_media_nodes'] = strip_media_nodes_filter
+    templates.env.globals['static_asset'] = static_asset
     
     return templates
 
@@ -845,5 +869,6 @@ def get_templates():
         _templates.env.filters['post_plain_text'] = post_plain_text_filter
         _templates.env.filters['post_summary_text'] = post_summary_text_filter
         _templates.env.filters['strip_media_nodes'] = strip_media_nodes_filter
+        _templates.env.globals['static_asset'] = static_asset
 
     return _templates

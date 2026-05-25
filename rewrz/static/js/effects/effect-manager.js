@@ -6,6 +6,7 @@
 class EffectManager {
     constructor() {
         this.activeEffects = new Map();
+        this.loadingEffects = new Map();
         this.effectClasses = {
             'fireworks': 'FireworksEffect',
             'sakura': 'SakuraEffect', 
@@ -28,36 +29,36 @@ class EffectManager {
         if (this.loadedScripts.has(effectName)) {
             return true;
         }
+        if (this.loadingEffects.has(effectName)) {
+            return this.loadingEffects.get(effectName);
+        }
 
         // 检查是否已经存在相同的脚本标签
         const existingScript = document.querySelector(`script[src*="${effectName}.js"]`);
         if (existingScript) {
             this.loadedScripts.add(effectName);
-            console.log(`特效 ${effectName} 已存在，跳过重复加载`);
             return true;
         }
 
         try {
             const script = document.createElement('script');
-            script.src = `/static/js/effects/${effectName}.js?v=${Date.now()}`;
+            script.src = `/static/js/effects/${effectName}.js`;
             script.setAttribute('data-effect', effectName);
-            
-            document.head.appendChild(script);
-            
-            // 等待脚本加载
-            return new Promise((resolve) => {
+            const loader = new Promise((resolve) => {
                 script.onload = () => {
                     this.loadedScripts.add(effectName);
-                    console.log(`特效 ${effectName} 加载成功`);
+                    this.loadingEffects.delete(effectName);
                     resolve(true);
                 };
                 script.onerror = () => {
-                    console.error(`特效 ${effectName} 加载失败`);
+                    this.loadingEffects.delete(effectName);
                     resolve(false);
                 };
             });
+            this.loadingEffects.set(effectName, loader);
+            document.head.appendChild(script);
+            return loader;
         } catch (error) {
-            console.error(`加载特效 ${effectName} 时出错:`, error);
             return false;
         }
     }
@@ -77,14 +78,12 @@ class EffectManager {
         // 加载特效脚本
         const loaded = await this.loadEffect(effectName);
         if (!loaded) {
-            console.error(`无法加载特效: ${effectName}`);
             return false;
         }
 
         // 获取特效类，添加等待机制
         const effectClassName = this.effectClasses[effectName];
         if (!effectClassName) {
-            console.error(`特效类名未定义: ${effectName}`);
             return false;
         }
 
@@ -96,7 +95,6 @@ class EffectManager {
         }
 
         if (!window[effectClassName]) {
-            console.error(`特效类不存在: ${effectClassName}`);
             return false;
         }
 
@@ -108,10 +106,8 @@ class EffectManager {
             // 保存到活动特效列表
             this.activeEffects.set(effectName, effectInstance);
             
-            console.log(`特效 ${effectName} 已启动`);
             return true;
         } catch (error) {
-            console.error(`启动特效 ${effectName} 时出错:`, error);
             return false;
         }
     }
@@ -128,10 +124,8 @@ class EffectManager {
             try {
                 effect.stop();
                 this.activeEffects.delete(effectName);
-                console.log(`特效 ${effectName} 已停止`);
                 return true;
             } catch (error) {
-                console.error(`停止特效 ${effectName} 时出错:`, error);
                 return false;
             }
         }
@@ -145,7 +139,6 @@ class EffectManager {
         // 停止所有其他特效
         const effectNames = Array.from(this.activeEffects.keys());
         effectNames.forEach(name => this.stopEffect(name));
-        console.log('所有特效已停止');
     }
 
     isActive(effectName) {
@@ -165,39 +158,17 @@ class EffectManager {
 
     // 特殊效果：灰度滤镜（用于纪念日）
     enableGrayscale() {
-        // 在HTML元素上应用滤镜
         document.documentElement.style.filter = 'grayscale(100%)';
-        
-        // 在body元素上添加CSS类以确保完全覆盖
         if (document.body) {
             document.body.classList.add('grayscale-effect');
         }
-        
-        // 在所有现有元素上添加类
-        const allElements = document.querySelectorAll('*');
-        allElements.forEach(element => {
-            element.classList.add('grayscale-effect');
-        });
-        
-        console.log('灰度滤镜已启用');
     }
 
     disableGrayscale() {
-        // 移除HTML元素上的滤镜
         document.documentElement.style.filter = '';
-        
-        // 移除body元素上的CSS类
         if (document.body) {
             document.body.classList.remove('grayscale-effect');
         }
-        
-        // 移除所有元素上的类
-        const allElements = document.querySelectorAll('*');
-        allElements.forEach(element => {
-            element.classList.remove('grayscale-effect');
-        });
-        
-        console.log('灰度滤镜已禁用');
     }
 
     /**
@@ -233,16 +204,14 @@ class EffectManager {
         };
 
         // 使用传入的特效列表，如果没有则使用预定义组合
-        const effectsToStart = effects.length > 0 ? effects : (effectCombinations[anniversaryType] || []);
+        const effectsToStart = (effects.length > 0 ? effects : (effectCombinations[anniversaryType] || []))
+            .slice(0, 2);
         
         // 启动特效
         for (const effectName of effectsToStart) {
             await this.startEffect(effectName);
-            // 添加小延迟避免同时启动太多特效
             await new Promise(resolve => setTimeout(resolve, 100));
         }
-
-        console.log(`纪念日氛围 ${anniversaryType} 特效已启动:`, effectsToStart);
     }
 
     /**
@@ -253,38 +222,6 @@ class EffectManager {
         return Object.keys(this.effectClasses).concat(['grayscale']);
     }
 
-    /**
-     * 预加载所有特效脚本
-     */
-    async preloadAllEffects() {
-        const effectNames = Object.keys(this.effectClasses);
-        const loadPromises = effectNames.map(name => this.loadEffect(name));
-        
-        try {
-            await Promise.all(loadPromises);
-            console.log('所有特效脚本预加载完成');
-            return true;
-        } catch (error) {
-            console.error('特效脚本预加载失败:', error);
-            return false;
-        }
-    }
-
-    /**
-     * 为新添加的元素应用灰度效果
-     */
-    applyGrayscaleToNewElements() {
-        // 检查是否已启用灰度效果
-        if (document.documentElement.style.filter.includes('grayscale')) {
-            // 为新添加的元素添加灰度类
-            const allElements = document.querySelectorAll('*');
-            allElements.forEach(element => {
-                if (!element.classList.contains('grayscale-effect')) {
-                    element.classList.add('grayscale-effect');
-                }
-            });
-        }
-    }
 }
 
 // 创建全局实例
@@ -292,10 +229,3 @@ window.effectManager = new EffectManager();
 
 // 导出管理器类
 window.EffectManager = EffectManager;
-
-// 页面加载完成后预加载特效
-document.addEventListener('DOMContentLoaded', () => {
-    if (window.effectManager) {
-        window.effectManager.preloadAllEffects();
-    }
-});

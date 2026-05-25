@@ -65,6 +65,27 @@
     box-shadow: var(--archive-glass-shadow);
 }
 
+.format-archive-glass .format-hero-card {
+    border-radius: 1.6rem;
+}
+
+.format-archive-glass .format-hero-card .format-hero-summary {
+    max-width: 46rem;
+}
+
+.format-archive-glass .format-hero-card .format-hero-chip,
+.format-archive-glass .format-hero-card .format-hero-stat {
+    border-color: rgba(255, 255, 255, 0.22) !important;
+    background: rgba(255, 255, 255, 0.74) !important;
+    backdrop-filter: blur(10px);
+}
+
+.dark .format-archive-glass .format-hero-card .format-hero-chip,
+.dark .format-archive-glass .format-hero-card .format-hero-stat {
+    border-color: rgba(148, 163, 184, 0.22) !important;
+    background: rgba(15, 23, 42, 0.58) !important;
+}
+
 /* 登录发布框：中玻璃 */
 .format-archive-glass .micro-composer-shell {
     border-color: var(--archive-glass-border) !important;
@@ -153,5 +174,11 @@
     .dark .format-archive-glass #format-posts-panel .archive-card-equal,
     .dark .format-archive-glass #format-posts-panel article[data-micro-card] {
         background: rgba(15, 23, 42, 0.88) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .format-archive-glass .format-hero-card .format-hero-summary {
+        max-width: none;
     }
 }

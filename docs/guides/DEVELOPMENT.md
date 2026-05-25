@@ -62,6 +62,8 @@ python -m venv .venv
 # Windows
 .venv\Scripts\activate
 pip install -r requirements.txt
+npm install
+npm run build:css
 uvicorn rewrz.main:app --reload
 ```
 
@@ -75,6 +77,25 @@ alembic upgrade head
 ```bash
 pytest -q
 ```
+
+### 5.4 前端样式构建
+```bash
+npm run build:css
+```
+
+开发时如果需要边改模板边看样式变化：
+```bash
+npm run watch:css
+```
+
+需要重新构建的典型场景：
+- 修改 `rewrz/templates/` 中的 Tailwind 类名
+- 修改 `rewrz/static/js/` 中会动态写入 Tailwind 类名的逻辑
+- 修改 `tailwind.config.js`
+
+提交前要求：
+- 本地 Tailwind 编译产物已更新
+- 前台 `site-tailwind.css` 与后台 `admin-tailwind.css` 均可正常生成
 
 ## 6. 安全开发要求
 

@@ -4,65 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>请求错误 - 400 - {{ site_title }}</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .error-container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-        }
-        .error-icon {
-            animation: pulse 1s infinite;
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ static_asset(request, 'vendor/font-awesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ static_asset(request, 'css/error-pages.css') }}">
 </head>
 <body>
-    <div class="error-container p-8 max-w-2xl w-full mx-4 text-center">
-        <div class="error-icon text-6xl mb-6 text-red-500">
-            <i class="fas fa-exclamation-circle"></i>
+    <div class="error-shell">
+        <div class="error-card">
+            <div class="error-content">
+                <div class="error-badge">
+                    <i class="fas fa-circle-exclamation"></i>
+                    <span>400 请求错误</span>
+                </div>
+                <div class="error-icon warning">
+                    <i class="fas fa-circle-exclamation"></i>
+                </div>
+                <h1 class="error-title">400 请求错误</h1>
+                <p class="error-message">抱歉，您的请求格式或参数不正确，服务器无法继续处理。</p>
+                <div class="error-meta">
+                    <p><strong>请求路径：</strong>{{ request.url.path }}</p>
+                    <p><strong>说明：</strong>请检查表单内容、链接参数或刷新后重试。</p>
+                </div>
+                <div class="error-actions">
+                    <button type="button" onclick="history.back()" class="error-action primary">
+                        <i class="fas fa-arrow-left"></i>
+                        返回上一页
+                    </button>
+                    <a href="/" class="error-action secondary">
+                        <i class="fas fa-home"></i>
+                        返回首页
+                    </a>
+                </div>
+                <p class="error-note">如果这是从表单提交进入的页面，请重新检查输入后再提交。</p>
+            </div>
         </div>
-        
-        <h1 class="text-4xl font-bold text-gray-800 mb-4">400 请求错误</h1>
-        
-        <p class="text-xl text-gray-600 mb-6">
-            抱歉，您的请求存在问题，请检查后重试。
-        </p>
-        
-        <div class="bg-gray-100 rounded-lg p-4 mb-6">
-            <p class="text-gray-600">
-                服务器无法理解您的请求，可能是因为请求参数不正确。
-            </p>
-        </div>
-        
-        <div class="flex flex-col sm:flex-row justify-center gap-4">
-            <button onclick="history.back()" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center justify-center">
-                <i class="fas fa-arrow-left mr-2"></i>
-                返回上一页
-            </button>
-            
-            <a href="/" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center justify-center">
-                <i class="fas fa-home mr-2"></i>
-                返回首页
-            </a>
-        </div>
-        
-        <p class="text-sm text-gray-500 mt-6">
-            请稍后再试。
-        </p>
     </div>
 </body>
 </html>

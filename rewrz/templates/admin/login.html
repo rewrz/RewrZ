@@ -9,11 +9,11 @@
     {% else %}
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     {% endif %}
-    <link rel="stylesheet" href="{{ url_for('static', path='css/admin-tailwind.css') }}">
-    <script src="{{ url_for('static', path='vendor/htmx/htmx.min.js') }}" defer></script>
-    <link rel="stylesheet" href="{{ url_for('static', path='vendor/font-awesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ static_asset(request, 'css/admin-tailwind.css') }}">
+    <script src="{{ static_asset(request, 'vendor/htmx/htmx.min.js') }}" defer></script>
+    <link rel="stylesheet" href="{{ static_asset(request, 'vendor/font-awesome/css/all.min.css') }}">
     <link id="admin-theme-variables" rel="stylesheet" href="/api/v1/theme/variables.css">
-    <link rel="stylesheet" href="{{ url_for('static', path='css/unified-theme.css') }}">
+    <link rel="stylesheet" href="{{ static_asset(request, 'css/unified-theme.css') }}">
     {% set login_background_url = request.state.admin_login_background_image_url if request.state.admin_login_background_image_url else '/static/images/covers/home-default.jpg' %}
     {% set login_background_video_url = request.state.admin_login_background_video_url if request.state.admin_login_background_video_url else '' %}
     {% set has_login_video = login_background_video_url and login_background_video_url.strip() %}
@@ -35,7 +35,7 @@
         .admin-login-bg-motion {
             position: absolute;
             inset: -4%;
-            animation: loginBgDrift 26s ease-in-out infinite alternate;
+            animation: loginBgDrift 34s ease-in-out infinite alternate;
         }
         .admin-login-bg {
             position: absolute;
@@ -45,9 +45,9 @@
                 url('{{ login_background_url }}');
             background-size: cover;
             background-position: center;
-            transform: translate3d(var(--login-parallax-x), var(--login-parallax-y), 0) scale(1.12);
-            filter: saturate(1.12) brightness(0.78) contrast(1.06);
-            transition: transform 0.22s ease-out;
+            transform: translate3d(var(--login-parallax-x), var(--login-parallax-y), 0) scale(1.08);
+            filter: saturate(1.06) brightness(0.76) contrast(1.02);
+            transition: transform 0.28s ease-out;
             will-change: transform;
         }
         .admin-login-video {
@@ -56,9 +56,9 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: translate3d(var(--login-parallax-x), var(--login-parallax-y), 0) scale(1.14);
-            filter: saturate(1.08) brightness(0.72) contrast(1.04);
-            transition: transform 0.22s ease-out;
+            transform: translate3d(var(--login-parallax-x), var(--login-parallax-y), 0) scale(1.08);
+            filter: saturate(1.04) brightness(0.72) contrast(1.02);
+            transition: transform 0.28s ease-out;
             will-change: transform;
         }
         .admin-login-aurora {
@@ -69,9 +69,9 @@
                 radial-gradient(circle at 18% 76%, color-mix(in srgb, #ec4899 25%, transparent), transparent 46%),
                 radial-gradient(circle at 52% 40%, color-mix(in srgb, #22d3ee 14%, transparent), transparent 58%);
             mix-blend-mode: screen;
-            opacity: 0.58;
-            filter: blur(10px);
-            animation: auroraPulse 16s ease-in-out infinite alternate;
+            opacity: 0.44;
+            filter: blur(12px);
+            animation: auroraPulse 22s ease-in-out infinite alternate;
         }
         .admin-login-grid {
             position: absolute;
@@ -80,10 +80,10 @@
                 linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
             background-size: 44px 44px, 44px 44px;
-            opacity: 0.16;
+            opacity: 0.1;
             transform: perspective(680px) rotateX(58deg);
             transform-origin: center top;
-            animation: gridShift 18s linear infinite;
+            animation: gridShift 28s linear infinite;
         }
         .admin-login-particles {
             position: absolute;
@@ -98,7 +98,7 @@
             height: var(--size);
             border-radius: 999px;
             background: rgba(255, 255, 255, 0.82);
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
             opacity: 0;
             animation: particleRise var(--duration) linear infinite;
             animation-delay: var(--delay);
@@ -128,9 +128,9 @@
             right: 5%;
             width: 200px;
             height: 200px;
-            background: radial-gradient(circle, color-mix(in srgb, var(--color-primary) 20%, transparent), transparent 70%);
+            background: radial-gradient(circle, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 70%);
             border-radius: 50%;
-            animation: decoFloat 8s ease-in-out infinite;
+            animation: decoFloat 14s ease-in-out infinite;
             pointer-events: none;
             z-index: 2;
         }
@@ -140,9 +140,9 @@
             left: 8%;
             width: 150px;
             height: 150px;
-            background: radial-gradient(circle, color-mix(in srgb, #8b5cf6 20%, transparent), transparent 70%);
+            background: radial-gradient(circle, color-mix(in srgb, #8b5cf6 14%, transparent), transparent 70%);
             border-radius: 50%;
-            animation: decoFloat 10s ease-in-out infinite reverse;
+            animation: decoFloat 16s ease-in-out infinite reverse;
             pointer-events: none;
             z-index: 2;
         }
@@ -152,9 +152,9 @@
             right: 15%;
             width: 100px;
             height: 100px;
-            background: radial-gradient(circle, color-mix(in srgb, #ec4899 15%, transparent), transparent 70%);
+            background: radial-gradient(circle, color-mix(in srgb, #ec4899 11%, transparent), transparent 70%);
             border-radius: 50%;
-            animation: decoFloat 12s ease-in-out infinite;
+            animation: decoFloat 18s ease-in-out infinite;
             pointer-events: none;
             z-index: 2;
         }
@@ -234,7 +234,7 @@
         <div class="admin-login-bg-motion">
             <div class="admin-login-bg"></div>
             {% if has_login_video %}
-            <video id="admin-login-video" class="admin-login-video" autoplay muted loop playsinline preload="auto" poster="{{ login_background_url }}">
+            <video id="admin-login-video" class="admin-login-video" autoplay muted loop playsinline preload="metadata" poster="{{ login_background_url }}">
                 <source src="{{ login_background_video_url }}">
             </video>
             {% endif %}
@@ -396,23 +396,6 @@
             }
         });
 
-        // 加载主题配置
-        async function loadThemeConfig() {
-            try {
-                const response = await fetch('/api/v1/theme/current');
-                const config = await response.json();
-                
-                const root = document.documentElement;
-                if (config.variables) {
-                    Object.entries(config.variables).forEach(([name, value]) => {
-                        root.style.setProperty(name, value);
-                    });
-                }
-            } catch (error) {
-                console.warn('加载主题配置失败:', error);
-            }
-        }
-
         function initLoginBackgroundMotion() {
             const stage = document.querySelector('.admin-login-stage');
             if (!stage) return;
@@ -427,14 +410,16 @@
             }
             if (prefersReduced) return;
 
+            if (window.innerWidth < 1024) return;
+
             let rafId = null;
             const applyParallax = (clientX, clientY) => {
                 if (rafId) cancelAnimationFrame(rafId);
                 rafId = requestAnimationFrame(() => {
                     const xRatio = (clientX / window.innerWidth) - 0.5;
                     const yRatio = (clientY / window.innerHeight) - 0.5;
-                    stage.style.setProperty('--login-parallax-x', `${(xRatio * 18).toFixed(2)}px`);
-                    stage.style.setProperty('--login-parallax-y', `${(yRatio * 14).toFixed(2)}px`);
+                    stage.style.setProperty('--login-parallax-x', `${(xRatio * 10).toFixed(2)}px`);
+                    stage.style.setProperty('--login-parallax-y', `${(yRatio * 8).toFixed(2)}px`);
                 });
             };
 
@@ -450,7 +435,6 @@
 
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
-            loadThemeConfig();
             initLoginBackgroundMotion();
         });
 

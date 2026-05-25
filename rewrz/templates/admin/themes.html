@@ -488,7 +488,7 @@
 </div>
 
 <!-- 引入特效管理器 -->
-<script src="/static/js/effects/effect-manager.js?v={{ request.state.version or '1.0' }}"></script>
+<script src="{{ static_asset(request, 'js/effects/effect-manager.js') }}"></script>
 
 <script>
 // 纪念日管理功能

@@ -21,6 +21,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from .database import get_db
+from .template_filters import static_asset
 from ..crud import setting as setting_crud
 
 # 配置日志
@@ -30,6 +31,7 @@ logger.setLevel(logging.INFO)
 # 创建错误处理模块的模板目录
 TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "templates")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
+templates.env.globals["static_asset"] = static_asset
 
 DEFAULT_ERROR_HANDLING_CONFIG = {
     "enable_custom_error_pages": False,

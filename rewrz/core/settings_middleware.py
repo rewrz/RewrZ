@@ -68,6 +68,9 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                 "homepage_posts_limit", "archive_posts_limit", "search_results_limit", "related_posts_limit", "list_navigation_mode",
                 # 展示设置
                 "code_highlight_theme",
+                "current_theme",
+                "glass_intensity",
+                "background_image_settings",
                 # /formats/article 图文卡片兜底图设置
                 "article_card_fallback_source", "article_card_fallback_api_url", "article_card_fallback_local_dir",
                 "article_card_api_cache_enabled", "article_card_api_cache_ttl_minutes", "article_card_api_cache_cleanup_minutes",
@@ -177,6 +180,12 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                 if not hasattr(request.state, key):
                     setattr(request.state, key, value)
             request.state.code_highlight_theme = code_highlight_theme
+            request.state.current_theme = all_settings.get("current_theme", "light")
+            request.state.glass_intensity = all_settings.get("glass_intensity", "medium")
+            request.state.background_image_settings = all_settings.get(
+                "background_image_settings",
+                {"type": "none", "custom_url": None},
+            )
             
             # 设置默认值（如果数据库中没有对应设置）
             for key, default_value in DEFAULT_BASE_SETTINGS.items():

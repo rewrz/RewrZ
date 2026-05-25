@@ -12,13 +12,9 @@ class HomepageAnimations {
     this.observers = new Map();
     this.parallaxElements = [];
     this.timelineItems = [];
-    
-    // 性能监控
-    this.performanceMetrics = {
-      frameCount: 0,
-      lastTime: performance.now(),
-      fps: 60
-    };
+    this.prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.boundHandleScroll = this.handleScroll.bind(this);
+    this.boundHandleResize = this.handleResize.bind(this);
     
     this.init();
   }
@@ -33,15 +29,15 @@ class HomepageAnimations {
     this.setupTimelineAnimation();
     this.setupScrollListeners();
     this.setupIntersectionObservers();
-    this.setupMicroInteractions();
-    this.setupPerformanceMonitoring();
+    if (!this.prefersReducedMotion) {
+      this.setupMicroInteractions();
+    }
     
     this.isInitialized = true;
     
     // 标记页面已加载
     document.body.classList.add('loaded');
     
-    console.log('🚀 Homepage animations initialized');
   }
   
   /**
@@ -50,10 +46,15 @@ class HomepageAnimations {
   setupParallaxElements() {
     const parallaxLayers = document.querySelectorAll('.parallax-layer');
     
+    this.parallaxElements = [];
+    if (this.prefersReducedMotion || window.innerWidth < 768) {
+      return;
+    }
+
     parallaxLayers.forEach((layer, index) => {
       this.parallaxElements.push({
         element: layer,
-        speed: 0.2 + (index * 0.1), // 不同层级不同速度
+        speed: Math.min(0.14 + (index * 0.05), 0.24),
         offset: 0
       });
     });
@@ -76,8 +77,8 @@ class HomepageAnimations {
    */
   setupScrollListeners() {
     // 使用 passive 监听器优化性能
-    window.addEventListener('scroll', this.handleScroll.bind(this), { passive: true });
-    window.addEventListener('resize', this.handleResize.bind(this), { passive: true });
+    window.addEventListener('scroll', this.boundHandleScroll, { passive: true });
+    window.addEventListener('resize', this.boundHandleResize, { passive: true });
   }
   
   /**
@@ -90,8 +91,9 @@ class HomepageAnimations {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
             entry.target.classList.add('animate-in');
-            // 添加微交互效果
-            this.addMicroInteraction(entry.target);
+            if (!this.prefersReducedMotion) {
+              this.addMicroInteraction(entry.target);
+            }
           }
         });
       },
@@ -154,36 +156,6 @@ class HomepageAnimations {
   }
   
   /**
-   * 设置性能监控
-   */
-  setupPerformanceMonitoring() {
-    // 监控 FPS
-    const monitorFPS = () => {
-      const now = performance.now();
-      this.performanceMetrics.frameCount++;
-      
-      if (now - this.performanceMetrics.lastTime >= 1000) {
-        this.performanceMetrics.fps = Math.round(
-          (this.performanceMetrics.frameCount * 1000) / (now - this.performanceMetrics.lastTime)
-        );
-        this.performanceMetrics.frameCount = 0;
-        this.performanceMetrics.lastTime = now;
-        
-        // 如果 FPS 过低，降低动画质量
-        if (this.performanceMetrics.fps < 30) {
-          document.body.classList.add('low-performance');
-        } else {
-          document.body.classList.remove('low-performance');
-        }
-      }
-      
-      requestAnimationFrame(monitorFPS);
-    };
-    
-    requestAnimationFrame(monitorFPS);
-  }
-  
-  /**
    * 处理滚动事件
    */
   handleScroll() {
@@ -199,7 +171,6 @@ class HomepageAnimations {
    * 处理窗口大小变化
    */
   handleResize() {
-    // 重新计算视差元素
     this.setupParallaxElements();
   }
   
@@ -216,6 +187,9 @@ class HomepageAnimations {
    * 更新视差效果
    */
   updateParallax() {
+    if (this.prefersReducedMotion || this.parallaxElements.length === 0) {
+      return;
+    }
     const viewportHeight = window.innerHeight;
     
     this.parallaxElements.forEach(({ element, speed }) => {
@@ -268,9 +242,7 @@ class HomepageAnimations {
    */
   handleCardHover(event) {
     const card = event.currentTarget;
-    
-    // 添加倾斜效果
-    card.addEventListener('mousemove', this.handleCardMouseMove.bind(this));
+    card.classList.add('is-hovered');
   }
   
   /**
@@ -278,28 +250,8 @@ class HomepageAnimations {
    */
   handleCardLeave(event) {
     const card = event.currentTarget;
-    
-    // 重置变换
     card.style.transform = '';
-    card.removeEventListener('mousemove', this.handleCardMouseMove.bind(this));
-  }
-  
-  /**
-   * 卡片鼠标移动处理
-   */
-  handleCardMouseMove(event) {
-    const card = event.currentTarget;
-    const rect = card.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    
-    const rotateX = (y - centerY) / 10;
-    const rotateY = (centerX - x) / 10;
-    
-    card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-4px)`;
+    card.classList.remove('is-hovered');
   }
   
   /**
@@ -331,8 +283,11 @@ class HomepageAnimations {
    * 创建粒子效果
    */
   createParticleEffect(element) {
+    if (this.prefersReducedMotion || window.innerWidth < 1024) {
+      return;
+    }
     const rect = element.getBoundingClientRect();
-    const particleCount = 6;
+    const particleCount = 4;
     
     for (let i = 0; i < particleCount; i++) {
       const particle = document.createElement('div');
@@ -373,6 +328,9 @@ class HomepageAnimations {
    * 创建涟漪效果
    */
   createRippleEffect(element, event) {
+    if (this.prefersReducedMotion) {
+      return;
+    }
     const rect = element.getBoundingClientRect();
     const ripple = document.createElement('div');
     
@@ -412,9 +370,8 @@ class HomepageAnimations {
    * 销毁动画系统
    */
   destroy() {
-    // 移除事件监听器
-    window.removeEventListener('scroll', this.handleScroll.bind(this));
-    window.removeEventListener('resize', this.handleResize.bind(this));
+    window.removeEventListener('scroll', this.boundHandleScroll);
+    window.removeEventListener('resize', this.boundHandleResize);
     
     // 断开观察器
     this.observers.forEach(observer => observer.disconnect());
@@ -426,7 +383,6 @@ class HomepageAnimations {
     }
     
     this.isInitialized = false;
-    console.log('🛑 Homepage animations destroyed');
   }
 }
 

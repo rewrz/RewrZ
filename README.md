@@ -6,6 +6,23 @@
 一个面向个人创作者的博客系统：**FastAPI + HTMX + SQLite**，强调轻量部署、可控安全和长期可维护。
 当前阶段：开发中（建议先在测试环境试跑，再用于生产）。
 
+## 前端资源构建
+- 项目当前使用本地 Tailwind 编译产物，不再依赖前台运行时 CDN。
+- 首次参与前端样式开发前，请先执行：
+```bash
+npm install
+npm run build:css
+```
+- 修改 `rewrz/templates/`、`rewrz/static/js/` 中涉及 Tailwind 类名的内容后，需重新执行：
+```bash
+npm run build:css
+```
+- 开发时可使用监听模式：
+```bash
+npm run watch:css
+```
+- 仓库会提交编译后的 CSS 产物，生产部署默认不要求安装 Node。
+
 ## 重构说明
 本项目正在持续重构与收敛，部分功能仍在完善中。
 如果你在使用中遇到问题，欢迎提交 issue，一起把它打磨成一个真正稳定可用的个人博客系统。

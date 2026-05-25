@@ -405,14 +405,7 @@
                     <select id="code_highlight_theme" name="code_highlight_theme"
                             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                         <option value="github-dark" {% if settings.code_highlight_theme == 'github-dark' or not settings.code_highlight_theme %}selected{% endif %}>GitHub Dark（默认）</option>
-                        <option value="github" {% if settings.code_highlight_theme == 'github' %}selected{% endif %}>GitHub Light</option>
-                        <option value="atom-one-dark" {% if settings.code_highlight_theme == 'atom-one-dark' %}selected{% endif %}>Atom One Dark</option>
-                        <option value="atom-one-light" {% if settings.code_highlight_theme == 'atom-one-light' %}selected{% endif %}>Atom One Light</option>
-                        <option value="vs2015" {% if settings.code_highlight_theme == 'vs2015' %}selected{% endif %}>VS 2015</option>
-                        <option value="monokai" {% if settings.code_highlight_theme == 'monokai' %}selected{% endif %}>Monokai</option>
-                        <option value="stackoverflow-light" {% if settings.code_highlight_theme == 'stackoverflow-light' %}selected{% endif %}>StackOverflow Light</option>
-                        <option value="stackoverflow-dark" {% if settings.code_highlight_theme == 'stackoverflow-dark' %}selected{% endif %}>StackOverflow Dark</option>
-                        <option value="night-owl" {% if settings.code_highlight_theme == 'night-owl' %}selected{% endif %}>Night Owl</option>
+                        <option value="github-light" {% if settings.code_highlight_theme == 'github-light' %}selected{% endif %}>GitHub Light</option>
                         <option value="nord" {% if settings.code_highlight_theme == 'nord' %}selected{% endif %}>Nord</option>
                     </select>
                     <p class="text-sm text-gray-500 mt-1">影响文章/页面详情中的代码块高亮视觉风格。</p>

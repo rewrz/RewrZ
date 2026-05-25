@@ -1,0 +1,18 @@
+{
+  "name": "rewrz-frontend-assets",
+  "private": true,
+  "scripts": {
+    "build:css:site": "tailwindcss -c tailwind.config.js -i ./rewrz/static/css/src/site-tailwind.css -o ./rewrz/static/css/site-tailwind.css --minify",
+    "build:css:admin": "tailwindcss -c tailwind.config.js -i ./rewrz/static/css/src/admin-tailwind.css -o ./rewrz/static/css/admin-tailwind.css --minify",
+    "build:css": "npm run build:css:site && npm run build:css:admin",
+    "watch:css:site": "tailwindcss -c tailwind.config.js -i ./rewrz/static/css/src/site-tailwind.css -o ./rewrz/static/css/site-tailwind.css --watch",
+    "watch:css:admin": "tailwindcss -c tailwind.config.js -i ./rewrz/static/css/src/admin-tailwind.css -o ./rewrz/static/css/admin-tailwind.css --watch",
+    "watch:css": "npm-run-all --parallel watch:css:site watch:css:admin"
+  },
+  "devDependencies": {
+    "@tailwindcss/line-clamp": "^0.4.4",
+    "@tailwindcss/typography": "^0.5.15",
+    "npm-run-all": "^4.1.5",
+    "tailwindcss": "^3.4.17"
+  }
+}

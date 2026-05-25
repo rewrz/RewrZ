@@ -1663,6 +1663,10 @@ app.include_router(theme_schedule_api.router, prefix="/api")
 def _populate_global_request_state(request: Request) -> None:
     # 初始化全局上下文变量
     request.state.atmosphere_class = ""
+    request.state.current_atmosphere = None
+    request.state.current_theme = "light"
+    request.state.glass_intensity = "medium"
+    request.state.background_image_settings = {"type": "none", "custom_url": None}
     request.state.site_title = DEFAULT_BASE_SETTINGS["site_title"]
     request.state.tagline = DEFAULT_BASE_SETTINGS["tagline"]
     request.state.noindex_site = DEFAULT_BASE_SETTINGS["noindex_site"]
@@ -1688,6 +1692,12 @@ def _populate_global_request_state(request: Request) -> None:
         all_settings = crud_setting.get_settings_by_keys(db, list(settings_keys.keys()))
         for key, default_value in settings_keys.items():
             setattr(request.state, key, all_settings.get(key, default_value))
+        request.state.current_theme = themes_api.normalize_theme_name(all_settings.get("current_theme", "light"))
+        request.state.glass_intensity = themes_api.normalize_glass_intensity(all_settings.get("glass_intensity", "medium"))
+        request.state.background_image_settings = all_settings.get(
+            "background_image_settings",
+            {"type": "none", "custom_url": None},
+        ) or {"type": "none", "custom_url": None}
 
         # 氛围模式优先级：纪念日氛围 > 前端明暗模式 > 主题管理调度
         
@@ -1725,6 +1735,7 @@ def _populate_global_request_state(request: Request) -> None:
         
         # 如果有纪念日氛围，直接应用（最高优先级）
         if anniversary_atmosphere:
+            request.state.current_atmosphere = anniversary_atmosphere
             request.state.atmosphere_class = f"atmosphere-{anniversary_atmosphere}"
         else:
             # 2. 中等优先级：前端用户明暗模式切换（由前端JavaScript处理）
@@ -1751,6 +1762,7 @@ def _populate_global_request_state(request: Request) -> None:
             
             # 仅在没有纪念日氛围时应用调度氛围
             if scheduled_atmosphere:
+                request.state.current_atmosphere = scheduled_atmosphere
                 request.state.atmosphere_class = f"atmosphere-{scheduled_atmosphere}"
     finally:
         try:

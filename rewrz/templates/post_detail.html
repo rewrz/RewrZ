@@ -39,7 +39,7 @@
 </script>
 {% endif %}
 
-<link rel="stylesheet" href="{{ url_for('static', path='css/post-detail.css') }}?v=20260224-3">
+<link rel="stylesheet" href="{{ static_asset(request, 'css/post-detail.css') }}">
 {% endblock %}
 
 {% block content %}

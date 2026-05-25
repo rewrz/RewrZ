@@ -14,12 +14,12 @@
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     {% endif %}
 
-    <link rel="stylesheet" href="{{ url_for('static', path='css/admin-tailwind.css') }}">
-    <script src="{{ url_for('static', path='vendor/htmx/htmx.min.js') }}" defer></script>
-    <link rel="stylesheet" href="{{ url_for('static', path='vendor/font-awesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ static_asset(request, 'css/admin-tailwind.css') }}">
+    <script src="{{ static_asset(request, 'vendor/htmx/htmx.min.js') }}" defer></script>
+    <link rel="stylesheet" href="{{ static_asset(request, 'vendor/font-awesome/css/all.min.css') }}">
 
     <link id="admin-theme-variables" rel="stylesheet" href="/api/v1/theme/variables.css">
-    <link rel="stylesheet" href="{{ url_for('static', path='css/unified-theme.css') }}">
+    <link rel="stylesheet" href="{{ static_asset(request, 'css/unified-theme.css') }}">
     <style>
         .admin-toast-stack {
             position: fixed;
@@ -379,7 +379,7 @@
 
         async function syncAdminTheme(forceReloadCss = false) {
             try {
-                const response = await fetch('/api/v1/theme/current', {
+                const response = await fetch('/api/v1/theme/sync', {
                     credentials: 'include',
                     cache: 'no-store'
                 });
@@ -396,20 +396,17 @@
                 body.classList.add(themeName);
 
                 body.className = body.className.replace(/atmosphere-\w+/g, '').trim();
-                if (config.atmosphere_class) {
-                    body.classList.add(config.atmosphere_class);
-                }
-
-                if (config.variables) {
-                    Object.entries(config.variables).forEach(([name, value]) => {
-                        root.style.setProperty(name, value);
-                    });
+                const atmosphereClass = config.atmosphere && config.atmosphere.normalized
+                    ? `atmosphere-${config.atmosphere.normalized}`
+                    : '';
+                if (atmosphereClass) {
+                    body.classList.add(atmosphereClass);
                 }
 
                 if (forceReloadCss) {
                     const cssLink = document.getElementById('admin-theme-variables');
                     if (cssLink) {
-                        cssLink.href = `/api/v1/theme/variables.css?t=${Date.now()}`;
+                        cssLink.href = `/api/v1/theme/variables.css?v=${Date.now()}`;
                     }
                 }
             } catch (error) {
@@ -424,7 +421,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             consumeFlashNotice();
             syncAdminTheme(true);
-            setInterval(() => syncAdminTheme(false), 30000);
 
             const sidebar = document.getElementById('admin-sidebar');
             const openSidebarBtn = document.getElementById('admin-sidebar-toggle');
@@ -448,6 +444,11 @@
         });
 
         window.addEventListener('focus', () => syncAdminTheme(false));
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                syncAdminTheme(false);
+            }
+        });
         window.addEventListener('adminThemeRefreshRequested', () => syncAdminTheme(true));
     </script>
 </body>

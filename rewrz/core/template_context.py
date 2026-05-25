@@ -7,10 +7,12 @@ from fastapi import Request
 from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..crud import format as crud_format, post as crud_post
+from ..crud import setting as crud_setting
 from ..crud import user as crud_user
 from ..core.content_intents import INTENT_SLUGS, normalize_intent_slug
 from ..core.media_attachments import get_default_media_navigation
 from ..core.security import decode_access_token
+from ..api import themes as themes_api
 
 # 主页个性化设置键常量，集中管理，避免魔法字符串分散各处
 HOMEPAGE_SETTING_KEYS = [
@@ -46,17 +48,10 @@ DEFAULT_BASE_SETTINGS = {
     "code_highlight_theme": "github-dark",
 }
 
-# highlight.js 可选主题（需与 CDN 实际样式文件名一致）
+# highlight.js 可选主题（需与本地样式文件名一致）
 CODE_HIGHLIGHT_THEME_OPTIONS = (
     "github-dark",
-    "github",
-    "atom-one-dark",
-    "atom-one-light",
-    "vs2015",
-    "monokai",
-    "stackoverflow-light",
-    "stackoverflow-dark",
-    "night-owl",
+    "github-light",
     "nord",
 )
 
@@ -85,6 +80,7 @@ def build_base_template_context(request: Request) -> dict:
     
     token = str((request.cookies.get("access_token") or "")).strip()
     is_logged_in = False
+    theme_persist_allowed = False
     if token:
         payload = decode_access_token(token)
         if payload:
@@ -94,7 +90,11 @@ def build_base_template_context(request: Request) -> dict:
             except (TypeError, ValueError):
                 user_id = 0
             if user_id > 0:
-                is_logged_in = crud_user.get_user(db, user_id=user_id) is not None
+                current_user = crud_user.get_user(db, user_id=user_id)
+                is_logged_in = current_user is not None
+                if current_user is not None:
+                    user_role = str(getattr(current_user, "role", "") or "").strip().lower()
+                    theme_persist_allowed = user_role in {"admin", "super_admin"}
 
     # 仅保留三种内容类型，避免旧格式继续出现在导航中
     all_formats = crud_format.get_formats(db)
@@ -112,6 +112,15 @@ def build_base_template_context(request: Request) -> dict:
     
     # 获取中间件提供的统一设置数据
     settings = getattr(request.state, "settings", {})
+    custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
+    custom_themes = custom_themes_setting.value.get("value") if custom_themes_setting else {}
+    current_theme = themes_api.resolve_theme_name(
+        getattr(request.state, "current_theme", None),
+        custom_themes,
+    )
+    current_atmosphere = themes_api.normalize_atmosphere_name(getattr(request.state, "current_atmosphere", None))
+    background_settings = getattr(request.state, "background_image_settings", {"type": "none", "custom_url": None}) or {"type": "none", "custom_url": None}
+    glass_intensity = themes_api.normalize_glass_intensity(getattr(request.state, "glass_intensity", "medium"))
     
     # 构建上下文，优先使用结构化的设置数据，回退到平铺字段（向后兼容）
     context = {
@@ -120,6 +129,12 @@ def build_base_template_context(request: Request) -> dict:
         
         # 保持向后兼容性：继续提供平铺的字段
         "atmosphere_class": getattr(request.state, "atmosphere_class", ""),
+        "current_theme": current_theme,
+        "current_atmosphere": current_atmosphere,
+        "glass_intensity": glass_intensity,
+        "background_image_settings": background_settings,
+        "theme_csrf_token": getattr(request.state, "csrf_token", ""),
+        "theme_persist_allowed": theme_persist_allowed,
         "site_title": settings.get("site", {}).get("title") or getattr(request.state, "site_title", DEFAULT_BASE_SETTINGS["site_title"]),
         "tagline": settings.get("site", {}).get("tagline") or getattr(request.state, "tagline", DEFAULT_BASE_SETTINGS["tagline"]),
         "noindex_site": settings.get("seo", {}).get("noindex_site") if settings.get("seo", {}).get("noindex_site") is not None else getattr(request.state, "noindex_site", DEFAULT_BASE_SETTINGS["noindex_site"]),

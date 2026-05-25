@@ -20,39 +20,24 @@
     {% else %}
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     {% endif %}
-    <!-- Tailwind CSS CDN with JIT -->
-    <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        'sans': ['SourceHanSansCN', 'Microsoft YaHei', 'system-ui', 'sans-serif'],
-                    },
-                    colors: {
-                        primary: {
-                            50: '#eff6ff',
-                            500: '#6366f1',
-                            600: '#4f46e5',
-                            700: '#4338ca',
-                        }
-                    },
-                    animation: {
-                        'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
-                        'slide-in-right': 'slideInRight 0.6s ease-out forwards',
-                        'slide-in-left': 'slideInLeft 0.6s ease-out forwards',
-                    }
-                }
+        (function() {
+            var doc = document.documentElement;
+            var bodyTheme = {{ current_theme | tojson }};
+            var storedTheme = '';
+            try {
+                storedTheme = localStorage.getItem('rewrz-theme') || localStorage.getItem('user_theme_preference') || '';
+            } catch (_) {
+                storedTheme = '';
             }
-        }
+            var theme = storedTheme || bodyTheme || 'light';
+            doc.dataset.currentTheme = theme;
+            doc.classList.add(theme);
+        })();
     </script>
-    
-    <!-- HTMX for dynamic interactions -->
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    
-    <!-- FontAwesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="{{ static_asset(request, 'vendor/htmx/htmx.min.js') }}" defer></script>
+    <link rel="stylesheet" href="{{ static_asset(request, 'vendor/font-awesome/css/all.min.css') }}">
     
     <!-- SEO Meta Tags -->
     <meta name="description" content="{% block meta_description %}{{ tagline if tagline else site_title }}{% endblock %}">
@@ -70,17 +55,18 @@
     {% block head %}{% endblock %}
     
     <!-- Code highlighting -->
-    {% set _code_highlight_themes = ['github-dark', 'github', 'atom-one-dark', 'atom-one-light', 'vs2015', 'monokai', 'stackoverflow-light', 'stackoverflow-dark', 'night-owl', 'nord'] %}
+    {% set _code_highlight_themes = ['github-dark', 'github-light', 'nord'] %}
     {% set _code_highlight_theme = code_highlight_theme if code_highlight_theme in _code_highlight_themes else 'github-dark' %}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/{{ _code_highlight_theme }}.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="{{ static_asset(request, 'vendor/highlightjs/styles/' ~ _code_highlight_theme ~ '.min.css') }}">
+    <script src="{{ static_asset(request, 'vendor/highlightjs/highlight.min.js') }}" defer></script>
     
     <!-- 动态主题CSS变量 -->
-    <link rel="stylesheet" href="/api/v1/theme/variables.css">
+    <link id="theme-variables-link" rel="stylesheet" href="/api/v1/theme/variables.css">
     
-    <!-- 优化后的统一样式系统 -->
-    <link rel="stylesheet" href="{{ url_for('static', path='css/tailwind-optimized.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', path='css/unified-theme.css') }}?v=20260219-2">
+    <!-- 本地 Tailwind 与补充样式系统 -->
+    <link rel="stylesheet" href="{{ static_asset(request, 'css/site-tailwind.css') }}">
+    <link rel="stylesheet" href="{{ static_asset(request, 'css/tailwind-optimized.css') }}">
+    <link rel="stylesheet" href="{{ static_asset(request, 'css/unified-theme.css') }}">
     <style id="hljs-theme-bridge">
         /* 普通代码块兜底（当 hljs 未就绪时） */
         .post-content pre > code:not(.hljs),
@@ -110,399 +96,25 @@
     </style>
     
     <style>
-        /* 自定义字体定义 */
         @font-face {
             font-family: 'SourceHanSansCN';
             src: url('/static/fonts/SourceHanSansCN-Medium.otf') format('opentype');
-            font-weight: normal;
+            font-weight: 500;
             font-style: normal;
+            font-display: swap;
         }
     </style>
 </head>
 <body class="site-shell min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300 {{ atmosphere_class if atmosphere_class else '' }}"
       data-list-navigation-mode="{{ list_navigation_mode if list_navigation_mode else 'pagination' }}"
-      data-glass-intensity="medium">
-    <script>
-        // 动态主题系统
-        let currentThemeConfig = null;
-        let atmosphereClass = '';
-
-        // 加载服务器端主题配置
-        async function loadThemeConfig() {
-            try {
-                const response = await fetch('/api/v1/theme/current');
-                const config = await response.json();
-                currentThemeConfig = config;
-                atmosphereClass = config.atmosphere_class || '';
-                
-                applyThemeConfig(config);
-                applyAtmosphere(config.atmosphere_class);
-                
-            } catch (error) {
-                console.error('加载主题配置失败:', error);
-            }
-        }
-        
-        // 应用主题配置
-        function applyThemeConfig(config) {
-            const root = document.documentElement;
-            const glassIntensity = config.glass_intensity || 'medium';
-            
-            Object.entries(config.variables).forEach(([name, value]) => {
-                root.style.setProperty(name, value);
-            });
-
-            root.dataset.glassIntensity = glassIntensity;
-            document.body.dataset.glassIntensity = glassIntensity;
-            
-            localStorage.setItem('current_theme', config.theme);
-            if (config.atmosphere) {
-                localStorage.setItem('current_atmosphere', config.atmosphere);
-            } else {
-                localStorage.removeItem('current_atmosphere');
-            }
-        }
-        
-        // 应用氛围主题
-        function applyAtmosphere(className) {
-            const body = document.body;
-            body.className = body.className.replace(/atmosphere-\w+/g, '');
-            if (className) {
-                body.classList.add(className);
-            } else {
-                // 后端无氛围时，强制清理前端残留纪念日状态/特效
-                try {
-                    const html = document.documentElement;
-                    html.className = html.className.replace(/anniversary-\w+/g, '').trim();
-                    html.style.filter = '';
-                    body.className = body.className.replace(/anniversary-\w+/g, '').trim();
-                    const legacyMournStyle = document.getElementById('mourn-mode-styles');
-                    if (legacyMournStyle) {
-                        legacyMournStyle.remove();
-                    }
-                    localStorage.removeItem('rewrz-anniversary-mode');
-                    if (window.effectManager && typeof window.effectManager.stopAll === 'function') {
-                        window.effectManager.stopAll();
-                    }
-                    if (window.themeManager && typeof window.themeManager.setAtmosphere === 'function') {
-                        window.themeManager.setAtmosphere(null, []);
-                    }
-                } catch (error) {
-                    console.warn('清理残留氛围状态失败:', error);
-                }
-            }
-        }
-        
-        // 可用主题列表（与后端保持一致）- 含二次元风格主题
-        const AVAILABLE_THEMES = ['light', 'dark', 'nature', 'ocean', 'sunset', 'sakura', 'galaxy', 'mint'];
-        const THEME_UI_META = {
-            light: { name: '浅色', icon: 'fa-sun' },
-            dark: { name: '深色', icon: 'fa-moon' },
-            nature: { name: '自然', icon: 'fa-leaf' },
-            ocean: { name: '海洋', icon: 'fa-water' },
-            sunset: { name: '夕阳', icon: 'fa-cloud-sun' },
-            sakura: { name: '樱花', icon: 'fa-heart' },
-            galaxy: { name: '星空', icon: 'fa-star' },
-            mint: { name: '薄荷', icon: 'fa-seedling' }
-        };
-        let currentThemeIndex = 0;
-
-        function getThemeMeta(theme) {
-            return THEME_UI_META[theme] || { name: theme || '浅色', icon: 'fa-palette' };
-        }
-
-        function getNextTheme(theme) {
-            const currentIndex = getCurrentThemeIndex(theme);
-            const nextIndex = (currentIndex + 1) % AVAILABLE_THEMES.length;
-            return AVAILABLE_THEMES[nextIndex];
-        }
-
-        function updateThemeToggleUI(theme) {
-            const currentMeta = getThemeMeta(theme);
-            const nextTheme = getNextTheme(theme);
-            const nextMeta = getThemeMeta(nextTheme);
-
-            const desktopToggle = document.getElementById('desktop-theme-toggle');
-            const desktopIcon = document.getElementById('desktop-theme-icon');
-            if (desktopToggle && desktopIcon) {
-                desktopIcon.className = `fas ${currentMeta.icon} text-gray-700 dark:text-gray-300`;
-                desktopToggle.title = `当前：${currentMeta.name}主题，点击切换到${nextMeta.name}主题`;
-                desktopToggle.setAttribute('aria-label', `当前${currentMeta.name}主题，点击切换到${nextMeta.name}主题`);
-            }
-
-            const mobileToggle = document.getElementById('mobile-theme-toggle');
-            const mobileIcon = document.getElementById('mobile-theme-icon');
-            const mobileLabel = document.getElementById('mobile-theme-label');
-            if (mobileToggle && mobileIcon && mobileLabel) {
-                mobileIcon.className = `fas ${currentMeta.icon} mr-2`;
-                mobileLabel.textContent = `当前：${currentMeta.name}主题，切换到${nextMeta.name}主题`;
-                mobileToggle.setAttribute('aria-label', `当前${currentMeta.name}主题，点击切换到${nextMeta.name}主题`);
-            }
-        }
-        
-        // 立即应用主题（避免闪烁）
-        function applyThemeImmediately(theme) {
-            const html = document.documentElement;
-            html.classList.remove(...AVAILABLE_THEMES);
-            html.classList.add(theme);
-            
-            // 同步到body（兼容某些组件）
-            document.body.classList.remove(...AVAILABLE_THEMES);
-            document.body.classList.add(theme);
-            document.body.dataset.activeTheme = theme;
-
-            // 同步主题切换按钮UI
-            updateThemeToggleUI(theme);
-        }
-        
-        // 与后端同步主题设置
-        async function syncThemeWithBackend(theme) {
-            try {
-                const formData = new FormData();
-                formData.append('theme', theme);
-                
-                const response = await fetch('/api/v1/theme/update', {
-                    method: 'POST',
-                    body: formData,
-                    credentials: 'include'
-                });
-                
-                if (response.ok) {
-                    console.log(`主题已同步到后端: ${theme}`);
-                } else {
-                    console.warn('主题同步失败，但前端已应用');
-                }
-            } catch (error) {
-                console.warn('主题同步请求失败:', error);
-            }
-        }
-        
-        // 获取当前主题索引
-        function getCurrentThemeIndex(theme) {
-            const index = AVAILABLE_THEMES.indexOf(theme);
-            return index >= 0 ? index : 0;
-        }
-        
-        // 循环切换主题
-        async function toggleTheme() {
-            // 计算下一个主题
-            currentThemeIndex = (currentThemeIndex + 1) % AVAILABLE_THEMES.length;
-            const newTheme = AVAILABLE_THEMES[currentThemeIndex];
-            
-            // 立即应用主题（避免闪烁）
-            applyThemeImmediately(newTheme);
-            
-            // 保存到localStorage
-            localStorage.setItem('rewrz-theme', newTheme);
-            localStorage.setItem('user_theme_preference', newTheme);
-            
-            // 异步同步到后端
-            await syncThemeWithBackend(newTheme);
-            
-            // 触发事件通知其他组件
-            window.dispatchEvent(new CustomEvent('themeChanged', {
-                detail: { theme: newTheme }
-            }));
-            
-            // 显示切换提示
-            showThemeToast(`已切换到${getThemeMeta(newTheme).name}主题`);
-        }
-        
-        // 显示主题切换提示
-        function showThemeToast(message) {
-            // 移除已存在的提示
-            const existingToast = document.querySelector('.theme-toast');
-            if (existingToast) {
-                existingToast.remove();
-            }
-            
-            const toast = document.createElement('div');
-            toast.className = 'theme-toast fixed top-20 right-4 z-50 px-4 py-2 bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-800 rounded-lg shadow-lg transition-all duration-300';
-            toast.textContent = message;
-            
-            document.body.appendChild(toast);
-            
-            // 3秒后自动移除
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.style.opacity = '0';
-                    setTimeout(() => toast.remove(), 300);
-                }
-            }, 2000);
-        }
-        
-        // 从后端获取当前主题
-        async function loadCurrentThemeFromBackend() {
-            try {
-                const response = await fetch('/api/v1/theme/sync');
-                if (response.ok) {
-                    const data = await response.json();
-                    return data.theme || 'light';
-                }
-            } catch (error) {
-                console.warn('无法从后端获取主题设置:', error);
-            }
-            return null;
-        }
-        
-        // 初始化主题
-        async function initializeTheme() {
-            // 优先从后端获取主题
-            let theme = await loadCurrentThemeFromBackend();
-            
-            // 如果后端获取失败，从localStorage获取
-            if (!theme) {
-                theme = localStorage.getItem('rewrz-theme') || 
-                       localStorage.getItem('user_theme_preference') || 
-                       'light';
-            }
-            
-            // 如果localStorage也没有，使用系统偏好
-            if (!theme) {
-                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                theme = prefersDark ? 'dark' : 'light';
-            }
-            
-            // 设置当前主题索引
-            currentThemeIndex = getCurrentThemeIndex(theme);
-            
-            // 立即应用主题
-            applyThemeImmediately(theme);
-            
-            // 保存到localStorage
-            localStorage.setItem('rewrz-theme', theme);
-            localStorage.setItem('user_theme_preference', theme);
-            
-            // 加载其他主题配置
-            loadThemeConfig();
-        }
-
-        // 移动端菜单切换功能（修正后）
-        function initMobileMenu() {
-            const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
-            const mobileNavMenu = document.getElementById('mobile-nav-menu');
-            const menuIcon = document.getElementById('menu-icon');
-            
-            if (mobileMenuToggle && mobileNavMenu && menuIcon) {
-                mobileMenuToggle.addEventListener('click', function() {
-                    const isHidden = mobileNavMenu.classList.contains('hidden');
-                    
-                    if (isHidden) {
-                        mobileNavMenu.classList.remove('hidden');
-                        menuIcon.classList.remove('fa-bars');
-                        menuIcon.classList.add('fa-times');
-                    } else {
-                        mobileNavMenu.classList.add('hidden');
-                        menuIcon.classList.remove('fa-times');
-                        menuIcon.classList.add('fa-bars');
-                    }
-                });
-                
-                const menuLinks = mobileNavMenu.querySelectorAll('a');
-                menuLinks.forEach(link => {
-                    link.addEventListener('click', function() {
-                        mobileNavMenu.classList.add('hidden');
-                        menuIcon.classList.remove('fa-times');
-                        menuIcon.classList.add('fa-bars');
-                    });
-                });
-            }
-            
-            // 移动端页面菜单折叠功能
-            const mobilePagesToggle = document.getElementById('mobile-pages-toggle');
-            const mobilePagesMenu = document.getElementById('mobile-pages-menu');
-            const mobilePagesIcon = document.getElementById('mobile-pages-icon');
-            
-            if (mobilePagesToggle && mobilePagesMenu && mobilePagesIcon) {
-                mobilePagesToggle.addEventListener('click', function(event) {
-                    // 阻止事件冒泡，防止点击时关闭整个导航菜单
-                    event.stopPropagation();
-                    const isHidden = mobilePagesMenu.classList.contains('hidden');
-                    
-                    if (isHidden) {
-                        mobilePagesMenu.classList.remove('hidden');
-                        mobilePagesIcon.classList.remove('fa-chevron-down');
-                        mobilePagesIcon.classList.add('fa-chevron-up');
-                    } else {
-                        mobilePagesMenu.classList.add('hidden');
-                        mobilePagesIcon.classList.remove('fa-chevron-up');
-                        mobilePagesIcon.classList.add('fa-chevron-down');
-                    }
-                });
-            }
-        }
-        
-        // 主题切换按钮事件
-        function initThemeToggle() {
-            const desktopToggle = document.getElementById('desktop-theme-toggle');
-            const mobileToggle = document.getElementById('mobile-theme-toggle');
-            
-            if (desktopToggle) {
-                desktopToggle.addEventListener('click', toggleTheme);
-            }
-            
-            if (mobileToggle) {
-                mobileToggle.addEventListener('click', toggleTheme);
-            }
-        }
-
-        function safeHighlightCodeBlocks(root = document) {
-            if (!window.hljs) {
-                return;
-            }
-            const scope = root && root.querySelectorAll ? root : document;
-            const blocks = scope.querySelectorAll('pre code');
-            blocks.forEach((block) => {
-                if (!block || !block.textContent) {
-                    return;
-                }
-                const pre = block.closest('pre');
-                try {
-                    hljs.highlightElement(block);
-                    block.classList.add('hljs');
-                    if (pre) {
-                        pre.classList.add('hljs-ready');
-                    }
-                } catch (_) {
-                    try {
-                        const source = block.textContent || '';
-                        const auto = hljs.highlightAuto(source);
-                        block.innerHTML = auto.value;
-                        block.classList.add('hljs');
-                        if (pre) {
-                            pre.classList.add('hljs-ready');
-                        }
-                    } catch (_) {
-                        block.classList.add('hljs');
-                        if (pre) {
-                            pre.classList.add('hljs-ready');
-                        }
-                    }
-                }
-            });
-        }
-        window.safeHighlightCodeBlocks = safeHighlightCodeBlocks;
-
-        // DOM加载完成后执行初始化
-        document.addEventListener('DOMContentLoaded', async function() {
-            try {
-                await initializeTheme();
-            } catch (error) {
-                console.warn('主题初始化失败，继续执行其他初始化:', error);
-            }
-            initMobileMenu();
-            initThemeToggle();
-            safeHighlightCodeBlocks(document);
-        });
-
-        // HTMX内容加载后重新高亮代码
-        document.body.addEventListener('htmx:afterSwap', function(event) {
-            safeHighlightCodeBlocks(event && event.detail ? event.detail.target : document);
-        });
-
-        // 定期检查主题更新
-        setInterval(loadThemeConfig, 5 * 60 * 1000);
-    </script>
+      data-glass-intensity="{{ glass_intensity }}"
+      data-current-theme="{{ current_theme }}"
+      data-atmosphere-class="{{ atmosphere_class if atmosphere_class else '' }}"
+      data-theme-csrf-token="{{ theme_csrf_token }}"
+      data-theme-persist-allowed="{{ 'true' if theme_persist_allowed else 'false' }}"
+      data-background-type="{{ background_image_settings.type if background_image_settings else 'none' }}"
+      data-background-url="{{ background_image_settings.custom_url if background_image_settings and background_image_settings.custom_url else '' }}"
+      data-homepage-mode="{{ homepage_mode if homepage_mode else 'default' }}">
     <header class="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
         <div class="container mx-auto px-3 md:px-6 py-3 md:py-4">
             <div class="flex justify-between items-center">
@@ -617,7 +229,7 @@
                             class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
                             aria-label="切换主题"
                             title="切换主题">
-                        <i id="desktop-theme-icon" class="fas fa-sun text-gray-700 dark:text-gray-300"></i>
+                        <i id="desktop-theme-icon" class="fas fa-sun"></i>
                     </button>
                 </div>
             </div>
@@ -704,7 +316,7 @@
                     <button id="mobile-theme-toggle" 
                             class="w-full flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
                             aria-label="切换主题">
-                        <i id="mobile-theme-icon" class="fas fa-sun mr-2"></i>
+                        <i id="mobile-theme-icon" class="fas fa-sun"></i>
                         <span id="mobile-theme-label">切换主题</span>
                     </button>
                 </div>
@@ -792,7 +404,7 @@
     {% endif %}
 
     <!-- 返回顶部按钮 -->
-    <button id="back-to-top" onclick="scrollToTop()" class="back-to-top">
+    <button id="back-to-top" class="back-to-top" aria-label="返回顶部">
         <i class="fas fa-arrow-up"></i>
     </button>
 
@@ -864,60 +476,16 @@
         }
     </style>
     <script>
-         // 获取当前年份并设置到id为current-year的元素中（元素存在时）
-         (function() {
-             var el = document.getElementById('current-year');
-             if (el) {
-                 el.textContent = new Date().getFullYear();
-             }
-         })();
-         // 返回顶部按钮功能
-        function scrollToTop() {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        }
-     </script>
-     <!-- 主题管理器 - 与后端联动的统一系统 -->
-     <script>
-         // 暴露全局主题接口
-         window.themeManager = {
-             toggleTheme: toggleTheme,
-             getCurrentTheme: () => AVAILABLE_THEMES[currentThemeIndex],
-             setTheme: (theme) => {
-                 const index = getCurrentThemeIndex(theme);
-                 if (index >= 0) {
-                     currentThemeIndex = index;
-                     applyThemeImmediately(theme);
-                     localStorage.setItem('rewrz-theme', theme);
-                     syncThemeWithBackend(theme);
-                 }
-             }
-         };
-         
-         // 监听外部主题管理器的事件
-         document.addEventListener('DOMContentLoaded', function() {
-             // 延迟处理外部主题管理器
-             setTimeout(function() {
-                 // 监听外部主题变化事件
-                window.addEventListener('themeChanged', function(event) {
-                    if (event.detail && event.detail.theme && 
-                        event.detail.theme !== AVAILABLE_THEMES[currentThemeIndex]) {
-                        const nextTheme = event.detail.theme;
-                        currentThemeIndex = getCurrentThemeIndex(nextTheme);
-                        applyThemeImmediately(nextTheme);
-                        localStorage.setItem('rewrz-theme', nextTheme);
-                        localStorage.setItem('user_theme_preference', nextTheme);
-                    }
-                });
-            }, 100);
-        });
-     </script>
-     <script type="module" src="{{ url_for('static', path='js/enhanced-theme-manager.js') }}?v=20260214-2"></script>
-     <script type="module" src="{{ url_for('static', path='js/multi-format-interactions.js') }}?v=20260222-8"></script>
-     <script type="module" src="{{ url_for('static', path='js/theme-sync.js') }}?v=20260219-1"></script>
-     <script type="module" src="{{ url_for('static', path='js/ui-enhancements.js') }}"></script>
-     {% block scripts %}{% endblock %}
- </body>
- </html>
+        (function() {
+            var el = document.getElementById('current-year');
+            if (el) {
+                el.textContent = new Date().getFullYear();
+            }
+        })();
+    </script>
+    <script src="{{ static_asset(request, 'js/site-shell.js') }}" defer></script>
+    <script type="module" src="{{ static_asset(request, 'js/multi-format-interactions.js') }}"></script>
+    <script type="module" src="{{ static_asset(request, 'js/ui-enhancements.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
