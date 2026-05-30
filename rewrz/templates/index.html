@@ -83,20 +83,24 @@
 
 <section class="px-3 pb-8 pt-6 md:px-6 md:pt-10">
     <div class="container mx-auto max-w-6xl space-y-6">
-        <div class="hero-surface overflow-hidden p-0">
-            <div class="hero-cover-media">
+        <div class="hero-surface hero-surface-cover-card overflow-hidden p-0">
+            <div class="hero-cover-media hero-cover-media-card">
                 <img src="{{ profile_cover }}" alt="站点封面" class="hero-cover-image">
                 <div class="hero-cover-overlay"></div>
-                <div class="hero-avatar-shell absolute -bottom-10 left-6 h-20 w-20 overflow-hidden rounded-2xl border-4 border-white shadow-xl md:h-24 md:w-24">
-                    <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="h-full w-full object-cover">
-                </div>
             </div>
-            <div class="grid gap-5 px-5 pb-5 pt-12 md:grid-cols-[1.3fr_0.7fr] md:px-7 md:pb-7">
-                <div class="space-y-3">
-                    <h2 class="font-display text-3xl font-bold leading-tight text-gray-900 dark:text-white md:text-5xl">
-                        {{ profile_name }}
-                    </h2>
-                    <p class="max-w-2xl text-sm text-gray-600 dark:text-gray-300 md:text-base">{{ profile_bio }}</p>
+            <div class="hero-profile-layout relative z-10 px-5 py-6 md:px-7 md:py-7">
+                <div class="hero-profile-main space-y-3 hero-profile-copy-overlay">
+                    <div class="flex items-center gap-4">
+                        <div class="hero-avatar-shell h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-4 border-white shadow-xl md:h-24 md:w-24">
+                            <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="h-full w-full object-cover">
+                        </div>
+                        <div class="space-y-2">
+                            <h1 class="font-display text-2xl font-bold leading-tight text-white md:text-4xl">
+                                {{ profile_name }}
+                            </h1>
+                        </div>
+                    </div>
+                    <p class="max-w-2xl text-sm text-slate-700/95 dark:text-slate-100/90 md:text-base">{{ profile_bio }}</p>
                     <div class="flex flex-wrap items-center gap-2 text-xs md:text-sm">
                         {% if profile_public_email %}
                         <a href="mailto:{{ profile_public_email }}" class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-700/60 dark:bg-emerald-900/30 dark:text-emerald-300">
@@ -134,7 +138,7 @@
                     </div>
                     {% endif %}
                 </div>
-                <div class="hero-stats-grid grid grid-cols-2 gap-3">
+                <div class="hero-profile-stats hero-stats-grid grid grid-cols-2 gap-3">
                     <div class="rounded-2xl border border-white/70 bg-white/80 p-3 text-center shadow-sm dark:border-slate-600/80 dark:bg-slate-800/80">
                         <div class="text-xl font-bold text-slate-900 dark:text-white">{{ homepage_stats.categories_count if homepage_stats else 0 }}</div>
                         <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">分类数</div>

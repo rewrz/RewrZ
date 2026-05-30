@@ -70,6 +70,7 @@ def test_404_error_page(monkeypatch):
     assert response.status_code == 404
     assert "404" in response.text
     assert "页面未找到" in response.text
+    assert main_module.settings.ADMIN_PATH.rstrip("/") not in response.text
 
 
 def test_500_error_page():
@@ -91,6 +92,16 @@ def test_error_handler_json_response(monkeypatch):
     assert "error" in json_data
     assert json_data["error"]["code"] == "NOT_FOUND"
     assert json_data["error"]["status_code"] == 404
+
+
+def test_public_error_page_does_not_redirect_to_admin_login(monkeypatch):
+    """公共错误页不能暴露后台入口。"""
+    _set_installation_complete(monkeypatch, True)
+    monkeypatch.setattr(crud_post, "get_post_by_slug", lambda db, slug: None)
+    response = client.get("/totally-missing-page", follow_redirects=False)
+    assert response.status_code == 404
+    assert "location" not in response.headers
+    assert main_module.settings.ADMIN_PATH.rstrip("/") not in response.text
 
 
 if __name__ == "__main__":

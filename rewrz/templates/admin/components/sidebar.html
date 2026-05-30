@@ -11,8 +11,8 @@
         {% elif request.state.site_logo_dark %}
             <img src="{{ request.state.site_logo_dark }}" alt="{{ request.state.site_title or '后台' }}" class="h-10 w-auto object-contain rounded-lg transition-transform duration-300 group-hover:scale-105">
         {% else %}
-            <span class="h-11 w-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 text-white inline-flex items-center justify-center text-lg shadow-md transition-all duration-300 group-hover:shadow-lg group-hover:scale-105">
-                <i class="fas fa-feather-alt"></i>
+            <span class="h-11 w-11 rounded-xl border border-white/20 bg-gradient-to-br from-cyan-300 via-emerald-400 to-slate-900 inline-flex items-center justify-center text-sm font-extrabold tracking-[0.22em] shadow-md transition-all duration-300 group-hover:shadow-lg group-hover:scale-105">
+                <span style="color: rgba(10, 10, 10, 0.96);">R</span><span style="color: rgba(255, 255, 255, 0.98);">Z</span>
             </span>
         {% endif %}
         <div class="min-w-0">

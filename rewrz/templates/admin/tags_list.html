@@ -1,33 +1,33 @@
 {% extends "admin/base.html" %}
 
 {% block title_text %}标签管理{% endblock %}
-{% block page_title %}<i class="fas fa-tags text-blue-600 mr-3"></i>标签管理{% endblock %}
+{% block page_title %}<i class="fas fa-tags admin-accent-text mr-3"></i>标签管理{% endblock %}
 {% block content %}
-<div class="admin-panel p-4 md:p-6 space-y-5">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="flex flex-wrap items-center gap-2">
+<div class="admin-panel admin-tags-shell tags-admin-page p-4 md:p-6 space-y-5">
+    <div class="admin-toolbar-shell flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+        <div class="admin-toolbar-main flex flex-wrap items-center gap-2">
             <button onclick="showCreateTagModal()"
-                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                    class="admin-primary-btn rounded-md px-4 py-2">
                 <i class="fas fa-plus mr-2"></i>新建标签
             </button>
             <button onclick="refreshTagsList()"
-                    class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                    class="admin-secondary-btn rounded-md px-4 py-2">
                 <i class="fas fa-sync-alt mr-2"></i>刷新
             </button>
-            <span class="mx-1 h-6 w-px bg-gray-300"></span>
-            <span class="text-sm text-gray-500">批量操作</span>
+            <span class="admin-divider-vertical mx-1 h-6 w-px"></span>
+            <span class="admin-toolbar-pill text-sm">批量操作</span>
             <button onclick="batchDeleteTags()" data-batch-action
-                    class="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    class="admin-soft-btn admin-soft-btn-danger rounded-md px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     disabled>
                 批量删除
             </button>
-            <span id="selected-count" class="text-sm text-gray-500">已选 0 个</span>
-            <span id="batch-operation-status" class="hidden text-sm text-blue-600">
+            <span id="selected-count" class="text-sm text-[var(--color-text-light)]">已选 0 个</span>
+            <span id="batch-operation-status" class="admin-accent-text hidden text-sm">
                 <i class="fas fa-spinner fa-spin mr-1"></i>
                 <span id="batch-operation-status-text"></span>
             </span>
         </div>
-        <div class="text-sm text-gray-600">
+        <div class="admin-table-summary rounded-xl px-4 py-3 text-sm">
             <span class="font-medium">标签总数：</span>{{ stats.total }}
             {% if pagination.filtered_total != stats.total %}
             <span class="ml-3"><span class="font-medium">筛选结果：</span>{{ pagination.filtered_total }}</span>
@@ -36,47 +36,47 @@
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-            <div class="text-xs text-blue-600">总标签数</div>
-            <div class="mt-1 text-2xl font-semibold text-blue-900">{{ stats.total }}</div>
+        <div class="admin-stats-card admin-stat-card p-4 rounded-lg">
+            <div class="text-xs admin-accent-text">总标签数</div>
+            <div class="mt-1 text-2xl font-semibold text-[var(--color-text)]">{{ stats.total }}</div>
         </div>
-        <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-            <div class="text-xs text-emerald-600">已使用标签</div>
-            <div class="mt-1 text-2xl font-semibold text-emerald-900">{{ stats.used }}</div>
+        <div class="admin-stats-card admin-stat-card p-4 rounded-lg">
+            <div class="text-xs admin-accent-text">已使用标签</div>
+            <div class="mt-1 text-2xl font-semibold text-[var(--color-text)]">{{ stats.used }}</div>
         </div>
-        <div class="bg-amber-50 p-4 rounded-lg border border-amber-100">
-            <div class="text-xs text-amber-600">未使用标签</div>
-            <div class="mt-1 text-2xl font-semibold text-amber-900">{{ stats.unused }}</div>
+        <div class="admin-stats-card admin-stat-card p-4 rounded-lg">
+            <div class="text-xs admin-accent-text">未使用标签</div>
+            <div class="mt-1 text-2xl font-semibold text-[var(--color-text)]">{{ stats.unused }}</div>
         </div>
-        <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-            <div class="text-xs text-indigo-600">文章标签总关联</div>
-            <div class="mt-1 text-2xl font-semibold text-indigo-900">{{ stats.post_bindings }}</div>
+        <div class="admin-stats-card admin-stat-card p-4 rounded-lg">
+            <div class="text-xs admin-accent-text">文章标签总关联</div>
+            <div class="mt-1 text-2xl font-semibold text-[var(--color-text)]">{{ stats.post_bindings }}</div>
         </div>
     </div>
 
-    <form method="get" action="{{ request.state.admin_path }}/tags" class="flex flex-wrap gap-3 items-end bg-gray-50 p-4 rounded-lg border border-gray-200">
+    <form method="get" action="{{ request.state.admin_path }}/tags" class="admin-filter-panel admin-filter-grid flex flex-wrap gap-3 items-end rounded-2xl p-4">
         <div class="min-w-64 flex-1">
-            <label for="search-input" class="block text-xs text-gray-500 mb-1">搜索</label>
+            <label for="search-input" class="mb-1 block text-xs text-[var(--color-text-light)]">搜索</label>
             <input
                 type="text"
                 id="search-input"
                 name="search"
                 value="{{ search_query }}"
                 placeholder="搜索标签名称或别名..."
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                class="admin-form-field w-full rounded-md px-3 py-2"
             >
         </div>
         <div>
-            <label for="usage-filter" class="block text-xs text-gray-500 mb-1">使用状态</label>
-            <select id="usage-filter" name="usage" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <label for="usage-filter" class="mb-1 block text-xs text-[var(--color-text-light)]">使用状态</label>
+            <select id="usage-filter" name="usage" class="admin-form-field rounded-md px-3 py-2">
                 <option value="">全部</option>
                 <option value="used" {% if selected_usage == "used" %}selected{% endif %}>已使用</option>
                 <option value="unused" {% if selected_usage == "unused" %}selected{% endif %}>未使用</option>
             </select>
         </div>
         <div>
-            <label for="page-size-filter" class="block text-xs text-gray-500 mb-1">每页数量</label>
-            <select id="page-size-filter" name="page_size" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <label for="page-size-filter" class="mb-1 block text-xs text-[var(--color-text-light)]">每页数量</label>
+            <select id="page-size-filter" name="page_size" class="admin-form-field rounded-md px-3 py-2">
                 {% for size in pagination.allowed_page_sizes %}
                 <option value="{{ size }}" {% if pagination.page_size == size %}selected{% endif %}>{{ size }} / 页</option>
                 {% endfor %}
@@ -84,17 +84,17 @@
         </div>
         <input type="hidden" name="page" value="1">
         <div class="flex gap-2">
-            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+            <button type="submit" class="admin-primary-btn rounded-md px-4 py-2">
                 应用筛选
             </button>
-            <a href="{{ request.state.admin_path }}/tags" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition-colors">
+            <a href="{{ request.state.admin_path }}/tags" class="admin-secondary-btn rounded-md px-4 py-2">
                 重置
             </a>
         </div>
     </form>
 
-    <div class="overflow-x-auto rounded-lg border border-gray-200">
-        <table class="min-w-full bg-white">
+    <div class="admin-table-shell overflow-x-auto rounded-2xl">
+        <table class="admin-list-table min-w-full">
             <colgroup>
                 <col class="w-12">
                 <col class="w-[40%]">
@@ -102,51 +102,51 @@
                 <col class="w-24">
                 <col class="w-24">
             </colgroup>
-            <thead class="bg-gray-50">
+            <thead class="admin-list-table-head">
                 <tr>
-                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <input type="checkbox" id="select-all" class="rounded border-gray-300">
+                    <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">
+                        <input type="checkbox" id="select-all" class="admin-form-check rounded border-gray-300">
                     </th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标签名称</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">别名</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">文章数</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">标签名称</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">别名</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">文章数</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">操作</th>
                 </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody class="admin-list-table-body divide-y">
                 {% for tag in tags %}
-                <tr class="hover:bg-gray-50">
+                <tr>
                     <td class="px-3 py-4 align-top">
-                        <input type="checkbox" class="tag-checkbox rounded border-gray-300" value="{{ tag.id }}" data-name="{{ tag.name }}">
+                        <input type="checkbox" class="tag-checkbox admin-form-check rounded border-gray-300" value="{{ tag.id }}" data-name="{{ tag.name }}">
                     </td>
                     <td class="px-4 py-4 align-top">
-                        <div class="text-base font-semibold tracking-tight text-gray-900 break-words">
+                        <div class="text-base font-semibold tracking-tight text-[var(--color-text)] break-words">
                             {{ tag.name }}
                         </div>
-                        <div class="mt-1 text-xs text-gray-400">ID: {{ tag.id }}</div>
+                        <div class="mt-1 text-xs text-[var(--color-text-light)]">ID: {{ tag.id }}</div>
                     </td>
                     <td class="px-4 py-4 align-top">
-                        <div class="text-sm text-gray-700 break-all">{{ tag.slug }}</div>
-                        <div class="mt-1 text-xs text-gray-400">/archives/by-tag/{{ tag.slug }}</div>
+                        <div class="text-sm text-[var(--color-text)] break-all">{{ tag.slug }}</div>
+                        <div class="mt-1 text-xs text-[var(--color-text-light)]">/archives/by-tag/{{ tag.slug }}</div>
                     </td>
                     <td class="px-4 py-4 align-top">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if tag.post_count > 0 %}bg-blue-100 text-blue-800{% else %}bg-gray-100 text-gray-700{% endif %}">
+                        <span class="admin-badge {% if tag.post_count > 0 %}admin-badge-info{% else %}admin-badge-neutral{% endif %} px-2 py-0.5 text-xs font-semibold">
                             {{ tag.post_count }} 篇
                         </span>
                     </td>
                     <td class="px-4 py-4 align-top">
-                        <div class="flex items-center gap-3 text-sm">
+                        <div class="admin-action-links flex items-center gap-3 text-sm">
                             <button type="button"
                                     onclick="editTagFromButton(this)"
                                     data-id="{{ tag.id }}"
                                     data-name="{{ tag.name }}"
                                     data-slug="{{ tag.slug }}"
-                                    class="text-blue-600 hover:text-blue-900"
+                                    class="admin-action-link"
                                     title="编辑">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <a href="/archives/by-tag/{{ tag.slug }}" target="_blank"
-                               class="text-green-600 hover:text-green-900"
+                               class="admin-action-link"
                                title="查看">
                                 <i class="fas fa-eye"></i>
                             </a>
@@ -154,7 +154,7 @@
                                     onclick="deleteTagFromButton(this)"
                                     data-id="{{ tag.id }}"
                                     data-name="{{ tag.name }}"
-                                    class="text-red-600 hover:text-red-900"
+                                    class="admin-action-link"
                                     title="删除">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -165,11 +165,11 @@
 
                 {% if not tags %}
                 <tr>
-                    <td colspan="5" class="px-6 py-12 text-center text-gray-500">
-                        <i class="fas fa-tags text-4xl mb-4 text-gray-400"></i>
+                    <td colspan="5" class="admin-empty-state px-6 py-12 text-center text-[var(--color-text-light)]">
+                        <i class="fas fa-tags mb-4 text-4xl opacity-60"></i>
                         <div class="text-lg">暂无标签</div>
                         <div class="text-sm">
-                            <button onclick="showCreateTagModal()" class="text-blue-600 hover:text-blue-800">
+                            <button onclick="showCreateTagModal()" class="admin-accent-link">
                                 立即创建第一个标签
                             </button>
                         </div>
@@ -181,38 +181,38 @@
     </div>
 
     <div class="flex flex-wrap justify-between items-center gap-3 pt-1">
-        <div class="text-sm text-gray-600">
+        <div class="text-sm text-[var(--color-text-light)]">
             共 {{ pagination.filtered_total }} 条结果，第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页
         </div>
         <div class="flex items-center gap-1">
             {% if pagination.has_prev %}
-            <a href="{{ pagination.prev_url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">上一页</a>
+            <a href="{{ pagination.prev_url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">上一页</a>
             {% else %}
-            <span class="px-3 py-1.5 text-sm border border-gray-200 rounded text-gray-400 cursor-not-allowed">上一页</span>
+            <span class="admin-pagination-link is-disabled px-3 py-1.5 text-sm rounded cursor-not-allowed">上一页</span>
             {% endif %}
 
             {% for link in pagination.page_links %}
                 {% if link.is_current %}
-                <span class="px-3 py-1.5 text-sm rounded bg-blue-600 text-white">{{ link.page }}</span>
+                <span class="admin-pagination-link is-current px-3 py-1.5 text-sm rounded">{{ link.page }}</span>
                 {% else %}
-                <a href="{{ link.url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">{{ link.page }}</a>
+                <a href="{{ link.url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">{{ link.page }}</a>
                 {% endif %}
             {% endfor %}
 
             {% if pagination.has_next %}
-            <a href="{{ pagination.next_url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">下一页</a>
+            <a href="{{ pagination.next_url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">下一页</a>
             {% else %}
-            <span class="px-3 py-1.5 text-sm border border-gray-200 rounded text-gray-400 cursor-not-allowed">下一页</span>
+            <span class="admin-pagination-link is-disabled px-3 py-1.5 text-sm rounded cursor-not-allowed">下一页</span>
             {% endif %}
         </div>
     </div>
 </div>
 
-<div id="tagModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-        <div class="flex items-center justify-between p-6 border-b">
-            <h3 id="modalTitle" class="text-lg font-medium text-gray-900">新建标签</h3>
-            <button onclick="hideTagModal()" class="text-gray-400 hover:text-gray-600">
+<div id="tagModal" class="admin-modal-backdrop fixed inset-0 hidden items-center justify-center z-50">
+    <div class="admin-modal-panel max-w-md w-full mx-4">
+        <div class="flex items-center justify-between p-6 border-b border-[color:var(--ui-border)]">
+            <h3 id="modalTitle" class="text-lg font-medium text-[var(--color-text)]">新建标签</h3>
+            <button onclick="hideTagModal()" class="admin-action-link">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -221,40 +221,40 @@
             <input type="hidden" id="tagId" value="">
 
             <div>
-                <label for="tagName" class="block text-sm font-medium text-gray-700 mb-1">
+                <label for="tagName" class="mb-1 block text-sm font-medium text-[var(--color-text)]">
                     标签名称 <span class="text-red-500">*</span>
                 </label>
                 <input type="text"
                        id="tagName"
                        name="name"
                        required
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                       class="admin-form-field w-full rounded-md px-3 py-2"
                        placeholder="输入标签名称">
             </div>
 
             <div>
-                <label for="tagSlug" class="block text-sm font-medium text-gray-700 mb-1">
+                <label for="tagSlug" class="mb-1 block text-sm font-medium text-[var(--color-text)]">
                     URL别名
                 </label>
                 <input type="text"
                        id="tagSlug"
                        name="slug"
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                       class="admin-form-field w-full rounded-md px-3 py-2"
                        placeholder="自动生成或手动输入">
-                <p class="text-xs text-gray-500 mt-1">留空将根据标签名称自动生成</p>
+                <p class="mt-1 text-xs text-[var(--color-text-light)]">留空将根据标签名称自动生成</p>
             </div>
         </form>
 
-        <div class="flex justify-end space-x-3 p-6 border-t bg-gray-50">
+        <div class="flex justify-end space-x-3 p-6 border-t border-[color:var(--ui-border)]">
             <button type="button"
                     onclick="hideTagModal()"
-                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                    class="admin-secondary-btn rounded-md px-4 py-2 text-sm font-medium">
                 取消
             </button>
             <button type="button"
                     id="save-tag-btn"
                     onclick="saveTag()"
-                    class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700">
+                    class="admin-primary-btn rounded-md px-4 py-2 text-sm font-medium">
                 保存
             </button>
         </div>

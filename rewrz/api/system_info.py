@@ -10,6 +10,7 @@
 6. 系统性能信息
 """
 
+import os
 import sys
 import platform
 import psutil

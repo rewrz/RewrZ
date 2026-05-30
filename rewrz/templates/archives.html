@@ -37,7 +37,7 @@
     <!-- 时间轴容器 -->
     <div class="relative">
         <!-- 时间轴主线 -->
-        <div class="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-400 via-purple-500 to-pink-500"></div>
+        <div class="archive-timeline-axis absolute left-6 top-0 bottom-0 w-0.5"></div>
 
         <!-- 按年归档视图 -->
         <div id="yearly-view" class="archive-view">
@@ -57,7 +57,7 @@
                 <div class="relative flex items-center mb-6">
                     <!-- 年份节点 -->
                     <div class="absolute left-6 transform -translate-x-1/2 z-10">
-                        <div class="archive-timeline-node w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full shadow-lg flex items-center justify-center">
+                        <div class="archive-timeline-node archive-timeline-node-year w-6 h-6 rounded-full shadow-lg flex items-center justify-center">
                             <i class="fas fa-calendar-alt text-white text-xs"></i>
                         </div>
                     </div>
@@ -68,7 +68,7 @@
                             <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
                                 {{ year }}
                             </h2>
-                            <span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm font-medium" data-archive-count>
+                            <span class="archive-count-chip px-3 py-1 rounded-full text-sm font-medium" data-archive-count>
                                 {{ year_posts | length }} 条
                             </span>
                         </div>
@@ -174,7 +174,7 @@
                 <div class="relative flex items-center mb-4">
                     <!-- 月份节点 -->
                     <div class="absolute left-6 transform -translate-x-1/2 z-10">
-                        <div class="archive-timeline-node w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-lg flex items-center justify-center">
+                        <div class="archive-timeline-node archive-timeline-node-month w-5 h-5 rounded-full shadow-lg flex items-center justify-center">
                             <i class="fas fa-calendar text-white text-xs"></i>
                         </div>
                     </div>
@@ -185,7 +185,7 @@
                             <h3 class="text-xl font-bold text-gray-900 dark:text-white">
                                 {{ year }} 年 {{ month_zh }}
                             </h3>
-                            <span class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full text-sm font-medium" data-archive-count>
+                            <span class="archive-count-chip px-3 py-1 rounded-full text-sm font-medium" data-archive-count>
                                 {{ month_posts | length }} 条
                             </span>
                         </div>
@@ -268,7 +268,7 @@
         <!-- 时间轴结束 -->
         <div class="relative flex items-center justify-start mt-8">
             <div class="absolute left-6 transform -translate-x-1/2">
-                <div class="archive-timeline-node w-4 h-4 bg-gradient-to-r from-pink-400 to-red-500 rounded-full shadow-lg flex items-center justify-center">
+                <div class="archive-timeline-node archive-timeline-node-end w-4 h-4 rounded-full shadow-lg flex items-center justify-center">
                     <i class="fas fa-heart text-white text-xs"></i>
                 </div>
             </div>
@@ -401,16 +401,16 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .archive-mode-btn.active {
-    background-color: #ffffff; /* Corresponds to bg-white */
-    color: #2563eb; /* Corresponds to text-blue-600 */
+    background-color: color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%);
     --tw-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow); /* Corresponds to shadow-sm */
 }
 
 .dark .archive-mode-btn.active {
-    background-color: #374151; /* Corresponds to dark:bg-gray-700 */
-    color: #60a5fa; /* Corresponds to dark:text-blue-400 */
+    background-color: color-mix(in srgb, var(--color-card-bg) 90%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 68%, var(--color-text) 32%);
 }
 
 .archive-mode-btn:hover:not(.active) {
@@ -423,6 +423,45 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .archive-timeline-node i {
     line-height: 1;
+}
+
+.archive-timeline-axis {
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--color-primary) 58%, white),
+        var(--color-primary),
+        color-mix(in srgb, var(--color-primary) 52%, #ec4899)
+    );
+}
+
+.archive-timeline-node-year {
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-primary) 72%, white),
+        color-mix(in srgb, var(--color-primary) 88%, black)
+    );
+}
+
+.archive-timeline-node-month {
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-primary) 66%, white),
+        color-mix(in srgb, var(--color-primary) 58%, #ec4899)
+    );
+}
+
+.archive-timeline-node-end {
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-primary) 62%, white),
+        color-mix(in srgb, var(--color-primary) 52%, #f43f5e)
+    );
+}
+
+.archive-count-chip {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%);
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card-bg) 88%);
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%);
 }
 </style>
 {% endblock %}

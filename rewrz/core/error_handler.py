@@ -13,7 +13,7 @@ import traceback
 import json
 from typing import Optional
 from fastapi import Request, HTTPException
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 import os
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -21,6 +21,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from .database import get_db
+from .admin_path import get_request_admin_path
 from .template_filters import static_asset
 from ..crud import setting as setting_crud
 
@@ -164,10 +165,45 @@ async def global_exception_handler(request: Request, exc: Exception):
     accept_header = request.headers.get("accept", "")
 
     request_path = str(getattr(request.url, "path", "") or "")
-    if request_path.startswith("/api/") or "application/json" in accept_header:
+    if _should_return_json_error(request, accept_header):
         return await _handle_json_response(exc)
     else:
         return await _handle_html_response(request, exc)
+
+
+def _is_admin_api_request_path(request_path: str, admin_path: str) -> bool:
+    normalized_admin_path = str(admin_path or "").rstrip("/")
+    if not normalized_admin_path:
+        return False
+    return request_path.startswith(f"{normalized_admin_path}/api/")
+
+
+def _should_return_json_error(request: Request, accept_header: str) -> bool:
+    request_path = str(getattr(request.url, "path", "") or "")
+    admin_path = get_request_admin_path(request)
+    if request_path.startswith("/api/") or _is_admin_api_request_path(request_path, admin_path):
+        return True
+    return "application/json" in str(accept_header or "")
+
+
+def _should_redirect_admin_html_unauthorized(request: Request, status_code: int) -> bool:
+    if status_code != 401:
+        return False
+    request_path = str(getattr(request.url, "path", "") or "")
+    admin_path = get_request_admin_path(request)
+    if not request_path.startswith(f"{admin_path}/"):
+        return False
+    if _is_admin_api_request_path(request_path, admin_path):
+        return False
+
+    normalized_path = request_path.rstrip("/") or request_path
+    auth_pages = {
+        f"{admin_path}/login",
+        f"{admin_path}/auth",
+        f"{admin_path}/forgot-password",
+        f"{admin_path}/reset-password",
+    }
+    return normalized_path not in auth_pages
 
 
 async def _handle_json_response(exc: Exception):
@@ -257,6 +293,10 @@ async def _handle_html_response(request: Request, exc: Exception):
         status_code = 500
         error_message = "服务器内部错误"
         error_code = "INTERNAL_ERROR"
+
+    if _should_redirect_admin_html_unauthorized(request, status_code):
+        admin_path = get_request_admin_path(request)
+        return RedirectResponse(url=f"{admin_path}/login", status_code=303)
     
     # 尝试获取自定义错误消息
     custom_message = await _get_custom_error_message(request, status_code)
@@ -460,7 +500,7 @@ def register_error_handlers(app: FastAPI) -> None:
         
         request_path = str(getattr(request.url, "path", "") or "")
 
-        if request_path.startswith("/api/") or "application/json" in accept_header:
+        if _should_return_json_error(request, accept_header):
             return JSONResponse(
                 status_code=422,
                 content={

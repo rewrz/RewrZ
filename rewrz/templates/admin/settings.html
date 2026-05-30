@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 
 {% block title_text %}常规设置{% endblock %}
-{% block page_title %}<i class="fas fa-globe text-blue-600 mr-3"></i>常规设置{% endblock %}
+{% block page_title %}<i class="fas fa-globe admin-accent-text mr-3"></i>常规设置{% endblock %}
 {% block content %}
 
 
@@ -12,7 +12,7 @@
         <p class="mt-1 text-sm text-gray-600">此页面用于管理站点公共配置。建议按从上到下顺序配置，最后统一点击“保存所有设置”。</p>
     </div>
 
-    <div class="relative">
+    <div class="relative admin-settings-shell">
         <button
             id="settings-nav-toggle"
             type="button"
@@ -22,7 +22,7 @@
         <div id="settings-nav-backdrop" class="fixed inset-0 z-40 hidden bg-black/35 lg:hidden"></div>
         <aside
             id="settings-quick-nav"
-            class="fixed right-4 top-20 z-50 hidden w-[min(86vw,280px)] max-h-[calc(100vh-7rem)] overflow-y-auto rounded-2xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur lg:flex lg:w-72 lg:right-6 lg:top-24 lg:z-30 lg:max-h-[calc(100vh-8rem)]">
+            class="fixed right-4 top-20 z-50 hidden w-[min(86vw,280px)] max-h-[calc(100vh-7rem)] overflow-y-auto rounded-2xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur xl:flex xl:w-64 xl:right-6 xl:top-24 xl:z-30 xl:max-h-[calc(100vh-8rem)]">
             <div class="w-full space-y-4">
                 <div class="flex items-center justify-between">
                     <h3 class="text-sm font-semibold text-gray-900">快速导航</h3>
@@ -73,7 +73,7 @@
             </div>
         </aside>
 
-        <div class="space-y-8 lg:pr-[20rem]">
+        <div class="space-y-8 xl:pr-[17rem]">
     <!-- 通用设置 -->
     <div id="section-site" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
         <h2 class="text-2xl font-semibold text-gray-800 mb-1">站点基础信息</h2>
@@ -204,16 +204,16 @@
     <div id="section-social" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
         <h2 class="text-2xl font-semibold text-gray-800 mb-1">社交与联系入口</h2>
         <p class="text-sm text-gray-500 mb-4">选择平台后会自动配置图标和示例链接，不需要手动记忆图标类名。</p>
-        <div class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50/70 px-4 py-3 text-sm text-indigo-700">
+        <div class="admin-info-box settings-subtle-panel mb-4 rounded-lg px-4 py-3 text-sm">
             常用平台已内置：GitHub、Bilibili、微博、知乎、Telegram、Discord、QQ、微信、邮箱、RSS 等。
         </div>
         <div id="social-links-container" class="space-y-3 mb-4"></div>
         <template id="social-link-template">
-            <div class="social-link-item rounded-xl border border-gray-200 bg-gray-50/70 p-4">
+            <div class="social-link-item settings-subcard rounded-xl p-4">
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-[180px_minmax(0,1fr)_auto] md:items-start">
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">平台</label>
-                        <select class="social-platform-select w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        <select class="social-platform-select admin-form-field w-full px-3 py-2 rounded-md shadow-sm">
                             <option value="github">GitHub</option>
                             <option value="bilibili">Bilibili</option>
                             <option value="weibo">微博</option>
@@ -233,26 +233,26 @@
                     <div class="space-y-2">
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">链接 URL</label>
-                            <input type="url" class="social-link-url w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com">
+                            <input type="url" class="social-link-url admin-form-field w-full px-3 py-2 rounded-md shadow-sm" placeholder="https://example.com">
                             <p class="mt-1 text-xs text-gray-500">选择“个人网站”时会自动尝试获取网站图标（favicon）。</p>
                         </div>
                         <div class="social-custom-icon-wrap hidden">
                             <label class="block text-xs font-medium text-gray-600 mb-1">自定义图标类名</label>
-                            <input type="text" class="social-custom-icon w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="例如：fab fa-github">
+                            <input type="text" class="social-custom-icon admin-form-field w-full px-3 py-2 rounded-md shadow-sm" placeholder="例如：fab fa-github">
                         </div>
                     </div>
                     <div class="flex items-center justify-between md:flex-col md:items-end md:justify-start gap-2">
-                        <div class="social-preview inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-indigo-700">
+                        <div class="social-preview settings-inline-pill inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
                             <img class="social-preview-favicon hidden h-4 w-4 rounded object-cover" alt="favicon">
                             <i class="social-preview-icon fas fa-link"></i>
                             <span class="social-preview-label">入口预览</span>
                         </div>
-                        <button type="button" class="remove-social-link px-3 py-2 bg-rose-500 text-white rounded-md hover:bg-rose-600">移除</button>
+                        <button type="button" class="remove-social-link admin-secondary-btn px-3 py-2 rounded-md">移除</button>
                     </div>
                 </div>
             </div>
         </template>
-        <button type="button" id="add-social-link" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">添加社交链接</button>
+        <button type="button" id="add-social-link" class="admin-primary-btn px-4 py-2 rounded-md">添加社交链接</button>
         <input type="hidden" name="social_links_json" id="social-links-json">
         <input type="hidden" name="anniversaries_json" value='{{ settings.anniversaries | tojson | e }}'>
     </div>
@@ -290,7 +290,7 @@
         <div class="space-y-4">
             <div>
                 <label class="inline-flex items-center">
-                    <input type="checkbox" name="rss_enabled" class="form-checkbox" {% if settings.rss_enabled %}checked{% endif %}>
+                    <input type="checkbox" name="rss_enabled" class="admin-form-check form-checkbox" {% if settings.rss_enabled %}checked{% endif %}>
                     <span class="ml-2 text-gray-700">启用 RSS/Atom 订阅源</span>
                 </label>
                 <p class="text-sm text-gray-500 mt-1">关闭后所有 RSS 订阅源将返回 404 错误</p>
@@ -301,14 +301,14 @@
                     <input type="number" id="rss_items_limit" name="rss_items_limit" 
                            value="{{ settings.rss_items_limit if settings.rss_items_limit else 20 }}" 
                            min="1" max="100"
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                           class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm"
                            placeholder="默认 20">
                     <p class="text-sm text-gray-500 mt-1">建议设置在 10-50 之间</p>
                 </div>
                 <div>
                     <label for="rss_cache_duration" class="block text-sm font-medium text-gray-700">RSS 缓存时间（分钟）</label>
                     <select id="rss_cache_duration" name="rss_cache_duration" 
-                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                            class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm">
                         <option value="15" {% if settings.rss_cache_duration == 15 %}selected{% endif %}>15 分钟</option>
                         <option value="30" {% if settings.rss_cache_duration == 30 %}selected{% endif %}>30 分钟</option>
                         <option value="60" {% if settings.rss_cache_duration == 60 or not settings.rss_cache_duration %}selected{% endif %}>1 小时（推荐）</option>
@@ -322,18 +322,18 @@
             <div>
                 <label for="rss_description" class="block text-sm font-medium text-gray-700">RSS 源描述</label>
                 <textarea id="rss_description" name="rss_description" rows="3"
-                          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                          class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm"
                           placeholder="留空将使用网站副标题">{{ settings.rss_description if settings.rss_description else '' }}</textarea>
                 <p class="text-sm text-gray-500 mt-1">将显示在 RSS 阅读器中的源描述</p>
             </div>
-            <div class="bg-gray-50 p-4 rounded-lg">
+            <div class="admin-info-box settings-subtle-panel p-4 rounded-lg">
                 <h3 class="text-sm font-medium text-gray-800 mb-2">RSS 订阅源地址</h3>
                 <div class="space-y-2 text-sm text-gray-600">
-                    <div>全站订阅：<code class="bg-gray-200 px-2 py-1 rounded">/feed.xml</code> 或 <code class="bg-gray-200 px-2 py-1 rounded">/rss.xml</code></div>
-                    <div>Atom 格式：<code class="bg-gray-200 px-2 py-1 rounded">/atom.xml</code></div>
-                    <div>分类订阅：<code class="bg-gray-200 px-2 py-1 rounded">/feed/category/{slug}</code></div>
-                    <div>标签订阅：<code class="bg-gray-200 px-2 py-1 rounded">/feed/tag/{slug}</code></div>
-                    <div>格式订阅：<code class="bg-gray-200 px-2 py-1 rounded">/feed/format/{slug}</code></div>
+                    <div>全站订阅：<code class="settings-inline-code px-2 py-1 rounded">/feed.xml</code> 或 <code class="settings-inline-code px-2 py-1 rounded">/rss.xml</code></div>
+                    <div>Atom 格式：<code class="settings-inline-code px-2 py-1 rounded">/atom.xml</code></div>
+                    <div>分类订阅：<code class="settings-inline-code px-2 py-1 rounded">/feed/category/{slug}</code></div>
+                    <div>标签订阅：<code class="settings-inline-code px-2 py-1 rounded">/feed/tag/{slug}</code></div>
+                    <div>格式订阅：<code class="settings-inline-code px-2 py-1 rounded">/feed/format/{slug}</code></div>
                 </div>
             </div>
         </div>
@@ -351,7 +351,7 @@
                     <input type="number" id="homepage_posts_limit" name="homepage_posts_limit" 
                            value="{{ settings.homepage_posts_limit if settings.homepage_posts_limit else 10 }}" 
                            min="1" max="50"
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                           class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm"
                            placeholder="默认 10">
                     <p class="text-sm text-gray-500 mt-1">建议设置在 5-20 之间</p>
                 </div>
@@ -360,7 +360,7 @@
                     <input type="number" id="archive_posts_limit" name="archive_posts_limit" 
                            value="{{ settings.archive_posts_limit if settings.archive_posts_limit else 20 }}" 
                            min="1" max="100"
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                           class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm"
                            placeholder="默认 20">
                     <p class="text-sm text-gray-500 mt-1">分类、标签、格式等归档页的文章数量</p>
                 </div>
@@ -369,14 +369,14 @@
                     <input type="number" id="search_results_limit" name="search_results_limit" 
                            value="{{ settings.search_results_limit if settings.search_results_limit else 15 }}" 
                            min="1" max="50"
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                           class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm"
                            placeholder="默认 15">
                     <p class="text-sm text-gray-500 mt-1">每页搜索结果的文章数量</p>
                 </div>
                 <div>
                     <label for="list_navigation_mode" class="block text-sm font-medium text-gray-700">列表加载方式</label>
                     <select id="list_navigation_mode" name="list_navigation_mode"
-                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                            class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm">
                         <option value="pagination" {% if settings.list_navigation_mode != 'infinite_scroll' %}selected{% endif %}>分页组件（整页刷新）</option>
                         <option value="infinite_scroll" {% if settings.list_navigation_mode == 'infinite_scroll' %}selected{% endif %}>滚动无限加载（HTMX）</option>
                     </select>
@@ -387,14 +387,14 @@
                     <input type="number" id="related_posts_limit" name="related_posts_limit" 
                            value="{{ settings.related_posts_limit if settings.related_posts_limit else 5 }}" 
                            min="1" max="20"
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                           class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm"
                            placeholder="默认 5">
                     <p class="text-sm text-gray-500 mt-1">文章详情页显示的相关文章数量</p>
                 </div>
                 <div>
                     <label for="content_primary_mode" class="block text-sm font-medium text-gray-700">内容主编辑模式</label>
                     <select id="content_primary_mode" name="content_primary_mode"
-                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                            class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm">
                         <option value="markdown" {% if settings.content_primary_mode != 'html' %}selected{% endif %}>Markdown 为主</option>
                         <option value="html" {% if settings.content_primary_mode == 'html' %}selected{% endif %}>富文本（HTML）为主</option>
                     </select>
@@ -403,14 +403,14 @@
                 <div>
                     <label for="code_highlight_theme" class="block text-sm font-medium text-gray-700">代码高亮主题</label>
                     <select id="code_highlight_theme" name="code_highlight_theme"
-                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                            class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm">
                         <option value="github-dark" {% if settings.code_highlight_theme == 'github-dark' or not settings.code_highlight_theme %}selected{% endif %}>GitHub Dark（默认）</option>
                         <option value="github-light" {% if settings.code_highlight_theme == 'github-light' %}selected{% endif %}>GitHub Light</option>
                         <option value="nord" {% if settings.code_highlight_theme == 'nord' %}selected{% endif %}>Nord</option>
                     </select>
                     <p class="text-sm text-gray-500 mt-1">影响文章/页面详情中的代码块高亮视觉风格。</p>
                 </div>
-                <div class="md:col-span-2 rounded-lg border border-purple-200 bg-purple-50/50 p-4">
+                <div class="md:col-span-2 admin-info-box settings-subtle-panel p-4">
                     <h3 class="text-sm font-semibold text-purple-800">
                         <i class="fas fa-image mr-2"></i>全局列表封面兜底图设置
                     </h3>
@@ -419,7 +419,7 @@
                         <div>
                             <label for="article_card_fallback_source" class="block text-sm font-medium text-gray-700">随机图来源</label>
                             <select id="article_card_fallback_source" name="article_card_fallback_source"
-                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                                    class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm">
                                 <option value="local" {% if settings.article_card_fallback_source != 'api' %}selected{% endif %}>本地文件夹</option>
                                 <option value="api" {% if settings.article_card_fallback_source == 'api' %}selected{% endif %}>在线 API</option>
                             </select>
@@ -428,12 +428,12 @@
                             <label for="article_card_fallback_api_url" class="block text-sm font-medium text-gray-700">在线 API 地址</label>
                             <input type="text" id="article_card_fallback_api_url" name="article_card_fallback_api_url"
                                    value="{{ settings.article_card_fallback_api_url if settings.article_card_fallback_api_url else 'https://www.loliapi.com/acg/' }}"
-                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                   class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm"
                                    placeholder="可使用 {seed} 占位符，例如：https://example.com/image?seed={seed}">
                             <p class="text-sm text-gray-500 mt-1">支持 `{seed}` 占位符；未使用时系统会自动拼接 seed 参数。</p>
-                            <div class="mt-3 rounded-md border border-purple-200 bg-white/80 p-3 space-y-3">
+                            <div class="settings-subcard mt-3 rounded-md p-3 space-y-3">
                                 <label class="inline-flex items-center text-sm text-gray-700">
-                                    <input type="checkbox" id="article_card_api_cache_enabled" name="article_card_api_cache_enabled" class="form-checkbox"
+                                    <input type="checkbox" id="article_card_api_cache_enabled" name="article_card_api_cache_enabled" class="admin-form-check form-checkbox"
                                            {% if settings.article_card_api_cache_enabled is not defined or settings.article_card_api_cache_enabled %}checked{% endif %}>
                                     <span class="ml-2 font-medium">启用 API 图片缓存（推荐）</span>
                                 </label>
@@ -443,14 +443,14 @@
                                         <input type="number" id="article_card_api_cache_ttl_minutes" name="article_card_api_cache_ttl_minutes"
                                                value="{{ settings.article_card_api_cache_ttl_minutes if settings.article_card_api_cache_ttl_minutes else 360 }}"
                                                min="5" max="10080"
-                                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                                               class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm">
                                     </div>
                                     <div>
                                         <label for="article_card_api_cache_cleanup_minutes" class="block text-sm font-medium text-gray-700">自动清理间隔（分钟）</label>
                                         <input type="number" id="article_card_api_cache_cleanup_minutes" name="article_card_api_cache_cleanup_minutes"
                                                value="{{ settings.article_card_api_cache_cleanup_minutes if settings.article_card_api_cache_cleanup_minutes else 120 }}"
                                                min="1" max="10080"
-                                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                                               class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm">
                                     </div>
                                 </div>
                                 <p class="text-xs text-gray-500">渲染页面时不会等待下载：缓存未命中时先使用原始 API 地址展示，并在后台异步预热本地缓存；到达清理间隔后会自动清理过期文件。</p>
@@ -460,14 +460,14 @@
                             <label for="article_card_fallback_local_dir" class="block text-sm font-medium text-gray-700">本地图片文件夹</label>
                             <input type="text" id="article_card_fallback_local_dir" name="article_card_fallback_local_dir"
                                    value="{{ settings.article_card_fallback_local_dir if settings.article_card_fallback_local_dir else 'rewrz/static/images/anime/random' }}"
-                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                   class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm"
                                    placeholder="例如：rewrz/static/images/anime/random">
                             <p class="text-sm text-gray-500 mt-1">建议填写 `rewrz/static` 或媒体目录下的路径，这样前台可直接访问。</p>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="admin-info-box settings-subtle-panel p-4">
                 <h3 class="text-sm font-medium text-blue-800 mb-2">
                     <i class="fas fa-info-circle mr-2"></i>
                     配置说明
@@ -828,6 +828,32 @@
     </div>
     </div>
 </form>
+
+<style>
+    .admin-settings-shell #settings-quick-nav {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.9));
+        border-color: rgba(224, 231, 255, 0.9);
+        box-shadow: 0 20px 48px rgba(79, 70, 229, 0.12);
+    }
+
+    .admin-settings-shell .settings-nav-link {
+        transition: all 0.18s ease;
+    }
+
+    .admin-settings-shell .settings-nav-link:hover {
+        transform: translateX(2px);
+    }
+
+    .admin-settings-shell #settings-save-dock {
+        right: 1.5rem;
+    }
+
+    @media (min-width: 1280px) {
+        .admin-settings-shell #settings-quick-nav {
+            width: 15.5rem;
+        }
+    }
+</style>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {

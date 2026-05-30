@@ -20,7 +20,7 @@
 
     <div class="relative flex items-center mb-4">
         <div class="absolute left-6 transform -translate-x-1/2 z-10">
-            <div class="archive-timeline-node w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-lg flex items-center justify-center">
+            <div class="archive-timeline-node archive-timeline-node-month w-5 h-5 rounded-full shadow-lg flex items-center justify-center">
                 <i class="fas fa-calendar text-white text-xs"></i>
             </div>
         </div>
@@ -30,7 +30,7 @@
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white">
                     {{ year }} 年 {{ month_zh }}
                 </h3>
-                <span class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full text-sm font-medium" data-archive-count>
+                <span class="archive-count-chip px-3 py-1 rounded-full text-sm font-medium" data-archive-count>
                     {{ month_posts | length }} 条
                 </span>
             </div>

@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 
 {% block title_text %}{% if post %}编辑文章{% else %}新建文章{% endif %}{% endblock %}
-{% block page_title %}{% if post %}<i class="fas fa-edit text-yellow-600 mr-3"></i>编辑文章{% else %}<i class="fas fa-plus-circle text-green-600 mr-3"></i>新建文章{% endif %}{% endblock %}
+{% block page_title %}{% if post %}<i class="fas fa-edit admin-accent-text mr-3"></i>编辑文章{% else %}<i class="fas fa-plus-circle admin-accent-text mr-3"></i>新建文章{% endif %}{% endblock %}
 {% block content %}
 <!-- Toast UI Editor -->
 <link rel="stylesheet" href="{{ static_asset(request, 'vendor/toastui/toastui-editor.min.css') }}" />
@@ -185,7 +185,7 @@
     }
 </style>
 
-<form id="post-form" hx-post="{% if post %}{{ request.state.admin_path }}/posts/{{ post.id }}{% else %}{{ request.state.admin_path }}/posts/new{% endif %}" hx-target="#admin-content" hx-swap="outerHTML" class="space-y-6">
+<form id="post-form" hx-post="{% if post %}{{ request.state.admin_path }}/posts/{{ post.id }}{% else %}{{ request.state.admin_path }}/posts/new{% endif %}" hx-target="#admin-content" hx-swap="outerHTML" class="post-editor-admin-page space-y-6">
     <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
             <input type="hidden" name="editor_mode" id="editor-mode-input" value="markdown">
             {% if post %}
@@ -198,10 +198,10 @@
                             <i class="fas fa-pen-nib"></i>
                             {% if post %}正在编辑 #{{ post.id }}{% else %}新的文章草稿{% endif %}
                         </div>
-                        <h2 class="text-xl md:text-2xl font-semibold tracking-tight">沉浸式写作工作区</h2>
-                        <p class="mt-1.5 text-sm text-gray-600">支持媒体插入、快捷保存、离开提醒与字数统计。</p>
+                        <h2 class="text-xl md:text-2xl font-semibold tracking-tight text-[var(--color-text)]">沉浸式写作工作区</h2>
+                        <p class="mt-1.5 text-sm text-[var(--color-text-light)]">支持媒体插入、快捷保存、离开提醒与字数统计。</p>
                     </div>
-                    <div class="text-sm text-gray-600 space-y-1">
+                    <div class="space-y-1 text-sm text-[var(--color-text-light)]">
                         <div id="editor-wording">字数统计: 0 字</div>
                         <div id="editor-chars">字符统计: 0 字符</div>
                     </div>
@@ -212,17 +212,17 @@
                 <div id="editor-main-panel" class="xl:col-span-8 space-y-6">
                     <div class="admin-panel p-4 md:p-6">
                         <div class="mb-4">
-                            <label for="title" class="block text-sm font-medium text-gray-700">标题</label>
+                            <label for="title" class="block text-sm font-medium text-[var(--color-text)]">标题</label>
                             <input type="text" id="title" name="title" value="{% if post %}{{ post.title }}{% endif %}" class="editor-input" placeholder="输入文章标题（可留空，适合短内容）">
-                            <p class="mt-2 text-xs text-gray-500">标题会影响 SEO 与分享卡片展示。</p>
+                            <p class="mt-2 text-xs text-[var(--color-text-light)]">标题会影响 SEO 与分享卡片展示。</p>
                         </div>
                         <div class="editor-toolbar mb-3 flex flex-wrap items-center justify-between gap-2">
-                            <div class="text-sm text-gray-600">
-                                快捷键: <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200">Ctrl/Cmd + S</kbd>
+                            <div class="text-sm text-[var(--color-text-light)]">
+                                快捷键: <kbd class="admin-inline-kbd px-1.5 py-0.5 rounded">Ctrl/Cmd + S</kbd>
                             </div>
-                            <div class="inline-flex rounded-md border border-gray-300 overflow-hidden text-sm" role="group" aria-label="编辑模式切换">
-                                <button type="button" id="editor-mode-markdown" class="px-3 py-2 bg-white text-gray-700 hover:bg-gray-50">Markdown</button>
-                                <button type="button" id="editor-mode-html" class="px-3 py-2 bg-white text-gray-700 hover:bg-gray-50 border-l border-gray-300">富文本</button>
+                            <div class="editor-mode-toggle inline-flex overflow-hidden rounded-md text-sm" role="group" aria-label="编辑模式切换">
+                                <button type="button" id="editor-mode-markdown" class="editor-mode-button is-active px-3 py-2">Markdown</button>
+                                <button type="button" id="editor-mode-html" class="editor-mode-button px-3 py-2">富文本</button>
                             </div>
                             <div class="flex flex-wrap gap-2">
                             <button type="button" id="editor-font-decrease" class="editor-utility-pill" title="缩小字号">
@@ -236,13 +236,13 @@
                                 <i class="fas fa-expand"></i><span>全屏</span>
                             </button>
                             <input type="file" id="direct-upload-input" class="hidden" multiple>
-                            <button type="button" id="direct-upload-button" class="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">
+                            <button type="button" id="direct-upload-button" class="admin-secondary-btn inline-flex items-center rounded-md px-3 py-2 text-sm">
                                 <i class="fas fa-upload mr-2"></i>上传文件
                             </button>
-                            <button type="button" id="insert-media-button" class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700">
+                            <button type="button" id="insert-media-button" class="admin-primary-btn inline-flex items-center rounded-md px-3 py-2 text-sm">
                                 <i class="fas fa-paperclip mr-2"></i>插入媒体
                             </button>
-                            <button type="button" id="insert-hide-block-button" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700" title="插入 [hide] 评论后可见块（仅 Markdown 模式）">
+                            <button type="button" id="insert-hide-block-button" class="admin-soft-btn inline-flex items-center rounded-md px-3 py-2 text-sm" title="插入 [hide] 评论后可见块（仅 Markdown 模式）">
                                 <i class="fas fa-comment-dots mr-2"></i>评论后可见
                             </button>
                             </div>
@@ -255,37 +255,37 @@
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <div class="flex flex-wrap items-center gap-2">
                                     <label class="inline-flex items-center gap-2 text-sm">
-                                        <span class="text-gray-600">状态</span>
-                                        <select name="status" class="px-2.5 py-1.5 border border-gray-300 rounded-md text-sm">
+                                        <span class="text-[var(--color-text-light)]">状态</span>
+                                        <select name="status" class="admin-form-field px-2.5 py-1.5 rounded-md text-sm">
                                             <option value="draft" {% if post and post.status == "draft" %}selected{% endif %}>草稿</option>
                                             <option value="published" {% if post and post.status == "published" %}selected{% endif %}>已发布</option>
                                         </select>
                                     </label>
-                                    <label class="inline-flex items-center gap-2 px-2.5 py-1.5 border border-gray-300 rounded-md text-sm">
-                                        <input type="checkbox" name="allow_comments" {% if post is none or post.allow_comments %}checked{% endif %} class="form-checkbox">
-                                        <span class="text-gray-700">允许评论</span>
+                                    <label class="inline-flex items-center gap-2 rounded-md border border-[color:var(--ui-border)] px-2.5 py-1.5 text-sm text-[var(--color-text)]">
+                                        <input type="checkbox" name="allow_comments" {% if post is none or post.allow_comments %}checked{% endif %} class="admin-form-check form-checkbox">
+                                        <span class="text-[var(--color-text)]">允许评论</span>
                                     </label>
                                     <label class="inline-flex items-center gap-2 text-sm">
-                                        <span class="text-gray-600">版权</span>
-                                        <select name="license_type" class="px-2.5 py-1.5 border border-gray-300 rounded-md text-sm max-w-[13rem]">
+                                        <span class="text-[var(--color-text-light)]">版权</span>
+                                        <select name="license_type" class="admin-form-field max-w-[13rem] px-2.5 py-1.5 rounded-md text-sm">
                                             {{ post.license_type | license_options | safe }}
                                         </select>
                                     </label>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
                                     <a href="{{ request.state.admin_path }}/posts" 
-                                        class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors inline-block">
+                                        class="admin-secondary-btn inline-block rounded-md px-4 py-2">
                                         <i class="fas fa-arrow-left mr-2"></i>返回列表
                                     </a>
                                     <button type="submit" id="save-post-button"
-                                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                                        class="admin-primary-btn rounded-md px-4 py-2">
                                         <i class="fas fa-save mr-2"></i>保存
                                     </button>
                                 </div>
                             </div>
-                            <div class="mt-2 text-sm text-gray-600">
-                                <span id="dirty-indicator" class="hidden text-amber-600"><i class="fas fa-circle text-[0.55rem] mr-1"></i>有未保存更改</span>
-                                <span id="saved-indicator" class="text-emerald-600"><i class="fas fa-check-circle mr-1"></i>已同步到当前表单</span>
+                            <div class="mt-2 text-sm text-[var(--color-text-light)]">
+                                <span id="dirty-indicator" class="hidden admin-accent-text"><i class="fas fa-circle text-[0.55rem] mr-1"></i>有未保存更改</span>
+                                <span id="saved-indicator" class="admin-accent-text"><i class="fas fa-check-circle mr-1"></i>已同步到当前表单</span>
                             </div>
                     </div>
                 </div>
@@ -294,13 +294,13 @@
                 <div id="editor-side-panel" class="xl:col-span-4">
                     <div class="admin-panel p-4 md:p-6 space-y-6 xl:sticky xl:top-24">
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">URL 别名 (Slug)</h3>
+                            <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">URL 别名 (Slug)</h3>
                             <input type="text" id="slug-input" name="slug" value="{% if post %}{{ post.slug }}{% endif %}" class="editor-input" placeholder="例如 modern-writing-tips">
-                            <p class="mt-1 text-xs text-gray-500">预览链接: <span id="slug-preview" class="font-mono"></span></p>
+                            <p class="mt-1 text-xs text-[var(--color-text-light)]">预览链接: <span id="slug-preview" class="font-mono"></span></p>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">可见性</h3>
-                            <select id="visibility-select" name="visibility" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">可见性</h3>
+                            <select id="visibility-select" name="visibility" class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
                                 <option value="public" {% if not post or post.visibility == "public" %}selected{% endif %}>公开</option>
                                 <option value="private" {% if post and post.visibility == "private" %}selected{% endif %}>私密（仅管理员）</option>
                                 <option value="password" {% if post and post.visibility == "password" %}selected{% endif %}>密码保护</option>
@@ -309,25 +309,25 @@
                                 <input
                                     type="password"
                                     name="password"
-                                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                    class="admin-form-field block w-full rounded-md px-3 py-2"
                                     placeholder="{% if post and post.visibility == 'password' %}留空保持原密码{% else %}请输入访问密码{% endif %}"
                                 >
-                                <p class="mt-1 text-xs text-gray-500">仅在选择"密码保护"时生效。</p>
+                                <p class="mt-1 text-xs text-[var(--color-text-light)]">仅在选择"密码保护"时生效。</p>
                             </div>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">特色图片</h3>
+                            <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">特色图片</h3>
                             <input type="hidden" name="featured_image_url" id="feature-image-url-input" value="{% if post %}{{ post.featured_image_url }}{% endif %}">
                             <div id="feature-image-preview" class="feature-image-shell mb-2 {% if not post or not post.featured_image_url or post.featured_image_url == 'None' %}hidden{% endif %}">
                                 {% if post and post.featured_image_url and post.featured_image_url != 'None' %}
                                 <img src="{{ post.featured_image_url }}" alt="特色图片预览">
                                 {% endif %}
                             </div>
-                            <button type="button" class="w-full py-2 border-dashed border-2 border-gray-300 rounded-md hover:bg-gray-50" id="feature-image-upload-button">选择或上传图片</button>
-                            <button type="button" class="w-full mt-2 py-2 border-dashed border-2 border-red-300 text-red-600 rounded-md hover:bg-red-50 {% if not post or not post.featured_image_url %}hidden{% endif %}" id="remove-feature-image-button">移除图片</button>
+                            <button type="button" class="admin-secondary-btn w-full rounded-md border-2 border-dashed px-3 py-2" id="feature-image-upload-button">选择或上传图片</button>
+                            <button type="button" class="admin-soft-btn admin-soft-btn-danger mt-2 w-full rounded-md border-2 border-dashed px-3 py-2 {% if not post or not post.featured_image_url %}hidden{% endif %}" id="remove-feature-image-button">移除图片</button>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">内容类型</h3>
+                            <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">内容类型</h3>
                             {% set selected_intent = namespace(value='article') %}
                             {% if post and post.formats %}
                                 {% set format_slugs = post.formats | map(attribute='slug') | list %}
@@ -347,39 +347,39 @@
                                 </label>
                                 {% endfor %}
                             </div>
-                            <p class="mt-2 text-xs text-gray-500">每篇内容仅选择一个主类型；图片/视频/音频通过内容附件体现。</p>
+                            <p class="mt-2 text-xs text-[var(--color-text-light)]">每篇内容仅选择一个主类型；图片/视频/音频通过内容附件体现。</p>
                         </div>
                         <div id="category-panel">
-                            <h3 class="text-lg font-semibold mb-2">分类</h3>
+                            <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">分类</h3>
                             <div class="editor-scroll-list grid grid-cols-1 gap-2">
                                 {% for category in categories %}
                                 <label class="editor-check-item">
-                                    <input type="checkbox" name="category_ids" value="{{ category.id }}" {% if post and category in post.categories %}checked{% endif %} class="form-checkbox js-category-checkbox">
-                                    <span class="text-gray-700 text-sm">{{ category.name }}</span>
+                                    <input type="checkbox" name="category_ids" value="{{ category.id }}" {% if post and category in post.categories %}checked{% endif %} class="admin-form-check form-checkbox js-category-checkbox">
+                                    <span class="text-sm text-[var(--color-text)]">{{ category.name }}</span>
                                 </label>
                                 {% endfor %}
                             </div>
-                            <p id="category-panel-hint" class="mt-2 text-xs text-gray-500">标准文章建议设置分类；微博与诗词歌赋默认不需要分类。</p>
+                            <p id="category-panel-hint" class="mt-2 text-xs text-[var(--color-text-light)]">标准文章建议设置分类；微博与诗词歌赋默认不需要分类。</p>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">标签</h3>
+                            <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">标签</h3>
                             <input type="text" id="tag-input" placeholder="添加标签后按回车..." class="editor-input">
                             <div id="tag-container" class="mt-2 flex flex-wrap gap-2"></div>
-                            <p class="mt-1 text-xs text-gray-500">支持回车、英文逗号、中文逗号快速添加。</p>
+                            <p class="mt-1 text-xs text-[var(--color-text-light)]">支持回车、英文逗号、中文逗号快速添加。</p>
                             <input type="hidden" name="tags" id="tags-hidden-input" value="{% if post %}{{ post.tags|map(attribute='name')|join(',') }}{% endif %}">
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">摘要</h3>
+                            <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">摘要</h3>
                             <textarea name="excerpt" rows="4" class="editor-input" placeholder="选填：仅在需要时手动填写摘要，不会自动生成">{% if post %}{{ post.excerpt }}{% endif %}</textarea>
-                            <p class="mt-1 text-xs text-gray-500">仅手动填写时才会展示；留空时前台聚合页会自动截取正文。</p>
+                            <p class="mt-1 text-xs text-[var(--color-text-light)]">仅手动填写时才会展示；留空时前台聚合页会自动截取正文。</p>
                         </div>
                         {% if post %}
                         <div>
-                            <h3 class="text-lg font-semibold mb-2">版本快照</h3>
+                            <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">版本快照</h3>
                             <button
                                 type="button"
                                 id="snapshot-history-button"
-                                class="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700"
+                                class="admin-primary-btn inline-flex w-full items-center justify-center rounded-md px-3 py-2 text-sm"
                             >
                                 <i class="fas fa-history mr-2"></i>查看历史快照
                             </button>
@@ -457,10 +457,18 @@
         const slugInput = document.getElementById('slug-input');
         const slugPreview = document.getElementById('slug-preview');
         const categoryPanel = document.getElementById('category-panel');
+        const tagInput = document.getElementById('tag-input');
+        const tagContainer = document.getElementById('tag-container');
+        const tagsHiddenInput = document.getElementById('tags-hidden-input');
+        const visibilitySelect = document.getElementById('visibility-select');
+        const passwordField = document.getElementById('password-field');
         const formatInputs = Array.from(document.querySelectorAll('input[name="format_id"]'));
         const categoryInputs = Array.from(document.querySelectorAll('input[name="category_ids"]'));
         let isDirty = false;
         let isSubmitting = false;
+        let isInitializing = true;
+        let hasUserInteracted = false;
+        let initialFormSnapshot = '';
         let slugTouched = Boolean(slugInput && slugInput.value.trim());
         const minEditorFontSize = 14;
         const maxEditorFontSize = 24;
@@ -526,18 +534,10 @@
         function updateEditorModeButtons(activeMode) {
             const isMarkdown = activeMode === 'markdown';
             if (markdownModeButton) {
-                markdownModeButton.classList.toggle('bg-blue-600', isMarkdown);
-                markdownModeButton.classList.toggle('text-white', isMarkdown);
-                markdownModeButton.classList.toggle('hover:bg-blue-700', isMarkdown);
-                markdownModeButton.classList.toggle('bg-white', !isMarkdown);
-                markdownModeButton.classList.toggle('text-gray-700', !isMarkdown);
+                markdownModeButton.classList.toggle('is-active', isMarkdown);
             }
             if (htmlModeButton) {
-                htmlModeButton.classList.toggle('bg-blue-600', !isMarkdown);
-                htmlModeButton.classList.toggle('text-white', !isMarkdown);
-                htmlModeButton.classList.toggle('hover:bg-blue-700', !isMarkdown);
-                htmlModeButton.classList.toggle('bg-white', isMarkdown);
-                htmlModeButton.classList.toggle('text-gray-700', isMarkdown);
+                htmlModeButton.classList.toggle('is-active', !isMarkdown);
             }
         }
 
@@ -558,11 +558,59 @@
             savedIndicator.classList.toggle('hidden', isDirty);
         }
 
-        function markDirty() {
-            if (!isDirty) {
-                isDirty = true;
-                updateDirtyUI();
+        function getCurrentFormSnapshot() {
+            const selectedCategories = categoryInputs
+                .filter((item) => item.checked)
+                .map((item) => String(item.value))
+                .sort();
+            const selectedFormat = formatInputs.find((item) => item.checked)?.value || '';
+            const allowCommentsInput = postForm.querySelector('input[name="allow_comments"]');
+            const statusSelect = postForm.querySelector('select[name="status"]');
+            const licenseSelect = postForm.querySelector('select[name="license_type"]');
+            const excerptField = postForm.querySelector('textarea[name="excerpt"]');
+            const passwordInput = postForm.querySelector('input[name="password"]');
+            const featureImageField = document.getElementById('feature-image-url-input');
+            const currentMode = getActiveEditorMode();
+            return JSON.stringify({
+                title: titleInput ? titleInput.value : '',
+                slug: slugInput ? slugInput.value : '',
+                status: statusSelect ? statusSelect.value : '',
+                allowComments: Boolean(allowCommentsInput?.checked),
+                licenseType: licenseSelect ? licenseSelect.value : '',
+                visibility: visibilitySelect ? visibilitySelect.value : '',
+                password: passwordInput ? passwordInput.value : '',
+                featuredImageUrl: featureImageField ? featureImageField.value : '',
+                formatId: selectedFormat,
+                categoryIds: selectedCategories,
+                tags: tagsHiddenInput ? tagsHiddenInput.value : '',
+                excerpt: excerptField ? excerptField.value : '',
+                editorMode: currentMode,
+                markdown: editor.getMarkdown(),
+                html: currentMode === 'html' ? editor.getHTML() : '',
+            });
+        }
+
+        function syncDirtyState(forceClean = false) {
+            if (forceClean) {
+                initialFormSnapshot = getCurrentFormSnapshot();
+                hasUserInteracted = false;
             }
+            if ((isInitializing || !hasUserInteracted) && !forceClean) {
+                return;
+            }
+            isDirty = initialFormSnapshot !== getCurrentFormSnapshot();
+            updateDirtyUI();
+        }
+
+        function markDirty() {
+            syncDirtyState();
+        }
+
+        function markUserInteracted() {
+            if (isInitializing) {
+                return;
+            }
+            hasUserInteracted = true;
         }
 
         function getSelectedIntentSlug() {
@@ -623,6 +671,7 @@
 
         if (titleInput) {
             titleInput.addEventListener('input', () => {
+                markUserInteracted();
                 markDirty();
                 if (!slugInput || slugTouched) return;
                 slugInput.value = normalizeSlug(titleInput.value);
@@ -631,6 +680,7 @@
         }
         if (slugInput) {
             slugInput.addEventListener('input', () => {
+                markUserInteracted();
                 slugTouched = true;
                 slugInput.value = normalizeSlug(slugInput.value);
                 updateSlugPreview();
@@ -639,10 +689,17 @@
             updateSlugPreview();
         }
 
-        postForm.addEventListener('input', markDirty);
-        postForm.addEventListener('change', markDirty);
+        postForm.addEventListener('input', () => {
+            markUserInteracted();
+            markDirty();
+        });
+        postForm.addEventListener('change', () => {
+            markUserInteracted();
+            markDirty();
+        });
         formatInputs.forEach((item) => {
             item.addEventListener('change', () => {
+                markUserInteracted();
                 syncCategoryPanelByIntent();
                 markDirty();
             });
@@ -651,6 +708,10 @@
 
         try {
             editor.on('change', () => {
+                if (!hasUserInteracted) {
+                    updateEditorStats();
+                    return;
+                }
                 markDirty();
                 updateEditorStats();
             });
@@ -660,19 +721,25 @@
         const savedFontSize = Number(localStorage.getItem('rewrz_editor_font_size') || 17);
         applyEditorFontSize(savedFontSize, false);
         updateEditorStats();
-        updateDirtyUI();
         setEditorMode(initialEditorMode, false);
         updateFullscreenButton();
         applyEditorHeight();
+        syncDirtyState(true);
+        setTimeout(() => {
+            isInitializing = false;
+            syncDirtyState(true);
+        }, 400);
 
         if (markdownModeButton) {
             markdownModeButton.addEventListener('click', () => {
+                markUserInteracted();
                 setEditorMode('markdown');
                 markDirty();
             });
         }
         if (htmlModeButton) {
             htmlModeButton.addEventListener('click', () => {
+                markUserInteracted();
                 setEditorMode('html');
                 markDirty();
             });
@@ -685,6 +752,12 @@
         }
         if (fullscreenToggleButton) {
             fullscreenToggleButton.addEventListener('click', () => toggleFullscreen());
+        }
+        const editorRoot = document.getElementById('editor');
+        if (editorRoot) {
+            editorRoot.addEventListener('keydown', markUserInteracted, true);
+            editorRoot.addEventListener('pointerdown', markUserInteracted, true);
+            editorRoot.addEventListener('paste', markUserInteracted, true);
         }
         window.addEventListener('resize', () => {
             if (isEditorFullscreen()) {
@@ -710,10 +783,6 @@
                 window.adminNotify('检测到评论后可见块，已自动按 Markdown 模式保存。', 'warning', { duration: 3200 });
             }
         });
-
-        const tagInput = document.getElementById('tag-input');
-        const tagContainer = document.getElementById('tag-container');
-        const tagsHiddenInput = document.getElementById('tags-hidden-input');
 
         function getTags() {
             return (tagsHiddenInput.value || '')
@@ -764,8 +833,6 @@
         }
         renderTags(getTags());
 
-        const visibilitySelect = document.getElementById('visibility-select');
-        const passwordField = document.getElementById('password-field');
         if (visibilitySelect && passwordField) {
             const togglePasswordField = () => {
                 if (visibilitySelect.value === 'password') {
@@ -1016,8 +1083,7 @@
 
         postForm.addEventListener('submit', () => {
             isSubmitting = true;
-            isDirty = false;
-            updateDirtyUI();
+            syncDirtyState(true);
             if (isEditorFullscreen()) {
                 toggleFullscreen(false);
             }

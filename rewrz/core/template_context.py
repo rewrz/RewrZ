@@ -6,7 +6,7 @@
 from fastapi import Request
 from sqlalchemy.orm import Session
 from ..core.database import get_db
-from ..crud import format as crud_format, post as crud_post
+from ..crud import category as crud_category, format as crud_format, post as crud_post
 from ..crud import setting as crud_setting
 from ..crud import user as crud_user
 from ..core.content_intents import INTENT_SLUGS, normalize_intent_slug
@@ -107,6 +107,19 @@ def build_base_template_context(request: Request) -> dict:
         key=lambda fmt: intent_order.get(normalize_intent_slug(getattr(fmt, "slug", None)) or "", 999)
     )
 
+    categories = crud_category.get_categories(db)
+    nav_categories = []
+    for category in categories:
+        published_posts = [
+            post for post in list(getattr(category, "posts", []) or [])
+            if str(getattr(post, "status", "") or "").strip().lower() == "published"
+            and str(getattr(post, "post_type", "") or "").strip().lower() == "post"
+        ]
+        if not published_posts:
+            continue
+        setattr(category, "posts_count", len(published_posts))
+        nav_categories.append(category)
+
     # 获取所有已发布的自定义页面
     custom_pages = crud_post.get_posts(db, post_type="page", status="published")
     
@@ -171,6 +184,7 @@ def build_base_template_context(request: Request) -> dict:
         "code_highlight_theme": settings.get("display", {}).get("code_highlight_theme") or getattr(request.state, "code_highlight_theme", DEFAULT_BASE_SETTINGS["code_highlight_theme"]),
         
         # 动态导航菜单数据
+        "categories": nav_categories,
         "post_formats": post_formats,
         "media_nav_items": get_default_media_navigation(),
         "custom_pages": custom_pages,

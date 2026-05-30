@@ -252,3 +252,23 @@ def test_public_templates_do_not_hardcode_admin_entrypoint():
             continue
         content = template_path.read_text(encoding="utf-8")
         assert "/admin" not in content, f"Unexpected public admin path in {template_path}"
+
+
+def test_public_missing_page_does_not_redirect_to_admin_login():
+    client = TestClient(main_module.app)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+    response = client.get("/this-page-should-not-exist", follow_redirects=False)
+    assert response.status_code == 404
+    assert response.headers.get("location") is None
+    assert admin_prefix not in response.text
+
+
+def test_public_navigation_uses_archives_category_routes():
+    public_templates = [
+        Path("rewrz/templates/base.html"),
+        Path("rewrz/templates/admin/categories_list.html"),
+    ]
+    for template_path in public_templates:
+        content = template_path.read_text(encoding="utf-8")
+        assert "/category/" not in content
+        assert "/archives/by-category/" in content

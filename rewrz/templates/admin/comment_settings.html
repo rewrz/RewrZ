@@ -1,17 +1,17 @@
 {% extends "admin/base.html" %}
 
 {% block title_text %}评论设置{% endblock %}
-{% block page_title %}<i class="fas fa-comments text-blue-600 mr-3"></i>评论设置{% endblock %}
+{% block page_title %}<i class="fas fa-comments mr-3"></i>评论设置{% endblock %}
 {% block content %}
-<div class="bg-white p-6 rounded-lg shadow-md">
+<div class="admin-panel p-6">
     
     <form method="post" action="{{ admin_path }}/api/v1/comments/settings" id="comment-settings-form">
     <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
         
         <!-- 第一层：无感防御 -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <div class="admin-section-card p-6 rounded-lg mb-6">
             <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                <i class="fas fa-shield-alt text-green-600 mr-2"></i>
+                <i class="fas fa-shield-alt mr-2"></i>
                 第一层：无感防御
             </h2>
             <p class="text-gray-600 mb-4">通过技术手段自动拦截机器人评论，对用户完全透明</p>
@@ -20,7 +20,7 @@
                 <div class="flex items-center">
                     <input type="checkbox" id="honeypot_enabled" name="honeypot_enabled" value="true"
                            {{ 'checked' if settings.honeypot_enabled }}
-                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                           class="h-4 w-4 admin-form-check border-gray-300 rounded">
                     <label for="honeypot_enabled" class="ml-2 block text-sm text-gray-900">启用蜜罐陷阱</label>
                 </div>
                 
@@ -29,19 +29,19 @@
                     <input type="number" id="time_threshold" name="time_threshold" 
                            min="1" max="60" step="1"
                            value="{{ settings.time_threshold if settings.time_threshold else 5 }}"
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                           class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm sm:text-sm">
                     <p class="text-sm text-gray-500 mt-1">低于此时间的提交将被视为机器人行为</p>
                 </div>
             </div>
             
-            <div class="bg-green-50 border border-green-200 rounded-md p-4 mt-4">
+            <div class="admin-info-box rounded-md p-4 mt-4">
                 <div class="flex">
                     <div class="flex-shrink-0">
-                        <i class="fas fa-info-circle text-green-600"></i>
+                        <i class="fas fa-info-circle admin-accent-text"></i>
                     </div>
                     <div class="ml-3">
-                        <h3 class="text-sm font-medium text-green-800">第一层防护说明</h3>
-                        <div class="mt-2 text-sm text-green-700">
+                        <h3 class="text-sm font-medium admin-accent-text">第一层防护说明</h3>
+                        <div class="mt-2 text-sm admin-accent-text">
                             <ul class="list-disc list-inside space-y-1">
                                 <li>蜜罐陷阱：在表单中添加隐藏字段，机器人填写后自动拦截</li>
                                 <li>时间检查：检查用户从加载页面到提交评论的时间</li>
@@ -54,9 +54,9 @@
         </div>
 
         <!-- 第二层：内容分析 -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <div class="admin-section-card p-6 rounded-lg mb-6">
             <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                <i class="fas fa-search text-orange-600 mr-2"></i>
+                <i class="fas fa-search mr-2"></i>
                 第二层：内容分析
             </h2>
             <p class="text-gray-600 mb-4">分析评论内容特征，检测垃圾评论模式</p>
@@ -69,7 +69,7 @@
                     <input type="number" id="max_links" name="max_links" 
                            min="0" max="10" step="1"
                            value="{{ settings.max_links if settings.max_links is not none else 2 }}"
-                           class="mt-1 block w-32 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                           class="admin-form-field mt-1 block w-32 px-3 py-2 rounded-md shadow-sm sm:text-sm">
                     <p class="text-sm text-gray-500 mt-1">超过此数量的链接将被视为垃圾评论</p>
                 </div>
             </div>
@@ -80,14 +80,14 @@
                 <div class="flex items-center mb-3">
                     <input type="checkbox" id="keyword_filter" name="keyword_filter" value="true"
                            {{ 'checked' if settings.keyword_filter }}
-                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                           class="h-4 w-4 admin-form-check border-gray-300 rounded">
                     <label for="keyword_filter" class="ml-2 block text-sm text-gray-900">启用关键词过滤</label>
                 </div>
                 
                 <div>
                     <label for="keywords" class="block text-sm font-medium text-gray-700">垃圾关键词列表</label>
                     <textarea id="keywords" name="keywords" rows="6"
-                              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                              class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm sm:text-sm"
                               placeholder="每行一个关键词">{% if settings.keywords %}{% for keyword in settings.keywords %}{{ keyword }}
 {% endfor %}{% endif %}</textarea>
                     <p class="text-sm text-gray-500 mt-1">包含这些关键词的评论将被标记为可疑</p>
@@ -97,14 +97,14 @@
             <!-- Akismet配置 -->
             <div class="mb-6">
                 <h3 class="text-lg font-medium text-gray-800 mb-3">
-                    <i class="fas fa-cloud text-blue-600 mr-2"></i>
+                    <i class="fas fa-cloud mr-2"></i>
                     Akismet 云端检测
                 </h3>
                 
                 <div class="flex items-center mb-3">
                     <input type="checkbox" id="akismet_enabled" name="akismet_enabled" value="true"
                            {{ 'checked' if settings.akismet_enabled }}
-                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                           class="h-4 w-4 admin-form-check border-gray-300 rounded">
                     <label for="akismet_enabled" class="ml-2 block text-sm text-gray-900">启用 Akismet 垃圾检测</label>
                 </div>
                 
@@ -116,9 +116,9 @@
                                 <input type="text" id="akismet_key" name="akismet_key" 
                                        value="{{ settings.akismet_key if settings.akismet_key else '' }}"
                                        placeholder="获取密钥请访问 akismet.com"
-                                       class="flex-1 block w-full px-3 py-2 border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                       class="admin-form-field flex-1 block w-full px-3 py-2 rounded-l-md shadow-sm sm:text-sm">
                                 <button type="button" id="test-akismet-btn"
-                                        class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-gray-500 text-sm hover:bg-gray-100">
+                                        class="admin-secondary-btn inline-flex items-center px-3 py-2 rounded-r-md text-sm">
                                     <i class="fas fa-check mr-1"></i>
                                     测试
                                 </button>
@@ -127,14 +127,14 @@
                         </div>
                     </div>
                     
-                    <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mt-4">
+                    <div class="admin-info-box rounded-md p-4 mt-4">
                         <div class="flex">
                             <div class="flex-shrink-0">
-                                <i class="fas fa-info-circle text-blue-600"></i>
+                                <i class="fas fa-info-circle admin-accent-text"></i>
                             </div>
                             <div class="ml-3">
-                                <h3 class="text-sm font-medium text-blue-800">关于 Akismet</h3>
-                                <div class="mt-2 text-sm text-blue-700">
+                                <h3 class="text-sm font-medium admin-accent-text">关于 Akismet</h3>
+                                <div class="mt-2 text-sm admin-accent-text">
                                     <ul class="list-disc list-inside space-y-1">
                                         <li>Akismet 是业界领先的垃圾评论检测服务</li>
                                         <li>个人博客可以免费使用</li>
@@ -150,9 +150,9 @@
         </div>
 
         <!-- 第三层：主动验证 -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <div class="admin-section-card p-6 rounded-lg mb-6">
             <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                <i class="fas fa-user-shield text-purple-600 mr-2"></i>
+                <i class="fas fa-user-shield mr-2"></i>
                 第三层：主动验证
             </h2>
             <p class="text-gray-600 mb-4">对可疑评论要求用户完成验证码验证</p>
@@ -161,7 +161,7 @@
                 <div class="flex items-center">
                     <input type="checkbox" id="captcha_enabled" name="captcha_enabled" value="true"
                            {{ 'checked' if settings.captcha_enabled }}
-                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                           class="h-4 w-4 admin-form-check border-gray-300 rounded">
                     <label for="captcha_enabled" class="ml-2 block text-sm text-gray-900">启用验证码验证</label>
                 </div>
                 
@@ -170,16 +170,16 @@
                     <input type="number" id="captcha_threshold" name="captcha_threshold" 
                            min="0" max="1" step="0.1"
                            value="{{ settings.captcha_threshold if settings.captcha_threshold is not none else 0.6 }}"
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                           class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm sm:text-sm">
                     <p class="text-sm text-gray-500 mt-1">垃圾概率超过此值时显示验证码（0.0-1.0）</p>
                 </div>
             </div>
         </div>
 
         <!-- 动作阈值配置 -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <div class="admin-section-card p-6 rounded-lg mb-6">
             <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                <i class="fas fa-cogs text-gray-600 mr-2"></i>
+                <i class="fas fa-cogs mr-2"></i>
                 动作阈值配置
             </h2>
             <p class="text-gray-600 mb-4">根据垃圾概率决定如何处理评论</p>
@@ -190,7 +190,7 @@
                     <input type="number" id="moderate_threshold" name="moderate_threshold" 
                            min="0" max="1" step="0.1"
                            value="{{ settings.moderate_threshold if settings.moderate_threshold is not none else 0.5 }}"
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                           class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm sm:text-sm">
                     <p class="text-sm text-gray-500 mt-1">超过此值的评论将进入待审核状态</p>
                 </div>
                 
@@ -199,12 +199,12 @@
                     <input type="number" id="block_threshold" name="block_threshold" 
                            min="0" max="1" step="0.1"
                            value="{{ settings.block_threshold if settings.block_threshold is not none else 0.8 }}"
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                           class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm sm:text-sm">
                     <p class="text-sm text-gray-500 mt-1">超过此值的评论将被直接拒绝</p>
                 </div>
             </div>
             
-            <div class="bg-gray-50 border border-gray-200 rounded-md p-4 mt-4">
+            <div class="admin-info-box rounded-md p-4 mt-4">
                 <h3 class="text-sm font-medium text-gray-800 mb-2">处理流程说明</h3>
                 <div class="text-sm text-gray-600 space-y-1">
                     <div><span class="inline-block w-20">0.0-{{ settings.moderate_threshold if settings.moderate_threshold is not none else 0.5 }}:</span> 自动通过</div>
@@ -217,11 +217,11 @@
         <!-- 提交按钮 -->
         <div class="flex justify-end space-x-3">
             <button type="button" onclick="window.location.href='{{ admin_path }}/dashboard'" 
-                    class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
+                    class="admin-secondary-btn px-4 py-2 rounded-md">
                 返回仪表盘
             </button>
             <button type="submit" 
-                    class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    class="admin-primary-btn px-6 py-2 rounded-md">
                 保存设置
             </button>
         </div>

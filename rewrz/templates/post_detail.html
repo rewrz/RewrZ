@@ -56,6 +56,22 @@
 {% set manual_excerpt = (post.excerpt or '') | trim %}
 {% set plain_text_value = post | post_plain_text %}
 {% set show_micro_excerpt = manual_excerpt and (plain_text_value|length > 280) %}
+{% set detail_display_title = (post.title or '') | trim %}
+{% if not detail_display_title %}
+    {% set _detail_published_time = post.published_at if post.published_at else post.created_at %}
+    {% if _detail_published_time %}
+        {% set _detail_fallback_prefix = _detail_published_time.year ~ '年' ~ _detail_published_time.month ~ '月' ~ _detail_published_time.day ~ '日' ~ _detail_published_time.hour ~ '时发布的' %}
+    {% else %}
+        {% set _detail_fallback_prefix = '未记录发布时间的' %}
+    {% endif %}
+    {% if active_format == 'micro' %}
+        {% set detail_display_title = _detail_fallback_prefix ~ '动态' %}
+    {% elif active_format == 'poem' %}
+        {% set detail_display_title = _detail_fallback_prefix ~ '诗词' %}
+    {% else %}
+        {% set detail_display_title = _detail_fallback_prefix ~ '文章' %}
+    {% endif %}
+{% endif %}
 
 {% if is_micro_post %}
 <section class="py-8 detail-cover-shell detail-cover-micro">
@@ -101,9 +117,7 @@
             </header>
 
             <div class="p-5 space-y-4">
-                {% if post.title %}
-                <h1 class="text-2xl md:text-3xl font-bold leading-tight bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">{{ post.title }}</h1>
-                {% endif %}
+                <h1 class="micro-detail-title text-2xl md:text-3xl font-bold leading-tight {% if post.title %}bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent{% endif %}">{{ detail_display_title }}</h1>
 
                 {% if show_micro_excerpt %}
                 <p class="text-base text-gray-600 dark:text-gray-300 leading-relaxed border-l-4 border-indigo-400 pl-4 italic">{{ manual_excerpt }}</p>
@@ -193,13 +207,13 @@
                     {% endfor %}
                 </div>
                 <div class="flex items-center gap-2">
-                    <button type="button" id="micro-focus-btn" class="micro-action-btn hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20" title="沉浸阅读">
+                    <button type="button" id="micro-focus-btn" class="micro-action-btn" title="沉浸阅读">
                         <i class="fas fa-expand-alt mr-1"></i>沉浸
                     </button>
-                    <button type="button" class="micro-action-btn hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20" onclick="shareMicroPost()" title="分享">
+                    <button type="button" class="micro-action-btn" onclick="shareMicroPost()" title="分享">
                         <i class="fas fa-share-alt mr-1"></i>分享
                     </button>
-                    <button type="button" class="micro-action-btn hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20" onclick="copyCurrentUrl()" title="复制链接">
+                    <button type="button" class="micro-action-btn" onclick="copyCurrentUrl()" title="复制链接">
                         <i class="fas fa-link mr-1"></i>复制
                     </button>
                 </div>
@@ -268,7 +282,7 @@
             <!-- 头部区域 -->
             <div class="poetry-header text-center p-6 md:p-10 border-b border-white/10 dark:border-gray-700/30">
                 <div class="flex items-center justify-center gap-2 mb-4">
-                    <span class="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg">
+                    <span class="poetry-format-badge inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium text-white shadow-lg">
                         <i class="fas fa-feather-alt mr-2"></i>诗词歌赋
                     </span>
                 </div>
@@ -309,10 +323,10 @@
                     <i class="fas fa-volume-up mr-1"></i>朗诵
                 </button>
                 <button type="button" id="poetry-scroll-toggle" class="poetry-control-btn px-3 py-1.5 rounded-full text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900 transition-all" title="自动滚动">
-                    <i class="fas fa-wave-square mr-1"></i>滚动
+                    <i class="fas fa-wave-square mr-1"></i>自动滚动
                 </button>
                 <button type="button" id="poetry-copy-btn" class="poetry-control-btn px-3 py-1.5 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all" title="复制全文" onclick="copyPoetryContent()">
-                    <i class="fas fa-copy mr-1"></i>复制
+                    <i class="fas fa-copy mr-1"></i>复制全文
                 </button>
                 <button type="button" id="poetry-share-btn" class="poetry-control-btn px-3 py-1.5 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all" title="分享" onclick="sharePoetry()">
                     <i class="fas fa-share-alt mr-1"></i>分享
@@ -321,7 +335,7 @@
 
             <!-- 内容区域 -->
             <div class="poetry-body p-6 md:p-10 space-y-5">
-                <div id="poetry-lyrics-content" class="post-content poetry-content prose dark:prose-invert max-w-none text-center leading-loose max-h-[60vh] overflow-y-auto pr-2 text-lg md:text-xl transition-all duration-300" data-font="sans">
+                <div id="poetry-lyrics-content" class="post-content poetry-content prose dark:prose-invert max-w-none text-center leading-loose overflow-y-auto pr-2 text-lg md:text-xl transition-all duration-300" data-font="sans">
                     {{ rendered_content | safe }}
                 </div>
                 {% set license_box_class = "rounded-xl bg-white/70 dark:bg-gray-900/60 border border-white/40 dark:border-gray-700/60 p-4 md:p-5" %}
@@ -372,7 +386,7 @@
         <div class="detail-layout {% if toc_items %}has-toc{% endif %}">
         <article class="article-detail-card rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 shadow-xl overflow-hidden">
             <header class="p-6 md:p-8 border-b border-gray-200 dark:border-gray-700">
-                <h1 class="text-3xl md:text-4xl font-bold mb-4 leading-tight">{{ post.title }}</h1>
+                <h1 class="text-3xl md:text-4xl font-bold mb-4 leading-tight">{{ detail_display_title }}</h1>
                 {% if manual_excerpt %}
                 <p class="mb-6 rounded-xl border border-blue-100 bg-blue-50/80 p-4 text-gray-700 dark:border-blue-900/60 dark:bg-blue-900/20 dark:text-gray-200">{{ manual_excerpt }}</p>
                 {% endif %}
@@ -431,8 +445,8 @@
 </section>
 {% endif %}
 
-<section class="pb-10">
-    <div class="container mx-auto px-4 max-w-7xl space-y-8">
+<section class="pb-10 {% if is_poetry_song %}poetry-followup-section{% endif %}">
+    <div class="container mx-auto px-4 max-w-7xl space-y-8 {% if is_poetry_song %}poetry-followup-stack{% endif %}">
         {% set donation_widget_html = (request.state.db | donation_widget) if request.state.db else '' %}
         {% if donation_config and donation_config.enabled and donation_widget_html %}
             {% if donation_config.show_position == 'sidebar' %}
@@ -446,6 +460,10 @@
             {% endif %}
         {% endif %}
 
+        {% if is_poetry_song %}
+            {% set related_posts_limit = 3 %}
+            {% set related_variant = 'compact_poetry' %}
+        {% endif %}
         {% include "components/related_posts.html" %}
 
         {% if post.allow_comments %}
@@ -455,7 +473,7 @@
             {% if is_micro_post %}
                 border-indigo-200 bg-gradient-to-b from-indigo-50/70 to-white dark:border-indigo-700/60 dark:from-indigo-900/20 dark:to-gray-900
             {% elif is_poetry_song %}
-                border-purple-200 bg-gradient-to-b from-purple-50/70 to-white dark:border-purple-700/60 dark:from-purple-900/20 dark:to-gray-900
+                poetry-comments-shell border-purple-200 bg-gradient-to-b from-purple-50/70 to-white dark:border-purple-700/60 dark:from-purple-900/20 dark:to-gray-900
             {% else %}
                 border-gray-200 bg-white/95 dark:border-gray-700 dark:bg-gray-800/95
             {% endif %}"
@@ -490,13 +508,243 @@
 {% block scripts %}
 {{ super() }}
 <script>
-async function copyCurrentUrl() {
+function showDetailToast(message, type = 'info', duration = 1400) {
+    if (window.multiFormatInteractions && typeof window.multiFormatInteractions.showToast === 'function') {
+        window.multiFormatInteractions.showToast(message, type, duration);
+        return;
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `multi-format-toast multi-format-toast-${type}`;
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        top: 1.25rem;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100;
+        padding: 0.6rem 1rem;
+        border-radius: 999px;
+        color: #fff;
+        font-size: 0.82rem;
+        font-weight: 600;
+        background: rgba(15, 23, 42, 0.92);
+        box-shadow: 0 8px 25px rgba(2, 6, 23, 0.35);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+    `;
+
+    if (type === 'error') {
+        toast.style.background = 'rgba(185, 28, 28, 0.95)';
+    } else if (type === 'success') {
+        toast.style.background = 'rgba(22, 163, 74, 0.95)';
+    }
+
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+    });
+
+    window.setTimeout(() => {
+        toast.style.opacity = '0';
+        window.setTimeout(() => toast.remove(), 220);
+    }, Math.max(800, duration));
+}
+
+function clearSelectedText() {
+    if (window.getSelection) {
+        const selection = window.getSelection();
+        if (selection) {
+            selection.removeAllRanges();
+        }
+    }
+}
+
+function selectNodeText(node) {
+    if (!node || !window.getSelection || !document.createRange) {
+        return false;
+    }
+    const selection = window.getSelection();
+    if (!selection) {
+        return false;
+    }
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return true;
+}
+
+function ensureDetailCopySheet() {
+    let sheet = document.getElementById('detail-copy-sheet');
+    if (sheet) {
+        return sheet;
+    }
+
+    sheet = document.createElement('div');
+    sheet.id = 'detail-copy-sheet';
+    sheet.className = 'detail-copy-sheet hidden';
+    sheet.innerHTML = `
+        <div class="detail-copy-sheet-backdrop" data-copy-sheet-close></div>
+        <div class="detail-copy-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="detail-copy-sheet-title">
+            <div class="detail-copy-sheet-header">
+                <div>
+                    <p id="detail-copy-sheet-title" class="detail-copy-sheet-title">手动复制内容</p>
+                    <p class="detail-copy-sheet-subtitle">当前浏览器限制剪贴板，请按 Ctrl+C 完成复制。</p>
+                </div>
+                <button type="button" class="detail-copy-sheet-close" data-copy-sheet-close aria-label="关闭手动复制面板">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <textarea id="detail-copy-sheet-textarea" class="detail-copy-sheet-textarea" readonly spellcheck="false"></textarea>
+            <div class="detail-copy-sheet-actions">
+                <button type="button" id="detail-copy-sheet-select-btn" class="detail-copy-sheet-btn detail-copy-sheet-btn-primary">重新选中</button>
+                <button type="button" class="detail-copy-sheet-btn" data-copy-sheet-close>关闭</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(sheet);
+
+    sheet.querySelectorAll('[data-copy-sheet-close]').forEach((node) => {
+        node.addEventListener('click', () => {
+            sheet.classList.add('hidden');
+            document.body.classList.remove('detail-copy-sheet-open');
+            clearSelectedText();
+        });
+    });
+
+    const textarea = sheet.querySelector('#detail-copy-sheet-textarea');
+    sheet.querySelector('#detail-copy-sheet-select-btn')?.addEventListener('click', () => {
+        textarea?.focus();
+        textarea?.select();
+    });
+
+    return sheet;
+}
+
+function openDetailCopySheet(content, title = '手动复制内容', subtitle = '当前浏览器限制剪贴板，请按 Ctrl+C 完成复制。') {
+    const sheet = ensureDetailCopySheet();
+    const titleNode = sheet.querySelector('#detail-copy-sheet-title');
+    const subtitleNode = sheet.querySelector('.detail-copy-sheet-subtitle');
+    const textarea = sheet.querySelector('#detail-copy-sheet-textarea');
+    if (titleNode) {
+        titleNode.textContent = title;
+    }
+    if (subtitleNode) {
+        subtitleNode.textContent = subtitle;
+    }
+    if (textarea) {
+        textarea.value = content;
+    }
+
+    sheet.classList.remove('hidden');
+    document.body.classList.add('detail-copy-sheet-open');
+    clearSelectedText();
+    window.setTimeout(() => {
+        textarea?.focus();
+        textarea?.select();
+    }, 30);
+}
+
+async function copyPoetryContent() {
+    const poetryNode = document.getElementById('poetry-lyrics-content');
+    const poetryTitleNode = document.querySelector('.poetry-title');
+    if (!poetryNode) {
+        showDetailToast('未找到可复制的正文内容', 'error', 1400);
+        return false;
+    }
+
+    const bodyText = (poetryNode.innerText || poetryNode.textContent || '').trim();
+    const titleText = (poetryTitleNode?.textContent || document.title || '').trim();
+    const payload = [titleText, bodyText].filter(Boolean).join('\n\n');
+    if (!payload) {
+        showDetailToast('正文内容为空，无法复制', 'error', 1400);
+        return false;
+    }
+
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(payload);
+            showDetailToast('全文已复制', 'success', 1200);
+            return true;
+        }
+    } catch (_) {
+        // fallback
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = payload;
+    textarea.setAttribute('readonly', 'readonly');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.pointerEvents = 'none';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const copied = document.execCommand('copy');
+    textarea.remove();
+
+    if (copied) {
+        showDetailToast('全文已复制', 'success', 1200);
+        return true;
+    }
+
+    clearSelectedText();
+    openDetailCopySheet(payload, '手动复制全文');
+    showDetailToast('当前浏览器限制剪贴板，请在面板内按 Ctrl+C 复制', 'info', 1800);
+    return false;
+}
+
+function syncPoetrySpeakFallbackState() {
+    let speakBtn = document.getElementById('poetry-speak-btn');
+    if (!speakBtn) {
+        return;
+    }
+
+    const canSpeak = typeof window !== 'undefined'
+        && !!window.speechSynthesis
+        && typeof window.speechSynthesis.speak === 'function'
+        && typeof window.SpeechSynthesisUtterance === 'function';
+
+    if (canSpeak) {
+        speakBtn.classList.remove('is-disabled');
+        speakBtn.removeAttribute('aria-disabled');
+        if (speakBtn.title === '当前浏览器不支持语音朗诵') {
+            speakBtn.title = '朗诵';
+        }
+        return;
+    }
+
+    if (speakBtn.dataset.poetrySpeakFallbackBound !== '1') {
+        const safeBtn = speakBtn.cloneNode(true);
+        safeBtn.dataset.poetrySpeakFallbackBound = '1';
+        speakBtn.replaceWith(safeBtn);
+        speakBtn = safeBtn;
+        speakBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            showDetailToast('当前浏览器不支持语音朗诵', 'info', 1500);
+        });
+    }
+
+    speakBtn.classList.add('is-disabled');
+    speakBtn.setAttribute('aria-disabled', 'true');
+    speakBtn.title = '当前浏览器不支持语音朗诵';
+}
+
+async function copyCurrentUrl(options = {}) {
+    const {
+        silentSuccess = false,
+        fallbackTitle = '手动复制链接',
+        fallbackSubtitle = '当前浏览器限制剪贴板，请复制下方链接。',
+    } = options;
     const url = window.location.href;
     try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(url);
-            if (window.multiFormatInteractions && typeof window.multiFormatInteractions.showToast === 'function') {
-                window.multiFormatInteractions.showToast('链接已复制', 'success', 1200);
+            if (!silentSuccess) {
+                showDetailToast('链接已复制', 'success', 1200);
             }
             return true;
         }
@@ -510,10 +758,16 @@ async function copyCurrentUrl() {
     input.select();
     const copied = document.execCommand('copy');
     input.remove();
-    if (copied && window.multiFormatInteractions && typeof window.multiFormatInteractions.showToast === 'function') {
-        window.multiFormatInteractions.showToast('链接已复制', 'success', 1200);
+    if (copied) {
+        if (!silentSuccess) {
+            showDetailToast('链接已复制', 'success', 1200);
+        }
+        return true;
     }
-    return copied;
+
+    openDetailCopySheet(url, fallbackTitle, fallbackSubtitle);
+    showDetailToast('当前浏览器限制剪贴板，请在面板内复制链接', 'info', 1800);
+    return false;
 }
 
 async function shareMicroPost() {
@@ -537,7 +791,42 @@ async function shareMicroPost() {
     await copyCurrentUrl();
 }
 
+async function sharePoetry() {
+    const shareTitleNode = document.querySelector('.poetry-title');
+    const poetryNode = document.getElementById('poetry-lyrics-content');
+    const shareTitle = shareTitleNode ? shareTitleNode.textContent.trim() : document.title;
+    const excerpt = ((poetryNode?.innerText || '').trim().split('\n').filter(Boolean).slice(0, 2).join(' ')).slice(0, 80);
+    const shareData = {
+        title: shareTitle || document.title,
+        text: excerpt || '分享一首诗词给你',
+        url: window.location.href,
+    };
+
+    if (navigator.share) {
+        try {
+            await navigator.share(shareData);
+            return;
+        } catch (_) {
+            // 用户取消分享时不提示
+        }
+    }
+
+    const copied = await copyCurrentUrl({
+        silentSuccess: true,
+        fallbackTitle: '手动复制分享链接',
+        fallbackSubtitle: '当前浏览器限制分享能力，请复制下方链接后自行分享。',
+    });
+    if (copied) {
+        showDetailToast('分享链接已复制', 'success', 1200);
+    }
+}
+
+syncPoetrySpeakFallbackState();
+window.addEventListener('load', syncPoetrySpeakFallbackState);
+
 document.addEventListener('DOMContentLoaded', function() {
+    syncPoetrySpeakFallbackState();
+
     if (typeof window.safeHighlightCodeBlocks === 'function') {
         window.safeHighlightCodeBlocks(document);
         return;

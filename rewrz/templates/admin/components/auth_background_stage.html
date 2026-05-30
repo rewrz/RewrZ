@@ -1,0 +1,20 @@
+<div class="admin-login-stage" aria-hidden="true">
+    <div class="admin-login-bg-motion">
+        <div class="admin-login-bg"></div>
+        {% if has_login_video %}
+        <video id="admin-login-video" class="admin-login-video" autoplay muted loop playsinline preload="metadata" poster="{{ login_background_url }}">
+            <source src="{{ login_background_video_url }}">
+        </video>
+        {% endif %}
+    </div>
+    <div class="admin-login-aurora"></div>
+    <div class="admin-login-grid"></div>
+    <div class="admin-login-particles">
+        {% for i in range(1, 21) %}
+        <span style="--x: {{ (i * 13) % 100 }}%; --size: {{ 2 + (i % 3) }}px; --duration: {{ 11 + (i % 6) }}s; --delay: -{{ i * 0.8 }}s; --drift: {{ ((i % 5) - 2) * 2 }}vw;"></span>
+        {% endfor %}
+    </div>
+</div>
+<div class="login-deco-1"></div>
+<div class="login-deco-2"></div>
+<div class="login-deco-3"></div>

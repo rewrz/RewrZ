@@ -25,6 +25,23 @@
         </div>
         {% endif %}
 
+        {% if toc_items %}
+        <aside class="page-toc-panel is-collapsed" data-floating-toc data-toc-title="页面目录">
+            <button type="button" class="floating-toc-toggle" data-floating-toc-toggle aria-expanded="false" aria-label="展开页面目录">
+                <i class="fas fa-angles-right" aria-hidden="true"></i>
+                <span>目录</span>
+            </button>
+            <h2 class="page-toc-title">页面目录</h2>
+            <ul class="page-toc-list">
+                {% for item in toc_items %}
+                <li class="{% if item.level == 'h3' %}is-sub{% endif %}">
+                    <a href="#{{ item.id }}" data-toc-link="{{ item.id }}" class="page-toc-link">{{ item.title }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </aside>
+        {% endif %}
+
         <article class="page-detail-card overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl dark:border-slate-700 dark:bg-slate-900/90">
             <header class="page-hero relative">
                 {% if post and post.featured_image_url %}
@@ -74,23 +91,6 @@
 
             <div class="page-body p-5 md:p-8">
                 <div class="page-layout-grid {% if toc_items %}has-toc{% endif %}">
-                    {% if toc_items %}
-                    <aside class="page-toc-panel is-collapsed" data-floating-toc data-toc-title="页面目录">
-                        <button type="button" class="floating-toc-toggle" data-floating-toc-toggle aria-expanded="false" aria-label="展开页面目录">
-                            <i class="fas fa-angles-right" aria-hidden="true"></i>
-                            <span>目录</span>
-                        </button>
-                        <h2 class="page-toc-title">页面目录</h2>
-                        <ul class="page-toc-list">
-                            {% for item in toc_items %}
-                            <li class="{% if item.level == 'h3' %}is-sub{% endif %}">
-                                <a href="#{{ item.id }}" data-toc-link="{{ item.id }}" class="page-toc-link">{{ item.title }}</a>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </aside>
-                    {% endif %}
-
                     <div class="page-content-wrap">
                         <div class="post-content page-content prose prose-lg max-w-none dark:prose-invert">
                             {{ page_content | safe }}
@@ -131,7 +131,7 @@
             <div class="border-b border-slate-200/90 px-5 py-4 dark:border-slate-700/80 md:px-6">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-3">
-                        <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-300">
+                        <span class="page-comments-icon inline-flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-300">
                             <i class="far fa-comments"></i>
                         </span>
                         <div>
@@ -139,7 +139,7 @@
                             <p class="text-xs text-slate-500 dark:text-slate-400">欢迎补充你的观点和建议。</p>
                         </div>
                     </div>
-                    <span id="comment-count-badge" data-count="{{ post.comments|length }}" class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm dark:bg-slate-800 dark:text-slate-200">
+                    <span id="comment-count-badge" data-count="{{ post.comments|length }}" class="page-comments-count inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm dark:bg-slate-800 dark:text-slate-200">
                         {{ (post.comments|length) | compact_number_cn }} 条
                     </span>
                 </div>

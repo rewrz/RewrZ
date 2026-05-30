@@ -1,16 +1,16 @@
 {% extends "admin/base.html" %}
 
 {% block title_text %}系统信息{% endblock %}
-{% block page_title %}<i class="fas fa-server text-blue-600 mr-3"></i>系统信息{% endblock %}
+{% block page_title %}<i class="fas fa-server admin-accent-text mr-3"></i>系统信息{% endblock %}
 {% block content %}
-<div class="bg-white p-6 rounded-lg shadow-md">
+<div class="admin-section-card admin-system-info-page p-6 rounded-lg">
     
     <p class="text-gray-600 mb-6">以下是 RewrZ 博客系统的运行环境信息</p>
     
     <!-- 操作系统信息 -->
-    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+    <div class="admin-section-card p-6 rounded-lg mb-6">
         <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-            <i class="fas fa-desktop text-green-600 mr-2"></i>
+            <i class="fas fa-desktop admin-accent-text mr-2"></i>
             操作系统
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -50,9 +50,9 @@
     </div>
 
     <!-- Python信息 -->
-    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+    <div class="admin-section-card p-6 rounded-lg mb-6">
         <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-            <i class="fab fa-python text-yellow-600 mr-2"></i>
+            <i class="fab fa-python admin-accent-text mr-2"></i>
             Python 环境
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -88,30 +88,30 @@
     </div>
 
     <!-- 框架版本信息 -->
-    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+    <div class="admin-section-card p-6 rounded-lg mb-6">
         <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-            <i class="fas fa-code text-purple-600 mr-2"></i>
+            <i class="fas fa-code admin-accent-text mr-2"></i>
             框架与依赖库版本
         </h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             {% for name, version in system_info.frameworks.items() %}
-            <div class="bg-gray-50 p-4 rounded-lg text-center">
+            <div class="admin-info-box p-4 rounded-lg text-center">
                 <div class="font-semibold text-gray-800">{{ name }}</div>
-                <div class="text-lg font-mono text-blue-600">{{ version }}</div>
+                <div class="admin-accent-text text-lg font-mono">{{ version }}</div>
             </div>
             {% endfor %}
         </div>
     </div>
 
     <!-- 数据库信息 -->
-    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+    <div class="admin-section-card p-6 rounded-lg mb-6">
         <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-            <i class="fas fa-database text-indigo-600 mr-2"></i>
+            <i class="fas fa-database admin-accent-text mr-2"></i>
             数据库信息
         </h2>
         {% if system_info.database.error %}
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div class="text-red-800">
+        <div class="admin-warning-box rounded-lg p-4">
+            <div class="admin-result-error-text">
                 <i class="fas fa-exclamation-triangle mr-2"></i>
                 获取数据库信息时出错: {{ system_info.database.error }}
             </div>
@@ -157,14 +157,14 @@
     </div>
 
     <!-- 媒体库信息 -->
-    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+    <div class="admin-section-card p-6 rounded-lg mb-6">
         <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-            <i class="fas fa-images text-pink-600 mr-2"></i>
+            <i class="fas fa-images admin-accent-text mr-2"></i>
             媒体库信息
         </h2>
         {% if system_info.media.error %}
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div class="text-red-800">
+        <div class="admin-warning-box rounded-lg p-4">
+            <div class="admin-result-error-text">
                 <i class="fas fa-exclamation-triangle mr-2"></i>
                 获取媒体库信息时出错: {{ system_info.media.error }}
             </div>
@@ -179,7 +179,7 @@
                     </div>
                     <div class="flex justify-between">
                         <dt class="font-medium text-gray-700">总大小:</dt>
-                        <dd class="text-gray-900 font-semibold text-blue-600">{{ system_info.media.total_size }}</dd>
+                        <dd class="text-gray-900 font-semibold admin-accent-text">{{ system_info.media.total_size }}</dd>
                     </div>
                     {% if system_info.media.directory_size %}
                     <div class="flex justify-between">
@@ -217,12 +217,12 @@
                 <dd class="text-gray-900 text-sm font-mono bg-white p-2 rounded border break-all">{{ system_info.media.directory }}</dd>
                 <div class="mt-2">
                     {% if system_info.media.directory_exists %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <span class="admin-status-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
                         <i class="fas fa-check-circle mr-1"></i>
                         目录存在
                     </span>
                     {% else %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    <span class="admin-status-badge is-danger inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
                         <i class="fas fa-exclamation-triangle mr-1"></i>
                         目录不存在
                     </span>
@@ -234,14 +234,14 @@
     </div>
 
     <!-- 系统资源信息 -->
-    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+    <div class="admin-section-card p-6 rounded-lg mb-6">
         <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-            <i class="fas fa-microchip text-orange-600 mr-2"></i>
+            <i class="fas fa-microchip admin-accent-text mr-2"></i>
             系统资源
         </h2>
         {% if system_info.resources.error %}
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div class="text-red-800">
+        <div class="admin-warning-box rounded-lg p-4">
+            <div class="admin-result-error-text">
                 <i class="fas fa-exclamation-triangle mr-2"></i>
                 获取系统资源信息时出错: {{ system_info.resources.error }}
             </div>
@@ -251,7 +251,7 @@
             <!-- CPU信息 -->
             <div class="bg-gray-50 p-4 rounded-lg">
                 <h3 class="font-semibold text-gray-800 mb-3">
-                    <i class="fas fa-microchip text-blue-600 mr-2"></i>
+                    <i class="fas fa-microchip admin-accent-text mr-2"></i>
                     CPU
                 </h3>
                 <dl class="space-y-2 text-sm">
@@ -279,7 +279,7 @@
             <!-- 内存信息 -->
             <div class="bg-gray-50 p-4 rounded-lg">
                 <h3 class="font-semibold text-gray-800 mb-3">
-                    <i class="fas fa-memory text-green-600 mr-2"></i>
+                    <i class="fas fa-memory admin-accent-text mr-2"></i>
                     内存
                 </h3>
                 <dl class="space-y-2 text-sm">
@@ -302,8 +302,8 @@
                 </dl>
                 <!-- 内存使用率进度条 -->
                 <div class="mt-3">
-                    <div class="bg-gray-200 rounded-full h-2">
-                        <div class="bg-green-600 h-2 rounded-full" style="width: {{ system_info.resources.memory.usage_percent }}%"></div>
+                    <div class="admin-progress-track rounded-full h-2">
+                        <div class="admin-progress-bar h-2 rounded-full" style="width: {{ system_info.resources.memory.usage_percent }}%"></div>
                     </div>
                 </div>
             </div>
@@ -311,7 +311,7 @@
             <!-- 交换分区信息 -->
             <div class="bg-gray-50 p-4 rounded-lg">
                 <h3 class="font-semibold text-gray-800 mb-3">
-                    <i class="fas fa-hdd text-purple-600 mr-2"></i>
+                    <i class="fas fa-hdd admin-accent-text mr-2"></i>
                     交换分区
                 </h3>
                 <dl class="space-y-2 text-sm">
@@ -334,8 +334,8 @@
                 </dl>
                 <!-- 交换分区使用率进度条 -->
                 <div class="mt-3">
-                    <div class="bg-gray-200 rounded-full h-2">
-                        <div class="bg-purple-600 h-2 rounded-full" style="width: {{ system_info.resources.swap.usage_percent }}%"></div>
+                    <div class="admin-progress-track rounded-full h-2">
+                        <div class="admin-progress-bar h-2 rounded-full" style="width: {{ system_info.resources.swap.usage_percent }}%"></div>
                     </div>
                 </div>
             </div>
@@ -344,14 +344,14 @@
     </div>
 
     <!-- 磁盘空间信息 -->
-    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+    <div class="admin-section-card p-6 rounded-lg mb-6">
         <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-            <i class="fas fa-hdd text-red-600 mr-2"></i>
+            <i class="fas fa-hdd admin-accent-text mr-2"></i>
             磁盘空间
         </h2>
         {% if system_info.disk.error %}
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div class="text-red-800">
+        <div class="admin-warning-box rounded-lg p-4">
+            <div class="admin-result-error-text">
                 <i class="fas fa-exclamation-triangle mr-2"></i>
                 获取磁盘信息时出错: {{ system_info.disk.error }}
             </div>
@@ -371,7 +371,7 @@
                 </div>
                 <div class="text-center">
                     <div class="text-gray-600">可用空间</div>
-                    <div class="font-mono text-lg text-green-600">{{ system_info.disk.current_drive.free }}</div>
+                    <div class="admin-accent-text font-mono text-lg">{{ system_info.disk.current_drive.free }}</div>
                 </div>
                 <div class="text-center">
                     <div class="text-gray-600">使用率</div>
@@ -380,8 +380,8 @@
             </div>
             <!-- 磁盘使用率进度条 -->
             <div class="mt-3">
-                <div class="bg-gray-200 rounded-full h-3">
-                    <div class="bg-red-600 h-3 rounded-full" style="width: {{ system_info.disk.current_drive.usage_percent }}%"></div>
+                <div class="admin-progress-track rounded-full h-3">
+                    <div class="admin-progress-bar h-3 rounded-full" style="width: {{ system_info.disk.current_drive.usage_percent }}%"></div>
                 </div>
             </div>
         </div>
@@ -399,7 +399,7 @@
                             <div class="text-xs text-gray-600">{{ partition.mountpoint }} ({{ partition.fstype }})</div>
                         </div>
                         {% if partition.error %}
-                        <div class="text-red-600 text-sm">{{ partition.error }}</div>
+                        <div class="admin-result-error-text text-sm">{{ partition.error }}</div>
                         {% else %}
                         <div class="text-right text-sm">
                             <div>{{ partition.free }} 可用 / {{ partition.total }}</div>
@@ -422,11 +422,11 @@
         </div>
         <div class="flex space-x-3">
             <button type="button" onclick="window.location.href='{{ admin_path }}/dashboard'" 
-                    class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
+                    class="admin-secondary-btn px-4 py-2 rounded-md">
                 返回仪表盘
             </button>
             <button type="button" id="refresh-btn" onclick="refreshSystemInfo()" 
-                    class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    class="admin-primary-btn px-6 py-2 rounded-md">
                 <i class="fas fa-sync-alt mr-2" id="refresh-icon"></i>
                 更新信息
             </button>
@@ -479,36 +479,11 @@ async function refreshSystemInfo() {
 
 // 显示通知消息
 function showNotification(message, type) {
-    // 创建通知元素
-    const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm ${
-        type === 'success' 
-            ? 'bg-green-100 border border-green-400 text-green-700' 
-            : 'bg-red-100 border border-red-400 text-red-700'
-    }`;
-    
-    notification.innerHTML = `
-        <div class="flex items-center">
-            <i class="fas ${
-                type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'
-            } mr-2"></i>
-            <span>${message}</span>
-            <button onclick="this.parentElement.parentElement.remove()" 
-                    class="ml-2 text-gray-500 hover:text-gray-700">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `;
-    
-    // 添加到页面
-    document.body.appendChild(notification);
-    
-    // 3秒后自动移除
-    setTimeout(() => {
-        if (notification.parentElement) {
-            notification.remove();
-        }
-    }, 3000);
+    if (window.adminNotify && typeof window.adminNotify === 'function') {
+        window.adminNotify(message, type);
+        return;
+    }
+    alert(message);
 }
 
 // 页面加载完成后设置自动更新时间显示

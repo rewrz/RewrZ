@@ -1,73 +1,73 @@
 {% extends "admin/base.html" %}
 
 {% block title_text %}文章管理{% endblock %}
-{% block page_title %}<i class="fas fa-newspaper text-blue-600 mr-3"></i>文章管理{% endblock %}
+{% block page_title %}<i class="fas fa-newspaper admin-accent-text mr-3"></i>文章管理{% endblock %}
 {% block content %}
-<div class="admin-panel p-4 md:p-6 space-y-5">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="flex flex-wrap items-center gap-2">
+<div class="admin-panel admin-posts-shell posts-admin-page p-4 md:p-6 space-y-5">
+    <div class="admin-toolbar-shell flex flex-wrap items-start justify-between gap-3 px-4 py-4">
+        <div class="admin-toolbar-main flex flex-wrap items-center gap-2">
             <a href="{{ request.state.admin_path }}/posts/new"
-               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+               class="admin-primary-btn rounded-md px-4 py-2">
                 <i class="fas fa-plus mr-2"></i>新建文章
             </a>
             <button onclick="refreshPostsList()"
-                    class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                    class="admin-secondary-btn rounded-md px-4 py-2">
                 <i class="fas fa-sync-alt mr-2"></i>刷新
             </button>
-            <span class="mx-1 h-6 w-px bg-gray-300"></span>
-            <span class="text-sm text-gray-500">批量操作</span>
+            <span class="admin-divider-vertical mx-1 h-6 w-px"></span>
+            <span class="admin-toolbar-pill text-sm">批量操作</span>
             <button onclick="batchPublish()" data-batch-action
-                    class="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    class="admin-soft-btn admin-soft-btn-success rounded-md px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     disabled>
                 批量发布
             </button>
             <button onclick="batchDraft()" data-batch-action
-                    class="px-3 py-2 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    class="admin-soft-btn rounded-md px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     disabled>
                 移至草稿
             </button>
             <button onclick="batchDelete()" data-batch-action
-                    class="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    class="admin-soft-btn admin-soft-btn-danger rounded-md px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     disabled>
                 批量删除
             </button>
-            <span id="selected-count" class="text-sm text-gray-500">已选 0 篇</span>
-            <span id="batch-operation-status" class="hidden text-sm text-blue-600">
+            <span id="selected-count" class="text-sm text-[var(--color-text-light)]">已选 0 篇</span>
+            <span id="batch-operation-status" class="admin-accent-text hidden text-sm">
                 <i class="fas fa-spinner fa-spin mr-1"></i>
                 <span id="batch-operation-status-text"></span>
             </span>
         </div>
-        <div class="text-sm text-gray-600">
-            <span class="font-medium">文章总数：</span>{{ total_articles }}
+        <div class="admin-table-summary rounded-xl px-4 py-3 text-sm">
+            <div><span class="font-medium">文章总数：</span>{{ total_articles }}</div>
             {% if pagination.filtered_total != total_articles %}
-            <span class="ml-3"><span class="font-medium">筛选结果：</span>{{ pagination.filtered_total }}</span>
+            <div class="mt-1"><span class="font-medium">筛选结果：</span>{{ pagination.filtered_total }}</div>
             {% endif %}
         </div>
     </div>
 
-    <form method="get" action="{{ request.state.admin_path }}/posts" class="flex flex-wrap gap-3 items-end bg-gray-50 p-4 rounded-lg border border-gray-200">
+    <form method="get" action="{{ request.state.admin_path }}/posts" class="admin-filter-panel admin-filter-grid flex flex-wrap items-end gap-3 rounded-2xl p-4">
         <div class="min-w-64 flex-1">
-            <label for="search-input" class="block text-xs text-gray-500 mb-1">搜索</label>
+            <label for="search-input" class="mb-1 block text-xs text-[var(--color-text-light)]">搜索</label>
             <input
                 type="text"
                 id="search-input"
                 name="search"
                 value="{{ search_query }}"
                 placeholder="搜索标题、摘要或正文..."
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                class="admin-form-field w-full rounded-md px-3 py-2"
             >
         </div>
         <div>
-            <label for="status-filter" class="block text-xs text-gray-500 mb-1">状态</label>
-            <select id="status-filter" name="status" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <label for="status-filter" class="mb-1 block text-xs text-[var(--color-text-light)]">状态</label>
+            <select id="status-filter" name="status" class="admin-form-field rounded-md px-3 py-2">
                 <option value="">全部状态</option>
                 <option value="published" {% if selected_status == "published" %}selected{% endif %}>已发布</option>
                 <option value="draft" {% if selected_status == "draft" %}selected{% endif %}>草稿</option>
             </select>
         </div>
         <div>
-            <label for="category-filter" class="block text-xs text-gray-500 mb-1">分类</label>
-            <select id="category-filter" name="category" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <label for="category-filter" class="mb-1 block text-xs text-[var(--color-text-light)]">分类</label>
+            <select id="category-filter" name="category" class="admin-form-field rounded-md px-3 py-2">
                 <option value="">全部分类</option>
                 {% for category in categories %}
                 <option value="{{ category.id }}" {% if selected_category == (category.id|string) %}selected{% endif %}>{{ category.name }}</option>
@@ -75,8 +75,8 @@
             </select>
         </div>
         <div>
-            <label for="page-size-filter" class="block text-xs text-gray-500 mb-1">每页数量</label>
-            <select id="page-size-filter" name="page_size" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <label for="page-size-filter" class="mb-1 block text-xs text-[var(--color-text-light)]">每页数量</label>
+            <select id="page-size-filter" name="page_size" class="admin-form-field rounded-md px-3 py-2">
                 {% for size in pagination.allowed_page_sizes %}
                 <option value="{{ size }}" {% if pagination.page_size == size %}selected{% endif %}>{{ size }} / 页</option>
                 {% endfor %}
@@ -84,17 +84,17 @@
         </div>
         <input type="hidden" name="page" value="1">
         <div class="flex gap-2">
-            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+            <button type="submit" class="admin-primary-btn rounded-md px-4 py-2">
                 应用筛选
             </button>
-            <a href="{{ request.state.admin_path }}/posts" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition-colors">
+            <a href="{{ request.state.admin_path }}/posts" class="admin-secondary-btn rounded-md px-4 py-2">
                 重置
             </a>
         </div>
     </form>
 
-    <div class="overflow-x-auto rounded-lg border border-gray-200">
-        <table class="min-w-full bg-white">
+    <div class="admin-table-shell overflow-x-auto rounded-2xl">
+        <table class="admin-list-table min-w-full">
             <colgroup>
                 <col class="w-12">
                 <col class="w-[34%]">
@@ -106,56 +106,58 @@
                 <col class="w-40">
                 <col class="w-24">
             </colgroup>
-            <thead class="bg-gray-50">
+            <thead class="admin-list-table-head">
                 <tr>
-                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <input type="checkbox" id="select-all" class="rounded border-gray-300">
+                    <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">
+                        <input type="checkbox" id="select-all" class="admin-form-check rounded border-gray-300">
                     </th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标题</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">分类</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标签</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">评论</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">发布时间</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">阅读量</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">标题</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">状态</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">操作</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">分类</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">标签</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">评论</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">发布时间</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">阅读量</th>
                 </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody class="admin-list-table-body divide-y">
                 {% for post in posts %}
-                <tr class="hover:bg-gray-50">
+                <tr class="transition-colors">
                     <td class="px-3 py-4 align-top">
-                        <input type="checkbox" class="post-checkbox rounded border-gray-300" value="{{ post.id }}">
+                        <input type="checkbox" class="post-checkbox admin-form-check rounded border-gray-300" value="{{ post.id }}">
                     </td>
                     <td class="px-4 py-4 align-top">
-                        <div class="text-base font-semibold tracking-tight text-gray-900">
-                            <a href="{{ post | post_url }}" target="_blank" class="hover:text-blue-600">
+                        <div class="text-[15px] font-semibold tracking-tight leading-6 text-[var(--color-text)]">
+                            <a href="{{ post | post_url }}" target="_blank" class="admin-accent-link">
                                 {{ post.title or "(无标题)" }}
                             </a>
                         </div>
-                        <div class="mt-1 text-xs text-gray-500 leading-5">
-                            <span class="inline-block text-[11px] uppercase tracking-wide text-gray-400">摘要</span>
-                            <span class="ml-1 italic">{{ post.excerpt[:80] if post.excerpt else '' }}{% if post.excerpt and post.excerpt|length > 80 %}...{% endif %}</span>
+                        <div class="admin-list-meta-card mt-2 rounded-xl px-3 py-2 text-xs leading-5">
+                            <span class="inline-block text-[11px] uppercase tracking-wide text-[var(--color-text-light)]">摘要</span>
+                            <p class="mt-1 line-clamp-2 italic text-[var(--color-text-light)]">
+                                {{ post.excerpt[:120] if post.excerpt else '暂无摘要' }}{% if post.excerpt and post.excerpt|length > 120 %}...{% endif %}
+                            </p>
                         </div>
                     </td>
                     <td class="px-4 py-4 align-top">
                         {% if post.status == 'published' %}
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">已发布</span>
+                        <span class="admin-badge admin-badge-success px-2 py-0.5 text-xs font-semibold">已发布</span>
                         {% elif post.status == 'draft' %}
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">草稿</span>
+                        <span class="admin-badge admin-badge-warning px-2 py-0.5 text-xs font-semibold">草稿</span>
                         {% else %}
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{{ post.status }}</span>
+                        <span class="admin-badge admin-badge-neutral px-2 py-0.5 text-xs font-semibold">{{ post.status }}</span>
                         {% endif %}
                     </td>
                     <td class="px-4 py-4 align-top">
-                        <div class="flex items-center gap-3 text-sm">
-                            <a href="{{ request.state.admin_path }}/posts/{{ post.id }}/edit" class="text-blue-600 hover:text-blue-900" title="编辑">
+                        <div class="admin-action-links flex items-center gap-3 text-sm">
+                            <a href="{{ request.state.admin_path }}/posts/{{ post.id }}/edit" class="admin-action-link" title="编辑">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <a href="{{ post | post_url }}" target="_blank" class="text-green-600 hover:text-green-900" title="查看">
+                            <a href="{{ post | post_url }}" target="_blank" class="admin-action-link" title="查看">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <button onclick="deletePost({{ post.id }})" class="text-red-600 hover:text-red-900" title="删除">
+                            <button onclick="deletePost({{ post.id }})" class="admin-action-link" title="删除">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -164,12 +166,12 @@
                         <div class="flex flex-wrap gap-1 max-w-[10rem] whitespace-normal break-words leading-5">
                             {% if post.categories %}
                                 {% for category in post.categories %}
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                <span class="admin-badge admin-badge-neutral px-2 py-0.5 text-xs font-semibold">
                                     {{ category.name }}
                                 </span>
                                 {% endfor %}
                             {% else %}
-                                <span class="text-xs text-gray-500">未分类</span>
+                                <span class="text-xs text-[var(--color-text-light)]">未分类</span>
                             {% endif %}
                         </div>
                     </td>
@@ -177,22 +179,22 @@
                         <div class="flex flex-wrap gap-1 max-w-[9rem] whitespace-normal break-words leading-5">
                             {% if post.tags %}
                                 {% for tag in post.tags %}
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                <span class="admin-badge admin-badge-info px-2 py-0.5 text-xs font-semibold">
                                     {{ tag.name }}
                                 </span>
                                 {% endfor %}
                             {% else %}
-                                <span class="text-xs text-gray-500">无标签</span>
+                                <span class="text-xs text-[var(--color-text-light)]">无标签</span>
                             {% endif %}
                         </div>
                     </td>
-                    <td class="px-4 py-4 align-top text-sm text-gray-600">
+                    <td class="px-4 py-4 align-top text-sm text-[var(--color-text-light)]">
                         {{ post.comment_count if post.comment_count is defined else 0 }}
                     </td>
-                    <td class="px-4 py-4 align-top text-sm text-gray-500">
+                    <td class="px-4 py-4 align-top text-sm text-[var(--color-text-light)]">
                         {{ (post.published_at or post.created_at).strftime('%Y-%m-%d %H:%M') if (post.published_at or post.created_at) else '-' }}
                     </td>
-                    <td class="px-4 py-4 align-top text-sm text-gray-500">
+                    <td class="px-4 py-4 align-top text-sm text-[var(--color-text-light)]">
                         {{ post.views if post.views else 0 }}
                     </td>
                 </tr>
@@ -200,11 +202,11 @@
 
                 {% if not posts %}
                 <tr>
-                    <td colspan="9" class="px-6 py-12 text-center text-gray-500">
-                        <i class="fas fa-file-alt text-4xl mb-4 text-gray-400"></i>
+                    <td colspan="9" class="admin-empty-state px-6 py-12 text-center text-[var(--color-text-light)]">
+                        <i class="fas fa-file-alt mb-4 text-4xl opacity-60"></i>
                         <div class="text-lg">暂无文章</div>
                         <div class="text-sm">
-                            <a href="{{ request.state.admin_path }}/posts/new" class="text-blue-600 hover:text-blue-800">立即创建第一篇文章</a>
+                            <a href="{{ request.state.admin_path }}/posts/new" class="admin-accent-link">立即创建第一篇文章</a>
                         </div>
                     </td>
                 </tr>
@@ -214,32 +216,45 @@
     </div>
 
     <div class="flex flex-wrap justify-between items-center gap-3 pt-1">
-        <div class="text-sm text-gray-600">
+        <div class="text-sm text-[var(--color-text-light)]">
             共 {{ pagination.filtered_total }} 篇结果，第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页
         </div>
         <div class="flex items-center gap-1">
             {% if pagination.has_prev %}
-            <a href="{{ pagination.prev_url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">上一页</a>
+            <a href="{{ pagination.prev_url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">上一页</a>
             {% else %}
-            <span class="px-3 py-1.5 text-sm border border-gray-200 rounded text-gray-400 cursor-not-allowed">上一页</span>
+            <span class="admin-pagination-link is-disabled px-3 py-1.5 text-sm rounded cursor-not-allowed">上一页</span>
             {% endif %}
 
             {% for link in pagination.page_links %}
                 {% if link.is_current %}
-                <span class="px-3 py-1.5 text-sm rounded bg-blue-600 text-white">{{ link.page }}</span>
+                <span class="admin-pagination-link is-current px-3 py-1.5 text-sm rounded">{{ link.page }}</span>
                 {% else %}
-                <a href="{{ link.url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">{{ link.page }}</a>
+                <a href="{{ link.url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">{{ link.page }}</a>
                 {% endif %}
             {% endfor %}
 
             {% if pagination.has_next %}
-            <a href="{{ pagination.next_url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">下一页</a>
+            <a href="{{ pagination.next_url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">下一页</a>
             {% else %}
-            <span class="px-3 py-1.5 text-sm border border-gray-200 rounded text-gray-400 cursor-not-allowed">下一页</span>
+            <span class="admin-pagination-link is-disabled px-3 py-1.5 text-sm rounded cursor-not-allowed">下一页</span>
             {% endif %}
         </div>
     </div>
 </div>
+
+<style>
+    .admin-posts-shell .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .admin-posts-shell table {
+        table-layout: fixed;
+    }
+</style>
 
 <script>
 let batchActionInProgress = false;

@@ -5,14 +5,15 @@
 {% block content %}
 <section class="py-8">
     <div class="container mx-auto max-w-7xl px-4">
-        <div class="mb-8 rounded-3xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-sky-50 to-white p-6 shadow-sm dark:border-cyan-700/40 dark:from-cyan-900/20 dark:via-slate-900 dark:to-gray-900 md:p-8">
+        {% set current_media_icon = (media_item.icon | fa_compat) if media_item.icon else 'fas fa-photo-video' %}
+        <div class="media-archive-hero mb-8 rounded-3xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-sky-50 to-white p-6 shadow-sm dark:border-cyan-700/40 dark:from-cyan-900/20 dark:via-slate-900 dark:to-gray-900 md:p-8">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">媒体聚合</p>
+                    <p class="media-archive-kicker text-xs font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">媒体聚合</p>
                     <h1 class="mt-1 text-3xl font-bold text-gray-900 dark:text-white md:text-4xl">
-                        <i class="fas {{ media_item.icon }} mr-2"></i>{{ media_item.name }}
+                        <i class="{{ current_media_icon }} mr-2"></i>{{ media_item.name }}
                     </h1>
-                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                    <p class="media-archive-description mt-2 text-sm text-gray-600 dark:text-gray-300">
                         {% if media_slug == 'images' %}
                         仅展示恰好 1 张图片的内容，点击图片直接进入全屏观影模式。
                         {% elif media_slug == 'gallery' %}
@@ -22,23 +23,24 @@
                         {% endif %}
                     </p>
                 </div>
-                <div class="rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm dark:bg-gray-800 dark:text-gray-200">
+                <div class="media-archive-count-chip rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm dark:bg-gray-800 dark:text-gray-200">
                     共 {{ pagination.total_count if pagination else total_count }} 条
                 </div>
             </div>
 
-            <div class="mt-5 flex flex-wrap items-center gap-2">
+            <div class="media-archive-nav mt-5 flex flex-wrap items-center gap-2">
                 {% for item in media_nav_items %}
-                <a href="/archives/media/{{ item.key }}" class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition
+                {% set nav_media_icon = (item.icon | fa_compat) if item.icon else 'fas fa-photo-video' %}
+                <a href="/archives/media/{{ item.key }}" class="media-archive-pill media-archive-pill-{{ item.key }} inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition {% if media_slug == item.key %}is-active{% endif %}
                     {% if media_slug == item.key %}
                         bg-cyan-600 text-white
                     {% else %}
                         bg-white text-cyan-700 hover:bg-cyan-100 dark:bg-gray-800 dark:text-cyan-300 dark:hover:bg-cyan-900/40
                     {% endif %}">
-                    <i class="fas {{ item.icon }} mr-1"></i>{{ item.name }}
+                    <i class="{{ nav_media_icon }} mr-1"></i>{{ item.name }}
                 </a>
                 {% endfor %}
-                <a href="/archives" class="ml-auto inline-flex items-center rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
+                <a href="/archives" class="media-archive-pill media-archive-pill-archive ml-auto inline-flex items-center rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
                     <i class="fas fa-archive mr-1"></i>全部归档
                 </a>
             </div>
@@ -51,7 +53,7 @@
             {% include "components/list_pagination.html" %}
         {% else %}
         <div class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center dark:border-gray-600 dark:bg-gray-900/40">
-            <i class="fas {{ media_item.icon }} text-4xl text-gray-400 dark:text-gray-500"></i>
+            <i class="{{ current_media_icon }} text-4xl text-gray-400 dark:text-gray-500"></i>
             <h2 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">该媒体分类暂无内容</h2>
             <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">你可以先发布带有 {{ media_item.name }} 附件的内容，再回来查看聚合效果。</p>
         </div>

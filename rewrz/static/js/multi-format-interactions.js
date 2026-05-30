@@ -924,36 +924,115 @@ class MultiFormatInteractions {
         const speakBtn = document.getElementById('poetry-speak-btn');
         const contentEl = document.getElementById('poetry-lyrics-content');
         
-        if (!speakBtn || !contentEl || !this.speechSynthesis) return;
+        if (!speakBtn || !contentEl) return;
+
+        const unsupportedMessage = '当前浏览器不支持语音朗诵';
+        const resetButtonState = () => {
+            this.speaking = false;
+            speakBtn.innerHTML = '<i class="fas fa-volume-up mr-1"></i>朗诵';
+            speakBtn.classList.remove('is-active');
+            contentEl.classList.remove('is-speaking');
+        };
+        const markUnsupported = () => {
+            resetButtonState();
+            speakBtn.classList.add('is-disabled');
+            speakBtn.setAttribute('aria-disabled', 'true');
+            speakBtn.title = unsupportedMessage;
+        };
+        const clearUnsupported = () => {
+            speakBtn.classList.remove('is-disabled');
+            speakBtn.removeAttribute('aria-disabled');
+            speakBtn.title = '朗诵';
+        };
+        const isSpeechSupported = () => {
+            return typeof window !== 'undefined'
+                && !!window.speechSynthesis
+                && typeof window.speechSynthesis.speak === 'function'
+                && typeof window.SpeechSynthesisUtterance === 'function';
+        };
+        const syncSupportState = () => {
+            if (!isSpeechSupported()) {
+                this.speechSynthesis = null;
+                markUnsupported();
+                return false;
+            }
+            this.speechSynthesis = window.speechSynthesis;
+            clearUnsupported();
+            return true;
+        };
+
+        syncSupportState();
+
+        if (speakBtn.dataset.poetrySpeakBound === '1') {
+            return;
+        }
+        speakBtn.dataset.poetrySpeakBound = '1';
 
         speakBtn.addEventListener('click', () => {
+            if (!syncSupportState()) {
+                this.showToast(unsupportedMessage, 'info', 1500);
+                return;
+            }
+
             if (this.speaking) {
                 this.speechSynthesis.cancel();
-                this.speaking = false;
-                speakBtn.innerHTML = '<i class="fas fa-volume-up mr-1"></i>朗诵';
-                contentEl.classList.remove('is-speaking');
+                resetButtonState();
                 return;
             }
 
             const text = contentEl.textContent.trim();
-            const utterance = new SpeechSynthesisUtterance(text);
+            if (!text) {
+                this.showToast('未找到可朗诵的正文内容', 'info', 1400);
+                return;
+            }
+
+            let utterance = null;
+            let started = false;
+            try {
+                utterance = new SpeechSynthesisUtterance(text);
+            } catch (_) {
+                markUnsupported();
+                this.showToast(unsupportedMessage, 'info', 1500);
+                return;
+            }
             utterance.lang = 'zh-CN';
             utterance.rate = 0.8;
             utterance.pitch = 1;
 
             utterance.onstart = () => {
+                started = true;
                 this.speaking = true;
                 speakBtn.innerHTML = '<i class="fas fa-stop mr-1"></i>停止';
+                speakBtn.classList.add('is-active');
                 contentEl.classList.add('is-speaking');
             };
 
             utterance.onend = () => {
-                this.speaking = false;
-                speakBtn.innerHTML = '<i class="fas fa-volume-up mr-1"></i>朗诵';
-                contentEl.classList.remove('is-speaking');
+                resetButtonState();
             };
 
-            this.speechSynthesis.speak(utterance);
+            utterance.onerror = () => {
+                resetButtonState();
+                const message = isSpeechSupported() ? '语音朗诵启动失败' : unsupportedMessage;
+                this.showToast(message, isSpeechSupported() ? 'error' : 'info', 1500);
+            };
+
+            try {
+                this.speechSynthesis.cancel();
+                this.speechSynthesis.speak(utterance);
+            } catch (_) {
+                markUnsupported();
+                this.showToast(unsupportedMessage, 'info', 1500);
+                return;
+            }
+
+            window.setTimeout(() => {
+                const runtimeSpeaking = !!(this.speechSynthesis && this.speechSynthesis.speaking);
+                if (!started && !runtimeSpeaking) {
+                    markUnsupported();
+                    this.showToast(unsupportedMessage, 'info', 1500);
+                }
+            }, 1200);
         });
     }
 
@@ -1197,17 +1276,30 @@ class MultiFormatInteractions {
         if (!poetryScrollToggle || !poetryLyricsContent) return;
 
         let poetryTimer = null;
+        const stopScroll = () => {
+            poetryScrollToggle.dataset.running = '0';
+            poetryScrollToggle.classList.remove('is-active');
+            poetryScrollToggle.innerHTML = '<i class="fas fa-wave-square mr-1"></i>自动滚动';
+            clearInterval(poetryTimer);
+            poetryTimer = null;
+        };
+
         poetryScrollToggle.addEventListener('click', function() {
             const running = this.dataset.running === '1';
             if (running) {
-                this.dataset.running = '0';
-                this.innerHTML = '<i class="fas fa-wave-square mr-1"></i>自动滚动';
-                clearInterval(poetryTimer);
-                poetryTimer = null;
+                stopScroll();
+                return;
+            }
+
+            const maxScroll = poetryLyricsContent.scrollHeight - poetryLyricsContent.clientHeight;
+            if (maxScroll <= 12) {
+                poetryScrollToggle.classList.remove('is-active');
+                window.multiFormatInteractions?.showToast?.('正文较短，无需自动滚动', 'info', 1400);
                 return;
             }
 
             this.dataset.running = '1';
+            this.classList.add('is-active');
             this.innerHTML = '<i class="fas fa-pause mr-1"></i>暂停滚动';
             poetryTimer = setInterval(() => {
                 const maxScroll = poetryLyricsContent.scrollHeight - poetryLyricsContent.clientHeight;
@@ -1218,6 +1310,8 @@ class MultiFormatInteractions {
                 poetryLyricsContent.scrollTop += 1;
             }, 28);
         });
+
+        window.addEventListener('pagehide', stopScroll, { once: true });
     }
 
     initVideoTheaterMode() {
@@ -1342,37 +1436,74 @@ class MultiFormatInteractions {
         const tocLinks = document.querySelectorAll('[data-toc-link]');
         if (!tocLinks.length) return;
 
-        const headings = Array.from(tocLinks)
-            .map((link) => document.getElementById(link.dataset.tocLink))
+        if (this.tocHighlightAbortController) {
+            this.tocHighlightAbortController.abort();
+        }
+
+        const tocLinkEntries = Array.from(tocLinks)
+            .map((link) => ({
+                id: link.dataset.tocLink,
+                link,
+                heading: document.getElementById(link.dataset.tocLink),
+            }))
+            .filter((entry) => entry.id && entry.heading);
+        const headings = tocLinkEntries
+            .map((entry) => entry.heading)
             .filter(Boolean);
         if (!headings.length) return;
 
+        const linkMap = new Map();
+        tocLinkEntries.forEach((entry) => {
+            if (!linkMap.has(entry.id)) {
+                linkMap.set(entry.id, []);
+            }
+            linkMap.get(entry.id).push(entry.link);
+        });
+
         const activate = (id) => {
             tocLinks.forEach((link) => {
-                if (link.dataset.tocLink === id) {
-                    link.classList.add('font-semibold', 'text-blue-900');
+                const isActive = link.dataset.tocLink === id;
+                link.classList.toggle('is-active', isActive);
+                if (isActive) {
+                    link.setAttribute('aria-current', 'true');
                 } else {
-                    link.classList.remove('font-semibold', 'text-blue-900');
+                    link.removeAttribute('aria-current');
                 }
             });
         };
 
-        const observer = new IntersectionObserver(
-            (entries) => {
-                const visible = entries
-                    .filter((entry) => entry.isIntersecting)
-                    .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-                if (visible.length) {
-                    activate(visible[0].target.id);
-                }
-            },
-            {
-                rootMargin: '0px 0px -70% 0px',
-                threshold: 0.1,
-            }
-        );
+        const resolveActiveId = () => {
+            const activationOffset = window.innerWidth <= 1023 ? 128 : 152;
+            let activeId = headings[0].id;
 
-        headings.forEach((h) => observer.observe(h));
+            headings.forEach((heading) => {
+                const rect = heading.getBoundingClientRect();
+                if (rect.top <= activationOffset) {
+                    activeId = heading.id;
+                }
+            });
+
+            return activeId;
+        };
+
+        let rafId = null;
+        const updateActiveHeading = () => {
+            if (rafId) {
+                cancelAnimationFrame(rafId);
+            }
+            rafId = requestAnimationFrame(() => {
+                activate(resolveActiveId());
+            });
+        };
+
+        this.tocHighlightAbortController = new AbortController();
+        const { signal } = this.tocHighlightAbortController;
+
+        window.addEventListener('scroll', updateActiveHeading, { passive: true, signal });
+        window.addEventListener('resize', updateActiveHeading, { passive: true, signal });
+        window.addEventListener('hashchange', updateActiveHeading, { passive: true, signal });
+
+        updateActiveHeading();
     }
 
     // ==================== 键盘导航 ====================

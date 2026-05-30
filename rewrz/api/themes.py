@@ -26,7 +26,7 @@ router = APIRouter()
 # 预定义主题配置（8种预设主题，含二次元风格）
 DEFAULT_THEMES = {
     "light": {
-        "name": "浅色主题",
+        "name": "云朵白",
         "variables": {
             "--color-primary": "#6366f1",
             "--color-primary-hover": "#4f46e5",
@@ -49,7 +49,7 @@ DEFAULT_THEMES = {
         }
     },
     "dark": {
-        "name": "深色主题",
+        "name": "夜幕蓝",
         "variables": {
             "--color-primary": "#818cf8",
             "--color-primary-hover": "#6366f1",
@@ -72,7 +72,7 @@ DEFAULT_THEMES = {
         }
     },
     "nature": {
-        "name": "自然主题",
+        "name": "森林绿",
         "variables": {
             "--color-primary": "#10b981",
             "--color-primary-hover": "#059669",
@@ -95,7 +95,7 @@ DEFAULT_THEMES = {
         }
     },
     "ocean": {
-        "name": "海洋主题",
+        "name": "海盐蓝",
         "variables": {
             "--color-primary": "#0ea5e9",
             "--color-primary-hover": "#0284c7",
@@ -118,7 +118,7 @@ DEFAULT_THEMES = {
         }
     },
     "sunset": {
-        "name": "夕阳主题",
+        "name": "夕阳橙",
         "variables": {
             "--color-primary": "#ea8a12",
             "--color-primary-hover": "#c96a08",
@@ -684,6 +684,8 @@ async def update_background_image_api(
 @router.get("/api/theme/current")
 async def get_current_theme(request: Request, db: Session = Depends(get_db)):
     """获取当前主题配置（前端API）"""
+    requested_theme = str(request.query_params.get("theme") or "").strip()
+
     # 获取当前主题设置
     theme_setting = crud_setting.get_setting(db, key="current_theme")
     stored_theme = _extract_setting_value(theme_setting, "light")
@@ -708,7 +710,8 @@ async def get_current_theme(request: Request, db: Session = Depends(get_db)):
     theme_variables: Dict[str, Any] = {}
     custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
     custom_themes = custom_themes_setting.value.get("value") if custom_themes_setting else {}
-    current_theme = resolve_theme_name(stored_theme, custom_themes)
+    current_theme_source = requested_theme or stored_theme
+    current_theme = resolve_theme_name(current_theme_source, custom_themes)
     
     # 基础主题变量
     if current_theme in DEFAULT_THEMES:
@@ -767,7 +770,7 @@ def check_scheduled_atmosphere(db: Session) -> Optional[str]:
 @router.get("/api/v1/theme/variables.css")
 @router.get("/api/theme/variables.css")
 async def theme_variables_css(request: Request, db: Session = Depends(get_db)):
-    """动态生成CSS变量文件"""
+    """动态生成 CSS 变量文件，优先使用请求中显式指定的主题。"""
     from fastapi.responses import Response
     
     # 获取当前主题配置

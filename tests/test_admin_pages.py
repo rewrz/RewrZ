@@ -9,6 +9,7 @@ from rewrz import main as main_module
 from rewrz.core.config import settings as app_settings
 from rewrz.core.database import get_db
 from rewrz.core.security import get_current_user
+from rewrz.models.post import Post
 from rewrz.models.setting import Setting
 from rewrz.models.user import User as DbUser
 
@@ -211,5 +212,36 @@ def test_error_settings_page_can_save_and_re_render_saved_value(test_db, monkeyp
         assert response.status_code == 200
         assert "页面走丢了" in response.text
         assert "friendly" in response.text
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_public_article_detail_uses_fallback_title_when_post_title_is_empty(test_db, monkeypatch):
+    _set_installation_complete(monkeypatch, True)
+    _seed_admin_basics(test_db)
+    main_module.app.dependency_overrides[get_db] = lambda: test_db
+    client = TestClient(main_module.app)
+
+    try:
+        post = Post(
+            title="",
+            slug="untitled-public-article",
+            content_markdown="正文内容",
+            content_html="<p>正文内容</p>",
+            excerpt="",
+            post_type="post",
+            status="published",
+            visibility="public",
+            author_id=1,
+        )
+        test_db.add(post)
+        test_db.commit()
+        test_db.refresh(post)
+
+        response = client.get("/article/untitled-public-article")
+        assert response.status_code == 200
+        assert "<h1" in response.text
+        assert "未记录发布时间的文章" in response.text
+        assert "<h1 class=\"text-3xl md:text-4xl font-bold mb-4 leading-tight\"></h1>" not in response.text
     finally:
         main_module.app.dependency_overrides.clear()

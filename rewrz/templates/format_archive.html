@@ -234,17 +234,17 @@
         </header>
         {% endif %}
 
-        <div class="mb-6 flex flex-wrap items-center gap-2">
-            <a href="/formats/article" class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition {% if format_slug == 'article' %}bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900{% else %}bg-white text-slate-700 hover:bg-slate-100 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-gray-700{% endif %}">
+        <div class="format-switchbar mb-6 flex flex-wrap items-center gap-2">
+            <a href="/formats/article" class="format-switch-pill format-switch-pill-article inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition {% if format_slug == 'article' %}is-active bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900{% else %}bg-white text-slate-700 hover:bg-slate-100 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-gray-700{% endif %}">
                 <i class="fas fa-file-alt mr-1"></i>文章
             </a>
-            <a href="/formats/micro" class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition {% if format_slug == 'micro' %}bg-sky-600 text-white{% else %}bg-white text-sky-700 hover:bg-sky-100 dark:bg-gray-800 dark:text-sky-300 dark:hover:bg-sky-900/40{% endif %}">
+            <a href="/formats/micro" class="format-switch-pill format-switch-pill-micro inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition {% if format_slug == 'micro' %}is-active bg-sky-600 text-white{% else %}bg-white text-sky-700 hover:bg-sky-100 dark:bg-gray-800 dark:text-sky-300 dark:hover:bg-sky-900/40{% endif %}">
                 <i class="fas fa-comment-dots mr-1"></i>微博
             </a>
-            <a href="/formats/poem" class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition {% if format_slug == 'poem' %}bg-amber-700 text-white{% else %}bg-white text-amber-700 hover:bg-amber-100 dark:bg-gray-800 dark:text-amber-300 dark:hover:bg-amber-900/40{% endif %}">
+            <a href="/formats/poem" class="format-switch-pill format-switch-pill-poem inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition {% if format_slug == 'poem' %}is-active bg-amber-700 text-white{% else %}bg-white text-amber-700 hover:bg-amber-100 dark:bg-gray-800 dark:text-amber-300 dark:hover:bg-amber-900/40{% endif %}">
                 <i class="fas fa-feather-alt mr-1"></i>诗词歌赋
             </a>
-            <a href="/archives" class="ml-auto inline-flex items-center rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
+            <a href="/archives" class="format-switch-pill format-switch-pill-archive ml-auto inline-flex items-center rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
                 <i class="fas fa-archive mr-1"></i>全部归档
             </a>
         </div>

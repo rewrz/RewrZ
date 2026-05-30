@@ -70,7 +70,7 @@
                     {% if cover_url %}
                     <img src="{{ cover_url }}" alt="{{ post.title or '内容配图' }}" class="h-full w-full object-cover transition-transform duration-500 hover:scale-105" loading="lazy">
                     {% else %}
-                    <div class="h-full w-full bg-gradient-to-br from-sky-100 via-indigo-100 to-pink-100 dark:from-slate-700 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center text-slate-500 dark:text-slate-300">
+                    <div class="h-full w-full timeline-fallback-cover flex items-center justify-center text-slate-500 dark:text-slate-300">
                         <i class="fas fa-image text-4xl"></i>
                     </div>
                     {% endif %}
@@ -81,9 +81,9 @@
 
         <div class="relative flex w-2/12 items-start justify-center pt-1">
             <div class="relative h-12 w-12">
-                <span class="absolute inset-0 rounded-full border-2 border-indigo-400/50 dark:border-indigo-500/40 animate-ping"></span>
-                <span class="absolute inset-[4px] rounded-full border border-indigo-300/60 dark:border-indigo-500/40"></span>
-                <div class="relative z-10 flex h-12 w-12 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-indigo-500 to-sky-500 text-[11px] font-extrabold text-white shadow-md dark:border-slate-900">
+                <span class="timeline-marker-pulse absolute inset-0 rounded-full animate-ping"></span>
+                <span class="timeline-marker-ring absolute inset-[4px] rounded-full"></span>
+                <div class="timeline-marker-core relative z-10 flex h-12 w-12 items-center justify-center rounded-full border-2 text-[11px] font-extrabold text-white shadow-md">
                     {{ publish_marker }}
                 </div>
             </div>
@@ -96,7 +96,7 @@
                     {% if cover_url %}
                     <img src="{{ cover_url }}" alt="{{ post.title or '内容配图' }}" class="h-full w-full object-cover transition-transform duration-500 hover:scale-105" loading="lazy">
                     {% else %}
-                    <div class="h-full w-full bg-gradient-to-br from-sky-100 via-indigo-100 to-pink-100 dark:from-slate-700 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center text-slate-500 dark:text-slate-300">
+                    <div class="h-full w-full timeline-fallback-cover flex items-center justify-center text-slate-500 dark:text-slate-300">
                         <i class="fas fa-image text-4xl"></i>
                     </div>
                     {% endif %}
@@ -150,8 +150,8 @@
     <div class="md:hidden flex items-start">
         <div class="absolute left-4 mt-2.5 -translate-x-1/2">
             <div class="relative h-9 w-9">
-                <span class="absolute inset-0 rounded-full border border-indigo-400/50 dark:border-indigo-500/40 animate-ping"></span>
-                <div class="relative z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-indigo-500 to-sky-500 text-[10px] font-extrabold text-white dark:border-slate-900">
+                <span class="timeline-marker-pulse absolute inset-0 rounded-full animate-ping"></span>
+                <div class="timeline-marker-core relative z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 text-[10px] font-extrabold text-white">
                     {{ publish_marker }}
                 </div>
             </div>
@@ -163,7 +163,7 @@
                         {% if cover_url %}
                         <img src="{{ cover_url }}" alt="{{ post.title or '内容配图' }}" class="h-full w-full object-cover" loading="lazy">
                         {% else %}
-                        <div class="h-full w-full bg-gradient-to-br from-sky-100 via-indigo-100 to-pink-100 dark:from-slate-700 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center text-slate-500 dark:text-slate-300">
+                        <div class="h-full w-full timeline-fallback-cover flex items-center justify-center text-slate-500 dark:text-slate-300">
                             <i class="fas fa-image text-3xl"></i>
                         </div>
                         {% endif %}

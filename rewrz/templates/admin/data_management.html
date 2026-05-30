@@ -1,49 +1,49 @@
 {% extends "admin/base.html" %}
 
 {% block title_text %}数据管理{% endblock %}
-{% block page_title %}<i class="fas fa-database text-blue-600 mr-3"></i>数据管理{% endblock %}
+{% block page_title %}<i class="fas fa-database mr-3"></i>数据管理{% endblock %}
 
 {% block content %}
-<div class="bg-white p-6 rounded-lg shadow-md">
+<div class="admin-panel admin-data-shell p-6">
     <!-- 数据统计概览 -->
     <div class="mb-8">
         <h2 class="text-xl font-semibold text-gray-800 mb-4">数据概览</h2>
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4" id="data-stats">
-            <div class="bg-blue-50 p-4 rounded-lg text-center">
-                <div class="text-2xl font-bold text-blue-600" id="posts-count">-</div>
-                <div class="text-sm text-gray-600">文章</div>
+        <div class="grid grid-cols-2 xl:grid-cols-5 gap-4" id="data-stats">
+            <div class="admin-stats-card rounded-2xl border p-4 text-center shadow-sm">
+                <div class="text-2xl font-bold admin-accent-text" id="posts-count">-</div>
+                <div class="mt-1 text-sm text-gray-600">文章</div>
             </div>
-            <div class="bg-green-50 p-4 rounded-lg text-center">
-                <div class="text-2xl font-bold text-green-600" id="categories-count">-</div>
-                <div class="text-sm text-gray-600">分类</div>
+            <div class="admin-stats-card rounded-2xl border p-4 text-center shadow-sm">
+                <div class="text-2xl font-bold admin-accent-text" id="categories-count">-</div>
+                <div class="mt-1 text-sm text-gray-600">分类</div>
             </div>
-            <div class="bg-yellow-50 p-4 rounded-lg text-center">
-                <div class="text-2xl font-bold text-yellow-600" id="tags-count">-</div>
-                <div class="text-sm text-gray-600">标签</div>
+            <div class="admin-stats-card rounded-2xl border p-4 text-center shadow-sm">
+                <div class="text-2xl font-bold admin-accent-text" id="tags-count">-</div>
+                <div class="mt-1 text-sm text-gray-600">标签</div>
             </div>
-            <div class="bg-purple-50 p-4 rounded-lg text-center">
-                <div class="text-2xl font-bold text-purple-600" id="media-count">-</div>
-                <div class="text-sm text-gray-600">媒体文件</div>
+            <div class="admin-stats-card rounded-2xl border p-4 text-center shadow-sm">
+                <div class="text-2xl font-bold admin-accent-text" id="media-count">-</div>
+                <div class="mt-1 text-sm text-gray-600">媒体文件</div>
             </div>
-            <div class="bg-red-50 p-4 rounded-lg text-center">
-                <div class="text-2xl font-bold text-red-600" id="media-size">-</div>
-                <div class="text-sm text-gray-600">媒体大小</div>
+            <div class="admin-stats-card rounded-2xl border p-4 text-center shadow-sm">
+                <div class="text-2xl font-bold admin-accent-text" id="media-size">-</div>
+                <div class="mt-1 text-sm text-gray-600">媒体大小</div>
             </div>
         </div>
     </div>
 
     <!-- 操作选项卡 -->
-    <div class="border-b border-gray-200 mb-6">
+    <div class="admin-tab-strip border-b border-gray-200 mb-6">
         <nav class="-mb-px flex space-x-8">
-            <button class="tab-button py-2 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600 whitespace-nowrap" 
+            <button class="tab-button admin-tab-button is-active py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap" 
                     data-tab="export" onclick="switchTab('export')">
                 数据导出
             </button>
-            <button class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap" 
+            <button class="tab-button admin-tab-button py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap" 
                     data-tab="import" onclick="switchTab('import')">
                 数据导入
             </button>
-            <button class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap" 
+            <button class="tab-button admin-tab-button py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap" 
                     data-tab="backup" onclick="switchTab('backup')">
                 备份管理
             </button>
@@ -52,19 +52,19 @@
 
     <!-- 操作反馈（固定在可视区域上方，避免长页面不易感知） -->
     <div id="operation-feedback" class="sticky top-4 z-20 mb-6 space-y-3 hidden">
-        <div id="operation-status" class="hidden rounded-xl border border-blue-200 bg-blue-50/95 p-4 shadow-sm backdrop-blur">
+        <div id="operation-status" class="admin-operation-status hidden rounded-xl border p-4 shadow-sm backdrop-blur">
             <div class="flex items-start gap-3">
-                <div class="mt-0.5 h-9 w-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                <div class="admin-operation-icon mt-0.5 h-9 w-9 rounded-full flex items-center justify-center">
                     <i class="fas fa-spinner fa-spin"></i>
                 </div>
                 <div class="min-w-0 flex-1">
-                    <div id="operation-title" class="text-sm font-semibold text-blue-900">正在处理中</div>
-                    <div id="operation-message" class="mt-0.5 text-sm text-blue-800">请稍候，处理中请勿关闭页面。</div>
+                    <div id="operation-title" class="text-sm font-semibold admin-accent-text">正在处理中</div>
+                    <div id="operation-message" class="mt-0.5 text-sm admin-accent-text">请稍候，处理中请勿关闭页面。</div>
                     <div class="mt-3 flex items-center gap-3">
-                        <div class="h-2 flex-1 overflow-hidden rounded-full bg-blue-100">
-                            <div id="operation-progress-bar" class="h-full w-full animate-pulse bg-blue-500 transition-all duration-300 ease-out"></div>
+                        <div class="admin-progress-track h-2 flex-1 overflow-hidden rounded-full">
+                            <div id="operation-progress-bar" class="admin-progress-bar h-full w-full animate-pulse transition-all duration-300 ease-out"></div>
                         </div>
-                        <span id="operation-progress-text" class="w-12 text-right text-xs font-semibold text-blue-700">处理中</span>
+                        <span id="operation-progress-text" class="w-12 text-right text-xs font-semibold admin-accent-text">处理中</span>
                     </div>
                 </div>
             </div>
@@ -79,18 +79,18 @@
     <div id="export-panel" class="tab-panel">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">数据导出</h3>
         <div class="space-y-4">
-            <div class="border border-gray-200 rounded-lg p-4">
+            <div class="admin-section-card border rounded-lg p-4">
                 <h4 class="font-medium text-gray-900 mb-2">导出为 JSON 格式</h4>
                 <p class="text-sm text-gray-600 mb-3">导出所有博客数据为 JSON 格式，适合数据迁移和备份。</p>
-                <button data-export-trigger="1" onclick="exportData('json')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
+                <button data-export-trigger="1" onclick="exportData('json')" class="admin-primary-btn px-4 py-2 rounded transition-colors">
                     下载 JSON 文件
                 </button>
             </div>
             
-            <div class="border border-gray-200 rounded-lg p-4">
+            <div class="admin-section-card border rounded-lg p-4">
                 <h4 class="font-medium text-gray-900 mb-2">创建完整备份</h4>
                 <p class="text-sm text-gray-600 mb-3">包含数据文件和媒体文件的完整备份包。</p>
-                <button data-export-trigger="1" onclick="exportData('backup')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors">
+                <button data-export-trigger="1" onclick="exportData('backup')" class="admin-primary-btn px-4 py-2 rounded transition-colors">
                     下载备份包
                 </button>
             </div>
@@ -101,74 +101,74 @@
     <div id="import-panel" class="tab-panel hidden">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">数据导入</h3>
         <div class="space-y-4">
-            <div class="border border-gray-200 rounded-lg p-4">
+            <div class="admin-section-card border rounded-lg p-4">
                 <h4 class="font-medium text-gray-900 mb-2">导入 WordPress 数据</h4>
                 <p class="text-sm text-gray-600 mb-3">从 WordPress 导出的 WXR 文件导入文章、分类和标签。</p>
                 <form id="wordpress-import-form" enctype="multipart/form-data" class="space-y-3">
                     <div>
                         <input type="file" name="wxr_file" accept=".xml" required 
-                               class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                               class="admin-file-input admin-file-field block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold">
                         <p class="mt-1 text-xs text-gray-500">支持 WordPress WXR 格式的 XML 文件，最大 50MB</p>
                     </div>
-                    <button type="submit" class="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 transition-colors">
+                    <button type="submit" class="admin-primary-btn px-4 py-2 rounded transition-colors">
                         导入 WordPress 数据
                     </button>
                 </form>
-                <div class="mt-4 border-t border-gray-200 pt-4">
+                <div class="admin-subsection mt-4 border-t border-gray-200 pt-4">
                     <h5 class="font-medium text-gray-900 mb-2">WordPress 导入配置（白名单）</h5>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                         <label class="inline-flex items-center gap-2">
-                            <input type="checkbox" id="wp-import-comments" class="form-checkbox">
+                            <input type="checkbox" id="wp-import-comments" class="admin-form-check form-checkbox">
                             <span>导入评论</span>
                         </label>
                         <label class="inline-flex items-center gap-2">
-                            <input type="checkbox" id="wp-import-views" class="form-checkbox">
+                            <input type="checkbox" id="wp-import-views" class="admin-form-check form-checkbox">
                             <span>导入阅读量（postmeta）</span>
                         </label>
                         <label class="inline-flex items-center gap-2">
-                            <input type="checkbox" id="wp-download-remote-media" class="form-checkbox">
+                            <input type="checkbox" id="wp-download-remote-media" class="admin-form-check form-checkbox">
                             <span>导入时自动下载远程图片/媒体到本地</span>
                         </label>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1" for="wp-remote-media-path-strategy">远程媒体本地化路径策略</label>
-                            <select id="wp-remote-media-path-strategy" class="block w-full rounded border border-gray-300 px-3 py-2 text-sm">
+                            <select id="wp-remote-media-path-strategy" class="admin-form-field block w-full rounded px-3 py-2 text-sm">
                                 <option value="latest_month">全新迁移：下载到当前年月目录（如 2026/02）</option>
                                 <option value="preserve_relative_path">一比一还原：保持原始相对路径（优先按原 URL 里的 年/月 段）</option>
                             </select>
                             <p class="mt-1 text-xs text-gray-500">大量媒体建议使用“一比一还原”，可避免全部集中到同一月份目录。</p>
                         </div>
                         <label class="inline-flex items-center gap-2">
-                            <input type="checkbox" id="wp-import-type-post" class="form-checkbox" checked>
+                            <input type="checkbox" id="wp-import-type-post" class="admin-form-check form-checkbox" checked>
                             <span>导入 post</span>
                         </label>
                         <label class="inline-flex items-center gap-2">
-                            <input type="checkbox" id="wp-import-type-page" class="form-checkbox" checked>
+                            <input type="checkbox" id="wp-import-type-page" class="admin-form-check form-checkbox" checked>
                             <span>导入 page</span>
                         </label>
                     </div>
                     <div class="mt-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">额外文章类型白名单（逗号分隔）</label>
-                        <input id="wp-import-extra-post-types" type="text" class="block w-full rounded border border-gray-300 px-3 py-2 text-sm" placeholder="portfolio,news,article">
+                        <input id="wp-import-extra-post-types" type="text" class="admin-form-field block w-full rounded px-3 py-2 text-sm" placeholder="portfolio,news,article">
                         <p class="mt-1 text-xs text-gray-500">例如自定义 post_type；默认会按文章（post）导入。</p>
                     </div>
                     <div class="mt-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">post_type 内容类型映射（逗号分隔）</label>
-                        <input id="wp-post-type-format-map" type="text" class="block w-full rounded border border-gray-300 px-3 py-2 text-sm" placeholder="shuoshuo:micro,news:article">
+                        <input id="wp-post-type-format-map" type="text" class="admin-form-field block w-full rounded px-3 py-2 text-sm" placeholder="shuoshuo:micro,news:article">
                         <p class="mt-1 text-xs text-gray-500">用于把自定义 post_type 映射为主类型，例如 <code>shuoshuo:micro</code>（微博）。仅支持 <code>article</code>/<code>micro</code>/<code>poem</code>。</p>
                     </div>
                     <div class="mt-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">postmeta 白名单（逗号分隔）</label>
-                        <input id="wp-postmeta-whitelist" type="text" class="block w-full rounded border border-gray-300 px-3 py-2 text-sm" placeholder="views,post_views_count">
+                        <input id="wp-postmeta-whitelist" type="text" class="admin-form-field block w-full rounded px-3 py-2 text-sm" placeholder="views,post_views_count">
                     </div>
                     <div class="mt-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Markdown 生成策略</label>
-                        <select id="wp-markdown-strategy" class="block w-full rounded border border-gray-300 px-3 py-2 text-sm">
+                        <select id="wp-markdown-strategy" class="admin-form-field block w-full rounded px-3 py-2 text-sm">
                             <option value="html_to_markdown">转换为 Markdown 并保存到 Markdown 字段</option>
                             <option value="raw_html">保留原始 HTML 并保存到 HTML 字段</option>
                         </select>
                     </div>
                     <div class="mt-3 flex items-center gap-2">
-                        <button type="button" id="save-wp-options-button" class="bg-slate-700 text-white px-3 py-2 rounded hover:bg-slate-800 transition-colors text-sm">
+                        <button type="button" id="save-wp-options-button" class="admin-secondary-btn px-3 py-2 rounded transition-colors text-sm">
                             保存导入配置
                         </button>
                         <span id="wp-options-status" class="text-xs text-gray-500"></span>
@@ -176,16 +176,16 @@
                 </div>
             </div>
             
-            <div class="border border-gray-200 rounded-lg p-4">
+            <div class="admin-section-card border rounded-lg p-4">
                 <h4 class="font-medium text-gray-900 mb-2">导入 RewrZ 数据</h4>
                 <p class="text-sm text-gray-600 mb-3">导入 RewrZ 导出的 JSON 格式数据文件。</p>
                 <form id="rewrz-import-form" enctype="multipart/form-data" class="space-y-3">
                     <div>
                         <input type="file" name="json_file" accept=".json" required 
-                               class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
+                               class="admin-file-input admin-file-field block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold">
                         <p class="mt-1 text-xs text-gray-500">支持 RewrZ JSON 格式文件，最大 10MB</p>
                     </div>
-                    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors">
+                    <button type="submit" class="admin-primary-btn px-4 py-2 rounded transition-colors">
                         导入 RewrZ 数据
                     </button>
                 </form>
@@ -197,18 +197,18 @@
     <div id="backup-panel" class="tab-panel hidden">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">备份管理</h3>
         <div class="space-y-4">
-            <div class="border border-gray-200 rounded-lg p-4">
+            <div class="admin-section-card border rounded-lg p-4">
                 <h4 class="font-medium text-gray-900 mb-2">恢复完整备份</h4>
                 <p class="text-sm text-gray-600 mb-3">从完整备份包恢复数据和媒体文件。</p>
-                <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-3">
+                <div class="admin-warning-box rounded-md p-3 mb-3">
                     <div class="flex">
                         <div class="flex-shrink-0">
-                            <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                            <svg class="h-5 w-5 admin-accent-text" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
                             </svg>
                         </div>
                         <div class="ml-3">
-                            <p class="text-sm text-yellow-700">
+                            <p class="text-sm admin-accent-text">
                                 警告：恢复备份可能会覆盖现有数据，请谨慎操作！
                             </p>
                         </div>
@@ -217,10 +217,10 @@
                 <form id="backup-restore-form" enctype="multipart/form-data" class="space-y-3">
                     <div>
                         <input type="file" name="backup_file" accept=".zip" required 
-                               class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
+                               class="admin-file-input admin-file-field block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold">
                         <p class="mt-1 text-xs text-gray-500">支持 RewrZ 备份 ZIP 文件，最大 100MB</p>
                     </div>
-                    <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors">
+                    <button type="submit" class="admin-primary-btn px-4 py-2 rounded transition-colors">
                         恢复备份
                     </button>
                 </form>
@@ -230,6 +230,7 @@
 
 </div>
 
+{% block scripts %}
 <script>
 let currentTab = 'export';
 let activeWordPressImportJobId = null;
@@ -243,14 +244,21 @@ function buildDataManagementCsrfHeaders(extraHeaders = {}) {
 }
 
 // 页面加载时获取数据统计
-document.addEventListener('DOMContentLoaded', function() {
+function initializeDataManagementPage() {
     loadDataStats();
     loadWordPressImportOptions();
     const saveButton = document.getElementById('save-wp-options-button');
-    if (saveButton) {
+    if (saveButton && !saveButton.dataset.bound) {
         saveButton.addEventListener('click', saveWordPressImportOptions);
+        saveButton.dataset.bound = 'true';
     }
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeDataManagementPage, { once: true });
+} else {
+    initializeDataManagementPage();
+}
 
 // 切换选项卡
 function switchTab(tabName) {
@@ -261,8 +269,7 @@ function switchTab(tabName) {
     
     // 重置所有按钮样式
     document.querySelectorAll('.tab-button').forEach(button => {
-        button.classList.remove('border-blue-500', 'text-blue-600');
-        button.classList.add('border-transparent', 'text-gray-500');
+        button.classList.remove('is-active');
     });
     
     // 显示当前面板
@@ -270,8 +277,7 @@ function switchTab(tabName) {
     
     // 激活当前按钮
     const activeButton = document.querySelector(`[data-tab="${tabName}"]`);
-    activeButton.classList.remove('border-transparent', 'text-gray-500');
-    activeButton.classList.add('border-blue-500', 'text-blue-600');
+    activeButton.classList.add('is-active');
     
     currentTab = tabName;
 }
@@ -743,22 +749,22 @@ function showOperationResult(type, message, stats = null) {
 
     const styleMap = {
         success: {
-            bg: 'bg-green-50',
-            border: 'border-green-200',
-            text: 'text-green-800',
-            icon: 'fas fa-check-circle text-green-500'
+            box: 'admin-result-box admin-result-box-success',
+            text: 'admin-result-text',
+            errorText: 'admin-result-error-text',
+            icon: 'fas fa-check-circle admin-result-icon'
         },
         warning: {
-            bg: 'bg-amber-50',
-            border: 'border-amber-200',
-            text: 'text-amber-800',
-            icon: 'fas fa-exclamation-triangle text-amber-500'
+            box: 'admin-result-box admin-result-box-warning',
+            text: 'admin-result-text',
+            errorText: 'admin-result-error-text',
+            icon: 'fas fa-exclamation-triangle admin-result-icon'
         },
         error: {
-            bg: 'bg-red-50',
-            border: 'border-red-200',
-            text: 'text-red-800',
-            icon: 'fas fa-times-circle text-red-500'
+            box: 'admin-result-box admin-result-box-danger',
+            text: 'admin-result-text',
+            errorText: 'admin-result-error-text',
+            icon: 'fas fa-times-circle admin-result-icon'
         }
     };
     const style = styleMap[type] || styleMap.error;
@@ -779,8 +785,8 @@ function showOperationResult(type, message, stats = null) {
                 </ul>
                 ${stats.errors && stats.errors.length > 0 ? `
                     <div class="mt-2">
-                        <p class="text-red-700 font-semibold">错误详情</p>
-                        <ul class="list-disc list-inside mt-1 space-y-1 text-red-600">
+                        <p class="${style.errorText} font-semibold">错误详情</p>
+                        <ul class="list-disc list-inside mt-1 space-y-1 ${style.errorText}">
                             ${stats.errors.map(error => `<li>${error}</li>`).join('')}
                         </ul>
                     </div>
@@ -790,7 +796,7 @@ function showOperationResult(type, message, stats = null) {
     }
     
     resultDiv.innerHTML = `
-        <div class="${style.bg} ${style.border} rounded-xl border p-4 shadow-sm">
+        <div class="${style.box} rounded-xl border p-4 shadow-sm">
             <div class="flex items-start gap-3">
                 <div class="mt-0.5">
                     <i class="${style.icon} text-lg"></i>
@@ -808,6 +814,7 @@ function showOperationResult(type, message, stats = null) {
     ensureOperationFeedbackVisible();
 }
 </script>
+{% endblock %}
 {% endblock %}
 
 

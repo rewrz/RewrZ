@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 
 {% block title_text %}媒体库{% endblock %}
-{% block page_title %}<i class="fas fa-th-large text-blue-600 mr-3"></i>媒体库{% endblock %}
+{% block page_title %}<i class="fas fa-th-large admin-accent-text mr-3"></i>媒体库{% endblock %}
 {% block head %}
 {{ super() }}
 <style>
@@ -46,34 +46,44 @@
         gap: 0.3rem;
         padding: 0.38rem 0.62rem;
         border-radius: 0.5rem;
-        border: 1px solid rgba(79, 70, 229, 0.95);
-        background: rgba(79, 70, 229, 0.95);
-        color: #ffffff;
+        border: 1px solid color-mix(in srgb, var(--color-primary) 32%, transparent);
+        background: linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--color-primary) 92%, white 8%),
+            color-mix(in srgb, var(--color-primary) 72%, black 10%)
+        );
+        color: var(--color-text-inverse);
         font-size: 0.76rem;
         font-weight: 600;
         line-height: 1;
         pointer-events: auto;
-        box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+        box-shadow:
+            0 10px 18px -14px color-mix(in srgb, var(--color-primary) 54%, rgba(15, 23, 42, 0.26)),
+            0 0 0 1px color-mix(in srgb, var(--color-primary) 12%, transparent);
     }
     .media-detail-button:hover {
-        background: #4338ca;
-        border-color: #4338ca;
+        background: linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--color-primary-hover) 90%, white 10%),
+            color-mix(in srgb, var(--color-primary-hover) 76%, black 12%)
+        );
+        border-color: color-mix(in srgb, var(--color-primary) 46%, transparent);
     }
     .media-detail-button:focus-visible {
-        outline: 2px solid #c7d2fe;
+        outline: 2px solid color-mix(in srgb, var(--color-primary) 22%, white 78%);
         outline-offset: 1px;
     }
     .media-card:hover {
-        outline-color: rgba(99, 102, 241, 0.4);
+        outline-color: color-mix(in srgb, var(--color-primary) 34%, transparent);
     }
     .media-card.selected {
-        outline: 3px solid #4f46e5; /* Indigo-600 */
+        outline: 3px solid color-mix(in srgb, var(--color-primary) 84%, transparent);
         outline-offset: -3px;
-        border-color: #4f46e5;
+        border-color: color-mix(in srgb, var(--color-primary) 62%, transparent);
     }
     .upload-drop-zone.dragover {
-        border-color: #4f46e5;
-        background-color: #eef2ff; /* Indigo-50 */
+        border-color: color-mix(in srgb, var(--color-primary) 58%, transparent);
+        background-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg));
     }
     .modal-backdrop {
         transition: opacity 0.3s ease-in-out;
@@ -88,43 +98,140 @@
         transform: scale(0.95);
         opacity: 0;
     }
-    #media-grid.list-view {
+    #media-grid.media-list-view {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        align-items: stretch;
+        gap: 0.55rem;
     }
-    #media-grid.list-view .media-card {
+    #media-grid.media-list-view .media-card {
         display: grid;
-        grid-template-columns: 170px minmax(0, 1fr) 140px;
-        align-items: center;
+        grid-template-columns: 96px minmax(0, 1fr) auto;
+        width: 100%;
+        align-items: stretch;
         gap: 0.9rem;
-        padding: 0.65rem;
+        padding: 0.7rem 0.85rem;
+        border-radius: 1rem;
+        border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--color-card-bg) 98%, transparent), color-mix(in srgb, var(--color-background-alt) 92%, transparent)),
+            linear-gradient(140deg, color-mix(in srgb, var(--color-primary) 7%, transparent), transparent 48%);
+        box-shadow: 0 14px 28px -24px color-mix(in srgb, var(--color-primary) 28%, rgba(15, 23, 42, 0.2));
+        contain-intrinsic-size: auto 132px;
     }
-    #media-grid.list-view .media-preview-shell {
-        height: 104px;
-        border-radius: 0.65rem;
+    #media-grid.media-list-view .media-preview-shell {
+        width: 96px;
+        height: 96px;
+        aspect-ratio: auto;
+        flex: 0 0 auto;
+        align-self: center;
+        border-radius: 0.8rem;
+        overflow: hidden;
+        border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+        box-shadow:
+            inset 0 1px 0 color-mix(in srgb, white 72%, transparent),
+            0 10px 18px -18px color-mix(in srgb, var(--color-primary) 36%, rgba(15, 23, 42, 0.16));
+    }
+    #media-grid.media-list-view .media-meta {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0;
+        min-height: 0;
+    }
+    #media-grid.media-list-view .media-detail-button {
+        position: static;
+        align-self: center;
+        min-width: 0;
+        white-space: nowrap;
+        padding: 0.5rem 0.78rem;
+        font-size: 0.72rem;
+        line-height: 1;
+        margin-left: 0;
+        background: linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--color-primary) 92%, white 8%),
+            color-mix(in srgb, var(--color-primary) 72%, black 10%)
+        );
+        color: var(--color-text-inverse);
+        border-color: color-mix(in srgb, var(--color-primary) 32%, transparent);
+    }
+    #media-grid.media-list-view .media-checkbox-wrap {
+        left: 0.45rem;
+        top: 0.45rem;
+    }
+    #media-grid.media-list-view .media-card .media-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.45rem;
+    }
+    #media-grid.media-list-view .media-card .media-title-row p {
+        font-size: 0.96rem;
+        line-height: 1.4;
+        max-width: 100%;
+    }
+    #media-grid.media-list-view .media-type-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        width: fit-content;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--color-background-alt) 82%, var(--color-card-bg) 18%);
+        color: color-mix(in srgb, var(--color-text) 82%, var(--color-primary) 18%);
+        padding: 0.16rem 0.5rem;
+        font-size: 0.68rem;
+        font-weight: 600;
+        border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border) 88%);
+    }
+    #media-grid.media-list-view .media-card .media-folder-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        width: fit-content;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%);
+        color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%);
+        padding: 0.14rem 0.48rem;
+        font-size: 0.68rem;
+        font-weight: 600;
+    }
+    #media-grid.media-list-view .media-detail-line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.55rem;
+        font-size: 0.74rem;
+        color: #64748b;
+        line-height: 1.45;
+    }
+    #media-grid.media-list-view .media-date-line {
+        margin-top: 0;
+        font-size: 0.74rem;
+        color: #64748b;
+    }
+    #media-grid.media-list-view .media-filename-line {
+        font-size: 0.74rem;
+        line-height: 1.45;
+        color: #475569;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
         overflow: hidden;
     }
-    #media-grid.list-view .media-meta {
-        padding: 0;
-    }
-    #media-grid.list-view .media-detail-button {
-        position: static;
-        justify-self: end;
-        margin-left: auto;
-        margin-right: 0;
-        background: #4f46e5;
-        color: #ffffff;
-        border-color: #4f46e5;
-    }
-    #media-grid.list-view .media-checkbox-wrap {
-        left: 0.75rem;
-    }
     @media (max-width: 860px) {
-        #media-grid.list-view .media-card {
-            grid-template-columns: 1fr;
+        #media-grid.media-list-view .media-card {
+            grid-template-columns: 70px minmax(0, 1fr);
+            align-items: start;
         }
-        #media-grid.list-view .media-detail-button {
+        #media-grid.media-list-view .media-preview-shell {
+            width: 70px;
+            height: 70px;
+        }
+        #media-grid.media-list-view .media-detail-button {
+            grid-column: 2;
             justify-self: start;
         }
     }
@@ -132,46 +239,46 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="media-admin-page space-y-6">
     <!-- Header -->
-    <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <header class="admin-toolbar-shell flex flex-col items-start justify-between gap-4 px-4 py-4 md:flex-row md:items-center">
         <div class="flex items-center space-x-2">
-            <button id="upload-button" class="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+            <button id="upload-button" class="admin-primary-btn inline-flex items-center justify-center rounded-lg px-4 py-2 font-semibold">
                 <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
                 上传文件
             </button>
-            <a href="{{ request.state.admin_path }}/media/settings" class="inline-flex items-center justify-center px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors">
+            <a href="{{ request.state.admin_path }}/media/settings" class="admin-secondary-btn inline-flex items-center justify-center rounded-lg px-4 py-2 font-semibold">
                 媒体设置
             </a>
         </div>
     </header>
 
     <!-- Upload Drop Zone -->
-    <div id="upload-drop-zone" class="hidden upload-drop-zone mt-4 p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-center transition-colors duration-300">
+    <div id="upload-drop-zone" class="admin-empty-state upload-drop-zone mt-4 hidden rounded-xl border-2 border-dashed p-8 text-center transition-colors duration-300">
         <div class="flex flex-col items-center justify-center">
-            <svg class="w-16 h-16 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v5a4 4 0 01-4 4H7z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-            <p class="mt-4 text-lg font-semibold text-gray-700 dark:text-gray-200">将文件拖拽到此处</p>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">或</p>
-            <label for="file-input" class="mt-2 cursor-pointer px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-gray-50 dark:hover:bg-gray-600">
+            <svg class="w-16 h-16 opacity-60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v5a4 4 0 01-4 4H7z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <p class="mt-4 text-lg font-semibold text-[var(--color-text)]">将文件拖拽到此处</p>
+            <p class="mt-1 text-sm text-[var(--color-text-light)]">或</p>
+            <label for="file-input" class="admin-secondary-btn mt-2 cursor-pointer rounded-lg px-4 py-2 font-semibold">
                 选择文件
             </label>
             <input type="file" id="file-input" multiple class="hidden">
             <div class="mt-4 w-full max-w-md text-left">
-                <label for="upload-folder-select" class="block text-xs font-medium text-gray-600 mb-1">上传到文件夹</label>
-                <select id="upload-folder-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"></select>
+                <label for="upload-folder-select" class="mb-1 block text-xs font-medium text-[var(--color-text-light)]">上传到文件夹</label>
+                <select id="upload-folder-select" class="admin-form-field w-full rounded-lg px-3 py-2 text-sm"></select>
             </div>
         </div>
         <div id="upload-previews" class="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
     </div>
 
     <!-- Toolbar & Filters -->
-    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm flex flex-col gap-4">
+    <div class="admin-section-card flex flex-col gap-4 rounded-lg p-4">
         <div class="flex flex-wrap items-center gap-2">
-            <input type="search" id="search-input" placeholder="搜索..." class="w-full md:w-64 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-indigo-500 focus:border-indigo-500">
-            <select id="folder-filter" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm"></select>
-            <select id="type-filter" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm">
+            <input type="search" id="search-input" placeholder="搜索..." class="admin-form-field w-full rounded-lg px-3 py-2 md:w-64">
+            <select id="folder-filter" class="admin-form-field rounded-lg px-3 py-2 text-sm"></select>
+            <select id="type-filter" class="admin-form-field rounded-lg px-3 py-2 text-sm">
                 <option value="">全部类型</option>
                 <option value="image">图片</option>
                 <option value="video">视频</option>
@@ -179,27 +286,27 @@
                 <option value="document">文档</option>
                 <option value="other">其他</option>
             </select>
-            <input type="date" id="date-from-filter" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm">
-            <input type="date" id="date-to-filter" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm">
+            <input type="date" id="date-from-filter" class="admin-form-field rounded-lg px-3 py-2 text-sm">
+            <input type="date" id="date-to-filter" class="admin-form-field rounded-lg px-3 py-2 text-sm">
         </div>
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
-                <input id="new-folder-input" type="text" placeholder="新建文件夹，如 covers/2026" class="w-56 px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                <button id="create-folder-button" type="button" class="px-3 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700">新建文件夹</button>
+                <input id="new-folder-input" type="text" placeholder="新建文件夹，如 covers/2026" class="admin-form-field w-56 rounded-lg px-3 py-2 text-sm">
+                <button id="create-folder-button" type="button" class="admin-primary-btn rounded-lg px-3 py-2 text-sm font-semibold">新建文件夹</button>
             </div>
             <div class="flex items-center space-x-2">
-                <div class="inline-flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
-                    <button id="grid-view-button" class="px-3 py-2 text-sm bg-indigo-600 text-white">网格</button>
-                    <button id="list-view-button" class="px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200">列表</button>
+                <div class="editor-mode-toggle inline-flex overflow-hidden rounded-lg">
+                    <button id="grid-view-button" class="editor-mode-button is-active px-3 py-2 text-sm">网格</button>
+                    <button id="list-view-button" class="editor-mode-button px-3 py-2 text-sm">列表</button>
                 </div>
-                <button id="select-filtered-button" class="px-3 py-2 text-sm font-semibold text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-100">全选筛选结果</button>
-                <button id="select-all-button" class="px-3 py-2 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg border border-gray-300 hover:bg-gray-200">全选当前页</button>
+                <button id="select-filtered-button" class="admin-secondary-btn rounded-lg px-3 py-2 text-sm font-semibold">全选筛选结果</button>
+                <button id="select-all-button" class="admin-soft-btn rounded-lg px-3 py-2 text-sm font-semibold">全选当前页</button>
                 <div id="batch-actions-toolbar" class="hidden items-center space-x-2">
-                    <span id="selected-count" class="text-sm font-medium text-gray-700 dark:text-gray-200"></span>
-                    <select id="move-folder-select" class="px-3 py-2 border border-gray-300 rounded-lg text-sm"></select>
-                    <button id="batch-move-button" class="px-3 py-2 text-sm font-semibold text-white bg-amber-600 rounded-lg hover:bg-amber-700">移动选中</button>
-                    <button id="batch-delete-button" class="px-3 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700">删除选中</button>
-                    <button id="clear-selection-button" class="px-3 py-2 text-sm font-semibold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">取消</button>
+                    <span id="selected-count" class="text-sm font-medium text-[var(--color-text)]"></span>
+                    <select id="move-folder-select" class="admin-form-field rounded-lg px-3 py-2 text-sm"></select>
+                    <button id="batch-move-button" class="admin-soft-btn rounded-lg px-3 py-2 text-sm font-semibold">移动选中</button>
+                    <button id="batch-delete-button" class="admin-soft-btn admin-soft-btn-danger rounded-lg px-3 py-2 text-sm font-semibold">删除选中</button>
+                    <button id="clear-selection-button" class="admin-secondary-btn rounded-lg px-3 py-2 text-sm font-semibold">取消</button>
                 </div>
             </div>
         </div>
@@ -230,11 +337,13 @@
             <div class="media-card group relative border bg-white dark:bg-gray-800 rounded-lg shadow-sm cursor-pointer"
                  data-id="{{ media.id }}"
                  data-title="{{ media.title or media.filename }}"
+                 data-filename="{{ media.filename }}"
                  data-file-type="{{ media.file_type }}"
                  data-upload-date="{{ media.uploaded_at.strftime('%Y-%m-%d') }}"
-                 data-folder="{{ media.folder or '' }}">
+                 data-folder="{{ media.folder or '' }}"
+                 data-file-size="{{ media.file_size or 0 }}">
                 <div class="media-checkbox-wrap absolute top-2 left-2 z-10">
-                    <input type="checkbox" class="media-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" value="{{ media.id }}">
+                    <input type="checkbox" class="media-checkbox admin-form-check h-5 w-5 rounded border-gray-300" value="{{ media.id }}">
                 </div>
                 <div class="media-preview-shell bg-gray-100 dark:bg-gray-700 rounded-t-lg">
                     {% if media.file_type.startswith('image') %}
@@ -252,9 +361,16 @@
                     {% endif %}
                 </div>
                 <div class="media-meta p-3">
-                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate" title="{{ media.title or media.filename }}">{{ media.title or media.filename }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ media.folder or '根目录' }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ media.uploaded_at.strftime('%Y-%m-%d') }}</p>
+                    <div class="media-title-row">
+                        <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate" title="{{ media.title or media.filename }}">{{ media.title or media.filename }}</p>
+                        <span class="media-type-chip">{{ media.file_type }}</span>
+                    </div>
+                    <p class="media-filename-line" title="{{ media.filename }}">{{ media.filename }}</p>
+                    <p class="media-folder-chip text-xs text-gray-500 dark:text-gray-400 truncate">{{ media.folder or '根目录' }}</p>
+                    <div class="media-detail-line">
+                        <span class="media-date-line text-xs text-gray-500 dark:text-gray-400">{{ media.uploaded_at.strftime('%Y-%m-%d') }}</span>
+                        <span class="media-size-line text-xs text-gray-500 dark:text-gray-400">{{ media.file_size or 0 }} B</span>
+                    </div>
                 </div>
                 <button class="media-detail-button" data-action="details" data-media-id="{{ media.id }}" aria-label="查看详情">
                     <i class="fas fa-eye" aria-hidden="true"></i>
@@ -265,16 +381,16 @@
         {% else %}
             <div class="col-span-full text-center py-16">
                 <svg class="mx-auto h-16 w-16 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-gray-200">正在加载媒体</h3>
+                <h3 class="mt-4 text-lg font-medium text-[var(--color-text)]">正在加载媒体</h3>
                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">首次加载可能需要几秒，请稍候。</p>
             </div>
         {% endif %}
     </div>
     <div id="media-load-more-container" class="flex items-center justify-center gap-3">
-        <button id="media-load-more-button" class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 {% if not media_has_more %}hidden{% endif %}">
+        <button id="media-load-more-button" class="admin-primary-btn rounded-lg px-4 py-2 text-sm font-semibold {% if not media_has_more %}hidden{% endif %}">
             加载更多
         </button>
-        <span id="media-load-more-status" class="text-sm text-gray-500"></span>
+        <span id="media-load-more-status" class="text-sm text-[var(--color-text-light)]"></span>
     </div>
 </div>
 
@@ -294,6 +410,7 @@
     </div>
 </div>
 
+{% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const adminPath = "{{ request.state.admin_path }}";
@@ -361,14 +478,25 @@ document.addEventListener('DOMContentLoaded', () => {
     function setViewMode(mode) {
         currentViewMode = mode;
         const isGrid = mode === 'grid';
-        mediaGrid.classList.toggle('list-view', !isGrid);
+        mediaGrid.classList.toggle('media-list-view', !isGrid);
+        mediaGrid.classList.toggle('grid', isGrid);
+        mediaGrid.classList.toggle('grid-cols-2', isGrid);
+        mediaGrid.classList.toggle('sm:grid-cols-3', isGrid);
+        mediaGrid.classList.toggle('md:grid-cols-4', isGrid);
+        mediaGrid.classList.toggle('lg:grid-cols-5', isGrid);
+        mediaGrid.classList.toggle('xl:grid-cols-6', isGrid);
 
-        gridViewButton.className = isGrid
-            ? 'px-3 py-2 text-sm bg-indigo-600 text-white'
-            : 'px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200';
-        listViewButton.className = isGrid
-            ? 'px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200'
-            : 'px-3 py-2 text-sm bg-indigo-600 text-white';
+        if (isGrid) {
+            mediaGrid.style.display = '';
+        } else {
+            mediaGrid.style.display = 'flex';
+            mediaGrid.style.flexDirection = 'column';
+        }
+
+        gridViewButton.classList.toggle('is-active', isGrid);
+        listViewButton.classList.toggle('is-active', !isGrid);
+        gridViewButton.setAttribute('aria-pressed', isGrid ? 'true' : 'false');
+        listViewButton.setAttribute('aria-pressed', isGrid ? 'false' : 'true');
     }
 
     function escapeHtml(value) {
@@ -392,6 +520,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const month = String(parsed.getMonth() + 1).padStart(2, '0');
         const day = String(parsed.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    }
+
+    function getFileTypeLabel(fileType) {
+        const value = String(fileType || '').toLowerCase();
+        if (!value) return '未知类型';
+        if (value.startsWith('image/')) return '图片';
+        if (value.startsWith('video/')) return '视频';
+        if (value.startsWith('audio/')) return '音频';
+        if (value.includes('pdf')) return 'PDF';
+        if (value.includes('zip') || value.includes('rar') || value.includes('7z')) return '压缩包';
+        if (value.includes('word') || value.includes('document')) return '文档';
+        return value;
     }
 
     function ensureImageObserver() {
@@ -440,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `
             <div class="col-span-full text-center py-16">
                 <svg class="mx-auto h-16 w-16 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-gray-200">媒体库为空</h3>
+                <h3 class="mt-4 text-lg font-medium text-[var(--color-text)]">媒体库为空</h3>
                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">点击“上传文件”开始添加内容。</p>
             </div>
         `;
@@ -453,6 +593,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const folder = String(item?.folder || '');
         const uploadDate = normalizeDateText(item?.uploaded_at);
         const fileType = String(item?.file_type || '');
+        const fileTypeLabel = getFileTypeLabel(fileType);
+        const fileSizeText = formatBytes(item?.file_size);
         const previewUrl = String(item?.preview_url || item?.url || '');
         const altText = String(item?.alt_text || title || filename);
         const isImage = fileType.startsWith('image');
@@ -461,9 +603,11 @@ document.addEventListener('DOMContentLoaded', () => {
         card.className = 'media-card relative border bg-white dark:bg-gray-800 rounded-lg cursor-pointer';
         card.dataset.id = mediaId;
         card.dataset.title = title;
+        card.dataset.filename = filename;
         card.dataset.fileType = fileType;
         card.dataset.uploadDate = uploadDate;
         card.dataset.folder = folder;
+        card.dataset.fileSize = String(item?.file_size || 0);
 
         const mediaPreview = isImage
             ? `<img src="${PLACEHOLDER_IMAGE}" data-src="${escapeHtml(previewUrl)}" alt="${escapeHtml(altText)}" loading="lazy" decoding="async" fetchpriority="low">`
@@ -473,15 +617,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         card.innerHTML = `
             <div class="media-checkbox-wrap absolute top-2 left-2 z-10">
-                <input type="checkbox" class="media-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" value="${escapeHtml(mediaId)}">
+                <input type="checkbox" class="media-checkbox admin-form-check h-5 w-5 rounded border-gray-300" value="${escapeHtml(mediaId)}">
             </div>
             <div class="media-preview-shell bg-gray-100 dark:bg-gray-700 rounded-t-lg">
                 ${mediaPreview}
             </div>
             <div class="media-meta p-3">
-                <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate" title="${escapeHtml(title)}">${escapeHtml(title)}</p>
-                <p class="text-xs text-gray-500 dark:text-gray-400 truncate">${escapeHtml(folder || '根目录')}</p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">${escapeHtml(uploadDate)}</p>
+                <div class="media-title-row">
+                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate" title="${escapeHtml(title)}">${escapeHtml(title)}</p>
+                    <span class="media-type-chip">${escapeHtml(fileTypeLabel)}</span>
+                </div>
+                <p class="media-filename-line" title="${escapeHtml(filename)}">${escapeHtml(filename)}</p>
+                <p class="media-folder-chip text-xs text-gray-500 dark:text-gray-400 truncate">${escapeHtml(folder || '根目录')}</p>
+                <div class="media-detail-line">
+                    <span class="media-date-line text-xs text-gray-500 dark:text-gray-400">${escapeHtml(uploadDate)}</span>
+                    <span class="media-size-line text-xs text-gray-500 dark:text-gray-400">${escapeHtml(fileSizeText)}</span>
+                </div>
             </div>
             <button class="media-detail-button" data-action="details" data-media-id="${escapeHtml(mediaId)}" aria-label="查看详情">
                 <i class="fas fa-eye" aria-hidden="true"></i>
@@ -1136,27 +1287,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">标题</label>
-                            <input id="media-detail-title" type="text" value="${media.title || ''}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:border-gray-600">
+                            <label class="block text-sm font-medium text-[var(--color-text)]">标题</label>
+                            <input id="media-detail-title" type="text" value="${media.title || ''}" class="admin-form-field mt-1 block w-full rounded-md">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">替代文本</label>
-                            <input id="media-detail-alt" type="text" value="${media.alt_text || ''}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:border-gray-600">
+                            <label class="block text-sm font-medium text-[var(--color-text)]">替代文本</label>
+                            <input id="media-detail-alt" type="text" value="${media.alt_text || ''}" class="admin-form-field mt-1 block w-full rounded-md">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">描述</label>
-                            <textarea id="media-detail-description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:border-gray-600">${media.description || ''}</textarea>
+                            <label class="block text-sm font-medium text-[var(--color-text)]">描述</label>
+                            <textarea id="media-detail-description" rows="3" class="admin-form-field mt-1 block w-full rounded-md">${media.description || ''}</textarea>
                         </div>
-                        <div class="text-sm text-gray-500 dark:text-gray-400 space-y-2">
+                        <div class="space-y-2 text-sm text-[var(--color-text-light)]">
                             <p><strong>文件名:</strong> ${media.filename}</p>
                             <p><strong>类型:</strong> ${media.mime_type}</p>
                             <p><strong>文件夹:</strong> ${media.folder || '根目录'}</p>
                             <p><strong>上传时间:</strong> ${new Date(media.uploaded_at).toLocaleString()}</p>
-                            <p><strong>文件 URL:</strong> <input type="text" readonly value="${media.url}" class="w-full rounded-md border-none bg-gray-100 p-1 dark:bg-gray-900"></p>
+                            <p><strong>文件 URL:</strong> <input type="text" readonly value="${media.url}" class="admin-form-field w-full rounded-md border-none p-1"></p>
                         </div>
                         <div class="flex space-x-2 pt-4">
-                            <button id="save-media-changes" class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">保存</button>
-                            <button class="w-full rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700" onclick="deleteMedia(${media.id}, event)">删除</button>
+                            <button id="save-media-changes" class="admin-primary-btn w-full rounded-lg px-4 py-2">保存</button>
+                            <button class="admin-soft-btn admin-soft-btn-danger w-full rounded-lg px-4 py-2" onclick="deleteMedia(${media.id}, event)">删除</button>
                         </div>
                     </div>
                 </div>
@@ -1218,4 +1369,5 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 });
 </script>
+{% endblock %}
 {% endblock %}

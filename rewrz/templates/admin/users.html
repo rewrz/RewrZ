@@ -1,17 +1,17 @@
 {% extends "admin/base.html" %}
 
-{% block page_title %}用户管理{% endblock %}
+{% block page_title %}<i class="fas fa-users admin-accent-text mr-3"></i>用户管理{% endblock %}
 
 {% block content %}
 {% set profile_gravatar_mode = profile_user.use_gravatar if profile_user.use_gravatar else 'auto' %}
 {% set ps = profile_settings if profile_settings is defined and profile_settings else {} %}
 {% set can_manage_admin_users = profile_user.role == 'super_admin' %}
-<section class="mb-6 space-y-4">
-    <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+<section class="users-admin-page mb-6 space-y-4">
+    <div class="admin-section-card rounded-2xl p-5">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-                <h2 class="text-lg font-semibold text-gray-900">后台用户列表</h2>
-                <p class="mt-1 text-sm text-gray-500">
+                <h2 class="text-lg font-semibold text-[var(--color-text)]">后台用户列表</h2>
+                <p class="mt-1 text-sm text-[var(--color-text-light)]">
                     {% if can_manage_admin_users %}
                     当前提供最小必要的用户管理能力：搜索、新增、启停、角色切换、密码重置、强制退出。
                     {% else %}
@@ -29,51 +29,51 @@
                            name="q"
                            value="{{ managed_users_search or '' }}"
                            placeholder="搜索用户名、邮箱或显示名"
-                           class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm">
-                    <button type="submit" class="rounded-md bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-900">搜索</button>
+                           class="admin-form-field block w-full rounded-md px-3 py-2 text-sm">
+                    <button type="submit" class="admin-primary-btn rounded-md px-4 py-2 text-sm">搜索</button>
                 </form>
                 {% if can_manage_admin_users %}
-                <form id="managed-user-create-form" class="grid w-full gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-5">
-                    <input type="text" name="username" placeholder="新用户名" class="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm">
-                    <input type="email" name="email" placeholder="邮箱" class="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm">
-                    <input type="text" name="display_name" placeholder="显示名（可选）" class="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm">
-                    <input type="password" name="password" placeholder="初始密码（至少 8 位）" class="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm">
+                <form id="managed-user-create-form" class="admin-filter-panel grid w-full gap-2 rounded-xl p-3 md:grid-cols-5">
+                    <input type="text" name="username" placeholder="新用户名" class="admin-form-field rounded-md px-3 py-2 text-sm">
+                    <input type="email" name="email" placeholder="邮箱" class="admin-form-field rounded-md px-3 py-2 text-sm">
+                    <input type="text" name="display_name" placeholder="显示名（可选）" class="admin-form-field rounded-md px-3 py-2 text-sm">
+                    <input type="password" name="password" placeholder="初始密码（至少 8 位）" class="admin-form-field rounded-md px-3 py-2 text-sm">
                     <div class="flex gap-2">
-                        <select name="role" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm">
+                        <select name="role" class="admin-form-field w-full rounded-md px-3 py-2 text-sm">
                             {% for role_name in allowed_admin_roles %}
                             <option value="{{ role_name }}" {% if role_name == 'admin' %}selected{% endif %}>{{ role_name }}</option>
                             {% endfor %}
                         </select>
-                        <button type="button" id="managed-user-create-btn" class="shrink-0 rounded-md bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700">新增</button>
+                        <button type="button" id="managed-user-create-btn" class="admin-primary-btn shrink-0 rounded-md px-4 py-2 text-sm">新增</button>
                     </div>
                 </form>
                 {% endif %}
             </div>
         </div>
 
-        <div class="mt-4 overflow-x-auto">
-            <table class="min-w-[960px] divide-y divide-gray-200 text-sm">
-                <thead class="bg-gray-50">
+        <div class="admin-table-shell mt-4 overflow-x-auto rounded-2xl">
+            <table class="admin-list-table min-w-[960px] text-sm">
+                <thead class="admin-list-table-head">
                     <tr>
-                        <th class="w-[25%] px-4 py-3 text-left font-medium text-gray-600">用户</th>
-                        <th class="w-[12%] px-4 py-3 text-left font-medium text-gray-600">显示名</th>
-                        <th class="w-[12%] px-4 py-3 text-left font-medium text-gray-600">角色</th>
-                        <th class="w-[10%] px-4 py-3 text-left font-medium text-gray-600">状态</th>
-                        <th class="w-[12%] px-4 py-3 text-left font-medium text-gray-600">最近登录</th>
-                        <th class="w-[17%] px-4 py-3 text-left font-medium text-gray-600">最近活动</th>
-                        <th class="w-[12%] px-4 py-3 text-right font-medium text-gray-600">操作</th>
+                        <th class="w-[25%] px-4 py-3 text-left font-medium text-[var(--color-text-light)]">用户</th>
+                        <th class="w-[12%] px-4 py-3 text-left font-medium text-[var(--color-text-light)]">显示名</th>
+                        <th class="w-[12%] px-4 py-3 text-left font-medium text-[var(--color-text-light)]">角色</th>
+                        <th class="w-[10%] px-4 py-3 text-left font-medium text-[var(--color-text-light)]">状态</th>
+                        <th class="w-[12%] px-4 py-3 text-left font-medium text-[var(--color-text-light)]">最近登录</th>
+                        <th class="w-[17%] px-4 py-3 text-left font-medium text-[var(--color-text-light)]">最近活动</th>
+                        <th class="w-[12%] px-4 py-3 text-right font-medium text-[var(--color-text-light)]">操作</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100 bg-white">
+                <tbody class="admin-list-table-body divide-y">
                     {% for item in managed_users %}
                     <tr data-managed-user-row="{{ item.id }}">
                         <td class="px-4 py-3 align-top">
-                            <div class="font-medium text-gray-900">{{ item.username }}</div>
-                            <div class="text-xs text-gray-500">{{ item.email }}</div>
+                            <div class="font-medium text-[var(--color-text)]">{{ item.username }}</div>
+                            <div class="text-xs text-[var(--color-text-light)]">{{ item.email }}</div>
                         </td>
-                        <td class="px-4 py-3 align-top text-gray-700">{{ item.display_name or '-' }}</td>
+                        <td class="px-4 py-3 align-top text-[var(--color-text)]">{{ item.display_name or '-' }}</td>
                         <td class="px-4 py-3 align-top">
-                            <select class="managed-user-role min-w-[7.5rem] rounded-md border border-gray-300 px-2 py-1 text-sm"
+                            <select class="managed-user-role admin-form-field min-w-[7.5rem] rounded-md px-2 py-1 text-sm"
                                     data-user-id="{{ item.id }}"
                                     {% if item.id == profile_user.id %}data-current-user="true"{% endif %}
                                     {% if not can_manage_admin_users %}disabled{% endif %}>
@@ -83,17 +83,17 @@
                             </select>
                         </td>
                         <td class="px-4 py-3 align-top">
-                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium {% if item.is_active %}bg-emerald-100 text-emerald-700{% else %}bg-rose-100 text-rose-700{% endif %}">
+                            <span class="admin-badge {% if item.is_active %}admin-badge-success{% else %}admin-badge-danger{% endif %} inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium">
                                 {{ '启用中' if item.is_active else '已停用' }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 align-top text-xs text-gray-500">{{ item.last_login_at.strftime('%Y-%m-%d %H:%M') if item.last_login_at else '暂无' }}</td>
-                        <td class="px-4 py-3 align-top text-xs text-gray-500">
+                        <td class="px-4 py-3 align-top text-xs text-[var(--color-text-light)]">{{ item.last_login_at.strftime('%Y-%m-%d %H:%M') if item.last_login_at else '暂无' }}</td>
+                        <td class="px-4 py-3 align-top text-xs text-[var(--color-text-light)]">
                             {% set activity = item.admin_recent_activity if item.admin_recent_activity is defined else {} %}
                             {% if activity and activity.timestamp %}
-                            <div class="font-medium text-gray-700">{{ activity.label or '后台管理操作' }}</div>
+                            <div class="font-medium text-[var(--color-text)]">{{ activity.label or '后台管理操作' }}</div>
                             <div class="mt-1">{{ activity.detail_text or '-' }}</div>
-                            <div class="mt-1 text-[11px] text-gray-400">
+                            <div class="mt-1 text-[11px] text-[var(--color-text-light)]">
                                 {{ activity.timestamp[:16].replace('T', ' ') }}
                                 {% if activity.actor_username %} · {{ activity.actor_username }}{% endif %}
                             </div>
@@ -105,21 +105,21 @@
                             {% if can_manage_admin_users %}
                             <div class="flex flex-col items-end gap-2 whitespace-nowrap">
                                 <button type="button"
-                                        class="managed-user-status min-w-[4rem] rounded-md px-3 py-1.5 text-xs text-white {% if item.is_active %}bg-amber-600 hover:bg-amber-700{% else %}bg-emerald-600 hover:bg-emerald-700{% endif %}"
+                                        class="managed-user-status admin-soft-btn min-w-[4rem] rounded-md px-3 py-1.5 text-xs {% if item.is_active %}admin-soft-btn-danger{% else %}admin-soft-btn-success{% endif %}"
                                         data-user-id="{{ item.id }}"
                                         data-next-status="{{ 'false' if item.is_active else 'true' }}"
                                         {% if not can_manage_admin_users %}disabled{% endif %}>
                                     {{ '停用' if item.is_active else '启用' }}
                                 </button>
                                 <button type="button"
-                                        class="managed-user-password min-w-[4.75rem] rounded-md bg-indigo-600 px-3 py-1.5 text-xs text-white hover:bg-indigo-700"
+                                        class="managed-user-password admin-primary-btn min-w-[4.75rem] rounded-md px-3 py-1.5 text-xs"
                                         data-user-id="{{ item.id }}"
                                         data-username="{{ item.username }}"
                                         {% if not can_manage_admin_users %}disabled{% endif %}>
                                     重置密码
                                 </button>
                                 <button type="button"
-                                        class="managed-user-force-logout min-w-[4.75rem] rounded-md bg-slate-700 px-3 py-1.5 text-xs text-white hover:bg-slate-800"
+                                        class="managed-user-force-logout admin-secondary-btn min-w-[4.75rem] rounded-md px-3 py-1.5 text-xs"
                                         data-user-id="{{ item.id }}"
                                         data-username="{{ item.username }}"
                                         {% if not can_manage_admin_users %}disabled{% endif %}>
@@ -127,19 +127,19 @@
                                 </button>
                             </div>
                             {% else %}
-                            <span class="text-xs text-gray-400">仅超级管理员可操作</span>
+                            <span class="text-xs text-[var(--color-text-light)]">仅超级管理员可操作</span>
                             {% endif %}
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">暂无匹配用户。</td>
+                        <td colspan="7" class="admin-empty-state px-4 py-8 text-center text-sm text-[var(--color-text-light)]">暂无匹配用户。</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        <p class="mt-3 text-xs text-gray-500">最近活动为后台用户管理轻量审计摘要；登录审计详见安全中心与 <code>data/logs/admin_login_audit.log</code>。</p>
+        <p class="mt-3 text-xs text-[var(--color-text-light)]">最近活动为后台用户管理轻量审计摘要；登录审计详见安全中心与 <code>data/logs/admin_login_audit.log</code>。</p>
     </div>
 </section>
 
@@ -151,100 +151,100 @@
     <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
 
     {% if profile_message %}
-    <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+    <div class="admin-info-box rounded-lg px-4 py-3 text-sm">
         <i class="fas fa-check-circle mr-1"></i>{{ profile_message }}
     </div>
     {% endif %}
     {% if profile_error %}
-    <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+    <div class="admin-warning-box rounded-lg px-4 py-3 text-sm">
         <i class="fas fa-exclamation-circle mr-1"></i>{{ profile_error }}
     </div>
     {% endif %}
 
     <div class="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
         <section class="space-y-5">
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <h2 class="mb-4 text-lg font-semibold text-gray-900">账号基础资料</h2>
+            <div class="admin-section-card rounded-2xl p-5">
+                <h2 class="mb-4 text-lg font-semibold text-[var(--color-text)]">账号基础资料</h2>
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                        <label for="username" class="block text-sm font-medium text-gray-700">用户名</label>
+                        <label for="username" class="block text-sm font-medium text-[var(--color-text)]">用户名</label>
                         <input id="username" name="username" type="text" required value="{{ profile_user.username }}"
-                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                               class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
                     </div>
                     <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700">邮箱</label>
+                        <label for="email" class="block text-sm font-medium text-[var(--color-text)]">邮箱</label>
                         <input id="email" name="email" type="email" required value="{{ profile_user.email }}"
-                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                               class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
                     </div>
                 </div>
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                        <label for="display_name" class="block text-sm font-medium text-gray-700">显示名称</label>
+                        <label for="display_name" class="block text-sm font-medium text-[var(--color-text)]">显示名称</label>
                         <input id="display_name" name="display_name" type="text" value="{{ profile_user.display_name or '' }}"
-                               placeholder="前台个人资料显示名" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                               placeholder="前台个人资料显示名" class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
                     </div>
                     <div>
-                        <label for="website" class="block text-sm font-medium text-gray-700">个人网站</label>
+                        <label for="website" class="block text-sm font-medium text-[var(--color-text)]">个人网站</label>
                         <input id="website" name="website" type="text" value="{{ profile_user.website or '' }}"
-                               placeholder="https://example.com" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                               placeholder="https://example.com" class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
                     </div>
                 </div>
                 <div class="mt-4">
-                    <label for="bio" class="block text-sm font-medium text-gray-700">默认个人简介</label>
+                    <label for="bio" class="block text-sm font-medium text-[var(--color-text)]">默认个人简介</label>
                     <textarea id="bio" name="bio" rows="3" placeholder="标准文章页默认使用"
-                              class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">{{ profile_user.bio or '' }}</textarea>
+                              class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">{{ profile_user.bio or '' }}</textarea>
                 </div>
                 <div class="mt-4">
-                    <label for="use_gravatar" class="block text-sm font-medium text-gray-700">Gravatar 策略</label>
+                    <label for="use_gravatar" class="block text-sm font-medium text-[var(--color-text)]">Gravatar 策略</label>
                     <select id="use_gravatar" name="use_gravatar"
-                            class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                            class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
                         <option value="auto" {% if profile_gravatar_mode == 'auto' %}selected{% endif %}>自动（推荐）</option>
                         <option value="enabled" {% if profile_gravatar_mode == 'enabled' %}selected{% endif %}>始终启用</option>
                         <option value="disabled" {% if profile_gravatar_mode == 'disabled' %}selected{% endif %}>禁用（仅自定义/默认）</option>
                     </select>
-                    <p class="mt-1 text-xs text-gray-500">头像优先级：自定义头像 > Gravatar > 默认头像。</p>
+                    <p class="mt-1 text-xs text-[var(--color-text-light)]">头像优先级：自定义头像 > Gravatar > 默认头像。</p>
                 </div>
             </div>
 
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <h2 class="mb-4 text-lg font-semibold text-gray-900">聚合页个人资料（文章/微博/诗词）</h2>
+            <div class="admin-section-card rounded-2xl p-5">
+                <h2 class="mb-4 text-lg font-semibold text-[var(--color-text)]">聚合页个人资料（文章/微博/诗词）</h2>
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                        <label for="creator_profile_headline" class="block text-sm font-medium text-gray-700">个性签名</label>
+                        <label for="creator_profile_headline" class="block text-sm font-medium text-[var(--color-text)]">个性签名</label>
                         <input id="creator_profile_headline" name="creator_profile_headline" type="text"
                                value="{{ ps.creator_profile_headline or '' }}" placeholder="一句简短的个人宣言"
-                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                               class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
                     </div>
                     <div>
-                        <label for="creator_profile_location" class="block text-sm font-medium text-gray-700">所在地</label>
+                        <label for="creator_profile_location" class="block text-sm font-medium text-[var(--color-text)]">所在地</label>
                         <input id="creator_profile_location" name="creator_profile_location" type="text"
                                value="{{ ps.creator_profile_location or '' }}" placeholder="如：杭州 / Beijing"
-                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                               class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
                     </div>
                 </div>
                 <div class="mt-4">
-                    <label for="creator_profile_motto" class="block text-sm font-medium text-gray-700">文案座右铭</label>
+                    <label for="creator_profile_motto" class="block text-sm font-medium text-[var(--color-text)]">文案座右铭</label>
                     <input id="creator_profile_motto" name="creator_profile_motto" type="text"
                            value="{{ ps.creator_profile_motto or '' }}" placeholder="用于微博/诗词页面头部强调语"
-                           class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm">
+                           class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
                 </div>
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div>
-                        <label for="creator_profile_article_bio" class="block text-sm font-medium text-gray-700">文章页简介</label>
+                        <label for="creator_profile_article_bio" class="block text-sm font-medium text-[var(--color-text)]">文章页简介</label>
                         <textarea id="creator_profile_article_bio" name="creator_profile_article_bio" rows="4"
-                                  class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm"
+                                  class="admin-form-field mt-1 block w-full rounded-md px-3 py-2"
                                   placeholder="标准文章聚合页使用">{{ ps.creator_profile_article_bio or '' }}</textarea>
                     </div>
                     <div>
-                        <label for="creator_profile_micro_bio" class="block text-sm font-medium text-gray-700">微博页简介</label>
+                        <label for="creator_profile_micro_bio" class="block text-sm font-medium text-[var(--color-text)]">微博页简介</label>
                         <textarea id="creator_profile_micro_bio" name="creator_profile_micro_bio" rows="4"
-                                  class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm"
+                                  class="admin-form-field mt-1 block w-full rounded-md px-3 py-2"
                                   placeholder="类似新浪/Twitter 风格">{{ ps.creator_profile_micro_bio or '' }}</textarea>
                     </div>
                     <div>
-                        <label for="creator_profile_poem_bio" class="block text-sm font-medium text-gray-700">诗词页简介</label>
+                        <label for="creator_profile_poem_bio" class="block text-sm font-medium text-[var(--color-text)]">诗词页简介</label>
                         <textarea id="creator_profile_poem_bio" name="creator_profile_poem_bio" rows="4"
-                                  class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm"
+                                  class="admin-form-field mt-1 block w-full rounded-md px-3 py-2"
                                   placeholder="文艺古雅风格">{{ ps.creator_profile_poem_bio or '' }}</textarea>
                     </div>
                 </div>
@@ -265,13 +265,13 @@
                 <div class="mt-4 space-y-2">
                     <input id="avatar-upload-file" type="file" accept="image/*" class="block w-full text-sm text-gray-600">
                     <div class="flex flex-wrap gap-2">
-                        <button type="button" id="upload-avatar-btn" class="rounded-md bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700">
+                        <button type="button" id="upload-avatar-btn" class="admin-primary-btn rounded-md px-3 py-2 text-sm">
                             <i class="fas fa-upload mr-1"></i>上传头像
                         </button>
-                        <button type="button" id="select-avatar-from-media-btn" class="rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700">
+                        <button type="button" id="select-avatar-from-media-btn" class="admin-secondary-btn rounded-md px-3 py-2 text-sm">
                             <i class="fas fa-photo-video mr-1"></i>从媒体库选择
                         </button>
-                        <button type="button" id="delete-avatar-btn" class="rounded-md bg-rose-600 px-3 py-2 text-sm text-white hover:bg-rose-700">
+                        <button type="button" id="delete-avatar-btn" class="admin-soft-btn admin-soft-btn-danger rounded-md px-3 py-2 text-sm">
                             <i class="fas fa-trash-alt mr-1"></i>删除头像
                         </button>
                     </div>
@@ -289,8 +289,8 @@
                                placeholder="/media/2026/02/profile-cover.jpg">
                         <div class="mt-2 flex gap-2">
                             <input id="creator_profile_cover_url_file" type="file" accept="image/*" class="block w-full text-xs text-gray-500">
-                            <button type="button" data-upload-target="creator_profile_cover_url" class="upload-cover-btn rounded bg-slate-700 px-3 py-1.5 text-xs text-white hover:bg-slate-800">上传</button>
-                            <button type="button" data-media-target="creator_profile_cover_url" class="select-cover-from-media-btn rounded bg-indigo-600 px-3 py-1.5 text-xs text-white hover:bg-indigo-700">从媒体库选择</button>
+                            <button type="button" data-upload-target="creator_profile_cover_url" class="upload-cover-btn admin-secondary-btn rounded px-3 py-1.5 text-xs">上传</button>
+                            <button type="button" data-media-target="creator_profile_cover_url" class="select-cover-from-media-btn admin-primary-btn rounded px-3 py-1.5 text-xs">从媒体库选择</button>
                         </div>
                     </div>
                     <div>
@@ -301,8 +301,8 @@
                                placeholder="/media/2026/02/micro-cover.jpg">
                         <div class="mt-2 flex gap-2">
                             <input id="creator_profile_micro_cover_url_file" type="file" accept="image/*" class="block w-full text-xs text-gray-500">
-                            <button type="button" data-upload-target="creator_profile_micro_cover_url" class="upload-cover-btn rounded bg-slate-700 px-3 py-1.5 text-xs text-white hover:bg-slate-800">上传</button>
-                            <button type="button" data-media-target="creator_profile_micro_cover_url" class="select-cover-from-media-btn rounded bg-indigo-600 px-3 py-1.5 text-xs text-white hover:bg-indigo-700">从媒体库选择</button>
+                            <button type="button" data-upload-target="creator_profile_micro_cover_url" class="upload-cover-btn admin-secondary-btn rounded px-3 py-1.5 text-xs">上传</button>
+                            <button type="button" data-media-target="creator_profile_micro_cover_url" class="select-cover-from-media-btn admin-primary-btn rounded px-3 py-1.5 text-xs">从媒体库选择</button>
                         </div>
                     </div>
                     <div>
@@ -313,8 +313,8 @@
                                placeholder="/media/2026/02/poem-cover.jpg">
                         <div class="mt-2 flex gap-2">
                             <input id="creator_profile_poem_cover_url_file" type="file" accept="image/*" class="block w-full text-xs text-gray-500">
-                            <button type="button" data-upload-target="creator_profile_poem_cover_url" class="upload-cover-btn rounded bg-slate-700 px-3 py-1.5 text-xs text-white hover:bg-slate-800">上传</button>
-                            <button type="button" data-media-target="creator_profile_poem_cover_url" class="select-cover-from-media-btn rounded bg-indigo-600 px-3 py-1.5 text-xs text-white hover:bg-indigo-700">从媒体库选择</button>
+                            <button type="button" data-upload-target="creator_profile_poem_cover_url" class="upload-cover-btn admin-secondary-btn rounded px-3 py-1.5 text-xs">上传</button>
+                            <button type="button" data-media-target="creator_profile_poem_cover_url" class="select-cover-from-media-btn admin-primary-btn rounded px-3 py-1.5 text-xs">从媒体库选择</button>
                         </div>
                     </div>
                 </div>
@@ -338,7 +338,7 @@
     </div>
 
     <div class="flex items-center justify-end gap-3">
-        <button type="submit" class="rounded-md bg-blue-600 px-5 py-2.5 text-white hover:bg-blue-700">
+        <button type="submit" class="admin-primary-btn rounded-md px-5 py-2.5">
             <i class="fas fa-save mr-1"></i>保存资料
         </button>
     </div>

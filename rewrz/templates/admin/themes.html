@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 
 {% block title_text %}主题管理{% endblock %}
-{% block page_title %}<i class="fas fa-palette text-blue-600 mr-3"></i>主题管理{% endblock %}
+{% block page_title %}<i class="fas fa-palette admin-accent-text mr-3"></i>主题管理{% endblock %}
 {% block content %}
 <div class="theme-admin-page space-y-6">
     
@@ -212,20 +212,23 @@
             <form id="theme-form" hx-post="{{ request.state.admin_path }}/themes/update" hx-trigger="change" hx-swap="none">
     <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.85fr)] gap-6 items-start">
                     <!-- 当前主题 -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-3">当前主题（含二次元风格）</label>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="space-y-3">
+                        <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                            <label class="block text-sm font-medium text-gray-700">当前主题（含二次元风格）</label>
+                            <p class="text-xs text-gray-500">命名统一为颜色感受，方便快速识别氛围。</p>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3">
                             {% for theme_id, theme_config in default_themes.items() %}
                             <div class="theme-option relative">
                                 <input type="radio" name="current_theme" value="{{ theme_id }}" 
                                        id="theme-{{ theme_id }}" class="sr-only"
                                        {{ 'checked' if theme_id == current_theme else '' }}>
                                 <label for="theme-{{ theme_id }}" 
-                                       class="theme-option-label block p-4 border-2 rounded-xl cursor-pointer hover:border-blue-300 transition-all duration-300 hover:shadow-md {{ 'is-active' if theme_id == current_theme else '' }}">
-                                    <div class="text-center">
-                                        <div class="text-2xl mb-2">
+                                       class="theme-option-label flex h-full min-h-[176px] flex-col justify-between rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100/80 p-4 cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg {{ 'is-active ring-2 ring-blue-200 border-blue-400 shadow-lg' if theme_id == current_theme else '' }}">
+                                    <div class="space-y-4 text-center">
+                                        <div class="text-2xl">
                                             {% if theme_id == 'light' %}🌞
                                             {% elif theme_id == 'dark' %}🌙
                                             {% elif theme_id == 'nature' %}🌿
@@ -236,14 +239,29 @@
                                             {% elif theme_id == 'mint' %}🍃
                                             {% else %}🎨{% endif %}
                                         </div>
-                                        <div class="font-medium text-sm">{{ theme_config.name }}</div>
-                                        <div class="flex justify-center space-x-1 mt-2">
-                                            <div class="w-5 h-5 rounded-full border border-gray-300 shadow-sm" 
-                                                 style="background-color: {{ theme_config.variables.get('--color-primary', '#6366f1') }}"></div>
-                                            <div class="w-5 h-5 rounded-full border border-gray-300 shadow-sm" 
-                                                 style="background-color: {{ theme_config.variables.get('--color-background', '#ffffff') }}"></div>
+                                        <div class="space-y-1">
+                                            <div class="font-semibold text-sm text-slate-800">{{ theme_config.name }}</div>
+                                            <div class="text-xs text-slate-500">
+                                                {% if theme_id == 'light' %}轻盈留白，适合日常阅读
+                                                {% elif theme_id == 'dark' %}低照度沉浸，夜间更稳
+                                                {% elif theme_id == 'nature' %}清新舒展，草木感更强
+                                                {% elif theme_id == 'ocean' %}干净冷调，信息感更清晰
+                                                {% elif theme_id == 'sunset' %}暖橙聚焦，适合情绪化内容
+                                                {% elif theme_id == 'sakura' %}柔和浪漫，二次元感最强
+                                                {% elif theme_id == 'galaxy' %}深邃梦幻，偏幻想风
+                                                {% elif theme_id == 'mint' %}清凉轻快，界面更通透
+                                                {% else %}预设主题{% endif %}
+                                            </div>
                                         </div>
                                     </div>
+                                    <div class="mt-4 flex items-center justify-center gap-2">
+                                            <div class="h-6 w-6 rounded-full border border-gray-300 shadow-sm" 
+                                                 style="background-color: {{ theme_config.variables.get('--color-primary', '#6366f1') }}"></div>
+                                            <div class="h-6 w-6 rounded-full border border-gray-300 shadow-sm" 
+                                                 style="background-color: {{ theme_config.variables.get('--color-background', '#ffffff') }}"></div>
+                                            <div class="h-6 w-6 rounded-full border border-gray-300 shadow-sm" 
+                                                 style="background-color: {{ theme_config.variables.get('--color-border', '#cbd5e1') }}"></div>
+                                        </div>
                                 </label>
                             </div>
                             {% endfor %}
@@ -251,20 +269,20 @@
                     </div>
                     
                     <!-- 自动切换设置 -->
-                    <div>
+                    <div class="space-y-4">
                         <label class="block text-sm font-medium text-gray-700 mb-3">高级设置</label>
                         <div class="space-y-4">
-                            <div class="flex items-center p-4 border border-gray-200 rounded-lg">
+                            <div class="flex items-start gap-3 p-4 border border-gray-200 rounded-2xl bg-slate-50/80">
                                 <input type="checkbox" name="auto_theme_enabled" 
-                                       id="auto-theme" class="h-4 w-4 text-blue-600 rounded"
+                                       id="auto-theme" class="mt-1 h-4 w-4 text-blue-600 rounded"
                                        {{ 'checked' if auto_theme_enabled else '' }}>
-                                <label for="auto-theme" class="ml-3">
+                                <label for="auto-theme" class="min-w-0">
                                     <div class="font-medium">启用主题调度</div>
                                     <div class="text-sm text-gray-500">根据时间段自动切换主题</div>
                                 </label>
                             </div>
 
-                            <div class="p-4 border border-gray-200 rounded-lg">
+                            <div class="p-4 border border-gray-200 rounded-2xl bg-white">
                                 <label for="glass-intensity" class="block text-sm font-medium text-gray-700 mb-2">
                                     毛玻璃强度
                                 </label>
@@ -277,10 +295,10 @@
                             </div>
                             
                             <!-- 背景图片选择 -->
-                            <div class="p-4 border border-gray-200 rounded-lg">
+                            <div class="p-4 border border-gray-200 rounded-2xl bg-white">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">背景图片</label>
                                 <div class="space-y-3">
-                                    <div class="grid grid-cols-3 gap-3">
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                         <label class="cursor-pointer">
                                             <input type="radio" name="background_type" value="none" class="sr-only" {% if not background_settings or background_settings.type == 'none' %}checked{% endif %}>
                                             <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300 bg-white">

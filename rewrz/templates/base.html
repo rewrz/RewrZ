@@ -23,16 +23,26 @@
     <script>
         (function() {
             var doc = document.documentElement;
+            var darkThemes = ['dark', 'galaxy'];
             var bodyTheme = {{ current_theme | tojson }};
-            var storedTheme = '';
-            try {
-                storedTheme = localStorage.getItem('rewrz-theme') || localStorage.getItem('user_theme_preference') || '';
-            } catch (_) {
-                storedTheme = '';
+            var themePersistAllowed = {{ theme_persist_allowed | tojson }};
+            var theme = bodyTheme || 'light';
+            if (themePersistAllowed) {
+                var storedTheme = '';
+                try {
+                    storedTheme = localStorage.getItem('rewrz-theme') || localStorage.getItem('user_theme_preference') || '';
+                } catch (_) {
+                    storedTheme = '';
+                }
+                theme = storedTheme || bodyTheme || 'light';
             }
-            var theme = storedTheme || bodyTheme || 'light';
             doc.dataset.currentTheme = theme;
             doc.classList.add(theme);
+            if (darkThemes.indexOf(theme) >= 0) {
+                doc.classList.add('dark');
+            } else {
+                doc.classList.remove('dark');
+            }
         })();
     </script>
 
@@ -55,18 +65,20 @@
     {% block head %}{% endblock %}
     
     <!-- Code highlighting -->
-    {% set _code_highlight_themes = ['github-dark', 'github-light', 'nord'] %}
-    {% set _code_highlight_theme = code_highlight_theme if code_highlight_theme in _code_highlight_themes else 'github-dark' %}
-    <link rel="stylesheet" href="{{ static_asset(request, 'vendor/highlightjs/styles/' ~ _code_highlight_theme ~ '.min.css') }}">
+    <link
+        id="hljs-theme-link"
+        rel="stylesheet"
+        data-theme-light="{{ static_asset(request, 'vendor/highlightjs/styles/github-light.min.css') }}"
+        data-theme-dark="{{ static_asset(request, 'vendor/highlightjs/styles/github-dark.min.css') }}"
+        href="{{ static_asset(request, 'vendor/highlightjs/styles/github-light.min.css') }}">
     <script src="{{ static_asset(request, 'vendor/highlightjs/highlight.min.js') }}" defer></script>
-    
-    <!-- 动态主题CSS变量 -->
-    <link id="theme-variables-link" rel="stylesheet" href="/api/v1/theme/variables.css">
     
     <!-- 本地 Tailwind 与补充样式系统 -->
     <link rel="stylesheet" href="{{ static_asset(request, 'css/site-tailwind.css') }}">
     <link rel="stylesheet" href="{{ static_asset(request, 'css/tailwind-optimized.css') }}">
     <link rel="stylesheet" href="{{ static_asset(request, 'css/unified-theme.css') }}">
+    <!-- 动态主题CSS变量：放在静态样式之后，确保真正覆盖默认变量 -->
+    <link id="theme-variables-link" rel="stylesheet" href="/api/v1/theme/variables.css">
     <style id="hljs-theme-bridge">
         /* 普通代码块兜底（当 hljs 未就绪时） */
         .post-content pre > code:not(.hljs),
@@ -74,8 +86,9 @@
             display: block;
             padding: 1rem 1.125rem;
             border-radius: 0.75rem;
-            background: #0f172a;
-            color: #e5e7eb;
+            background: color-mix(in srgb, var(--color-background-alt) 88%, var(--color-card-bg) 12%);
+            color: var(--color-text);
+            border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
             overflow-x: auto;
         }
 
@@ -83,7 +96,10 @@
         .post-content pre.hljs-ready,
         .prose pre.hljs-ready {
             padding: 0 !important;
-            border: none !important;
+            border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
+            border-radius: 0.75rem;
+            background: color-mix(in srgb, var(--color-background-alt) 88%, var(--color-card-bg) 12%) !important;
+            color: var(--color-text) !important;
         }
 
         .post-content pre.hljs-ready > code.hljs,
@@ -92,6 +108,9 @@
             padding: 1rem 1.125rem;
             border-radius: 0.75rem;
             overflow-x: auto;
+            background: color-mix(in srgb, var(--color-background-alt) 88%, var(--color-card-bg) 12%);
+            color: var(--color-text) !important;
+            border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
         }
     </style>
     
@@ -104,6 +123,20 @@
             font-display: swap;
         }
     </style>
+    <script>
+        (function() {
+            var link = document.getElementById('hljs-theme-link');
+            if (!link) {
+                return;
+            }
+            var darkThemes = ['dark', 'galaxy'];
+            var theme = document.documentElement.dataset.currentTheme || {{ current_theme | tojson }} || 'light';
+            var nextHref = darkThemes.indexOf(theme) >= 0 ? link.dataset.themeDark : link.dataset.themeLight;
+            if (nextHref) {
+                link.href = nextHref;
+            }
+        })();
+    </script>
 </head>
 <body class="site-shell min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300 {{ atmosphere_class if atmosphere_class else '' }}"
       data-list-navigation-mode="{{ list_navigation_mode if list_navigation_mode else 'pagination' }}"
@@ -146,9 +179,9 @@
                             <span>分类</span>
                             <i class="fas fa-chevron-down text-xs transition-transform duration-200 group-hover:rotate-180"></i>
                         </button>
-                        <div class="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div class="desktop-nav-dropdown absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                             {% for category in categories %}
-                            <a href="/category/{{ category.slug }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                            <a href="/archives/by-category/{{ category.slug }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
                                 <div class="flex justify-between items-center">
                                     <span>{{ category.name }}</span>
                                     <span class="text-xs text-gray-400">({{ category.posts_count or 0 }})</span>
@@ -179,11 +212,12 @@
                             <span>媒体</span>
                             <i class="fas fa-chevron-down text-xs transition-transform duration-200 group-hover:rotate-180"></i>
                         </button>
-                        <div class="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
+                        <div class="desktop-nav-dropdown absolute top-full left-0 mt-1 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
                             {% for media_item in media_nav_items %}
+                            {% set media_icon = (media_item.icon | fa_compat) if media_item.icon else 'fas fa-photo-video' %}
                             <a href="/archives/media/{{ media_item.key }}" class="block px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors {% if request.url.path == '/archives/media/' + media_item.key %}bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300{% endif %}">
                                 <div class="flex items-center">
-                                    <i class="fas {{ media_item.icon }} mr-2 text-xs text-gray-400 dark:text-gray-500"></i>
+                                    <i class="{{ media_icon }} mr-2 text-xs text-gray-400 dark:text-gray-500"></i>
                                     <span>{{ media_item.name }}</span>
                                 </div>
                             </a>
@@ -199,7 +233,7 @@
                             <span>页面</span>
                             <i class="fas fa-chevron-down text-xs transition-transform duration-200 group-hover:rotate-180"></i>
                         </button>
-                        <div class="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div class="desktop-nav-dropdown desktop-nav-dropdown-right absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                             {% for page in custom_pages %}
                             <a href="/{{ page.slug }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg {% if request.url.path == '/' + page.slug %}bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300{% endif %}">
                                 <div class="flex items-center">
@@ -245,7 +279,7 @@
                     <div class="space-y-1">
                         <div class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">分类</div>
                         {% for category in categories %}
-                        <a href="/category/{{ category.slug }}" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                        <a href="/archives/by-category/{{ category.slug }}" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
                             <span>{{ category.name }}</span>
                             <span class="text-xs text-gray-400">({{ category.posts_count or 0 }})</span>
                         </a>
@@ -270,8 +304,9 @@
                     <div class="space-y-1">
                         <div class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">媒体</div>
                         {% for media_item in media_nav_items %}
+                        {% set media_icon = (media_item.icon | fa_compat) if media_item.icon else 'fas fa-photo-video' %}
                         <a href="/archives/media/{{ media_item.key }}" class="flex items-center px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 {% if request.url.path == '/archives/media/' + media_item.key %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300{% else %}text-gray-600 dark:text-gray-400{% endif %}">
-                            <i class="fas {{ media_item.icon }} mr-3 w-4"></i>{{ media_item.name }}
+                            <i class="{{ media_icon }} mr-3 w-4"></i>{{ media_item.name }}
                         </a>
                         {% endfor %}
                     </div>

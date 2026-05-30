@@ -1,13 +1,13 @@
 {% extends "admin/base.html" %}
 
 {% block title_text %}安全中心{% endblock %}
-{% block page_title %}<i class="fas fa-shield-alt text-blue-600 mr-3"></i>安全中心{% endblock %}
+{% block page_title %}<i class="fas fa-shield-alt admin-accent-text mr-3"></i>安全中心{% endblock %}
 {% block content %}
 <div class="space-y-6">
     <form method="post" action="{{ admin_path }}/security-center" class="space-y-6">
         <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
 
-        <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="admin-section-card p-6 rounded-lg">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">登录防护</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -19,7 +19,7 @@
                         min="1"
                         max="20"
                         value="{{ config.login_max_attempts }}"
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                        class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm"
                     >
                 </div>
                 <div>
@@ -31,7 +31,7 @@
                         min="1"
                         max="1440"
                         value="{{ config.login_ban_minutes }}"
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                        class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm"
                     >
                 </div>
             </div>
@@ -39,14 +39,14 @@
                 <input
                     type="checkbox"
                     name="new_ip_login_alert_enabled"
-                    class="form-checkbox"
+                    class="admin-form-check form-checkbox"
                     {% if config.new_ip_login_alert_enabled %}checked{% endif %}
                 >
                 <span class="ml-2 text-gray-700">启用“新IP登录邮件告警”</span>
             </label>
         </div>
 
-        <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="admin-section-card p-6 rounded-lg">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">API 速率限制</h2>
             <div>
                 <label for="comment_rate_limit_per_min" class="block text-sm font-medium text-gray-700">评论提交 API 每分钟请求上限（按IP）</label>
@@ -57,27 +57,27 @@
                     min="1"
                     max="300"
                     value="{{ config.comment_rate_limit_per_min }}"
-                    class="mt-1 block w-full md:w-72 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                    class="admin-form-field mt-1 block w-full md:w-72 px-3 py-2 rounded-md shadow-sm"
                 >
             </div>
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            <button type="submit" class="admin-primary-btn px-6 py-2 rounded-md">
                 保存设置
             </button>
         </div>
     </form>
 
     {% if message %}
-    <div class="bg-green-100 border border-green-300 text-green-800 px-4 py-3 rounded">
+    <div class="admin-result-box px-4 py-3 rounded">
         {{ message }}
     </div>
     {% endif %}
 
-    <div class="bg-white p-6 rounded-lg shadow-md">
+    <div class="admin-section-card p-6 rounded-lg">
         <h2 class="text-xl font-semibold text-gray-800 mb-2">登录审计</h2>
-        <p class="text-sm text-gray-500 mb-4">日志文件：<code>{{ audit_log_path }}</code></p>
+        <p class="text-sm text-gray-500 mb-4">日志文件：<code class="admin-code-box rounded px-2 py-1">{{ audit_log_path }}</code></p>
 
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
@@ -98,9 +98,9 @@
                         <td class="py-2 pr-4">{{ item.ip_address }}</td>
                         <td class="py-2 pr-4">
                             {% if item.success %}
-                            <span class="text-green-700">成功</span>
+                            <span class="admin-status-badge px-2 py-1 rounded-full text-xs">成功</span>
                             {% else %}
-                            <span class="text-red-700">失败</span>
+                            <span class="admin-status-badge is-danger px-2 py-1 rounded-full text-xs">失败</span>
                             {% endif %}
                         </td>
                         <td class="py-2">{{ item.reason or '-' }}</td>

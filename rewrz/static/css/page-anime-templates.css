@@ -1,13 +1,13 @@
 .anime-page-shell {
     background:
-        radial-gradient(900px 380px at 6% -12%, rgba(56, 189, 248, 0.12), transparent 62%),
-        radial-gradient(940px 340px at 92% -18%, rgba(99, 102, 241, 0.1), transparent 62%);
+        radial-gradient(900px 380px at 6% -12%, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 62%),
+        radial-gradient(940px 340px at 92% -18%, color-mix(in srgb, var(--color-primary) 10%, white), transparent 62%);
 }
 
 .dark .anime-page-shell {
     background:
-        radial-gradient(900px 380px at 6% -12%, rgba(56, 189, 248, 0.2), transparent 62%),
-        radial-gradient(940px 340px at 92% -18%, rgba(99, 102, 241, 0.18), transparent 62%);
+        radial-gradient(900px 380px at 6% -12%, color-mix(in srgb, var(--color-primary) 22%, transparent), transparent 62%),
+        radial-gradient(940px 340px at 92% -18%, color-mix(in srgb, var(--color-primary) 18%, black), transparent 62%);
 }
 
 .anime-page-card {
@@ -105,8 +105,8 @@
     z-index: 35;
     width: min(320px, 34vw);
     border-radius: 0.95rem;
-    border: 1px solid rgba(148, 163, 184, 0.28);
-    background: linear-gradient(180deg, rgba(248, 250, 252, 0.9), rgba(241, 245, 249, 0.72));
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--color-card-bg) 92%, transparent), color-mix(in srgb, var(--color-background-alt) 82%, transparent));
     padding: 1rem 0.85rem;
     max-height: calc(100vh - 8.1rem);
     overflow: hidden;
@@ -115,20 +115,20 @@
 }
 
 .dark .anime-side-panel {
-    border-color: rgba(71, 85, 105, 0.76);
-    background: linear-gradient(180deg, rgba(30, 41, 59, 0.88), rgba(15, 23, 42, 0.74));
+    border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--color-card-bg) 88%, transparent), color-mix(in srgb, var(--color-background-alt) 78%, transparent));
 }
 
 .anime-side-panel h2 {
     margin: 0 0 0.72rem;
     font-size: 0.84rem;
     font-weight: 700;
-    color: #1e40af;
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%);
     letter-spacing: 0.04em;
 }
 
 .dark .anime-side-panel h2 {
-    color: #93c5fd;
+    color: color-mix(in srgb, var(--color-primary) 68%, var(--color-text) 32%);
 }
 
 .anime-toc-list {
@@ -153,29 +153,29 @@
     border-radius: 0.65rem;
     padding: 0.42rem 0.58rem;
     font-size: 0.83rem;
-    color: #334155;
+    color: var(--color-text-light);
     transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .dark .anime-toc-list a {
-    color: #cbd5e1;
+    color: var(--color-text-light);
 }
 
 .anime-toc-list a:hover {
-    color: #1e40af;
-    background: rgba(59, 130, 246, 0.12);
+    color: color-mix(in srgb, var(--color-primary) 82%, var(--color-text) 18%);
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card-bg) 88%);
     transform: translateX(2px);
 }
 
 .dark .anime-toc-list a:hover {
-    color: #bfdbfe;
-    background: rgba(59, 130, 246, 0.2);
+    color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
+    background: color-mix(in srgb, var(--color-primary) 16%, var(--color-card-bg) 84%);
 }
 
 .anime-content-wrap {
     border-radius: 1rem;
-    border: 1px solid rgba(148, 163, 184, 0.24);
-    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+    background: color-mix(in srgb, var(--color-card-bg) 84%, transparent);
     padding: 1rem 1.06rem;
 }
 
@@ -185,9 +185,9 @@
     justify-content: center;
     gap: 0.35rem;
     border-radius: 999px;
-    border: 1px solid rgba(59, 130, 246, 0.25);
-    background: rgba(255, 255, 255, 0.82);
-    color: #1e40af;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%);
+    background: color-mix(in srgb, var(--color-card-bg) 88%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%);
     font-size: 0.78rem;
     font-weight: 700;
     line-height: 1;
@@ -224,14 +224,14 @@
 }
 
 .dark .anime-content-wrap {
-    border-color: rgba(71, 85, 105, 0.72);
-    background: rgba(2, 6, 23, 0.48);
+    border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border) 80%);
+    background: color-mix(in srgb, var(--color-card-bg) 74%, transparent);
 }
 
 .dark .floating-toc-toggle {
-    border-color: rgba(59, 130, 246, 0.45);
-    background: rgba(30, 41, 59, 0.9);
-    color: #bfdbfe;
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%);
+    background: color-mix(in srgb, var(--color-card-bg) 82%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 68%, var(--color-text) 32%);
 }
 
 .anime-content {
@@ -251,50 +251,50 @@
 
 .anime-info-card {
     border-radius: 0.86rem;
-    border: 1px solid rgba(99, 102, 241, 0.24);
-    background: linear-gradient(145deg, rgba(224, 231, 255, 0.6), rgba(238, 242, 255, 0.38));
+    border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%);
+    background: linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 12%, var(--color-card-bg) 88%), color-mix(in srgb, var(--color-background-alt) 62%, transparent));
     padding: 0.7rem 0.8rem;
 }
 
 .dark .anime-info-card {
-    border-color: rgba(129, 140, 248, 0.42);
-    background: linear-gradient(145deg, rgba(49, 46, 129, 0.32), rgba(67, 56, 202, 0.18));
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%);
+    background: linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 18%, var(--color-card-bg) 82%), color-mix(in srgb, var(--color-background-alt) 54%, transparent));
 }
 
 .anime-info-card span {
     display: block;
     font-size: 0.73rem;
-    color: #6366f1;
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
 }
 
 .dark .anime-info-card span {
-    color: #c7d2fe;
+    color: color-mix(in srgb, var(--color-primary) 64%, var(--color-text) 36%);
 }
 
 .anime-info-card strong {
     display: block;
     margin-top: 0.24rem;
-    color: #1e293b;
+    color: var(--color-text);
     font-size: 0.9rem;
 }
 
 .dark .anime-info-card strong {
-    color: #e2e8f0;
+    color: var(--color-text);
 }
 
 .anime-link-tip {
     border-radius: 0.88rem;
-    border: 1px solid rgba(59, 130, 246, 0.26);
-    background: rgba(239, 246, 255, 0.68);
-    color: #1e3a8a;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%);
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%);
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
     padding: 0.72rem 0.86rem;
     font-size: 0.84rem;
 }
 
 .dark .anime-link-tip {
-    border-color: rgba(59, 130, 246, 0.45);
-    background: rgba(30, 58, 138, 0.24);
-    color: #bfdbfe;
+    border-color: color-mix(in srgb, var(--color-primary) 32%, var(--color-border) 68%);
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%);
+    color: color-mix(in srgb, var(--color-primary) 64%, var(--color-text) 36%);
 }
 
 .anime-cta-strip {
@@ -311,20 +311,20 @@
     font-size: 0.84rem;
     font-weight: 600;
     color: #fff;
-    background: linear-gradient(120deg, #2563eb, #4338ca);
-    border: 1px solid rgba(37, 99, 235, 0.46);
+    background: linear-gradient(120deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 62%, var(--color-secondary)));
+    border: 1px solid color-mix(in srgb, var(--color-primary) 46%, transparent);
 }
 
 .anime-cta-btn.is-outline {
-    color: #1e40af;
-    background: rgba(219, 234, 254, 0.62);
-    border-color: rgba(59, 130, 246, 0.34);
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%);
+    border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%);
 }
 
 .dark .anime-cta-btn.is-outline {
-    color: #bfdbfe;
-    background: rgba(30, 58, 138, 0.25);
-    border-color: rgba(59, 130, 246, 0.48);
+    color: color-mix(in srgb, var(--color-primary) 66%, var(--color-text) 34%);
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%);
+    border-color: color-mix(in srgb, var(--color-primary) 32%, var(--color-border) 68%);
 }
 
 .anime-license-box a {
@@ -332,19 +332,19 @@
 }
 
 .anime-about .anime-hero-fallback {
-    background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 50%, #a855f7 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 62%, white) 0%, var(--color-primary) 52%, color-mix(in srgb, var(--color-primary) 72%, black) 100%);
 }
 
 .anime-links .anime-hero-fallback {
-    background: linear-gradient(135deg, #06b6d4 0%, #0284c7 50%, #2563eb 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 58%, white) 0%, var(--color-primary) 48%, color-mix(in srgb, var(--color-primary) 68%, black) 100%);
 }
 
 .anime-timeline .anime-hero-fallback {
-    background: linear-gradient(135deg, #2563eb 0%, #4338ca 50%, #be185d 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 54%, white) 0%, var(--color-primary) 46%, color-mix(in srgb, var(--color-primary) 54%, #ec4899) 100%);
 }
 
 .anime-landing .anime-hero-fallback {
-    background: linear-gradient(135deg, #0f172a 0%, #1e40af 45%, #f43f5e 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-background-alt) 82%, black) 0%, color-mix(in srgb, var(--color-primary) 52%, #1e3a8a) 45%, color-mix(in srgb, var(--color-primary) 44%, #f43f5e) 100%);
 }
 
 .anime-links .anime-content ul {
@@ -355,14 +355,14 @@
 .anime-links .anime-content ul li {
     margin-bottom: 0.62rem;
     border-radius: 0.82rem;
-    border: 1px solid rgba(56, 189, 248, 0.24);
-    background: rgba(240, 249, 255, 0.7);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border) 80%);
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%);
     padding: 0.55rem 0.75rem;
 }
 
 .dark .anime-links .anime-content ul li {
-    border-color: rgba(56, 189, 248, 0.34);
-    background: rgba(8, 47, 73, 0.35);
+    border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border) 72%);
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%);
 }
 
 .anime-links .anime-content ul li a {
@@ -382,8 +382,8 @@
     width: 0.45rem;
     height: 0.45rem;
     border-radius: 999px;
-    background: #3b82f6;
-    box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.2);
+    background: var(--color-primary);
+    box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--color-primary) 22%, transparent);
 }
 
 .anime-timeline .anime-content h2::after {
@@ -393,7 +393,7 @@
     top: 1rem;
     width: 2px;
     height: calc(100% + 1.15rem);
-    background: linear-gradient(180deg, rgba(59, 130, 246, 0.34), rgba(59, 130, 246, 0.05));
+    background: linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 34%, transparent), color-mix(in srgb, var(--color-primary) 8%, transparent));
 }
 
 .anime-timeline .anime-content h2:last-of-type::after {

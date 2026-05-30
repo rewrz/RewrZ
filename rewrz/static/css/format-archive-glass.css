@@ -6,54 +6,54 @@
  */
 
 .format-archive-glass {
-    --archive-glass-weak-bg: rgba(255, 255, 255, 0.68);
-    --archive-glass-medium-bg: rgba(255, 255, 255, 0.62);
-    --archive-glass-strong-bg: rgba(255, 255, 255, 0.78);
-    --archive-glass-border: rgba(203, 213, 225, 0.72);
-    --archive-glass-shadow: 0 24px 50px rgba(15, 23, 42, 0.16);
+    --archive-glass-weak-bg: color-mix(in srgb, var(--color-card-bg) 70%, transparent);
+    --archive-glass-medium-bg: color-mix(in srgb, var(--color-card-bg) 62%, transparent);
+    --archive-glass-strong-bg: color-mix(in srgb, var(--color-card-bg) 82%, transparent);
+    --archive-glass-border: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+    --archive-glass-shadow: 0 24px 50px color-mix(in srgb, var(--color-primary) 10%, rgba(15, 23, 42, 0.18));
     --archive-glass-blur: blur(18px) saturate(140%);
 }
 
 .dark .format-archive-glass {
-    --archive-glass-weak-bg: rgba(15, 23, 42, 0.52);
-    --archive-glass-medium-bg: rgba(15, 23, 42, 0.58);
-    --archive-glass-strong-bg: rgba(15, 23, 42, 0.72);
-    --archive-glass-border: rgba(71, 85, 105, 0.72);
-    --archive-glass-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+    --archive-glass-weak-bg: color-mix(in srgb, var(--color-card-bg) 54%, transparent);
+    --archive-glass-medium-bg: color-mix(in srgb, var(--color-card-bg) 60%, transparent);
+    --archive-glass-strong-bg: color-mix(in srgb, var(--color-card-bg) 76%, transparent);
+    --archive-glass-border: color-mix(in srgb, var(--color-primary) 20%, var(--color-border) 80%);
+    --archive-glass-shadow: 0 26px 56px color-mix(in srgb, var(--color-primary) 14%, rgba(2, 6, 23, 0.44));
 }
 
 :root[data-glass-intensity="weak"] .format-archive-glass {
-    --archive-glass-weak-bg: rgba(255, 255, 255, 0.56);
-    --archive-glass-medium-bg: rgba(255, 255, 255, 0.5);
-    --archive-glass-strong-bg: rgba(255, 255, 255, 0.66);
-    --archive-glass-border: rgba(203, 213, 225, 0.58);
-    --archive-glass-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+    --archive-glass-weak-bg: color-mix(in srgb, var(--color-card-bg) 58%, transparent);
+    --archive-glass-medium-bg: color-mix(in srgb, var(--color-card-bg) 52%, transparent);
+    --archive-glass-strong-bg: color-mix(in srgb, var(--color-card-bg) 68%, transparent);
+    --archive-glass-border: color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+    --archive-glass-shadow: 0 14px 30px color-mix(in srgb, var(--color-primary) 8%, rgba(15, 23, 42, 0.14));
     --archive-glass-blur: blur(12px) saturate(130%);
 }
 
 :root.dark[data-glass-intensity="weak"] .format-archive-glass {
-    --archive-glass-weak-bg: rgba(15, 23, 42, 0.42);
-    --archive-glass-medium-bg: rgba(15, 23, 42, 0.48);
-    --archive-glass-strong-bg: rgba(15, 23, 42, 0.58);
-    --archive-glass-border: rgba(71, 85, 105, 0.62);
-    --archive-glass-shadow: 0 16px 34px rgba(2, 6, 23, 0.34);
+    --archive-glass-weak-bg: color-mix(in srgb, var(--color-card-bg) 46%, transparent);
+    --archive-glass-medium-bg: color-mix(in srgb, var(--color-card-bg) 50%, transparent);
+    --archive-glass-strong-bg: color-mix(in srgb, var(--color-card-bg) 60%, transparent);
+    --archive-glass-border: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    --archive-glass-shadow: 0 16px 34px color-mix(in srgb, var(--color-primary) 10%, rgba(2, 6, 23, 0.36));
 }
 
 :root[data-glass-intensity="strong"] .format-archive-glass {
-    --archive-glass-weak-bg: rgba(255, 255, 255, 0.8);
-    --archive-glass-medium-bg: rgba(255, 255, 255, 0.76);
-    --archive-glass-strong-bg: rgba(255, 255, 255, 0.88);
-    --archive-glass-border: rgba(203, 213, 225, 0.84);
-    --archive-glass-shadow: 0 28px 58px rgba(15, 23, 42, 0.2);
+    --archive-glass-weak-bg: color-mix(in srgb, var(--color-card-bg) 82%, transparent);
+    --archive-glass-medium-bg: color-mix(in srgb, var(--color-card-bg) 78%, transparent);
+    --archive-glass-strong-bg: color-mix(in srgb, var(--color-card-bg) 90%, transparent);
+    --archive-glass-border: color-mix(in srgb, var(--color-primary) 26%, var(--color-border) 74%);
+    --archive-glass-shadow: 0 28px 58px color-mix(in srgb, var(--color-primary) 12%, rgba(15, 23, 42, 0.22));
     --archive-glass-blur: blur(24px) saturate(148%);
 }
 
 :root.dark[data-glass-intensity="strong"] .format-archive-glass {
-    --archive-glass-weak-bg: rgba(15, 23, 42, 0.62);
-    --archive-glass-medium-bg: rgba(15, 23, 42, 0.68);
-    --archive-glass-strong-bg: rgba(15, 23, 42, 0.78);
-    --archive-glass-border: rgba(71, 85, 105, 0.82);
-    --archive-glass-shadow: 0 30px 62px rgba(2, 6, 23, 0.5);
+    --archive-glass-weak-bg: color-mix(in srgb, var(--color-card-bg) 64%, transparent);
+    --archive-glass-medium-bg: color-mix(in srgb, var(--color-card-bg) 70%, transparent);
+    --archive-glass-strong-bg: color-mix(in srgb, var(--color-card-bg) 80%, transparent);
+    --archive-glass-border: color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%);
+    --archive-glass-shadow: 0 30px 62px color-mix(in srgb, var(--color-primary) 16%, rgba(2, 6, 23, 0.52));
 }
 
 /* 顶部聚合头图区：强玻璃 */
@@ -75,15 +75,15 @@
 
 .format-archive-glass .format-hero-card .format-hero-chip,
 .format-archive-glass .format-hero-card .format-hero-stat {
-    border-color: rgba(255, 255, 255, 0.22) !important;
-    background: rgba(255, 255, 255, 0.74) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 18%, rgba(255, 255, 255, 0.78)) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 74%, transparent) !important;
     backdrop-filter: blur(10px);
 }
 
 .dark .format-archive-glass .format-hero-card .format-hero-chip,
 .dark .format-archive-glass .format-hero-card .format-hero-stat {
-    border-color: rgba(148, 163, 184, 0.22) !important;
-    background: rgba(15, 23, 42, 0.58) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 20%, rgba(148, 163, 184, 0.32)) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 60%, transparent) !important;
 }
 
 /* 登录发布框：中玻璃 */
@@ -96,13 +96,13 @@
 }
 
 .format-archive-glass .micro-composer-shell textarea {
-    background: rgba(255, 255, 255, 0.6) !important;
-    border-color: rgba(148, 163, 184, 0.45) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 60%, transparent) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%) !important;
 }
 
 .dark .format-archive-glass .micro-composer-shell textarea {
-    background: rgba(15, 23, 42, 0.52) !important;
-    border-color: rgba(71, 85, 105, 0.62) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 52%, transparent) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
 }
 
 /* 聚合卡片：中玻璃 */
@@ -117,18 +117,18 @@
 
 .format-archive-glass #format-posts-panel .archive-card-equal:hover,
 .format-archive-glass #format-posts-panel article[data-micro-card]:hover {
-    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.2);
+    box-shadow: 0 24px 48px color-mix(in srgb, var(--color-primary) 12%, rgba(15, 23, 42, 0.22));
 }
 
 /* 卡片内部边框统一为轻透边框 */
 .format-archive-glass #format-posts-panel .archive-card-equal [class*="border-"],
 .format-archive-glass #format-posts-panel article[data-micro-card] [class*="border-"] {
-    border-color: rgba(148, 163, 184, 0.38) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%) !important;
 }
 
 .dark .format-archive-glass #format-posts-panel .archive-card-equal [class*="border-"],
 .dark .format-archive-glass #format-posts-panel article[data-micro-card] [class*="border-"] {
-    border-color: rgba(100, 116, 139, 0.52) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%) !important;
 }
 
 /* 适合玻璃化：标签、统计、操作按钮 */

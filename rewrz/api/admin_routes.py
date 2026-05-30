@@ -4,7 +4,7 @@ from math import ceil
 from typing import Optional
 
 from fastapi import BackgroundTasks, Body, Depends, FastAPI, Form, Header, Request, Response
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -58,6 +58,20 @@ def register_admin_primary_routes(
     先把 main.py 中最容易稳定迁出的部分独立出来。
     """
     admin_path = get_admin_path()
+
+    @app.get(f"{admin_path}", response_class=HTMLResponse)
+    async def dynamic_admin_root_entry(
+        request: Request,
+        db: Session = Depends(get_db),
+    ):
+        token = (request.cookies.get("access_token") or "").strip()
+        if token:
+            try:
+                await get_current_user(token=token, db=db)
+                return RedirectResponse(url=f"{admin_path}/dashboard", status_code=303)
+            except Exception:
+                pass
+        return RedirectResponse(url=f"{admin_path}/login", status_code=303)
 
     @app.get(f"{admin_path}/login", response_class=HTMLResponse)
     async def dynamic_admin_login_page(request: Request):

@@ -131,6 +131,18 @@ def test_users_admin_page_lists_managed_users(monkeypatch, tmp_path):
         engine.dispose()
 
 
+def test_admin_api_requires_login_returns_json_unauthorized(monkeypatch, tmp_path):
+    _set_installation_complete(monkeypatch, True)
+    _ensure_admin_routes_registered()
+    client = TestClient(main_module.app)
+    admin_prefix = main_module.settings.ADMIN_PATH.rstrip("/")
+    response = client.post(f"{admin_prefix}/api/v1/users/2/status", data={"is_active": "false", "csrf_token": "x"})
+    assert response.status_code == 401
+    assert response.headers.get("content-type", "").startswith("application/json")
+    payload = response.json()
+    assert payload["error"]["status_code"] == 401
+
+
 def test_users_admin_page_shows_recent_activity_summary(monkeypatch, tmp_path):
     client, session_factory, engine = _build_admin_client(monkeypatch, tmp_path)
     admin_prefix = main_module.settings.ADMIN_PATH.rstrip("/")

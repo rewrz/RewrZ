@@ -173,7 +173,7 @@ def get_default_media_navigation() -> List[Dict[str, str]]:
     return [
         {"key": "images", "name": "图片", "icon": "fa-image"},
         {"key": "gallery", "name": "相册", "icon": "fa-images"},
-        {"key": "videos", "name": "视频", "icon": "fa-circle-play"},
+        {"key": "videos", "name": "视频", "icon": "fa-play-circle"},
         {"key": "link", "name": "外链", "icon": "fa-link"},
         {"key": "audio", "name": "音频", "icon": "fa-music"},
     ]
@@ -185,4 +185,3 @@ register_media_attachment_detector("gallery", lambda s: s.has_gallery)
 register_media_attachment_detector("videos", lambda s: s.has_videos)
 register_media_attachment_detector("link", lambda s: s.has_link)
 register_media_attachment_detector("audio", lambda s: s.has_audio)
-

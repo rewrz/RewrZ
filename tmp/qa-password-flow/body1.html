@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    
+    
+    
+    <title>
+        
+            受保护内容 - QA 密码保护与评论样本 - RewrZ | 最后的改写
+        
+    </title>
+    
+    
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    
+    <script>
+        (function() {
+            var doc = document.documentElement;
+            var darkThemes = ['dark', 'galaxy'];
+            var bodyTheme = "light";
+            var storedTheme = '';
+            try {
+                storedTheme = localStorage.getItem('rewrz-theme') || localStorage.getItem('user_theme_preference') || '';
+            } catch (_) {
+                storedTheme = '';
+            }
+            var theme = storedTheme || bodyTheme || 'light';
+            doc.dataset.currentTheme = theme;
+            doc.classList.add(theme);
+            if (darkThemes.indexOf(theme) >= 0) {
+                doc.classList.add('dark');
+            } else {
+                doc.classList.remove('dark');
+            }
+        })();
+    </script>
+
+    <script src="http://127.0.0.1:8001/static/vendor/htmx/htmx.min.js?v=1771853686105451500" defer></script>
+    <link rel="stylesheet" href="http://127.0.0.1:8001/static/vendor/font-awesome/css/all.min.css?v=1771854108490080400">
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="最后的改写">
+    <meta property="og:title" content="RewrZ">
+    <meta property="og:description" content="最后的改写">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="http://127.0.0.1:8001/article/qa-password-comments-20260530">
+    
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="RewrZ">
+    <meta name="twitter:description" content="最后的改写">
+    
+    
+    
+    
+    
+    <!-- Code highlighting -->
+    <link
+        id="hljs-theme-link"
+        rel="stylesheet"
+        data-theme-light="http://127.0.0.1:8001/static/vendor/highlightjs/styles/github-light.min.css?v=1779598526215173700"
+        data-theme-dark="http://127.0.0.1:8001/static/vendor/highlightjs/styles/github-dark.min.css?v=1779598526333783400"
+        href="http://127.0.0.1:8001/static/vendor/highlightjs/styles/github-light.min.css?v=1779598526215173700">
+    <script src="http://127.0.0.1:8001/static/vendor/highlightjs/highlight.min.js?v=1779598525971049000" defer></script>
+    
+    <!-- 本地 Tailwind 与补充样式系统 -->
+    <link rel="stylesheet" href="http://127.0.0.1:8001/static/css/site-tailwind.css?v=1779637541507622400">
+    <link rel="stylesheet" href="http://127.0.0.1:8001/static/css/tailwind-optimized.css?v=1771596970098233700">
+    <link rel="stylesheet" href="http://127.0.0.1:8001/static/css/unified-theme.css?v=1780155951747493500">
+    <!-- 动态主题CSS变量：放在静态样式之后，确保真正覆盖默认变量 -->
+    <link id="theme-variables-link" rel="stylesheet" href="/api/v1/theme/variables.css">
+    <style id="hljs-theme-bridge">
+        /* 普通代码块兜底（当 hljs 未就绪时） */
+        .post-content pre > code:not(.hljs),
+        .prose pre > code:not(.hljs) {
+            display: block;
+            padding: 1rem 1.125rem;
+            border-radius: 0.75rem;
+            background: color-mix(in srgb, var(--color-background-alt) 88%, var(--color-card-bg) 12%);
+            color: var(--color-text);
+            border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+            overflow-x: auto;
+        }
+
+        /* 仅对已高亮的容器清空外层 pre 的背景，让主题作用于 code.hljs */
+        .post-content pre.hljs-ready,
+        .prose pre.hljs-ready {
+            padding: 0 !important;
+            border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
+            border-radius: 0.75rem;
+            background: color-mix(in srgb, var(--color-background-alt) 88%, var(--color-card-bg) 12%) !important;
+            color: var(--color-text) !important;
+        }
+
+        .post-content pre.hljs-ready > code.hljs,
+        .prose pre.hljs-ready > code.hljs {
+            display: block;
+            padding: 1rem 1.125rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            background: color-mix(in srgb, var(--color-background-alt) 88%, var(--color-card-bg) 12%);
+            color: var(--color-text) !important;
+            border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+        }
+    </style>
+    
+    <style>
+        @font-face {
+            font-family: 'SourceHanSansCN';
+            src: url('/static/fonts/SourceHanSansCN-Medium.otf') format('opentype');
+            font-weight: 500;
+            font-style: normal;
+            font-display: swap;
+        }
+    </style>
+    <script>
+        (function() {
+            var link = document.getElementById('hljs-theme-link');
+            if (!link) {
+                return;
+            }
+            var darkThemes = ['dark', 'galaxy'];
+            var theme = document.documentElement.dataset.currentTheme || "light" || 'light';
+            var nextHref = darkThemes.indexOf(theme) >= 0 ? link.dataset.themeDark : link.dataset.themeLight;
+            if (nextHref) {
+                link.href = nextHref;
+            }
+        })();
+    </script>
+</head>
+<body class="site-shell min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300 "
+      data-list-navigation-mode="infinite_scroll"
+      data-glass-intensity="medium"
+      data-current-theme="light"
+      data-atmosphere-class=""
+      data-theme-csrf-token="_JQ4-HjJnmR0LikhMBdHtpO9gVsnr9xHpvEH_bYx0Xs"
+      data-theme-persist-allowed="false"
+      data-background-type="none"
+      data-background-url=""
+      data-homepage-mode="default">
+    <header class="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
+        <div class="container mx-auto px-3 md:px-6 py-3 md:py-4">
+            <div class="flex justify-between items-center">
+                <!-- 品牌Logo -->
+                <a href="/" class="flex items-center space-x-2 group">
+                    
+                    
+                    <span class="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">RewrZ</span>
+                </a>
+                
+                <!-- 移动端汉堡菜单按钮 -->
+                <button class="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+                        id="mobile-menu-toggle" 
+                        aria-label="切换菜单">
+                    <i class="fas fa-bars text-lg text-gray-700 dark:text-gray-300" id="menu-icon"></i>
+                </button>
+
+                <!-- 桌面端导航菜单 -->
+                <nav class="hidden md:flex items-center space-x-1 lg:space-x-2">
+                    <a href="/" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+                        首页
+                    </a>
+                    
+                    
+                    <div class="relative group">
+                        <button class="px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center space-x-1">
+                            <span>分类</span>
+                            <i class="fas fa-chevron-down text-xs transition-transform duration-200 group-hover:rotate-180"></i>
+                        </button>
+                        <div class="desktop-nav-dropdown absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            
+                            <a href="/archives/by-category/acg-comments" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>ACG评论</span>
+                                    <span class="text-xs text-gray-400">(12)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/lv5project" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>LV5project</span>
+                                    <span class="text-xs text-gray-400">(2)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/madproject" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>MADproject</span>
+                                    <span class="text-xs text-gray-400">(2)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/mikumikudance" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>MikuMikuDance</span>
+                                    <span class="text-xs text-gray-400">(4)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/otherproject" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>OtherProject</span>
+                                    <span class="text-xs text-gray-400">(1)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/themesproject" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>ThemesProject</span>
+                                    <span class="text-xs text-gray-400">(3)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/tv-anime" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>TV动画</span>
+                                    <span class="text-xs text-gray-400">(2)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/uncategorized" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>不知道归什么类</span>
+                                    <span class="text-xs text-gray-400">(6)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/ai" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>人工智能</span>
+                                    <span class="text-xs text-gray-400">(14)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/code-rush" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>代码奔腾</span>
+                                    <span class="text-xs text-gray-400">(38)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/blog-history" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>博客历史</span>
+                                    <span class="text-xs text-gray-400">(37)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/bowen-miscellany" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>博闻杂记</span>
+                                    <span class="text-xs text-gray-400">(67)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/original-novel" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>原创小说</span>
+                                    <span class="text-xs text-gray-400">(14)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/typroject" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>天音神谈</span>
+                                    <span class="text-xs text-gray-400">(7)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/operating-system" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>操作系统</span>
+                                    <span class="text-xs text-gray-400">(24)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/digital-electronics" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>数码电子</span>
+                                    <span class="text-xs text-gray-400">(14)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/lyrics" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>歌词收藏</span>
+                                    <span class="text-xs text-gray-400">(3)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/general-life-knowledge" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>生活常识</span>
+                                    <span class="text-xs text-gray-400">(2)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/record" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>碎の一存记录</span>
+                                    <span class="text-xs text-gray-400">(40)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/website-technology" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>网站技术</span>
+                                    <span class="text-xs text-gray-400">(54)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/connected-world" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>联网世界</span>
+                                    <span class="text-xs text-gray-400">(63)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/poems-songs" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>诗词歌赋</span>
+                                    <span class="text-xs text-gray-400">(4)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/software" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>软件工具</span>
+                                    <span class="text-xs text-gray-400">(90)</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/archives/by-category/xing-qi-ji-ji" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg">
+                                <div class="flex justify-between items-center">
+                                    <span>星弃疾集</span>
+                                    <span class="text-xs text-gray-400">(24)</span>
+                                </div>
+                            </a>
+                            
+                        </div>
+                    </div>
+                    
+                    
+                    <a href="/archives" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+                        归档
+                    </a>
+                    
+                    <!-- 动态导航菜单 - 文章格式 -->
+                    
+                    
+                    <a href="/formats/article" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+                        标准
+                    </a>
+                    
+                    <a href="/formats/micro" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+                        微博
+                    </a>
+                    
+                    <a href="/formats/poem" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+                        诗词歌赋
+                    </a>
+                    
+                    
+
+                    <!-- 媒体附件导航 -->
+                    
+                    <div class="relative group">
+                        <button class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 flex items-center space-x-1">
+                            <span>媒体</span>
+                            <i class="fas fa-chevron-down text-xs transition-transform duration-200 group-hover:rotate-180"></i>
+                        </button>
+                        <div class="desktop-nav-dropdown absolute top-full left-0 mt-1 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
+                            
+                            
+                            <a href="/archives/media/images" class="block px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-image mr-2 text-xs text-gray-400 dark:text-gray-500"></i>
+                                    <span>图片</span>
+                                </div>
+                            </a>
+                            
+                            
+                            <a href="/archives/media/gallery" class="block px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-images mr-2 text-xs text-gray-400 dark:text-gray-500"></i>
+                                    <span>相册</span>
+                                </div>
+                            </a>
+                            
+                            
+                            <a href="/archives/media/videos" class="block px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-play-circle mr-2 text-xs text-gray-400 dark:text-gray-500"></i>
+                                    <span>视频</span>
+                                </div>
+                            </a>
+                            
+                            
+                            <a href="/archives/media/link" class="block px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-link mr-2 text-xs text-gray-400 dark:text-gray-500"></i>
+                                    <span>外链</span>
+                                </div>
+                            </a>
+                            
+                            
+                            <a href="/archives/media/audio" class="block px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-music mr-2 text-xs text-gray-400 dark:text-gray-500"></i>
+                                    <span>音频</span>
+                                </div>
+                            </a>
+                            
+                        </div>
+                    </div>
+                    
+                    
+                    <!-- 自定义页面导航 - 下拉菜单 -->
+                    
+                    <div class="relative group">
+                        <button class="px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center space-x-1">
+                            <span>页面</span>
+                            <i class="fas fa-chevron-down text-xs transition-transform duration-200 group-hover:rotate-180"></i>
+                        </button>
+                        <div class="desktop-nav-dropdown desktop-nav-dropdown-right absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            
+                            <a href="/join" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-file mr-2 text-gray-400 text-xs"></i>
+                                    <span>加入</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/online" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-file mr-2 text-gray-400 text-xs"></i>
+                                    <span>上线</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/zfan" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-file mr-2 text-gray-400 text-xs"></i>
+                                    <span>追番</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/about" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-file mr-2 text-gray-400 text-xs"></i>
+                                    <span>关于</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/tweet" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-file mr-2 text-gray-400 text-xs"></i>
+                                    <span>片语</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/timeline" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-file mr-2 text-gray-400 text-xs"></i>
+                                    <span>时光</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/links" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-file mr-2 text-gray-400 text-xs"></i>
+                                    <span>友情链接</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/blog" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-file mr-2 text-gray-400 text-xs"></i>
+                                    <span>博客概览</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/sample-page" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-file mr-2 text-gray-400 text-xs"></i>
+                                    <span>示例页面</span>
+                                </div>
+                            </a>
+                            
+                            <a href="/privacy-policy" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg ">
+                                <div class="flex items-center">
+                                    <i class="fas fa-file mr-2 text-gray-400 text-xs"></i>
+                                    <span>隐私政策</span>
+                                </div>
+                            </a>
+                            
+                        </div>
+                    </div>
+                    
+                </nav>
+                
+                <!-- 桌面端搜索和主题切换 -->
+                <div class="hidden md:flex items-center space-x-3">
+                    <form action="/search" method="GET" class="relative">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                            <input type="text" 
+                                   name="q" 
+                                   placeholder="搜索..." 
+                                   class="pl-10 pr-4 py-2 w-48 lg:w-64 text-sm bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                        </div>
+                    </form>
+                    
+                    <button id="desktop-theme-toggle" 
+                            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+                            aria-label="切换主题"
+                            title="切换主题">
+                        <i id="desktop-theme-icon" class="fas fa-sun"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 移动端导航菜单 -->
+            <nav class="md:hidden mt-4 pb-4 border-t border-gray-200 dark:border-gray-700 hidden" id="mobile-nav-menu">
+                <div class="pt-4 space-y-2">
+                    <a href="/" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-home mr-3 w-4"></i>首页
+                    </a>
+                    
+                    
+                    <div class="space-y-1">
+                        <div class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">分类</div>
+                        
+                        <a href="/archives/by-category/acg-comments" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>ACG评论</span>
+                            <span class="text-xs text-gray-400">(12)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/lv5project" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>LV5project</span>
+                            <span class="text-xs text-gray-400">(2)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/madproject" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>MADproject</span>
+                            <span class="text-xs text-gray-400">(2)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/mikumikudance" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>MikuMikuDance</span>
+                            <span class="text-xs text-gray-400">(4)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/otherproject" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>OtherProject</span>
+                            <span class="text-xs text-gray-400">(1)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/themesproject" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>ThemesProject</span>
+                            <span class="text-xs text-gray-400">(3)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/tv-anime" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>TV动画</span>
+                            <span class="text-xs text-gray-400">(2)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/uncategorized" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>不知道归什么类</span>
+                            <span class="text-xs text-gray-400">(6)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/ai" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>人工智能</span>
+                            <span class="text-xs text-gray-400">(14)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/code-rush" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>代码奔腾</span>
+                            <span class="text-xs text-gray-400">(38)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/blog-history" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>博客历史</span>
+                            <span class="text-xs text-gray-400">(37)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/bowen-miscellany" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>博闻杂记</span>
+                            <span class="text-xs text-gray-400">(67)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/original-novel" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>原创小说</span>
+                            <span class="text-xs text-gray-400">(14)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/typroject" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>天音神谈</span>
+                            <span class="text-xs text-gray-400">(7)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/operating-system" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>操作系统</span>
+                            <span class="text-xs text-gray-400">(24)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/digital-electronics" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>数码电子</span>
+                            <span class="text-xs text-gray-400">(14)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/lyrics" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>歌词收藏</span>
+                            <span class="text-xs text-gray-400">(3)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/general-life-knowledge" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>生活常识</span>
+                            <span class="text-xs text-gray-400">(2)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/record" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>碎の一存记录</span>
+                            <span class="text-xs text-gray-400">(40)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/website-technology" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>网站技术</span>
+                            <span class="text-xs text-gray-400">(54)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/connected-world" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>联网世界</span>
+                            <span class="text-xs text-gray-400">(63)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/poems-songs" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>诗词歌赋</span>
+                            <span class="text-xs text-gray-400">(4)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/software" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>软件工具</span>
+                            <span class="text-xs text-gray-400">(90)</span>
+                        </a>
+                        
+                        <a href="/archives/by-category/xing-qi-ji-ji" class="flex items-center justify-between px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <span>星弃疾集</span>
+                            <span class="text-xs text-gray-400">(24)</span>
+                        </a>
+                        
+                    </div>
+                    
+                    
+                    <a href="/archives" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-archive mr-3 w-4"></i>归档
+                    </a>
+                    
+                    <!-- 动态导航菜单 - 文章格式 -->
+                    
+                    
+                    <a href="/formats/article" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-file-alt mr-3 w-4"></i>标准
+                    </a>
+                    
+                    <a href="/formats/micro" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-file-alt mr-3 w-4"></i>微博
+                    </a>
+                    
+                    <a href="/formats/poem" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-file-alt mr-3 w-4"></i>诗词歌赋
+                    </a>
+                    
+                    
+
+                    
+                    <div class="space-y-1">
+                        <div class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">媒体</div>
+                        
+                        
+                        <a href="/archives/media/images" class="flex items-center px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <i class="fas fa-image mr-3 w-4"></i>图片
+                        </a>
+                        
+                        
+                        <a href="/archives/media/gallery" class="flex items-center px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <i class="fas fa-images mr-3 w-4"></i>相册
+                        </a>
+                        
+                        
+                        <a href="/archives/media/videos" class="flex items-center px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <i class="fas fa-play-circle mr-3 w-4"></i>视频
+                        </a>
+                        
+                        
+                        <a href="/archives/media/link" class="flex items-center px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <i class="fas fa-link mr-3 w-4"></i>外链
+                        </a>
+                        
+                        
+                        <a href="/archives/media/audio" class="flex items-center px-6 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <i class="fas fa-music mr-3 w-4"></i>音频
+                        </a>
+                        
+                    </div>
+                    
+                    
+                    <!-- 自定义页面导航 - 移动端折叠菜单 -->
+                    
+                    <div class="space-y-1">
+                        <button id="mobile-pages-toggle" class="flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+                            <div class="flex items-center">
+                                <i class="fas fa-folder mr-3 w-4"></i>
+                                页面
+                            </div>
+                            <i id="mobile-pages-icon" class="fas fa-chevron-down text-xs transition-transform"></i>
+                        </button>
+                        
+                        <!-- 折叠菜单内容 -->
+                        <div id="mobile-pages-menu" class="hidden pl-6 space-y-1">
+                            
+                            <a href="/join" class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                <i class="fas fa-file mr-3 w-4 text-gray-400"></i>
+                                加入
+                            </a>
+                            
+                            <a href="/online" class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                <i class="fas fa-file mr-3 w-4 text-gray-400"></i>
+                                上线
+                            </a>
+                            
+                            <a href="/zfan" class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                <i class="fas fa-file mr-3 w-4 text-gray-400"></i>
+                                追番
+                            </a>
+                            
+                            <a href="/about" class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                <i class="fas fa-file mr-3 w-4 text-gray-400"></i>
+                                关于
+                            </a>
+                            
+                            <a href="/tweet" class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                <i class="fas fa-file mr-3 w-4 text-gray-400"></i>
+                                片语
+                            </a>
+                            
+                            <a href="/timeline" class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                <i class="fas fa-file mr-3 w-4 text-gray-400"></i>
+                                时光
+                            </a>
+                            
+                            <a href="/links" class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                <i class="fas fa-file mr-3 w-4 text-gray-400"></i>
+                                友情链接
+                            </a>
+                            
+                            <a href="/blog" class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                <i class="fas fa-file mr-3 w-4 text-gray-400"></i>
+                                博客概览
+                            </a>
+                            
+                            <a href="/sample-page" class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                <i class="fas fa-file mr-3 w-4 text-gray-400"></i>
+                                示例页面
+                            </a>
+                            
+                            <a href="/privacy-policy" class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                <i class="fas fa-file mr-3 w-4 text-gray-400"></i>
+                                隐私政策
+                            </a>
+                            
+                        </div>
+                    </div>
+                    
+                </div>
+                
+                <!-- 移动端搜索和主题切换 -->
+                <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                    <form action="/search" method="GET" class="flex space-x-2">
+                        <input type="text" 
+                               name="q" 
+                               placeholder="搜索..." 
+                               class="flex-1 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </form>
+                    
+                    <button id="mobile-theme-toggle" 
+                            class="w-full flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+                            aria-label="切换主题">
+                        <i id="mobile-theme-icon" class="fas fa-sun"></i>
+                        <span id="mobile-theme-label">切换主题</span>
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+
+
+    <main class="pt-20 md:pt-24">
+        
+<div class="mx-auto max-w-xl px-4 py-16">
+    <div class="password-guard-card rounded-3xl border border-gray-200 bg-white/90 p-8 shadow-xl backdrop-blur-md dark:bg-gray-800/85">
+        <h1 class="mb-3 text-2xl font-bold text-gray-900 dark:text-white">内容受密码保护</h1>
+        <p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
+            请输入访问密码以查看
+            <span class="font-semibold text-gray-800 dark:text-gray-100">《QA 密码保护与评论样本》</span>
+        </p>
+
+        
+
+        <form method="post" action="/api/v1/posts/600/unlock" class="space-y-4">
+            <input type="hidden" name="next_url" value="/article/qa-password-comments-20260530">
+            <div>
+                <label for="password" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">访问密码</label>
+                <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    required
+                    class="password-guard-input w-full rounded-2xl border border-gray-300 px-3 py-2.5 shadow-sm focus:border-indigo-500 focus:outline-none"
+                >
+            </div>
+            <button
+                type="submit"
+                class="password-guard-submit w-full rounded-2xl bg-indigo-600 px-4 py-2.5 text-white hover:bg-indigo-700"
+            >
+                验证并查看
+            </button>
+        </form>
+    </div>
+</div>
+
+    </main>
+
+    <!-- 全局背景音乐播放器 -->
+    
+
+    <!-- 返回顶部按钮 -->
+    <button id="back-to-top" class="back-to-top" aria-label="返回顶部">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <footer class="relative mt-20 overflow-hidden">
+        <div class="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-indigo-100/80 via-cyan-100/30 to-transparent dark:from-slate-900 dark:via-slate-900/40 dark:to-transparent"></div>
+        <div class="pointer-events-none footer-orb footer-orb-main absolute -left-8 top-10 h-36 w-36 rounded-full bg-cyan-300/35 dark:bg-cyan-500/20"></div>
+        <div class="pointer-events-none footer-orb footer-orb-alt absolute right-6 top-16 h-24 w-24 rounded-full bg-pink-300/35 dark:bg-pink-500/20"></div>
+        <div class="relative container mx-auto px-4 lg:px-6">
+            <div class="rounded-3xl border border-white/70 bg-white/80 px-5 py-7 shadow-[0_18px_45px_-25px_rgba(79,70,229,0.45)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/75 md:px-8">
+                <div class="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
+                    <div class="space-y-3 text-slate-600 dark:text-slate-300">
+                        <a href="https://github.com/rewrz/RewrZ" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 dark:border-indigo-700/60 dark:bg-indigo-900/30 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
+                            <i class="fas fa-star text-[11px]"></i>
+                            RewrZ Project
+                        </a>
+                        <h3 class="text-xl font-semibold text-slate-900 dark:text-white">RewrZ</h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">最后的改写</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">这就是 Steins;Gate 的选择，El Psy Congroo……</p>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Power By <a href="https://github.com/rewrz" target="_blank" rel="noopener" class="hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors">RewrZ</a></div>
+                        <div class="space-y-2 rounded-xl border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300">
+                            
+                                <p>&copy; 2025 RewrZ. All rights reserved.</p>
+                            
+                            
+                            
+                            
+                        </div>
+                        
+                        <div class="flex flex-wrap items-center gap-2 pt-1">
+                            <a href="/feed.xml" class="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-medium text-orange-700 hover:bg-orange-100 dark:border-orange-800/70 dark:bg-orange-900/30 dark:text-orange-300 dark:hover:bg-orange-900/50" title="RSS订阅">
+                                <i class="fas fa-rss"></i>RSS
+                            </a>
+                            <a href="/atom.xml" class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-800/70 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50" title="Atom订阅">
+                                <i class="fas fa-atom"></i>Atom
+                            </a>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <style>
+        .footer-orb {
+            filter: blur(0.5px);
+            animation: footerFloat 8s ease-in-out infinite;
+        }
+        .footer-orb-alt {
+            animation-duration: 10s;
+            animation-delay: 1.2s;
+        }
+        @keyframes footerFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+    </style>
+    <script>
+        (function() {
+            var el = document.getElementById('current-year');
+            if (el) {
+                el.textContent = new Date().getFullYear();
+            }
+        })();
+    </script>
+    <script src="http://127.0.0.1:8001/static/js/site-shell.js?v=1780147624301198100" defer></script>
+    <script type="module" src="http://127.0.0.1:8001/static/js/multi-format-interactions.js?v=1780155136192255200"></script>
+    <script type="module" src="http://127.0.0.1:8001/static/js/ui-enhancements.js?v=1779599149997303000"></script>
+    
+</body>
+</html>

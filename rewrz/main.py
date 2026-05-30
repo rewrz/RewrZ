@@ -343,6 +343,9 @@ def register_admin_routes():
             "themes",
             "api-keys",
         }
+        admin_root_slug = get_admin_path().strip("/").split("/", 1)[0]
+        if admin_root_slug:
+            reserved_page_slugs.add(admin_root_slug)
         if page_slug in reserved_page_slugs:
             raise HTTPException(status_code=404, detail="Page not found")
         
@@ -472,6 +475,11 @@ def _populate_global_request_state(request: Request) -> None:
         settings_keys = dict(DEFAULT_BASE_SETTINGS)
         # 主页个性化设置
         settings_keys.update(DEFAULT_HOMEPAGE_SETTINGS)
+        settings_keys.update({
+            "current_theme": "light",
+            "glass_intensity": "medium",
+            "background_image_settings": {"type": "none", "custom_url": None},
+        })
         all_settings = crud_setting.get_settings_by_keys(db, list(settings_keys.keys()))
         for key, default_value in settings_keys.items():
             setattr(request.state, key, all_settings.get(key, default_value))

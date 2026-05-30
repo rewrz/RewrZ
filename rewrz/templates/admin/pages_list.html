@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 
 {% block title_text %}页面管理{% endblock %}
-{% block page_title %}<i class="fas fa-file text-blue-600 mr-3"></i>页面管理{% endblock %}
+{% block page_title %}<i class="fas fa-file admin-accent-text mr-3"></i>页面管理{% endblock %}
 {% block content %}
 {% set page_template_label_map = {
     'default': '默认页面（全宽）',
@@ -10,41 +10,41 @@
     'timeline': '时间轴（Archives）',
     'landing': '落地页（Landing）'
 } %}
-<div class="admin-panel p-4 md:p-6 space-y-5">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="flex flex-wrap items-center gap-2">
+<div class="admin-panel admin-pages-shell pages-admin-page p-4 md:p-6 space-y-5">
+    <div class="admin-toolbar-shell flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+        <div class="admin-toolbar-main flex flex-wrap items-center gap-2">
             <a href="{{ request.state.admin_path }}/pages/new"
-               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+               class="admin-primary-btn rounded-md px-4 py-2">
                 <i class="fas fa-plus mr-2"></i>新建页面
             </a>
             <button onclick="refreshPagesList()"
-                    class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                    class="admin-secondary-btn rounded-md px-4 py-2">
                 <i class="fas fa-sync-alt mr-2"></i>刷新
             </button>
-            <span class="mx-1 h-6 w-px bg-gray-300"></span>
-            <span class="text-sm text-gray-500">批量操作</span>
+            <span class="admin-divider-vertical mx-1 h-6 w-px"></span>
+            <span class="admin-toolbar-pill text-sm">批量操作</span>
             <button onclick="batchPublishPages()" data-batch-action
-                    class="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    class="admin-soft-btn admin-soft-btn-success rounded-md px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     disabled>
                 批量发布
             </button>
             <button onclick="batchDraftPages()" data-batch-action
-                    class="px-3 py-2 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    class="admin-soft-btn rounded-md px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     disabled>
                 移至草稿
             </button>
             <button onclick="batchDeletePages()" data-batch-action
-                    class="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    class="admin-soft-btn admin-soft-btn-danger rounded-md px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     disabled>
                 批量删除
             </button>
-            <span id="selected-count" class="text-sm text-gray-500">已选 0 个</span>
-            <span id="batch-operation-status" class="hidden text-sm text-blue-600">
+            <span id="selected-count" class="text-sm text-[var(--color-text-light)]">已选 0 个</span>
+            <span id="batch-operation-status" class="admin-accent-text hidden text-sm">
                 <i class="fas fa-spinner fa-spin mr-1"></i>
                 <span id="batch-operation-status-text"></span>
             </span>
         </div>
-        <div class="text-sm text-gray-600">
+        <div class="admin-table-summary rounded-xl px-4 py-3 text-sm">
             <span class="font-medium">页面总数：</span>{{ total_pages_count }}
             {% if pagination.filtered_total != total_pages_count %}
             <span class="ml-3"><span class="font-medium">筛选结果：</span>{{ pagination.filtered_total }}</span>
@@ -52,29 +52,29 @@
         </div>
     </div>
 
-    <form method="get" action="{{ request.state.admin_path }}/pages" class="flex flex-wrap gap-3 items-end bg-gray-50 p-4 rounded-lg border border-gray-200">
+    <form method="get" action="{{ request.state.admin_path }}/pages" class="admin-filter-panel admin-filter-grid flex flex-wrap gap-3 items-end rounded-2xl p-4">
         <div class="min-w-64 flex-1">
-            <label for="search-input" class="block text-xs text-gray-500 mb-1">搜索</label>
+            <label for="search-input" class="mb-1 block text-xs text-[var(--color-text-light)]">搜索</label>
             <input
                 type="text"
                 id="search-input"
                 name="search"
                 value="{{ search_query }}"
                 placeholder="搜索页面标题、摘要、正文或别名..."
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                class="admin-form-field w-full rounded-md px-3 py-2"
             >
         </div>
         <div>
-            <label for="status-filter" class="block text-xs text-gray-500 mb-1">状态</label>
-            <select id="status-filter" name="status" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <label for="status-filter" class="mb-1 block text-xs text-[var(--color-text-light)]">状态</label>
+            <select id="status-filter" name="status" class="admin-form-field rounded-md px-3 py-2">
                 <option value="">全部状态</option>
                 <option value="published" {% if selected_status == "published" %}selected{% endif %}>已发布</option>
                 <option value="draft" {% if selected_status == "draft" %}selected{% endif %}>草稿</option>
             </select>
         </div>
         <div>
-            <label for="visibility-filter" class="block text-xs text-gray-500 mb-1">可见性</label>
-            <select id="visibility-filter" name="visibility" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <label for="visibility-filter" class="mb-1 block text-xs text-[var(--color-text-light)]">可见性</label>
+            <select id="visibility-filter" name="visibility" class="admin-form-field rounded-md px-3 py-2">
                 <option value="">全部可见性</option>
                 <option value="public" {% if selected_visibility == "public" %}selected{% endif %}>公开</option>
                 <option value="private" {% if selected_visibility == "private" %}selected{% endif %}>私密</option>
@@ -82,8 +82,8 @@
             </select>
         </div>
         <div>
-            <label for="page-size-filter" class="block text-xs text-gray-500 mb-1">每页数量</label>
-            <select id="page-size-filter" name="page_size" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <label for="page-size-filter" class="mb-1 block text-xs text-[var(--color-text-light)]">每页数量</label>
+            <select id="page-size-filter" name="page_size" class="admin-form-field rounded-md px-3 py-2">
                 {% for size in pagination.allowed_page_sizes %}
                 <option value="{{ size }}" {% if pagination.page_size == size %}selected{% endif %}>{{ size }} / 页</option>
                 {% endfor %}
@@ -91,17 +91,17 @@
         </div>
         <input type="hidden" name="page" value="1">
         <div class="flex gap-2">
-            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+            <button type="submit" class="admin-primary-btn rounded-md px-4 py-2">
                 应用筛选
             </button>
-            <a href="{{ request.state.admin_path }}/pages" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition-colors">
+            <a href="{{ request.state.admin_path }}/pages" class="admin-secondary-btn rounded-md px-4 py-2">
                 重置
             </a>
         </div>
     </form>
 
-    <div class="overflow-x-auto rounded-lg border border-gray-200">
-        <table class="min-w-full bg-white">
+    <div class="admin-table-shell overflow-x-auto rounded-2xl">
+        <table class="admin-list-table min-w-full">
             <colgroup>
                 <col class="w-12">
                 <col class="w-[38%]">
@@ -112,81 +112,81 @@
                 <col class="w-36">
                 <col class="w-20">
             </colgroup>
-            <thead class="bg-gray-50">
+            <thead class="admin-list-table-head">
                 <tr>
-                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <input type="checkbox" id="select-all" class="rounded border-gray-300">
+                    <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">
+                        <input type="checkbox" id="select-all" class="admin-form-check rounded border-gray-300">
                     </th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标题</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">可见性</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">评论</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">更新时间</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">阅读量</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">标题</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">状态</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">操作</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">可见性</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">评论</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">更新时间</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">阅读量</th>
                 </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody class="admin-list-table-body divide-y">
                 {% for page in pages %}
-                <tr class="hover:bg-gray-50">
+                <tr>
                     <td class="px-3 py-4 align-top">
-                        <input type="checkbox" class="page-checkbox rounded border-gray-300" value="{{ page.id }}">
+                        <input type="checkbox" class="page-checkbox admin-form-check rounded border-gray-300" value="{{ page.id }}">
                     </td>
                     <td class="px-4 py-4 align-top">
-                        <div class="text-base font-semibold tracking-tight text-gray-900">
-                            <a href="/{{ page.slug }}" target="_blank" class="hover:text-blue-600">
+                        <div class="text-base font-semibold tracking-tight text-[var(--color-text)]">
+                            <a href="/{{ page.slug }}" target="_blank" class="admin-accent-link">
                                 {{ page.title or "(无标题页面)" }}
                             </a>
                         </div>
-                        <div class="mt-1 text-xs text-gray-500 leading-5">
-                            <span class="inline-block text-[11px] uppercase tracking-wide text-gray-400">摘要</span>
+                        <div class="mt-1 text-xs leading-5 text-[var(--color-text-light)]">
+                            <span class="inline-block text-[11px] uppercase tracking-wide text-[var(--color-text-light)]">摘要</span>
                             <span class="ml-1 italic">{{ page.excerpt[:80] if page.excerpt else '' }}{% if page.excerpt and page.excerpt|length > 80 %}...{% endif %}</span>
                         </div>
-                        <div class="mt-1 text-xs text-gray-400">/{{ page.slug }}</div>
+                        <div class="mt-1 text-xs text-[var(--color-text-light)]">/{{ page.slug }}</div>
                         <div class="mt-1">
-                            <span class="inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700">
+                            <span class="admin-badge admin-badge-info px-2 py-0.5 text-[11px] font-medium">
                                 模板：{{ page_template_label_map.get(page.page_template or 'default', '默认页面（全宽）') }}
                             </span>
                         </div>
                     </td>
                     <td class="px-4 py-4 align-top">
                         {% if page.status == 'published' %}
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">已发布</span>
+                        <span class="admin-badge admin-badge-success px-2 py-0.5 text-xs font-semibold">已发布</span>
                         {% else %}
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">草稿</span>
+                        <span class="admin-badge admin-badge-warning px-2 py-0.5 text-xs font-semibold">草稿</span>
                         {% endif %}
                     </td>
                     <td class="px-4 py-4 align-top">
-                        <div class="flex items-center gap-3 text-sm">
-                            <a href="{{ request.state.admin_path }}/pages/{{ page.id }}/edit" class="text-blue-600 hover:text-blue-900" title="编辑">
+                        <div class="admin-action-links flex items-center gap-3 text-sm">
+                            <a href="{{ request.state.admin_path }}/pages/{{ page.id }}/edit" class="admin-action-link" title="编辑">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <a href="/{{ page.slug }}" target="_blank" class="text-green-600 hover:text-green-900" title="查看">
+                            <a href="/{{ page.slug }}" target="_blank" class="admin-action-link" title="查看">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <button onclick="deletePage('{{ page.id }}')" class="text-red-600 hover:text-red-900" title="删除">
+                            <button onclick="deletePage('{{ page.id }}')" class="admin-action-link" title="删除">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </td>
                     <td class="px-4 py-4 align-top">
                         {% if page.visibility == 'public' %}
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">公开</span>
+                        <span class="admin-badge admin-badge-info px-2 py-0.5 text-xs font-semibold">公开</span>
                         {% elif page.visibility == 'private' %}
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">私密</span>
+                        <span class="admin-badge admin-badge-neutral px-2 py-0.5 text-xs font-semibold">私密</span>
                         {% elif page.visibility == 'password' %}
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">密码保护</span>
+                        <span class="admin-badge admin-badge-warning px-2 py-0.5 text-xs font-semibold">密码保护</span>
                         {% else %}
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{{ page.visibility }}</span>
+                        <span class="admin-badge admin-badge-neutral px-2 py-0.5 text-xs font-semibold">{{ page.visibility }}</span>
                         {% endif %}
                     </td>
-                    <td class="px-4 py-4 align-top text-sm text-gray-600">
+                    <td class="px-4 py-4 align-top text-sm text-[var(--color-text-light)]">
                         {{ page.comment_count if page.comment_count is defined else 0 }}
                     </td>
-                    <td class="px-4 py-4 align-top text-sm text-gray-500">
+                    <td class="px-4 py-4 align-top text-sm text-[var(--color-text-light)]">
                         {{ (page.updated_at or page.created_at).strftime('%Y-%m-%d %H:%M') if (page.updated_at or page.created_at) else '-' }}
                     </td>
-                    <td class="px-4 py-4 align-top text-sm text-gray-500">
+                    <td class="px-4 py-4 align-top text-sm text-[var(--color-text-light)]">
                         {{ page.views if page.views else 0 }}
                     </td>
                 </tr>
@@ -194,11 +194,11 @@
 
                 {% if not pages %}
                 <tr>
-                    <td colspan="8" class="px-6 py-12 text-center text-gray-500">
-                        <i class="fas fa-file text-4xl mb-4 text-gray-400"></i>
+                    <td colspan="8" class="admin-empty-state px-6 py-12 text-center text-[var(--color-text-light)]">
+                        <i class="fas fa-file mb-4 text-4xl opacity-60"></i>
                         <div class="text-lg">暂无页面</div>
                         <div class="text-sm">
-                            <a href="{{ request.state.admin_path }}/pages/new" class="text-blue-600 hover:text-blue-800">立即创建第一个页面</a>
+                            <a href="{{ request.state.admin_path }}/pages/new" class="admin-accent-link">立即创建第一个页面</a>
                         </div>
                     </td>
                 </tr>
@@ -208,28 +208,28 @@
     </div>
 
     <div class="flex flex-wrap justify-between items-center gap-3 pt-1">
-        <div class="text-sm text-gray-600">
+        <div class="text-sm text-[var(--color-text-light)]">
             共 {{ pagination.filtered_total }} 条结果，第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页
         </div>
         <div class="flex items-center gap-1">
             {% if pagination.has_prev %}
-            <a href="{{ pagination.prev_url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">上一页</a>
+            <a href="{{ pagination.prev_url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">上一页</a>
             {% else %}
-            <span class="px-3 py-1.5 text-sm border border-gray-200 rounded text-gray-400 cursor-not-allowed">上一页</span>
+            <span class="admin-pagination-link is-disabled px-3 py-1.5 text-sm rounded cursor-not-allowed">上一页</span>
             {% endif %}
 
             {% for link in pagination.page_links %}
                 {% if link.is_current %}
-                <span class="px-3 py-1.5 text-sm rounded bg-blue-600 text-white">{{ link.page }}</span>
+                <span class="admin-pagination-link is-current px-3 py-1.5 text-sm rounded">{{ link.page }}</span>
                 {% else %}
-                <a href="{{ link.url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">{{ link.page }}</a>
+                <a href="{{ link.url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">{{ link.page }}</a>
                 {% endif %}
             {% endfor %}
 
             {% if pagination.has_next %}
-            <a href="{{ pagination.next_url }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100">下一页</a>
+            <a href="{{ pagination.next_url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">下一页</a>
             {% else %}
-            <span class="px-3 py-1.5 text-sm border border-gray-200 rounded text-gray-400 cursor-not-allowed">下一页</span>
+            <span class="admin-pagination-link is-disabled px-3 py-1.5 text-sm rounded cursor-not-allowed">下一页</span>
             {% endif %}
         </div>
     </div>

@@ -32,6 +32,7 @@ def test_categories_create_requires_login(monkeypatch):
     admin_prefix = settings.ADMIN_PATH.rstrip("/")
     response = client.post(f"{admin_prefix}/api/v1/categories/", data={"name": "分类A"})
     assert response.status_code == 401
+    assert response.headers.get("content-type", "").startswith("application/json")
 
 
 def test_categories_create_requires_csrf_header_when_logged_in(monkeypatch):
@@ -44,6 +45,15 @@ def test_categories_create_requires_csrf_header_when_logged_in(monkeypatch):
         assert response.status_code == 422
     finally:
         main_module.app.dependency_overrides.clear()
+
+
+def test_admin_html_requires_login_redirects_to_login_page(monkeypatch):
+    _set_installation_complete(monkeypatch, True)
+    client = TestClient(main_module.app)
+    admin_prefix = settings.ADMIN_PATH.rstrip("/")
+    response = client.get(f"{admin_prefix}/dashboard", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == f"{admin_prefix}/login"
 
 
 def test_tags_create_requires_csrf_header_when_logged_in(monkeypatch):
