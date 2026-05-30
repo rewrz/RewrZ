@@ -1,44 +1,46 @@
-import pytest
 import time
 import warnings
-from pydantic import ValidationError
-from sqlalchemy import create_engine, select, func
-from sqlalchemy.exc import SAWarning
-from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime, timedelta
-from rewrz.models.base import Base
-from rewrz.models.user import User
-from rewrz.models.post import Post
-from rewrz.models.category import Category
-from rewrz.models.tag import Tag
-from rewrz.schemas.user import UserCreate
-from rewrz.schemas.post import PostCreate, PostUpdate
-from rewrz.schemas.comment import CommentCreate
-from rewrz.schemas.category import CategoryCreate
-from rewrz.schemas.tag import TagCreate
-from rewrz.crud import user as crud_user
-from rewrz.crud import post as crud_post
-from rewrz.crud import comment as crud_comment
+from uuid import uuid4
+
+import pytest
+from pydantic import ValidationError
+from sqlalchemy import create_engine, func, select
+from sqlalchemy.exc import SAWarning
+from sqlalchemy.orm import Session, sessionmaker
+
 from rewrz.crud import category as crud_category
+from rewrz.crud import comment as crud_comment
+from rewrz.crud import post as crud_post
 from rewrz.crud import tag as crud_tag
+from rewrz.crud import user as crud_user
+from rewrz.models.base import Base
+from rewrz.models.category import Category
+from rewrz.models.post import Post
+from rewrz.models.tag import Tag
+from rewrz.models.user import User
+from rewrz.schemas.category import CategoryCreate
+from rewrz.schemas.comment import CommentCreate
+from rewrz.schemas.post import PostCreate, PostUpdate
+from rewrz.schemas.tag import TagCreate
+from rewrz.schemas.user import UserCreate
 
-# Setup a test database
-SQLALCHEMY_DATABASE_URL = "sqlite:///./tests/test.db"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @pytest.fixture(name="db")
-def session_fixture():
+def session_fixture(tmp_path):
+    db_path = tmp_path / f"crud-post-{uuid4().hex}.db"
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+    )
     Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
+    testing_session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db = testing_session_local()
     try:
         yield db
     finally:
         db.close()
-        Base.metadata.drop_all(bind=engine) # Clean up after tests
+        engine.dispose()
 
 @pytest.fixture
 def test_user(db: Session):
@@ -592,28 +594,6 @@ def test_post_schema_rejects_legacy_article_post_type():
             status="draft",
             visibility="public",
         )
-
-
-def test_normalize_legacy_article_post_type(db: Session, test_user: User):
-    post = Post(
-        title="Legacy Type",
-        slug="legacy-type",
-        content_markdown="legacy",
-        content_html="",
-        post_type="article",
-        status="published",
-        visibility="public",
-        author_id=test_user.id,
-    )
-    db.add(post)
-    db.commit()
-
-    updated_count = crud_post.normalize_legacy_article_post_type(db)
-    assert updated_count == 1
-
-    refreshed = crud_post.get_post_by_slug(db, "legacy-type")
-    assert refreshed is not None
-    assert refreshed.post_type == "post"
 
 
 def test_create_post_auto_create_default_format_without_sawarning(db: Session, test_user: User):

@@ -43,25 +43,17 @@ def test_auth_api_has_v1_and_legacy_status_paths():
 
 
 def test_category_api_has_v1_and_legacy_paths():
-    new_paths = _paths(categories.router)
-    old_paths = _paths(categories.legacy_router)
-    assert "/api/v1/categories/" in new_paths
-    assert "/api/v1/categories/bulk-action" in new_paths
-    assert "/api/v1/categories/{category_id}" in new_paths
-    assert "/api/categories/" in old_paths
-    assert "/api/categories/bulk-action" in old_paths
-    assert "/api/categories/{category_id}" in old_paths
+    paths = _paths(categories.router)
+    assert "/api/v1/categories/" in paths
+    assert "/api/v1/categories/bulk-action" in paths
+    assert "/api/v1/categories/{category_id}" in paths
 
 
 def test_tag_api_has_v1_and_legacy_paths():
-    new_paths = _paths(tags.router)
-    old_paths = _paths(tags.legacy_router)
-    assert "/api/v1/tags/" in new_paths
-    assert "/api/v1/tags/bulk-action" in new_paths
-    assert "/api/v1/tags/{tag_id}" in new_paths
-    assert "/api/tags/" in old_paths
-    assert "/api/tags/bulk-action" in old_paths
-    assert "/api/tags/{tag_id}" in old_paths
+    paths = _paths(tags.router)
+    assert "/api/v1/tags/" in paths
+    assert "/api/v1/tags/bulk-action" in paths
+    assert "/api/v1/tags/{tag_id}" in paths
 
 
 def test_comment_admin_actions_have_v1_paths():
@@ -123,29 +115,25 @@ def test_media_api_has_v1_and_legacy_paths():
     paths = _paths(media.router)
     admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
     assert f"{admin_prefix}/api/v1/media" in paths
-    assert f"{admin_prefix}/api/media" in paths
     assert f"{admin_prefix}/api/v1/media/{{media_id}}" in paths
-    assert f"{admin_prefix}/api/media/{{media_id}}" in paths
     assert f"{admin_prefix}/api/v1/media/bulk-delete" in paths
-    assert f"{admin_prefix}/api/media/bulk-delete" in paths
+    assert f"{admin_prefix}/api/media" not in paths
+    assert f"{admin_prefix}/api/media/{{media_id}}" not in paths
+    assert f"{admin_prefix}/api/media/bulk-delete" not in paths
 
 
 def test_media_settings_api_has_v1_and_legacy_paths():
     paths = _paths(media_settings.router)
     admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
     assert f"{admin_prefix}/api/v1/media/settings" in paths
-    assert f"{admin_prefix}/api/media/settings" in paths
     assert f"{admin_prefix}/api/v1/media/settings/current" in paths
-    assert f"{admin_prefix}/api/media/settings/current" in paths
 
 
 def test_comment_settings_api_has_v1_and_legacy_paths():
     paths = _paths(comment_settings.router)
     admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
     assert f"{admin_prefix}/api/v1/comments/settings" in paths
-    assert f"{admin_prefix}/api/comments/settings" in paths
     assert f"{admin_prefix}/api/v1/comments/test-akismet" in paths
-    assert f"{admin_prefix}/api/comments/test-akismet" in paths
 
 
 def test_posts_api_has_v1_and_legacy_paths():
@@ -156,15 +144,15 @@ def test_posts_api_has_v1_and_legacy_paths():
     assert "/api/v1/posts/quick/media" in paths
     assert "/api/posts/quick/media" in paths
     assert f"{admin_prefix}/api/v1/posts/{{post_id}}" in paths
-    assert f"{admin_prefix}/api/posts/{{post_id}}" in paths
     assert f"{admin_prefix}/api/v1/posts/batch-publish" in paths
-    assert f"{admin_prefix}/api/posts/batch-publish" in paths
     assert f"{admin_prefix}/api/v1/posts/batch-draft" in paths
-    assert f"{admin_prefix}/api/posts/batch-draft" in paths
     assert f"{admin_prefix}/api/v1/posts/batch-delete" in paths
-    assert f"{admin_prefix}/api/posts/batch-delete" in paths
     assert f"{admin_prefix}/api/v1/pages/{{page_id}}" in paths
-    assert f"{admin_prefix}/api/pages/{{page_id}}" in paths
+    assert f"{admin_prefix}/api/posts/{{post_id}}" not in paths
+    assert f"{admin_prefix}/api/posts/batch-publish" not in paths
+    assert f"{admin_prefix}/api/posts/batch-draft" not in paths
+    assert f"{admin_prefix}/api/posts/batch-delete" not in paths
+    assert f"{admin_prefix}/api/pages/{{page_id}}" not in paths
 
 
 def test_anniversary_and_theme_schedule_have_v1_prefix_routes():
@@ -173,8 +161,8 @@ def test_anniversary_and_theme_schedule_have_v1_prefix_routes():
     assert "/api/anniversary-mode/current" in app_paths
     assert "/api/v1/custom-theme" in app_paths
     assert "/api/custom-theme" in app_paths
-    assert "/api/v1/theme-schedule/save" in app_paths
-    assert "/api/theme-schedule/save" in app_paths
+    assert "/api/v1/theme-schedule/current" in app_paths
+    assert "/api/theme-schedule/current" in app_paths
 
 
 def test_dynamic_admin_api_routes_have_v1_aliases():
@@ -183,8 +171,44 @@ def test_dynamic_admin_api_routes_have_v1_aliases():
     admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
     assert f"{admin_prefix}/api/v1/update-admin-path" in app_paths
     assert f"{admin_prefix}/api/update-admin-path" in app_paths
+    assert f"{admin_prefix}/api/v1/categories/options" in app_paths
+    assert f"{admin_prefix}/api/v1/anniversary-mode/save" in app_paths
+    assert f"{admin_prefix}/api/v1/theme-schedule/save" in app_paths
+    assert f"{admin_prefix}/api/v1/theme-schedule/clear" in app_paths
+    assert f"{admin_prefix}/api/v1/admin/themes/background" in app_paths
     assert f"{admin_prefix}/api/v1/system-info" in app_paths
-    assert f"{admin_prefix}/api/system-info" in app_paths
+    assert f"{admin_prefix}/api/v1/dashboard/stats" in app_paths
+    assert f"{admin_prefix}/api/v1/dashboard/site-health" in app_paths
+    assert f"{admin_prefix}/api/v1/dashboard/quick-draft" in app_paths
+    assert f"{admin_prefix}/api/categories/options" not in app_paths
+    assert f"{admin_prefix}/api/system-info" not in app_paths
+    assert f"{admin_prefix}/api/system/info" not in app_paths
+    assert f"{admin_prefix}/api/dashboard/stats" not in app_paths
+    assert f"{admin_prefix}/api/dashboard/site-health" not in app_paths
+    assert f"{admin_prefix}/api/dashboard/quick-draft" not in app_paths
+
+
+def test_external_api_and_frontend_public_api_do_not_expose_admin_path():
+    _ensure_admin_routes_registered()
+    app_paths = _paths(main_module.app)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+
+    assert "/api/external/v1/posts" in app_paths
+    assert f"{admin_prefix}/api/external/v1/posts" not in app_paths
+    assert "/api/v1/posts/quick" in app_paths
+    assert f"{admin_prefix}/api/v1/posts/quick" not in app_paths
+    assert "/api/v1/theme/sync" in app_paths
+    assert f"{admin_prefix}/api/v1/theme/sync" not in app_paths
+
+
+def test_public_app_does_not_expose_admin_only_theme_write_routes():
+    app_paths = _paths(main_module.app)
+    assert "/api/v1/anniversary-mode/save" not in app_paths
+    assert "/api/anniversary-mode/save" not in app_paths
+    assert "/api/v1/theme-schedule/save" not in app_paths
+    assert "/api/theme-schedule/save" not in app_paths
+    assert "/api/v1/theme-schedule/clear" not in app_paths
+    assert "/api/theme-schedule/clear" not in app_paths
 
 
 def test_no_conflicting_top_level_format_alias_routes():

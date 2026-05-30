@@ -32,7 +32,7 @@ flowchart LR
 入口文件：`rewrz/main.py`
 
 关键流程：
-- `lifespan` 启动阶段执行建表与历史数据归一化（`normalize_legacy_article_post_type`）。
+- `lifespan` 启动阶段执行建表，不再承载历史数据运行时归一化。
 - 全局关闭自动 API 文档端点（`docs_url/redoc_url/openapi_url = None`）。
 - 安装状态由 `settings.installation_complete` 判定，未安装走 `/installer`。
 - 安装完成后，`/installer` 对外重定向，避免后台入口暴露。
@@ -45,17 +45,18 @@ flowchart TD
     E -- 否 --> I[进入安装向导流程]
     E -- 是 --> L[加载配置 DynamicSettings]
     L --> T[create_all_tables]
-    T --> N[归一化历史 post_type 数据]
-    N --> R[按请求动态注册后台路由]
+    T --> R[按请求动态注册后台路由]
 ```
 
 ## 3. 路由组织策略
 
-### 3.1 双路由版本策略
-- 大量接口同时存在：
-  - 新路径：`/api/v1/...`
-  - 兼容路径：`/api/...`
-- 目标是在迁移期间保留调用稳定性，最终按版本策略收敛。
+### 3.1 路由版本策略
+- 当前稳定主路径为：
+  - 公共接口：`/api/v1/...`
+  - 外部集成接口：`/api/external/v1/...`
+  - 后台管理接口：`{ADMIN_PATH}/api/v1/...`
+- 少量公共旧 `/api/...` 别名仍为现有调用保留，但不再视为长期稳定面。
+- 后台内部接口默认以 `{ADMIN_PATH}/api/v1/...` 作为唯一主路径。
 
 ### 3.2 动态后台路径
 - 后台入口不写死 `/admin`，由 `ADMIN_PATH` 控制。

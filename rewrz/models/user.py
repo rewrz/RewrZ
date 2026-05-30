@@ -4,7 +4,7 @@
 定义系统用户的数据结构，包括管理员和博主账户。
 支持自定义头像上传和管理功能。
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean # 导入Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
 from sqlalchemy.sql import func
 from .base import Base
 
@@ -33,3 +33,7 @@ class User(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     last_login_at = Column(DateTime, nullable=True) # 最后登录时间
+    token_version = Column(Integer, default=1, nullable=False) # 令牌版本，用于轻量强制退出
+    password_reset_token_hash = Column(String, nullable=True) # 找回密码令牌哈希
+    password_reset_sent_at = Column(DateTime, nullable=True) # 最近一次找回密码申请时间
+    password_reset_expires_at = Column(DateTime, nullable=True) # 找回密码令牌过期时间

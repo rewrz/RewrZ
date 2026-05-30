@@ -741,7 +741,7 @@ async function saveAnniversaries() {
     });
     
     try {
-        const response = await fetch('/api/v1/anniversary-mode/save', {
+        const response = await fetch(`${window.ADMIN_PATH}/api/v1/anniversary-mode/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -789,7 +789,7 @@ async function saveSchedule() {
     });
     
     try {
-        const response = await fetch('/api/v1/theme-schedule/save', {
+        const response = await fetch(`${window.ADMIN_PATH}/api/v1/theme-schedule/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -934,7 +934,7 @@ async function saveBackgroundImage() {
         }
         formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
         
-        const response = await fetch('/api/v1/admin/themes/background', {
+        const response = await fetch(`${window.ADMIN_PATH}/api/v1/admin/themes/background`, {
             method: 'POST',
             body: formData
         });

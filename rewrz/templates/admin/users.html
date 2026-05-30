@@ -5,6 +5,144 @@
 {% block content %}
 {% set profile_gravatar_mode = profile_user.use_gravatar if profile_user.use_gravatar else 'auto' %}
 {% set ps = profile_settings if profile_settings is defined and profile_settings else {} %}
+{% set can_manage_admin_users = profile_user.role == 'super_admin' %}
+<section class="mb-6 space-y-4">
+    <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">后台用户列表</h2>
+                <p class="mt-1 text-sm text-gray-500">
+                    {% if can_manage_admin_users %}
+                    当前提供最小必要的用户管理能力：搜索、新增、启停、角色切换、密码重置、强制退出。
+                    {% else %}
+                    当前账号可查看后台用户列表与最近活动；高风险用户管理动作仅超级管理员可执行。
+                    {% endif %}
+                </p>
+            </div>
+            <div class="flex w-full max-w-3xl flex-col gap-3 lg:items-end">
+                <form hx-get="{{ request.state.admin_path }}/users"
+                      hx-target="#admin-content"
+                      hx-swap="outerHTML"
+                      hx-select="#admin-content"
+                      class="flex w-full gap-2">
+                    <input type="text"
+                           name="q"
+                           value="{{ managed_users_search or '' }}"
+                           placeholder="搜索用户名、邮箱或显示名"
+                           class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm">
+                    <button type="submit" class="rounded-md bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-900">搜索</button>
+                </form>
+                {% if can_manage_admin_users %}
+                <form id="managed-user-create-form" class="grid w-full gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-5">
+                    <input type="text" name="username" placeholder="新用户名" class="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm">
+                    <input type="email" name="email" placeholder="邮箱" class="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm">
+                    <input type="text" name="display_name" placeholder="显示名（可选）" class="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm">
+                    <input type="password" name="password" placeholder="初始密码（至少 8 位）" class="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm">
+                    <div class="flex gap-2">
+                        <select name="role" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm">
+                            {% for role_name in allowed_admin_roles %}
+                            <option value="{{ role_name }}" {% if role_name == 'admin' %}selected{% endif %}>{{ role_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" id="managed-user-create-btn" class="shrink-0 rounded-md bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700">新增</button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="mt-4 overflow-x-auto">
+            <table class="min-w-[960px] divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="w-[25%] px-4 py-3 text-left font-medium text-gray-600">用户</th>
+                        <th class="w-[12%] px-4 py-3 text-left font-medium text-gray-600">显示名</th>
+                        <th class="w-[12%] px-4 py-3 text-left font-medium text-gray-600">角色</th>
+                        <th class="w-[10%] px-4 py-3 text-left font-medium text-gray-600">状态</th>
+                        <th class="w-[12%] px-4 py-3 text-left font-medium text-gray-600">最近登录</th>
+                        <th class="w-[17%] px-4 py-3 text-left font-medium text-gray-600">最近活动</th>
+                        <th class="w-[12%] px-4 py-3 text-right font-medium text-gray-600">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 bg-white">
+                    {% for item in managed_users %}
+                    <tr data-managed-user-row="{{ item.id }}">
+                        <td class="px-4 py-3 align-top">
+                            <div class="font-medium text-gray-900">{{ item.username }}</div>
+                            <div class="text-xs text-gray-500">{{ item.email }}</div>
+                        </td>
+                        <td class="px-4 py-3 align-top text-gray-700">{{ item.display_name or '-' }}</td>
+                        <td class="px-4 py-3 align-top">
+                            <select class="managed-user-role min-w-[7.5rem] rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                    data-user-id="{{ item.id }}"
+                                    {% if item.id == profile_user.id %}data-current-user="true"{% endif %}
+                                    {% if not can_manage_admin_users %}disabled{% endif %}>
+                                {% for role_name in allowed_admin_roles %}
+                                <option value="{{ role_name }}" {% if item.role == role_name %}selected{% endif %}>{{ role_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td class="px-4 py-3 align-top">
+                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium {% if item.is_active %}bg-emerald-100 text-emerald-700{% else %}bg-rose-100 text-rose-700{% endif %}">
+                                {{ '启用中' if item.is_active else '已停用' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 align-top text-xs text-gray-500">{{ item.last_login_at.strftime('%Y-%m-%d %H:%M') if item.last_login_at else '暂无' }}</td>
+                        <td class="px-4 py-3 align-top text-xs text-gray-500">
+                            {% set activity = item.admin_recent_activity if item.admin_recent_activity is defined else {} %}
+                            {% if activity and activity.timestamp %}
+                            <div class="font-medium text-gray-700">{{ activity.label or '后台管理操作' }}</div>
+                            <div class="mt-1">{{ activity.detail_text or '-' }}</div>
+                            <div class="mt-1 text-[11px] text-gray-400">
+                                {{ activity.timestamp[:16].replace('T', ' ') }}
+                                {% if activity.actor_username %} · {{ activity.actor_username }}{% endif %}
+                            </div>
+                            {% else %}
+                            <span>暂无</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 align-top">
+                            {% if can_manage_admin_users %}
+                            <div class="flex flex-col items-end gap-2 whitespace-nowrap">
+                                <button type="button"
+                                        class="managed-user-status min-w-[4rem] rounded-md px-3 py-1.5 text-xs text-white {% if item.is_active %}bg-amber-600 hover:bg-amber-700{% else %}bg-emerald-600 hover:bg-emerald-700{% endif %}"
+                                        data-user-id="{{ item.id }}"
+                                        data-next-status="{{ 'false' if item.is_active else 'true' }}"
+                                        {% if not can_manage_admin_users %}disabled{% endif %}>
+                                    {{ '停用' if item.is_active else '启用' }}
+                                </button>
+                                <button type="button"
+                                        class="managed-user-password min-w-[4.75rem] rounded-md bg-indigo-600 px-3 py-1.5 text-xs text-white hover:bg-indigo-700"
+                                        data-user-id="{{ item.id }}"
+                                        data-username="{{ item.username }}"
+                                        {% if not can_manage_admin_users %}disabled{% endif %}>
+                                    重置密码
+                                </button>
+                                <button type="button"
+                                        class="managed-user-force-logout min-w-[4.75rem] rounded-md bg-slate-700 px-3 py-1.5 text-xs text-white hover:bg-slate-800"
+                                        data-user-id="{{ item.id }}"
+                                        data-username="{{ item.username }}"
+                                        {% if not can_manage_admin_users %}disabled{% endif %}>
+                                    强制退出
+                                </button>
+                            </div>
+                            {% else %}
+                            <span class="text-xs text-gray-400">仅超级管理员可操作</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">暂无匹配用户。</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="mt-3 text-xs text-gray-500">最近活动为后台用户管理轻量审计摘要；登录审计详见安全中心与 <code>data/logs/admin_login_audit.log</code>。</p>
+    </div>
+</section>
+
 <form hx-post="{{ request.state.admin_path }}/users"
       hx-target="#admin-content"
       hx-swap="outerHTML"
@@ -211,6 +349,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const adminPath = '{{ request.state.admin_path }}';
     const userId = {{ profile_user.id }};
     const csrfToken = '{{ request.state.csrf_token }}';
+    const currentUserRole = '{{ profile_user.role }}';
     const avatarPreview = document.getElementById('profile-avatar-preview');
     const avatarSourceBadge = document.getElementById('avatar-source-badge');
     const avatarFileInput = document.getElementById('avatar-upload-file');
@@ -218,6 +357,22 @@ document.addEventListener('DOMContentLoaded', function() {
     function setAvatar(url) {
         if (!avatarPreview) return;
         avatarPreview.src = url || '/static/images/default-avatar.png';
+    }
+
+    async function postAdminAction(url, formData) {
+        const response = await fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            body: formData
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload.detail || payload.message || '操作失败');
+        }
+        if (payload.success === false) {
+            throw new Error(payload.message || '操作失败');
+        }
+        return payload;
     }
 
     async function refreshAvatarInfo() {
@@ -401,6 +556,118 @@ document.addEventListener('DOMContentLoaded', function() {
     ['creator_profile_cover_url', 'creator_profile_micro_cover_url', 'creator_profile_poem_cover_url'].forEach(field => {
         const input = document.getElementById(field);
         input?.addEventListener('input', () => refreshCoverPreview(field));
+    });
+
+    document.querySelectorAll('.managed-user-status').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            const targetUserId = btn.getAttribute('data-user-id');
+            const nextStatus = btn.getAttribute('data-next-status') || 'false';
+            const confirmText = nextStatus === 'true' ? '确认启用该用户吗？' : '确认停用该用户吗？';
+            if (!(await window.adminConfirm(confirmText, { confirmText: '确认' }))) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('is_active', nextStatus);
+            formData.append('csrf_token', csrfToken);
+
+            try {
+                const result = await postAdminAction(`${adminPath}/api/v1/users/${targetUserId}/status`, formData);
+                window.adminNotify(result.message || '用户状态已更新。', 'success');
+                window.location.reload();
+            } catch (error) {
+                window.adminNotify(error.message || '用户状态更新失败。', 'error');
+            }
+        });
+    });
+
+    document.querySelectorAll('.managed-user-role').forEach((select) => {
+        select.addEventListener('change', async () => {
+            const targetUserId = select.getAttribute('data-user-id');
+            const roleValue = select.value || 'admin';
+            const formData = new FormData();
+            formData.append('role', roleValue);
+            formData.append('csrf_token', csrfToken);
+
+            try {
+                const result = await postAdminAction(`${adminPath}/api/v1/users/${targetUserId}/role`, formData);
+                window.adminNotify(result.message || '用户角色已更新。', 'success');
+            } catch (error) {
+                window.adminNotify(error.message || '用户角色更新失败。', 'error');
+                window.location.reload();
+            }
+        });
+    });
+
+    document.getElementById('managed-user-create-btn')?.addEventListener('click', async () => {
+        if (currentUserRole !== 'super_admin') {
+            window.adminNotify('只有超级管理员可以新增后台用户。', 'warning');
+            return;
+        }
+
+        const form = document.getElementById('managed-user-create-form');
+        if (!form) return;
+        const formData = new FormData(form);
+        formData.append('csrf_token', csrfToken);
+
+        const username = String(formData.get('username') || '').trim();
+        const email = String(formData.get('email') || '').trim();
+        const password = String(formData.get('password') || '');
+
+        if (!username || !email || password.length < 8) {
+            window.adminNotify('请完整填写用户名、邮箱和至少 8 位初始密码。', 'warning');
+            return;
+        }
+
+        try {
+            const result = await postAdminAction(`${adminPath}/api/v1/users`, formData);
+            window.adminNotify(result.message || '后台用户已创建。', 'success');
+            window.location.reload();
+        } catch (error) {
+            window.adminNotify(error.message || '创建后台用户失败。', 'error');
+        }
+    });
+
+    document.querySelectorAll('.managed-user-password').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            const targetUserId = btn.getAttribute('data-user-id');
+            const username = btn.getAttribute('data-username') || '该用户';
+            const password = window.prompt(`请输入 ${username} 的新密码（至少 8 位）`);
+            if (!password) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('password', password);
+            formData.append('csrf_token', csrfToken);
+
+            try {
+                const result = await postAdminAction(`${adminPath}/api/v1/users/${targetUserId}/password`, formData);
+                window.adminNotify(result.message || '用户密码已重置。', 'success');
+            } catch (error) {
+                window.adminNotify(error.message || '密码重置失败。', 'error');
+            }
+        });
+    });
+
+    document.querySelectorAll('.managed-user-force-logout').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            const targetUserId = btn.getAttribute('data-user-id');
+            const username = btn.getAttribute('data-username') || '该用户';
+            if (!(await window.adminConfirm(`确认让 ${username} 当前所有登录态立即失效吗？`, { tone: 'danger', confirmText: '强制退出' }))) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('csrf_token', csrfToken);
+
+            try {
+                const result = await postAdminAction(`${adminPath}/api/v1/users/${targetUserId}/force-logout`, formData);
+                window.adminNotify(result.message || '用户现有登录态已失效。', 'success');
+            } catch (error) {
+                window.adminNotify(error.message || '强制退出失败。', 'error');
+            }
+        });
     });
 });
 </script>

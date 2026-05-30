@@ -15,11 +15,6 @@ router = APIRouter(
     tags=["categories"],
     responses={404: {"description": "Not found"}},
 )
-legacy_router = APIRouter(
-    prefix="/api/categories",
-    tags=["categories"],
-    responses={404: {"description": "Not found"}},
-)
 
 
 class CategoryBulkAction(BaseModel):
@@ -28,7 +23,6 @@ class CategoryBulkAction(BaseModel):
 
 
 @router.post("/")
-@legacy_router.post("/")
 def create_category(
     request: Request,
     name: str = Form(...),
@@ -54,14 +48,12 @@ def create_category(
 
 
 @router.get("/", response_model=List[schemas.Category])
-@legacy_router.get("/", response_model=List[schemas.Category])
 def read_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     categories = crud.category.get_categories(db, skip=skip, limit=limit)
     return categories
 
 
 @router.post("/bulk-action")
-@legacy_router.post("/bulk-action")
 def bulk_action_categories(
     request: Request,
     payload: CategoryBulkAction,
@@ -127,7 +119,6 @@ def bulk_action_categories(
 
 
 @router.get("/{category_id}", response_model=schemas.Category)
-@legacy_router.get("/{category_id}", response_model=schemas.Category)
 def read_category(category_id: int, db: Session = Depends(get_db)):
     db_category = crud.category.get_category(db, category_id=category_id)
     if db_category is None:
@@ -136,7 +127,6 @@ def read_category(category_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{category_id}")
-@legacy_router.put("/{category_id}")
 def update_category(
     request: Request,
     category_id: int,
@@ -172,7 +162,6 @@ def update_category(
 
 
 @router.delete("/{category_id}")
-@legacy_router.delete("/{category_id}")
 def delete_category(
     request: Request,
     category_id: int,

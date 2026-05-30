@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
+from ..core.admin_path import get_request_admin_path
 from ..core.database import get_db, db_manager
 from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
@@ -401,7 +402,7 @@ async def data_management_page(
     return templates.TemplateResponse("admin/data_management.html", {
         "request": request,
         "user": current_user,
-        "admin_path": getattr(request.state, 'admin_path', os.getenv('ADMIN_PATH', '/admin'))
+        "admin_path": get_request_admin_path(request),
     })
 
 

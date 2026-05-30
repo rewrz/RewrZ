@@ -1,0 +1,225 @@
+{% extends "admin/base.html" %}
+
+{% block page_title %}API Key 管理{% endblock %}
+{% block title_text %}API Key 管理{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">创建新的 API Key</h2>
+                <p class="mt-1 text-sm text-gray-600">用于外部系统通过 `/api/external/v1` 访问博客内容。明文密钥只会显示一次。</p>
+            </div>
+        </div>
+
+        <form id="api-key-create-form" class="mt-6 grid gap-4 md:grid-cols-2">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+
+            <label class="block">
+                <span class="mb-1 block text-sm font-medium text-gray-700">名称</span>
+                <input type="text" name="name" required maxlength="80" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            </label>
+
+            <label class="block">
+                <span class="mb-1 block text-sm font-medium text-gray-700">权限等级</span>
+                <select name="access_level" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                    {% for level in access_levels %}
+                    <option value="{{ level }}">{{ level }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label class="block">
+                <span class="mb-1 block text-sm font-medium text-gray-700">过期时间</span>
+                <input type="datetime-local" name="expires_at" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            </label>
+
+            <label class="block md:col-span-2">
+                <span class="mb-1 block text-sm font-medium text-gray-700">备注</span>
+                <textarea name="notes" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"></textarea>
+            </label>
+
+            <div class="md:col-span-2 flex justify-end">
+                <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">创建 API Key</button>
+            </div>
+        </form>
+
+        <div id="api-key-plain-result" class="mt-4 hidden rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <div class="font-medium">请立即保存以下明文密钥，此内容后续不会再次展示：</div>
+            <pre id="api-key-plain-token" class="mt-3 overflow-x-auto rounded-lg bg-white p-3 text-xs text-gray-900"></pre>
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">现有 API Key</h2>
+                <p class="mt-1 text-sm text-gray-600">轻量等级制，不提供复杂 scope 编辑器。</p>
+            </div>
+        </div>
+
+        <div class="mt-6 overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead>
+                    <tr class="text-left text-gray-500">
+                        <th class="px-3 py-2 font-medium">名称</th>
+                        <th class="px-3 py-2 font-medium">前缀</th>
+                        <th class="px-3 py-2 font-medium">权限等级</th>
+                        <th class="px-3 py-2 font-medium">状态</th>
+                        <th class="px-3 py-2 font-medium">最后使用</th>
+                        <th class="px-3 py-2 font-medium">最后 IP</th>
+                        <th class="px-3 py-2 font-medium">过期时间</th>
+                        <th class="px-3 py-2 font-medium">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for item in api_keys %}
+                    <tr data-api-key-id="{{ item.id }}">
+                        <td class="px-3 py-3 text-gray-900">{{ item.name }}</td>
+                        <td class="px-3 py-3 font-mono text-xs text-gray-700">{{ item.key_prefix }}</td>
+                        <td class="px-3 py-3 text-gray-700">{{ item.access_level }}</td>
+                        <td class="px-3 py-3">
+                            <span class="inline-flex rounded-full px-2 py-1 text-xs font-medium {% if item.status == 'active' %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-700{% endif %}">
+                                {{ item.status }}
+                            </span>
+                        </td>
+                        <td class="px-3 py-3 text-gray-700">{{ item.last_used_at.strftime('%Y-%m-%d %H:%M:%S') if item.last_used_at else '未使用' }}</td>
+                        <td class="px-3 py-3 text-gray-700">{{ item.last_used_ip or '—' }}</td>
+                        <td class="px-3 py-3 text-gray-700">{{ item.expires_at.strftime('%Y-%m-%d %H:%M:%S') if item.expires_at else '不过期' }}</td>
+                        <td class="px-3 py-3">
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50" onclick="toggleApiKeyStatus({{ item.id }}, '{{ 'disabled' if item.status == 'active' else 'active' }}')">
+                                    {{ '停用' if item.status == 'active' else '启用' }}
+                                </button>
+                                <button type="button" class="rounded-lg border border-amber-300 px-3 py-1.5 text-xs text-amber-700 hover:bg-amber-50" onclick="rotateApiKey({{ item.id }})">
+                                    轮换
+                                </button>
+                                <button type="button" class="rounded-lg border border-red-300 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50" onclick="deleteApiKey({{ item.id }})">
+                                    删除
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="px-3 py-8 text-center text-sm text-gray-500">当前还没有 API Key</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<script>
+    const adminPath = '{{ request.state.admin_path }}';
+    const csrfToken = '{{ request.state.csrf_token }}';
+
+    async function reloadApiKeysPage() {
+        window.location.href = `${adminPath}/api-keys`;
+    }
+
+    document.getElementById('api-key-create-form')?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const formData = new FormData(form);
+        const response = await fetch(`${adminPath}/api/v1/api-keys`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+            window.adminNotify(payload.detail || payload.message || '创建 API Key 失败', 'error');
+            return;
+        }
+
+        const resultBox = document.getElementById('api-key-plain-result');
+        const resultToken = document.getElementById('api-key-plain-token');
+        if (resultBox && resultToken) {
+            resultToken.textContent = payload.plain_token || '';
+            resultBox.classList.remove('hidden');
+        }
+        window.adminNotify(payload.message || 'API Key 已创建', 'success');
+        window.setTimeout(reloadApiKeysPage, 500);
+    });
+
+    async function toggleApiKeyStatus(apiKeyId, nextStatus) {
+        const confirmed = await window.adminConfirm(`确认将该 API Key 状态切换为 ${nextStatus} 吗？`);
+        if (!confirmed) return;
+
+        const formData = new FormData();
+        formData.append('status', nextStatus);
+        formData.append('csrf_token', csrfToken);
+
+        const response = await fetch(`${adminPath}/api/v1/api-keys/${apiKeyId}/status`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+            window.adminNotify(payload.detail || payload.message || '更新状态失败', 'error');
+            return;
+        }
+        window.adminNotify(payload.message || '状态已更新', 'success');
+        window.setTimeout(reloadApiKeysPage, 300);
+    }
+
+    async function rotateApiKey(apiKeyId) {
+        const confirmed = await window.adminConfirm('确认轮换该 API Key 吗？轮换后旧密钥将立即失效。', {
+            tone: 'danger',
+            confirmText: '确认轮换'
+        });
+        if (!confirmed) return;
+
+        const formData = new FormData();
+        formData.append('csrf_token', csrfToken);
+
+        const response = await fetch(`${adminPath}/api/v1/api-keys/${apiKeyId}/rotate`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+            window.adminNotify(payload.detail || payload.message || '轮换失败', 'error');
+            return;
+        }
+
+        const resultBox = document.getElementById('api-key-plain-result');
+        const resultToken = document.getElementById('api-key-plain-token');
+        if (resultBox && resultToken) {
+            resultToken.textContent = payload.plain_token || '';
+            resultBox.classList.remove('hidden');
+        }
+        window.adminNotify(payload.message || 'API Key 已轮换', 'success');
+        window.setTimeout(reloadApiKeysPage, 500);
+    }
+
+    async function deleteApiKey(apiKeyId) {
+        const confirmed = await window.adminConfirm('确认删除该 API Key 吗？删除后不可恢复。', {
+            tone: 'danger',
+            confirmText: '确认删除'
+        });
+        if (!confirmed) return;
+
+        const formData = new FormData();
+        formData.append('csrf_token', csrfToken);
+
+        const response = await fetch(`${adminPath}/api/v1/api-keys/${apiKeyId}/delete`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+            window.adminNotify(payload.detail || payload.message || '删除失败', 'error');
+            return;
+        }
+        window.adminNotify(payload.message || 'API Key 已删除', 'success');
+        window.setTimeout(reloadApiKeysPage, 300);
+    }
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 # RewrZ 使用文档
 
-本文档面向站长与运营者，包含本地运行、线上部署、日常运维三部分。
+本文档面向站长与运营者，只描述当前有效的运行、部署与日常操作方式。
 
 ## 1. 环境要求
 - Python 3.10+
@@ -27,7 +27,10 @@ npm install
 npm run build:css
 ```
 
-启动后访问：`http://127.0.0.1:8000/installer`
+启动后访问：
+
+- 未安装：`http://127.0.0.1:8000/installer`
+- 已安装：`http://127.0.0.1:8000/<你的 ADMIN_PATH>/login`
 
 ### 2.2 安装向导流程
 1. 环境检查
@@ -219,12 +222,22 @@ SESSION_HTTPS_ONLY=false
 - 反向代理场景建议开启：
   - `COOKIE_SECURE=true`
   - `SESSION_HTTPS_ONLY=true`
+- 若要启用登录前找回密码邮件投递，还需额外配置 SMTP 环境变量。
 
 ## 5. 日常使用
 
 ### 5.1 内容发布
 - `post_type` 仅支持：`post`（文章）与 `page`（页面）。
 - `article/micro/poem` 通过内容意图（formats）管理，不是主类型。
+
+### 5.1.1 后台用户与登录
+
+- 后台用户支持：
+  - 登录
+  - 登出
+  - 忘记密码 / 重置密码
+  - 用户启停、角色调整、密码重置、强制退出
+- 高风险用户管理动作默认仅允许 `super_admin`
 
 ### 5.2 媒体管理
 - 支持上传、移动、批量删除、重复文件清理。
@@ -240,6 +253,12 @@ SESSION_HTTPS_ONLY=false
 ### 5.5 数据管理
 - 支持导出 JSON、备份包。
 - 支持导入 RewrZ JSON、WordPress WXR、备份 ZIP。
+
+### 5.6 外部系统接入
+
+- 外部系统统一使用 `/api/external/v1/...`
+- 认证方式为 `Authorization: Bearer <api_key>`
+- API Key 在后台管理台创建、启停、轮换与删除
 
 ## 6. 安全操作建议
 - 仅通过 HTTPS 暴露后台。
@@ -288,7 +307,17 @@ SESSION_HTTPS_ONLY=false
   - `SESSION_HTTPS_ONLY=true`
 - 反向代理需传递 `X-Forwarded-Proto` 请求头
 
-### Q8：出现 `database is locked`（SQLite 锁库）怎么办？
+### Q8：忘记密码申请后没有收到邮件？
+- 先确认是否已配置 SMTP：
+  - `SMTP_HOST`
+  - `SMTP_PORT`
+  - `SMTP_USERNAME`
+  - `SMTP_PASSWORD`
+  - `SMTP_FROM`
+- 开发环境若未配置 SMTP，系统会将重置链接写入：
+  - `data/logs/password_reset_debug.log`
+
+### Q9：出现 `database is locked`（SQLite 锁库）怎么办？
 1. 先确认没有多个重复实例在同时写同一个 SQLite 文件
 2. 减少并发写入压力（尤其导入/批量操作时）
 3. 保持数据库文件在本地磁盘，不要放在高延迟网络存储

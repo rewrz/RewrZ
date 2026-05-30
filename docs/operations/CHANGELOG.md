@@ -1,23 +1,37 @@
 # RewrZ 变更记录
 
-本文件记录项目重要变更。  
-格式参考 Keep a Changelog，版本号策略可后续收敛。
+本文档只保留当前仍有参考价值的近期变更摘要，不维护已经过时的占位版本号或文档初始化记录。
 
-## [Unreleased] - 2026-02-24
+## 2026-05-30
 
-### Added
-- 新增文档中心：`docs/INDEX.md`
-- 新增架构文档：`docs/ARCHITECTURE.md`
-- 新增数据模型文档：`docs/DATA_MODEL.md`
-- 新增 API 约定文档：`docs/API_CONVENTIONS.md`
-- 新增 APP 接入文档：`docs/API_APP.md`
-- 新增排障手册：`docs/TROUBLESHOOTING.md`
-- 新增路线图：`docs/ROADMAP.md`
+### 认证与后台用户
 
-### Changed
-- `README.md` 增强“与主流系统对比”与文档导航。
-- `USAGE.md` 增补线上部署（systemd + Nginx + HTTPS）和宝塔部署。
+- 补齐后台登出路由 `/auth/logout`
+- 登录令牌写入并校验 `token_version`
+- 后台用户管理补齐新增用户、启停、角色、密码重置、强制退出
+- 高风险用户管理动作收紧为仅 `super_admin` 可执行
 
-### Notes
-- 文档重构目标：将“使用指南 / 开发规范 / 架构细节 / 排障手册”解耦，降低后续维护成本。
+### 登录前找回密码
 
+- 登录页新增“忘记密码”入口
+- 新增找回密码页与重置密码页
+- 新增一次性密码重置令牌与过期时间
+- 重置成功后自动失效旧登录态
+- 未配置 SMTP 时写入 `data/logs/password_reset_debug.log` 作为开发调试投递
+
+### 路由与接口边界
+
+- 后台动态路由继续集中到 `rewrz/api/admin_routes.py`
+- 外部集成 API 与后台管理 API 的边界保持分离
+
+### 数据库与迁移
+
+- 修复 SQLite 上 Alembic 迁移对 `dict` 直接绑定的问题
+- 修复 SQLite 上 `ALTER COLUMN DROP DEFAULT` 不兼容的问题
+- 新增用户找回密码相关字段迁移
+
+### UI
+
+- 登录页改为黑色半透明毛玻璃风格
+- 默认品牌标识改为 `R` 黑 / `Z` 白
+- 找回密码页与重置密码页统一到登录页同一视觉语言

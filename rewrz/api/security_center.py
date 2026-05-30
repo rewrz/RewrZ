@@ -3,12 +3,11 @@
 """
 from __future__ import annotations
 
-import os
-
 from fastapi import Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
+from ..core.admin_path import get_request_admin_path
 from ..core.admin_security import (
     DEFAULT_COMMENT_RATE_LIMIT_PER_MIN,
     DEFAULT_LOGIN_BAN_MINUTES,
@@ -40,7 +39,7 @@ def _render_security_center(
         {
             "request": request,
             "user": user,
-            "admin_path": getattr(request.state, "admin_path", os.getenv("ADMIN_PATH", "/admin")),
+            "admin_path": get_request_admin_path(request),
             "message": message,
             "config": {
                 "login_max_attempts": config.get(

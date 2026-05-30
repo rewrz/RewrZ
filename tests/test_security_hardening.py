@@ -62,8 +62,12 @@ def test_anniversary_save_requires_csrf_header_when_logged_in(monkeypatch):
     _set_installation_complete(monkeypatch, True)
     main_module.app.dependency_overrides[get_current_user] = _override_login_user
     client = TestClient(main_module.app)
+    admin_prefix = settings.ADMIN_PATH.rstrip("/")
+    if not main_module.ADMIN_ROUTES_REGISTERED:
+        main_module.register_admin_routes()
+        main_module.ADMIN_ROUTES_REGISTERED = True
     try:
-        response = client.post("/api/v1/anniversary-mode/save", json={"anniversaries": []})
+        response = client.post(f"{admin_prefix}/api/v1/anniversary-mode/save", json={"anniversaries": []})
         assert response.status_code == 422
     finally:
         main_module.app.dependency_overrides.clear()

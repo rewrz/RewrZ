@@ -3,7 +3,7 @@
 处理主题调度的保存和管理功能
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Header
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 from pydantic import BaseModel
@@ -11,7 +11,7 @@ from datetime import datetime, date
 
 from ..core.database import get_db
 from ..crud import setting as crud_setting
-from ..core.security import get_current_user
+from ..core.security import ensure_admin_user, get_current_user, verify_csrf_token
 from ..schemas import User, SettingUpdate  # 这里已经正确导入了SettingUpdate
 from ..schemas import SettingCreate
 from .themes import normalize_atmosphere_name
@@ -29,15 +29,17 @@ class ThemeScheduleRequest(BaseModel):
     schedules: List[Dict[str, Any]]
 
 
-@router.post("/theme-schedule/save")
 async def save_theme_schedule(
     request: Request,
     schedule_data: Dict[str, Any],
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     """保存主题调度设置"""
     try:
+        verify_csrf_token(request, csrf_token)
+        ensure_admin_user(current_user)
         # 从请求数据中获取调度列表
         schedules = schedule_data.get("schedules", [])
         
@@ -138,14 +140,16 @@ async def get_current_theme_schedule(
         raise HTTPException(status_code=500, detail=f"获取主题调度失败: {str(e)}")
 
 
-@router.delete("/theme-schedule/clear")
 async def clear_theme_schedule(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     """清除所有主题调度设置"""
     try:
+        verify_csrf_token(request, csrf_token)
+        ensure_admin_user(current_user)
         existing = crud_setting.get_setting(db, key="theme_schedule")
         if existing:
             crud_setting.update_setting(

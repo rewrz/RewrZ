@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
-from ..core.security import get_current_user, verify_csrf_token
+from ..core.security import ensure_admin_user, get_current_user, verify_csrf_token
 from ..crud import setting as crud_setting
 from ..schemas.setting import SettingUpdate
 from ..schemas import User
@@ -152,7 +152,6 @@ async def toggle_theme(theme_data: Dict, db: Session = Depends(get_db)) -> Dict:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/anniversary-mode/save")
 async def save_anniversaries(
     request: Request,
     db: Session = Depends(get_db),
@@ -162,6 +161,7 @@ async def save_anniversaries(
     """保存纪念日氛围设置"""
     try:
         verify_csrf_token(request, csrf_token)
+        ensure_admin_user(current_user)
         # 获取JSON数据
         data = await request.json()
         anniversaries = data.get("anniversaries", [])

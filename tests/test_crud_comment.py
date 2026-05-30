@@ -1,35 +1,37 @@
+from datetime import datetime
+from uuid import uuid4
+
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from datetime import datetime
-from rewrz.models.base import Base
-from rewrz.models.user import User
-from rewrz.models.post import Post
-from rewrz.models.comment import Comment
-from rewrz.schemas.user import UserCreate
-from rewrz.schemas.post import PostCreate
-from rewrz.schemas.comment import CommentCreate
-from rewrz.crud import user as crud_user
-from rewrz.crud import post as crud_post
+from sqlalchemy.orm import Session, sessionmaker
+
 from rewrz.crud import comment as crud_comment
+from rewrz.crud import post as crud_post
+from rewrz.crud import user as crud_user
+from rewrz.models.base import Base
+from rewrz.models.comment import Comment
+from rewrz.models.post import Post
+from rewrz.models.user import User
+from rewrz.schemas.comment import CommentCreate
+from rewrz.schemas.post import PostCreate
+from rewrz.schemas.user import UserCreate
 
-# Setup a test database
-SQLALCHEMY_DATABASE_URL = "sqlite:///./tests/test.db"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @pytest.fixture(name="db")
-def session_fixture():
+def session_fixture(tmp_path):
+    db_path = tmp_path / f"crud-comment-{uuid4().hex}.db"
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+    )
     Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
+    testing_session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db = testing_session_local()
     try:
         yield db
     finally:
         db.close()
-        Base.metadata.drop_all(bind=engine) # Clean up after tests
+        engine.dispose()
 
 @pytest.fixture
 def test_user(db: Session):

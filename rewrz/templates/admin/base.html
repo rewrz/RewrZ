@@ -176,6 +176,9 @@
     </style>
 </head>
 <body class="admin-app {{ atmosphere_class if atmosphere_class else '' }}">
+    <script>
+        window.ADMIN_PATH = {{ request.state.admin_path | tojson }};
+    </script>
     <div class="admin-shell">
         {% include 'admin/components/sidebar.html' %}
 

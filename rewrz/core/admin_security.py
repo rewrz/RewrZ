@@ -30,6 +30,7 @@ SECURITY_LOGIN_BAN_MINUTES_KEY = "security_login_ban_minutes"
 SECURITY_NEW_IP_ALERT_ENABLED_KEY = "security_new_ip_login_alert_enabled"
 SECURITY_KNOWN_LOGIN_IPS_KEY = "security_known_login_ips"
 SECURITY_COMMENT_RATE_LIMIT_KEY = "security_comment_rate_limit_per_min"
+ADMIN_USER_ACTIVITY_SUMMARY_KEY = "admin_user_activity_summary"
 
 DEFAULT_LOGIN_MAX_ATTEMPTS = 3
 DEFAULT_LOGIN_BAN_MINUTES = 15
@@ -37,6 +38,7 @@ DEFAULT_NEW_IP_ALERT_ENABLED = False
 DEFAULT_COMMENT_RATE_LIMIT_PER_MIN = 30
 
 _AUDIT_LOG_PATH = Path("data/logs/admin_login_audit.log")
+_ADMIN_ACTION_AUDIT_LOG_PATH = Path("data/logs/admin_action_audit.log")
 
 _COMMENT_RATE_BUCKETS: Dict[str, Deque[float]] = defaultdict(deque)
 _COMMENT_RATE_LOCK = threading.Lock()
@@ -156,6 +158,12 @@ def _write_audit_log(
         fp.write(line)
 
 
+def _write_admin_action_log(record: dict) -> None:
+    _ADMIN_ACTION_AUDIT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with _ADMIN_ACTION_AUDIT_LOG_PATH.open("a", encoding="utf-8") as fp:
+        fp.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
 def record_login_attempt(
     db: Session,
     *,
@@ -184,6 +192,103 @@ def record_login_attempt(
         reason=reason or "",
     )
     return row
+
+
+def _load_admin_user_activity_summary(db: Session) -> dict:
+    raw = _get_setting_value(db, ADMIN_USER_ACTIVITY_SUMMARY_KEY, {})
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        try:
+            decoded = json.loads(raw)
+            return decoded if isinstance(decoded, dict) else {}
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def get_admin_user_activity_map(
+    db: Session,
+    user_ids: Optional[List[int]] = None,
+) -> Dict[int, dict]:
+    raw_summary = _load_admin_user_activity_summary(db)
+    normalized: Dict[int, dict] = {}
+    allowed_ids = {int(user_id) for user_id in (user_ids or [])}
+
+    for raw_user_id, raw_payload in raw_summary.items():
+        try:
+            user_id = int(raw_user_id)
+        except (TypeError, ValueError):
+            continue
+        if allowed_ids and user_id not in allowed_ids:
+            continue
+        if not isinstance(raw_payload, dict):
+            continue
+        normalized[user_id] = raw_payload
+    return normalized
+
+
+def record_admin_user_action(
+    db: Session,
+    *,
+    event: str,
+    actor_user_id: int,
+    actor_username: str,
+    target_user_id: int,
+    target_username: str,
+    ip_address: str,
+    detail: Optional[dict] = None,
+) -> None:
+    normalized_event = str(event or "").strip().lower() or "unknown"
+    now_utc = _now_utc()
+    detail_payload = detail if isinstance(detail, dict) else {}
+
+    event_labels = {
+        "status_updated": "状态已更新",
+        "role_updated": "角色已更新",
+        "password_reset": "密码已重置",
+        "force_logout": "已强制退出",
+        "created": "已创建用户",
+    }
+    detail_lines = {
+        "status_updated": (
+            "已启用"
+            if bool(detail_payload.get("is_active"))
+            else "已停用"
+        ),
+        "role_updated": f"角色切换为 {detail_payload.get('role', '-')}",
+        "password_reset": "管理员已重置密码",
+        "force_logout": "现有登录态已失效",
+        "created": f"新建角色 {detail_payload.get('role', 'admin')}",
+    }
+
+    record = {
+        "event": normalized_event,
+        "timestamp": now_utc.isoformat(),
+        "actor_user_id": int(actor_user_id),
+        "actor_username": str(actor_username or "").strip(),
+        "target_user_id": int(target_user_id),
+        "target_username": str(target_username or "").strip(),
+        "ip_address": str(ip_address or "unknown").strip() or "unknown",
+        "detail": detail_payload,
+    }
+    _write_admin_action_log(record)
+
+    summary = _load_admin_user_activity_summary(db)
+    summary[str(int(target_user_id))] = {
+        "event": normalized_event,
+        "label": event_labels.get(normalized_event, "后台管理操作"),
+        "detail_text": detail_lines.get(normalized_event, "管理员执行了操作"),
+        "timestamp": now_utc.isoformat(),
+        "actor_username": str(actor_username or "").strip(),
+        "ip_address": str(ip_address or "unknown").strip() or "unknown",
+    }
+    _upsert_setting(
+        db,
+        ADMIN_USER_ACTIVITY_SUMMARY_KEY,
+        summary,
+        "后台用户管理最近活动摘要",
+    )
 
 
 def get_recent_login_attempts(db: Session, limit: int = 50) -> List[LoginAttempt]:

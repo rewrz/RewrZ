@@ -6,14 +6,13 @@
 2. 媒体配置读取和更新
 """
 
-import os
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from ..core.config import settings
+from ..core.admin_path import get_admin_path, get_request_admin_path
 from ..core.database import get_db
 from ..core.media_config import get_media_settings_schema
 from ..core.security import get_current_user, verify_csrf_token
@@ -24,6 +23,7 @@ from ..schemas import SettingCreate, SettingUpdate, User
 
 router = APIRouter()
 templates = get_templates()
+ADMIN_PATH = get_admin_path()
 
 
 def _get_setting_type(value: Any) -> str:
@@ -85,13 +85,12 @@ async def media_settings_page(
             "user": current_user,
             "media_settings": media_settings,
             "settings_schema": settings_schema,
-            "admin_path": getattr(request.state, "admin_path", os.getenv("ADMIN_PATH", "/admin")),
+            "admin_path": get_request_admin_path(request),
         },
     )
 
 
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/settings")
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/settings")
+@router.post(f"{ADMIN_PATH}/api/v1/media/settings")
 async def update_media_settings(
     request: Request,
     db: Session = Depends(get_db),
@@ -282,15 +281,14 @@ async def update_media_settings(
             {
                 "success": True,
                 "message": "媒体设置已更新",
-                "redirect_url": f"{getattr(request.state, 'admin_path', '/admin')}/media/settings",
+                "redirect_url": f"{get_request_admin_path(request)}/media/settings",
             }
         )
     except Exception as exc:
         return JSONResponse({"success": False, "error": f"保存设置失败: {exc}"}, status_code=500)
 
 
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/settings/current")
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/settings/current")
+@router.get(f"{ADMIN_PATH}/api/v1/media/settings/current")
 async def get_current_media_settings(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

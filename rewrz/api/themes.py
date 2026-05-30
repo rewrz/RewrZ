@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from ..core.database import get_db
-from ..core.security import get_current_user, verify_csrf_token
+from ..core.security import ensure_admin_user, get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..crud import setting as crud_setting
 from ..schemas import Setting, SettingCreate, SettingUpdate, User
@@ -638,6 +638,7 @@ async def update_background_image(
 ):
     """更新背景图片设置"""
     verify_csrf_token(request, csrf_token)
+    ensure_admin_user(current_user)
     
     # 构建背景设置数据
     background_settings = {
@@ -804,8 +805,7 @@ async def update_theme_realtime(
 ):
     """实时更新主题设置"""
     verify_csrf_token(request, csrf_token)
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="需要管理员权限")
+    ensure_admin_user(current_user)
     
     # 验证主题是否存在
     normalized_default_theme = BACKWARD_COMPAT_THEME_ALIASES.get(str(theme).strip().lower(), str(theme).strip().lower())
@@ -833,12 +833,13 @@ async def update_atmosphere_realtime(
     request: Request,
     atmosphere: Optional[str] = Form(None),
     effects: List[str] = Form([]),
+    csrf_token: str = Form(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """实时更新氛围模式设置"""
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="需要管理员权限")
+    verify_csrf_token(request, csrf_token)
+    ensure_admin_user(current_user)
     
     # 验证氛围主题是否存在
     if atmosphere and atmosphere not in ATMOSPHERE_THEMES:

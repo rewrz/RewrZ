@@ -162,8 +162,9 @@ async def global_exception_handler(request: Request, exc: Exception):
     
     # 根据Accept头判断返回JSON还是HTML
     accept_header = request.headers.get("accept", "")
-    
-    if "application/json" in accept_header:
+
+    request_path = str(getattr(request.url, "path", "") or "")
+    if request_path.startswith("/api/") or "application/json" in accept_header:
         return await _handle_json_response(exc)
     else:
         return await _handle_html_response(request, exc)
@@ -457,7 +458,9 @@ def register_error_handlers(app: FastAPI) -> None:
         # 根据Accept头判断返回JSON还是HTML
         accept_header = request.headers.get("accept", "")
         
-        if "application/json" in accept_header:
+        request_path = str(getattr(request.url, "path", "") or "")
+
+        if request_path.startswith("/api/") or "application/json" in accept_header:
             return JSONResponse(
                 status_code=422,
                 content={

@@ -6,7 +6,7 @@
 
 | 表名 | 说明 | 关键字段 |
 |---|---|---|
-| `users` | 后台用户 | `id`, `username`, `email`, `hashed_password`, `role` |
+| `users` | 后台用户 | `id`, `username`, `email`, `hashed_password`, `role`, `token_version` |
 | `posts` | 内容主表 | `id`, `title`, `slug`, `post_type`, `status`, `visibility`, `author_id` |
 | `comments` | 评论 | `id`, `post_id`, `parent_id`, `status`, `author_name` |
 | `categories` | 分类 | `id`, `name`, `slug`, `parent_id` |
@@ -16,6 +16,7 @@
 | `settings` | 系统配置 | `id`, `key`, `value(JSON)`, `category`, `type` |
 | `content_reactions` | 点赞/表态 | `id`, `target_type`, `target_id`, `visitor_token` |
 | `login_attempts` | 登录审计 | `id`, `username`, `ip_address`, `success`, `reason` |
+| `api_keys` | 外部 API 密钥 | `id`, `name`, `key_prefix`, `key_level`, `is_active`, `expires_at` |
 
 ## 2. 关系结构
 
@@ -57,6 +58,14 @@ erDiagram
 ### 3.3 配置存储约束
 - `settings.value` 为 JSON 结构，读取时统一走 `crud_setting` 或中间件聚合能力
 - 不建议在业务代码中散落硬编码 key 读取逻辑
+
+### 3.4 用户认证约束
+- `users.token_version` 用于用户级登录态失效控制
+- 忘记密码使用一次性重置令牌：
+  - `password_reset_token_hash`
+  - `password_reset_sent_at`
+  - `password_reset_expires_at`
+- 密码重置成功后必须递增 `token_version`
 
 ## 4. 数据演进建议
 

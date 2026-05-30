@@ -5,6 +5,8 @@
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from rewrz import main as main_module
+from rewrz.crud import post as crud_post
 from rewrz.core.error_handler import (
     BlogHTTPException, 
     NotFoundError, 
@@ -17,6 +19,14 @@ from rewrz.core.error_handler import (
 from rewrz.main import app
 
 client = TestClient(app)
+
+
+def _set_installation_complete(monkeypatch, value: bool) -> None:
+    monkeypatch.setattr(
+        type(main_module.settings),
+        "installation_complete",
+        property(lambda self: value),
+    )
 
 
 def test_custom_exceptions():
@@ -52,8 +62,10 @@ def test_custom_exceptions():
     assert validation_error.error_code == "VALIDATION_ERROR"
 
 
-def test_404_error_page():
+def test_404_error_page(monkeypatch):
     """测试404错误页面"""
+    _set_installation_complete(monkeypatch, True)
+    monkeypatch.setattr(crud_post, "get_post_by_slug", lambda db, slug: None)
     response = client.get("/non-existent-page")
     assert response.status_code == 404
     assert "404" in response.text
@@ -67,9 +79,11 @@ def test_500_error_page():
     pass
 
 
-def test_error_handler_json_response():
+def test_error_handler_json_response(monkeypatch):
     """测试JSON格式错误响应"""
     # 测试自定义异常的JSON响应
+    _set_installation_complete(monkeypatch, True)
+    monkeypatch.setattr(crud_post, "get_post_by_slug", lambda db, slug: None)
     headers = {"Accept": "application/json"}
     response = client.get("/non-existent-page", headers=headers)
     assert response.status_code == 404

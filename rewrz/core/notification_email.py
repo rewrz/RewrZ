@@ -9,7 +9,9 @@ from __future__ import annotations
 import logging
 import os
 import smtplib
+from datetime import datetime
 from email.message import EmailMessage
+from pathlib import Path
 from typing import Optional
 
 
@@ -33,6 +35,12 @@ def _smtp_settings() -> dict:
         "use_tls": _get_bool_env("SMTP_USE_TLS", True),
         "use_ssl": _get_bool_env("SMTP_USE_SSL", False),
     }
+
+
+def is_email_delivery_configured() -> bool:
+    """检查当前是否已配置基础邮件投递能力。"""
+    cfg = _smtp_settings()
+    return bool(cfg["host"])
 
 
 def send_email(to_email: str, subject: str, body: str) -> bool:
@@ -83,6 +91,44 @@ def send_new_ip_login_alert(
         f"Time: {login_time_text}\n"
     )
     return send_email(to_email, subject, body)
+
+
+def send_password_reset_email(
+    to_email: str,
+    *,
+    username: str,
+    reset_url: str,
+    expire_minutes: int,
+) -> bool:
+    subject = "[RewrZ] 后台账户密码重置"
+    body = (
+        "收到后台账户密码重置申请。\n\n"
+        f"用户名：{username}\n"
+        f"重置链接：{reset_url}\n"
+        f"链接有效期：{int(expire_minutes)} 分钟\n\n"
+        "如果这不是您本人操作，请忽略本邮件。链接仅可使用一次。\n"
+    )
+    return send_email(to_email, subject, body)
+
+
+def write_password_reset_debug_delivery(
+    *,
+    username: str,
+    email: str,
+    reset_url: str,
+    expires_at: datetime,
+) -> str:
+    """在未配置 SMTP 的开发环境中写入调试投递记录。"""
+    log_path = Path(os.getenv("PASSWORD_RESET_DEBUG_LOG_PATH", "data/logs/password_reset_debug.log"))
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    expires_text = expires_at.astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+    line = (
+        f"[{datetime.now().astimezone().isoformat()}] "
+        f"username={username} email={email} expires_at={expires_text} reset_url={reset_url}\n"
+    )
+    with log_path.open("a", encoding="utf-8") as handle:
+        handle.write(line)
+    return str(log_path)
 
 
 def send_new_comment_notification(

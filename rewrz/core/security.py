@@ -8,6 +8,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 import secrets # For CSRF token generation
 from starlette.responses import RedirectResponse
+from urllib.parse import urlparse
 
 # Configuration for JWT
 from .config import settings
@@ -60,6 +61,23 @@ def decode_access_token(token: str):
         return None
 
 
+def is_user_token_payload_valid(db_user, payload: dict | None) -> bool:
+    """校验令牌载荷是否仍与当前用户状态一致。"""
+    if db_user is None or payload is None:
+        return False
+    if not bool(getattr(db_user, "is_active", False)):
+        return False
+
+    payload_version_raw = payload.get("token_version", 1)
+    try:
+        payload_version = int(payload_version_raw)
+    except (TypeError, ValueError):
+        return False
+
+    user_version = int(getattr(db_user, "token_version", 1) or 1)
+    return payload_version == user_version
+
+
 def should_use_secure_cookie(request: Request) -> bool:
     """根据配置和请求上下文决定是否启用 Secure Cookie。"""
     if bool(getattr(settings, "COOKIE_SECURE", False)):
@@ -88,7 +106,7 @@ async def get_current_user(token: str = Depends(get_token_from_cookie), db: Sess
     from ..schemas import User as UserSchema # 导入Pydantic User schema
     
     db_user = crud_user.get_user(db, user_id=int(user_id))
-    if db_user is None:
+    if not is_user_token_payload_valid(db_user, payload):
         raise credentials_exception
     
     # 确保use_gravatar是字符串类型，以匹配schema
@@ -110,3 +128,40 @@ def verify_csrf_token(request: Request, form_csrf_token: str):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="CSRF 令牌缺失或不匹配。"
         )
+
+
+def is_admin_user(user) -> bool:
+    role = str(getattr(user, "role", "") or "").strip().lower()
+    return role in {"admin", "super_admin"}
+
+
+def ensure_admin_user(user) -> None:
+    if not is_admin_user(user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限")
+
+
+def get_client_ip(request: Request) -> str:
+    forwarded = str(request.headers.get("x-forwarded-for", "") or "").strip()
+    if forwarded:
+        return forwarded.split(",")[0].strip()[:128]
+
+    real_ip = str(request.headers.get("x-real-ip", "") or "").strip()
+    if real_ip:
+        return real_ip[:128]
+
+    client = getattr(request, "client", None)
+    host = getattr(client, "host", "") if client is not None else ""
+    return str(host or "")[:128]
+
+
+def get_request_origin(request: Request) -> str:
+    origin = str(request.headers.get("origin", "") or "").strip()
+    if origin:
+        return origin
+    referer = str(request.headers.get("referer", "") or "").strip()
+    if not referer:
+        return ""
+    parsed = urlparse(referer)
+    if not parsed.scheme or not parsed.netloc:
+        return ""
+    return f"{parsed.scheme}://{parsed.netloc}"

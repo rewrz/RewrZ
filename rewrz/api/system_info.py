@@ -10,7 +10,6 @@
 6. 系统性能信息
 """
 
-import os
 import sys
 import platform
 import psutil
@@ -20,6 +19,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Dict, Any
+from ..core.admin_path import get_request_admin_path
 from ..core.database import get_db
 from ..core.security import get_current_user
 from ..core.template_filters import get_templates
@@ -47,7 +47,7 @@ async def system_info_page(
         "request": request,
         "user": current_user,
         "system_info": system_info,
-        "admin_path": getattr(request.state, 'admin_path', os.getenv('ADMIN_PATH', '/admin'))
+        "admin_path": get_request_admin_path(request),
     })
 
 

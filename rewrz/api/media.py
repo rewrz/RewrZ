@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session, joinedload
 
+from ..core.admin_path import get_admin_path
 from ..core.config import settings
 from ..core.database import get_db
 from ..core.media_processor import get_media_processor
@@ -35,6 +36,7 @@ from ..schemas import Media, MediaCreate, MediaUpdate, User
 
 router = APIRouter()
 templates = get_templates()
+ADMIN_PATH = get_admin_path()
 
 
 class MediaBulkDeleteRequest(BaseModel):
@@ -68,6 +70,163 @@ FOLDER_CACHE_TTL_SECONDS = 300
 MEDIA_FOLDER_CACHE: Dict[str, Any] = {"expires_at": 0.0, "items": None}
 MEDIA_LIBRARY_PAGE_SIZE = 12
 UPLOAD_STREAM_CHUNK_SIZE = 1024 * 1024
+
+
+async def _store_media_upload(
+    *,
+    file: UploadFile,
+    title: Optional[str],
+    alt_text: Optional[str],
+    description: Optional[str],
+    target_folder: Optional[str],
+    db: Session,
+    uploaded_by_user_id: int,
+    deduplicate: bool = True,
+    auto_process: bool = True,
+):
+    if int(uploaded_by_user_id or 0) <= 0:
+        raise HTTPException(status_code=400, detail="上传用户无效")
+
+    media_processor = get_media_processor(db)
+    _ensure_default_folders()
+
+    original_name = Path(file.filename or "upload.bin").name
+    is_valid, error_msg = media_processor.validate_upload_file(
+        original_name,
+        0,
+        file.content_type,
+    )
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=error_msg)
+
+    try:
+        normalized_folder = _normalize_folder_path(target_folder)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if normalized_folder:
+        target_dir = (UPLOAD_ROOT / normalized_folder).resolve()
+    else:
+        now = datetime.now()
+        target_dir = (UPLOAD_ROOT / now.strftime("%Y") / now.strftime("%m")).resolve()
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    unique_name = f"{os.urandom(8).hex()}_{original_name}"
+    filepath = target_dir / unique_name
+    temp_filepath = target_dir / f".uploading_{os.urandom(8).hex()}_{unique_name}"
+    max_file_size = int(getattr(media_processor, "max_file_size", 50 * 1024 * 1024) or 50 * 1024 * 1024)
+    cleanup_saved_file = False
+
+    try:
+        file_size, upload_hash = await _write_upload_stream_to_file(file, temp_filepath, max_size=max_file_size)
+
+        is_valid, error_msg = media_processor.validate_upload_file(
+            original_name,
+            file_size,
+            file.content_type,
+        )
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=error_msg)
+
+        cdn_base = _get_media_cdn_base(db)
+        if deduplicate:
+            duplicate = _find_duplicate_media(db, upload_hash, file_size)
+            if duplicate is not None:
+                _safe_unlink(temp_filepath)
+                _attach_media_url(duplicate, cdn_base=cdn_base)
+                duplicate.is_duplicate = True
+                return duplicate
+
+        os.replace(temp_filepath, filepath)
+        cleanup_saved_file = True
+
+        file_info = media_processor.get_file_info(str(filepath))
+
+        if file_info.get("file_type") == "image" and auto_process:
+            try:
+                media_processor.extract_image_metadata(str(filepath))
+                if media_processor.auto_compress:
+                    media_processor.optimize_image(str(filepath))
+            except Exception:
+                pass
+
+        media_create = MediaCreate(
+            filename=original_name,
+            filepath=str(filepath),
+            folder=_folder_from_filepath(str(filepath)),
+            file_type=file_info.get("file_type", "other"),
+            mime_type=file.content_type or file_info.get("mime_type") or "application/octet-stream",
+            file_hash="",
+            file_size=0,
+            title=title or Path(original_name).stem,
+            alt_text=alt_text,
+            description=description,
+        )
+        stored_hash, stored_size = _stat_media_file(str(filepath))
+        media_create.file_hash = stored_hash or upload_hash
+        media_create.file_size = stored_size or file_size
+        db_media = crud_media.create_media(db=db, media=media_create, uploaded_by_id=uploaded_by_user_id)
+        _invalidate_media_folder_cache()
+
+        if str(db_media.file_type or "").startswith("image"):
+            try:
+                generate_media_variant(
+                    db=db,
+                    media_obj=db_media,
+                    preset_name="media_lib_card",
+                    dpr=1,
+                    fmt="jpg",
+                    accept_header="image/jpeg,image/*,*/*",
+                )
+            except Exception:
+                pass
+
+        _attach_media_url(db_media, cdn_base=cdn_base)
+        db_media.is_duplicate = False
+
+        auto_cleanup = bool(_get_setting_value(db, "media_auto_cleanup", False))
+        if auto_cleanup:
+            try:
+                cleanup_days = int(_get_setting_value(db, "media_cleanup_days", 30))
+            except (TypeError, ValueError):
+                cleanup_days = 30
+            try:
+                _cleanup_orphan_media_files(db, cleanup_days)
+            except Exception:
+                pass
+        cleanup_saved_file = False
+        return db_media
+    finally:
+        try:
+            await file.close()
+        except Exception:
+            pass
+        _safe_unlink(temp_filepath)
+        if cleanup_saved_file:
+            _safe_unlink(filepath)
+
+
+async def upload_media_for_external_api(
+    *,
+    file: UploadFile,
+    title: Optional[str],
+    alt_text: Optional[str],
+    description: Optional[str],
+    target_folder: Optional[str],
+    db: Session,
+    uploaded_by_user_id: int,
+):
+    return await _store_media_upload(
+        file=file,
+        title=title,
+        alt_text=alt_text,
+        description=description,
+        target_folder=target_folder,
+        db=db,
+        uploaded_by_user_id=uploaded_by_user_id,
+        deduplicate=True,
+        auto_process=True,
+    )
 
 
 def _get_setting_value(db: Session, key: str, default):
@@ -692,7 +851,7 @@ def _cleanup_duplicate_groups(
     }
 
 
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/media", response_class=HTMLResponse)
+@router.get(f"{ADMIN_PATH}/media", response_class=HTMLResponse)
 async def media_library_page(
     request: Request,
     db: Session = Depends(get_db),
@@ -714,8 +873,7 @@ async def media_library_page(
     )
 
 
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media", response_model=List[Media])
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/media", response_model=List[Media])
+@router.get(f"{ADMIN_PATH}/api/v1/media", response_model=List[Media])
 async def get_media_items_api(
     request: Request,
     page: int = 1,
@@ -759,8 +917,7 @@ async def get_media_items_api(
     return media_items
 
 
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/ids", response_model=List[int])
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/ids", response_model=List[int])
+@router.get(f"{ADMIN_PATH}/api/v1/media/ids", response_model=List[int])
 async def get_media_item_ids_api(
     request: Request,
     search: Optional[str] = None,
@@ -794,8 +951,7 @@ async def get_media_item_ids_api(
     )
 
 
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/folders")
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/folders")
+@router.get(f"{ADMIN_PATH}/api/v1/media/folders")
 def get_media_folders_api(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -803,8 +959,7 @@ def get_media_folders_api(
     return _list_media_folders(db)
 
 
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/folders")
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/folders")
+@router.post(f"{ADMIN_PATH}/api/v1/media/folders")
 def create_media_folder(
     request: Request,
     payload: MediaFolderCreateRequest,
@@ -826,8 +981,7 @@ def create_media_folder(
     return {"folder": folder, "message": "文件夹创建成功"}
 
 
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/duplicates")
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/duplicates")
+@router.get(f"{ADMIN_PATH}/api/v1/media/duplicates")
 def get_duplicate_media_groups(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -836,8 +990,7 @@ def get_duplicate_media_groups(
     return _collect_duplicate_groups(db=db, current_user_id=current_user.id, cdn_base=cdn_base)
 
 
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/duplicates/cleanup")
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/duplicates/cleanup")
+@router.post(f"{ADMIN_PATH}/api/v1/media/duplicates/cleanup")
 def cleanup_duplicate_media_groups(
     request: Request,
     payload: MediaDuplicateCleanupRequest,
@@ -913,7 +1066,7 @@ def get_media_variant_file(
     )
 
 
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/media/upload", response_model=Media)
+@router.post(f"{ADMIN_PATH}/media/upload", response_model=Media)
 async def upload_media(
     request: Request,
     file: UploadFile = File(...),
@@ -928,129 +1081,20 @@ async def upload_media(
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
-    media_processor = get_media_processor(db)
-    _ensure_default_folders()
-
-    original_name = Path(file.filename or "upload.bin").name
-    is_valid, error_msg = media_processor.validate_upload_file(
-        original_name,
-        0,
-        file.content_type,
+    return await _store_media_upload(
+        file=file,
+        title=title,
+        alt_text=alt_text,
+        description=description,
+        target_folder=target_folder,
+        db=db,
+        uploaded_by_user_id=current_user.id,
+        deduplicate=deduplicate,
+        auto_process=auto_process,
     )
-    if not is_valid:
-        raise HTTPException(status_code=400, detail=error_msg)
-
-    try:
-        normalized_folder = _normalize_folder_path(target_folder)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    if normalized_folder:
-        target_dir = (UPLOAD_ROOT / normalized_folder).resolve()
-    else:
-        now = datetime.now()
-        target_dir = (UPLOAD_ROOT / now.strftime("%Y") / now.strftime("%m")).resolve()
-    target_dir.mkdir(parents=True, exist_ok=True)
-
-    unique_name = f"{os.urandom(8).hex()}_{original_name}"
-    filepath = target_dir / unique_name
-    temp_filepath = target_dir / f".uploading_{os.urandom(8).hex()}_{unique_name}"
-    max_file_size = int(getattr(media_processor, "max_file_size", 50 * 1024 * 1024) or 50 * 1024 * 1024)
-    cleanup_saved_file = False
-
-    try:
-        file_size, upload_hash = await _write_upload_stream_to_file(file, temp_filepath, max_size=max_file_size)
-
-        is_valid, error_msg = media_processor.validate_upload_file(
-            original_name,
-            file_size,
-            file.content_type,
-        )
-        if not is_valid:
-            raise HTTPException(status_code=400, detail=error_msg)
-
-        cdn_base = _get_media_cdn_base(db)
-        if deduplicate:
-            duplicate = _find_duplicate_media(db, upload_hash, file_size)
-            if duplicate is not None:
-                _safe_unlink(temp_filepath)
-                _attach_media_url(duplicate, cdn_base=cdn_base)
-                duplicate.is_duplicate = True
-                return duplicate
-
-        os.replace(temp_filepath, filepath)
-        cleanup_saved_file = True
-
-        file_info = media_processor.get_file_info(str(filepath))
-
-        if file_info.get("file_type") == "image" and auto_process:
-            try:
-                media_processor.extract_image_metadata(str(filepath))
-                if media_processor.auto_compress:
-                    media_processor.optimize_image(str(filepath))
-            except Exception:
-                # 图像优化失败不应阻塞上传主流程。
-                pass
-
-        media_create = MediaCreate(
-            filename=original_name,
-            filepath=str(filepath),
-            folder=_folder_from_filepath(str(filepath)),
-            file_type=file_info.get("file_type", "other"),
-            mime_type=file.content_type or file_info.get("mime_type") or "application/octet-stream",
-            file_hash="",
-            file_size=0,
-            title=title or Path(original_name).stem,
-            alt_text=alt_text,
-            description=description,
-        )
-        stored_hash, stored_size = _stat_media_file(str(filepath))
-        media_create.file_hash = stored_hash or upload_hash
-        media_create.file_size = stored_size or file_size
-        db_media = crud_media.create_media(db=db, media=media_create, uploaded_by_id=current_user.id)
-        _invalidate_media_folder_cache()
-
-        # 上传成功后预热媒体库预览变体，降低首次打开媒体库的首屏 miss 抖动。
-        if str(db_media.file_type or "").startswith("image"):
-            try:
-                generate_media_variant(
-                    db=db,
-                    media_obj=db_media,
-                    preset_name="media_lib_card",
-                    dpr=1,
-                    fmt="jpg",
-                    accept_header="image/jpeg,image/*,*/*",
-                )
-            except Exception:
-                pass
-
-        _attach_media_url(db_media, cdn_base=cdn_base)
-        db_media.is_duplicate = False
-
-        auto_cleanup = bool(_get_setting_value(db, "media_auto_cleanup", False))
-        if auto_cleanup:
-            try:
-                cleanup_days = int(_get_setting_value(db, "media_cleanup_days", 30))
-            except (TypeError, ValueError):
-                cleanup_days = 30
-            try:
-                _cleanup_orphan_media_files(db, cleanup_days)
-            except Exception:
-                pass
-        cleanup_saved_file = False
-        return db_media
-    finally:
-        try:
-            await file.close()
-        except Exception:
-            pass
-        _safe_unlink(temp_filepath)
-        if cleanup_saved_file:
-            _safe_unlink(filepath)
 
 
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/{{media_id}}", response_model=Media)
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/{{media_id}}", response_model=Media)
+@router.get(f"{ADMIN_PATH}/api/v1/media/{{media_id}}", response_model=Media)
 def get_media_item(
     media_id: int,
     db: Session = Depends(get_db),
@@ -1068,8 +1112,7 @@ def get_media_item(
     return db_media
 
 
-@router.put(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/{{media_id}}", response_model=Media)
-@router.put(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/{{media_id}}", response_model=Media)
+@router.put(f"{ADMIN_PATH}/api/v1/media/{{media_id}}", response_model=Media)
 def update_media_item(
     request: Request,
     media_id: int,
@@ -1092,8 +1135,7 @@ def update_media_item(
     return updated_media
 
 
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/{{media_id}}/move", response_model=Media)
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/{{media_id}}/move", response_model=Media)
+@router.post(f"{ADMIN_PATH}/api/v1/media/{{media_id}}/move", response_model=Media)
 def move_media_item(
     request: Request,
     media_id: int,
@@ -1132,8 +1174,7 @@ def move_media_item(
     return db_media
 
 
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/bulk-move")
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/bulk-move")
+@router.post(f"{ADMIN_PATH}/api/v1/media/bulk-move")
 def bulk_move_media_items(
     request: Request,
     payload: MediaBulkMoveRequest,
@@ -1192,8 +1233,7 @@ def bulk_move_media_items(
     }
 
 
-@router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/{{media_id}}", status_code=status.HTTP_204_NO_CONTENT)
-@router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/{{media_id}}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(f"{ADMIN_PATH}/api/v1/media/{{media_id}}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_media_item(
     request: Request,
     media_id: int,
@@ -1215,8 +1255,7 @@ def delete_media_item(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/media/bulk-delete")
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/media/bulk-delete")
+@router.post(f"{ADMIN_PATH}/api/v1/media/bulk-delete")
 def bulk_delete_media_items(
     request: Request,
     payload: MediaBulkDeleteRequest,

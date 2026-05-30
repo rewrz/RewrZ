@@ -11,7 +11,7 @@ from ..crud import setting as crud_setting
 from ..crud import user as crud_user
 from ..core.content_intents import INTENT_SLUGS, normalize_intent_slug
 from ..core.media_attachments import get_default_media_navigation
-from ..core.security import decode_access_token
+from ..core.security import decode_access_token, is_user_token_payload_valid
 from ..api import themes as themes_api
 
 # 主页个性化设置键常量，集中管理，避免魔法字符串分散各处
@@ -91,8 +91,8 @@ def build_base_template_context(request: Request) -> dict:
                 user_id = 0
             if user_id > 0:
                 current_user = crud_user.get_user(db, user_id=user_id)
-                is_logged_in = current_user is not None
-                if current_user is not None:
+                is_logged_in = is_user_token_payload_valid(current_user, payload)
+                if is_logged_in and current_user is not None:
                     user_role = str(getattr(current_user, "role", "") or "").strip().lower()
                     theme_persist_allowed = user_role in {"admin", "super_admin"}
 

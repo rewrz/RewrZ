@@ -1,28 +1,30 @@
+from uuid import uuid4
+
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
+
+from rewrz.crud import category as crud_category
 from rewrz.models.base import Base
 from rewrz.models.post import Post
 from rewrz.schemas.category import CategoryCreate, CategoryUpdate
-from rewrz.crud import category as crud_category
 
-# Setup a test database
-SQLALCHEMY_DATABASE_URL = "sqlite:///./tests/test.db"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @pytest.fixture(name="db")
-def session_fixture():
+def session_fixture(tmp_path):
+    db_path = tmp_path / f"crud-category-{uuid4().hex}.db"
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+    )
     Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
+    testing_session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db = testing_session_local()
     try:
         yield db
     finally:
         db.close()
-        Base.metadata.drop_all(bind=engine) # Clean up after tests
+        engine.dispose()
 
 def test_create_category(db: Session):
     category_data = CategoryCreate(name="Test Category", slug="test-category")

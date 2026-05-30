@@ -12,12 +12,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from ..core.admin_path import get_request_admin_path
 from ..core.template_filters import get_templates
 from ..core.database import get_db
 from ..schemas import User, SettingCreate, SettingUpdate
 from ..core.security import get_current_user, verify_csrf_token
 from ..crud import setting as setting_crud
-from ..core.config import settings
 from typing import Optional, Dict, Any
 
 router = APIRouter()
@@ -109,7 +109,7 @@ async def error_settings_page(
     return templates.TemplateResponse("admin/error_settings.html", {
         "request": request,
         "user": current_user,
-        "admin_path": getattr(request.state, "admin_path", settings.ADMIN_PATH.rstrip('/')),
+        "admin_path": get_request_admin_path(request),
         "error_config": config,
         "message": None,
     })
@@ -195,7 +195,7 @@ async def update_error_settings(
     return templates.TemplateResponse("admin/error_settings.html", {
         "request": request,
         "user": current_user,
-        "admin_path": getattr(request.state, "admin_path", settings.ADMIN_PATH.rstrip('/')),
+        "admin_path": get_request_admin_path(request),
         "error_config": config_data,
         "message": "错误处理设置已保存",
     })

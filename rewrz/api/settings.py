@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
+from ..core.admin_path import get_request_admin_path
 from ..core.database import get_db
 from ..core.security import get_current_user
 from ..crud import setting as crud_setting
@@ -9,7 +10,6 @@ from fastapi.templating import Jinja2Templates
 from ..core.template_filters import get_templates
 from typing import List, Dict, Any, Optional
 import json
-import os
 from datetime import datetime
 from ..core.template_context import (
     DEFAULT_HOMEPAGE_SETTINGS,
@@ -118,7 +118,7 @@ async def admin_settings_page(request: Request, db: Session = Depends(get_db), c
         "request": request, 
         "user": current_user, 
         "settings": settings_data,
-        "admin_path": getattr(request.state, 'admin_path', os.getenv('ADMIN_PATH', '/admin'))
+        "admin_path": get_request_admin_path(request),
     })
 
 async def update_admin_settings(
@@ -308,7 +308,7 @@ async def update_admin_settings(
         "user": current_user, 
         "settings": settings_data, 
         "message": "设置已保存！",
-        "admin_path": getattr(request.state, 'admin_path', os.getenv('ADMIN_PATH', '/admin'))
+        "admin_path": get_request_admin_path(request),
     })
 
 @router.post("/api/v1/update-admin-path")
@@ -320,12 +320,13 @@ async def update_admin_path(
 ):
     """更新后台路径API端点"""
     try:
-        from ..core.security import verify_csrf_token
+        from ..core.security import ensure_admin_user, verify_csrf_token
 
         csrf_token = request.headers.get("X-CSRFToken") or request.headers.get("X-CSRF-Token")
         if not csrf_token:
             return JSONResponse({"success": False, "error": "CSRF token missing"}, status_code=403)
         verify_csrf_token(request, csrf_token)
+        ensure_admin_user(current_user)
 
         # 解析JSON请求体
         body = await request.json()

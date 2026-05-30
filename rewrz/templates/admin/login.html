@@ -166,20 +166,108 @@
             position: relative;
         }
         .admin-login-card {
-            background: color-mix(in srgb, var(--color-card-bg) 72%, transparent) !important;
-            backdrop-filter: blur(24px) saturate(1.25);
-            border: 1px solid color-mix(in srgb, var(--color-primary) 30%, rgba(255, 255, 255, 0.18));
+            background:
+                linear-gradient(155deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.025) 18%, rgba(4, 8, 20, 0.58) 100%),
+                rgba(9, 12, 24, 0.46) !important;
+            backdrop-filter: blur(24px) saturate(1.18);
+            -webkit-backdrop-filter: blur(24px) saturate(1.18);
+            border: 1px solid rgba(255, 255, 255, 0.18);
             box-shadow:
-                0 24px 62px -18px rgba(12, 15, 30, 0.65),
-                0 10px 32px -12px color-mix(in srgb, var(--color-primary) 42%, transparent);
+                0 28px 72px -22px rgba(5, 8, 20, 0.86),
+                0 18px 48px -30px rgba(0, 0, 0, 0.78),
+                inset 0 1px 0 rgba(255, 255, 255, 0.12);
         }
         .admin-login-card::after {
             content: '';
             position: absolute;
             inset: 1px;
             border-radius: inherit;
-            border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.68) 42%, transparent);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             pointer-events: none;
+        }
+        .admin-login-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background:
+                radial-gradient(circle at top left, rgba(255, 255, 255, 0.13), transparent 24%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 16%);
+            pointer-events: none;
+            mix-blend-mode: screen;
+            opacity: 0.86;
+        }
+        .admin-login-logo-mark {
+            position: relative;
+            width: 4.75rem;
+            height: 4.75rem;
+            border-radius: 1.55rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background:
+                linear-gradient(145deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.06)),
+                linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 90%, #ffffff 10%), #0f766e 62%, #0f172a 100%);
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.3),
+                0 18px 38px -18px rgba(15, 23, 42, 0.9);
+            overflow: hidden;
+        }
+        .admin-login-logo-mark::before {
+            content: '';
+            position: absolute;
+            inset: 8px;
+            border-radius: 1.1rem;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent 54%);
+        }
+        .admin-login-logo-mark::after {
+            content: '';
+            position: absolute;
+            width: 130%;
+            height: 130%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 52%);
+            top: -35%;
+            right: -35%;
+        }
+        .admin-login-logo-text {
+            position: relative;
+            z-index: 1;
+            display: inline-flex;
+            align-items: center;
+            font-size: 1.52rem;
+            line-height: 1;
+            letter-spacing: 0.14em;
+            font-weight: 800;
+            text-shadow: 0 3px 12px rgba(15, 23, 42, 0.45);
+        }
+        .admin-login-logo-text .logo-r {
+            color: rgba(10, 10, 10, 0.96);
+        }
+        .admin-login-logo-text .logo-z {
+            color: rgba(255, 255, 255, 0.98);
+        }
+        .admin-login-brand-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.4rem 0.7rem;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.88);
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            backdrop-filter: blur(14px);
+        }
+        .admin-login-brand-chip .brand-dot {
+            width: 0.45rem;
+            height: 0.45rem;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--color-primary) 78%, #ffffff 22%);
+            box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary) 48%, transparent);
         }
         .login-input-wrapper .field-icon {
             position: absolute;
@@ -215,6 +303,27 @@
         }
         .password-toggle:hover {
             color: var(--color-primary);
+        }
+        .admin-login-input {
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                0 10px 28px -24px rgba(15, 23, 42, 0.95);
+        }
+        .admin-login-btn {
+            border-radius: 1rem;
+            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+            box-shadow:
+                0 18px 32px -20px rgba(219, 39, 119, 0.62),
+                inset 0 1px 0 rgba(255, 255, 255, 0.22);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+        }
+        .admin-login-btn:hover {
+            transform: translateY(-1px);
+            box-shadow:
+                0 22px 36px -18px rgba(219, 39, 119, 0.72),
+                inset 0 1px 0 rgba(255, 255, 255, 0.24);
         }
         @media (prefers-reduced-motion: reduce) {
             .admin-login-bg-motion,
@@ -260,26 +369,38 @@
                 {% if request.state.site_logo_light %}
                 <img src="{{ request.state.site_logo_light }}" alt="{{ request.state.site_title }}" class="h-16 w-auto mx-auto object-contain">
                 {% else %}
-                <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
-                    <i class="fas fa-feather-alt text-white text-2xl"></i>
+                <div class="admin-login-logo-mark mx-auto" aria-label="RewrZ 品牌标识">
+                    <span class="admin-login-logo-text"><span class="logo-r">R</span><span class="logo-z">Z</span></span>
                 </div>
                 {% endif %}
             </div>
-            <h1 class="text-2xl font-bold" style="color: var(--color-text);">
+            <div class="admin-login-brand-chip mx-auto mb-4">
+                <span class="brand-dot"></span>
+                <span>RewrZ Console</span>
+            </div>
+            <h1 class="text-2xl font-bold" style="color: rgba(255, 255, 255, 0.96); text-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);">
                 {{ request.state.site_title | default('RewrZ', true) }}
             </h1>
-            <p class="text-sm mt-2" style="color: var(--color-text-light);">管理控制台登录</p>
+            <p class="text-sm mt-2" style="color: rgba(255, 255, 255, 0.74);">管理控制台登录</p>
         </div>
+
+        {% if request.query_params.get('reset') == 'success' %}
+        <div class="mb-5 rounded-2xl border px-4 py-3 text-sm"
+             style="border-color: rgba(34, 197, 94, 0.28); background: rgba(34, 197, 94, 0.1); color: #dcfce7;">
+            <i class="fas fa-circle-check mr-2"></i>
+            密码已重置成功，请使用新密码登录。
+        </div>
+        {% endif %}
 
         <!-- 登录表单 -->
         <form hx-post="{{ admin_path }}/auth" hx-trigger="submit" hx-target="body" hx-swap="innerHTML" id="login-form">
             <!-- 用户名输入 -->
             <div class="mb-5">
-                <label for="username" class="block text-sm font-medium mb-2" style="color: var(--color-text);">用户名</label>
+                <label for="username" class="block text-sm font-medium mb-2" style="color: rgba(255, 255, 255, 0.82);">用户名</label>
                 <div class="login-input-wrapper">
                     <input type="text" id="username" name="username" required
                            class="admin-login-input w-full pl-10 pr-4 py-3 border"
-                           style="border-color: var(--color-border); background: color-mix(in srgb, var(--color-card-bg) 98%, transparent); color: var(--color-text);"
+                           style="border-color: rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.09); color: rgba(255, 255, 255, 0.96);"
                            placeholder="请输入用户名"
                            autocomplete="username">
                     <i class="field-icon fas fa-user"></i>
@@ -288,11 +409,11 @@
 
             <!-- 密码输入 -->
             <div class="mb-5">
-                <label for="password" class="block text-sm font-medium mb-2" style="color: var(--color-text);">密码</label>
+                <label for="password" class="block text-sm font-medium mb-2" style="color: rgba(255, 255, 255, 0.82);">密码</label>
                 <div class="login-input-wrapper">
                     <input type="password" id="password" name="password" required
                            class="admin-login-input w-full pl-10 pr-12 py-3 border"
-                           style="border-color: var(--color-border); background: color-mix(in srgb, var(--color-card-bg) 98%, transparent); color: var(--color-text);"
+                           style="border-color: rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.09); color: rgba(255, 255, 255, 0.96);"
                            placeholder="请输入密码"
                            autocomplete="current-password">
                     <i class="field-icon fas fa-lock"></i>
@@ -315,6 +436,15 @@
                 <span>登录</span>
             </button>
         </form>
+
+        <div class="mt-4 flex items-center justify-between gap-3 text-sm">
+            <a href="{{ admin_path }}/forgot-password" class="inline-flex items-center gap-2 transition hover:opacity-90"
+               style="color: var(--color-primary);">
+                <i class="fas fa-unlock-keyhole"></i>
+                <span>忘记密码</span>
+            </a>
+            <span style="color: var(--color-text-muted);">支持通过邮箱自助找回</span>
+        </div>
 
         <!-- 底部信息 -->
         <div class="mt-8 text-center text-xs" style="color: var(--color-text-muted);">

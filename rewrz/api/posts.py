@@ -6,6 +6,7 @@ from datetime import datetime
 import re
 import json
 
+from ..core.admin_path import get_admin_path
 from ..core.database import get_db
 from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
@@ -18,6 +19,7 @@ from . import media as media_api
 
 router = APIRouter()
 templates = get_templates()
+ADMIN_PATH = get_admin_path()
 
 
 def _get_content_primary_mode(db: Session) -> str:
@@ -304,7 +306,7 @@ async def create_public_quick_micro_post(
         "media_count": len(parsed_media_items),
     }
 
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/posts/new", response_class=HTMLResponse)
+@router.get(f"{ADMIN_PATH}/posts/new", response_class=HTMLResponse)
 async def new_post_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     显示新建文章页面
@@ -315,7 +317,7 @@ async def new_post_page(request: Request, db: Session = Depends(get_db), current
     return templates.TemplateResponse("admin/post_form.html", {
         "request": request,
         "user": current_user,
-        "admin_path": settings.ADMIN_PATH.rstrip('/'),
+        "admin_path": ADMIN_PATH,
         "categories": categories,
         "formats": formats,
         "content_primary_mode": content_primary_mode,
@@ -324,7 +326,7 @@ async def new_post_page(request: Request, db: Session = Depends(get_db), current
         "media_upload_dir_name": settings.MEDIA_UPLOAD_DIR # 传递媒体上传目录名称
     })
 
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/posts/{{post_id}}/edit", response_class=HTMLResponse)
+@router.get(f"{ADMIN_PATH}/posts/{{post_id}}/edit", response_class=HTMLResponse)
 async def edit_post_page(post_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     显示编辑文章页面
@@ -340,7 +342,7 @@ async def edit_post_page(post_id: int, request: Request, db: Session = Depends(g
     return templates.TemplateResponse("admin/post_form.html", {
         "request": request,
         "user": current_user,
-        "admin_path": settings.ADMIN_PATH.rstrip('/'),
+        "admin_path": ADMIN_PATH,
         "post": post,
         "categories": categories,
         "formats": formats,
@@ -349,7 +351,7 @@ async def edit_post_page(post_id: int, request: Request, db: Session = Depends(g
         "media_upload_dir_name": settings.MEDIA_UPLOAD_DIR # 传递媒体上传目录名称
     })
 
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/posts/new")
+@router.post(f"{ADMIN_PATH}/posts/new")
 async def create_post_api(
     request: Request,
     title: str = Form(...),
@@ -414,10 +416,11 @@ async def create_post_api(
     
     # 返回HTMX响应，重定向到文章列表或编辑页面
     response = Response(status_code=200)
-    response.headers["HX-Redirect"] = f"{settings.ADMIN_PATH.rstrip('/')}/posts"
+    response.headers["HX-Redirect"] = f"{ADMIN_PATH}/posts"
     return response
 
-@router.put(f"{settings.ADMIN_PATH.rstrip('/')}/posts/{{post_id}}")
+@router.put(f"{ADMIN_PATH}/posts/{{post_id}}")
+@router.post(f"{ADMIN_PATH}/posts/{{post_id}}")
 async def update_post_api(
     request: Request,
     post_id: int,
@@ -436,6 +439,7 @@ async def update_post_api(
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
     format_id: Optional[int] = Form(None),
     license_type: str = Form("cc_by_nc_sa_4"),
+    method_override: Optional[str] = Form(None, alias="_method"),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -444,6 +448,10 @@ async def update_post_api(
     更新文章的API端点
     """
     verify_csrf_token(request, csrf_token)
+    if request.method.upper() == "POST":
+        normalized_method_override = str(method_override or "").strip().upper()
+        if normalized_method_override not in {"", "PUT"}:
+            raise HTTPException(status_code=405, detail="文章编辑仅支持 PUT 覆写提交")
     
     db_post = crud_post.get_post(db, post_id=post_id)
     if not db_post:
@@ -492,11 +500,10 @@ async def update_post_api(
     
     # 返回HTMX响应，重定向到文章列表或编辑页面
     response = Response(status_code=200)
-    response.headers["HX-Redirect"] = f"{settings.ADMIN_PATH.rstrip('/')}/posts"
+    response.headers["HX-Redirect"] = f"{ADMIN_PATH}/posts"
     return response
 
-@router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/posts/{{post_id}}")
-@router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/posts/{{post_id}}")
+@router.delete(f"{ADMIN_PATH}/api/v1/posts/{{post_id}}")
 async def delete_post_api(post_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     删除文章的API端点
@@ -511,8 +518,7 @@ async def delete_post_api(post_id: int, db: Session = Depends(get_db), current_u
     crud_post.delete_post(db, post_id=post_id)
     return {"success": True, "message": "文章删除成功"}
 
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/posts/batch-publish", response_model=dict)
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/posts/batch-publish", response_model=dict)
+@router.post(f"{ADMIN_PATH}/api/v1/posts/batch-publish", response_model=dict)
 async def batch_publish_posts(
     request: Request,
     post_batch_update: PostBatchUpdate, # 使用新的Pydantic模型
@@ -548,8 +554,7 @@ async def batch_publish_posts(
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "error": f"批量发布失败: {str(e)}"})
 
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/posts/batch-draft", response_model=dict)
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/posts/batch-draft", response_model=dict)
+@router.post(f"{ADMIN_PATH}/api/v1/posts/batch-draft", response_model=dict)
 async def batch_draft_posts(
     request: Request,
     post_batch_update: PostBatchUpdate, # 使用新的Pydantic模型
@@ -585,8 +590,7 @@ async def batch_draft_posts(
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "error": f"批量移至草稿失败: {str(e)}"})
 
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/posts/batch-delete", response_model=dict)
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/posts/batch-delete", response_model=dict)
+@router.post(f"{ADMIN_PATH}/api/v1/posts/batch-delete", response_model=dict)
 async def batch_delete_posts(
     request: Request,
     post_batch_update: PostBatchUpdate, # 使用新的Pydantic模型
@@ -623,7 +627,7 @@ async def batch_delete_posts(
 
 # --- 页面管理路由 ---
 
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/pages/new", response_class=HTMLResponse)
+@router.get(f"{ADMIN_PATH}/pages/new", response_class=HTMLResponse)
 async def new_page_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     显示新建页面页面
@@ -633,14 +637,14 @@ async def new_page_page(request: Request, db: Session = Depends(get_db), current
     return templates.TemplateResponse("admin/page_form.html", {
         "request": request,
         "user": current_user,
-        "admin_path": settings.ADMIN_PATH.rstrip('/'),
+        "admin_path": ADMIN_PATH,
         "post": None,  # 新建页面时没有post对象
         "page_template_options": get_page_template_options(),
         "content_primary_mode": content_primary_mode,
         "license_options": get_license_options_filter
     })
 
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/pages/{{page_id}}/edit", response_class=HTMLResponse)
+@router.get(f"{ADMIN_PATH}/pages/{{page_id}}/edit", response_class=HTMLResponse)
 async def edit_page_page(page_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     显示编辑页面页面
@@ -654,14 +658,14 @@ async def edit_page_page(page_id: int, request: Request, db: Session = Depends(g
     return templates.TemplateResponse("admin/page_form.html", {
         "request": request,
         "user": current_user,
-        "admin_path": settings.ADMIN_PATH.rstrip('/'),
+        "admin_path": ADMIN_PATH,
         "post": page,
         "page_template_options": get_page_template_options(),
         "content_primary_mode": content_primary_mode,
         "license_options": get_license_options_filter
     })
 
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/pages/new")
+@router.post(f"{ADMIN_PATH}/pages/new")
 async def create_page_api(
     request: Request,
     title: str = Form(...),
@@ -714,10 +718,11 @@ async def create_page_api(
     
     # 返回HTMX响应，重定向到页面列表
     response = Response(status_code=200)
-    response.headers["HX-Redirect"] = f"{settings.ADMIN_PATH.rstrip('/')}/pages"
+    response.headers["HX-Redirect"] = f"{ADMIN_PATH}/pages"
     return response
 
-@router.put(f"{settings.ADMIN_PATH.rstrip('/')}/pages/{{page_id}}")
+@router.put(f"{ADMIN_PATH}/pages/{{page_id}}")
+@router.post(f"{ADMIN_PATH}/pages/{{page_id}}")
 async def update_page_api(
     request: Request,
     page_id: int,
@@ -734,6 +739,7 @@ async def update_page_api(
     password: Optional[str] = Form(None),
     allow_comments: bool = Form(True),
     license_type: str = Form("cc_by_nc_sa_4"),
+    method_override: Optional[str] = Form(None, alias="_method"),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -742,6 +748,10 @@ async def update_page_api(
     更新页面的API端点
     """
     verify_csrf_token(request, csrf_token)
+    if request.method.upper() == "POST":
+        normalized_method_override = str(method_override or "").strip().upper()
+        if normalized_method_override not in {"", "PUT"}:
+            raise HTTPException(status_code=405, detail="页面编辑仅支持 PUT 覆写提交")
     
     db_page = crud_post.get_post(db, post_id=page_id)
     if not db_page:
@@ -779,11 +789,10 @@ async def update_page_api(
     
     # 返回HTMX响应，重定向到页面列表
     response = Response(status_code=200)
-    response.headers["HX-Redirect"] = f"{settings.ADMIN_PATH.rstrip('/')}/pages"
+    response.headers["HX-Redirect"] = f"{ADMIN_PATH}/pages"
     return response
 
-@router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/pages/{{page_id}}")
-@router.delete(f"{settings.ADMIN_PATH.rstrip('/')}/api/pages/{{page_id}}")
+@router.delete(f"{ADMIN_PATH}/api/v1/pages/{{page_id}}")
 async def delete_page_api(page_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     删除页面的API端点

@@ -1,5 +1,7 @@
 # RewrZ 故障排查手册
 
+本文档只保留当前仍然成立的故障定位方式。
+
 ## 1. 服务无法启动
 
 ### 1.1 症状
@@ -46,6 +48,21 @@ uvicorn rewrz.main:app --host 127.0.0.1 --port 8000
 - 请求是否携带 `X-CSRF-Token`
 - 会话中 token 与提交 token 是否一致
 
+### 3.3 忘记密码链路无法完成
+
+优先区分两类问题：
+
+1. 产品链路问题
+- `/rewrz-admin/forgot-password` 是否可访问
+- 重置链接是否可生成
+- 重置成功后是否跳回登录页
+
+2. 环境问题
+- 是否已重启到最新服务代码
+- 数据库是否已执行最新 Alembic 迁移
+- 是否已配置 SMTP；若未配置，检查：
+  - `data/logs/password_reset_debug.log`
+
 ## 4. 上传与导入问题
 
 ### 4.1 上传大文件失败
@@ -84,6 +101,12 @@ RewrZ 会拒绝不安全备份包，包括：
 2. `MEDIA_UPLOAD_DIR` 是否指向真实目录
 3. 权限是否允许运行用户读取
 
+### 6.3 本地修改已保存，但页面行为还是旧的
+优先检查：
+1. 当前监听端口上的进程是否就是当前仓库 `.venv` 启动的实例
+2. 是否存在旧的 `uvicorn` 进程占用了同一端口
+3. 修改后是否已经重启服务
+
 ## 7. 快速自检清单
 
 ```bash
@@ -98,5 +121,8 @@ sudo nginx -t
 
 # 4) Python 依赖
 source .venv/bin/activate && pip check
-```
 
+# 5) Alembic 迁移
+alembic current
+alembic upgrade head
+```

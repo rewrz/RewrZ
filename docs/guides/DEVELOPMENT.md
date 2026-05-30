@@ -1,6 +1,6 @@
 # RewrZ 开发文档
 
-本文档面向二次开发者，覆盖架构、约束、开发流程、测试与提交流程。
+本文档面向二次开发者，只描述当前有效的开发约束、流程与提交流程。
 
 ## 1. 项目现状与设计目标
 
@@ -38,6 +38,12 @@ RewrZ 当前处于开发收敛阶段，优先目标是：
 - `models/`：ORM 模型
 - `schemas/`：请求/响应模型
 - `core/`：配置、安全、模板上下文、基础服务
+
+接口边界采用当前四层模型：
+- 前台公共 API：`/api/v1/...`
+- 前台登录态 API：固定公共路径，但要求登录态或 CSRF
+- 外部集成 API：`/api/external/v1/...`
+- 后台管理 API：`{ADMIN_PATH}/api/v1/...`
 
 ## 4. 目录概览
 
@@ -78,6 +84,12 @@ alembic upgrade head
 pytest -q
 ```
 
+如只验证关键链路，当前优先推荐：
+
+```bash
+pytest tests/test_auth_password_reset.py tests/test_users_admin.py tests/test_security_hardening.py tests/test_api_versioning.py -q
+```
+
 ### 5.4 前端样式构建
 ```bash
 npm run build:css
@@ -103,6 +115,7 @@ npm run watch:css
 - 管理后台写操作必须同时具备：
   - 登录态（`get_current_user`）
   - CSRF 校验（`verify_csrf_token`）
+- 外部集成 API 不使用 Cookie 和 CSRF，只使用 API Key Bearer 鉴权
 
 ### 6.2 上传与导入
 - 上传使用流式写入，禁止 `await file.read()` 整包读入大文件
@@ -119,6 +132,8 @@ npm run watch:css
 - 应用入口：`rewrz/main.py`
 - 配置：`rewrz/core/config.py`
 - 安全：`rewrz/core/security.py`
+- 后台动态路由：`rewrz/api/admin_routes.py`
+- 外部集成 API：`rewrz/api/external.py`
 - 文章模型与约束：`rewrz/crud/post.py`
 - 内容意图：`rewrz/core/content_intents.py`
 - 媒体接口：`rewrz/api/media.py`
@@ -136,6 +151,7 @@ npm run watch:css
 - 在 CRUD 底层提前 `commit`，破坏外层事务一致性
 - 为“可能有旧数据”新增运行时兼容分支
 - 在管理写接口漏加 CSRF
+- 把后台管理语义接口直接暴露到固定公共路径
 - 上传/导入路径未做边界校验
 
 ## 9. 文档协同

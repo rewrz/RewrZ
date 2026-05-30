@@ -29,5 +29,8 @@
         </div>
     </div>
 
+    <div class="text-xs text-gray-500">
+        数据来源：{{ "缓存命中" if health.cache_hit else "实时扫描" }}
+    </div>
     <div class="text-xs text-gray-500">检查时间：{{ health.checked_at }}</div>
 </div>

@@ -8,14 +8,13 @@
 4. 验证码设置
 """
 
-import os
 from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import Optional, List
+from ..core.admin_path import get_admin_path, get_request_admin_path
 from ..core.database import get_db
 from ..core.security import get_current_user, generate_csrf_token # 导入 generate_csrf_token
-from ..core.config import settings
 from ..core.template_filters import get_templates
 from ..crud import setting as crud_setting
 from ..schemas import User, SettingCreate, SettingUpdate
@@ -23,6 +22,7 @@ from ..core.akismet_client import get_akismet_client
 
 router = APIRouter()
 templates = get_templates()
+ADMIN_PATH = get_admin_path()
 
 
 def _checkbox_to_bool(raw_value: Optional[str]) -> bool:
@@ -91,14 +91,13 @@ async def comment_settings_page(
         "request": request,
         "user": current_user,
         "settings": settings_data,
-        "admin_path": getattr(request.state, 'admin_path', os.getenv('ADMIN_PATH', '/admin')),
+        "admin_path": get_request_admin_path(request),
         "csrf_token": generate_csrf_token # 将 csrf_token 函数传递给模板
     })
 
 
 # 评论设置更新路由
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/comments/settings")
-@router.post(f"{settings.ADMIN_PATH.rstrip('/')}/api/comments/settings")
+@router.post(f"{ADMIN_PATH}/api/v1/comments/settings")
 async def update_comment_settings(
     request: Request,
     db: Session = Depends(get_db),
@@ -226,7 +225,7 @@ async def update_comment_settings(
         return JSONResponse({
             "success": True,
             "message": "评论设置已更新",
-            "redirect_url": f"{getattr(request.state, 'admin_path', '/admin')}/comment-settings"
+            "redirect_url": f"{get_request_admin_path(request)}/comment-settings"
         })
         
     except Exception as e:
@@ -237,8 +236,7 @@ async def update_comment_settings(
 
 
 # Akismet测试路由
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/v1/comments/test-akismet")
-@router.get(f"{settings.ADMIN_PATH.rstrip('/')}/api/comments/test-akismet")
+@router.get(f"{ADMIN_PATH}/api/v1/comments/test-akismet")
 async def test_akismet_key(
     request: Request,
     db: Session = Depends(get_db),

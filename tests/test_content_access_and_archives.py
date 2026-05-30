@@ -14,6 +14,12 @@ from rewrz.core.content_access import (
     extract_hide_block,
     render_markdown_with_hide_blocks,
 )
+from rewrz.core.format_archive_metrics import (
+    attach_format_comment_counts,
+    build_format_category_topic_count,
+    build_format_tag_metrics,
+    build_micro_interaction_count,
+)
 from rewrz.core.toc import build_toc_from_html
 from rewrz.core.template_filters import (
     extract_media_assets_filter,
@@ -21,6 +27,12 @@ from rewrz.core.template_filters import (
     post_url_filter,
     strip_media_nodes_filter,
 )
+from rewrz.models.category import Category
+from rewrz.models.comment import Comment
+from rewrz.models.format import Format
+from rewrz.models.reaction import ContentReaction
+from rewrz.models.setting import Setting
+from sqlalchemy import select
 
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./tests/test_content_access.db"
@@ -139,6 +151,98 @@ def test_get_posts_by_year_month_and_archives(db: Session, test_user: User):
     assert archive_slugs == ["feb-post", "jan-article", "jan-post"]
 
 
+def test_get_posts_by_media_attachment_uses_persisted_summary_filters(db: Session, test_user: User):
+    posts = [
+        Post(
+            title="单图内容",
+            slug="single-image-post",
+            content_markdown="x",
+            content_html='<p><img src="/media/a.jpg"></p>',
+            excerpt="x",
+            featured_image_url=None,
+            media_attachment_summary={
+                "images": True,
+                "gallery": False,
+                "videos": False,
+                "link": False,
+                "audio": False,
+                "image_count": 1,
+                "image_urls": ["/media/a.jpg"],
+                "external_links": [],
+                "flags": {"images": True, "gallery": False, "videos": False, "link": False, "audio": False},
+            },
+            post_type="post",
+            status="published",
+            visibility="public",
+            author_id=test_user.id,
+            published_at=datetime(2026, 3, 1, 10, 0, 0),
+        ),
+        Post(
+            title="相册内容",
+            slug="gallery-post",
+            content_markdown="y",
+            content_html='<p><img src="/media/a.jpg"><img src="/media/b.jpg"></p>',
+            excerpt="y",
+            featured_image_url=None,
+            media_attachment_summary={
+                "images": True,
+                "gallery": True,
+                "videos": False,
+                "link": False,
+                "audio": False,
+                "image_count": 2,
+                "image_urls": ["/media/a.jpg", "/media/b.jpg"],
+                "external_links": [],
+                "flags": {"images": True, "gallery": True, "videos": False, "link": False, "audio": False},
+            },
+            post_type="post",
+            status="published",
+            visibility="public",
+            author_id=test_user.id,
+            published_at=datetime(2026, 3, 2, 10, 0, 0),
+        ),
+        Post(
+            title="视频内容",
+            slug="video-post",
+            content_markdown="z",
+            content_html='<video src="/media/v.mp4"></video>',
+            excerpt="z",
+            featured_image_url=None,
+            media_attachment_summary={
+                "images": False,
+                "gallery": False,
+                "videos": True,
+                "link": False,
+                "audio": False,
+                "image_count": 0,
+                "image_urls": [],
+                "external_links": [],
+                "flags": {"images": False, "gallery": False, "videos": True, "link": False, "audio": False},
+            },
+            post_type="post",
+            status="published",
+            visibility="public",
+            author_id=test_user.id,
+            published_at=datetime(2026, 3, 3, 10, 0, 0),
+        ),
+    ]
+    db.add_all(posts)
+    db.commit()
+
+    assert crud_post.count_posts_by_media_attachment(db, "images") == 1
+    assert crud_post.count_posts_by_media_attachment(db, "gallery") == 1
+    assert crud_post.count_posts_by_media_attachment(db, "videos") == 1
+
+    image_posts = crud_post.get_posts_by_media_attachment(db, "images")
+    assert [post.slug for post in image_posts] == ["single-image-post"]
+
+    gallery_posts = crud_post.get_posts_by_media_attachment(db, "gallery")
+    assert [post.slug for post in gallery_posts] == ["gallery-post"]
+
+    video_posts = crud_post.get_posts_by_media_attachment(db, "videos")
+    assert [post.slug for post in video_posts] == ["video-post"]
+
+
 def test_get_posts_by_tag_filters_published_articles(db: Session, test_user: User):
     tag = Tag(name="TagA", slug="tag-a")
     db.add(tag)
@@ -187,6 +291,100 @@ def test_get_posts_by_tag_filters_published_articles(db: Session, test_user: Use
 
     tag_posts = crud_post.get_posts_by_tag(db, tag_id=tag.id)
     assert [p.slug for p in tag_posts] == ["published-tagged"]
+
+
+def test_format_archive_metrics_helpers_build_expected_statistics(db: Session, test_user: User):
+    fmt_micro = Format(name="微博", slug="micro")
+    category = Category(name="随笔", slug="essay")
+    tag_hot = Tag(name="热点", slug="hot")
+    tag_calm = Tag(name="平静", slug="calm")
+    db.add_all([fmt_micro, category, tag_hot, tag_calm])
+    db.flush()
+
+    first_post = Post(
+        title="Micro One",
+        slug="micro-one",
+        content_markdown="a",
+        content_html="<p>a</p>",
+        excerpt="a",
+        post_type="post",
+        status="published",
+        visibility="public",
+        author_id=test_user.id,
+        published_at=datetime(2026, 4, 1, 10, 0, 0),
+        formats=[fmt_micro],
+        categories=[category],
+        tags=[tag_hot],
+    )
+    second_post = Post(
+        title="Micro Two",
+        slug="micro-two",
+        content_markdown="b",
+        content_html="<p>b</p>",
+        excerpt="b",
+        post_type="post",
+        status="published",
+        visibility="public",
+        author_id=test_user.id,
+        published_at=datetime(2026, 4, 2, 10, 0, 0),
+        formats=[fmt_micro],
+        tags=[tag_hot, tag_calm],
+    )
+    db.add_all([first_post, second_post])
+    db.flush()
+
+    db.add_all(
+        [
+            Comment(post_id=first_post.id, author_name="a", author_email="a@example.com", content="1", status="approved"),
+            Comment(post_id=first_post.id, author_name="b", author_email="b@example.com", content="2", status="approved"),
+            Comment(post_id=second_post.id, author_name="c", author_email="c@example.com", content="3", status="approved"),
+            ContentReaction(target_type="post", target_id=first_post.id, visitor_token="u1", like_active=True, reaction_type=None),
+            ContentReaction(target_type="post", target_id=first_post.id, visitor_token="u2", like_active=False, reaction_type="heart"),
+            ContentReaction(target_type="post", target_id=second_post.id, visitor_token="u3", like_active=True, reaction_type=None),
+            Setting(key=f"post_views_count_{first_post.id}", value={"value": 20}, description="metric"),
+            Setting(key=f"post_views_count_{second_post.id}", value={"value": 5}, description="metric"),
+        ]
+    )
+    db.commit()
+
+    posts = crud_post.get_posts_by_format(db, format_id=fmt_micro.id, skip=0, limit=10)
+    attach_format_comment_counts(db, posts)
+    assert {post.slug: post.comment_count for post in posts} == {
+        "micro-two": 1,
+        "micro-one": 2,
+    }
+
+    format_post_ids_query = select(Post.id).where(
+        Post.formats.any(id=fmt_micro.id),
+        *crud_post.get_public_post_conditions(),
+    )
+
+    interaction_count = build_micro_interaction_count(db, format_post_ids_query)
+    assert interaction_count == 6
+
+    def _load_views_metrics_map(metric_db, post_ids):
+        metric_keys = [f"post_views_count_{post_id}" for post_id in post_ids]
+        rows = metric_db.query(Setting).filter(Setting.key.in_(metric_keys)).all()
+        results = {}
+        for row in rows:
+            post_id = int(str(row.key).replace("post_views_count_", "", 1))
+            results[post_id] = int((row.value or {}).get("value", 0))
+        return results
+
+    tag_topic_count, hot_tags = build_format_tag_metrics(
+        db,
+        format_post_ids_query=format_post_ids_query,
+        load_post_views_metrics_map=_load_views_metrics_map,
+    )
+    assert tag_topic_count == 2
+    assert [item["slug"] for item in hot_tags[:2]] == ["hot", "calm"]
+    assert hot_tags[0]["heat_score"] > hot_tags[1]["heat_score"]
+
+    category_topic_count = build_format_category_topic_count(
+        db,
+        format_post_ids_query=format_post_ids_query,
+    )
+    assert category_topic_count == 1
 
 
 def test_build_toc_from_html():

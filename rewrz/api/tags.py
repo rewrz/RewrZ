@@ -15,11 +15,6 @@ router = APIRouter(
     tags=["tags"],
     responses={404: {"description": "Not found"}},
 )
-legacy_router = APIRouter(
-    prefix="/api/tags",
-    tags=["tags"],
-    responses={404: {"description": "Not found"}},
-)
 
 
 class TagBulkAction(BaseModel):
@@ -28,7 +23,6 @@ class TagBulkAction(BaseModel):
 
 
 @router.post("/")
-@legacy_router.post("/")
 def create_tag(
     request: Request,
     name: str = Form(...),
@@ -47,14 +41,12 @@ def create_tag(
 
 
 @router.get("/", response_model=List[schemas.Tag])
-@legacy_router.get("/", response_model=List[schemas.Tag])
 def read_tags(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     tags = crud.tag.get_tags(db, skip=skip, limit=limit)
     return tags
 
 
 @router.post("/bulk-action")
-@legacy_router.post("/bulk-action")
 def bulk_action_tags(
     request: Request,
     payload: TagBulkAction,
@@ -117,7 +109,6 @@ def bulk_action_tags(
 
 
 @router.get("/{tag_id}", response_model=schemas.Tag)
-@legacy_router.get("/{tag_id}", response_model=schemas.Tag)
 def read_tag(tag_id: int, db: Session = Depends(get_db)):
     db_tag = crud.tag.get_tag(db, tag_id=tag_id)
     if db_tag is None:
@@ -126,7 +117,6 @@ def read_tag(tag_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{tag_id}")
-@legacy_router.put("/{tag_id}")
 def update_tag(
     request: Request,
     tag_id: int,
@@ -156,7 +146,6 @@ def update_tag(
 
 
 @router.delete("/{tag_id}")
-@legacy_router.delete("/{tag_id}")
 def delete_tag(
     request: Request,
     tag_id: int,

@@ -14,7 +14,10 @@
 | API 到 APP 的实现路径 | [`architecture/API_APP.md`](architecture/API_APP.md) |
 | 故障排查与运维检查 | [`operations/TROUBLESHOOTING.md`](operations/TROUBLESHOOTING.md) |
 | 版本变更记录 | [`operations/CHANGELOG.md`](operations/CHANGELOG.md) |
-| 研发路线与规划 | [`planning/ROADMAP.md`](planning/ROADMAP.md) |
+| 当前路线与下一步方向 | [`planning/ROADMAP.md`](planning/ROADMAP.md) |
+| 当前 API 边界状态 | [`planning/API_BOUNDARY_LEGACY_AUDIT.md`](planning/API_BOUNDARY_LEGACY_AUDIT.md) |
+| 当前测试基线 | [`testing/TEST_BASELINE.md`](testing/TEST_BASELINE.md) |
+| 真实环境验收记录 | [`testing/REAL_WORLD_BROWSER_QA_2026-05-30.md`](testing/REAL_WORLD_BROWSER_QA_2026-05-30.md) |
 | 常用开发命令速查 | [`references/常用开发命令.md`](references/常用开发命令.md) |
 
 ## 目录规划（避免重复）
@@ -24,7 +27,8 @@
 | `guides/` | 面向使用与开发流程（部署、运行、协作） | 架构细节与数据模型推导 |
 | `architecture/` | 系统分层、模型关系、API 约定、流程图 | 逐条部署命令 |
 | `operations/` | 排障、变更记录、运维检查项 | 功能愿景与长期规划 |
-| `planning/` | 路线图、阶段性里程碑、未来能力探索 | 当前已落地的操作手册 |
+| `planning/` | 当前路线、边界决策、仍有效的后续方向 | 过时的阶段性推进过程 |
+| `testing/` | 当前测试基线、真实环境验收结论 | 失效的中间测试记录 |
 | `references/` | 高频命令与速查表 | 设计决策与背景说明 |
 
 文档去重规则：
@@ -41,3 +45,4 @@
 - 功能行为变化时，至少同步更新一份文档。
 - 涉及接口行为变更，必须更新 `API_CONVENTIONS.md` 或 `CHANGELOG.md`。
 - 涉及部署与运维变化，必须更新 `USAGE.md` 或 `TROUBLESHOOTING.md`。
+- 涉及测试基线或真实验收变化，必须更新 `docs/testing/` 下对应主文档。

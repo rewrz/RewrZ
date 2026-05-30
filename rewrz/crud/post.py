@@ -4,7 +4,7 @@
 支持多重身份内容系统和版本快照功能。
 """
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select, func, delete, update
+from sqlalchemy import select, func, delete
 from ..models import Post, Format, Category, Tag, Setting, Comment
 from ..schemas import PostCreate, PostUpdate, FormatCreate
 from datetime import datetime
@@ -15,9 +15,11 @@ from ..core.content_utils import (
     infer_editor_mode,
     normalize_editor_mode,
     get_effective_plain_text,
+    get_effective_content_html,
     render_markdown_html,
 )
 from ..core.content_intents import choose_primary_intent_slug, normalize_intent_slug, INTENT_NAME_MAP
+from ..core.media_attachments import detect_media_flags, summarize_media_attachments
 from ..core.page_templates import normalize_page_template
 
 from typing import Optional, List
@@ -71,6 +73,30 @@ def _normalize_excerpt_value(excerpt: Optional[str]) -> str:
     if excerpt is None:
         return ""
     return str(excerpt).strip()
+
+
+def _build_media_attachment_summary_payload(
+    *,
+    content_markdown: Optional[str],
+    content_html: Optional[str],
+    featured_image_url: Optional[str],
+) -> dict:
+    rendered_html = get_effective_content_html(content_markdown, content_html)
+    summary = summarize_media_attachments(
+        rendered_html,
+        featured_image_url=featured_image_url,
+    )
+    flags = detect_media_flags(summary)
+    payload = summary.to_dict()
+    payload["flags"] = flags
+    return payload
+
+
+def _get_media_summary_flag_filter(media_slug: str):
+    normalized = str(media_slug or "").strip().lower()
+    if normalized not in {"images", "gallery", "videos", "link", "audio"}:
+        raise ValueError("不支持的媒体类型")
+    return f'$.flags.{normalized}'
 
 
 def _extract_setting_int_value(raw) -> int:
@@ -386,6 +412,11 @@ def create_post(
         post_kwargs["created_at"] = post.created_at
     if post.updated_at is not None:
         post_kwargs["updated_at"] = post.updated_at
+    post_kwargs["media_attachment_summary"] = _build_media_attachment_summary_payload(
+        content_markdown=resolved_markdown,
+        content_html=resolved_html,
+        featured_image_url=post_kwargs["featured_image_url"],
+    )
 
     db_post = Post(**post_kwargs)
     db.add(db_post)
@@ -524,6 +555,12 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
             db_post.page_template = _normalize_page_template_for_post(target_post_type, incoming_page_template)
         elif incoming_post_type is not None and str(incoming_post_type).strip().lower() != "page":
             db_post.page_template = "default"
+
+        db_post.media_attachment_summary = _build_media_attachment_summary_payload(
+            content_markdown=db_post.content_markdown,
+            content_html=db_post.content_html,
+            featured_image_url=db_post.featured_image_url,
+        )
         
         # 如果状态变为已发布，更新发布时间
         if incoming_status == "published" and db_post.published_at is None:
@@ -631,6 +668,51 @@ def get_archive_posts_paginated(db: Session, skip: int = 0, limit: int = 20) -> 
     _attach_views_metrics(db, posts)
     return posts
 
+
+def count_posts_by_media_attachment(db: Session, media_slug: str) -> int:
+    media_key = str(media_slug or "").strip().lower()
+    query = select(func.count(Post.id)).where(*get_public_post_conditions())
+
+    if media_key == "images":
+        query = query.where(func.json_extract(Post.media_attachment_summary, "$.image_count") == 1)
+    elif media_key == "gallery":
+        query = query.where(func.json_extract(Post.media_attachment_summary, "$.image_count") >= 2)
+    else:
+        query = query.where(func.json_extract(Post.media_attachment_summary, _get_media_summary_flag_filter(media_key)) == 1)
+
+    return int(db.execute(query).scalar_one() or 0)
+
+
+def get_posts_by_media_attachment(
+    db: Session,
+    media_slug: str,
+    *,
+    skip: int = 0,
+    limit: int = 20,
+) -> List[Post]:
+    media_key = str(media_slug or "").strip().lower()
+    query = (
+        select(Post)
+        .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags), joinedload(Post.author))
+        .filter(*get_public_post_conditions())
+    )
+
+    if media_key == "images":
+        query = query.where(func.json_extract(Post.media_attachment_summary, "$.image_count") == 1)
+    elif media_key == "gallery":
+        query = query.where(func.json_extract(Post.media_attachment_summary, "$.image_count") >= 2)
+    else:
+        query = query.where(func.json_extract(Post.media_attachment_summary, _get_media_summary_flag_filter(media_key)) == 1)
+
+    posts = db.execute(
+        query
+        .order_by(Post.published_at.desc())
+        .offset(skip)
+        .limit(limit)
+    ).unique().scalars().all()
+    _attach_views_metrics(db, posts)
+    return posts
+
 def delete_post(db: Session, post_id: int, *, auto_commit: bool = True):
     """删除文章
     
@@ -650,19 +732,6 @@ def delete_post(db: Session, post_id: int, *, auto_commit: bool = True):
         if auto_commit:
             db.commit()
     return db_post
-
-
-def normalize_legacy_article_post_type(db: Session, *, auto_commit: bool = True) -> int:
-    """将历史 article 主类型归一化为 post。"""
-    result = db.execute(
-        update(Post)
-        .where(Post.post_type == "article")
-        .values(post_type="post")
-    )
-    updated = int(result.rowcount or 0)
-    if auto_commit and updated > 0:
-        db.commit()
-    return updated
 
 
 def delete_posts_by_ids(db: Session, post_ids: List[int], author_id: Optional[int] = None) -> int:
