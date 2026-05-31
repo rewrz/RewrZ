@@ -2,7 +2,7 @@
 邮件通知工具
 
 提供项目内基础邮件发送能力（标准库 smtplib）。
-若未配置 SMTP 环境变量，则静默返回 False。
+优先读取后台常规设置中的 SMTP 配置；未配置时回退到环境变量。
 """
 from __future__ import annotations
 
@@ -14,8 +14,21 @@ from email.message import EmailMessage
 from pathlib import Path
 from typing import Optional
 
+from sqlalchemy.orm import Session
+
+from ..crud import setting as crud_setting
+
 
 logger = logging.getLogger(__name__)
+_SMTP_SETTING_KEYS = [
+    "smtp_host",
+    "smtp_port",
+    "smtp_username",
+    "smtp_password",
+    "smtp_from_email",
+    "smtp_use_tls",
+    "smtp_use_ssl",
+]
 
 
 def _get_bool_env(name: str, default: bool) -> bool:
@@ -25,7 +38,25 @@ def _get_bool_env(name: str, default: bool) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _smtp_settings() -> dict:
+def _smtp_settings_from_db(db: Session) -> dict:
+    values = crud_setting.get_settings_by_keys(db, _SMTP_SETTING_KEYS)
+    try:
+        port = int(values.get("smtp_port", 587))
+    except (TypeError, ValueError):
+        port = 587
+
+    return {
+        "host": str(values.get("smtp_host", "") or "").strip(),
+        "port": port,
+        "username": str(values.get("smtp_username", "") or "").strip(),
+        "password": str(values.get("smtp_password", "") or "").strip(),
+        "from_email": str(values.get("smtp_from_email", "") or "").strip(),
+        "use_tls": bool(values.get("smtp_use_tls", True)),
+        "use_ssl": bool(values.get("smtp_use_ssl", False)),
+    }
+
+
+def _smtp_settings_from_env() -> dict:
     return {
         "host": os.getenv("SMTP_HOST", "").strip(),
         "port": int(os.getenv("SMTP_PORT", "587")),
@@ -37,14 +68,22 @@ def _smtp_settings() -> dict:
     }
 
 
-def is_email_delivery_configured() -> bool:
+def _smtp_settings(db: Session | None = None) -> dict:
+    if db is not None:
+        db_cfg = _smtp_settings_from_db(db)
+        if db_cfg["host"]:
+            return db_cfg
+    return _smtp_settings_from_env()
+
+
+def is_email_delivery_configured(db: Session | None = None) -> bool:
     """检查当前是否已配置基础邮件投递能力。"""
-    cfg = _smtp_settings()
+    cfg = _smtp_settings(db)
     return bool(cfg["host"])
 
 
-def send_email(to_email: str, subject: str, body: str) -> bool:
-    cfg = _smtp_settings()
+def send_email(to_email: str, subject: str, body: str, *, db: Session | None = None) -> bool:
+    cfg = _smtp_settings(db)
     if not cfg["host"] or not to_email:
         return False
 
@@ -81,6 +120,8 @@ def send_new_ip_login_alert(
     ip_address: str,
     user_agent: Optional[str],
     login_time_text: str,
+    *,
+    db: Session | None = None,
 ) -> bool:
     subject = "[RewrZ] New Admin Login IP Detected"
     body = (
@@ -90,7 +131,7 @@ def send_new_ip_login_alert(
         f"User-Agent: {user_agent or 'unknown'}\n"
         f"Time: {login_time_text}\n"
     )
-    return send_email(to_email, subject, body)
+    return send_email(to_email, subject, body, db=db)
 
 
 def send_password_reset_email(
@@ -99,6 +140,7 @@ def send_password_reset_email(
     username: str,
     reset_url: str,
     expire_minutes: int,
+    db: Session | None = None,
 ) -> bool:
     subject = "[RewrZ] 后台账户密码重置"
     body = (
@@ -108,7 +150,7 @@ def send_password_reset_email(
         f"链接有效期：{int(expire_minutes)} 分钟\n\n"
         "如果这不是您本人操作，请忽略本邮件。链接仅可使用一次。\n"
     )
-    return send_email(to_email, subject, body)
+    return send_email(to_email, subject, body, db=db)
 
 
 def write_password_reset_debug_delivery(
@@ -138,6 +180,8 @@ def send_new_comment_notification(
     author_email: str,
     comment_preview: str,
     review_url: str,
+    *,
+    db: Session | None = None,
 ) -> bool:
     subject = "[RewrZ] New Comment Received"
     body = (
@@ -147,4 +191,4 @@ def send_new_comment_notification(
         f"Comment: {comment_preview}\n\n"
         f"Review link: {review_url}\n"
     )
-    return send_email(to_email, subject, body)
+    return send_email(to_email, subject, body, db=db)

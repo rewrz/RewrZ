@@ -16,6 +16,7 @@ from ..core.template_context import (
     DEFAULT_BASE_SETTINGS,
     CODE_HIGHLIGHT_THEME_OPTIONS,
 )
+from ..core.url_normalizer import normalize_local_asset_url, normalize_local_asset_url_lines
 import bleach
 
 router = APIRouter()
@@ -60,6 +61,13 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "site_url": get_setting_value("site_url", str(request.base_url)),
         "admin_email": get_setting_value("admin_email", current_user.email),
         "public_contact_email": get_setting_value("public_contact_email", ""),
+        "smtp_host": get_setting_value("smtp_host", ""),
+        "smtp_port": get_setting_value("smtp_port", 587),
+        "smtp_username": get_setting_value("smtp_username", ""),
+        "smtp_password": get_setting_value("smtp_password", ""),
+        "smtp_from_email": get_setting_value("smtp_from_email", ""),
+        "smtp_use_tls": get_setting_value("smtp_use_tls", True),
+        "smtp_use_ssl": get_setting_value("smtp_use_ssl", False),
         "site_logo_light": get_setting_value("site_logo_light", ""),
         "site_logo_dark": get_setting_value("site_logo_dark", ""),
         "favicon": get_setting_value("favicon", ""),
@@ -130,6 +138,13 @@ async def update_admin_settings(
     site_url: str = Form(...),
     admin_email: str = Form(...),
     public_contact_email: Optional[str] = Form(None),
+    smtp_host: Optional[str] = Form(None),
+    smtp_port: int = Form(587),
+    smtp_username: Optional[str] = Form(None),
+    smtp_password: Optional[str] = Form(None),
+    smtp_from_email: Optional[str] = Form(None),
+    smtp_use_tls: bool = Form(False),
+    smtp_use_ssl: bool = Form(False),
     site_logo_light: Optional[str] = Form(None),
     site_logo_dark: Optional[str] = Form(None),
     favicon: Optional[str] = Form(None),
@@ -211,6 +226,11 @@ async def update_admin_settings(
     normalized_list_navigation_mode = (
         list_navigation_mode if list_navigation_mode in {"pagination", "infinite_scroll"} else "pagination"
     )
+    try:
+        normalized_smtp_port = int(smtp_port)
+    except (TypeError, ValueError):
+        normalized_smtp_port = 587
+    normalized_smtp_port = max(1, min(65535, normalized_smtp_port))
     normalized_article_card_fallback_source = (
         article_card_fallback_source if article_card_fallback_source in {"local", "api"} else "local"
     )
@@ -243,12 +263,19 @@ async def update_admin_settings(
         "site_url": site_url,
         "admin_email": admin_email,
         "public_contact_email": (public_contact_email or "").strip(),
-        "site_logo_light": site_logo_light,
-        "site_logo_dark": site_logo_dark,
-        "favicon": favicon,
-        "site_cover_url": site_cover_url or '',
-        "admin_login_background_image_url": (admin_login_background_image_url or "").strip(),
-        "admin_login_background_video_url": (admin_login_background_video_url or "").strip(),
+        "smtp_host": (smtp_host or "").strip(),
+        "smtp_port": normalized_smtp_port,
+        "smtp_username": (smtp_username or "").strip(),
+        "smtp_password": smtp_password or "",
+        "smtp_from_email": (smtp_from_email or "").strip(),
+        "smtp_use_tls": bool(smtp_use_tls),
+        "smtp_use_ssl": bool(smtp_use_ssl),
+        "site_logo_light": normalize_local_asset_url(site_logo_light),
+        "site_logo_dark": normalize_local_asset_url(site_logo_dark),
+        "favicon": normalize_local_asset_url(favicon),
+        "site_cover_url": normalize_local_asset_url(site_cover_url),
+        "admin_login_background_image_url": normalize_local_asset_url(admin_login_background_image_url),
+        "admin_login_background_video_url": normalize_local_asset_url(admin_login_background_video_url),
         "copyright_info": copyright_info,
         "custom_footer_text": custom_footer_text,
         "icp_beian": icp_beian,
@@ -286,7 +313,7 @@ async def update_admin_settings(
         "donation_show_position": donation_show_position,
         # 主页个性化设置
         "homepage_mode": homepage_mode,
-        "homepage_background_image_url": homepage_background_image_url or '',
+        "homepage_background_image_url": normalize_local_asset_url_lines(homepage_background_image_url),
         "homepage_background_video_url": homepage_background_video_url or '',
         "homepage_background_music_url": homepage_background_music_url or '',
         "homepage_music_autoplay": homepage_music_autoplay,

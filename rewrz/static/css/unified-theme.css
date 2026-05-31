@@ -148,7 +148,7 @@ body.site-shell footer {
     position: relative;
     border: 1px solid var(--ui-border);
     border-radius: var(--ui-radius-xl);
-    background: color-mix(in srgb, var(--color-card-bg) 88%, transparent);
+    background: color-mix(in srgb, var(--color-card-bg) 58%, transparent);
     box-shadow: var(--ui-shadow-soft);
     overflow: hidden;
 }
@@ -157,7 +157,9 @@ body.site-shell footer {
     content: '';
     position: absolute;
     inset: 0;
-    background-image: linear-gradient(130deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 45%);
+    background-image:
+        linear-gradient(130deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 42%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0));
     pointer-events: none;
 }
 
@@ -424,15 +426,15 @@ body.site-shell select:focus {
     flex-direction: column;
     justify-content: center;
     border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%) !important;
-    background: color-mix(in srgb, var(--color-card-bg) 88%, transparent) !important;
-    backdrop-filter: blur(10px);
+    background: color-mix(in srgb, var(--color-card-bg) 54%, transparent) !important;
+    backdrop-filter: none;
 }
 
 .hero-surface-cover-card .hero-stats-grid > div {
-    background: color-mix(in srgb, rgba(15, 23, 42, 0.18) 56%, transparent) !important;
+    background: color-mix(in srgb, rgba(15, 23, 42, 0.26) 42%, transparent) !important;
     box-shadow: 0 14px 28px -24px rgba(15, 23, 42, 0.38);
-    border-color: rgba(255, 255, 255, 0.22) !important;
-    backdrop-filter: blur(8px) saturate(115%);
+    border-color: rgba(255, 255, 255, 0.24) !important;
+    backdrop-filter: none;
 }
 
 .hero-surface-cover-card .hero-profile-copy-overlay h1,
@@ -539,11 +541,13 @@ body.site-shell select:focus {
     background:
         linear-gradient(
             135deg,
-            color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%) 0%,
-            color-mix(in srgb, var(--color-card-bg) 96%, transparent) 48%,
-            color-mix(in srgb, var(--color-background-alt) 82%, transparent) 100%
+            color-mix(in srgb, var(--color-primary) 12%, transparent) 0%,
+            color-mix(in srgb, var(--color-card-bg) 44%, transparent) 46%,
+            color-mix(in srgb, var(--color-background-alt) 34%, transparent) 100%
         ) !important;
-    box-shadow: var(--ui-shadow-card) !important;
+    box-shadow: 0 24px 48px -32px color-mix(in srgb, var(--color-primary) 22%, rgba(15, 23, 42, 0.28)) !important;
+    backdrop-filter: blur(18px) saturate(138%);
+    -webkit-backdrop-filter: blur(18px) saturate(138%);
 }
 
 .media-archive-kicker {
@@ -2243,7 +2247,7 @@ body.site-shell[data-current-theme="galaxy"] .theme-toast {
 body.site-shell[data-current-theme="galaxy"] .hero-stats-grid > div,
 body.site-shell[data-current-theme="galaxy"] .format-hero-meta-card {
     border-color: rgba(192, 132, 252, 0.34) !important;
-    background: rgba(17, 24, 39, 0.56) !important;
+    background: rgba(17, 24, 39, 0.34) !important;
 }
 
 body.site-shell[data-current-theme="galaxy"] .hero-cover-overlay,
@@ -2253,11 +2257,47 @@ body.site-shell[data-current-theme="galaxy"] .format-hero-overlay {
         linear-gradient(135deg, rgba(178, 107, 255, 0.22), transparent 58%);
 }
 
+body.site-shell[data-current-theme="galaxy"] .format-hero-overlay-micro {
+    background:
+        linear-gradient(180deg, rgba(10, 10, 24, 0.05) 0%, rgba(10, 10, 24, 0.16) 42%, rgba(10, 10, 24, 0.42) 100%),
+        linear-gradient(135deg, rgba(178, 107, 255, 0.12), transparent 60%);
+}
+
+body.site-shell[data-current-theme="galaxy"] .format-hero-overlay-article {
+    background:
+        linear-gradient(180deg, rgba(10, 10, 24, 0.04) 0%, rgba(10, 10, 24, 0) 24%, rgba(10, 10, 24, 0.24) 56%, rgba(10, 10, 24, 0.52) 100%),
+        linear-gradient(135deg, rgba(178, 107, 255, 0.16), transparent 58%);
+}
+
+body.site-shell[data-current-theme="galaxy"] .format-hero-overlay-poem {
+    background:
+        linear-gradient(180deg, rgba(10, 10, 24, 0.04) 0%, rgba(10, 10, 24, 0.14) 42%, rgba(10, 10, 24, 0.38) 100%),
+        linear-gradient(135deg, rgba(245, 158, 11, 0.1), transparent 62%);
+}
+
 body.site-shell[data-current-theme="sakura"] .hero-cover-overlay,
 body.site-shell[data-current-theme="sakura"] .format-hero-overlay {
     background:
         linear-gradient(180deg, rgba(80, 19, 50, 0.08) 0%, rgba(80, 19, 50, 0.28) 50%, rgba(80, 19, 50, 0.72) 100%),
         linear-gradient(135deg, rgba(227, 79, 150, 0.18), transparent 58%);
+}
+
+body.site-shell[data-current-theme="sakura"] .format-hero-overlay-micro {
+    background:
+        linear-gradient(180deg, rgba(80, 19, 50, 0.03) 0%, rgba(80, 19, 50, 0.12) 42%, rgba(80, 19, 50, 0.34) 100%),
+        linear-gradient(135deg, rgba(227, 79, 150, 0.1), transparent 60%);
+}
+
+body.site-shell[data-current-theme="sakura"] .format-hero-overlay-article {
+    background:
+        linear-gradient(180deg, rgba(80, 19, 50, 0.03) 0%, rgba(80, 19, 50, 0) 24%, rgba(80, 19, 50, 0.2) 56%, rgba(80, 19, 50, 0.44) 100%),
+        linear-gradient(135deg, rgba(227, 79, 150, 0.14), transparent 58%);
+}
+
+body.site-shell[data-current-theme="sakura"] .format-hero-overlay-poem {
+    background:
+        linear-gradient(180deg, rgba(80, 19, 50, 0.03) 0%, rgba(80, 19, 50, 0.11) 40%, rgba(80, 19, 50, 0.3) 100%),
+        linear-gradient(135deg, rgba(251, 191, 36, 0.08), transparent 62%);
 }
 
 body.site-shell[data-current-theme="mint"] .hero-cover-overlay,
@@ -2267,11 +2307,47 @@ body.site-shell[data-current-theme="mint"] .format-hero-overlay {
         linear-gradient(135deg, rgba(18, 165, 148, 0.16), transparent 58%);
 }
 
+body.site-shell[data-current-theme="mint"] .format-hero-overlay-micro {
+    background:
+        linear-gradient(180deg, rgba(8, 58, 56, 0.03) 0%, rgba(8, 58, 56, 0.11) 42%, rgba(8, 58, 56, 0.34) 100%),
+        linear-gradient(135deg, rgba(18, 165, 148, 0.08), transparent 60%);
+}
+
+body.site-shell[data-current-theme="mint"] .format-hero-overlay-article {
+    background:
+        linear-gradient(180deg, rgba(8, 58, 56, 0.03) 0%, rgba(8, 58, 56, 0) 24%, rgba(8, 58, 56, 0.2) 56%, rgba(8, 58, 56, 0.44) 100%),
+        linear-gradient(135deg, rgba(18, 165, 148, 0.13), transparent 58%);
+}
+
+body.site-shell[data-current-theme="mint"] .format-hero-overlay-poem {
+    background:
+        linear-gradient(180deg, rgba(8, 58, 56, 0.03) 0%, rgba(8, 58, 56, 0.1) 40%, rgba(8, 58, 56, 0.28) 100%),
+        linear-gradient(135deg, rgba(251, 191, 36, 0.07), transparent 62%);
+}
+
 body.site-shell[data-current-theme="sunset"] .hero-cover-overlay,
 body.site-shell[data-current-theme="sunset"] .format-hero-overlay {
     background:
         linear-gradient(180deg, rgba(102, 45, 14, 0.08) 0%, rgba(102, 45, 14, 0.24) 52%, rgba(102, 45, 14, 0.72) 100%),
         linear-gradient(135deg, rgba(234, 138, 18, 0.18), transparent 58%);
+}
+
+body.site-shell[data-current-theme="sunset"] .format-hero-overlay-micro {
+    background:
+        linear-gradient(180deg, rgba(102, 45, 14, 0.03) 0%, rgba(102, 45, 14, 0.1) 42%, rgba(102, 45, 14, 0.32) 100%),
+        linear-gradient(135deg, rgba(234, 138, 18, 0.09), transparent 60%);
+}
+
+body.site-shell[data-current-theme="sunset"] .format-hero-overlay-article {
+    background:
+        linear-gradient(180deg, rgba(102, 45, 14, 0.03) 0%, rgba(102, 45, 14, 0) 24%, rgba(102, 45, 14, 0.18) 56%, rgba(102, 45, 14, 0.42) 100%),
+        linear-gradient(135deg, rgba(234, 138, 18, 0.14), transparent 58%);
+}
+
+body.site-shell[data-current-theme="sunset"] .format-hero-overlay-poem {
+    background:
+        linear-gradient(180deg, rgba(102, 45, 14, 0.03) 0%, rgba(102, 45, 14, 0.1) 40%, rgba(102, 45, 14, 0.3) 100%),
+        linear-gradient(135deg, rgba(251, 191, 36, 0.08), transparent 62%);
 }
 
 @media (max-width: 768px) {

@@ -12,6 +12,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from rewrz.core.cache import clear_cache
 from rewrz.core.database import Base
 
 
@@ -40,6 +41,14 @@ def test_db(test_engine):
         yield db
     finally:
         db.close()
+
+
+@pytest.fixture(autouse=True)
+def clear_setting_cache_between_tests():
+    """清理全局设置缓存，避免不同测试数据库之间串值。"""
+    clear_cache()
+    yield
+    clear_cache()
 
 
 def get_db_session():

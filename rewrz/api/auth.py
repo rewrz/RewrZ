@@ -60,8 +60,10 @@ def _build_password_reset_url(request: Request, raw_token: str) -> str:
 
 
 def _build_password_reset_delivery_note() -> str:
-    if is_email_delivery_configured():
-        return "如果账户存在且邮箱可用，系统已发送密码重置链接。"
+    return "如果账户存在且邮箱可用，系统已发送密码重置链接。"
+
+
+def _build_password_reset_debug_note() -> str:
     return "当前环境未配置邮件服务。若账户存在，系统已将重置链接写入本地调试投递记录。"
 
 
@@ -160,7 +162,7 @@ def submit_forgot_password(
         )
 
     user = _resolve_password_reset_user(db, normalized_identifier)
-    delivery_note = _build_password_reset_delivery_note()
+    delivery_note = _build_password_reset_delivery_note() if is_email_delivery_configured(db) else _build_password_reset_debug_note()
     now = datetime.now(timezone.utc)
 
     if user is not None and bool(getattr(user, "is_active", False)) and str(getattr(user, "email", "") or "").strip():
@@ -177,7 +179,7 @@ def submit_forgot_password(
                 expires_at=expires_at,
             )
             reset_url = _build_password_reset_url(request, raw_token)
-            if is_email_delivery_configured():
+            if is_email_delivery_configured(db):
                 if background_tasks is not None:
                     background_tasks.add_task(
                         send_password_reset_email,
@@ -185,6 +187,7 @@ def submit_forgot_password(
                         username=str(user.username),
                         reset_url=reset_url,
                         expire_minutes=PASSWORD_RESET_EXPIRE_MINUTES,
+                        db=db,
                     )
                 else:
                     send_password_reset_email(
@@ -192,6 +195,7 @@ def submit_forgot_password(
                         username=str(user.username),
                         reset_url=reset_url,
                         expire_minutes=PASSWORD_RESET_EXPIRE_MINUTES,
+                        db=db,
                     )
             else:
                 write_password_reset_debug_delivery(
@@ -443,6 +447,7 @@ async def login_for_access_token_impl(
                     ip_address,
                     user_agent,
                     time_text,
+                    db=db,
                 )
             else:
                 send_new_ip_login_alert(
@@ -451,6 +456,7 @@ async def login_for_access_token_impl(
                     ip_address,
                     user_agent,
                     time_text,
+                    db=db,
                 )
 
     access_token_expires = timedelta(minutes=int(settings.ACCESS_TOKEN_EXPIRE_MINUTES))

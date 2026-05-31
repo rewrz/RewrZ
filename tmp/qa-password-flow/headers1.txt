@@ -1,7 +1,0 @@
-HTTP/1.1 401 Unauthorized
-date: Sat, 30 May 2026 15:49:24 GMT
-server: uvicorn
-content-length: 61212
-content-type: text/html; charset=utf-8
-set-cookie: session=eyJjc3JmX3Rva2VuIjogIl9KUTQtSGpKbm1SMExpa2hNQmRIdHBPOWdWc25yOXhIcHZFSF9iWXgwWHMifQ==.ahsHBQ._e3q3g6Fq1wUiKnYHroS_XyG9KY; path=/; Max-Age=1209600; httponly; samesite=lax
-

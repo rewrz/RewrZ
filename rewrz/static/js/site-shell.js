@@ -192,6 +192,10 @@ class SiteShellController {
     this.themeSyncInFlight = null;
   }
 
+  isUserThemePreferred() {
+    return Boolean(this.getStoredThemePreference());
+  }
+
   init() {
     this.applyTheme(this.theme, { persist: false, sync: false, announce: false });
     this.applyAtmosphere(this.atmosphereClass);
@@ -602,7 +606,10 @@ class SiteShellController {
       });
       if (!response.ok) return;
       const payload = await response.json();
-      if (payload.theme && payload.theme !== this.theme) {
+
+      const hasAtmosphere = Boolean(payload.atmosphere && payload.atmosphere.normalized);
+      const shouldRespectUserTheme = !hasAtmosphere && this.isUserThemePreferred();
+      if (!shouldRespectUserTheme && payload.theme && payload.theme !== this.theme) {
         this.applyTheme(payload.theme, { persist: true, sync: false, announce: false, source: 'theme-sync' });
       }
       const nextAtmosphereClass = payload.atmosphere && payload.atmosphere.normalized

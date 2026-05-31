@@ -41,6 +41,7 @@
                     <div>
                         <p class="px-2 pb-1 text-xs font-semibold tracking-wide text-indigo-600">增长与分发</p>
                         <nav class="space-y-1">
+                            <a href="#section-smtp" class="settings-nav-link block rounded-lg border border-transparent px-3 py-2 text-gray-700 hover:border-indigo-100 hover:bg-indigo-50" data-section="section-smtp">SMTP 邮件投递</a>
                             <a href="#section-seo" class="settings-nav-link block rounded-lg border border-transparent px-3 py-2 text-gray-700 hover:border-indigo-100 hover:bg-indigo-50" data-section="section-seo">SEO 可见性</a>
                             <a href="#section-rss" class="settings-nav-link block rounded-lg border border-transparent px-3 py-2 text-gray-700 hover:border-indigo-100 hover:bg-indigo-50" data-section="section-rss">RSS/Atom 订阅</a>
                         </nav>
@@ -169,6 +170,57 @@
                     <button type="button" class="select-from-media-btn px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700" data-target-input="admin_login_background_video_url">从媒体库选择</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="section-smtp" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-1">SMTP 邮件投递</h2>
+        <p class="text-sm text-gray-500 mb-4">密码重置、登录安全提醒、评论通知都依赖这里的邮件服务器配置。</p>
+        <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 mb-4">
+            未配置 SMTP 时，密码重置只会写入本地调试日志，真实邮件不会发送。
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="smtp_host" class="block text-sm font-medium text-gray-700">SMTP 服务器</label>
+                <input type="text" id="smtp_host" name="smtp_host" value="{{ settings.smtp_host }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="smtp.example.com">
+            </div>
+            <div>
+                <label for="smtp_port" class="block text-sm font-medium text-gray-700">SMTP 端口</label>
+                <input type="number" id="smtp_port" name="smtp_port" value="{{ settings.smtp_port }}"
+                       min="1" max="65535"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="587">
+            </div>
+            <div>
+                <label for="smtp_username" class="block text-sm font-medium text-gray-700">SMTP 用户名</label>
+                <input type="text" id="smtp_username" name="smtp_username" value="{{ settings.smtp_username }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="no-reply@example.com">
+            </div>
+            <div>
+                <label for="smtp_password" class="block text-sm font-medium text-gray-700">SMTP 密码 / 授权码</label>
+                <input type="password" id="smtp_password" name="smtp_password" value="{{ settings.smtp_password }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="留空则表示未配置">
+            </div>
+            <div class="md:col-span-2">
+                <label for="smtp_from_email" class="block text-sm font-medium text-gray-700">发件人邮箱</label>
+                <input type="email" id="smtp_from_email" name="smtp_from_email" value="{{ settings.smtp_from_email }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="no-reply@example.com">
+                <p class="mt-1 text-xs text-gray-500">不填时会优先使用 SMTP 用户名作为发件人地址。</p>
+            </div>
+            <label class="flex items-center gap-3 rounded-lg border border-gray-200 px-4 py-3">
+                <input type="checkbox" name="smtp_use_tls" value="true" {% if settings.smtp_use_tls %}checked{% endif %}>
+                <div>
+                    <div class="text-sm font-medium text-gray-700">启用 STARTTLS</div>
+                    <p class="text-xs text-gray-500">常见于 587 端口。</p>
+                </div>
+            </label>
+            <label class="flex items-center gap-3 rounded-lg border border-gray-200 px-4 py-3">
+                <input type="checkbox" name="smtp_use_ssl" value="true" {% if settings.smtp_use_ssl %}checked{% endif %}>
+                <div>
+                    <div class="text-sm font-medium text-gray-700">启用 SSL</div>
+                    <p class="text-xs text-gray-500">常见于 465 端口。启用后将直接建立 SSL 连接。</p>
+                </div>
+            </label>
         </div>
     </div>
 

@@ -230,6 +230,7 @@ async def create_comment_api(
             resolved_author_email,
             comment_preview,
             review_url,
+            db=db,
         )
     
     # 记录反垃圾检测日志

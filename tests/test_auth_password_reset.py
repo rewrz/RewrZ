@@ -74,6 +74,16 @@ def _extract_reset_url(debug_log_path: Path) -> str:
 def _build_client(monkeypatch, tmp_path) -> tuple[TestClient, sessionmaker, object]:
     _set_installation_complete(monkeypatch, True)
     _ensure_admin_routes_registered()
+    for env_name in (
+        "SMTP_HOST",
+        "SMTP_PORT",
+        "SMTP_USERNAME",
+        "SMTP_PASSWORD",
+        "SMTP_FROM",
+        "SMTP_USE_TLS",
+        "SMTP_USE_SSL",
+    ):
+        monkeypatch.delenv(env_name, raising=False)
     db_path = tmp_path / Path(f"auth-reset-{uuid4().hex}.db")
     engine = create_engine(
         f"sqlite:///{db_path}",

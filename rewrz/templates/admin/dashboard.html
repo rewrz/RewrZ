@@ -23,7 +23,7 @@
         </div>
         <button
             type="button"
-            class="px-3 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-sm"
+            class="admin-secondary-btn px-3 py-2 rounded-md text-sm"
             onclick="resetDashboardLayout()"
         >
             重置布局
@@ -79,7 +79,7 @@
                         type="text"
                         maxlength="120"
                         placeholder="输入标题后可一键生成草稿"
-                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                        class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
                     >
                 </div>
                 <div>
@@ -89,11 +89,11 @@
                         name="content"
                         rows="4"
                         placeholder="留空会自动生成占位内容"
-                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                        class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
                     ></textarea>
                 </div>
                 <div class="flex items-center justify-between gap-3">
-                    <button type="submit" class="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white">
+                    <button type="submit" class="admin-primary-btn px-4 py-2 rounded-md">
                         创建草稿
                     </button>
                     <span id="quick-draft-message" class="text-sm text-gray-500"></span>
@@ -104,7 +104,7 @@
         <section class="dashboard-widget admin-panel p-5" data-widget-id="recent-comments" draggable="true">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-semibold text-gray-800">最新评论快捷操作</h2>
-                <a href="{{ request.state.admin_path }}/comments" class="text-sm text-blue-600 hover:underline">进入评论管理</a>
+                <a href="{{ request.state.admin_path }}/comments" class="admin-secondary-btn rounded-md px-3 py-1.5 text-sm">进入评论管理</a>
             </div>
 
             <div class="space-y-3">
@@ -132,11 +132,11 @@
                         </a>
                         <div class="space-x-2">
                             {% if comment.status == 'pending' %}
-                            <button type="button" class="text-xs px-2 py-1 rounded bg-green-600 text-white" onclick="approveDashboardComment({{ comment.id }})">
+                            <button type="button" class="admin-primary-btn rounded px-2 py-1 text-xs" onclick="approveDashboardComment({{ comment.id }})">
                                 批准
                             </button>
                             {% endif %}
-                            <button type="button" class="text-xs px-2 py-1 rounded bg-red-600 text-white" onclick="deleteDashboardComment({{ comment.id }})">
+                            <button type="button" class="admin-secondary-btn rounded px-2 py-1 text-xs" onclick="deleteDashboardComment({{ comment.id }})">
                                 删除
                             </button>
                         </div>

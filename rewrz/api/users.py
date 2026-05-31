@@ -20,6 +20,7 @@ from ..core.admin_security import get_admin_user_activity_map, get_client_ip, re
 from ..core.security import ensure_admin_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..core.avatar import get_avatar_service
+from ..core.url_normalizer import normalize_local_asset_url
 from ..crud import user as crud_user
 from ..crud import setting as crud_setting
 from ..schemas import (
@@ -285,9 +286,9 @@ async def update_admin_user_profile(
     db.refresh(db_user)
 
     profile_updates = {
-        "creator_profile_cover_url": creator_profile_cover_url,
-        "creator_profile_micro_cover_url": creator_profile_micro_cover_url,
-        "creator_profile_poem_cover_url": creator_profile_poem_cover_url,
+        "creator_profile_cover_url": normalize_local_asset_url(creator_profile_cover_url),
+        "creator_profile_micro_cover_url": normalize_local_asset_url(creator_profile_micro_cover_url),
+        "creator_profile_poem_cover_url": normalize_local_asset_url(creator_profile_poem_cover_url),
         "creator_profile_headline": creator_profile_headline,
         "creator_profile_article_bio": creator_profile_article_bio,
         "creator_profile_micro_bio": creator_profile_micro_bio,

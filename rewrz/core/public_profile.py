@@ -17,6 +17,7 @@ from ..models import User as UserModel
 from .avatar import get_avatar_service
 from .public_alias import resolve_public_display_name
 from .template_context import DEFAULT_BASE_SETTINGS, DEFAULT_HOMEPAGE_SETTINGS
+from .url_normalizer import normalize_local_asset_url, normalize_local_asset_url_lines
 
 
 def _get_setting_value(db: Session, key: str, default: Any = None) -> Any:
@@ -63,14 +64,16 @@ class DefaultPublicProfileResolver:
 
     @staticmethod
     def _resolve_site_cover_url(db: Session) -> str:
-        explicit_cover = str(_get_setting_value(db, "site_cover_url", "") or "").strip()
+        explicit_cover = normalize_local_asset_url(_get_setting_value(db, "site_cover_url", ""))
         if explicit_cover:
             return explicit_cover
         homepage_mode = str(
             _get_setting_value(db, "homepage_mode", DEFAULT_HOMEPAGE_SETTINGS["homepage_mode"])
             or DEFAULT_HOMEPAGE_SETTINGS["homepage_mode"]
         ).strip()
-        gallery_images = _parse_gallery_images(_get_setting_value(db, "homepage_background_image_url", ""))
+        gallery_images = _parse_gallery_images(
+            normalize_local_asset_url_lines(_get_setting_value(db, "homepage_background_image_url", ""))
+        )
         if gallery_images:
             return gallery_images[0]
         if homepage_mode == "fullscreen_video":
@@ -80,9 +83,9 @@ class DefaultPublicProfileResolver:
     @staticmethod
     def _resolve_site_avatar_url(db: Session) -> str:
         candidates = [
-            str(_get_setting_value(db, "site_logo_light", "") or "").strip(),
-            str(_get_setting_value(db, "site_logo_dark", "") or "").strip(),
-            str(_get_setting_value(db, "favicon", "") or "").strip(),
+            normalize_local_asset_url(_get_setting_value(db, "site_logo_light", "")),
+            normalize_local_asset_url(_get_setting_value(db, "site_logo_dark", "")),
+            normalize_local_asset_url(_get_setting_value(db, "favicon", "")),
         ]
         for value in candidates:
             if value:
@@ -103,9 +106,9 @@ class DefaultPublicProfileResolver:
             "avatar_url": self._resolve_site_avatar_url(db),
             "cover_url": self._resolve_site_cover_url(db),
             "homepage_mode": str(_get_setting_value(db, "homepage_mode", DEFAULT_HOMEPAGE_SETTINGS["homepage_mode"]) or DEFAULT_HOMEPAGE_SETTINGS["homepage_mode"]).strip(),
-            "logo_light": str(_get_setting_value(db, "site_logo_light", "") or "").strip(),
-            "logo_dark": str(_get_setting_value(db, "site_logo_dark", "") or "").strip(),
-            "favicon": str(_get_setting_value(db, "favicon", "") or "").strip(),
+            "logo_light": normalize_local_asset_url(_get_setting_value(db, "site_logo_light", "")),
+            "logo_dark": normalize_local_asset_url(_get_setting_value(db, "site_logo_dark", "")),
+            "favicon": normalize_local_asset_url(_get_setting_value(db, "favicon", "")),
         }
 
     def resolve_format_profile(self, request: Request, db: Session, format_slug: str) -> Dict[str, Any]:
@@ -160,7 +163,7 @@ class DefaultPublicProfileResolver:
             "/static/images/covers/format-article.jpg",
         )
 
-        selected_cover = str(_get_setting_value(db, selected_cover_key, "") or "").strip()
+        selected_cover = normalize_local_asset_url(_get_setting_value(db, selected_cover_key, ""))
         cover_url = selected_cover or selected_cover_fallback
 
         selected_bio = str(_get_setting_value(db, selected_bio_key, "") or "").strip()

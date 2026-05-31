@@ -26,127 +26,143 @@
 <section class="py-8 format-archive-glass">
     <div class="container mx-auto max-w-6xl px-4">
         {% if is_article %}
-        <header class="format-hero-card mb-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div class="format-hero-media">
-                <img src="{{ profile_cover }}" alt="文章聚合封面" class="format-hero-image">
-                <div class="format-hero-overlay"></div>
-                <div class="format-hero-content absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 px-5 pb-5 pt-16 md:px-6 md:pb-6">
+        <header class="format-hero-card format-hero-card-article mb-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800" style="--format-hero-cover: url('{{ profile_cover }}');">
+            <div class="format-hero-media format-hero-media-article">
+                <img src="{{ profile_cover }}" alt="文章聚合封面" class="format-hero-image format-hero-image-article">
+                <div class="format-hero-overlay format-hero-overlay-article"></div>
+                <div class="format-hero-content format-hero-ribbon-article absolute inset-x-0 flex items-end justify-between gap-4 px-5 py-5 md:px-6 md:py-6">
                     <div class="min-w-0 flex flex-1 items-center gap-3 text-white">
                         <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="h-14 w-14 shrink-0 rounded-full border-2 border-white/70 object-cover">
                         <div class="min-w-0">
-                            <p class="text-xs uppercase tracking-[0.2em] text-slate-200">Article</p>
-                            <h1 class="truncate text-2xl font-bold md:text-3xl">{{ profile_name }}</h1>
+                            <p class="format-hero-kicker-article text-xs tracking-[0.2em]">文章聚合</p>
+                            <h1 class="format-hero-title-article truncate text-2xl font-bold md:text-3xl">{{ profile_name }}</h1>
+                            <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                                {% if profile_joined_text %}
+                                <span class="format-hero-chip format-hero-chip-article inline-flex items-center rounded-full px-2.5 py-1">
+                                    <i class="fas fa-calendar-alt mr-1"></i>加入于 {{ profile_joined_text }}
+                                </span>
+                                {% endif %}
+                                {% if profile_location %}
+                                <span class="format-hero-chip format-hero-chip-article inline-flex items-center rounded-full px-2.5 py-1">
+                                    <i class="fas fa-location-dot mr-1"></i>{{ profile_location }}
+                                </span>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
-                    <div class="format-hero-meta-card hidden shrink-0 rounded-xl px-4 py-2 text-right text-white md:block">
-                        <p class="text-xs text-slate-200">标准文章聚合</p>
-                        <p class="text-lg font-semibold">{{ pagination.total_count if pagination else (posts|length) }} 篇</p>
+                    <div class="format-hero-meta-stack-article hidden shrink-0 md:flex md:flex-col md:items-end md:gap-2">
+                        <div class="format-hero-meta-card format-hero-meta-card-article rounded-xl px-4 py-2 text-right text-white">
+                            <p class="format-hero-kicker-article text-xs">标准文章聚合</p>
+                            <p class="text-lg font-semibold">{{ pagination.total_count if pagination else (posts|length) }} 篇</p>
+                        </div>
+                        <div class="format-hero-stats-row-article flex items-center gap-2">
+                            <span class="format-hero-inline-stat-article">
+                                <strong>{{ (format_category_topic_count if format_category_topic_count is defined else 0) | compact_number_cn }}</strong>
+                                <span>分类</span>
+                            </span>
+                            <span class="format-hero-inline-stat-article">
+                                <strong>{{ (format_tag_topic_count if format_tag_topic_count is defined else 0) | compact_number_cn }}</strong>
+                                <span>标签</span>
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="format-hero-content grid gap-4 border-t border-slate-200/80 px-5 py-5 md:grid-cols-[1.3fr_0.7fr] md:px-7 dark:border-gray-700/80">
-                <div class="format-hero-summary">
-                    {% if profile_headline %}
-                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ profile_headline }}</p>
-                    {% endif %}
+            {% if profile_bio or (format_hot_tags and format_hot_tags | length > 0) %}
+            <div class="format-hero-content format-hero-lower-article px-5 py-4 md:px-7">
+                <div class="format-hero-lower-row-article">
                     {% if profile_bio %}
-                    <p class="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">{{ profile_bio }}</p>
-                    {% endif %}
-                    <div class="mt-3 flex flex-wrap gap-2 text-xs">
-                        {% if profile_location %}
-                        <span class="format-hero-chip inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-slate-700 dark:text-slate-100">
-                            <i class="fas fa-location-dot mr-1"></i>{{ profile_location }}
-                        </span>
-                        {% endif %}
-                        {% if profile_joined_text %}
-                        <span class="format-hero-chip inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-slate-700 dark:text-slate-100">
-                            <i class="fas fa-calendar-alt mr-1"></i>加入于 {{ profile_joined_text }}
-                        </span>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="flex flex-wrap items-start justify-start gap-2 md:justify-end">
-                    <div class="grid w-full grid-cols-2 gap-2 md:max-w-xs">
-                        <div class="format-hero-stat rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-center dark:border-slate-600 dark:bg-slate-700/40">
-                            <div class="text-base font-bold text-slate-900 dark:text-white">{{ (format_category_topic_count if format_category_topic_count is defined else 0) | compact_number_cn }}</div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-300">分类数量</div>
+                    <div class="format-hero-bio-strip-article">
+                        <div class="format-hero-bio-glass-article">
+                            <p class="format-hero-bio-label-article">简介</p>
+                            <p class="format-hero-copy-article text-sm">{{ profile_bio }}</p>
                         </div>
-                        <div class="format-hero-stat rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-center dark:border-slate-600 dark:bg-slate-700/40">
-                            <div class="text-base font-bold text-slate-900 dark:text-white">{{ (format_tag_topic_count if format_tag_topic_count is defined else 0) | compact_number_cn }}</div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-300">标签数量</div>
+                        {% if profile_website or profile_public_email or (social_links and social_links | length > 0) %}
+                        <div class="format-hero-actions-article format-hero-actions-article-lower">
+                            {% if profile_website %}
+                            <a href="{{ profile_website }}" target="_blank" rel="noopener" class="format-hero-link-pill format-hero-link-pill-article inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold">
+                                <i class="fas fa-link mr-1"></i>网站
+                            </a>
+                            {% endif %}
+                            {% if profile_public_email %}
+                            <a href="mailto:{{ profile_public_email }}" class="format-hero-link-pill format-hero-link-pill-article inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold">
+                                <i class="fas fa-envelope mr-1"></i>邮箱
+                            </a>
+                            {% endif %}
+                            {% for link in social_links %}
+                                {% set social_icon = (link.icon | fa_compat) if link.icon else 'fas fa-link' %}
+                                <a href="{{ link.url }}" target="_blank" rel="noopener" class="format-hero-link-pill format-hero-link-pill-article inline-flex items-center rounded-full px-2.5 py-1.5 text-xs">
+                                    <i class="{{ social_icon }}"></i>
+                                </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if format_hot_tags and format_hot_tags | length > 0 %}
+                    <div class="format-hero-tags-panel-article">
+                        <p class="format-hero-tags-label-article text-xs font-semibold">热门标签推荐</p>
+                        <div class="format-hero-tags-list-article flex flex-wrap gap-2">
+                            {% for tag_item in format_hot_tags[:8] %}
+                            <a href="/archives/by-tag/{{ tag_item.slug }}" class="format-hero-link-pill format-hero-link-pill-article inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs">
+                                <span>#{{ tag_item.name }}</span>
+                                <span class="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-600 dark:text-slate-100" title="综合热度：浏览 + 互动">{{ (tag_item.heat_score if tag_item.heat_score is defined else tag_item.count) | compact_number_cn }}</span>
+                            </a>
+                            {% endfor %}
                         </div>
                     </div>
-                    {% if profile_website %}
-                    <a href="{{ profile_website }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700/60 dark:bg-indigo-900/30 dark:text-indigo-300">
-                        <i class="fas fa-link mr-1"></i>网站
-                    </a>
-                    {% endif %}
-                    {% if profile_public_email %}
-                    <a href="mailto:{{ profile_public_email }}" class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700/60 dark:bg-emerald-900/30 dark:text-emerald-300">
-                        <i class="fas fa-envelope mr-1"></i>邮箱
-                    </a>
-                    {% endif %}
-                    {% if social_links and social_links | length > 0 %}
-                    {% for link in social_links %}
-                        {% set social_icon = (link.icon | fa_compat) if link.icon else 'fas fa-link' %}
-                        <a href="{{ link.url }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200">
-                            <i class="{{ social_icon }}"></i>
-                        </a>
-                    {% endfor %}
                     {% endif %}
                 </div>
-                {% if format_hot_tags and format_hot_tags | length > 0 %}
-                <div class="mt-4 md:col-span-2">
-                    <p class="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-300">热门标签推荐</p>
-                    <div class="flex flex-wrap gap-2">
-                        {% for tag_item in format_hot_tags[:8] %}
-                        <a href="/archives/by-tag/{{ tag_item.slug }}" class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600">
-                            <span>#{{ tag_item.name }}</span>
-                            <span class="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-600 dark:text-slate-100" title="综合热度：浏览 + 互动">{{ (tag_item.heat_score if tag_item.heat_score is defined else tag_item.count) | compact_number_cn }}</span>
-                        </a>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
             </div>
+            {% endif %}
         </header>
         {% elif is_micro %}
         <header class="format-hero-card mb-8 overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-indigo-50 shadow-sm dark:border-sky-700/50 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30">
             <div class="relative p-5 md:p-7">
-                <img src="{{ profile_cover }}" alt="微博聚合封面" class="format-hero-image absolute inset-0 h-full w-full object-cover opacity-25">
-                <div class="format-hero-overlay"></div>
+                <img src="{{ profile_cover }}" alt="微博聚合封面" class="format-hero-image format-hero-image-micro absolute inset-0 h-full w-full object-cover opacity-40">
+                <div class="format-hero-overlay format-hero-overlay-micro"></div>
                 <div class="format-hero-content relative">
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div class="flex min-w-0 items-center gap-3">
                             <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="h-16 w-16 rounded-full border-2 border-white object-cover shadow-lg dark:border-slate-700">
                             <div class="min-w-0">
                                 <h1 class="truncate text-2xl font-bold text-slate-900 dark:text-white">{{ profile_name }}</h1>
-                                <p class="truncate text-sm text-slate-600 dark:text-slate-300">
+                                <p class="format-hero-kicker-micro truncate text-sm">
                                     创作者主页
                                 </p>
                             </div>
                         </div>
-                        <a href="/archives" class="inline-flex items-center rounded-full bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700">
-                            <i class="fas fa-stream mr-1"></i>查看全部归档
-                        </a>
+                        {% if social_links and social_links | length > 0 %}
+                        <div class="format-hero-socials-micro flex flex-wrap justify-end gap-2">
+                            {% for link in social_links %}
+                                {% set social_icon = (link.icon | fa_compat) if link.icon else 'fas fa-link' %}
+                                <a href="{{ link.url }}" target="_blank" rel="noopener" class="format-hero-link-pill inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs">
+                                    <i class="{{ social_icon }}"></i>
+                                    <span>关注</span>
+                                </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                     </div>
-                    <p class="mt-4 text-sm leading-7 text-slate-700 dark:text-slate-200">
-                        {{ profile_motto if profile_motto else (profile_bio if profile_bio else '记录即时想法、碎片灵感与日常动态。') }}
-                    </p>
+                    <div class="format-hero-copy-panel format-hero-copy-panel-micro mt-4">
+                        <p class="format-hero-copy-micro text-sm leading-7">
+                            {{ profile_motto if profile_motto else (profile_bio if profile_bio else '记录即时想法、碎片灵感与日常动态。') }}
+                        </p>
+                    </div>
                     <div class="mt-4 grid grid-cols-2 gap-3 text-center md:grid-cols-4">
-                        <div class="format-hero-stat rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
+                        <div class="format-hero-stat rounded-2xl p-3 shadow-sm">
                             <div class="text-xl font-bold text-slate-900 dark:text-white">{{ pagination.total_count if pagination else (posts|length) }}</div>
                             <div class="text-xs text-slate-500 dark:text-slate-400">动态</div>
                         </div>
-                        <div class="format-hero-stat rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
+                        <div class="format-hero-stat rounded-2xl p-3 shadow-sm">
                             <div class="text-xl font-bold text-slate-900 dark:text-white">{{ (micro_interaction_count if micro_interaction_count is defined else 0) | compact_number_cn }}</div>
                             <div class="text-xs text-slate-500 dark:text-slate-400">互动</div>
                         </div>
-                        <div class="format-hero-stat rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
+                        <div class="format-hero-stat rounded-2xl p-3 shadow-sm">
                             <div class="text-xl font-bold text-slate-900 dark:text-white">{{ (format_tag_topic_count if format_tag_topic_count is defined else 0) | compact_number_cn }}</div>
                             <div class="text-xs text-slate-500 dark:text-slate-400">话题</div>
                         </div>
-                        <div class="format-hero-stat rounded-2xl bg-white/85 p-3 shadow-sm dark:bg-slate-800/80">
+                        <div class="format-hero-stat rounded-2xl p-3 shadow-sm">
                             <div class="text-xl font-bold text-slate-900 dark:text-white">{{ profile_location if profile_location else 'Online' }}</div>
                             <div class="text-xs text-slate-500 dark:text-slate-400">位置</div>
                         </div>
@@ -156,23 +172,12 @@
                         <p class="mb-2 text-xs font-semibold tracking-wide text-slate-600 dark:text-slate-300">热门话题推荐</p>
                         <div class="flex flex-wrap gap-2">
                             {% for tag_item in format_hot_tags[:8] %}
-                            <a href="/archives/by-tag/{{ tag_item.slug }}" class="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-white/90 px-2.5 py-1 text-xs text-sky-700 hover:bg-sky-50 dark:border-sky-700/70 dark:bg-slate-800 dark:text-sky-200 dark:hover:bg-slate-700">
+                            <a href="/archives/by-tag/{{ tag_item.slug }}" class="format-hero-link-pill inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs">
                                 <span>#{{ tag_item.name }}</span>
                                 <span class="rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-900/60 dark:text-sky-200" title="综合热度：浏览 + 互动">{{ (tag_item.heat_score if tag_item.heat_score is defined else tag_item.count) | compact_number_cn }}</span>
                             </a>
                             {% endfor %}
                         </div>
-                    </div>
-                    {% endif %}
-                    {% if social_links and social_links | length > 0 %}
-                    <div class="mt-4 flex flex-wrap gap-2">
-                        {% for link in social_links %}
-                            {% set social_icon = (link.icon | fa_compat) if link.icon else 'fas fa-link' %}
-                            <a href="{{ link.url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-white/90 px-2.5 py-1 text-xs text-sky-700 hover:bg-sky-50 dark:border-sky-700/70 dark:bg-slate-800 dark:text-sky-200 dark:hover:bg-slate-700">
-                                <i class="{{ social_icon }}"></i>
-                                <span>关注</span>
-                            </a>
-                        {% endfor %}
                     </div>
                     {% endif %}
                 </div>
@@ -181,47 +186,49 @@
         {% else %}
         <header class="format-hero-card mb-8 overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-orange-50 to-stone-50 shadow-sm dark:border-amber-700/50 dark:from-stone-900 dark:via-stone-900 dark:to-amber-950/20">
             <div class="relative p-6 md:p-8">
-                <img src="{{ profile_cover }}" alt="诗词聚合封面" class="format-hero-image absolute inset-0 h-full w-full object-cover opacity-20">
-                <div class="format-hero-overlay"></div>
-                <div class="format-hero-content relative text-center">
+                <img src="{{ profile_cover }}" alt="诗词聚合封面" class="format-hero-image format-hero-image-poem absolute inset-0 h-full w-full object-cover opacity-40">
+                <div class="format-hero-overlay format-hero-overlay-poem"></div>
+                <div class="format-hero-content format-hero-content-poem relative">
                     <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="mx-auto h-16 w-16 rounded-full border-2 border-white object-cover shadow-md dark:border-stone-700">
-                    <p class="mt-3 text-xs tracking-[0.28em] text-amber-700 dark:text-amber-300">POEM ARCHIVE</p>
-                    <h1 class="mt-2 font-serif text-3xl font-semibold text-stone-900 dark:text-amber-100 md:text-4xl">{{ profile_name }}</h1>
+                    <p class="format-hero-kicker-poem mt-3 text-xs tracking-[0.28em]">POEM ARCHIVE</p>
+                    <h1 class="format-hero-title-poem mt-2 font-serif text-3xl font-semibold md:text-4xl">{{ profile_name }}</h1>
                     {% if profile_headline %}
-                    <p class="mt-2 text-sm text-stone-600 dark:text-stone-300">{{ profile_headline }}</p>
+                    <p class="format-hero-headline-poem mt-2 text-sm">{{ profile_headline }}</p>
                     {% endif %}
-                    <p class="mx-auto mt-4 max-w-3xl text-sm leading-8 text-stone-700 dark:text-stone-200">
-                        {{ profile_bio if profile_bio else '诗词歌赋与文学片段，按节奏与意境排列。' }}
-                    </p>
+                    <div class="format-hero-copy-panel format-hero-copy-panel-poem mx-auto mt-4">
+                        <p class="format-hero-copy-poem text-sm leading-8">
+                            {{ profile_bio if profile_bio else '诗词歌赋与文学片段，按节奏与意境排列。' }}
+                        </p>
+                    </div>
                     {% if profile_motto %}
-                    <p class="mx-auto mt-3 max-w-2xl rounded-2xl border border-amber-200 bg-white/70 px-4 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-stone-800/70 dark:text-amber-200">
+                    <p class="format-hero-motto-poem mx-auto mt-3 rounded-2xl px-4 py-2 text-sm">
                         「{{ profile_motto }}」
                     </p>
                     {% endif %}
-                    <div class="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs">
-                        <span class="format-hero-chip inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
+                    <div class="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs">
+                        <span class="format-hero-chip format-hero-chip-poem inline-flex items-center rounded-full px-3 py-1">
                             卷数 {{ pagination.total_count if pagination else (posts|length) }}
                         </span>
-                        <span class="format-hero-chip inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
+                        <span class="format-hero-chip format-hero-chip-poem inline-flex items-center rounded-full px-3 py-1">
                             话题 {{ (format_tag_topic_count if format_tag_topic_count is defined else 0) | compact_number_cn }}
                         </span>
                         {% if profile_location %}
-                        <span class="format-hero-chip inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 dark:bg-stone-800 dark:text-stone-200">
+                        <span class="format-hero-chip format-hero-chip-poem inline-flex items-center rounded-full px-3 py-1">
                             <i class="fas fa-location-dot mr-1"></i>{{ profile_location }}
                         </span>
                         {% endif %}
                         {% if profile_public_email %}
-                        <a href="mailto:{{ profile_public_email }}" class="format-hero-chip inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-stone-700 hover:bg-white dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700">
+                        <a href="mailto:{{ profile_public_email }}" class="format-hero-chip format-hero-chip-poem inline-flex items-center rounded-full px-3 py-1">
                             <i class="fas fa-envelope mr-1"></i>通信
                         </a>
                         {% endif %}
                     </div>
                     {% if format_hot_tags and format_hot_tags | length > 0 %}
-                    <div class="mx-auto mt-4 max-w-4xl">
-                        <p class="mb-2 text-xs font-semibold tracking-[0.16em] text-stone-600 dark:text-stone-300">热门话题推荐</p>
+                    <div class="mx-auto mt-5 max-w-4xl">
+                        <p class="format-hero-kicker-poem mb-2 text-xs font-semibold tracking-[0.16em]">热门话题推荐</p>
                         <div class="flex flex-wrap items-center justify-center gap-2">
                             {% for tag_item in format_hot_tags[:8] %}
-                            <a href="/archives/by-tag/{{ tag_item.slug }}" class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-white/85 px-3 py-1 text-xs text-amber-800 hover:bg-white dark:border-amber-800 dark:bg-stone-800 dark:text-amber-200 dark:hover:bg-stone-700">
+                            <a href="/archives/by-tag/{{ tag_item.slug }}" class="format-hero-link-pill format-hero-link-pill-poem inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs">
                                 <span>#{{ tag_item.name }}</span>
                                 <span class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/60 dark:text-amber-200" title="综合热度：浏览 + 互动">{{ (tag_item.heat_score if tag_item.heat_score is defined else tag_item.count) | compact_number_cn }}</span>
                             </a>
@@ -251,18 +258,19 @@
 
         {% if is_micro and is_logged_in %}
         <section class="mb-6">
-            <div class="micro-composer-shell mx-auto max-w-3xl overflow-hidden rounded-3xl border border-sky-200 bg-white shadow-sm dark:border-sky-800/70 dark:bg-gray-800/90">
-                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 to-cyan-50 px-4 py-3 dark:border-sky-900/40 dark:from-slate-900 dark:to-slate-800">
+            <div class="micro-composer-shell micro-composer-shell-anime mx-auto max-w-3xl overflow-hidden rounded-3xl border border-sky-200 bg-white shadow-sm dark:border-sky-800/70 dark:bg-gray-800/90">
+                <div class="micro-composer-hero flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 to-cyan-50 px-4 py-3 dark:border-sky-900/40 dark:from-slate-900 dark:to-slate-800">
                     <div class="flex min-w-0 items-center gap-3">
-                        <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="h-10 w-10 flex-shrink-0 rounded-full border border-sky-100 object-cover dark:border-sky-900/70">
+                        <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="h-11 w-11 flex-shrink-0 rounded-full border border-sky-100 object-cover dark:border-sky-900/70">
                         <div class="min-w-0">
                             <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{{ profile_name }}</p>
-                            <p class="truncate text-xs text-slate-500 dark:text-slate-400">写点什么吧，发布后会出现在第一条动态位置</p>
+                            <p class="truncate text-xs text-slate-500 dark:text-slate-400">把灵感投进时间线，像向夜空发一枚小小信号弹。</p>
                         </div>
                     </div>
-                    <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-                        <i class="fas fa-user-check mr-1"></i>登录可发
-                    </span>
+                    <div class="micro-composer-badges flex flex-wrap items-center gap-2 text-[11px] font-semibold">
+                        <span class="micro-composer-badge">电波频道</span>
+                        <span class="micro-composer-badge">即时掉落</span>
+                    </div>
                 </div>
                 <div class="p-4 md:p-5">
                     <form id="micro-quick-post-form" class="space-y-3">
@@ -275,9 +283,12 @@
                                 name="content"
                                 rows="4"
                                 maxlength="2000"
-                                class="w-full resize-none rounded-2xl border border-sky-200 bg-sky-50/40 px-4 py-3 text-[15px] leading-7 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 dark:border-sky-900/60 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-sky-900/50"
-                                placeholder="有什么新鲜事想分享？支持 #话题#、多媒体和 Ctrl+Enter 快捷发布"
+                                class="micro-composer-textarea w-full resize-none rounded-2xl border border-sky-200 bg-sky-50/40 px-4 py-3 text-[15px] leading-7 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 dark:border-sky-900/60 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-sky-900/50"
+                                placeholder="今天想掉落哪一段心情、灵感或碎片？支持 #话题#、多媒体和 Ctrl+Enter 快捷发布"
                             ></textarea>
+                            <div class="micro-composer-corner-note">
+                                <span>☆ 适合发碎碎念、练习日志、临时脑洞和小广播</span>
+                            </div>
                         </div>
 
                         <div id="micro-quick-topic-hints" class="flex flex-wrap items-center gap-2">
@@ -306,18 +317,18 @@
 
                         <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-700/70">
                             <div class="flex flex-wrap items-center gap-2">
-                                <button id="micro-quick-upload-trigger" type="button" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
-                                    <i class="far fa-image mr-1"></i>多媒体
+                                <button id="micro-quick-upload-trigger" type="button" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                    <span class="micro-tool-emoji" aria-hidden="true">🖼️</span>多媒体
                                 </button>
-                                <button type="button" data-insert-topic="话题" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
-                                    <i class="fas fa-hashtag mr-1"></i>话题
+                                <button type="button" data-insert-topic="话题" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                    <span class="micro-tool-emoji" aria-hidden="true">#</span>话题
                                 </button>
-                                <button type="button" data-insert-text="@" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
-                                    <i class="fas fa-at mr-1"></i>@提及
+                                <button type="button" data-insert-text="@" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                    <span class="micro-tool-emoji" aria-hidden="true">✦</span>提及
                                 </button>
                                 <div class="relative">
-                                    <button id="micro-quick-emoji-toggle" type="button" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
-                                        <i class="far fa-face-smile mr-1"></i>表情
+                                    <button id="micro-quick-emoji-toggle" type="button" class="micro-tool-btn micro-tool-btn-accent inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                        <span class="micro-tool-emoji" aria-hidden="true">٩(ˊᗜˋ*)و</span>表情
                                     </button>
                                     <div id="micro-quick-emoji-panel" class="fixed z-[140] hidden w-80 max-w-[92vw] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
                                         <div class="mb-2 flex flex-wrap items-center gap-1.5">
@@ -331,11 +342,11 @@
                                         </div>
                                     </div>
                                 </div>
-                                <button id="micro-quick-preview-toggle" type="button" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
-                                    <i class="far fa-eye mr-1"></i>预览
+                                <button id="micro-quick-preview-toggle" type="button" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                    <span class="micro-tool-emoji" aria-hidden="true">👁</span>预览
                                 </button>
-                                <button id="micro-quick-clear-draft" type="button" class="inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-rose-900/20 dark:hover:text-rose-300">
-                                    <i class="far fa-trash-alt mr-1"></i>清草稿
+                                <button id="micro-quick-clear-draft" type="button" class="micro-tool-btn micro-tool-btn-muted inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-rose-900/20 dark:hover:text-rose-300">
+                                    <span class="micro-tool-emoji" aria-hidden="true">✧</span>清草稿
                                 </button>
                             </div>
                             <div class="flex items-center gap-3">
@@ -348,10 +359,10 @@
                                 <button
                                     id="micro-quick-submit"
                                     type="submit"
-                                    class="inline-flex items-center rounded-full bg-sky-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    class="micro-launch-btn inline-flex items-center rounded-full bg-sky-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
                                     disabled
                                 >
-                                    发布动态
+                                    <span class="micro-tool-emoji" aria-hidden="true">🚀</span>发射动态
                                 </button>
                             </div>
                         </div>
@@ -819,6 +830,10 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         positionEmojiPanel();
     };
 
+    if (emojiPanel && emojiPanel.parentElement !== document.body) {
+        document.body.appendChild(emojiPanel);
+    }
+
     const uploadMediaFiles = async (fileList) => {
         const selectedFiles = Array.from(fileList || []);
         if (!selectedFiles.length) {
@@ -958,7 +973,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
     if (emojiPanel) {
         emojiPanel.addEventListener("click", (event) => {
             event.stopPropagation();
-            const clickTarget = event.target;
+            const clickTarget = event.target instanceof Element ? event.target : null;
             if (!clickTarget || typeof clickTarget.closest !== "function") {
                 return;
             }
@@ -1049,10 +1064,14 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         if (!emojiPanel || !emojiToggle) {
             return;
         }
-        const clickTarget = event.target;
+        const clickTarget = event.target instanceof Node ? event.target : null;
         const clickedToggle = clickTarget && typeof clickTarget.closest === "function"
             ? clickTarget.closest("#micro-quick-emoji-toggle")
             : null;
+        if (!clickTarget) {
+            closeEmojiPanel();
+            return;
+        }
         if (!emojiPanel.contains(clickTarget) && !clickedToggle) {
             closeEmojiPanel();
         }

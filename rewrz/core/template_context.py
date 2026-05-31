@@ -3,6 +3,8 @@
 
 提供构建模板渲染所需的通用基础上下文字段，避免在各路由中重复注入。
 """
+from datetime import datetime
+import re
 from fastapi import Request
 from sqlalchemy.orm import Session
 from ..core.database import get_db
@@ -12,6 +14,7 @@ from ..crud import user as crud_user
 from ..core.content_intents import INTENT_SLUGS, normalize_intent_slug
 from ..core.media_attachments import get_default_media_navigation
 from ..core.security import decode_access_token, is_user_token_payload_valid
+from ..core.url_normalizer import normalize_local_asset_url, normalize_local_asset_url_lines
 from ..api import themes as themes_api
 
 # 主页个性化设置键常量，集中管理，避免魔法字符串分散各处
@@ -63,6 +66,22 @@ DEFAULT_HOMEPAGE_SETTINGS = {
     "homepage_background_music_url": "",
     "homepage_music_autoplay": False,
 }
+
+
+def _render_copyright_info(raw_value: str, current_year: int) -> str:
+    """规范化页脚版权文案，确保动态年份始终存在。"""
+    text = str(raw_value or "").strip()
+    if not text:
+        return ""
+    if "{year}" in text:
+        return text.replace("{year}", str(current_year))
+    if re.search(r"(?<!\d)(19|20)\d{2}(?!\d)", text):
+        return text
+    if "&copy;" in text:
+        return text.replace("&copy;", f"&copy; {current_year}", 1)
+    if "©" in text:
+        return text.replace("©", f"© {current_year}", 1)
+    return f"&copy; {current_year} {text}"
 
 
 def build_base_template_context(request: Request) -> dict:
@@ -136,6 +155,10 @@ def build_base_template_context(request: Request) -> dict:
     glass_intensity = themes_api.normalize_glass_intensity(getattr(request.state, "glass_intensity", "medium"))
     
     # 构建上下文，优先使用结构化的设置数据，回退到平铺字段（向后兼容）
+    current_year = datetime.now().year
+    raw_copyright_info = settings.get("site", {}).get("copyright_info") or getattr(request.state, "copyright_info", DEFAULT_BASE_SETTINGS["copyright_info"])
+    rendered_copyright_info = _render_copyright_info(raw_copyright_info, current_year)
+
     context = {
         "request": request,  # 添加 request 对象到上下文
         "settings": settings,  # 新增：结构化的设置对象
@@ -154,12 +177,12 @@ def build_base_template_context(request: Request) -> dict:
         "block_ai_crawlers": settings.get("seo", {}).get("block_ai_crawlers") if settings.get("seo", {}).get("block_ai_crawlers") is not None else getattr(request.state, "block_ai_crawlers", DEFAULT_BASE_SETTINGS["block_ai_crawlers"]),
         
         # 站点展示相关（logo / favicon）
-        "site_logo_light": settings.get("site", {}).get("logo_light") or getattr(request.state, "site_logo_light", DEFAULT_BASE_SETTINGS["site_logo_light"]),
-        "site_logo_dark": settings.get("site", {}).get("logo_dark") or getattr(request.state, "site_logo_dark", DEFAULT_BASE_SETTINGS["site_logo_dark"]),
-        "favicon": settings.get("site", {}).get("favicon") or getattr(request.state, "favicon", DEFAULT_BASE_SETTINGS["favicon"]),
-        "site_cover_url": settings.get("site", {}).get("cover_url") or getattr(request.state, "site_cover_url", DEFAULT_BASE_SETTINGS["site_cover_url"]),
-        "admin_login_background_image_url": settings.get("site", {}).get("admin_login_background_image_url") or getattr(request.state, "admin_login_background_image_url", DEFAULT_BASE_SETTINGS["admin_login_background_image_url"]),
-        "admin_login_background_video_url": settings.get("site", {}).get("admin_login_background_video_url") or getattr(request.state, "admin_login_background_video_url", DEFAULT_BASE_SETTINGS["admin_login_background_video_url"]),
+        "site_logo_light": normalize_local_asset_url(settings.get("site", {}).get("logo_light") or getattr(request.state, "site_logo_light", DEFAULT_BASE_SETTINGS["site_logo_light"])),
+        "site_logo_dark": normalize_local_asset_url(settings.get("site", {}).get("logo_dark") or getattr(request.state, "site_logo_dark", DEFAULT_BASE_SETTINGS["site_logo_dark"])),
+        "favicon": normalize_local_asset_url(settings.get("site", {}).get("favicon") or getattr(request.state, "favicon", DEFAULT_BASE_SETTINGS["favicon"])),
+        "site_cover_url": normalize_local_asset_url(settings.get("site", {}).get("cover_url") or getattr(request.state, "site_cover_url", DEFAULT_BASE_SETTINGS["site_cover_url"])),
+        "admin_login_background_image_url": normalize_local_asset_url(settings.get("site", {}).get("admin_login_background_image_url") or getattr(request.state, "admin_login_background_image_url", DEFAULT_BASE_SETTINGS["admin_login_background_image_url"])),
+        "admin_login_background_video_url": normalize_local_asset_url(settings.get("site", {}).get("admin_login_background_video_url") or getattr(request.state, "admin_login_background_video_url", DEFAULT_BASE_SETTINGS["admin_login_background_video_url"])),
         "public_contact_email": settings.get("site", {}).get("public_contact_email") or getattr(request.state, "public_contact_email", DEFAULT_BASE_SETTINGS["public_contact_email"]),
         
         # 社交与页脚相关
@@ -168,10 +191,15 @@ def build_base_template_context(request: Request) -> dict:
         "icp_beian": settings.get("site", {}).get("icp_beian") or getattr(request.state, "icp_beian", DEFAULT_BASE_SETTINGS["icp_beian"]),
         "gongan_beian": settings.get("site", {}).get("gongan_beian") or getattr(request.state, "gongan_beian", DEFAULT_BASE_SETTINGS["gongan_beian"]),
         "rss_enabled": settings.get("rss", {}).get("enabled") if settings.get("rss", {}).get("enabled") is not None else getattr(request.state, "rss_enabled", DEFAULT_BASE_SETTINGS["rss_enabled"]),
-        "copyright_info": settings.get("site", {}).get("copyright_info") or getattr(request.state, "copyright_info", DEFAULT_BASE_SETTINGS["copyright_info"]),
+        "copyright_info": raw_copyright_info,
+        "copyright_info_rendered": rendered_copyright_info,
+        "current_year": current_year,
         # 主页个性化设置（为模板提供平铺字段，兼容旧模板访问方式）
         "homepage_mode": settings.get("homepage", {}).get("mode") or getattr(request.state, "homepage_mode", DEFAULT_HOMEPAGE_SETTINGS["homepage_mode"]),
-        "homepage_background_image_url": settings.get("homepage", {}).get("background_image_url") or getattr(request.state, "homepage_background_image_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_image_url"]),
+        "homepage_background_image_url": normalize_local_asset_url_lines(
+            settings.get("homepage", {}).get("background_image_url")
+            or getattr(request.state, "homepage_background_image_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_image_url"])
+        ),
         "homepage_background_video_url": settings.get("homepage", {}).get("background_video_url") or getattr(request.state, "homepage_background_video_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_video_url"]),
         "homepage_background_music_url": settings.get("homepage", {}).get("background_music_url") or getattr(request.state, "homepage_background_music_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_music_url"]),
         "homepage_music_autoplay": settings.get("homepage", {}).get("music_autoplay") if settings.get("homepage", {}).get("music_autoplay") is not None else getattr(request.state, "homepage_music_autoplay", DEFAULT_HOMEPAGE_SETTINGS["homepage_music_autoplay"]),
