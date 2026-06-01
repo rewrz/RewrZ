@@ -284,7 +284,7 @@
                                 rows="4"
                                 maxlength="2000"
                                 class="micro-composer-textarea w-full resize-none rounded-2xl border border-sky-200 bg-sky-50/40 px-4 py-3 text-[15px] leading-7 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 dark:border-sky-900/60 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-sky-900/50"
-                                placeholder="今天想掉落哪一段心情、灵感或碎片？支持 #话题#、多媒体和 Ctrl+Enter 快捷发布"
+                                placeholder="今天想掉落哪一段心情、灵感或碎片？支持 #标签 空格、@对象 空格、多媒体和 Ctrl+Enter 快捷发布"
                             ></textarea>
                             <div class="micro-composer-corner-note">
                                 <span>☆ 适合发碎碎念、练习日志、临时脑洞和小广播</span>
@@ -312,23 +312,32 @@
 
                         <div id="micro-quick-preview-panel" class="hidden rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-900/60">
                             <p class="mb-2 text-xs font-semibold tracking-wide text-slate-500 dark:text-slate-400">预览</p>
-                            <div id="micro-quick-preview" class="break-words text-sm leading-7 text-slate-700 dark:text-slate-200"></div>
+                            <div id="micro-quick-preview" class="prose prose-sm max-w-none break-words text-sm leading-7 text-slate-700 dark:prose-invert dark:text-slate-200"></div>
                         </div>
 
-                        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-700/70">
+                        <div class="space-y-3 border-t border-slate-100 pt-3 dark:border-slate-700/70">
                             <div class="flex flex-wrap items-center gap-2">
                                 <button id="micro-quick-upload-trigger" type="button" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
-                                    <span class="micro-tool-emoji" aria-hidden="true">🖼️</span>多媒体
+                                    <i class="fas fa-image micro-tool-emoji" aria-hidden="true"></i>多媒体
+                                </button>
+                                <button type="button" data-wrap-markdown="bold" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                    <i class="fas fa-bold micro-tool-emoji" aria-hidden="true"></i>加粗
+                                </button>
+                                <button type="button" data-wrap-markdown="quote" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                    <i class="fas fa-quote-right micro-tool-emoji" aria-hidden="true"></i>引用
+                                </button>
+                                <button type="button" data-wrap-markdown="link" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                    <i class="fas fa-link micro-tool-emoji" aria-hidden="true"></i>链接
                                 </button>
                                 <button type="button" data-insert-topic="话题" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
-                                    <span class="micro-tool-emoji" aria-hidden="true">#</span>话题
+                                    <i class="fas fa-hashtag micro-tool-emoji" aria-hidden="true"></i>话题
                                 </button>
                                 <button type="button" data-insert-text="@" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
-                                    <span class="micro-tool-emoji" aria-hidden="true">✦</span>提及
+                                    <i class="fas fa-at micro-tool-emoji" aria-hidden="true"></i>提及
                                 </button>
                                 <div class="relative">
                                     <button id="micro-quick-emoji-toggle" type="button" class="micro-tool-btn micro-tool-btn-accent inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
-                                        <span class="micro-tool-emoji" aria-hidden="true">٩(ˊᗜˋ*)و</span>表情
+                                        <i class="fas fa-face-smile micro-tool-emoji" aria-hidden="true"></i>表情
                                     </button>
                                     <div id="micro-quick-emoji-panel" class="fixed z-[140] hidden w-80 max-w-[92vw] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
                                         <div class="mb-2 flex flex-wrap items-center gap-1.5">
@@ -343,32 +352,34 @@
                                     </div>
                                 </div>
                                 <button id="micro-quick-preview-toggle" type="button" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
-                                    <span class="micro-tool-emoji" aria-hidden="true">👁</span>预览
+                                    <i class="fas fa-eye micro-tool-emoji" aria-hidden="true"></i>预览
                                 </button>
                                 <button id="micro-quick-clear-draft" type="button" class="micro-tool-btn micro-tool-btn-muted inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-rose-900/20 dark:hover:text-rose-300">
-                                    <span class="micro-tool-emoji" aria-hidden="true">✧</span>清草稿
+                                    <i class="fas fa-eraser micro-tool-emoji" aria-hidden="true"></i>清草稿
                                 </button>
                             </div>
-                            <div class="flex items-center gap-3">
-                                <div class="w-28">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                                <div class="min-h-[1.75rem] flex-1">
+                                    <p id="micro-quick-message" class="text-xs text-slate-500 dark:text-slate-400"></p>
+                                    <span id="micro-quick-draft-state" class="text-[11px] text-slate-400 dark:text-slate-500"></span>
+                                </div>
+                                <div class="ml-auto flex items-end justify-end gap-3 self-end">
+                                    <div class="w-28">
                                     <div class="h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                                         <span id="micro-quick-progress" class="block h-full w-0 rounded-full bg-sky-500 transition-all"></span>
                                     </div>
                                     <div id="micro-quick-counter" class="mt-1 text-right text-[11px] text-slate-400 dark:text-slate-500">0 / 2000</div>
+                                    </div>
+                                    <button
+                                        id="micro-quick-submit"
+                                        type="submit"
+                                        class="micro-launch-btn inline-flex items-center rounded-full bg-sky-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                        disabled
+                                    >
+                                        <i class="fas fa-rocket micro-tool-emoji" aria-hidden="true"></i>发射动态
+                                    </button>
                                 </div>
-                                <button
-                                    id="micro-quick-submit"
-                                    type="submit"
-                                    class="micro-launch-btn inline-flex items-center rounded-full bg-sky-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                    disabled
-                                >
-                                    <span class="micro-tool-emoji" aria-hidden="true">🚀</span>发射动态
-                                </button>
                             </div>
-                        </div>
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <p id="micro-quick-message" class="text-xs text-slate-500 dark:text-slate-400"></p>
-                            <span id="micro-quick-draft-state" class="text-[11px] text-slate-400 dark:text-slate-500"></span>
                         </div>
                     </form>
                 </div>
@@ -461,7 +472,8 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         const maxMediaCount = 9;
         const draftKey = "rewrz_micro_quick_draft_v1";
         const recentEmojiKey = "rewrz_micro_recent_emojis_v1";
-        const topicPattern = /#([0-9A-Za-z_\u4e00-\u9fff-]{1,24})#/g;
+        const topicPattern = /(?:^|\s)#([0-9A-Za-z_\u4e00-\u9fff-]{1,24})(?=\s|$)/g;
+        const mentionPattern = /(?:^|\s)@([0-9A-Za-z_\u4e00-\u9fff-]{1,32})(?=\s|$)/g;
         const emojiCatalog = {
             emotion: ["😀", "😄", "😁", "😂", "🤣", "😊", "😉", "😍", "😘", "😋", "😎", "🤩", "🥳", "🤔", "😴", "😇", "😅", "😭", "😤", "😡", "😱", "🤯", "😌", "😏", "😬", "🙃", "🥲", "😳", "🤗", "🤓"],
             gesture: ["🙌", "👏", "👍", "👎", "👌", "🙏", "💪", "🤝", "✌️", "👋", "🤞", "🤟", "🤘", "🫶", "🫡", "👀", "💤", "💯", "✅", "❌"],
@@ -640,12 +652,34 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         return tags;
     };
 
+    const extractMentions = (content) => {
+        const mentions = [];
+        const source = String(content || "");
+        mentionPattern.lastIndex = 0;
+        let matched = mentionPattern.exec(source);
+        while (matched) {
+            const name = String(matched[1] || "").trim();
+            if (!name || mentions.includes(name)) {
+                matched = mentionPattern.exec(source);
+                continue;
+            }
+            mentions.push(name);
+            if (mentions.length >= 8) {
+                break;
+            }
+            matched = mentionPattern.exec(source);
+        }
+        mentionPattern.lastIndex = 0;
+        return mentions;
+    };
+
     const renderDetectedTopics = (content) => {
         if (!detectedTopics) {
             return;
         }
         const tags = extractTopics(content);
-        if (!tags.length) {
+        const mentions = extractMentions(content);
+        if (!tags.length && !mentions.length) {
             detectedTopics.classList.add("hidden");
             detectedTopics.innerHTML = "";
             return;
@@ -653,9 +687,12 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
 
         detectedTopics.classList.remove("hidden");
         const chips = tags.map((tag) => (
-            `<span class="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">#${escapeHtml(tag)}#</span>`
+            `<span class="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">#${escapeHtml(tag)}</span>`
         )).join("");
-        detectedTopics.innerHTML = `<span class="text-slate-500 dark:text-slate-400">识别话题：</span>${chips}`;
+        const mentionChips = mentions.map((name) => (
+            `<span class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200">@${escapeHtml(name)}</span>`
+        )).join("");
+        detectedTopics.innerHTML = `<span class="text-slate-500 dark:text-slate-400">识别：</span>${chips}${mentionChips}`;
     };
 
     const renderMediaList = () => {
@@ -692,7 +729,28 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         }).join("");
     };
 
-    const renderPreview = (content) => {
+    const previewFromServer = async (content) => {
+        const csrfInput = form.querySelector("input[name='csrf_token']");
+        const csrfToken = csrfInput ? csrfInput.value : "";
+        if (!csrfToken) {
+            throw new Error("缺少安全令牌");
+        }
+        const payload = new FormData();
+        payload.set("csrf_token", csrfToken);
+        payload.set("content", content);
+        const response = await fetch("/api/v1/posts/quick/preview", {
+            method: "POST",
+            body: payload,
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.success) {
+            throw new Error(data.detail || data.error || "预览渲染失败");
+        }
+        return String(data.html || "");
+    };
+
+    let previewRenderTicket = 0;
+    const renderPreview = async (content) => {
         if (!previewPanel || !previewBody) {
             return;
         }
@@ -707,16 +765,22 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             previewPanel.classList.remove("hidden");
             return;
         }
-
-        topicPattern.lastIndex = 0;
-        const html = escapeHtml(trimmed)
-            .replace(topicPattern, "<span class='font-semibold text-sky-600 dark:text-sky-300'>#$1#</span>")
-            .replace(/\n/g, "<br>");
-        topicPattern.lastIndex = 0;
-        const mediaHint = attachedMedia.length
-            ? `<div class="mt-2 text-xs text-slate-500 dark:text-slate-400">已附加 ${attachedMedia.length} 个媒体文件</div>`
-            : "";
-        previewBody.innerHTML = html + mediaHint;
+        const ticket = ++previewRenderTicket;
+        try {
+            const html = await previewFromServer(trimmed);
+            if (ticket !== previewRenderTicket) {
+                return;
+            }
+            const mediaHint = attachedMedia.length
+                ? `<div class="mt-2 text-xs text-slate-500 dark:text-slate-400">已附加 ${attachedMedia.length} 个媒体文件</div>`
+                : "";
+            previewBody.innerHTML = html + mediaHint;
+        } catch (error) {
+            if (ticket !== previewRenderTicket) {
+                return;
+            }
+            previewBody.innerHTML = `<span class='text-rose-500 dark:text-rose-300'>${escapeHtml(getErrorMessage(error, "预览渲染失败"))}</span>`;
+        }
         previewPanel.classList.remove("hidden");
     };
 
@@ -739,12 +803,13 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         }, 250);
     };
 
-    const insertTextAtCursor = (textToInsert) => {
+    const insertTextAtCursor = (textToInsert, cursorOffset = null) => {
         const start = textarea.selectionStart || 0;
         const end = textarea.selectionEnd || 0;
         const currentValue = textarea.value || "";
         textarea.value = `${currentValue.slice(0, start)}${textToInsert}${currentValue.slice(end)}`;
-        const cursor = start + textToInsert.length;
+        const safeOffset = typeof cursorOffset === "number" ? cursorOffset : textToInsert.length;
+        const cursor = start + Math.max(0, Math.min(safeOffset, textToInsert.length));
         textarea.focus();
         textarea.setSelectionRange(cursor, cursor);
         textarea.dispatchEvent(new Event("input"));
@@ -930,9 +995,70 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             if (!rawTopic) {
                 return;
             }
-            const topicText = rawTopic === "话题" ? "#话题# " : `#${rawTopic}# `;
+            if (rawTopic === "话题") {
+                insertTextAtCursor("#", 1);
+                closeEmojiPanel();
+                return;
+            }
+            const topicText = `#${rawTopic} `;
             insertTextAtCursor(topicText);
             closeEmojiPanel();
+        });
+    });
+
+    const wrapSelection = (prefix, suffix = "", fallbackText = "") => {
+        const start = textarea.selectionStart || 0;
+        const end = textarea.selectionEnd || 0;
+        const rawValue = textarea.value || "";
+        const selected = rawValue.slice(start, end);
+        const inner = selected || fallbackText;
+        const nextValue = `${rawValue.slice(0, start)}${prefix}${inner}${suffix}${rawValue.slice(end)}`;
+        textarea.value = nextValue;
+        const cursorStart = start + prefix.length;
+        const cursorEnd = cursorStart + inner.length;
+        textarea.focus();
+        textarea.setSelectionRange(cursorStart, cursorEnd);
+        textarea.dispatchEvent(new Event("input"));
+    };
+
+    form.querySelectorAll("[data-wrap-markdown]").forEach((button) => {
+        button.addEventListener("click", async () => {
+            const action = String(button.getAttribute("data-wrap-markdown") || "").trim();
+            if (action === "bold") {
+                wrapSelection("**", "**", "加粗文本");
+                return;
+            }
+            if (action === "quote") {
+                const start = textarea.selectionStart || 0;
+                const end = textarea.selectionEnd || 0;
+                const rawValue = textarea.value || "";
+                const selected = rawValue.slice(start, end).trim() || "引用内容";
+                const prefix = start > 0 && !/\n$/.test(rawValue.slice(0, start)) ? "\n\n" : "";
+                const quoteBlock = `${prefix}> ${selected}\n`;
+                textarea.value = `${rawValue.slice(0, start)}${quoteBlock}${rawValue.slice(end)}`;
+                const cursor = start + quoteBlock.length;
+                textarea.focus();
+                textarea.setSelectionRange(cursor, cursor);
+                textarea.dispatchEvent(new Event("input"));
+                return;
+            }
+            if (action === "link") {
+                const start = textarea.selectionStart || 0;
+                const end = textarea.selectionEnd || 0;
+                const rawValue = textarea.value || "";
+                const selectedText = rawValue.slice(start, end).trim();
+                const safeText = selectedText || "链接文字";
+                const markdownLink = `[${safeText}](https://)`;
+                textarea.value = `${rawValue.slice(0, start)}${markdownLink}${rawValue.slice(end)}`;
+                const urlStart = start + safeText.length + 3;
+                const urlEnd = urlStart + "https://".length;
+                textarea.focus();
+                textarea.setSelectionRange(urlStart, urlEnd);
+                textarea.dispatchEvent(new Event("input"));
+                setMessage("已插入 Markdown 链接，请直接修改地址", "info");
+                closeEmojiPanel();
+                return;
+            }
         });
     });
 

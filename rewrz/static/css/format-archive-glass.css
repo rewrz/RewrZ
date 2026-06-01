@@ -1136,3 +1136,41 @@
         max-width: none;
     }
 }
+.micro-topic-link,
+.micro-mention-link {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    padding: 0.04rem 0.5rem;
+    font-weight: 700;
+    line-height: 1.5;
+    text-decoration: none;
+    transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.micro-topic-link {
+    color: color-mix(in srgb, var(--color-primary) 82%, var(--color-text) 18%);
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.micro-topic-link:hover {
+    color: color-mix(in srgb, var(--color-primary) 92%, var(--color-text) 8%);
+    background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.micro-mention-link {
+    color: color-mix(in srgb, var(--color-text) 74%, var(--color-primary) 26%);
+    background: color-mix(in srgb, var(--color-background-alt) 72%, var(--color-primary) 10%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+}
+
+.micro-mention-link:hover {
+    color: color-mix(in srgb, var(--color-text) 68%, var(--color-primary) 32%);
+    background: color-mix(in srgb, var(--color-background-alt) 62%, var(--color-primary) 16%);
+}
+
+.micro-content .micro-topic-link,
+.micro-content .micro-mention-link {
+    text-decoration: none;
+}

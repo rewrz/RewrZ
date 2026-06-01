@@ -205,6 +205,22 @@ def register_admin_routes():
         article_api_cache_cleanup_minutes_default=_ARTICLE_API_CACHE_CLEANUP_MINUTES_DEFAULT,
     )
 
+    @app.get("/authors/{username}")
+    async def read_author_profile_entry(username: str, db: Session = Depends(get_db)):
+        """
+        站内作者入口（最小实现）。
+        仅校验用户存在后跳转微博聚合页，作为 @提及 的稳定站内链接。
+        """
+        normalized_username = str(username or "").strip()
+        if not normalized_username:
+            raise HTTPException(status_code=404, detail="Author not found")
+        db_user = crud_user.get_user_by_username(db, normalized_username)
+        if db_user is None:
+            db_user = crud_user.get_user_by_username(db, normalized_username.lower())
+        if db_user is None:
+            raise HTTPException(status_code=404, detail="Author not found")
+        return RedirectResponse(url="/formats/micro", status_code=302)
+
     @app.get("/{format_slug}/{post_slug}", response_class=HTMLResponse)
     async def read_post(request: Request, format_slug: str, post_slug: str, db: Session = Depends(get_db)):
         """

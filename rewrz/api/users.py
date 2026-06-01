@@ -10,6 +10,7 @@
 """
 
 from typing import Optional, Dict, Any
+import json
 
 from fastapi import Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -46,6 +47,7 @@ PROFILE_SETTINGS_DEFAULTS = {
     "creator_profile_poem_bio": "",
     "creator_profile_location": "",
     "creator_profile_motto": "",
+    "micro_mention_links_json": "{}",
 }
 ALLOWED_GRAVATAR_MODES = {"auto", "enabled", "disabled"}
 ALLOWED_ADMIN_ROLES = {"admin", "super_admin"}
@@ -91,6 +93,42 @@ def _normalize_website_url(raw_value: Optional[str]) -> str:
     if value.startswith(("http://", "https://")):
         return value
     return f"https://{value}"
+
+
+def _normalize_micro_mention_links_json(raw_value: Optional[str]) -> str:
+    raw_text = str(raw_value or "").strip()
+    if not raw_text:
+        return "{}"
+
+    try:
+        parsed = json.loads(raw_text)
+    except json.JSONDecodeError:
+        return "{}"
+
+    if isinstance(parsed, list):
+        converted: Dict[str, str] = {}
+        for item in parsed:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name", "") or item.get("key", "")).strip().lstrip("@")
+            link = _normalize_website_url(str(item.get("url", "") or item.get("link", "")).strip())
+            if not name or not link:
+                continue
+            converted[name] = link
+        parsed = converted
+
+    if not isinstance(parsed, dict):
+        return "{}"
+
+    normalized: Dict[str, str] = {}
+    for raw_name, raw_link in parsed.items():
+        name = str(raw_name or "").strip().lstrip("@")
+        link = _normalize_website_url(str(raw_link or "").strip())
+        if not name or not link:
+            continue
+        normalized[name] = link
+
+    return json.dumps(normalized, ensure_ascii=False)
 
 
 def _resolve_profile_avatar_data(db: Session, user_obj) -> Dict[str, Any]:
@@ -243,6 +281,7 @@ async def update_admin_user_profile(
     creator_profile_poem_bio: Optional[str] = Form(None),
     creator_profile_location: Optional[str] = Form(None),
     creator_profile_motto: Optional[str] = Form(None),
+    micro_mention_links_json: Optional[str] = Form(None),
     csrf_token: str = Form(...),
 ) -> HTMLResponse:
     ensure_admin_user(current_user)
@@ -295,6 +334,7 @@ async def update_admin_user_profile(
         "creator_profile_poem_bio": creator_profile_poem_bio,
         "creator_profile_location": creator_profile_location,
         "creator_profile_motto": creator_profile_motto,
+        "micro_mention_links_json": _normalize_micro_mention_links_json(micro_mention_links_json),
     }
     for setting_key, raw_value in profile_updates.items():
         _upsert_setting_value(

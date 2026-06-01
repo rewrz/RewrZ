@@ -1096,9 +1096,9 @@
 
 /* Micro (snappy, social-feed style readability) */
 .micro-detail-card .micro-content {
-    font-size: clamp(1rem, 0.98rem + 0.2vw, 1.1rem);
-    line-height: 1.9;
-    letter-spacing: 0.005em;
+    font-size: clamp(0.98rem, 0.96rem + 0.12vw, 1.04rem);
+    line-height: 1.8;
+    letter-spacing: 0;
 }
 
 .micro-detail-card .micro-content h1,
@@ -1107,10 +1107,16 @@
 .micro-detail-card .micro-content h4,
 .micro-detail-card .micro-content h5,
 .micro-detail-card .micro-content h6 {
-    margin-top: 1.3em;
-    margin-bottom: 0.55em;
+    margin-top: 1em;
+    margin-bottom: 0.35em;
+    font-size: 1.08em;
+    line-height: 1.55;
     font-weight: 700;
-    letter-spacing: 0.01em;
+    letter-spacing: 0;
+}
+
+.micro-detail-card .micro-content h1 {
+    font-size: 1.14em;
 }
 
 .micro-detail-card .micro-content h2::before,
@@ -1118,27 +1124,51 @@
 .micro-detail-card .micro-content h4::before,
 .micro-detail-card .micro-content h5::before,
 .micro-detail-card .micro-content h6::before {
-    position: static;
-    display: inline-block;
-    margin-right: 0.42em;
-    font-family: "Consolas", "SFMono-Regular", monospace;
-    font-size: 0.78em;
-    color: color-mix(in srgb, #fb7185 66%, var(--color-text-light));
-    transform: none;
-    width: auto;
-    height: auto;
-    background: none;
+    content: none;
 }
 
-.micro-detail-card .micro-content h2::before { content: "##"; }
-.micro-detail-card .micro-content h3::before { content: "###"; }
-.micro-detail-card .micro-content h4::before { content: "####"; }
-.micro-detail-card .micro-content h5::before { content: "#####"; }
-.micro-detail-card .micro-content h6::before { content: "######"; }
-
 .micro-detail-card .micro-content p {
-    margin-bottom: 1.05rem;
+    margin-bottom: 0.8rem;
     text-wrap: pretty;
+}
+
+.micro-topic-link,
+.micro-mention-link {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    padding: 0.04rem 0.5rem;
+    font-weight: 700;
+    line-height: 1.5;
+    text-decoration: none;
+    transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.micro-topic-link {
+    color: color-mix(in srgb, var(--color-primary) 82%, var(--color-text) 18%);
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.micro-topic-link:hover {
+    color: color-mix(in srgb, var(--color-primary) 92%, var(--color-text) 8%);
+    background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.micro-mention-link {
+    color: color-mix(in srgb, var(--color-text) 74%, var(--color-primary) 26%);
+    background: color-mix(in srgb, var(--color-background-alt) 72%, var(--color-primary) 10%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+}
+
+.micro-mention-link:hover {
+    color: color-mix(in srgb, var(--color-text) 68%, var(--color-primary) 32%);
+    background: color-mix(in srgb, var(--color-background-alt) 62%, var(--color-primary) 16%);
+}
+
+.micro-detail-card .micro-content .micro-topic-link,
+.micro-detail-card .micro-content .micro-mention-link {
+    text-decoration: none;
 }
 
 .micro-detail-card .micro-content p:first-of-type::first-letter {
@@ -1150,6 +1180,30 @@
     font-weight: inherit;
     background: none;
     -webkit-text-fill-color: currentColor;
+}
+
+.micro-detail-card .micro-content ul,
+.micro-detail-card .micro-content ol {
+    margin-top: 0.7rem;
+    margin-bottom: 0.9rem;
+    padding-left: 1.2rem;
+}
+
+.micro-detail-card .micro-content li {
+    margin: 0.18rem 0;
+}
+
+.micro-detail-card .micro-content blockquote {
+    margin: 0.85rem 0;
+    padding: 0.2rem 0 0.2rem 0.9rem;
+    border-left: 3px solid color-mix(in srgb, var(--color-primary) 42%, var(--color-border) 58%);
+    color: var(--color-text);
+    font-style: normal;
+    background: transparent;
+}
+
+.micro-detail-card .micro-content blockquote p {
+    margin-bottom: 0.35rem;
 }
 
 /* Poem (centered, elegant, high-contrast heading rhythm) */
