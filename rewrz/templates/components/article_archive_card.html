@@ -1,10 +1,29 @@
-{% set cover_url = post.archive_cover_url if post.archive_cover_url is defined and post.archive_cover_url else '' %}
+{% set template_db = db if db is defined and db else request.state.db %}
+{% set rendered_html = post | post_content_html(template_db) %}
+{% set content_images = (rendered_html | extract_image_urls(post.featured_image_url)) if rendered_html else [] %}
+{% set featured_cover_url = (post.featured_image_url or '') | trim %}
+{% if featured_cover_url == 'None' %}
+    {% set featured_cover_url = '' %}
+{% endif %}
+{% set first_content_image = content_images[0] if content_images else '' %}
+{% set archive_cover_fallback = '' %}
+{% if post_archive_cover_url is defined and post_archive_cover_url %}
+    {% set archive_cover_fallback = post_archive_cover_url %}
+{% elif post.archive_cover_url is defined and post.archive_cover_url %}
+    {% set archive_cover_fallback = post.archive_cover_url %}
+{% else %}
+{% set cover_url_lookup = article_cover_url_map if article_cover_url_map is defined else (archive_cover_url_map if archive_cover_url_map is defined else {}) %}
+{% if cover_url_lookup and post.id in cover_url_lookup %}
+    {% set archive_cover_fallback = cover_url_lookup[post.id] %}
+{% endif %}
+{% endif %}
+{% set cover_url = featured_cover_url or first_content_image or archive_cover_fallback %}
 {% set summary_text = post | post_summary_text(200) %}
 
 <article class="archive-card-equal group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
-    <a href="{{ post | post_url }}" class="block overflow-hidden">
+    <a href="{{ post | post_url }}" class="archive-card-cover-motion block overflow-hidden" data-profile-motion>
         {% if cover_url %}
-        <img src="{{ cover_url }}" alt="{{ post.title or '文章封面' }}" class="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
+        <img src="{{ cover_url }}" alt="{{ post.title or '文章封面' }}" class="archive-card-cover-image h-52 w-full object-cover" loading="lazy">
         {% else %}
         <div class="h-52 w-full bg-gradient-to-br from-sky-100 via-indigo-100 to-pink-100 dark:from-slate-700 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center text-slate-500 dark:text-slate-300">
             <i class="fas fa-image text-3xl"></i>
@@ -60,3 +79,21 @@
         </div>
     </div>
 </article>
+
+<style>
+.archive-card-cover-motion {
+    --motion-shift-x: 0px;
+    --motion-shift-y: 0px;
+    --motion-scale: 1.02;
+}
+
+.archive-card-cover-image {
+    transform: translate3d(var(--motion-shift-x, 0px), var(--motion-shift-y, 0px), 0) scale(var(--motion-scale, 1.02));
+    transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+}
+
+.archive-card-cover-motion:hover {
+    --motion-scale: 1.05;
+}
+</style>

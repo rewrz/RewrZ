@@ -26,13 +26,13 @@
 <section class="py-8 format-archive-glass">
     <div class="container mx-auto max-w-6xl px-4">
         {% if is_article %}
-        <header class="format-hero-card format-hero-card-article mb-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800" style="--format-hero-cover: url('{{ profile_cover }}');">
+        <header class="format-hero-card format-hero-card-article profile-motion-shell mb-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800" style="--format-hero-cover: url('{{ profile_cover }}');" data-profile-motion>
             <div class="format-hero-media format-hero-media-article">
                 <img src="{{ profile_cover }}" alt="文章聚合封面" class="format-hero-image format-hero-image-article">
                 <div class="format-hero-overlay format-hero-overlay-article"></div>
                 <div class="format-hero-content format-hero-ribbon-article absolute inset-x-0 flex items-end justify-between gap-4 px-5 py-5 md:px-6 md:py-6">
                     <div class="min-w-0 flex flex-1 items-center gap-3 text-white">
-                        <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="h-14 w-14 shrink-0 rounded-full border-2 border-white/70 object-cover">
+                        <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="hero-avatar-spin h-14 w-14 shrink-0 rounded-full border-2 border-white/70 object-cover">
                         <div class="min-w-0">
                             <p class="format-hero-kicker-article text-xs tracking-[0.2em]">文章聚合</p>
                             <h1 class="format-hero-title-article truncate text-2xl font-bold md:text-3xl">{{ profile_name }}</h1>
@@ -117,14 +117,14 @@
             {% endif %}
         </header>
         {% elif is_micro %}
-        <header class="format-hero-card mb-8 overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-indigo-50 shadow-sm dark:border-sky-700/50 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30">
+        <header class="format-hero-card profile-motion-shell mb-8 overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-indigo-50 shadow-sm dark:border-sky-700/50 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30" data-profile-motion>
             <div class="relative p-5 md:p-7">
                 <img src="{{ profile_cover }}" alt="微博聚合封面" class="format-hero-image format-hero-image-micro absolute inset-0 h-full w-full object-cover opacity-40">
                 <div class="format-hero-overlay format-hero-overlay-micro"></div>
                 <div class="format-hero-content relative">
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div class="flex min-w-0 items-center gap-3">
-                            <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="h-16 w-16 rounded-full border-2 border-white object-cover shadow-lg dark:border-slate-700">
+                            <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="hero-avatar-spin h-16 w-16 rounded-full border-2 border-white object-cover shadow-lg dark:border-slate-700">
                             <div class="min-w-0">
                                 <h1 class="truncate text-2xl font-bold text-slate-900 dark:text-white">{{ profile_name }}</h1>
                                 <p class="format-hero-kicker-micro truncate text-sm">
@@ -184,12 +184,12 @@
             </div>
         </header>
         {% else %}
-        <header class="format-hero-card mb-8 overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-orange-50 to-stone-50 shadow-sm dark:border-amber-700/50 dark:from-stone-900 dark:via-stone-900 dark:to-amber-950/20">
+        <header class="format-hero-card format-hero-card-poem profile-motion-shell mb-8 overflow-hidden rounded-3xl border shadow-sm" data-profile-motion>
             <div class="relative p-6 md:p-8">
                 <img src="{{ profile_cover }}" alt="诗词聚合封面" class="format-hero-image format-hero-image-poem absolute inset-0 h-full w-full object-cover opacity-40">
                 <div class="format-hero-overlay format-hero-overlay-poem"></div>
                 <div class="format-hero-content format-hero-content-poem relative">
-                    <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="mx-auto h-16 w-16 rounded-full border-2 border-white object-cover shadow-md dark:border-stone-700">
+                    <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="hero-avatar-spin mx-auto h-16 w-16 rounded-full border-2 border-white object-cover shadow-md dark:border-stone-700">
                     <p class="format-hero-kicker-poem mt-3 text-xs tracking-[0.28em]">POEM ARCHIVE</p>
                     <h1 class="format-hero-title-poem mt-2 font-serif text-3xl font-semibold md:text-4xl">{{ profile_name }}</h1>
                     {% if profile_headline %}
@@ -283,8 +283,8 @@
                                 name="content"
                                 rows="4"
                                 maxlength="2000"
-                                class="micro-composer-textarea w-full resize-none rounded-2xl border border-sky-200 bg-sky-50/40 px-4 py-3 text-[15px] leading-7 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 dark:border-sky-900/60 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-sky-900/50"
-                                placeholder="今天想掉落哪一段心情、灵感或碎片？支持 #标签 空格、@对象 空格、多媒体和 Ctrl+Enter 快捷发布"
+                                class="micro-composer-textarea w-full resize-none rounded-2xl border px-4 py-3 text-[15px] leading-7 outline-none transition"
+                                placeholder="今天想掉落哪一段心情、灵感或碎片？支持 #标签、@对象、多媒体和 Ctrl+Enter 快捷发布"
                             ></textarea>
                             <div class="micro-composer-corner-note">
                                 <span>☆ 适合发碎碎念、练习日志、临时脑洞和小广播</span>
@@ -294,25 +294,25 @@
                         <div id="micro-quick-topic-hints" class="flex flex-wrap items-center gap-2">
                             {% if format_hot_tags and format_hot_tags | length > 0 %}
                                 {% for tag_item in format_hot_tags[:5] %}
-                                <button type="button" data-insert-topic="{{ tag_item.name }}" class="inline-flex items-center rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-medium text-sky-700 transition hover:border-sky-300 hover:bg-sky-50 dark:border-sky-700/70 dark:bg-slate-800 dark:text-sky-200 dark:hover:bg-slate-700">
+                                <button type="button" data-insert-topic="{{ tag_item.name }}" class="micro-topic-hint inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition">
                                     #{{ tag_item.name }}
                                 </button>
                                 {% endfor %}
                             {% else %}
-                                <button type="button" data-insert-topic="今日碎片" class="inline-flex items-center rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-medium text-sky-700 transition hover:border-sky-300 hover:bg-sky-50 dark:border-sky-700/70 dark:bg-slate-800 dark:text-sky-200 dark:hover:bg-slate-700">#今日碎片</button>
-                                <button type="button" data-insert-topic="开发记录" class="inline-flex items-center rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-medium text-sky-700 transition hover:border-sky-300 hover:bg-sky-50 dark:border-sky-700/70 dark:bg-slate-800 dark:text-sky-200 dark:hover:bg-slate-700">#开发记录</button>
-                                <button type="button" data-insert-topic="灵感速记" class="inline-flex items-center rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-medium text-sky-700 transition hover:border-sky-300 hover:bg-sky-50 dark:border-sky-700/70 dark:bg-slate-800 dark:text-sky-200 dark:hover:bg-slate-700">#灵感速记</button>
+                                <button type="button" data-insert-topic="今日碎片" class="micro-topic-hint inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition">#今日碎片</button>
+                                <button type="button" data-insert-topic="开发记录" class="micro-topic-hint inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition">#开发记录</button>
+                                <button type="button" data-insert-topic="灵感速记" class="micro-topic-hint inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition">#灵感速记</button>
                             {% endif %}
                         </div>
 
                         <div id="micro-quick-media-list" class="hidden grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4"></div>
-                        <p id="micro-quick-upload-status" class="hidden text-xs text-slate-500 dark:text-slate-400"></p>
+                        <p id="micro-quick-upload-status" class="hidden micro-status-text micro-status-muted"></p>
 
-                        <div id="micro-quick-detected-topics" class="hidden flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800/70"></div>
+                        <div id="micro-quick-detected-topics" class="micro-composer-panel hidden flex flex-wrap items-center gap-1.5 rounded-xl border px-3 py-2 text-xs"></div>
 
-                        <div id="micro-quick-preview-panel" class="hidden rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-900/60">
-                            <p class="mb-2 text-xs font-semibold tracking-wide text-slate-500 dark:text-slate-400">预览</p>
-                            <div id="micro-quick-preview" class="prose prose-sm max-w-none break-words text-sm leading-7 text-slate-700 dark:prose-invert dark:text-slate-200"></div>
+                        <div id="micro-quick-preview-panel" class="micro-composer-panel hidden rounded-2xl border p-3">
+                            <p class="micro-panel-label mb-2 text-xs font-semibold tracking-wide">预览</p>
+                            <div id="micro-quick-preview" class="micro-preview-content prose prose-sm max-w-none break-words text-sm leading-7"></div>
                         </div>
 
                         <div class="space-y-3 border-t border-slate-100 pt-3 dark:border-slate-700/70">
@@ -339,13 +339,13 @@
                                     <button id="micro-quick-emoji-toggle" type="button" class="micro-tool-btn micro-tool-btn-accent inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
                                         <i class="fas fa-face-smile micro-tool-emoji" aria-hidden="true"></i>表情
                                     </button>
-                                    <div id="micro-quick-emoji-panel" class="fixed z-[140] hidden w-80 max-w-[92vw] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                                    <div id="micro-quick-emoji-panel" class="micro-emoji-panel fixed z-[140] hidden w-80 max-w-[92vw] rounded-2xl border p-2 shadow-2xl">
                                         <div class="mb-2 flex flex-wrap items-center gap-1.5">
-                                            <button type="button" data-emoji-tab="recent" class="micro-emoji-tab rounded-full bg-sky-100 px-2 py-1 text-[11px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">常用</button>
-                                            <button type="button" data-emoji-tab="emotion" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">情绪</button>
-                                            <button type="button" data-emoji-tab="gesture" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">手势</button>
-                                            <button type="button" data-emoji-tab="symbol" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">符号</button>
-                                            <button type="button" data-emoji-tab="celebration" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">庆祝</button>
+                                            <button type="button" data-emoji-tab="recent" class="micro-emoji-tab is-active rounded-full px-2 py-1 text-[11px] font-medium">常用</button>
+                                            <button type="button" data-emoji-tab="emotion" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] font-medium">情绪</button>
+                                            <button type="button" data-emoji-tab="gesture" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] font-medium">手势</button>
+                                            <button type="button" data-emoji-tab="symbol" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] font-medium">符号</button>
+                                            <button type="button" data-emoji-tab="celebration" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] font-medium">庆祝</button>
                                         </div>
                                         <div id="micro-quick-emoji-grid" class="grid grid-cols-10 gap-1">
                                         </div>
@@ -360,20 +360,20 @@
                             </div>
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                                 <div class="min-h-[1.75rem] flex-1">
-                                    <p id="micro-quick-message" class="text-xs text-slate-500 dark:text-slate-400"></p>
-                                    <span id="micro-quick-draft-state" class="text-[11px] text-slate-400 dark:text-slate-500"></span>
+                                    <p id="micro-quick-message" class="micro-status-text micro-status-muted"></p>
+                                    <span id="micro-quick-draft-state" class="micro-status-label micro-status-muted"></span>
                                 </div>
                                 <div class="ml-auto flex items-end justify-end gap-3 self-end">
                                     <div class="w-28">
                                     <div class="h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-                                        <span id="micro-quick-progress" class="block h-full w-0 rounded-full bg-sky-500 transition-all"></span>
+                                        <span id="micro-quick-progress" class="micro-progress-bar block h-full w-0 rounded-full transition-all"></span>
                                     </div>
-                                    <div id="micro-quick-counter" class="mt-1 text-right text-[11px] text-slate-400 dark:text-slate-500">0 / 2000</div>
+                                    <div id="micro-quick-counter" class="micro-status-label micro-status-muted mt-1 text-right">0 / 2000</div>
                                     </div>
                                     <button
                                         id="micro-quick-submit"
                                         type="submit"
-                                        class="micro-launch-btn inline-flex items-center rounded-full bg-sky-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                        class="micro-launch-btn inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
                                         disabled
                                     >
                                         <i class="fas fa-rocket micro-tool-emoji" aria-hidden="true"></i>发射动态
@@ -400,6 +400,8 @@
                 {% elif is_article %}
                 <div class="archive-grid-equal grid grid-cols-1 gap-6 md:grid-cols-2">
                     {% for post in posts %}
+                    {% set article_cover_url_map = archive_cover_url_map if archive_cover_url_map is defined else {} %}
+                    {% set post_archive_cover_url = article_cover_url_map.get(post.id, '') if article_cover_url_map else '' %}
                     {% include "components/article_archive_card.html" %}
                     {% endfor %}
                 </div>
@@ -472,8 +474,8 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         const maxMediaCount = 9;
         const draftKey = "rewrz_micro_quick_draft_v1";
         const recentEmojiKey = "rewrz_micro_recent_emojis_v1";
-        const topicPattern = /(?:^|\s)#([0-9A-Za-z_\u4e00-\u9fff-]{1,24})(?=\s|$)/g;
-        const mentionPattern = /(?:^|\s)@([0-9A-Za-z_\u4e00-\u9fff-]{1,32})(?=\s|$)/g;
+        const microTagMaxLength = 64;
+        const microMentionMaxLength = 32;
         const emojiCatalog = {
             emotion: ["😀", "😄", "😁", "😂", "🤣", "😊", "😉", "😍", "😘", "😋", "😎", "🤩", "🥳", "🤔", "😴", "😇", "😅", "😭", "😤", "😡", "😱", "🤯", "😌", "😏", "😬", "🙃", "🥲", "😳", "🤗", "🤓"],
             gesture: ["🙌", "👏", "👍", "👎", "👌", "🙏", "💪", "🤝", "✌️", "👋", "🤞", "🤟", "🤘", "🫶", "🫡", "👀", "💤", "💯", "✅", "❌"],
@@ -512,27 +514,27 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         }
         draftState.textContent = text || "";
         if (level === "warn") {
-            draftState.className = "text-[11px] text-amber-500 dark:text-amber-300";
+            draftState.className = "micro-status-label micro-status-warn";
             return;
         }
         if (level === "ok") {
-            draftState.className = "text-[11px] text-emerald-500 dark:text-emerald-300";
+            draftState.className = "micro-status-label micro-status-ok";
             return;
         }
-        draftState.className = "text-[11px] text-slate-400 dark:text-slate-500";
+        draftState.className = "micro-status-label micro-status-muted";
     };
 
     const setMessage = (text, type = "info") => {
         message.textContent = text || "";
         if (type === "error") {
-            message.className = "text-xs text-rose-600 dark:text-rose-300";
+            message.className = "micro-status-text micro-status-error";
             return;
         }
         if (type === "success") {
-            message.className = "text-xs text-emerald-600 dark:text-emerald-300";
+            message.className = "micro-status-text micro-status-ok";
             return;
         }
-        message.className = "text-xs text-slate-500 dark:text-slate-400";
+        message.className = "micro-status-text micro-status-muted";
     };
 
     const setUploadStatus = (text, type = "info") => {
@@ -541,21 +543,87 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         }
         uploadStatus.textContent = text || "";
         if (!text) {
-            uploadStatus.className = "hidden text-xs text-slate-500 dark:text-slate-400";
+            uploadStatus.className = "hidden micro-status-text micro-status-muted";
             return;
         }
         if (type === "error") {
-            uploadStatus.className = "text-xs text-rose-600 dark:text-rose-300";
+            uploadStatus.className = "micro-status-text micro-status-error";
             return;
         }
         if (type === "success") {
-            uploadStatus.className = "text-xs text-emerald-600 dark:text-emerald-300";
+            uploadStatus.className = "micro-status-text micro-status-ok";
             return;
         }
-        uploadStatus.className = "text-xs text-slate-500 dark:text-slate-400";
+        uploadStatus.className = "micro-status-text micro-status-muted";
     };
 
     const contentLength = (content) => Array.from(content || "").length;
+
+    const isMicroTokenChar = (char) => /[0-9A-Za-z_\u4e00-\u9fff-]/.test(char || "");
+
+    const isMicroEmailLocalChar = (char) => /[0-9A-Za-z._%+-]/.test(char || "");
+
+    const looksLikeEmailContext = (source, markerIndex, tokenEnd) => {
+        if (markerIndex <= 0) {
+            return false;
+        }
+        if (!isMicroEmailLocalChar(source.charAt(markerIndex - 1))) {
+            return false;
+        }
+        if (source.charAt(tokenEnd) !== ".") {
+            return false;
+        }
+
+        let cursor = tokenEnd + 1;
+        let domainLength = 0;
+        while (cursor < source.length && /[0-9A-Za-z-]/.test(source.charAt(cursor))) {
+            cursor += 1;
+            domainLength += 1;
+        }
+        return domainLength > 0;
+    };
+
+    const collectMicroTokens = (content, marker, options = {}) => {
+        const source = String(content || "");
+        const allowClosingMarker = Boolean(options.allowClosingMarker);
+        const emailGuard = Boolean(options.emailGuard);
+        const maxLength = Number(options.maxLength || 0);
+        const tokens = [];
+        let index = 0;
+
+        while (index < source.length) {
+            if (source.charAt(index) !== marker) {
+                index += 1;
+                continue;
+            }
+            if (index > 0 && source.charAt(index - 1) === marker) {
+                index += 1;
+                continue;
+            }
+
+            let cursor = index + 1;
+            let tokenText = "";
+            while (cursor < source.length && isMicroTokenChar(source.charAt(cursor))) {
+                tokenText += source.charAt(cursor);
+                cursor += 1;
+            }
+
+            if (!tokenText) {
+                index += 1;
+                continue;
+            }
+
+            const spanEnd = allowClosingMarker && source.charAt(cursor) === marker ? cursor + 1 : cursor;
+            if (tokenText.length <= maxLength) {
+                if (!(emailGuard && looksLikeEmailContext(source, index, cursor))) {
+                    tokens.push(tokenText);
+                }
+            }
+            index = Math.max(spanEnd, index + 1);
+        }
+
+        return tokens;
+    };
 
         const mediaTypeName = (fileType) => {
             if (fileType === "video") {
@@ -613,10 +681,10 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             emojiTabs.forEach((tabButton) => {
                 const tabName = tabButton.getAttribute("data-emoji-tab") || "";
                 if (tabName === activeEmojiTab) {
-                    tabButton.className = "micro-emoji-tab rounded-full bg-sky-100 px-2 py-1 text-[11px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200";
+                    tabButton.className = "micro-emoji-tab is-active rounded-full px-2 py-1 text-[11px] font-medium";
                     return;
                 }
-                tabButton.className = "micro-emoji-tab rounded-full px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800";
+                tabButton.className = "micro-emoji-tab rounded-full px-2 py-1 text-[11px] font-medium";
             });
         };
 
@@ -626,50 +694,46 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             }
             const emojiList = resolveEmojiListByTab(activeEmojiTab);
             emojiGrid.innerHTML = emojiList.map((emojiText) => (
-                `<button type="button" data-emoji-choice="${escapeHtml(emojiText)}" class="rounded-lg px-1 py-1 text-lg transition hover:bg-slate-100 dark:hover:bg-slate-800">${escapeHtml(emojiText)}</button>`
+                `<button type="button" data-emoji-choice="${escapeHtml(emojiText)}" class="micro-emoji-choice rounded-lg px-1 py-1 text-lg transition">${escapeHtml(emojiText)}</button>`
             )).join("");
             syncEmojiTabs();
         };
 
     const extractTopics = (content) => {
         const tags = [];
-        const source = String(content || "");
-        topicPattern.lastIndex = 0;
-        let matched = topicPattern.exec(source);
-        while (matched) {
-            const topic = String(matched[1] || "").trim();
+        const detectedTags = collectMicroTokens(content, "#", {
+            maxLength: microTagMaxLength,
+            allowClosingMarker: true,
+        });
+        for (const rawTopic of detectedTags) {
+            const topic = String(rawTopic || "").trim();
             if (!topic || tags.includes(topic)) {
-                matched = topicPattern.exec(source);
                 continue;
             }
-            tags.push(topic);
             if (tags.length >= 8) {
                 break;
             }
-            matched = topicPattern.exec(source);
+            tags.push(topic);
         }
-        topicPattern.lastIndex = 0;
         return tags;
     };
 
     const extractMentions = (content) => {
         const mentions = [];
-        const source = String(content || "");
-        mentionPattern.lastIndex = 0;
-        let matched = mentionPattern.exec(source);
-        while (matched) {
-            const name = String(matched[1] || "").trim();
+        const detectedMentions = collectMicroTokens(content, "@", {
+            maxLength: microMentionMaxLength,
+            emailGuard: true,
+        });
+        for (const rawName of detectedMentions) {
+            const name = String(rawName || "").trim();
             if (!name || mentions.includes(name)) {
-                matched = mentionPattern.exec(source);
                 continue;
             }
-            mentions.push(name);
             if (mentions.length >= 8) {
                 break;
             }
-            matched = mentionPattern.exec(source);
+            mentions.push(name);
         }
-        mentionPattern.lastIndex = 0;
         return mentions;
     };
 
@@ -687,12 +751,12 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
 
         detectedTopics.classList.remove("hidden");
         const chips = tags.map((tag) => (
-            `<span class="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">#${escapeHtml(tag)}</span>`
+            `<span class="micro-detected-chip micro-detected-chip-topic inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium">#${escapeHtml(tag)}</span>`
         )).join("");
         const mentionChips = mentions.map((name) => (
-            `<span class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200">@${escapeHtml(name)}</span>`
+            `<span class="micro-detected-chip micro-detected-chip-mention inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium">@${escapeHtml(name)}</span>`
         )).join("");
-        detectedTopics.innerHTML = `<span class="text-slate-500 dark:text-slate-400">识别：</span>${chips}${mentionChips}`;
+        detectedTopics.innerHTML = `<span class="micro-panel-label">识别：</span>${chips}${mentionChips}`;
     };
 
     const renderMediaList = () => {
@@ -712,15 +776,15 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             const coverUrl = escapeHtml(item.preview_url || item.url || "");
             const hasImageThumb = item.file_type === "image";
             return `
-                <div class="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+                <div class="micro-media-card group relative overflow-hidden rounded-2xl border">
                     ${hasImageThumb
                         ? `<img src="${coverUrl}" alt="${escapedName}" class="h-24 w-full object-cover">`
-                        : `<div class="flex h-24 w-full items-center justify-center bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                        : `<div class="micro-media-card-placeholder flex h-24 w-full items-center justify-center">
                                 <i class="fas ${item.file_type === "video" ? "fa-video" : "fa-music"} mr-1"></i>${typeName}
                            </div>`}
-                    <div class="flex items-center justify-between gap-2 border-t border-slate-100 px-2 py-1 text-[11px] dark:border-slate-700">
-                        <span class="truncate text-slate-500 dark:text-slate-400">${escapedName}</span>
-                        <button type="button" data-remove-media-index="${index}" class="inline-flex h-5 w-5 items-center justify-center rounded-full text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20 dark:hover:text-rose-300">
+                    <div class="micro-media-card-meta flex items-center justify-between gap-2 border-t px-2 py-1 text-[11px]">
+                        <span class="micro-media-card-name truncate">${escapedName}</span>
+                        <button type="button" data-remove-media-index="${index}" class="micro-media-remove inline-flex h-5 w-5 items-center justify-center rounded-full transition">
                             <i class="fas fa-times text-[10px]"></i>
                         </button>
                     </div>
@@ -761,7 +825,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
 
         const trimmed = (content || "").trim();
         if (!trimmed) {
-            previewBody.innerHTML = "<span class='text-slate-400 dark:text-slate-500'>输入内容后将显示预览</span>";
+            previewBody.innerHTML = "<span class='micro-status-label micro-status-muted'>输入内容后将显示预览</span>";
             previewPanel.classList.remove("hidden");
             return;
         }
@@ -772,14 +836,14 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
                 return;
             }
             const mediaHint = attachedMedia.length
-                ? `<div class="mt-2 text-xs text-slate-500 dark:text-slate-400">已附加 ${attachedMedia.length} 个媒体文件</div>`
+                ? `<div class="micro-status-text micro-status-muted mt-2">已附加 ${attachedMedia.length} 个媒体文件</div>`
                 : "";
             previewBody.innerHTML = html + mediaHint;
         } catch (error) {
             if (ticket !== previewRenderTicket) {
                 return;
             }
-            previewBody.innerHTML = `<span class='text-rose-500 dark:text-rose-300'>${escapeHtml(getErrorMessage(error, "预览渲染失败"))}</span>`;
+            previewBody.innerHTML = `<span class='micro-status-text micro-status-error'>${escapeHtml(getErrorMessage(error, "预览渲染失败"))}</span>`;
         }
         previewPanel.classList.remove("hidden");
     };
@@ -823,11 +887,11 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         const ratio = Math.min(currentLength / maxLength, 1);
         progressBar.style.width = `${Math.max(ratio * 100, currentLength > 0 ? 3 : 0)}%`;
         if (ratio < 0.8) {
-            progressBar.className = "block h-full rounded-full bg-sky-500 transition-all";
+            progressBar.className = "micro-progress-bar micro-progress-bar-ok block h-full rounded-full transition-all";
         } else if (ratio < 0.95) {
-            progressBar.className = "block h-full rounded-full bg-amber-500 transition-all";
+            progressBar.className = "micro-progress-bar micro-progress-bar-warn block h-full rounded-full transition-all";
         } else {
-            progressBar.className = "block h-full rounded-full bg-rose-500 transition-all";
+            progressBar.className = "micro-progress-bar micro-progress-bar-danger block h-full rounded-full transition-all";
         }
         renderDetectedTopics(content);
         renderPreview(content);
@@ -1079,8 +1143,8 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         previewToggle.addEventListener("click", () => {
             previewEnabled = !previewEnabled;
             previewToggle.className = previewEnabled
-                ? "inline-flex items-center rounded-full bg-sky-100 px-2.5 py-1.5 text-xs text-sky-700 transition dark:bg-sky-900/40 dark:text-sky-200"
-                : "inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100";
+                ? "micro-tool-btn micro-tool-btn-active inline-flex items-center rounded-full px-2.5 py-1.5 text-xs transition"
+                : "micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs transition";
             refreshState();
         });
     }

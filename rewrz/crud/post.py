@@ -162,6 +162,15 @@ def _attach_views_metrics(db: Session, posts: List[Post]) -> None:
         setattr(post, "views", views)
 
 
+def _delete_post_views_metrics_by_ids(db: Session, post_ids: List[int]) -> None:
+    normalized_ids = sorted({int(post_id) for post_id in post_ids if isinstance(post_id, int) and post_id > 0})
+    if not normalized_ids:
+        return
+
+    metric_keys = [f"post_views_count_{post_id}" for post_id in normalized_ids]
+    db.execute(delete(Setting).where(Setting.key.in_(metric_keys)))
+
+
 def _ensure_intent_format(db: Session, intent_slug: str) -> Optional[Format]:
     normalized_slug = normalize_intent_slug(intent_slug)
     if not normalized_slug:
@@ -420,6 +429,8 @@ def create_post(
 
     db_post = Post(**post_kwargs)
     db.add(db_post)
+    db.flush()
+    _delete_post_views_metrics_by_ids(db, [int(db_post.id)])
 
     # 如果指定了分类ID，则关联对应的分类
     if post.category_ids:
@@ -453,8 +464,6 @@ def create_post(
     if auto_commit:
         db.commit()
         db.refresh(db_post)
-    else:
-        db.flush()
     return db_post
 
 def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional[List[str]] = None, format_ids: Optional[List[int]] = None):
@@ -728,6 +737,7 @@ def delete_post(db: Session, post_id: int, *, auto_commit: bool = True):
     if db_post:
         # 先清理评论，避免遗留孤儿评论或外键约束问题。
         db.execute(delete(Comment).where(Comment.post_id == post_id))
+        _delete_post_views_metrics_by_ids(db, [post_id])
         db.delete(db_post)
         if auto_commit:
             db.commit()
@@ -751,6 +761,7 @@ def delete_posts_by_ids(db: Session, post_ids: List[int], author_id: Optional[in
     deletable_post_ids = [post.id for post in db_posts if getattr(post, "id", None) is not None]
     if deletable_post_ids:
         db.execute(delete(Comment).where(Comment.post_id.in_(deletable_post_ids)))
+        _delete_post_views_metrics_by_ids(db, deletable_post_ids)
 
     for db_post in db_posts:
         db.delete(db_post)

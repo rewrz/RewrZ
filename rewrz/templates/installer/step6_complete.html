@@ -185,13 +185,13 @@
                             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                                 <div class="flex items-center">
                                     <i class="fas fa-exclamation-triangle text-yellow-600 text-lg mr-3"></i>
-                                    <span class="font-semibold text-yellow-800">需要手动重启服务器</span>
+                                    <span class="font-semibold text-yellow-800">配置已自动生效</span>
                                 </div>
-                                <p class="text-yellow-700 text-sm mt-2">为了使配置生效，请手动重启服务器。在生产环境中，您可能需要：</p>
+                                <p class="text-yellow-700 text-sm mt-2">安装向导已自动重载应用配置，当前实例可直接继续使用。仅在你修改了进程管理、反向代理或外部环境变量后，才需要额外重启服务。</p>
                                 <ul class="text-yellow-700 text-sm mt-2 list-disc list-inside">
-                                    <li>使用 systemctl restart your-app-service</li>
-                                    <li>或者重启您的进程管理器（如 PM2、Supervisor 等）</li>
-                                    <li>在开发环境中，只需重新运行启动命令</li>
+                                    <li>完成安装后，直接进入后台登录页继续配置站点</li>
+                                    <li>上线到生产环境前，再按部署文档补齐 HTTPS、Cookie 与 SMTP 配置</li>
+                                    <li>如果你后续修改了 systemd、Nginx 或环境变量，再执行对应服务重启</li>
                                 </ul>
                             </div>
                             

@@ -425,17 +425,19 @@ def _generate_homepage_seo_data(request, db: Session) -> Dict:
     # 获取站点设置
     site_title_setting = crud_setting.get_setting(db, key="site_title")
     tagline_setting = crud_setting.get_setting(db, key="tagline")
+    site_description_setting = crud_setting.get_setting(db, key="site_description")
     site_url_setting = crud_setting.get_setting(db, key="site_url")
     site_logo_setting = crud_setting.get_setting(db, key="site_logo_light")
     
     site_title = site_title_setting.value.get("value") if site_title_setting and site_title_setting.value else DEFAULT_BASE_SETTINGS["site_title"]
     tagline = tagline_setting.value.get("value") if tagline_setting and tagline_setting.value else DEFAULT_BASE_SETTINGS["tagline"]
+    site_description = site_description_setting.value.get("value") if site_description_setting and site_description_setting.value else DEFAULT_BASE_SETTINGS["site_description"]
     base_url = site_url_setting.value.get("value") if site_url_setting else str(request.base_url).rstrip('/')
     site_logo = site_logo_setting.value.get("value") if site_logo_setting else None
     
     meta_data = {
         "title": f"{site_title} - {tagline}",
-        "description": tagline,
+        "description": site_description or tagline,
         "url": base_url,
         "image": site_logo,
         "type": "website"

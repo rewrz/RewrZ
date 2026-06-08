@@ -8,23 +8,267 @@
     {% include "components/seo_meta.html" %}
 {% endif %}
 <style>
-.homepage-hero {
-    position: relative;
-    min-height: calc(100vh - 5rem);
-    overflow: hidden;
+body.site-shell[data-homepage-mode="fullscreen_gallery"] main,
+body.site-shell[data-homepage-mode="fullscreen_video"] main {
+    padding-top: 0 !important;
 }
 
+body.site-shell[data-homepage-mode="fullscreen_gallery"],
+body.site-shell[data-homepage-mode="fullscreen_video"] {
+    --homepage-header-height: 5rem;
+    --homepage-hero-progress: 0;
+}
+
+body.site-shell[data-homepage-mode="fullscreen_gallery"]:not(.homepage-immersive-collapsed) > header,
+body.site-shell[data-homepage-mode="fullscreen_video"]:not(.homepage-immersive-collapsed) > header {
+    background: color-mix(in srgb, var(--color-nav-bg) 72%, transparent) !important;
+    border-color: color-mix(in srgb, var(--color-border) 36%, transparent) !important;
+    box-shadow: none;
+}
+
+.homepage-immersive-layout {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100svh;
+}
+
+.homepage-immersive-hero {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    min-height: 100vh;
+    min-height: 100svh;
+    overflow: hidden;
+    transform:
+        translate3d(0, calc(var(--homepage-hero-progress, 0) * -14vh), 0)
+        scale(calc(1 - var(--homepage-hero-progress, 0) * 0.06));
+    transform-origin: center top;
+    opacity: calc(1 - var(--homepage-hero-progress, 0) * 0.38);
+    transition: transform 540ms cubic-bezier(0.22, 1, 0.36, 1), opacity 540ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform, opacity;
+}
+
+.homepage-immersive-media,
+.homepage-immersive-media video,
 .hero-gallery-slide {
     position: absolute;
     inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.hero-gallery-slide {
     background-size: cover;
     background-position: center;
     opacity: 0;
-    transition: opacity 0.8s ease;
+    transform: scale(1.08);
+    transition: opacity 1.15s ease, transform 6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .hero-gallery-slide.is-active {
     opacity: 1;
+    transform: scale(1);
+}
+
+.homepage-immersive-media video {
+    object-fit: cover;
+}
+
+.homepage-immersive-backdrop,
+.homepage-immersive-glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.homepage-immersive-backdrop {
+    background:
+        linear-gradient(
+            180deg,
+            rgba(12, 18, 32, 0.34) 0%,
+            rgba(12, 18, 32, 0.22) 18%,
+            rgba(12, 18, 32, 0.38) 52%,
+            rgba(12, 18, 32, 0.78) 100%
+        ),
+        radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--color-primary) 28%, transparent) 0%, transparent 42%);
+}
+
+.homepage-immersive-glow {
+    background:
+        radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.18) 0%, transparent 26%),
+        radial-gradient(circle at 82% 26%, color-mix(in srgb, var(--color-primary) 16%, rgba(255, 255, 255, 0.12)) 0%, transparent 28%);
+    mix-blend-mode: screen;
+    opacity: 0.72;
+}
+
+.homepage-immersive-inner {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
+    min-height: 100svh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding:
+        calc(var(--homepage-header-height, 5rem) + clamp(1.25rem, 2vw, 2rem))
+        clamp(1.25rem, 4vw, 3rem)
+        clamp(5rem, 12vh, 8.5rem);
+}
+
+.homepage-immersive-copy {
+    width: min(100%, 60rem);
+    text-align: center;
+    color: #fffdf7;
+    text-shadow: 0 12px 40px rgba(0, 0, 0, 0.34);
+}
+
+.homepage-immersive-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    background: rgba(12, 18, 32, 0.22);
+    padding: 0.55rem 1rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    backdrop-filter: blur(14px) saturate(120%);
+}
+
+.homepage-immersive-title {
+    margin: 0;
+    font-size: clamp(3.4rem, 11vw, 7.6rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 0.94;
+}
+
+.homepage-immersive-tagline {
+    margin: 1.15rem auto 0;
+    max-width: 28rem;
+    font-size: clamp(1.15rem, 2.8vw, 2rem);
+    font-weight: 600;
+    color: rgba(255, 247, 235, 0.98);
+}
+
+.homepage-immersive-summary {
+    margin: 1.25rem auto 0;
+    max-width: 42rem;
+    font-size: clamp(0.98rem, 1.8vw, 1.16rem);
+    line-height: 1.9;
+    color: rgba(250, 240, 225, 0.84);
+}
+
+.homepage-immersive-dismiss {
+    position: absolute;
+    left: 50%;
+    bottom: clamp(1.25rem, 4vw, 2.75rem);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    border: 0;
+    background: none;
+    color: rgba(255, 249, 240, 0.96);
+    transform: translateX(-50%);
+    transition: transform 220ms ease, opacity 220ms ease;
+}
+
+.homepage-immersive-dismiss:hover {
+    transform: translateX(-50%) translateY(-3px);
+}
+
+.homepage-immersive-dismiss-ring {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.3rem;
+    height: 3.3rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(12, 18, 32, 0.22);
+    box-shadow: 0 20px 40px -28px rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(16px) saturate(118%);
+}
+
+.homepage-immersive-dismiss-ring i {
+    animation: homepage-immersive-bob 1.8s ease-in-out infinite;
+}
+
+.homepage-immersive-dismiss-text {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.homepage-immersive-content {
+    position: relative;
+    z-index: 2;
+    margin-top: 100vh;
+    margin-top: 100svh;
+    padding-top: calc(var(--homepage-header-height, 5rem) + 0.75rem);
+}
+
+.homepage-main-panel-immersive {
+    padding-top: 0 !important;
+}
+
+.homepage-immersive-content .container {
+    position: relative;
+}
+
+.homepage-immersive-content .hero-surface.hero-surface-cover-card {
+    box-shadow:
+        0 28px 60px -34px color-mix(in srgb, var(--color-primary) 26%, rgba(15, 23, 42, 0.28)),
+        var(--ui-shadow-card);
+}
+
+body.homepage-immersive-collapsed .homepage-immersive-dismiss {
+    opacity: 0;
+    pointer-events: none;
+}
+
+@keyframes homepage-immersive-bob {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(4px);
+    }
+}
+
+@media (max-width: 768px) {
+    body.site-shell[data-homepage-mode="fullscreen_gallery"],
+    body.site-shell[data-homepage-mode="fullscreen_video"] {
+        --homepage-header-height: 4.6rem;
+    }
+
+    .homepage-immersive-inner {
+        padding-inline: 1rem;
+        padding-bottom: 4.6rem;
+    }
+
+    .homepage-immersive-kicker {
+        font-size: 0.7rem;
+        letter-spacing: 0.18em;
+    }
+
+    .homepage-immersive-tagline {
+        max-width: 18rem;
+    }
+
+    .homepage-immersive-summary {
+        max-width: 19rem;
+        line-height: 1.8;
+    }
+
+    .homepage-immersive-dismiss-text {
+        letter-spacing: 0.1em;
+    }
 }
 </style>
 {% endblock %}
@@ -36,54 +280,66 @@
 {% set profile = site_profile if site_profile is defined and site_profile else {} %}
 {% set profile_name = profile.display_name if profile.display_name else site_title %}
 {% set profile_bio = profile.bio if profile.bio else (tagline or '记录生活、灵感与创作瞬间。') %}
+{% set profile_description = profile.description if profile.description is defined and profile.description else (site_description if site_description else '') %}
+{% set profile_announcement = profile.announcement if profile.announcement is defined and profile.announcement else (site_announcement if site_announcement else '') %}
+{% set immersive_badge_text = profile_announcement if profile_announcement else ((site_title or 'RewrZ') ~ ' Project') %}
+{% set immersive_summary = profile_description if profile_description else '' %}
 {% set profile_avatar = profile.avatar_url if profile.avatar_url else '/static/images/default-avatar.png' %}
 {% set profile_cover = profile.cover_url if profile.cover_url else '/static/images/covers/home-default.jpg' %}
 {% set profile_website = profile.website if profile.website else '' %}
 {% set profile_public_email = profile.public_email if profile.public_email else '' %}
+{% set immersive_homepage = current_homepage_mode in ['fullscreen_gallery', 'fullscreen_video'] %}
 
-<div class="main-content">
-{% if current_homepage_mode == 'fullscreen_gallery' %}
-<section class="homepage-hero">
-    <div class="absolute inset-0">
-        {% if gallery_images %}
-            {% for image_url in gallery_images %}
-            <div class="hero-gallery-slide {% if loop.first %}is-active{% endif %}" style="background-image: url('{{ image_url }}');"></div>
-            {% endfor %}
+<div class="main-content{% if immersive_homepage %} homepage-immersive-layout{% endif %}">
+{% if immersive_homepage %}
+<section class="homepage-immersive-hero" data-homepage-immersive-hero>
+    <div class="homepage-immersive-media">
+        {% if current_homepage_mode == 'fullscreen_gallery' %}
+            {% if gallery_images %}
+                {% for image_url in gallery_images %}
+                <div class="hero-gallery-slide {% if loop.first %}is-active{% endif %}" style="background-image: url('{{ image_url }}');"></div>
+                {% endfor %}
+            {% else %}
+                <div class="hero-gallery-slide is-active" style="background-image: url('/static/images/covers/home-default.jpg');"></div>
+            {% endif %}
         {% else %}
-            <div class="hero-gallery-slide is-active" style="background-image: url('/static/images/covers/home-default.jpg');"></div>
+            {% if homepage_background_video_url %}
+            <video autoplay muted loop playsinline>
+                <source src="{{ homepage_background_video_url }}" type="video/mp4">
+                您的浏览器不支持视频播放。
+            </video>
+            {% else %}
+            <div class="hero-gallery-slide is-active" style="background-image: url('/static/images/covers/home-video.jpg'); opacity: 1; transform: scale(1);"></div>
+            {% endif %}
         {% endif %}
     </div>
-    <div class="relative z-10 flex min-h-[calc(100vh-5rem)] items-center justify-center bg-black/45 px-4">
-        <div class="text-center text-white">
-            <h1 class="text-4xl font-bold md:text-6xl">{{ site_title }}</h1>
-            <p class="mt-3 text-base md:text-xl">{{ tagline or '记录生活、灵感与创作瞬间。' }}</p>
+    <div class="homepage-immersive-backdrop"></div>
+    <div class="homepage-immersive-glow"></div>
+    <div class="homepage-immersive-inner">
+        <div class="homepage-immersive-copy">
+            <div class="homepage-immersive-kicker">
+                <i class="fas fa-bullhorn"></i>
+                <span>{{ immersive_badge_text }}</span>
+            </div>
+            <h1 class="homepage-immersive-title">{{ site_title }}</h1>
+            <p class="homepage-immersive-tagline">{{ tagline or '记录生活、灵感与创作瞬间。' }}</p>
+            {% if immersive_summary %}
+            <p class="homepage-immersive-summary">{{ immersive_summary }}</p>
+            {% endif %}
         </div>
+        <button type="button" class="homepage-immersive-dismiss" data-homepage-immersive-dismiss aria-label="展开站点内容">
+            <span class="homepage-immersive-dismiss-ring">
+                <i class="fas fa-chevron-down"></i>
+            </span>
+            <span class="homepage-immersive-dismiss-text">向下滑动，展开站点</span>
+        </button>
     </div>
 </section>
-{% elif current_homepage_mode == 'fullscreen_video' %}
-<section class="homepage-hero">
-    <div class="absolute inset-0">
-        {% if homepage_background_video_url %}
-        <video autoplay muted loop playsinline class="h-full w-full object-cover">
-            <source src="{{ homepage_background_video_url }}" type="video/mp4">
-            您的浏览器不支持视频播放。
-        </video>
-        {% else %}
-        <div class="h-full w-full bg-gradient-to-br from-slate-700 to-slate-900"></div>
-        {% endif %}
-    </div>
-    <div class="relative z-10 flex min-h-[calc(100vh-5rem)] items-center justify-center bg-black/45 px-4">
-        <div class="text-center text-white">
-            <h1 class="text-4xl font-bold md:text-6xl">{{ site_title }}</h1>
-            <p class="mt-3 text-base md:text-xl">{{ tagline or '记录生活、灵感与创作瞬间。' }}</p>
-        </div>
-    </div>
-</section>
+<section class="homepage-immersive-content" id="homepage-main-content" data-homepage-immersive-content>
 {% endif %}
-
-<section class="px-3 pb-8 pt-6 md:px-6 md:pt-10">
+<section class="px-3 pb-8 pt-6 md:px-6 md:pt-10{% if immersive_homepage %} homepage-main-panel-immersive{% endif %}">
     <div class="container mx-auto max-w-6xl space-y-6">
-        <div class="hero-surface hero-surface-cover-card overflow-hidden p-0">
+        <div class="hero-surface hero-surface-cover-card profile-motion-shell overflow-hidden p-0" data-profile-motion>
             <div class="hero-cover-media hero-cover-media-card">
                 <img src="{{ profile_cover }}" alt="站点封面" class="hero-cover-image">
                 <div class="hero-cover-overlay"></div>
@@ -91,7 +347,7 @@
             <div class="hero-profile-layout relative z-10 px-5 py-6 md:px-7 md:py-7">
                 <div class="hero-profile-main space-y-3 hero-profile-copy-overlay">
                     <div class="flex items-center gap-4">
-                        <div class="hero-avatar-shell h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-4 border-white shadow-xl md:h-24 md:w-24">
+                        <div class="hero-avatar-shell hero-avatar-spin h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-4 border-white shadow-xl md:h-24 md:w-24">
                             <img src="{{ profile_avatar }}" alt="{{ profile_name }}" class="h-full w-full object-cover">
                         </div>
                         <div class="space-y-2">
@@ -190,22 +446,31 @@
         </div>
     </div>
 </section>
+{% if immersive_homepage %}
+</section>
+{% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
     const homepageMode = '{{ current_homepage_mode }}';
-    document.body.classList.remove('homepage-default', 'homepage-fullscreen-gallery', 'homepage-fullscreen-video');
-    if (homepageMode === 'fullscreen_gallery') {
-        document.body.classList.add('homepage-fullscreen-gallery');
-    } else if (homepageMode === 'fullscreen_video') {
-        document.body.classList.add('homepage-fullscreen-video');
-    } else {
-        document.body.classList.add('homepage-default');
-    }
+    const applyHomepageModeClass = () => {
+        document.body.classList.remove('homepage-default', 'homepage-fullscreen-gallery', 'homepage-fullscreen-video');
+        if (homepageMode === 'fullscreen_gallery') {
+            document.body.classList.add('homepage-fullscreen-gallery');
+        } else if (homepageMode === 'fullscreen_video') {
+            document.body.classList.add('homepage-fullscreen-video');
+        } else {
+            document.body.classList.add('homepage-default');
+        }
+    };
+
+    applyHomepageModeClass();
+    window.setTimeout(applyHomepageModeClass, 0);
+    window.setTimeout(applyHomepageModeClass, 180);
 
     const timelineItems = document.querySelectorAll('.timeline-reveal');
     const observer = new IntersectionObserver((entries) => {
@@ -236,6 +501,121 @@ document.addEventListener('DOMContentLoaded', function() {
             gallerySlides[current].classList.add('is-active');
         }, 5000);
     }
-});
+
+    const immersiveHero = document.querySelector('[data-homepage-immersive-hero]');
+    const immersiveContent = document.querySelector('[data-homepage-immersive-content]');
+    const immersiveDismiss = document.querySelector('[data-homepage-immersive-dismiss]');
+    if (immersiveHero && immersiveContent) {
+        const body = document.body;
+        const root = document.documentElement;
+        const header = document.querySelector('body.site-shell > header');
+        const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        let snapLockUntil = 0;
+        let touchStartY = null;
+        let heroSyncFrame = 0;
+
+        const updateHeaderHeight = () => {
+            const headerHeight = header ? header.offsetHeight : 80;
+            root.style.setProperty('--homepage-header-height', `${headerHeight}px`);
+        };
+
+        const getContentTop = () => {
+            const rect = immersiveContent.getBoundingClientRect();
+            return Math.max(0, Math.round(rect.top + window.scrollY));
+        };
+
+        const syncHeroState = () => {
+            const contentTop = Math.max(getContentTop(), 1);
+            const progress = Math.max(0, Math.min(window.scrollY / contentTop, 1));
+            body.classList.toggle('homepage-immersive-collapsed', progress > 0.72);
+            root.style.setProperty('--homepage-hero-progress', progress.toFixed(4));
+        };
+
+        const requestHeroStateSync = () => {
+            if (heroSyncFrame) {
+                return;
+            }
+            heroSyncFrame = window.requestAnimationFrame(() => {
+                heroSyncFrame = 0;
+                syncHeroState();
+            });
+        };
+
+        const scrollToHomepageState = (targetTop) => {
+            const nextTop = Math.max(0, Math.round(targetTop));
+            if (Math.abs(window.scrollY - nextTop) < 8) {
+                return;
+            }
+            snapLockUntil = performance.now() + (prefersReducedMotion ? 120 : 720);
+            window.scrollTo({
+                top: nextTop,
+                behavior: prefersReducedMotion ? 'auto' : 'smooth',
+            });
+            requestHeroStateSync();
+            window.setTimeout(requestHeroStateSync, prefersReducedMotion ? 40 : 180);
+            window.setTimeout(requestHeroStateSync, prefersReducedMotion ? 90 : 420);
+        };
+
+        const maybeSnap = (direction) => {
+            if (performance.now() < snapLockUntil) {
+                return false;
+            }
+            const contentTop = getContentTop();
+            const currentTop = window.scrollY;
+            if (direction > 0 && currentTop <= 18) {
+                scrollToHomepageState(contentTop);
+                return true;
+            }
+            if (direction < 0 && currentTop >= Math.max(24, contentTop - 56) && currentTop <= contentTop + 120) {
+                scrollToHomepageState(0);
+                return true;
+            }
+            return false;
+        };
+
+        updateHeaderHeight();
+        syncHeroState();
+
+        window.addEventListener('resize', () => {
+            updateHeaderHeight();
+            requestHeroStateSync();
+        });
+
+        window.addEventListener('scroll', requestHeroStateSync, { passive: true });
+
+        window.addEventListener('wheel', (event) => {
+            if (event.ctrlKey || Math.abs(event.deltaY) < 40) {
+                return;
+            }
+            maybeSnap(event.deltaY > 0 ? 1 : -1);
+        }, { passive: true });
+
+        window.addEventListener('touchstart', (event) => {
+            touchStartY = event.touches && event.touches[0] ? event.touches[0].clientY : null;
+        }, { passive: true });
+
+        window.addEventListener('touchend', (event) => {
+            if (touchStartY === null) {
+                return;
+            }
+            const endY = event.changedTouches && event.changedTouches[0] ? event.changedTouches[0].clientY : touchStartY;
+            const delta = touchStartY - endY;
+            touchStartY = null;
+            if (Math.abs(delta) < 48) {
+                return;
+            }
+            maybeSnap(delta > 0 ? 1 : -1);
+        }, { passive: true });
+
+        immersiveDismiss?.addEventListener('click', () => {
+            const contentTop = getContentTop();
+            if (window.scrollY < contentTop * 0.45) {
+                scrollToHomepageState(contentTop);
+            } else {
+                scrollToHomepageState(0);
+            }
+        });
+    }
+})();
 </script>
 {% endblock %}

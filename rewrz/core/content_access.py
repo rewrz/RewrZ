@@ -39,9 +39,12 @@ def extract_hide_block(content_markdown: Optional[str], index: int) -> Optional[
 def build_hidden_placeholder_html(post_id: int, block_index: int) -> str:
     placeholder_id = f"hidden-content-{post_id}-{block_index}"
     return (
-        f'<div id="{placeholder_id}" class="my-4 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 p-4">'
-        '<p class="mb-3 text-sm text-gray-700">此处内容仅对评论过本文的访客可见。</p>'
-        f'<button class="rounded-md bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700" '
+        f'<div id="{placeholder_id}" class="content-hide-placeholder my-4">'
+        '<p class="content-hide-placeholder__copy">'
+        '<i class="fas fa-comment-dots content-hide-placeholder__icon" aria-hidden="true"></i>'
+        '<span>此处内容仅对评论过本文的访客可见。</span>'
+        '</p>'
+        f'<button class="content-hide-placeholder__button" '
         f'hx-post="/api/v1/reveal/{post_id}?index={block_index}" '
         f'hx-target="#{placeholder_id}" hx-swap="outerHTML">'
         "我已评论，点击查看"

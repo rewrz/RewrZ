@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from rewrz import main as main_module
 from rewrz.api import media as media_runtime_api
+from rewrz.crud import post as crud_post
 from rewrz.core.api_keys import build_api_key_plaintext, hash_api_key_secret
 from rewrz.core.database import Base
 from rewrz.core.database import get_db
@@ -548,7 +549,9 @@ def test_external_api_invalid_params_use_validation_error_contract(monkeypatch, 
 def test_frontend_quick_post_public_path_still_works_with_login_and_csrf(monkeypatch, tmp_path):
     client, session_factory, engine = _build_client(monkeypatch, tmp_path)
     with session_factory() as db:
-        _seed_external_api_basics(db)
+        seeded_user = _seed_external_api_basics(db)
+        seeded_user.display_name = "终极改写"
+        db.commit()
 
     try:
         access_token = create_access_token({"sub": "1"})
@@ -560,7 +563,7 @@ def test_frontend_quick_post_public_path_still_works_with_login_and_csrf(monkeyp
         response = client.post(
             "/api/v1/posts/quick",
             data={
-                "content": "前台快捷动态 #测试#",
+                "content": "前台快捷动态里#测试#继续@admin",
                 "media_items": "[]",
                 "csrf_token": csrf_token,
             },
@@ -570,6 +573,131 @@ def test_frontend_quick_post_public_path_still_works_with_login_and_csrf(monkeyp
         assert payload["success"] is True
         assert payload["media_count"] == 0
         assert payload["post_url"].startswith("/micro/")
+
+        created_slug = payload["post_url"].rsplit("/", 1)[-1]
+        with session_factory() as db:
+            created_post = db.query(Post).filter(Post.slug == created_slug).first()
+            assert created_post is not None
+            assert "#测试" not in (created_post.content_markdown or "")
+            assert "@admin" in (created_post.content_markdown or "")
+            assert "前台快捷动态里继续@admin" in (created_post.content_markdown or "")
+            assert any(tag.slug == "ce-shi" for tag in created_post.tags)
+    finally:
+        main_module.app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_frontend_quick_post_preview_links_display_name_mentions(monkeypatch, tmp_path):
+    client, session_factory, engine = _build_client(monkeypatch, tmp_path)
+    with session_factory() as db:
+        seeded_user = _seed_external_api_basics(db)
+        seeded_user.display_name = "终极改写"
+        db.commit()
+
+    try:
+        access_token = create_access_token({"sub": "1"})
+        client.cookies.set("access_token", access_token)
+        page_response = client.get("/formats/micro")
+        assert page_response.status_code == 200
+        csrf_token = _extract_csrf_token(page_response.text)
+
+        response = client.post(
+            "/api/v1/posts/quick/preview",
+            data={
+                "content": "句中#测试#继续@终极改写",
+                "csrf_token": csrf_token,
+            },
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["success"] is True
+        assert "#测试" not in payload["html"]
+        assert '@终极改写</a>' in payload["html"]
+        assert 'href="/authors/admin"' in payload["html"]
+    finally:
+        main_module.app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_frontend_quick_post_preview_prefers_external_mention_mapping(monkeypatch, tmp_path):
+    client, session_factory, engine = _build_client(monkeypatch, tmp_path)
+    with session_factory() as db:
+        seeded_user = _seed_external_api_basics(db)
+        seeded_user.display_name = "终极改写"
+        setting = Setting(
+            key="micro_mention_links_json",
+            value={"value": '{"终极改写":"https://weibo.example.com/u/rewrz"}'},
+            description="外站映射",
+            category="content",
+            type="json",
+        )
+        db.add(setting)
+        db.commit()
+
+    try:
+        access_token = create_access_token({"sub": "1"})
+        client.cookies.set("access_token", access_token)
+        page_response = client.get("/formats/micro")
+        assert page_response.status_code == 200
+        csrf_token = _extract_csrf_token(page_response.text)
+
+        response = client.post(
+            "/api/v1/posts/quick/preview",
+            data={
+                "content": "测试 @终极改写",
+                "csrf_token": csrf_token,
+            },
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["success"] is True
+        assert 'href="https://weibo.example.com/u/rewrz"' in payload["html"]
+        assert 'href="/authors/admin"' not in payload["html"]
+    finally:
+        main_module.app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_delete_post_cleans_stale_views_metric(monkeypatch, tmp_path):
+    client, session_factory, engine = _build_client(monkeypatch, tmp_path)
+    del client
+    try:
+        with session_factory() as db:
+            user = _seed_external_api_basics(db)
+            micro_format = db.query(Format).filter(Format.slug == "micro").first()
+            post = Post(
+                title="待删除微博",
+                slug="to-delete-micro",
+                content_markdown="正文",
+                content_html="<p>正文</p>",
+                excerpt="",
+                post_type="post",
+                status="published",
+                visibility="public",
+                author_id=user.id,
+                published_at=datetime(2026, 6, 2, 20, 0, 0),
+                formats=[micro_format],
+            )
+            db.add(post)
+            db.commit()
+            db.refresh(post)
+            db.add(
+                Setting(
+                    key=f"post_views_count_{post.id}",
+                    value={"value": 164},
+                    description="test views",
+                    category="post_metrics",
+                    type="integer",
+                )
+            )
+            db.commit()
+
+            crud_post.delete_post(db, post.id)
+
+            deleted_post = db.query(Post).filter(Post.id == post.id).first()
+            deleted_metric = db.query(Setting).filter(Setting.key == f"post_views_count_{post.id}").first()
+            assert deleted_post is None
+            assert deleted_metric is None
     finally:
         main_module.app.dependency_overrides.clear()
         engine.dispose()

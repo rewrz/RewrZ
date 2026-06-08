@@ -95,6 +95,42 @@
         padding: 0.48rem 0.62rem;
         background: color-mix(in srgb, var(--color-background-alt) 78%, transparent);
     }
+    .editor-password-shell {
+        position: relative;
+    }
+    .editor-password-icon {
+        position: absolute;
+        left: 0.88rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: color-mix(in srgb, var(--color-primary) 54%, var(--color-text-light) 46%);
+        pointer-events: none;
+    }
+    .editor-password-input {
+        padding-left: 2.5rem;
+        padding-right: 3rem;
+    }
+    .editor-password-toggle {
+        position: absolute;
+        right: 0.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--color-card-bg) 94%, transparent);
+        color: color-mix(in srgb, var(--color-primary) 68%, var(--color-text) 32%);
+        transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+    .editor-password-toggle:hover {
+        background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card-bg) 88%);
+        border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border) 72%);
+        transform: translateY(-50%) scale(1.02);
+    }
     .feature-image-shell {
         min-height: 138px;
         border: 1px dashed color-mix(in srgb, var(--color-primary) 36%, var(--color-border) 64%);
@@ -132,6 +168,66 @@
         line-height: 1;
         font-size: 0.66rem;
         cursor: pointer;
+    }
+    .editor-section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.6rem;
+    }
+    .editor-inline-trigger {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--ui-border) 82%);
+        border-radius: 999px;
+        padding: 0.32rem 0.76rem;
+        font-size: 0.76rem;
+        font-weight: 600;
+        color: color-mix(in srgb, var(--color-primary) 68%, var(--color-text) 32%);
+        background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%);
+        transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+    .editor-inline-trigger:hover {
+        border-color: color-mix(in srgb, var(--color-primary) 34%, var(--ui-border) 66%);
+        background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%);
+        transform: translateY(-1px);
+    }
+    .editor-inline-create {
+        border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--ui-border) 84%);
+        border-radius: 0.9rem;
+        padding: 0.85rem;
+        background: color-mix(in srgb, var(--color-background-alt) 80%, transparent);
+        box-shadow: 0 10px 24px color-mix(in srgb, var(--color-primary) 7%, transparent);
+    }
+    .editor-inline-create[hidden] {
+        display: none !important;
+    }
+    .editor-inline-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin-top: 0.75rem;
+    }
+    #editor-layout-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+        gap: 1.5rem;
+    }
+    #editor-main-panel,
+    #editor-side-panel {
+        min-width: 0;
+    }
+    @media (min-width: 1120px) {
+        #editor-layout-grid {
+            grid-template-columns: minmax(0, 1.42fr) minmax(320px, 0.9fr);
+        }
+        #editor-side-panel > .admin-panel {
+            position: sticky;
+            top: 6rem;
+        }
     }
     .editor-actionbar {
         position: sticky;
@@ -207,9 +303,9 @@
                     </div>
                 </div>
             </section>
-            <div id="editor-layout-grid" class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div id="editor-layout-grid">
                 <!-- Main Editor -->
-                <div id="editor-main-panel" class="xl:col-span-8 space-y-6">
+                <div id="editor-main-panel" class="space-y-6">
                     <div class="admin-panel p-4 md:p-6">
                         <div class="mb-4">
                             <label for="title" class="block text-sm font-medium text-[var(--color-text)]">标题</label>
@@ -291,8 +387,8 @@
                 </div>
 
                 <!-- Sidebar -->
-                <div id="editor-side-panel" class="xl:col-span-4">
-                    <div class="admin-panel p-4 md:p-6 space-y-6 xl:sticky xl:top-24">
+                <div id="editor-side-panel">
+                    <div class="admin-panel space-y-6 p-4 md:p-6">
                         <div>
                             <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">URL 别名 (Slug)</h3>
                             <input type="text" id="slug-input" name="slug" value="{% if post %}{{ post.slug }}{% endif %}" class="editor-input" placeholder="例如 modern-writing-tips">
@@ -306,13 +402,34 @@
                                 <option value="password" {% if post and post.visibility == "password" %}selected{% endif %}>密码保护</option>
                             </select>
                             <div id="password-field" class="mt-3 {% if not post or post.visibility != 'password' %}hidden{% endif %}">
-                                <input
-                                    type="password"
-                                    name="password"
-                                    class="admin-form-field block w-full rounded-md px-3 py-2"
-                                    placeholder="{% if post and post.visibility == 'password' %}留空保持原密码{% else %}请输入访问密码{% endif %}"
-                                >
-                                <p class="mt-1 text-xs text-[var(--color-text-light)]">仅在选择"密码保护"时生效。</p>
+                                <div class="editor-password-shell">
+                                    <span class="editor-password-icon" aria-hidden="true">
+                                        <i class="fas fa-lock"></i>
+                                    </span>
+                                    <input
+                                        type="password"
+                                        id="post-password-input"
+                                        name="password"
+                                        class="admin-form-field editor-password-input block w-full rounded-md px-3 py-2"
+                                        placeholder="{% if post and post.visibility == 'password' %}请输入新密码，留空则保持原密码{% else %}请输入访问密码{% endif %}"
+                                    >
+                                    <button
+                                        type="button"
+                                        id="post-password-toggle"
+                                        class="editor-password-toggle"
+                                        aria-label="显示访问密码"
+                                        aria-pressed="false"
+                                    >
+                                        <i class="fas fa-eye" id="post-password-toggle-icon"></i>
+                                    </button>
+                                </div>
+                                <p class="mt-1 text-xs text-[var(--color-text-light)]">
+                                    {% if post and post.visibility == 'password' %}
+                                    当前文章已设置访问密码，但系统仅保存密码哈希，无法回显原密码；如需修改，请输入新密码。
+                                    {% else %}
+                                    仅在选择"密码保护"时生效。
+                                    {% endif %}
+                                </p>
                             </div>
                         </div>
                         <div>
@@ -350,8 +467,27 @@
                             <p class="mt-2 text-xs text-[var(--color-text-light)]">每篇内容仅选择一个主类型；图片/视频/音频通过内容附件体现。</p>
                         </div>
                         <div id="category-panel">
-                            <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">分类</h3>
-                            <div class="editor-scroll-list grid grid-cols-1 gap-2">
+                            <div class="editor-section-head">
+                                <h3 class="text-lg font-semibold text-[var(--color-text)]">分类</h3>
+                                <button type="button" id="toggle-category-quick-create" class="editor-inline-trigger">
+                                    <i class="fas fa-folder-plus"></i>
+                                    <span>新建分类</span>
+                                </button>
+                            </div>
+                            <div id="category-quick-create-panel" class="editor-inline-create mb-3" hidden>
+                                <label for="quick-category-name" class="block text-sm font-medium text-[var(--color-text)]">分类名称</label>
+                                <input type="text" id="quick-category-name" class="editor-input mt-2" placeholder="例如：随笔杂谈">
+                                <div class="editor-inline-actions">
+                                    <button type="button" id="quick-category-submit" class="admin-primary-btn inline-flex items-center rounded-md px-3 py-2 text-sm">
+                                        <i class="fas fa-plus mr-2"></i>创建并勾选
+                                    </button>
+                                    <button type="button" id="quick-category-cancel" class="admin-soft-btn inline-flex items-center rounded-md px-3 py-2 text-sm">
+                                        取消
+                                    </button>
+                                </div>
+                                <p class="mt-2 text-xs text-[var(--color-text-light)]">创建成功后会立即加入下方列表，并自动勾选到当前文章。</p>
+                            </div>
+                            <div id="category-list" class="editor-scroll-list grid grid-cols-1 gap-2">
                                 {% for category in categories %}
                                 <label class="editor-check-item">
                                     <input type="checkbox" name="category_ids" value="{{ category.id }}" {% if post and category in post.categories %}checked{% endif %} class="admin-form-check form-checkbox js-category-checkbox">
@@ -365,7 +501,7 @@
                             <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">标签</h3>
                             <input type="text" id="tag-input" placeholder="添加标签后按回车..." class="editor-input">
                             <div id="tag-container" class="mt-2 flex flex-wrap gap-2"></div>
-                            <p class="mt-1 text-xs text-[var(--color-text-light)]">支持回车、英文逗号、中文逗号快速添加。</p>
+                            <p class="mt-1 text-xs text-[var(--color-text-light)]">支持回车、英文逗号、中文逗号快速添加；保存时不存在的标签会自动创建。</p>
                             <input type="hidden" name="tags" id="tags-hidden-input" value="{% if post %}{{ post.tags|map(attribute='name')|join(',') }}{% endif %}">
                         </div>
                         <div>
@@ -457,13 +593,23 @@
         const slugInput = document.getElementById('slug-input');
         const slugPreview = document.getElementById('slug-preview');
         const categoryPanel = document.getElementById('category-panel');
+        const categoryList = document.getElementById('category-list');
         const tagInput = document.getElementById('tag-input');
         const tagContainer = document.getElementById('tag-container');
         const tagsHiddenInput = document.getElementById('tags-hidden-input');
+        const csrfToken = postForm.querySelector('input[name="csrf_token"]')?.value || '';
         const visibilitySelect = document.getElementById('visibility-select');
         const passwordField = document.getElementById('password-field');
+        const passwordInput = document.getElementById('post-password-input');
+        const passwordToggle = document.getElementById('post-password-toggle');
+        const passwordToggleIcon = document.getElementById('post-password-toggle-icon');
         const formatInputs = Array.from(document.querySelectorAll('input[name="format_id"]'));
-        const categoryInputs = Array.from(document.querySelectorAll('input[name="category_ids"]'));
+        const toggleCategoryQuickCreateButton = document.getElementById('toggle-category-quick-create');
+        const categoryQuickCreatePanel = document.getElementById('category-quick-create-panel');
+        const categoryQuickCreateInput = document.getElementById('quick-category-name');
+        const categoryQuickCreateSubmit = document.getElementById('quick-category-submit');
+        const categoryQuickCreateCancel = document.getElementById('quick-category-cancel');
+        let categoryInputs = Array.from(document.querySelectorAll('input[name="category_ids"]'));
         let isDirty = false;
         let isSubmitting = false;
         let isInitializing = true;
@@ -611,6 +757,59 @@
                 return;
             }
             hasUserInteracted = true;
+        }
+
+        function refreshCategoryInputs() {
+            categoryInputs = Array.from(document.querySelectorAll('input[name="category_ids"]'));
+        }
+
+        function setInlineCreateOpen(panel, input, shouldOpen) {
+            if (!panel) return;
+            panel.hidden = !shouldOpen;
+            if (shouldOpen && input) {
+                requestAnimationFrame(() => input.focus());
+            }
+        }
+
+        function setButtonBusy(button, busy, busyHtml) {
+            if (!button) return () => {};
+            const originalHtml = button.innerHTML;
+            button.disabled = busy;
+            button.classList.toggle('opacity-70', busy);
+            button.classList.toggle('cursor-not-allowed', busy);
+            if (busy && busyHtml) {
+                button.innerHTML = busyHtml;
+            }
+            return () => {
+                button.disabled = false;
+                button.classList.remove('opacity-70', 'cursor-not-allowed');
+                button.innerHTML = originalHtml;
+            };
+        }
+
+        async function parseResponsePayload(response) {
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                return null;
+            }
+            try {
+                return await response.json();
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function resolveRequestErrorMessage(payload, fallbackMessage) {
+            if (!payload) {
+                return fallbackMessage;
+            }
+            if (typeof payload.detail === 'string' && payload.detail.trim()) {
+                return payload.detail.trim();
+            }
+            if (typeof payload.message === 'string' && payload.message.trim()) {
+                return payload.message.trim();
+            }
+            return fallbackMessage;
         }
 
         function getSelectedIntentSlug() {
@@ -819,6 +1018,37 @@
             }
         }
 
+        function findCategoryCheckboxByName(name) {
+            const normalizedName = String(name || '').trim().toLowerCase();
+            if (!normalizedName || !categoryList) return null;
+            const labels = Array.from(categoryList.querySelectorAll('.editor-check-item'));
+            for (const label of labels) {
+                const text = label.querySelector('span')?.textContent?.trim().toLowerCase();
+                if (text === normalizedName) {
+                    return label.querySelector('input[name="category_ids"]');
+                }
+            }
+            return null;
+        }
+
+        function appendCategoryOption(category) {
+            if (!categoryList || !category || !category.id) return null;
+            const existing = categoryList.querySelector(`input[name="category_ids"][value="${String(category.id)}"]`);
+            if (existing) {
+                return existing;
+            }
+            const label = document.createElement('label');
+            label.className = 'editor-check-item';
+            label.innerHTML = `
+                <input type="checkbox" name="category_ids" value="${escapeHtml(String(category.id))}" class="admin-form-check form-checkbox js-category-checkbox">
+                <span class="text-sm text-[var(--color-text)]">${escapeHtml(category.name || '')}</span>
+            `;
+            categoryList.prepend(label);
+            refreshCategoryInputs();
+            syncCategoryPanelByIntent();
+            return label.querySelector('input[name="category_ids"]');
+        }
+
         if (tagInput) {
             tagInput.addEventListener('keydown', function(event) {
                 if (event.key === 'Enter' || event.key === ',' || event.key === '，') {
@@ -833,12 +1063,105 @@
         }
         renderTags(getTags());
 
+        if (toggleCategoryQuickCreateButton && categoryQuickCreatePanel && categoryQuickCreateInput) {
+            toggleCategoryQuickCreateButton.addEventListener('click', () => {
+                setInlineCreateOpen(categoryQuickCreatePanel, categoryQuickCreateInput, categoryQuickCreatePanel.hidden);
+            });
+        }
+        if (categoryQuickCreateCancel && categoryQuickCreatePanel && categoryQuickCreateInput) {
+            categoryQuickCreateCancel.addEventListener('click', () => {
+                categoryQuickCreateInput.value = '';
+                setInlineCreateOpen(categoryQuickCreatePanel, categoryQuickCreateInput, false);
+            });
+        }
+        if (categoryQuickCreateInput && categoryQuickCreateSubmit) {
+            categoryQuickCreateInput.addEventListener('keydown', async (event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                categoryQuickCreateSubmit.click();
+            });
+        }
+        if (categoryQuickCreateSubmit && categoryQuickCreateInput) {
+            categoryQuickCreateSubmit.addEventListener('click', async () => {
+                const categoryName = categoryQuickCreateInput.value.trim();
+                if (!categoryName) {
+                    window.adminNotify('请先输入分类名称。', 'warning', { duration: 2600 });
+                    categoryQuickCreateInput.focus();
+                    return;
+                }
+
+                const existingCheckbox = findCategoryCheckboxByName(categoryName);
+                if (existingCheckbox) {
+                    markUserInteracted();
+                    existingCheckbox.checked = true;
+                    markDirty();
+                    categoryQuickCreateInput.value = '';
+                    setInlineCreateOpen(categoryQuickCreatePanel, categoryQuickCreateInput, false);
+                    window.adminNotify('分类已存在，已直接勾选到当前文章。', 'info', { duration: 2600 });
+                    return;
+                }
+
+                const restoreButton = setButtonBusy(
+                    categoryQuickCreateSubmit,
+                    true,
+                    '<i class="fas fa-spinner fa-spin mr-2"></i>创建中...'
+                );
+
+                try {
+                    const formData = new FormData();
+                    formData.append('name', categoryName);
+                    const response = await fetch('/api/v1/categories/', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': csrfToken },
+                        body: formData,
+                        credentials: 'same-origin',
+                    });
+                    const payload = await parseResponsePayload(response);
+                    if (!response.ok) {
+                        throw new Error(resolveRequestErrorMessage(payload, '分类创建失败'));
+                    }
+                    const checkbox = appendCategoryOption(payload?.data);
+                    if (checkbox) {
+                        markUserInteracted();
+                        checkbox.checked = true;
+                        markDirty();
+                    }
+                    categoryQuickCreateInput.value = '';
+                    setInlineCreateOpen(categoryQuickCreatePanel, categoryQuickCreateInput, false);
+                    window.adminNotify('分类已创建并勾选。', 'success', { duration: 2400 });
+                } catch (error) {
+                    window.adminNotify(`分类创建失败：${error.message}`, 'error', { duration: 3600 });
+                } finally {
+                    restoreButton();
+                }
+            });
+        }
+
+        function setPasswordRevealState(revealed) {
+            if (!passwordInput || !passwordToggle || !passwordToggleIcon) return;
+            const isRevealed = Boolean(revealed);
+            passwordInput.type = isRevealed ? 'text' : 'password';
+            passwordToggle.setAttribute('aria-pressed', isRevealed ? 'true' : 'false');
+            passwordToggle.setAttribute('aria-label', isRevealed ? '隐藏访问密码' : '显示访问密码');
+            passwordToggleIcon.classList.toggle('fa-eye', !isRevealed);
+            passwordToggleIcon.classList.toggle('fa-eye-slash', isRevealed);
+        }
+
+        if (passwordToggle && passwordInput) {
+            passwordToggle.addEventListener('click', () => {
+                markUserInteracted();
+                setPasswordRevealState(passwordInput.type === 'password');
+            });
+            setPasswordRevealState(false);
+        }
+
         if (visibilitySelect && passwordField) {
             const togglePasswordField = () => {
                 if (visibilitySelect.value === 'password') {
                     passwordField.classList.remove('hidden');
                 } else {
                     passwordField.classList.add('hidden');
+                    setPasswordRevealState(false);
                 }
             };
             visibilitySelect.addEventListener('change', togglePasswordField);

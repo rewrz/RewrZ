@@ -53,16 +53,21 @@
     </div>
 
     <form method="get" action="{{ request.state.admin_path }}/pages" class="admin-filter-panel admin-filter-grid flex flex-wrap gap-3 items-end rounded-2xl p-4">
-        <div class="min-w-64 flex-1">
+        <div class="flex-[0_1_18rem] min-w-[14rem] max-w-full lg:basis-[20rem]">
             <label for="search-input" class="mb-1 block text-xs text-[var(--color-text-light)]">搜索</label>
-            <input
-                type="text"
-                id="search-input"
-                name="search"
-                value="{{ search_query }}"
-                placeholder="搜索页面标题、摘要、正文或别名..."
-                class="admin-form-field w-full rounded-md px-3 py-2"
-            >
+            <div class="admin-search-field">
+                <input
+                    type="text"
+                    id="search-input"
+                    name="search"
+                    value="{{ search_query }}"
+                    placeholder="搜索页面标题、摘要、正文或别名..."
+                    class="admin-form-field w-full rounded-md px-3 py-2"
+                >
+                <button type="submit" class="admin-search-trigger" aria-label="搜索页面">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
         </div>
         <div>
             <label for="status-filter" class="mb-1 block text-xs text-[var(--color-text-light)]">状态</label>

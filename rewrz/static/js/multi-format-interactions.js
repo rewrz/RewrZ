@@ -1262,11 +1262,98 @@ class MultiFormatInteractions {
         const microFocusBtn = document.getElementById('micro-focus-btn');
         const microArticle = document.getElementById('micro-article');
         if (microFocusBtn && microArticle) {
-            microFocusBtn.addEventListener('click', function() {
-                microArticle.classList.toggle('scale-[1.01]');
-                microArticle.classList.toggle('shadow-2xl');
-                this.classList.toggle('text-indigo-600');
+            const originalParent = microArticle.parentElement;
+            const originalNextSibling = microArticle.nextSibling;
+            let fallbackPlaceholder = null;
+            let fallbackScrollTop = 0;
+            const iconNode = microFocusBtn.querySelector('[data-immersive-icon]');
+            const labelNode = microFocusBtn.querySelector('[data-immersive-label]');
+
+            const renderImmersiveState = (active) => {
+                microArticle.classList.toggle('is-immersive', active);
+                document.body.classList.toggle('micro-immersive-open', active);
+                microFocusBtn.classList.toggle('is-active', active);
+                microFocusBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+                microFocusBtn.title = active ? '退出沉浸全屏阅读' : '进入沉浸全屏阅读';
+                if (iconNode) {
+                    iconNode.className = active ? 'fas fa-compress-alt mr-1' : 'fas fa-expand-alt mr-1';
+                }
+                if (labelNode) {
+                    labelNode.textContent = active ? '退出沉浸' : '沉浸';
+                }
+            };
+
+            const isArticleFullscreen = () => document.fullscreenElement === microArticle;
+            const isFallbackImmersive = () => microArticle.classList.contains('is-immersive');
+
+            const mountFallbackOverlay = () => {
+                if (!originalParent || fallbackPlaceholder) {
+                    return;
+                }
+                fallbackScrollTop = window.scrollY || window.pageYOffset || 0;
+                fallbackPlaceholder = document.createComment('micro-article-immersive-placeholder');
+                originalParent.insertBefore(fallbackPlaceholder, microArticle);
+                document.body.appendChild(microArticle);
+                window.scrollTo({ top: 0, behavior: 'auto' });
+            };
+
+            const restoreFallbackOverlay = () => {
+                if (!originalParent || !fallbackPlaceholder) {
+                    return;
+                }
+                if (originalNextSibling && originalNextSibling.parentNode === originalParent) {
+                    originalParent.insertBefore(microArticle, originalNextSibling);
+                } else {
+                    originalParent.insertBefore(microArticle, fallbackPlaceholder);
+                }
+                fallbackPlaceholder.remove();
+                fallbackPlaceholder = null;
+                window.scrollTo({ top: fallbackScrollTop, behavior: 'auto' });
+            };
+
+            const enterImmersive = async () => {
+                if (microArticle.requestFullscreen) {
+                    try {
+                        await microArticle.requestFullscreen();
+                        return;
+                    } catch (_) {
+                        // fallback below
+                    }
+                }
+                mountFallbackOverlay();
+                renderImmersiveState(!microArticle.classList.contains('is-immersive'));
+            };
+
+            const exitImmersive = async () => {
+                if (isArticleFullscreen() && document.exitFullscreen) {
+                    try {
+                        await document.exitFullscreen();
+                        return;
+                    } catch (_) {
+                        // fallback below
+                    }
+                }
+                renderImmersiveState(false);
+                restoreFallbackOverlay();
+            };
+
+            microFocusBtn.addEventListener('click', async function() {
+                if (isArticleFullscreen() || isFallbackImmersive()) {
+                    await exitImmersive();
+                    return;
+                }
+                await enterImmersive();
             });
+
+            document.addEventListener('fullscreenchange', () => {
+                const active = isArticleFullscreen();
+                renderImmersiveState(active);
+                if (!active) {
+                    restoreFallbackOverlay();
+                }
+            });
+
+            renderImmersiveState(false);
         }
     }
 

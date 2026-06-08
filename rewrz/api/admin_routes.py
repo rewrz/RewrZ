@@ -18,6 +18,7 @@ from ..core.security import get_current_user
 from ..models import Category, Comment, Post, Tag
 from ..models.post import post_categories, post_tags
 from ..crud import category as crud_category
+from ..crud import format as crud_format
 from ..crud import post as crud_post
 from ..schemas import User
 from . import (
@@ -160,128 +161,8 @@ def register_admin_primary_routes(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
-        site_title: str = Form(...),
-        tagline: str = Form(...),
-        noindex_site: bool = Form(default_base_settings["noindex_site"]),
-        block_ai_crawlers: bool = Form(default_base_settings["block_ai_crawlers"]),
-        site_url: str = Form(...),
-        admin_email: str = Form(...),
-        public_contact_email: Optional[str] = Form(None),
-        smtp_host: Optional[str] = Form(None),
-        smtp_port: int = Form(587),
-        smtp_username: Optional[str] = Form(None),
-        smtp_password: Optional[str] = Form(None),
-        smtp_from_email: Optional[str] = Form(None),
-        smtp_use_tls: bool = Form(False),
-        smtp_use_ssl: bool = Form(False),
-        site_logo_light: Optional[str] = Form(None),
-        site_logo_dark: Optional[str] = Form(None),
-        favicon: Optional[str] = Form(None),
-        site_cover_url: Optional[str] = Form(None),
-        admin_login_background_image_url: Optional[str] = Form(None),
-        admin_login_background_video_url: Optional[str] = Form(None),
-        copyright_info: str = Form(...),
-        custom_footer_text: Optional[str] = Form(None),
-        icp_beian: Optional[str] = Form(None),
-        gongan_beian: Optional[str] = Form(None),
-        social_links_json: str = Form("[]"),
-        anniversaries_json: str = Form("[]"),
-        sitemap_enabled: bool = Form(False),
-        rss_enabled: bool = Form(False),
-        rss_items_limit: int = Form(20),
-        rss_cache_duration: int = Form(60),
-        rss_description: Optional[str] = Form(None),
-        homepage_posts_limit: int = Form(10),
-        archive_posts_limit: int = Form(20),
-        search_results_limit: int = Form(15),
-        list_navigation_mode: str = Form("pagination"),
-        related_posts_limit: int = Form(5),
-        content_primary_mode: str = Form("markdown"),
-        code_highlight_theme: str = Form(default_base_settings["code_highlight_theme"]),
-        article_card_fallback_source: str = Form("local"),
-        article_card_fallback_api_url: Optional[str] = Form(None),
-        article_card_fallback_local_dir: Optional[str] = Form(None),
-        article_card_api_cache_enabled: bool = Form(article_api_cache_enabled_default),
-        article_card_api_cache_ttl_minutes: int = Form(article_api_cache_ttl_minutes_default),
-        article_card_api_cache_cleanup_minutes: int = Form(article_api_cache_cleanup_minutes_default),
-        donation_enabled: bool = Form(False),
-        donation_title: str = Form("如果这篇文章对您有帮助，请考虑支持作者"),
-        donation_description: str = Form("您的支持是我创作的动力！"),
-        donation_qr_code_url: Optional[str] = Form(None),
-        donation_link_text: Optional[str] = Form(None),
-        donation_link_url: Optional[str] = Form(None),
-        donation_style_theme: str = Form("elegant"),
-        donation_show_position: str = Form("article_end"),
-        homepage_mode: str = Form(default_homepage_settings["homepage_mode"]),
-        homepage_background_image_url: Optional[str] = Form(None),
-        homepage_background_video_url: Optional[str] = Form(None),
-        homepage_background_music_url: Optional[str] = Form(None),
-        homepage_music_autoplay: bool = Form(default_homepage_settings["homepage_music_autoplay"]),
-        csrf_token: str = Form(...),
     ):
-        return await settings_api.update_admin_settings(
-            request,
-            db,
-            current_user,
-            site_title,
-            tagline,
-            site_url,
-            admin_email,
-            public_contact_email,
-            smtp_host,
-            smtp_port,
-            smtp_username,
-            smtp_password,
-            smtp_from_email,
-            smtp_use_tls,
-            smtp_use_ssl,
-            site_logo_light,
-            site_logo_dark,
-            favicon,
-            site_cover_url,
-            admin_login_background_image_url,
-            admin_login_background_video_url,
-            copyright_info,
-            custom_footer_text,
-            icp_beian,
-            gongan_beian,
-            social_links_json,
-            anniversaries_json,
-            sitemap_enabled,
-            noindex_site,
-            block_ai_crawlers,
-            rss_enabled,
-            rss_items_limit,
-            rss_cache_duration,
-            rss_description,
-            homepage_posts_limit,
-            archive_posts_limit,
-            search_results_limit,
-            list_navigation_mode,
-            related_posts_limit,
-            content_primary_mode,
-            code_highlight_theme,
-            article_card_fallback_source,
-            article_card_fallback_api_url,
-            article_card_fallback_local_dir,
-            article_card_api_cache_enabled,
-            article_card_api_cache_ttl_minutes,
-            article_card_api_cache_cleanup_minutes,
-            donation_enabled,
-            donation_title,
-            donation_description,
-            donation_qr_code_url,
-            donation_link_text,
-            donation_link_url,
-            donation_style_theme,
-            donation_show_position,
-            homepage_mode,
-            homepage_background_image_url,
-            homepage_background_video_url,
-            homepage_background_music_url,
-            homepage_music_autoplay,
-            csrf_token,
-        )
+        return await settings_api.update_admin_settings(request, db, current_user)
 
     @app.get(f"{admin_path}/users", response_class=HTMLResponse)
     async def dynamic_admin_users_page(
@@ -664,7 +545,9 @@ def register_admin_primary_routes(
         request: Request,
         search: Optional[str] = None,
         status: Optional[str] = None,
+        visibility: Optional[str] = None,
         category: Optional[str] = None,
+        format: Optional[str] = None,
         page: int = 1,
         page_size: Optional[int] = None,
         db: Session = Depends(get_db),
@@ -672,7 +555,9 @@ def register_admin_primary_routes(
     ):
         search = (search or "").strip() or None
         status = (status or "").strip() or None
+        visibility = (visibility or "").strip() or None
         category = (category or "").strip() or None
+        format = (format or "").strip() or None
 
         page = max(1, int(page or 1))
         allowed_page_sizes = [10, 20, 50, 100]
@@ -688,6 +573,8 @@ def register_admin_primary_routes(
 
         if status:
             filter_conditions.append(Post.status == status)
+        if visibility in {"public", "private", "password"}:
+            filter_conditions.append(Post.visibility == visibility)
 
         category_id: Optional[int] = None
         if category:
@@ -697,6 +584,15 @@ def register_admin_primary_routes(
                 category_id = None
             if category_id is not None:
                 filter_conditions.append(Post.categories.any(id=category_id))
+
+        format_id: Optional[int] = None
+        if format:
+            try:
+                format_id = int(format)
+            except ValueError:
+                format_id = None
+            if format_id is not None:
+                filter_conditions.append(Post.formats.any(id=format_id))
 
         if search:
             like = f"%{search}%"
@@ -755,8 +651,12 @@ def register_admin_primary_routes(
                 params["search"] = search
             if status:
                 params["status"] = status
+            if visibility:
+                params["visibility"] = visibility
             if category_id is not None:
                 params["category"] = str(category_id)
+            if format_id is not None:
+                params["format"] = str(format_id)
             params["page"] = str(target_page)
             params["page_size"] = str(resolved_page_size)
             return str(request.url.replace_query_params(**params))
@@ -780,14 +680,21 @@ def register_admin_primary_routes(
         }
 
         categories = crud_category.get_categories(db)
+        formats = [
+            item for item in crud_format.get_formats(db)
+            if getattr(item, "slug", None) in {"article", "micro", "poem"}
+        ]
 
         return templates.TemplateResponse("admin/posts_list.html", {
             "request": request,
             "posts": posts,
             "categories": categories,
+            "formats": formats,
             "search_query": search or "",
             "selected_status": status or "",
+            "selected_visibility": visibility or "",
             "selected_category": str(category_id) if category_id is not None else "",
+            "selected_format": str(format_id) if format_id is not None else "",
             "pagination": pagination,
             "total_articles": total_articles,
             "user": current_user,

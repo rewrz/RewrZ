@@ -56,16 +56,21 @@
     </div>
 
     <form method="get" action="{{ request.state.admin_path }}/comments" class="admin-filter-panel flex flex-wrap gap-3 items-end p-4 rounded-lg border">
-        <div class="min-w-64 flex-1">
+        <div class="flex-[0_1_18rem] min-w-[14rem] max-w-full lg:basis-[20rem]">
             <label for="search-input" class="block text-xs text-gray-500 mb-1">搜索</label>
-            <input
-                type="text"
-                id="search-input"
-                name="search"
-                value="{{ search_query }}"
-                placeholder="作者、邮箱、评论内容、文章标题"
-                class="admin-form-field w-full px-3 py-2 rounded-md"
-            >
+            <div class="admin-search-field">
+                <input
+                    type="text"
+                    id="search-input"
+                    name="search"
+                    value="{{ search_query }}"
+                    placeholder="作者、邮箱、评论内容、文章标题"
+                    class="admin-form-field w-full px-3 py-2 rounded-md"
+                >
+                <button type="submit" class="admin-search-trigger" aria-label="搜索评论">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
         </div>
         <div>
             <label for="status-filter" class="block text-xs text-gray-500 mb-1">状态</label>

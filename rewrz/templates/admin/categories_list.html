@@ -55,16 +55,21 @@
     </div>
 
     <form method="get" action="{{ request.state.admin_path }}/categories" class="admin-filter-panel admin-filter-grid flex flex-wrap gap-3 items-end rounded-2xl p-4">
-        <div class="min-w-64 flex-1">
+        <div class="flex-[0_1_18rem] min-w-[14rem] max-w-full lg:basis-[20rem]">
             <label for="search-input" class="mb-1 block text-xs text-[var(--color-text-light)]">搜索</label>
-            <input
-                type="text"
-                id="search-input"
-                name="search"
-                value="{{ search_query }}"
-                placeholder="搜索分类名称、别名、描述..."
-                class="admin-form-field w-full rounded-md px-3 py-2"
-            >
+            <div class="admin-search-field">
+                <input
+                    type="text"
+                    id="search-input"
+                    name="search"
+                    value="{{ search_query }}"
+                    placeholder="搜索分类名称、别名、描述..."
+                    class="admin-form-field w-full rounded-md px-3 py-2"
+                >
+                <button type="submit" class="admin-search-trigger" aria-label="搜索分类">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
         </div>
         <div>
             <label for="usage-filter" class="mb-1 block text-xs text-[var(--color-text-light)]">使用状态</label>

@@ -5,7 +5,7 @@
 {% block content %}
 <section class="py-8">
     <div class="container mx-auto max-w-6xl px-4">
-        <div class="category-archive-hero mb-7 rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-white p-5 shadow-sm dark:border-sky-700/40 dark:from-sky-900/20 dark:to-gray-900">
+        <div class="category-archive-hero mb-7 rounded-2xl border p-5 shadow-sm">
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div class="min-w-0">
                     <p class="text-xs font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-300">分类聚合</p>
@@ -23,14 +23,21 @@
             {% if posts %}
             <div class="archive-grid-equal grid grid-cols-1 gap-5 md:grid-cols-2">
                 {% for post in posts %}
-                <article class="archive-card-equal rounded-2xl border border-gray-200/70 bg-white/70 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/70">
-                    {% include "components/timeline_card.html" %}
-                </article>
+                    {% set format_slugs = post.formats | map(attribute='slug') | list if post.formats else [] %}
+                    {% if 'micro' in format_slugs or 'poem' in format_slugs %}
+                    <article class="archive-card-equal category-archive-card rounded-2xl border p-4 shadow-sm">
+                        {% include "components/timeline_card.html" %}
+                    </article>
+                    {% else %}
+                        {% set article_cover_url_map = archive_cover_url_map if archive_cover_url_map is defined else {} %}
+                        {% set post_archive_cover_url = article_cover_url_map.get(post.id, '') if article_cover_url_map else '' %}
+                        {% include "components/article_archive_card.html" %}
+                    {% endif %}
                 {% endfor %}
             </div>
             {% include "components/list_pagination.html" %}
             {% else %}
-            <div class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center text-gray-600 dark:border-gray-600 dark:bg-gray-900/40 dark:text-gray-300">
+            <div class="category-archive-empty rounded-2xl border border-dashed p-10 text-center">
                 此分类下暂无内容。
             </div>
             {% endif %}

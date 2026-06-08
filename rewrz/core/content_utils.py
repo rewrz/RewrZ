@@ -83,7 +83,20 @@ def markdown_to_plain_text(content_markdown: Optional[str]) -> str:
 
 
 def get_effective_plain_text(content_markdown: Optional[str], content_html: Optional[str]) -> str:
-    markdown_text = markdown_to_plain_text(content_markdown)
-    if markdown_text:
-        return markdown_text
-    return html_to_plain_text(content_html)
+    html_content = (content_html or "").strip()
+    if html_content:
+        plain_text = html_to_plain_text(html_content)
+        if plain_text:
+            return plain_text
+
+    markdown_content = (content_markdown or "").strip()
+    if markdown_content:
+        rendered_html = render_markdown_html(markdown_content)
+        plain_text = html_to_plain_text(rendered_html)
+        if plain_text:
+            return plain_text
+        fallback_text = markdown_to_plain_text(markdown_content)
+        if fallback_text:
+            return fallback_text
+
+    return ""

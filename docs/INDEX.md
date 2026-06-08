@@ -12,12 +12,13 @@
 | 数据模型与关系 | [`architecture/DATA_MODEL.md`](architecture/DATA_MODEL.md) |
 | API 约定与安全要求 | [`architecture/API_CONVENTIONS.md`](architecture/API_CONVENTIONS.md) |
 | API 到 APP 的实现路径 | [`architecture/API_APP.md`](architecture/API_APP.md) |
+| 生产部署手册 | [`operations/DEPLOYMENT.md`](operations/DEPLOYMENT.md) |
+| 生产更新手册 | [`operations/UPDATE.md`](operations/UPDATE.md) |
 | 故障排查与运维检查 | [`operations/TROUBLESHOOTING.md`](operations/TROUBLESHOOTING.md) |
 | 版本变更记录 | [`operations/CHANGELOG.md`](operations/CHANGELOG.md) |
 | 当前路线与下一步方向 | [`planning/ROADMAP.md`](planning/ROADMAP.md) |
 | 当前 API 边界状态 | [`planning/API_BOUNDARY_LEGACY_AUDIT.md`](planning/API_BOUNDARY_LEGACY_AUDIT.md) |
 | 当前测试基线 | [`testing/TEST_BASELINE.md`](testing/TEST_BASELINE.md) |
-| 真实环境验收记录 | [`testing/REAL_WORLD_BROWSER_QA_2026-05-30.md`](testing/REAL_WORLD_BROWSER_QA_2026-05-30.md) |
 | 常用开发命令速查 | [`references/常用开发命令.md`](references/常用开发命令.md) |
 
 ## 目录规划（避免重复）

@@ -77,80 +77,87 @@
 <section class="py-8 detail-cover-shell detail-cover-micro">
     {% if detail_cover_url %}
     <div class="detail-cover-bg" style="background-image: url('{{ detail_cover_url | e }}');"></div>
-    <div class="detail-cover-overlay"></div>
     {% endif %}
 
     <div class="container relative mx-auto px-4 max-w-7xl">
         <!-- 返回导航 -->
-        <nav class="mb-4 flex items-center gap-2 text-sm text-gray-200/90">
-            <a href="/formats/micro" class="hover:text-white transition-colors">
+        <nav class="detail-floating-nav micro-detail-nav mb-4 flex items-center gap-2 text-sm">
+            <a href="/formats/micro" class="detail-floating-nav-link micro-detail-nav-link transition-colors">
                 <i class="fas fa-arrow-left mr-1"></i>返回动态列表
             </a>
-            <span class="text-white/35">|</span>
-            <a href="/archives" class="hover:text-white transition-colors">
+            <span class="detail-floating-nav-divider micro-detail-nav-divider">|</span>
+            <a href="/archives" class="detail-floating-nav-link micro-detail-nav-link transition-colors">
                 <i class="fas fa-stream mr-1"></i>全部归档
             </a>
         </nav>
 
         <div class="detail-layout {% if toc_items %}has-toc{% endif %}">
-        <article id="micro-article" class="micro-detail-card rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 shadow-xl overflow-hidden transition-all duration-300">
-            <header class="p-5 border-b border-gray-100 dark:border-gray-700">
+        <article id="micro-article" class="micro-detail-card rounded-2xl border shadow-xl overflow-hidden transition-all duration-300">
+            <header class="micro-detail-header p-5 border-b">
                 <div class="flex items-start justify-between gap-3">
                     <div class="flex items-center gap-3 min-w-0">
-                        <img src="{{ post_author_avatar }}" alt="{{ post_author_name }}" class="h-12 w-12 rounded-full object-cover ring-2 ring-indigo-200/80 dark:ring-indigo-800/80">
+                        <img src="{{ post_author_avatar }}" alt="{{ post_author_name }}" class="micro-detail-avatar h-12 w-12 rounded-full object-cover ring-2">
                         <div class="min-w-0">
-                            <p class="font-semibold text-lg truncate">{{ post_author_name }}</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                            <p class="micro-detail-author font-semibold text-lg truncate">{{ post_author_name }}</p>
+                            <p class="micro-detail-meta text-xs flex items-center gap-2">
                                 <i class="far fa-clock"></i>
                                 {{ (post.published_at if post.published_at else post.created_at) | micro_datetime_cn }}
-                                <span class="text-gray-300 dark:text-gray-600">•</span>
+                                <span class="micro-detail-meta-sep">•</span>
                                 <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
                             </p>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-rose-500 text-white shadow-sm">
+                        <span class="micro-detail-format inline-flex items-center px-3 py-1 rounded-full text-xs font-medium shadow-sm">
                             <i class="fas fa-bolt mr-1"></i>动态
                         </span>
                     </div>
                 </div>
             </header>
 
-            <div class="p-5 space-y-4">
-                <h1 class="micro-detail-title text-2xl md:text-3xl font-bold leading-tight {% if post.title %}bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent{% endif %}">{{ detail_display_title }}</h1>
+            <div class="micro-detail-body p-5 space-y-4">
+                <h1 class="micro-detail-title text-2xl md:text-3xl font-bold leading-tight {% if post.title %}micro-detail-title-gradient bg-clip-text text-transparent{% endif %}">{{ detail_display_title }}</h1>
 
                 {% if show_micro_excerpt %}
-                <p class="text-base text-gray-600 dark:text-gray-300 leading-relaxed border-l-4 border-indigo-400 pl-4 italic">{{ manual_excerpt }}</p>
+                <p class="micro-detail-excerpt text-base leading-relaxed border-l-4 pl-4 italic">{{ manual_excerpt }}</p>
                 {% endif %}
 
                 <div class="post-content prose dark:prose-invert max-w-none micro-content">
                     {{ rendered_content | safe }}
                 </div>
 
+                {% if post.tags %}
+                <div class="micro-topic-chip-list" aria-label="动态话题标签">
+                    {% for tag in post.tags %}
+                    <a href="/archives/by-tag/{{ tag.slug }}" class="micro-topic-chip">#{{ tag.name }}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
                 {% if content_images %}
                 <div class="space-y-3 micro-gallery">
                     {% set grid_cols = 2 if content_images|length in [2, 4] else 3 %}
                     <div class="micro-image-grid grid grid-cols-{{ grid_cols }} gap-2" data-image-count="{{ content_images|length }}">
                         {% for image_url in content_images[:9] %}
-                        <button type="button" class="micro-grid-item overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 group relative" data-lightbox-group="micro-gallery" data-lightbox-position="{{ loop.index0 }}" data-lightbox-image="{{ image_url }}" data-lightbox-title="{{ post.title }} - 图{{ loop.index }}">
+                        <button type="button" class="micro-grid-item overflow-hidden rounded-xl border group relative" data-lightbox-group="micro-gallery" data-lightbox-position="{{ loop.index0 }}" data-lightbox-image="{{ image_url }}" data-lightbox-title="{{ post.title }} - 图{{ loop.index }}">
                             <img src="{{ image_url }}" alt="{{ post.title }}" class="h-32 md:h-40 w-full object-cover transition-all duration-300 group-hover:scale-110" loading="lazy">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                         </button>
                         {% endfor %}
                     </div>
                     {% if content_images|length > 9 %}
-                    <p class="text-xs text-gray-500 dark:text-gray-400 text-center">
+                    <p class="micro-detail-meta text-xs text-center">
                         <i class="fas fa-images mr-1"></i>共 {{ content_images|length }} 张图片，点击查看更多
                     </p>
                     {% endif %}
                 </div>
                 {% endif %}
 
-                {% set license_box_class = "rounded-xl bg-gray-50 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-700 p-4 md:p-5" %}
+                {% set license_box_class = "rounded-xl border p-4 md:p-5" %}
                 {% include "components/post_license_inline.html" %}
             </div>
 
-            <div class="border-t border-gray-100 bg-gray-50/50 px-5 py-3 dark:border-gray-700 dark:bg-gray-900/50">
+            <div class="micro-detail-feedback border-t px-5 py-3">
                 <div
                     class="flex flex-wrap items-center justify-between gap-2"
                     data-reaction-widget
@@ -161,7 +168,7 @@
                         <button
                             type="button"
                             data-reaction-like-btn
-                            class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-gray-600 transition hover:bg-rose-50 hover:text-rose-600 dark:text-gray-300 dark:hover:bg-rose-900/20 dark:hover:text-rose-300"
+                            class="micro-detail-action-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition"
                         >
                             <i class="far fa-heart" data-like-icon></i>
                             <span>点赞</span>
@@ -171,37 +178,37 @@
                             <button
                                 type="button"
                                 data-reaction-menu-toggle
-                                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-gray-600 transition hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-300 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-300"
+                                class="micro-detail-action-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition"
                             >
-                                <i class="far fa-face-smile"></i>
+                                <i class="far fa-smile"></i>
                                 <span>表态</span>
                                 <span data-reaction-total class="hidden text-xs font-semibold">+0</span>
                             </button>
                             <div
                                 data-reaction-menu
-                                class="reaction-float-menu fixed z-[120] hidden max-w-[92vw] rounded-2xl border border-pink-200/80 bg-white/95 p-2 shadow-2xl backdrop-blur-md dark:border-indigo-700/70 dark:bg-gray-900/95"
+                                class="reaction-float-menu micro-reaction-menu fixed z-[120] hidden max-w-[92vw] rounded-2xl border p-2 shadow-2xl backdrop-blur-md"
                             >
                                 <div class="reaction-float-grid flex flex-wrap items-stretch gap-1.5">
-                                    <button type="button" data-reaction-option="funny" class="reaction-chip group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium text-gray-600 transition duration-200 hover:-translate-y-0.5 hover:bg-indigo-50 hover:text-indigo-700 dark:text-gray-300 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-200"><span class="reaction-emoji text-2xl leading-none">😂</span><span class="leading-none">有趣</span><span class="text-[10px] leading-none text-gray-500 dark:text-gray-400" data-reaction-count="funny">0</span></button>
-                                    <button type="button" data-reaction-option="wow" class="reaction-chip group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium text-gray-600 transition duration-200 hover:-translate-y-0.5 hover:bg-indigo-50 hover:text-indigo-700 dark:text-gray-300 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-200"><span class="reaction-emoji text-2xl leading-none">😮</span><span class="leading-none">惊讶</span><span class="text-[10px] leading-none text-gray-500 dark:text-gray-400" data-reaction-count="wow">0</span></button>
-                                    <button type="button" data-reaction-option="moved" class="reaction-chip group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium text-gray-600 transition duration-200 hover:-translate-y-0.5 hover:bg-indigo-50 hover:text-indigo-700 dark:text-gray-300 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-200"><span class="reaction-emoji text-2xl leading-none">😢</span><span class="leading-none">感动</span><span class="text-[10px] leading-none text-gray-500 dark:text-gray-400" data-reaction-count="moved">0</span></button>
-                                    <button type="button" data-reaction-option="angry" class="reaction-chip group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium text-gray-600 transition duration-200 hover:-translate-y-0.5 hover:bg-indigo-50 hover:text-indigo-700 dark:text-gray-300 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-200"><span class="reaction-emoji text-2xl leading-none">😡</span><span class="leading-none">生气</span><span class="text-[10px] leading-none text-gray-500 dark:text-gray-400" data-reaction-count="angry">0</span></button>
-                                    <button type="button" data-reaction-option="thinking" class="reaction-chip group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium text-gray-600 transition duration-200 hover:-translate-y-0.5 hover:bg-indigo-50 hover:text-indigo-700 dark:text-gray-300 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-200"><span class="reaction-emoji text-2xl leading-none">🤔</span><span class="leading-none">思考</span><span class="text-[10px] leading-none text-gray-500 dark:text-gray-400" data-reaction-count="thinking">0</span></button>
-                                    <button type="button" data-reaction-option="salute" class="reaction-chip group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium text-gray-600 transition duration-200 hover:-translate-y-0.5 hover:bg-indigo-50 hover:text-indigo-700 dark:text-gray-300 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-200"><span class="reaction-emoji text-2xl leading-none">🫡</span><span class="leading-none">致敬</span><span class="text-[10px] leading-none text-gray-500 dark:text-gray-400" data-reaction-count="salute">0</span></button>
+                                    <button type="button" data-reaction-option="funny" class="reaction-chip micro-reaction-option group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition duration-200 hover:-translate-y-0.5"><span class="reaction-emoji text-2xl leading-none">😂</span><span class="leading-none">有趣</span><span class="micro-reaction-count text-[10px] leading-none" data-reaction-count="funny">0</span></button>
+                                    <button type="button" data-reaction-option="wow" class="reaction-chip micro-reaction-option group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition duration-200 hover:-translate-y-0.5"><span class="reaction-emoji text-2xl leading-none">😮</span><span class="leading-none">惊讶</span><span class="micro-reaction-count text-[10px] leading-none" data-reaction-count="wow">0</span></button>
+                                    <button type="button" data-reaction-option="moved" class="reaction-chip micro-reaction-option group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition duration-200 hover:-translate-y-0.5"><span class="reaction-emoji text-2xl leading-none">😢</span><span class="leading-none">感动</span><span class="micro-reaction-count text-[10px] leading-none" data-reaction-count="moved">0</span></button>
+                                    <button type="button" data-reaction-option="angry" class="reaction-chip micro-reaction-option group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition duration-200 hover:-translate-y-0.5"><span class="reaction-emoji text-2xl leading-none">😡</span><span class="leading-none">生气</span><span class="micro-reaction-count text-[10px] leading-none" data-reaction-count="angry">0</span></button>
+                                    <button type="button" data-reaction-option="thinking" class="reaction-chip micro-reaction-option group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition duration-200 hover:-translate-y-0.5"><span class="reaction-emoji text-2xl leading-none">🤔</span><span class="leading-none">思考</span><span class="micro-reaction-count text-[10px] leading-none" data-reaction-count="thinking">0</span></button>
+                                    <button type="button" data-reaction-option="salute" class="reaction-chip micro-reaction-option group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition duration-200 hover:-translate-y-0.5"><span class="reaction-emoji text-2xl leading-none">🫡</span><span class="leading-none">致敬</span><span class="micro-reaction-count text-[10px] leading-none" data-reaction-count="salute">0</span></button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400" data-reaction-summary>
+                    <div class="micro-detail-meta text-xs" data-reaction-summary>
                         匿名互动已开启，欢迎点赞或表态。
                     </div>
                 </div>
             </div>
 
-            <footer class="px-5 py-4 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-end gap-3 text-sm text-gray-600 dark:text-gray-400">
+            <footer class="micro-detail-footer px-5 py-4 border-t flex flex-wrap items-center justify-end gap-3 text-sm">
                 <div class="flex items-center gap-2">
-                    <button type="button" id="micro-focus-btn" class="micro-action-btn" title="沉浸阅读">
-                        <i class="fas fa-expand-alt mr-1"></i>沉浸
+                    <button type="button" id="micro-focus-btn" class="micro-action-btn" title="进入沉浸全屏阅读" aria-pressed="false">
+                        <i class="fas fa-expand-alt mr-1" data-immersive-icon></i><span data-immersive-label>沉浸</span>
                     </button>
                     <button type="button" class="micro-action-btn" onclick="shareMicroPost()" title="分享">
                         <i class="fas fa-share-alt mr-1"></i>分享
@@ -235,17 +242,11 @@
 {% elif is_poetry_song %}
 <section class="poetry-section detail-cover-shell relative min-h-[85vh] flex items-center py-8 overflow-hidden">
     <!-- 背景氛围层 -->
-    {% if detail_cover_url %}
-    <div class="poetry-bg absolute inset-0">
-        {{ detail_cover_url | responsive_image(post.title, "w-full h-full object-cover", "100vw", request.state.db, "post_cover") | safe }}
-        <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/60"></div>
-    </div>
-    {% else %}
+    {% if not detail_cover_url %}
     <div class="poetry-bg absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-slate-900">
         <div class="absolute inset-0 opacity-30" id="poetry-particles"></div>
     </div>
     {% endif %}
-    <div class="detail-cover-overlay detail-cover-overlay-soft"></div>
     
     <!-- 浮动粒子效果 -->
     <div class="poetry-particles absolute inset-0 pointer-events-none overflow-hidden" id="poetry-float-particles">
@@ -258,13 +259,13 @@
 
     <div class="relative container mx-auto px-4 max-w-7xl">
         <!-- 返回导航 -->
-        <nav class="mb-6 flex items-center justify-between text-sm text-white/70">
+        <nav class="detail-floating-nav mb-6 flex items-center justify-between text-sm">
             <div class="flex items-center gap-2">
-                <a href="/formats/poem" class="hover:text-white transition-colors">
+                <a href="/formats/poem" class="detail-floating-nav-link transition-colors">
                     <i class="fas fa-arrow-left mr-1"></i>返回诗词列表
                 </a>
-                <span class="text-white/30">|</span>
-                <a href="/archives" class="hover:text-white transition-colors">
+                <span class="detail-floating-nav-divider">|</span>
+                <a href="/archives" class="detail-floating-nav-link transition-colors">
                     <i class="fas fa-stream mr-1"></i>全部归档
                 </a>
             </div>
@@ -275,7 +276,7 @@
             <!-- 头部区域 -->
             <div class="poetry-header text-center p-6 md:p-10 border-b border-white/10 dark:border-gray-700/30">
                 <div class="flex items-center justify-center gap-2 mb-4">
-                    <span class="poetry-format-badge inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium text-white shadow-lg">
+                    <span class="poetry-format-badge inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium shadow-lg">
                         <i class="fas fa-feather-alt mr-2"></i>诗词歌赋
                     </span>
                 </div>
@@ -372,7 +373,6 @@
 <section class="py-8 detail-article-section detail-cover-shell detail-cover-article">
     {% if detail_cover_url %}
     <div class="detail-cover-bg" style="background-image: url('{{ detail_cover_url | e }}');"></div>
-    <div class="detail-cover-overlay"></div>
     {% endif %}
 
     <div class="container relative mx-auto px-4 max-w-7xl">
@@ -438,8 +438,8 @@
 </section>
 {% endif %}
 
-<section class="pb-10 {% if is_poetry_song %}poetry-followup-section{% endif %}">
-    <div class="container mx-auto px-4 max-w-7xl space-y-8 {% if is_poetry_song %}poetry-followup-stack{% endif %}">
+<section class="pb-10 {% if is_poetry_song %}poetry-followup-section{% endif %} {% if is_micro_post %}micro-followup-section{% endif %}">
+    <div class="container mx-auto px-4 max-w-7xl space-y-8 {% if is_poetry_song %}poetry-followup-stack{% endif %} {% if is_micro_post %}micro-followup-stack{% endif %}">
         {% set donation_widget_html = (request.state.db | donation_widget) if request.state.db else '' %}
         {% if donation_config and donation_config.enabled and donation_widget_html %}
             {% if donation_config.show_position == 'sidebar' %}
@@ -462,27 +462,27 @@
         {% if post.allow_comments %}
         <div
             id="comments-section"
-            class="overflow-hidden rounded-2xl border shadow-lg
+            class="detail-comments-shell overflow-hidden rounded-2xl border shadow-lg
             {% if is_micro_post %}
-                border-indigo-200 bg-gradient-to-b from-indigo-50/70 to-white dark:border-indigo-700/60 dark:from-indigo-900/20 dark:to-gray-900
+                detail-comments-shell-micro
             {% elif is_poetry_song %}
-                poetry-comments-shell border-purple-200 bg-gradient-to-b from-purple-50/70 to-white dark:border-purple-700/60 dark:from-purple-900/20 dark:to-gray-900
+                detail-comments-shell-poetry poetry-comments-shell
             {% else %}
-                border-gray-200 bg-white/95 dark:border-gray-700 dark:bg-gray-800/95
+                detail-comments-shell-article
             {% endif %}"
         >
-            <div class="border-b px-5 py-4 md:px-6 {% if is_poetry_song %}border-purple-200/70 dark:border-purple-700/50{% elif is_micro_post %}border-indigo-200/70 dark:border-indigo-700/50{% else %}border-gray-200 dark:border-gray-700{% endif %}">
+            <div class="detail-comments-header border-b px-5 py-4 md:px-6">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-3">
-                        <span class="inline-flex h-10 w-10 items-center justify-center rounded-full {% if is_poetry_song %}bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-300{% elif is_micro_post %}bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-300{% else %}bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200{% endif %}">
+                        <span class="detail-comments-icon inline-flex h-10 w-10 items-center justify-center rounded-full">
                             <i class="far fa-comments"></i>
                         </span>
                         <div>
-                            <h2 class="text-xl font-bold text-gray-900 dark:text-white">评论互动</h2>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">分享观点、补充想法，和读者一起完善内容。</p>
+                            <h2 class="detail-comments-title text-xl font-bold">评论互动</h2>
+                            <p class="detail-comments-subtitle text-xs">分享观点、补充想法，和读者一起完善内容。</p>
                         </div>
                     </div>
-                    <span id="comment-count-badge" data-count="{{ comment_count }}" class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm dark:bg-gray-800 dark:text-gray-200">
+                    <span id="comment-count-badge" data-count="{{ comment_count }}" class="detail-comments-badge inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold shadow-sm">
                         {{ comment_count | compact_number_cn }} 条
                     </span>
                 </div>

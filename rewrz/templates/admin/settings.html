@@ -7,7 +7,7 @@
 
 <form id="admin-settings-form" hx-post="{{ request.state.admin_path }}/settings" hx-target="#admin-content" hx-swap="outerHTML" hx-select="#admin-content" class="space-y-6 pb-32">
     <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
-    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-lg p-5">
+    <div class="settings-intro-card bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-lg p-5">
         <h2 class="text-lg font-semibold text-gray-900">设置说明</h2>
         <p class="mt-1 text-sm text-gray-600">此页面用于管理站点公共配置。建议按从上到下顺序配置，最后统一点击“保存所有设置”。</p>
     </div>
@@ -16,17 +16,17 @@
         <button
             id="settings-nav-toggle"
             type="button"
-            class="fixed top-24 right-4 z-40 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-lg hover:bg-indigo-700 lg:hidden">
+            class="settings-nav-toggle fixed top-24 right-4 z-40 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-lg hover:bg-indigo-700 lg:hidden">
             快速导航
         </button>
-        <div id="settings-nav-backdrop" class="fixed inset-0 z-40 hidden bg-black/35 lg:hidden"></div>
+        <div id="settings-nav-backdrop" class="settings-nav-backdrop fixed inset-0 z-40 hidden bg-black/35 lg:hidden"></div>
         <aside
             id="settings-quick-nav"
-            class="fixed right-4 top-20 z-50 hidden w-[min(86vw,280px)] max-h-[calc(100vh-7rem)] overflow-y-auto rounded-2xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur xl:flex xl:w-64 xl:right-6 xl:top-24 xl:z-30 xl:max-h-[calc(100vh-8rem)]">
+            class="settings-quick-nav fixed right-4 top-20 z-50 hidden w-[min(86vw,280px)] max-h-[calc(100vh-7rem)] overflow-y-auto rounded-2xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur xl:flex xl:w-64 xl:right-6 xl:top-24 xl:z-30 xl:max-h-[calc(100vh-8rem)]">
             <div class="w-full space-y-4">
                 <div class="flex items-center justify-between">
                     <h3 class="text-sm font-semibold text-gray-900">快速导航</h3>
-                    <button id="settings-nav-close" type="button" class="rounded-md px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 lg:hidden">关闭</button>
+                    <button id="settings-nav-close" type="button" class="settings-nav-close rounded-md px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 lg:hidden">关闭</button>
                 </div>
 
                 <div class="space-y-3 text-sm">
@@ -76,7 +76,7 @@
 
         <div class="space-y-8 xl:pr-[17rem]">
     <!-- 通用设置 -->
-    <div id="section-site" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+    <div id="section-site" class="settings-section-card bg-white p-6 rounded-lg shadow-md scroll-mt-24">
         <h2 class="text-2xl font-semibold text-gray-800 mb-1">站点基础信息</h2>
         <p class="text-sm text-gray-500 mb-4">影响站点标题、访问地址、品牌图标等全局展示内容。</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -89,6 +89,19 @@
                 <label for="tagline" class="block text-sm font-medium text-gray-700">网站副标题 / 标语</label>
                 <input type="text" id="tagline" name="tagline" value="{{ settings.tagline }}"
                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+            </div>
+            <div class="md:col-span-2">
+                <label for="site_description" class="block text-sm font-medium text-gray-700">站点描述</label>
+                <textarea id="site_description" name="site_description" rows="3"
+                          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                          placeholder="用于首页沉浸首屏的小字描述，也会作为站点默认 SEO 描述。">{{ settings.site_description }}</textarea>
+            </div>
+            <div class="md:col-span-2">
+                <label for="site_announcement" class="block text-sm font-medium text-gray-700">站点公告</label>
+                <input type="text" id="site_announcement" name="site_announcement" value="{{ settings.site_announcement }}"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                       placeholder="显示在首页全屏首屏顶部的小型徽标位，例如：RewrZ Project / 新版本已上线">
+                <p class="mt-1 text-xs text-gray-500">留空时首页沉浸首屏会自动回退为“{{ settings.site_title or 'RewrZ' }} Project”。</p>
             </div>
             <div>
                 <label for="site_url" class="block text-sm font-medium text-gray-700">网站地址 (URL)</label>
@@ -113,7 +126,7 @@
                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="图片URL">
                 <div class="mt-2 flex items-center gap-2">
                     <input type="file" id="upload_site_logo_light_file" accept="image/*" class="block w-full text-xs text-gray-500">
-                    <button type="button" id="upload_site_logo_light_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                    <button type="button" id="upload_site_logo_light_btn" class="settings-upload-btn admin-secondary-btn px-3 py-1.5 text-xs rounded">上传</button>
                     <button type="button" class="select-from-media-btn px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700" data-target-input="site_logo_light">从媒体库选择</button>
                 </div>
             </div>
@@ -123,7 +136,7 @@
                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="图片URL">
                 <div class="mt-2 flex items-center gap-2">
                     <input type="file" id="upload_site_logo_dark_file" accept="image/*" class="block w-full text-xs text-gray-500">
-                    <button type="button" id="upload_site_logo_dark_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                    <button type="button" id="upload_site_logo_dark_btn" class="settings-upload-btn admin-secondary-btn px-3 py-1.5 text-xs rounded">上传</button>
                     <button type="button" class="select-from-media-btn px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700" data-target-input="site_logo_dark">从媒体库选择</button>
                 </div>
             </div>
@@ -133,7 +146,7 @@
                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder=".ico 或 .png 文件URL">
                 <div class="mt-2 flex items-center gap-2">
                     <input type="file" id="upload_favicon_file" accept="image/*,.ico" class="block w-full text-xs text-gray-500">
-                    <button type="button" id="upload_favicon_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                    <button type="button" id="upload_favicon_btn" class="settings-upload-btn admin-secondary-btn px-3 py-1.5 text-xs rounded">上传</button>
                     <button type="button" class="select-from-media-btn px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700" data-target-input="favicon">从媒体库选择</button>
                 </div>
             </div>
@@ -144,7 +157,7 @@
                 <p class="mt-1 text-xs text-gray-500">不填时会跟随首页模式自动选择默认封面。</p>
                 <div class="mt-2 flex items-center gap-2">
                     <input type="file" id="upload_site_cover_file" accept="image/*" class="block w-full text-xs text-gray-500">
-                    <button type="button" id="upload_site_cover_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                    <button type="button" id="upload_site_cover_btn" class="settings-upload-btn admin-secondary-btn px-3 py-1.5 text-xs rounded">上传</button>
                     <button type="button" class="select-from-media-btn px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700" data-target-input="site_cover_url">从媒体库选择</button>
                 </div>
             </div>
@@ -155,7 +168,7 @@
                 <p class="mt-1 text-xs text-gray-500">留空时将使用系统内置二次元背景。可上传或从媒体库选择。若下方配置了视频，则优先播放视频。</p>
                 <div class="mt-2 flex items-center gap-2">
                     <input type="file" id="upload_admin_login_bg_file" accept="image/*" class="block w-full text-xs text-gray-500">
-                    <button type="button" id="upload_admin_login_bg_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                    <button type="button" id="upload_admin_login_bg_btn" class="settings-upload-btn admin-secondary-btn px-3 py-1.5 text-xs rounded">上传</button>
                     <button type="button" class="select-from-media-btn px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700" data-target-input="admin_login_background_image_url">从媒体库选择</button>
                 </div>
             </div>
@@ -166,14 +179,14 @@
                 <p class="mt-1 text-xs text-gray-500">支持 MP4/WebM。登录页会自动静音、循环播放并内联播放（autoplay muted loop playsinline）。</p>
                 <div class="mt-2 flex items-center gap-2">
                     <input type="file" id="upload_admin_login_video_file" accept="video/mp4,video/webm,video/ogg" class="block w-full text-xs text-gray-500">
-                    <button type="button" id="upload_admin_login_video_btn" class="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800">上传</button>
+                    <button type="button" id="upload_admin_login_video_btn" class="settings-upload-btn admin-secondary-btn px-3 py-1.5 text-xs rounded">上传</button>
                     <button type="button" class="select-from-media-btn px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700" data-target-input="admin_login_background_video_url">从媒体库选择</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="section-smtp" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+    <div id="section-smtp" class="settings-section-card bg-white p-6 rounded-lg shadow-md scroll-mt-24">
         <h2 class="text-2xl font-semibold text-gray-800 mb-1">SMTP 邮件投递</h2>
         <p class="text-sm text-gray-500 mb-4">密码重置、登录安全提醒、评论通知都依赖这里的邮件服务器配置。</p>
         <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 mb-4">
@@ -225,7 +238,7 @@
     </div>
 
     <!-- 页脚设置 -->
-    <div id="section-footer" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+    <div id="section-footer" class="settings-section-card bg-white p-6 rounded-lg shadow-md scroll-mt-24">
         <h2 class="text-2xl font-semibold text-gray-800 mb-1">页脚与备案</h2>
         <p class="text-sm text-gray-500 mb-4">配置版权信息、备案号及页脚补充说明。</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -253,7 +266,7 @@
     </div>
 
     <!-- 社交链接管理 -->
-    <div id="section-social" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+    <div id="section-social" class="settings-section-card bg-white p-6 rounded-lg shadow-md scroll-mt-24">
         <h2 class="text-2xl font-semibold text-gray-800 mb-1">社交与联系入口</h2>
         <p class="text-sm text-gray-500 mb-4">选择平台后会自动配置图标和示例链接，不需要手动记忆图标类名。</p>
         <div class="admin-info-box settings-subtle-panel mb-4 rounded-lg px-4 py-3 text-sm">
@@ -310,7 +323,7 @@
     </div>
 
     <!-- SEO 管理 -->
-    <div id="section-seo" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+    <div id="section-seo" class="settings-section-card bg-white p-6 rounded-lg shadow-md scroll-mt-24">
         <h2 class="text-2xl font-semibold text-gray-800 mb-1">搜索引擎可见性</h2>
         <p class="text-sm text-gray-500 mb-4">控制站点是否被索引、是否生成站点地图和爬虫访问策略。</p>
         <div class="space-y-4">
@@ -336,7 +349,7 @@
     </div>
 
     <!-- RSS 订阅管理 -->
-    <div id="section-rss" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+    <div id="section-rss" class="settings-section-card bg-white p-6 rounded-lg shadow-md scroll-mt-24">
         <h2 class="text-2xl font-semibold text-gray-800 mb-1">RSS/Atom 订阅</h2>
         <p class="text-sm text-gray-500 mb-4">控制订阅源开关、缓存与输出条数。</p>
         <div class="space-y-4">
@@ -392,7 +405,7 @@
     </div>
 
     <!-- 页面显示配置 -->
-    <div id="section-display" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+    <div id="section-display" class="settings-section-card bg-white p-6 rounded-lg shadow-md scroll-mt-24">
         <h2 class="text-2xl font-semibold text-gray-800 mb-1">列表与阅读数量</h2>
         <p class="text-sm text-gray-500 mb-4">调整首页、归档、搜索和相关文章的展示数量，平衡信息密度与性能。</p>
         <div class="space-y-4">
@@ -535,7 +548,7 @@
     </div>
 
     <!-- 打赏功能配置 -->
-    <div id="section-donation" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+    <div id="section-donation" class="settings-section-card bg-white p-6 rounded-lg shadow-md scroll-mt-24">
         <h2 class="text-2xl font-semibold text-gray-800 mb-1">
             <i class="fas fa-heart text-red-500 mr-2"></i>
             赞赏组件
@@ -640,7 +653,7 @@
         </div>
 
     <!-- 后台路径配置 -->
-    <div id="section-admin-path" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+    <div id="section-admin-path" class="settings-section-card bg-white p-6 rounded-lg shadow-md scroll-mt-24">
         <h2 class="text-2xl font-semibold text-gray-800 mb-1">
             <i class="fas fa-shield-alt text-gray-600 mr-2"></i>
             后台访问路径
@@ -773,7 +786,7 @@
     </div>
 
     <!-- 主页个性化设置 -->
-    <div id="section-homepage" class="bg-white p-6 rounded-lg shadow-md scroll-mt-24">
+    <div id="section-homepage" class="settings-section-card bg-white p-6 rounded-lg shadow-md scroll-mt-24">
         <h2 class="text-2xl font-semibold text-gray-800 mb-1">
             <i class="fas fa-home text-indigo-600 mr-2"></i>
             首页展示模式
@@ -866,12 +879,12 @@
             </div>
             <div class="flex items-center gap-2">
                 {% if message %}
-                <div id="settings-save-alert" class="inline-flex items-center gap-2 rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-xs text-green-700 transition-all duration-300" role="status" aria-live="polite">
+                <div id="settings-save-alert" class="settings-success-alert inline-flex items-center gap-2 rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-xs text-green-700 transition-all duration-300" role="status" aria-live="polite">
                     <i class="fas fa-check-circle"></i>
                     <span>{{ message }}</span>
                 </div>
                 {% endif %}
-                <button id="settings-save-button" type="submit" class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                <button id="settings-save-button" type="button" form="admin-settings-form" hx-post="{{ request.state.admin_path }}/settings" hx-include="#admin-settings-form" hx-target="#admin-content" hx-swap="outerHTML" hx-select="#admin-content" class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                     <i class="fas fa-save mr-2"></i>保存所有设置
                 </button>
             </div>
@@ -1486,6 +1499,17 @@
 
     const saveButton = document.getElementById('settings-save-button');
     const saveAlert = document.getElementById('settings-save-alert');
+    const defaultSaveButtonHtml = saveButton ? saveButton.innerHTML : '';
+
+    const setSaveButtonLoading = (loading) => {
+        if (!saveButton) return;
+        saveButton.disabled = loading;
+        saveButton.classList.toggle('opacity-70', loading);
+        saveButton.classList.toggle('cursor-not-allowed', loading);
+        saveButton.innerHTML = loading
+            ? '<i class="fas fa-spinner fa-spin mr-2"></i>保存中...'
+            : defaultSaveButtonHtml;
+    };
 
     if (saveAlert) {
         window.setTimeout(() => {
@@ -1502,7 +1526,9 @@
         const isSaveKey = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
         if (!isSaveKey) return;
         event.preventDefault();
-        form.requestSubmit();
+        if (saveButton && !saveButton.disabled) {
+            saveButton.click();
+        }
     };
     if (window.__rewrzSettingsSaveShortcutHandler) {
         document.removeEventListener('keydown', window.__rewrzSettingsSaveShortcutHandler);
@@ -1510,11 +1536,23 @@
     window.__rewrzSettingsSaveShortcutHandler = shortcutHandler;
     document.addEventListener('keydown', shortcutHandler);
 
-    form.addEventListener('submit', () => {
-        if (!saveButton) return;
-        saveButton.disabled = true;
-        saveButton.classList.add('opacity-70', 'cursor-not-allowed');
-        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>保存中...';
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (saveButton && !saveButton.disabled) {
+            saveButton.click();
+        }
+    });
+
+    document.body.addEventListener('htmx:beforeRequest', (event) => {
+        if (event.target === saveButton) {
+            setSaveButtonLoading(true);
+        }
+    });
+
+    document.body.addEventListener('htmx:afterRequest', (event) => {
+        if (event.target === saveButton && event.detail.failed) {
+            setSaveButtonLoading(false);
+        }
     });
 
     const navPanel = document.getElementById('settings-quick-nav');

@@ -1,10 +1,14 @@
 import os
 import secrets
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 
 
-def _parse_bool_env(key: str, default: bool = False) -> bool:
-    raw_value = os.getenv(key)
+def get_env_file_path() -> str:
+    raw_path = str(os.getenv("REWRZ_ENV_FILE", ".env")).strip()
+    return raw_path or ".env"
+
+
+def _parse_bool_value(raw_value, default: bool = False) -> bool:
     if raw_value is None:
         return default
     return str(raw_value).strip().lower() in {"1", "true", "yes", "on"}
@@ -31,23 +35,36 @@ class DynamicSettings:
     
     def _load_config(self):
         """加载或重新加载环境变量"""
-        if os.path.exists(".env"):
-            load_dotenv(override=True)  # 强制重载
+        env_file_path = get_env_file_path()
+        file_env = {}
+        if os.path.exists(env_file_path):
+            file_env = {
+                key: "" if value is None else str(value)
+                for key, value in dotenv_values(env_file_path).items()
+            }
+
+        def get_value(key: str, default=""):
+            if key in file_env:
+                return file_env[key]
+            return os.getenv(key, default)
         
-        self.ADMIN_PATH: str = str(os.getenv("ADMIN_PATH", "/admin")).strip() or "/admin"
-        env_secret_key = str(os.getenv("SECRET_KEY", "")).strip()
+        self.ADMIN_PATH: str = str(get_value("ADMIN_PATH", "/admin")).strip() or "/admin"
+        env_secret_key = str(get_value("SECRET_KEY", "")).strip()
         if _is_weak_secret_key(env_secret_key):
             self.SECRET_KEY = self._runtime_secret_key
         else:
             self.SECRET_KEY = env_secret_key
-        self.DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+        self.DATABASE_URL: str = str(get_value("DATABASE_URL", "")).strip()
         try:
-            self.ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
+            self.ACCESS_TOKEN_EXPIRE_MINUTES = int(get_value("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
         except (TypeError, ValueError):
             self.ACCESS_TOKEN_EXPIRE_MINUTES = 1440
-        self.MEDIA_UPLOAD_DIR: str = os.getenv("MEDIA_UPLOAD_DIR", "media_uploads")
-        self.COOKIE_SECURE: bool = _parse_bool_env("COOKIE_SECURE", False)
-        self.SESSION_HTTPS_ONLY: bool = _parse_bool_env("SESSION_HTTPS_ONLY", self.COOKIE_SECURE)
+        self.MEDIA_UPLOAD_DIR: str = str(get_value("MEDIA_UPLOAD_DIR", "media_uploads")).strip() or "media_uploads"
+        self.COOKIE_SECURE: bool = _parse_bool_value(get_value("COOKIE_SECURE"), False)
+        self.SESSION_HTTPS_ONLY: bool = _parse_bool_value(
+            get_value("SESSION_HTTPS_ONLY"),
+            self.COOKIE_SECURE,
+        )
     
     def reload_config(self) -> bool:
         """重新加载配置，返回是否有变化"""
@@ -62,6 +79,6 @@ class DynamicSettings:
     @property
     def installation_complete(self) -> bool:
         """检查安装是否完成"""
-        return os.path.exists(".env") and bool(self.DATABASE_URL)
+        return os.path.exists(get_env_file_path()) and bool(self.DATABASE_URL)
 
 settings = DynamicSettings()

@@ -47,6 +47,31 @@ _resolve_format_by_slug: Callable[..., Any] | None = None
 _load_post_views_metrics_map: Callable[..., Dict[int, int]] | None = None
 
 
+def _build_cover_url_map(posts: List[Post], attr_name: str = "archive_cover_url") -> Dict[int, str]:
+    result: Dict[int, str] = {}
+    for post in posts or []:
+        post_id = getattr(post, "id", None)
+        if post_id is None:
+            continue
+        value = str(getattr(post, attr_name, "") or "").strip()
+        if value:
+            result[int(post_id)] = value
+    return result
+
+
+def _attach_cover_url_attr(
+    posts: List[Post],
+    cover_url_map: Dict[int, str],
+    *,
+    attr_name: str = "archive_card_cover_url",
+) -> None:
+    for post in posts or []:
+        post_id = getattr(post, "id", None)
+        if post_id is None:
+            continue
+        setattr(post, attr_name, str(cover_url_map.get(int(post_id), "") or "").strip())
+
+
 def _load_homepage_stats(db: Session) -> dict:
     homepage_stats = {
         "categories_count": crud_category.count_categories(db),
@@ -157,6 +182,7 @@ async def homepage(request: Request, page: int = 1, append: int = 0, db: Session
     context = build_base_template_context(request)
     context.update(
         {
+            "db": db,
             "posts": posts,
             "seo_data": seo_data,
             "pagination": pagination,
@@ -243,6 +269,7 @@ async def posts_by_media_attachment(
     context = build_base_template_context(request)
     context.update(
         {
+            "db": db,
             "media_slug": normalized_media_slug,
             "media_item": selected_media_item,
             "media_nav_items": media_nav_items,
@@ -356,10 +383,13 @@ async def format_page(
 
     if canonical_format_slug == "article":
         _attach_article_cover_urls(db, posts, attr_name="archive_cover_url")
+    archive_cover_url_map = _build_cover_url_map(posts)
+    _attach_cover_url_attr(posts, archive_cover_url_map)
 
     context = build_base_template_context(request)
     context.update(
         {
+            "db": db,
             "format": format_obj,
             "format_slug": canonical_format_slug,
             "posts": posts,
@@ -371,6 +401,7 @@ async def format_page(
             "format_category_topic_count": int(format_stats.get("format_category_topic_count", 0) or 0),
             "format_hot_tags": list(format_stats.get("format_hot_tags", []) or []),
             "format_stats_cache_hit": bool(format_stats.get("cache_hit", False)),
+            "archive_cover_url_map": archive_cover_url_map,
         }
     )
 
@@ -415,14 +446,19 @@ async def posts_by_category(
         skip=offset,
         limit=archive_posts_limit,
     )
+    _attach_article_cover_urls(db, posts, attr_name="archive_cover_url")
+    archive_cover_url_map = _build_cover_url_map(posts)
+    _attach_cover_url_attr(posts, archive_cover_url_map)
 
     context = build_base_template_context(request)
     context.update(
         {
+            "db": db,
             "category": category,
             "posts": posts,
             "pagination": pagination,
             "list_navigation_mode": list_navigation_mode,
+            "archive_cover_url_map": archive_cover_url_map,
         }
     )
 
@@ -467,14 +503,19 @@ async def posts_by_tag(
         skip=offset,
         limit=archive_posts_limit,
     )
+    _attach_article_cover_urls(db, posts, attr_name="archive_cover_url")
+    archive_cover_url_map = _build_cover_url_map(posts)
+    _attach_cover_url_attr(posts, archive_cover_url_map)
 
     context = build_base_template_context(request)
     context.update(
         {
+            "db": db,
             "tag": tag,
             "posts": posts,
             "pagination": pagination,
             "list_navigation_mode": list_navigation_mode,
+            "archive_cover_url_map": archive_cover_url_map,
         }
     )
 
@@ -515,6 +556,7 @@ async def posts_by_month(
     context = build_base_template_context(request)
     context.update(
         {
+            "db": db,
             "year": year,
             "month": month,
             "posts": posts,
@@ -560,6 +602,7 @@ async def archives_page(
     context = build_base_template_context(request)
     context.update(
         {
+            "db": db,
             "posts": posts,
             "pagination": pagination,
             "list_navigation_mode": list_navigation_mode,

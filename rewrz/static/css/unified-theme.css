@@ -91,21 +91,17 @@ body.site-shell {
         var(--color-background);
 }
 
-body.site-shell::before {
-    content: '';
-    position: fixed;
-    right: min(2vw, 18px);
-    bottom: 1.25rem;
-    width: clamp(150px, 20vw, 230px);
-    aspect-ratio: 1;
-    border-radius: 1.2rem;
-    background: linear-gradient(155deg, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0.03)), url('/static/images/anime/random/random-04.jpg') center/cover;
-    box-shadow: var(--ui-shadow-card);
-    opacity: 0.28;
-    filter: saturate(1.08);
-    transform: rotate(-3deg);
-    z-index: 1;
-    pointer-events: none;
+body.site-shell.bg-page-cover {
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--color-background) 22%, transparent) 0%,
+            color-mix(in srgb, var(--color-background) 42%, transparent) 32%,
+            color-mix(in srgb, var(--color-background) 68%, transparent) 68%,
+            color-mix(in srgb, var(--color-background) 88%, transparent) 100%
+        ),
+        radial-gradient(circle at 85% -10%, color-mix(in srgb, var(--color-primary) 18%, transparent) 0%, transparent 38%),
+        var(--page-bg-image) center/cover fixed no-repeat;
 }
 
 body.site-shell > header {
@@ -120,6 +116,127 @@ body.site-shell main,
 body.site-shell footer {
     position: relative;
     z-index: 2;
+}
+
+.content-hide-placeholder {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    border-radius: 1rem;
+    border: 1px dashed color-mix(in srgb, var(--color-primary) 26%, var(--color-border) 74%);
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 62%),
+        color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+    padding: 1rem 1rem 1.05rem;
+    color: var(--color-text);
+    box-shadow: var(--shadow-sm);
+}
+
+.content-hide-placeholder__copy {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--color-text-light);
+}
+
+.content-hide-placeholder__icon {
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+}
+
+.content-hide-placeholder__button {
+    align-self: flex-start;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 26%, var(--color-border) 74%);
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%);
+    color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.content-hide-placeholder__button:hover {
+    transform: translateY(-1px);
+    background: color-mix(in srgb, var(--color-primary) 20%, var(--color-card-bg) 80%);
+    border-color: color-mix(in srgb, var(--color-primary) 38%, var(--color-border) 62%);
+}
+
+.password-guard-shell {
+    position: relative;
+    z-index: 2;
+}
+
+.password-guard-card {
+    border-radius: 1.6rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    background:
+        linear-gradient(150deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 58%),
+        color-mix(in srgb, var(--color-card-bg) 94%, transparent);
+    box-shadow: var(--ui-shadow-card);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+.password-guard-title {
+    color: var(--color-text);
+}
+
+.password-guard-copy,
+.password-guard-label {
+    color: var(--color-text-light);
+}
+
+.password-guard-name {
+    color: var(--color-text);
+}
+
+.password-guard-error {
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, #ef4444 36%, var(--color-border) 64%);
+    background: color-mix(in srgb, #ef4444 10%, var(--color-card-bg) 90%);
+    color: color-mix(in srgb, #ef4444 74%, var(--color-text) 26%);
+}
+
+.password-guard-input {
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    background: color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+    color: var(--color-text);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.password-guard-input:focus {
+    border-color: color-mix(in srgb, var(--color-primary) 46%, var(--color-border) 54%);
+    box-shadow: var(--ui-ring);
+}
+
+.password-guard-submit {
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 68%, var(--color-secondary) 32%));
+    color: var(--color-text-inverse);
+    font-weight: 700;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.password-guard-submit:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.03);
+    box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 768px) {
+    body.site-shell.bg-page-cover {
+        background-attachment: scroll;
+    }
+
+    .content-hide-placeholder__button {
+        align-self: stretch;
+        text-align: center;
+    }
 }
 
 .theme-toast {
@@ -202,6 +319,65 @@ body.site-shell footer {
     backdrop-filter: blur(4px);
 }
 
+.timeline-desktop-row {
+    position: relative;
+}
+
+.timeline-bridge {
+    --timeline-bridge-span: calc(20% + 0.9rem);
+    position: relative;
+}
+
+.timeline-bridge-card {
+    position: relative;
+    z-index: 1;
+}
+
+.timeline-bridge-stroke {
+    position: absolute;
+    z-index: 0;
+    display: block;
+    height: 2px;
+    border-radius: 999px;
+    pointer-events: none;
+    opacity: 0.92;
+    background:
+        linear-gradient(
+            90deg,
+            color-mix(in srgb, var(--color-primary) 18%, transparent),
+            color-mix(in srgb, var(--color-primary) 56%, var(--color-text) 10%) 28%,
+            color-mix(in srgb, var(--color-primary) 72%, white 8%)
+        );
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--color-primary) 10%, transparent),
+        0 0 14px color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+
+.timeline-bridge-left > .timeline-bridge-stroke {
+    right: calc(var(--timeline-bridge-span) * -1);
+    width: var(--timeline-bridge-span);
+}
+
+.timeline-bridge-right > .timeline-bridge-stroke {
+    left: calc(var(--timeline-bridge-span) * -1);
+    width: var(--timeline-bridge-span);
+    background:
+        linear-gradient(
+            270deg,
+            color-mix(in srgb, var(--color-primary) 18%, transparent),
+            color-mix(in srgb, var(--color-primary) 56%, var(--color-text) 10%) 28%,
+            color-mix(in srgb, var(--color-primary) 72%, white 8%)
+        );
+}
+
+.timeline-bridge-copy > .timeline-bridge-stroke {
+    top: 1.65rem;
+}
+
+.timeline-bridge-media > .timeline-bridge-stroke {
+    top: clamp(3rem, 24%, 4.9rem);
+}
+
 .archive-grid-equal {
     align-items: stretch;
 }
@@ -209,6 +385,16 @@ body.site-shell footer {
 @media (min-width: 768px) {
     .archive-grid-equal {
         grid-auto-rows: 1fr;
+    }
+
+    .timeline-bridge-media > .timeline-bridge-stroke {
+        top: clamp(3.2rem, 26%, 5.4rem);
+    }
+}
+
+@media (max-width: 767.98px) {
+    .timeline-bridge-stroke {
+        display: none;
     }
 }
 
@@ -337,14 +523,16 @@ body.site-shell select:focus {
     height: clamp(14rem, 34vw, 21rem);
     object-fit: cover;
     object-position: center 34%;
-    transform: scale(1.02);
+    transform: translate3d(var(--motion-shift-x, 0px), var(--motion-shift-y, 0px), 0) scale(var(--motion-scale, 1.02));
+    transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
 }
 
 .hero-surface-cover-card .hero-cover-image {
     height: 100%;
     min-height: clamp(24rem, 46vw, 34rem);
     object-position: center center;
-    transform: scale(1.01);
+    transform: translate3d(var(--motion-shift-x, 0px), var(--motion-shift-y, 0px), 0) scale(var(--motion-scale, 1.01));
 }
 
 .hero-cover-overlay {
@@ -370,6 +558,26 @@ body.site-shell select:focus {
 .hero-avatar-shell {
     background: color-mix(in srgb, var(--color-card-bg) 92%, transparent);
     box-shadow: 0 14px 34px -18px rgba(15, 23, 42, 0.65);
+}
+
+.profile-motion-shell {
+    --motion-shift-x: 0px;
+    --motion-shift-y: 0px;
+    --motion-scale: 1.015;
+}
+
+.profile-motion-shell:hover {
+    --motion-scale: 1.035;
+}
+
+.hero-avatar-spin {
+    transform-origin: center;
+    transition: transform 760ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+}
+
+.hero-avatar-spin:hover {
+    transform: rotate(360deg);
 }
 
 .hero-profile-copy-overlay {
@@ -454,6 +662,53 @@ body.site-shell select:focus {
     color: rgba(255, 255, 255, 0.98) !important;
 }
 
+.dark .hero-surface-cover-card {
+    --hero-gold-border: rgba(242, 205, 132, 0.18);
+    --hero-gold-panel: rgba(20, 25, 44, 0.42);
+    --hero-gold-panel-hover: rgba(88, 61, 23, 0.3);
+    --hero-gold-text: #fff1d2;
+    --hero-gold-muted: rgba(241, 223, 188, 0.84);
+    --hero-gold-accent: #f2d49a;
+}
+
+.dark .hero-surface-cover-card .hero-cover-overlay {
+    background:
+        linear-gradient(180deg, rgba(15, 23, 42, 0.14) 0%, rgba(15, 23, 42, 0.24) 46%, rgba(15, 23, 42, 0.56) 100%),
+        linear-gradient(120deg, rgba(245, 158, 11, 0.16) 0%, rgba(15, 23, 42, 0.14) 48%, rgba(15, 23, 42, 0.26) 100%);
+}
+
+.dark .hero-surface-cover-card .hero-profile-copy-overlay h1,
+.dark .hero-surface-cover-card .hero-profile-copy-overlay p,
+.dark .hero-surface-cover-card .hero-stats-grid > div .text-xl,
+.dark .hero-surface-cover-card .hero-stats-grid > div .mt-1 {
+    color: var(--hero-gold-text) !important;
+}
+
+.dark .hero-surface-cover-card .hero-profile-copy-overlay p,
+.dark .hero-surface-cover-card .hero-stats-grid > div .mt-1 {
+    color: var(--hero-gold-muted) !important;
+}
+
+.dark .hero-surface-cover-card .hero-profile-main .rounded-full,
+.dark .hero-surface-cover-card .hero-profile-main a.rounded-full,
+.dark .hero-surface-cover-card .hero-profile-main .inline-flex.rounded-full {
+    border-color: var(--hero-gold-border) !important;
+    background: var(--hero-gold-panel) !important;
+    color: var(--hero-gold-accent) !important;
+}
+
+.dark .hero-surface-cover-card .hero-profile-main a.rounded-full:hover,
+.dark .hero-surface-cover-card .hero-profile-main .inline-flex.rounded-full:hover {
+    background: var(--hero-gold-panel-hover) !important;
+    border-color: rgba(247, 213, 141, 0.3) !important;
+    color: var(--hero-gold-text) !important;
+}
+
+.dark .hero-surface-cover-card .hero-stats-grid > div {
+    border-color: var(--hero-gold-border) !important;
+    background: rgba(20, 25, 44, 0.38) !important;
+}
+
 .format-switch-pill {
     border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
     box-shadow: 0 10px 24px -20px color-mix(in srgb, var(--color-primary) 38%, rgba(15, 23, 42, 0.22));
@@ -510,6 +765,9 @@ body.site-shell select:focus {
     width: 100%;
     object-fit: cover;
     object-position: center 34%;
+    transform: translate3d(var(--motion-shift-x, 0px), var(--motion-shift-y, 0px), 0) scale(var(--motion-scale, 1.02));
+    transition: transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
 }
 
 .format-hero-media > .format-hero-image {
@@ -597,12 +855,14 @@ body.admin-app {
         color-mix(in srgb, var(--color-card-bg) 94%, transparent);
     backdrop-filter: blur(14px);
     overflow-y: auto;
+    transition: width var(--anime-normal) var(--anime-smooth), padding var(--anime-normal) var(--anime-smooth), transform var(--anime-normal) var(--anime-smooth);
 }
 
 .admin-main-shell {
     flex: 1;
     min-width: 0;
     padding: 1rem;
+    transition: padding var(--anime-normal) var(--anime-smooth);
 }
 
 .admin-page-shell {
@@ -770,19 +1030,10 @@ body.admin-app {
     background: color-mix(in srgb, var(--color-background-alt) 86%, transparent) !important;
 }
 
-.admin-anime-float {
-    position: fixed;
-    right: 20px;
-    bottom: 20px;
-    width: clamp(95px, 12vw, 140px);
-    aspect-ratio: 1;
-    border-radius: 1rem;
-    border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
-    background: linear-gradient(145deg, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0.03)), url('/static/images/anime/random/random-02.jpg') center/cover;
-    box-shadow: var(--ui-shadow-card);
-    opacity: 0.11;
-    z-index: 1;
-    pointer-events: none;
+.admin-nav-label,
+.admin-logo-copy,
+.admin-nav-group-title {
+    transition: opacity var(--anime-fast) ease, max-width var(--anime-normal) var(--anime-smooth), margin var(--anime-fast) ease;
 }
 
 @media (max-width: 1024px) {
@@ -808,13 +1059,6 @@ body.admin-app {
         padding: 0.9rem;
     }
 
-    body.site-shell::before,
-    .admin-anime-float {
-        opacity: 0.14;
-        width: 92px;
-        right: 10px;
-        bottom: 10px;
-    }
 }
 
 /* ===== 二次元风格增强 ===== */
@@ -1010,11 +1254,7 @@ body.site-shell > header input[type="text"]:focus {
 
 /* 页脚渐变增强 */
 body.site-shell > footer {
-    background: linear-gradient(
-        to top,
-        color-mix(in srgb, var(--color-background) 100%, transparent),
-        color-mix(in srgb, var(--color-background) 95%, transparent)
-    );
+    background: transparent;
 }
 
 /* 社交链接悬浮效果 */
@@ -1627,16 +1867,6 @@ body.site-shell > footer a:hover {
     background:
         linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 44%),
         color-mix(in srgb, var(--color-card-bg) 95%, transparent) !important;
-}
-
-/* 后台浮动装饰增强 */
-.admin-anime-float {
-    animation: adminFloatRotate 20s ease-in-out infinite;
-}
-
-@keyframes adminFloatRotate {
-    0%, 100% { transform: rotate(-3deg) translateY(0); }
-    50% { transform: rotate(3deg) translateY(-10px); }
 }
 
 /* 后台 Toast 通知增强 */
@@ -2801,10 +3031,51 @@ body.site-shell .media-external-box {
     line-height: 1;
 }
 
-@media (min-width: 768px) {
-    .admin-sidebar-toggle,
+@media (min-width: 901px) {
     .admin-sidebar-close {
         display: none !important;
+    }
+
+    .admin-shell.is-sidebar-collapsed .admin-sidebar-shell {
+        width: 5.35rem;
+        padding-left: 0.7rem;
+        padding-right: 0.7rem;
+    }
+
+    .admin-shell.is-sidebar-collapsed .admin-logo-link {
+        justify-content: center;
+        padding-left: 0.45rem;
+        padding-right: 0.45rem;
+    }
+
+    .admin-shell.is-sidebar-collapsed .admin-logo-copy,
+    .admin-shell.is-sidebar-collapsed .admin-nav-label {
+        opacity: 0;
+        max-width: 0;
+        overflow: hidden;
+        margin: 0;
+        pointer-events: none;
+        white-space: nowrap;
+    }
+
+    .admin-shell.is-sidebar-collapsed .admin-nav-group-title {
+        opacity: 0;
+        max-height: 0;
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+        pointer-events: none;
+    }
+
+    .admin-shell.is-sidebar-collapsed .admin-nav-link {
+        justify-content: center;
+        gap: 0;
+        padding-left: 0.55rem;
+        padding-right: 0.55rem;
+    }
+
+    .admin-shell.is-sidebar-collapsed .admin-nav-link:hover {
+        transform: none;
     }
 }
 
@@ -3465,6 +3736,171 @@ body.site-shell .media-external-box {
     color: var(--color-text-light);
 }
 
+.admin-settings-shell {
+    --settings-surface-glass: linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--color-primary) 11%, transparent),
+        transparent 54%
+    ), color-mix(in srgb, var(--color-card-bg) 95%, transparent);
+    --settings-surface-soft: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--color-primary) 9%, transparent),
+        transparent 58%
+    ), color-mix(in srgb, var(--color-card-bg) 92%, transparent);
+    --settings-surface-solid: color-mix(in srgb, var(--color-card-bg) 97%, transparent);
+    --settings-border-strong: color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%);
+    --settings-border-soft: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    --settings-shadow-soft: 0 18px 42px -28px color-mix(in srgb, var(--color-primary) 34%, rgba(15, 23, 42, 0.26));
+    --settings-shadow-strong: 0 22px 48px -30px color-mix(in srgb, var(--color-primary) 42%, rgba(15, 23, 42, 0.3));
+    --settings-accent-text: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
+    --settings-muted-text: color-mix(in srgb, var(--color-text-light) 90%, var(--color-text) 10%);
+    --settings-overlay-text: color-mix(in srgb, var(--color-text) 96%, var(--color-primary) 4%);
+}
+
+.admin-settings-shell .settings-intro-card,
+.admin-settings-shell .settings-section-card,
+.admin-settings-shell .settings-quick-nav,
+.admin-settings-shell #settings-save-dock {
+    border-color: var(--settings-border-soft) !important;
+    background: var(--settings-surface-glass) !important;
+    box-shadow: var(--settings-shadow-soft) !important;
+}
+
+.admin-settings-shell .settings-section-card {
+    border: 1px solid var(--settings-border-soft) !important;
+    background:
+        radial-gradient(circle at top right, color-mix(in srgb, var(--color-primary) 9%, transparent), transparent 34%),
+        linear-gradient(180deg, color-mix(in srgb, var(--color-card-bg) 96%, transparent), color-mix(in srgb, var(--color-card-bg) 92%, transparent)) !important;
+}
+
+.admin-settings-shell .settings-nav-backdrop {
+    background: color-mix(in srgb, var(--color-background) 68%, transparent) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.admin-settings-shell .settings-nav-toggle,
+.admin-settings-shell #settings-save-button {
+    box-shadow: var(--settings-shadow-strong) !important;
+}
+
+.admin-settings-shell .settings-nav-close,
+.admin-settings-shell .settings-upload-btn,
+.admin-settings-shell .bg-gray-500,
+.admin-settings-shell .hover\:bg-gray-600:hover {
+    border: 1px solid var(--settings-border-soft) !important;
+    background: color-mix(in srgb, var(--color-background-alt) 74%, var(--color-card-bg) 26%) !important;
+    color: var(--color-text) !important;
+}
+
+.admin-settings-shell .settings-upload-btn:hover,
+.admin-settings-shell .settings-nav-close:hover,
+.admin-settings-shell .bg-gray-500:hover {
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%) !important;
+    color: var(--settings-accent-text) !important;
+}
+
+.admin-settings-shell .settings-success-alert,
+.admin-settings-shell .border-green-300.bg-green-50 {
+    border-color: color-mix(in srgb, var(--color-primary) 26%, var(--color-border)) !important;
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 58%),
+        color-mix(in srgb, var(--color-card-bg) 96%, transparent) !important;
+    color: var(--settings-accent-text) !important;
+}
+
+.admin-settings-shell .bg-gray-100,
+.admin-settings-shell .bg-gray-50,
+.admin-settings-shell .bg-white,
+.admin-settings-shell .bg-white\/95 {
+    background: var(--settings-surface-soft) !important;
+}
+
+.admin-settings-shell .border-gray-200,
+.admin-settings-shell .border-gray-300,
+.admin-settings-shell .border {
+    border-color: var(--settings-border-soft) !important;
+}
+
+.admin-settings-shell .text-gray-900,
+.admin-settings-shell .text-gray-800,
+.admin-settings-shell .text-gray-700,
+.admin-settings-shell .font-mono.text-lg.text-blue-600,
+.admin-settings-shell .font-medium.text-gray-900 {
+    color: var(--settings-overlay-text) !important;
+}
+
+.admin-settings-shell .text-gray-600,
+.admin-settings-shell .text-gray-500,
+.admin-settings-shell .text-gray-400,
+.admin-settings-shell .text-sm.text-gray-500,
+.admin-settings-shell .text-xs.text-gray-500,
+.admin-settings-shell .text-sm.text-gray-600,
+.admin-settings-shell .text-xs.text-gray-400 {
+    color: var(--settings-muted-text) !important;
+}
+
+.admin-settings-shell .settings-nav-kicker,
+.admin-settings-shell .text-indigo-600,
+.admin-settings-shell .text-indigo-700,
+.admin-settings-shell .text-blue-600,
+.admin-settings-shell .text-blue-700,
+.admin-settings-shell .text-blue-800,
+.admin-settings-shell .text-purple-600,
+.admin-settings-shell .text-purple-700,
+.admin-settings-shell .text-purple-800,
+.admin-settings-shell .text-green-600,
+.admin-settings-shell .text-amber-800,
+.admin-settings-shell .text-amber-900 {
+    color: var(--settings-accent-text) !important;
+}
+
+.admin-settings-shell input[type="file"] {
+    color: var(--settings-muted-text);
+}
+
+.admin-settings-shell input[type="file"]::file-selector-button {
+    margin-right: 0.7rem;
+    border: 1px solid var(--settings-border-soft);
+    border-radius: 999px;
+    padding: 0.42rem 0.8rem;
+    background: color-mix(in srgb, var(--color-card-bg) 92%, transparent);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.admin-settings-shell input[type="file"]::file-selector-button:hover {
+    border-color: var(--settings-border-strong);
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%);
+    color: var(--settings-accent-text);
+}
+
+.admin-settings-shell #admin-path-config,
+.admin-settings-shell #fullscreen-gallery-settings,
+.admin-settings-shell #fullscreen-video-settings,
+.admin-settings-shell .space-y-4.p-4.bg-gray-50.rounded-lg,
+.admin-settings-shell #current-admin-path,
+.admin-settings-shell #new-path-preview {
+    border-color: var(--settings-border-soft) !important;
+    background: var(--settings-surface-soft) !important;
+    color: var(--settings-overlay-text) !important;
+}
+
+.admin-settings-shell #settings-save-dock p,
+.admin-settings-shell #settings-quick-nav h3,
+.admin-settings-shell .settings-intro-card h2,
+.admin-settings-shell .settings-section-card h2,
+.admin-settings-shell .settings-section-card h3,
+.admin-settings-shell .settings-section-card h4 {
+    color: var(--settings-overlay-text) !important;
+}
+
+.admin-settings-shell #settings-save-dock {
+    backdrop-filter: blur(18px) saturate(135%);
+    -webkit-backdrop-filter: blur(18px) saturate(135%);
+}
+
 .admin-divider-vertical {
     background: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
 }
@@ -3842,4 +4278,244 @@ body.site-shell .media-external-box {
         opacity: 1;
         transform: scale(1) translateY(0);
     }
+}
+
+body.site-shell {
+    --surface-glass-bg: color-mix(in srgb, var(--color-card-bg) 72%, transparent);
+    --surface-glass-border: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+    --surface-glass-shadow: 0 18px 38px -28px color-mix(in srgb, var(--color-primary) 30%, rgba(15, 23, 42, 0.22));
+    --surface-soft-bg: color-mix(in srgb, var(--color-card-bg) 92%, var(--color-background-alt) 8%);
+    --surface-soft-border: color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+    --surface-solid-bg: color-mix(in srgb, var(--color-card-bg) 98%, var(--color-background-alt) 2%);
+    --surface-solid-border: color-mix(in srgb, var(--color-primary) 12%, var(--color-border) 88%);
+    --surface-overlay-text: color-mix(in srgb, var(--color-text) 92%, black 8%);
+    --surface-muted-text: color-mix(in srgb, var(--color-text-light) 88%, var(--color-text) 12%);
+    --surface-quiet-icon: color-mix(in srgb, var(--color-primary) 54%, var(--color-text) 46%);
+}
+
+body.site-shell.dark,
+body.site-shell[data-current-theme="dark"],
+body.site-shell[data-current-theme="galaxy"] {
+    --surface-glass-bg: color-mix(in srgb, var(--color-card-bg) 62%, transparent);
+    --surface-glass-border: color-mix(in srgb, var(--color-primary) 20%, var(--color-border) 80%);
+    --surface-glass-shadow: 0 18px 42px -28px color-mix(in srgb, rgba(2, 6, 23, 0.76) 72%, var(--color-primary) 28%);
+    --surface-soft-bg: color-mix(in srgb, var(--color-card-bg) 86%, var(--color-background-alt) 14%);
+    --surface-soft-border: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    --surface-solid-bg: color-mix(in srgb, var(--color-card-bg) 94%, var(--color-background-alt) 6%);
+    --surface-solid-border: color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+    --surface-overlay-text: color-mix(in srgb, white 92%, var(--color-text) 8%);
+    --surface-muted-text: color-mix(in srgb, var(--color-text-light) 92%, white 8%);
+    --surface-quiet-icon: color-mix(in srgb, var(--color-primary) 60%, white 40%);
+}
+
+body.site-shell .tag-archive-shell {
+    color: var(--color-text);
+}
+
+body.site-shell .tag-archive-hero {
+    border-color: var(--surface-glass-border);
+    background:
+        linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--color-primary) 10%, var(--surface-soft-bg)),
+            var(--surface-solid-bg)
+        );
+    box-shadow: var(--surface-glass-shadow);
+    transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dark body.site-shell .tag-archive-hero {
+    border-color: rgba(242, 205, 132, 0.18);
+    background:
+        linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(20, 25, 44, 0.72)),
+        linear-gradient(180deg, rgba(20, 25, 44, 0.72), rgba(20, 25, 44, 0.56));
+    box-shadow: 0 18px 42px -28px rgba(2, 6, 23, 0.44);
+}
+
+body.site-shell .tag-archive-kicker {
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--surface-muted-text) 28%);
+    letter-spacing: 0.08em;
+}
+
+.dark body.site-shell .tag-archive-kicker {
+    color: #f2d49a;
+}
+
+body.site-shell .tag-archive-title {
+    color: var(--surface-overlay-text);
+    line-height: 1.18;
+    letter-spacing: 0.01em;
+}
+
+.dark body.site-shell .tag-archive-title {
+    color: #fff1d2;
+}
+
+body.site-shell .tag-archive-summary {
+    max-width: 42rem;
+    color: var(--surface-muted-text);
+    line-height: 1.7;
+    font-size: 0.96rem;
+}
+
+.dark body.site-shell .tag-archive-summary {
+    color: rgba(241, 223, 188, 0.84);
+}
+
+body.site-shell .tag-archive-back {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    background: var(--surface-solid-bg);
+    color: color-mix(in srgb, var(--color-primary) 70%, var(--color-text) 30%);
+    box-shadow: 0 10px 24px -20px color-mix(in srgb, var(--color-primary) 34%, rgba(15, 23, 42, 0.2));
+}
+
+.dark body.site-shell .tag-archive-back {
+    border-color: rgba(242, 205, 132, 0.18);
+    background: rgba(20, 25, 44, 0.42);
+    color: #f2d49a;
+}
+
+.dark body.site-shell .tag-archive-back:hover {
+    background: rgba(88, 61, 23, 0.32);
+    color: #fff1d2;
+}
+
+body.site-shell .tag-archive-back:hover {
+    background: color-mix(in srgb, var(--color-primary) 11%, var(--surface-solid-bg));
+    color: color-mix(in srgb, var(--color-primary) 80%, var(--color-text) 20%);
+}
+
+body.site-shell .tag-archive-card {
+    border-color: var(--surface-soft-border);
+    background: var(--surface-soft-bg);
+    box-shadow: 0 16px 32px -28px color-mix(in srgb, var(--color-primary) 22%, rgba(15, 23, 42, 0.22));
+}
+
+body.site-shell .category-archive-hero {
+    border-color: var(--surface-glass-border);
+    background:
+        linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--color-primary) 10%, var(--surface-soft-bg)),
+            var(--surface-solid-bg)
+        );
+    box-shadow: var(--surface-glass-shadow);
+}
+
+.dark body.site-shell .category-archive-hero {
+    border-color: rgba(242, 205, 132, 0.18);
+    background:
+        linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(20, 25, 44, 0.72)),
+        linear-gradient(180deg, rgba(20, 25, 44, 0.72), rgba(20, 25, 44, 0.56));
+    box-shadow: 0 18px 42px -28px rgba(2, 6, 23, 0.44);
+}
+
+body.site-shell .category-archive-hero .text-sky-600,
+body.site-shell .category-archive-hero .text-sky-700,
+body.site-shell .category-archive-hero .text-gray-900,
+body.site-shell .category-archive-hero .text-gray-600 {
+    color: var(--surface-overlay-text) !important;
+}
+
+body.site-shell .category-archive-hero .text-gray-600 {
+    color: var(--surface-muted-text) !important;
+}
+
+.dark body.site-shell .category-archive-hero .text-sky-600,
+.dark body.site-shell .category-archive-hero .text-sky-700 {
+    color: #f2d49a !important;
+}
+
+body.site-shell .category-archive-hero .category-archive-pill {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    background: var(--surface-solid-bg);
+    color: color-mix(in srgb, var(--color-primary) 70%, var(--color-text) 30%);
+    box-shadow: 0 10px 24px -20px color-mix(in srgb, var(--color-primary) 34%, rgba(15, 23, 42, 0.2));
+}
+
+body.site-shell .category-archive-hero .category-archive-pill:hover {
+    background: color-mix(in srgb, var(--color-primary) 11%, var(--surface-solid-bg));
+    color: color-mix(in srgb, var(--color-primary) 80%, var(--color-text) 20%);
+}
+
+.dark body.site-shell .category-archive-hero .category-archive-pill {
+    border-color: rgba(242, 205, 132, 0.18);
+    background: rgba(20, 25, 44, 0.42);
+    color: #f2d49a;
+}
+
+.dark body.site-shell .category-archive-hero .category-archive-pill:hover {
+    background: rgba(88, 61, 23, 0.32);
+    color: #fff1d2;
+}
+
+body.site-shell .category-archive-card {
+    border-color: var(--surface-soft-border);
+    background: var(--surface-soft-bg);
+    box-shadow: 0 16px 32px -28px color-mix(in srgb, var(--color-primary) 22%, rgba(15, 23, 42, 0.22));
+}
+
+body.site-shell .category-archive-empty {
+    border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    background: var(--surface-soft-bg);
+    color: var(--surface-muted-text);
+}
+
+body.site-shell .tag-archive-empty {
+    border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    background: var(--surface-soft-bg);
+    color: var(--surface-muted-text);
+}
+
+body.site-shell .timeline-card {
+    border-color: var(--surface-soft-border);
+    background: var(--surface-soft-bg);
+    box-shadow: 0 16px 32px -28px color-mix(in srgb, var(--color-primary) 20%, rgba(15, 23, 42, 0.22));
+}
+
+body.site-shell .timeline-card-title,
+body.site-shell .timeline-card-link,
+body.site-shell .timeline-card-summary {
+    color: var(--surface-overlay-text);
+}
+
+body.site-shell .timeline-card-summary {
+    line-height: 1.72;
+    color: var(--surface-muted-text);
+}
+
+body.site-shell .timeline-card-meta-text {
+    color: var(--surface-muted-text);
+}
+
+body.site-shell .timeline-card-badge,
+body.site-shell .timeline-card-chip {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+    background: var(--surface-solid-bg);
+    color: color-mix(in srgb, var(--color-primary) 68%, var(--color-text) 32%);
+}
+
+body.site-shell .timeline-card-chip-image {
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--surface-solid-bg));
+}
+
+body.site-shell .timeline-card-chip-video {
+    background: color-mix(in srgb, #059669 10%, var(--surface-solid-bg));
+}
+
+body.site-shell .timeline-card-chip-audio {
+    background: color-mix(in srgb, #d97706 10%, var(--surface-solid-bg));
+}
+
+body.site-shell .timeline-card-chip-tag {
+    background: color-mix(in srgb, var(--color-background-alt) 74%, var(--surface-solid-bg) 26%);
+    color: var(--surface-muted-text);
+}
+
+body.site-shell .timeline-card-divider {
+    border-top-color: color-mix(in srgb, var(--color-primary) 12%, var(--color-border) 88%);
+}
+
+body.site-shell .timeline-card-link:hover {
+    color: color-mix(in srgb, var(--color-primary) 80%, var(--color-text) 20%);
 }

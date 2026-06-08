@@ -37,9 +37,45 @@ def test_license_manager():
 
 def test_donation_system():
     """测试打赏功能"""
-    # 由于需要数据库会话，我们在这里只测试导入是否成功
-    # 实际的打赏功能测试在其他专门的测试文件中进行
-    assert True
+    from rewrz.core.database import SessionLocal
+    from rewrz.core.donation_system import DonationSystem
+
+    db = SessionLocal()
+    try:
+        donation_system = DonationSystem(db)
+        donation_system.settings.update(
+            {
+                "enabled": True,
+                "title": "测试赞赏",
+                "description": "用于检查三种样式输出",
+                "qr_code_url": "/static/favicon.ico",
+                "link_text": "支持作者",
+                "link_url": "https://example.com/support",
+            }
+        )
+
+        expected_surface = {
+            "elegant": "soft",
+            "minimal": "solid",
+            "card": "soft",
+        }
+
+        for theme, surface_style in expected_surface.items():
+            donation_system.settings["style_theme"] = theme
+            html = donation_system.render_donation_widget()
+            assert f'data-donation-theme="{theme}"' in html
+            assert f'data-surface-style="{surface_style}"' in html
+            assert f"donation-theme-{theme}" in html
+            assert "测试赞赏" in html
+            assert "支持作者" in html
+
+        donation_system.settings["style_theme"] = "card"
+        card_html = donation_system.render_donation_widget()
+        assert "donation-card-shell" in card_html
+        assert "donation-card-main" in card_html
+        assert "donation-card-side" in card_html
+    finally:
+        db.close()
 
 
 def test_responsive_images():

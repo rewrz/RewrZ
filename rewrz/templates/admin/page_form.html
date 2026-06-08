@@ -281,9 +281,15 @@
                             type="password"
                             name="password"
                             class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                            placeholder="{% if post and post.visibility == 'password' %}留空保持原密码{% else %}请输入访问密码{% endif %}"
+                            placeholder="{% if post and post.visibility == 'password' %}请输入新密码，留空则保持原密码{% else %}请输入访问密码{% endif %}"
                         >
-                        <p class="mt-1 text-xs text-gray-500">仅在选择"密码保护"时生效。</p>
+                        <p class="mt-1 text-xs text-gray-500">
+                            {% if post and post.visibility == 'password' %}
+                            当前页面已设置访问密码，但系统仅保存密码哈希，无法回显原密码；如需修改，请输入新密码。
+                            {% else %}
+                            仅在选择"密码保护"时生效。
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
                 <div>

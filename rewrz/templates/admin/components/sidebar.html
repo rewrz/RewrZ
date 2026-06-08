@@ -1,11 +1,11 @@
 {% set admin_root = request.state.admin_path %}
 {% set current_path = request.url.path %}
 <aside id="admin-sidebar" class="admin-sidebar-shell">
-    <button type="button" id="admin-sidebar-close" class="admin-sidebar-close md:hidden" aria-label="收起侧边栏">
+    <button type="button" id="admin-sidebar-close" class="admin-sidebar-close" aria-label="收起侧边栏">
         <i class="fas fa-times"></i>
     </button>
     <!-- Logo 区域增强 -->
-    <a href="{{ admin_root }}/dashboard" class="admin-logo-link flex items-center gap-3 px-2 py-3 rounded-xl mb-4 transition-all duration-300 hover:shadow-lg group">
+    <a href="{{ admin_root }}/dashboard" class="admin-logo-link flex items-center gap-3 px-2 py-3 rounded-xl mb-4 transition-all duration-300 hover:shadow-lg group" title="返回后台首页">
         {% if request.state.site_logo_light %}
             <img src="{{ request.state.site_logo_light }}" alt="{{ request.state.site_title or '后台' }}" class="h-10 w-auto object-contain rounded-lg transition-transform duration-300 group-hover:scale-105">
         {% elif request.state.site_logo_dark %}
@@ -15,69 +15,69 @@
                 <span style="color: rgba(10, 10, 10, 0.96);">R</span><span style="color: rgba(255, 255, 255, 0.98);">Z</span>
             </span>
         {% endif %}
-        <div class="min-w-0">
+        <div class="admin-logo-copy min-w-0">
             <p class="font-bold truncate text-base" style="color: var(--color-text);">{{ request.state.site_title or 'RewrZ' }}</p>
             <p class="text-xs truncate" style="color: var(--color-text-muted);">✨ 管理控制台</p>
         </div>
     </a>
 
     <nav class="admin-sidebar-nav space-y-1 text-sm">
-        <a href="{{ admin_root }}/dashboard" class="admin-nav-link {% if current_path.startswith(admin_root + '/dashboard') %}active{% endif %}">
-            <i class="fas fa-chart-line w-5 text-center"></i>仪表盘
+        <a href="{{ admin_root }}/dashboard" class="admin-nav-link {% if current_path.startswith(admin_root + '/dashboard') %}active{% endif %}" title="仪表盘">
+            <i class="fas fa-chart-line w-5 text-center"></i><span class="admin-nav-label">仪表盘</span>
         </a>
 
         <div class="admin-nav-group-title">内容管理</div>
-        <a href="{{ admin_root }}/posts/new" class="admin-nav-link {% if current_path == admin_root + '/posts/new' %}active{% endif %}">
-            <i class="fas fa-pen-nib w-5 text-center"></i>新建文章
+        <a href="{{ admin_root }}/posts/new" class="admin-nav-link {% if current_path == admin_root + '/posts/new' %}active{% endif %}" title="新建文章">
+            <i class="fas fa-pen-nib w-5 text-center"></i><span class="admin-nav-label">新建文章</span>
         </a>
-        <a href="{{ admin_root }}/posts" class="admin-nav-link {% if current_path.startswith(admin_root + '/posts') and not current_path.endswith('/new') %}active{% endif %}">
-            <i class="fas fa-newspaper w-5 text-center"></i>文章管理
+        <a href="{{ admin_root }}/posts" class="admin-nav-link {% if current_path.startswith(admin_root + '/posts') and not current_path.endswith('/new') %}active{% endif %}" title="文章管理">
+            <i class="fas fa-newspaper w-5 text-center"></i><span class="admin-nav-label">文章管理</span>
         </a>
-        <a href="{{ admin_root }}/pages" class="admin-nav-link {% if current_path.startswith(admin_root + '/pages') %}active{% endif %}">
-            <i class="fas fa-file-alt w-5 text-center"></i>页面管理
+        <a href="{{ admin_root }}/pages" class="admin-nav-link {% if current_path.startswith(admin_root + '/pages') %}active{% endif %}" title="页面管理">
+            <i class="fas fa-file-alt w-5 text-center"></i><span class="admin-nav-label">页面管理</span>
         </a>
-        <a href="{{ admin_root }}/comments" class="admin-nav-link {% if current_path.startswith(admin_root + '/comments') %}active{% endif %}">
-            <i class="fas fa-comments w-5 text-center"></i>评论管理
+        <a href="{{ admin_root }}/comments" class="admin-nav-link {% if current_path.startswith(admin_root + '/comments') %}active{% endif %}" title="评论管理">
+            <i class="fas fa-comments w-5 text-center"></i><span class="admin-nav-label">评论管理</span>
         </a>
-        <a href="{{ admin_root }}/media" class="admin-nav-link {% if current_path.startswith(admin_root + '/media') and not current_path.startswith(admin_root + '/media/settings') %}active{% endif %}">
-            <i class="fas fa-photo-video w-5 text-center"></i>媒体库
+        <a href="{{ admin_root }}/media" class="admin-nav-link {% if current_path.startswith(admin_root + '/media') and not current_path.startswith(admin_root + '/media/settings') %}active{% endif %}" title="媒体库">
+            <i class="fas fa-photo-video w-5 text-center"></i><span class="admin-nav-label">媒体库</span>
         </a>
 
         <div class="admin-nav-group-title">结构与标签</div>
-        <a href="{{ admin_root }}/categories" class="admin-nav-link {% if current_path.startswith(admin_root + '/categories') %}active{% endif %}">
-            <i class="fas fa-folder-open w-5 text-center"></i>分类管理
+        <a href="{{ admin_root }}/categories" class="admin-nav-link {% if current_path.startswith(admin_root + '/categories') %}active{% endif %}" title="分类管理">
+            <i class="fas fa-folder-open w-5 text-center"></i><span class="admin-nav-label">分类管理</span>
         </a>
-        <a href="{{ admin_root }}/tags" class="admin-nav-link {% if current_path.startswith(admin_root + '/tags') %}active{% endif %}">
-            <i class="fas fa-tags w-5 text-center"></i>标签管理
+        <a href="{{ admin_root }}/tags" class="admin-nav-link {% if current_path.startswith(admin_root + '/tags') %}active{% endif %}" title="标签管理">
+            <i class="fas fa-tags w-5 text-center"></i><span class="admin-nav-label">标签管理</span>
         </a>
 
         <div class="admin-nav-group-title">系统设置</div>
-        <a href="{{ admin_root }}/settings" class="admin-nav-link {% if current_path.startswith(admin_root + '/settings') %}active{% endif %}">
-            <i class="fas fa-cogs w-5 text-center"></i>常规设置
+        <a href="{{ admin_root }}/settings" class="admin-nav-link {% if current_path.startswith(admin_root + '/settings') %}active{% endif %}" title="常规设置">
+            <i class="fas fa-cogs w-5 text-center"></i><span class="admin-nav-label">常规设置</span>
         </a>
-        <a href="{{ admin_root }}/themes" class="admin-nav-link {% if current_path.startswith(admin_root + '/themes') %}active{% endif %}">
-            <i class="fas fa-palette w-5 text-center"></i>主题管理
+        <a href="{{ admin_root }}/themes" class="admin-nav-link {% if current_path.startswith(admin_root + '/themes') %}active{% endif %}" title="主题管理">
+            <i class="fas fa-palette w-5 text-center"></i><span class="admin-nav-label">主题管理</span>
         </a>
-        <a href="{{ admin_root }}/users" class="admin-nav-link {% if current_path.startswith(admin_root + '/users') %}active{% endif %}">
-            <i class="fas fa-user-cog w-5 text-center"></i>用户管理
+        <a href="{{ admin_root }}/users" class="admin-nav-link {% if current_path.startswith(admin_root + '/users') %}active{% endif %}" title="用户管理">
+            <i class="fas fa-user-cog w-5 text-center"></i><span class="admin-nav-label">用户管理</span>
         </a>
-        <a href="{{ admin_root }}/api-keys" class="admin-nav-link {% if current_path.startswith(admin_root + '/api-keys') %}active{% endif %}">
-            <i class="fas fa-key w-5 text-center"></i>API Key
+        <a href="{{ admin_root }}/api-keys" class="admin-nav-link {% if current_path.startswith(admin_root + '/api-keys') %}active{% endif %}" title="API Key">
+            <i class="fas fa-key w-5 text-center"></i><span class="admin-nav-label">API Key</span>
         </a>
-        <a href="{{ admin_root }}/comment-settings" class="admin-nav-link {% if current_path.startswith(admin_root + '/comment-settings') %}active{% endif %}">
-            <i class="fas fa-comment-dots w-5 text-center"></i>评论策略
+        <a href="{{ admin_root }}/comment-settings" class="admin-nav-link {% if current_path.startswith(admin_root + '/comment-settings') %}active{% endif %}" title="评论策略">
+            <i class="fas fa-comment-dots w-5 text-center"></i><span class="admin-nav-label">评论策略</span>
         </a>
-        <a href="{{ admin_root }}/data-management" class="admin-nav-link {% if current_path.startswith(admin_root + '/data-management') %}active{% endif %}">
-            <i class="fas fa-database w-5 text-center"></i>数据管理
+        <a href="{{ admin_root }}/data-management" class="admin-nav-link {% if current_path.startswith(admin_root + '/data-management') %}active{% endif %}" title="数据管理">
+            <i class="fas fa-database w-5 text-center"></i><span class="admin-nav-label">数据管理</span>
         </a>
-        <a href="{{ admin_root }}/security-center" class="admin-nav-link {% if current_path.startswith(admin_root + '/security-center') %}active{% endif %}">
-            <i class="fas fa-shield-alt w-5 text-center"></i>安全中心
+        <a href="{{ admin_root }}/security-center" class="admin-nav-link {% if current_path.startswith(admin_root + '/security-center') %}active{% endif %}" title="安全中心">
+            <i class="fas fa-shield-alt w-5 text-center"></i><span class="admin-nav-label">安全中心</span>
         </a>
-        <a href="{{ admin_root }}/error-settings" class="admin-nav-link {% if current_path.startswith(admin_root + '/error-settings') %}active{% endif %}">
-            <i class="fas fa-exclamation-triangle w-5 text-center"></i>错误处理
+        <a href="{{ admin_root }}/error-settings" class="admin-nav-link {% if current_path.startswith(admin_root + '/error-settings') %}active{% endif %}" title="错误处理">
+            <i class="fas fa-exclamation-triangle w-5 text-center"></i><span class="admin-nav-label">错误处理</span>
         </a>
-        <a href="{{ admin_root }}/system-info" class="admin-nav-link {% if current_path.startswith(admin_root + '/system-info') %}active{% endif %}">
-            <i class="fas fa-info-circle w-5 text-center"></i>系统信息
+        <a href="{{ admin_root }}/system-info" class="admin-nav-link {% if current_path.startswith(admin_root + '/system-info') %}active{% endif %}" title="系统信息">
+            <i class="fas fa-info-circle w-5 text-center"></i><span class="admin-nav-label">系统信息</span>
         </a>
     </nav>
 </aside>

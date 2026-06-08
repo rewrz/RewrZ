@@ -47,6 +47,7 @@ class SettingsMiddleware(BaseHTTPMiddleware):
             all_setting_keys = [
                 # 基础站点设置
                 "site_title", "tagline", "site_url", "admin_email",
+                "site_description", "site_announcement",
                 "public_contact_email",
                 "site_logo_light", "site_logo_dark", "favicon",
                 "site_cover_url",
@@ -102,6 +103,8 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                 "site": {
                     "title": all_settings.get("site_title", DEFAULT_BASE_SETTINGS["site_title"]),
                     "tagline": all_settings.get("tagline", DEFAULT_BASE_SETTINGS["tagline"]),
+                    "description": all_settings.get("site_description", DEFAULT_BASE_SETTINGS["site_description"]),
+                    "announcement": all_settings.get("site_announcement", DEFAULT_BASE_SETTINGS["site_announcement"]),
                     "url": all_settings.get("site_url", ""),
                     "admin_email": all_settings.get("admin_email", ""),
                     "public_contact_email": all_settings.get("public_contact_email", ""),

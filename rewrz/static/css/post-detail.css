@@ -4,54 +4,54 @@
  */
 
 :root {
-    --detail-glass-card-bg: rgba(255, 255, 255, 0.66);
-    --detail-glass-card-border: rgba(203, 213, 225, 0.7);
+    --detail-glass-card-bg: color-mix(in srgb, var(--color-card-bg) 62%, transparent);
+    --detail-glass-card-border: color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
     --detail-glass-filter: blur(20px) saturate(145%);
     --detail-glass-shadow: 0 24px 54px rgba(15, 23, 42, 0.22);
-    --detail-glass-header-top: rgba(255, 255, 255, 0.2);
-    --detail-glass-header-bottom: rgba(255, 255, 255, 0.06);
+    --detail-glass-header-top: color-mix(in srgb, white 16%, transparent);
+    --detail-glass-header-bottom: color-mix(in srgb, var(--color-card-bg) 12%, transparent);
 }
 
 :root.dark {
-    --detail-glass-card-bg: rgba(15, 23, 42, 0.64);
-    --detail-glass-card-border: rgba(71, 85, 105, 0.74);
+    --detail-glass-card-bg: color-mix(in srgb, var(--color-card-bg) 56%, transparent);
+    --detail-glass-card-border: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
     --detail-glass-shadow: 0 26px 56px rgba(2, 6, 23, 0.5);
-    --detail-glass-header-top: rgba(15, 23, 42, 0.24);
-    --detail-glass-header-bottom: rgba(15, 23, 42, 0.12);
+    --detail-glass-header-top: color-mix(in srgb, white 8%, transparent);
+    --detail-glass-header-bottom: color-mix(in srgb, var(--color-background-alt) 18%, transparent);
 }
 
 :root[data-glass-intensity="weak"] {
-    --detail-glass-card-bg: rgba(255, 255, 255, 0.56);
-    --detail-glass-card-border: rgba(203, 213, 225, 0.56);
+    --detail-glass-card-bg: color-mix(in srgb, var(--color-card-bg) 52%, transparent);
+    --detail-glass-card-border: color-mix(in srgb, var(--color-primary) 12%, var(--color-border) 88%);
     --detail-glass-filter: blur(12px) saturate(132%);
     --detail-glass-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
-    --detail-glass-header-top: rgba(255, 255, 255, 0.14);
-    --detail-glass-header-bottom: rgba(255, 255, 255, 0.04);
+    --detail-glass-header-top: color-mix(in srgb, white 12%, transparent);
+    --detail-glass-header-bottom: color-mix(in srgb, var(--color-card-bg) 8%, transparent);
 }
 
 :root.dark[data-glass-intensity="weak"] {
-    --detail-glass-card-bg: rgba(15, 23, 42, 0.52);
-    --detail-glass-card-border: rgba(71, 85, 105, 0.62);
+    --detail-glass-card-bg: color-mix(in srgb, var(--color-card-bg) 48%, transparent);
+    --detail-glass-card-border: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
     --detail-glass-shadow: 0 18px 38px rgba(2, 6, 23, 0.36);
-    --detail-glass-header-top: rgba(15, 23, 42, 0.18);
-    --detail-glass-header-bottom: rgba(15, 23, 42, 0.08);
+    --detail-glass-header-top: color-mix(in srgb, white 6%, transparent);
+    --detail-glass-header-bottom: color-mix(in srgb, var(--color-background-alt) 14%, transparent);
 }
 
 :root[data-glass-intensity="strong"] {
-    --detail-glass-card-bg: rgba(255, 255, 255, 0.8);
-    --detail-glass-card-border: rgba(203, 213, 225, 0.84);
+    --detail-glass-card-bg: color-mix(in srgb, var(--color-card-bg) 74%, transparent);
+    --detail-glass-card-border: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
     --detail-glass-filter: blur(26px) saturate(150%);
     --detail-glass-shadow: 0 30px 62px rgba(15, 23, 42, 0.24);
-    --detail-glass-header-top: rgba(255, 255, 255, 0.28);
-    --detail-glass-header-bottom: rgba(255, 255, 255, 0.1);
+    --detail-glass-header-top: color-mix(in srgb, white 20%, transparent);
+    --detail-glass-header-bottom: color-mix(in srgb, var(--color-card-bg) 16%, transparent);
 }
 
 :root.dark[data-glass-intensity="strong"] {
-    --detail-glass-card-bg: rgba(15, 23, 42, 0.72);
-    --detail-glass-card-border: rgba(71, 85, 105, 0.84);
+    --detail-glass-card-bg: color-mix(in srgb, var(--color-card-bg) 64%, transparent);
+    --detail-glass-card-border: color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
     --detail-glass-shadow: 0 32px 66px rgba(2, 6, 23, 0.56);
-    --detail-glass-header-top: rgba(15, 23, 42, 0.3);
-    --detail-glass-header-bottom: rgba(15, 23, 42, 0.16);
+    --detail-glass-header-top: color-mix(in srgb, white 10%, transparent);
+    --detail-glass-header-bottom: color-mix(in srgb, var(--color-background-alt) 24%, transparent);
 }
 
 /* ===== 详情背景与目录布局 ===== */
@@ -61,6 +61,10 @@
     isolation: isolate;
     padding-top: clamp(1rem, 2vw, 1.5rem);
     padding-bottom: clamp(1rem, 2vw, 1.5rem);
+}
+
+body.site-shell.bg-page-cover .detail-cover-bg {
+    display: none;
 }
 
 .detail-cover-bg {
@@ -75,32 +79,52 @@
     transform: scale(1.03);
 }
 
-.detail-cover-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-    background: linear-gradient(
-        180deg,
-        rgba(2, 6, 23, 0.68) 0%,
-        rgba(2, 6, 23, 0.48) 24%,
-        rgba(2, 6, 23, 0.22) 44%,
-        rgba(2, 6, 23, 0.72) 100%
-    );
-}
-
-.detail-cover-overlay-soft {
-    background: linear-gradient(
-        180deg,
-        rgba(2, 6, 23, 0.48) 0%,
-        rgba(2, 6, 23, 0.24) 32%,
-        rgba(2, 6, 23, 0.52) 100%
-    );
-}
-
 .detail-cover-shell > .container {
     position: relative;
     z-index: 2;
+}
+
+.detail-floating-nav {
+    width: max-content;
+    max-width: 100%;
+    padding: 0.58rem 0.92rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    border-radius: 999px;
+    background:
+        linear-gradient(180deg, color-mix(in srgb, white 34%, transparent), transparent 100%),
+        color-mix(in srgb, var(--color-card-bg) 76%, transparent);
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
+    backdrop-filter: blur(12px) saturate(128%);
+    -webkit-backdrop-filter: blur(12px) saturate(128%);
+    color: color-mix(in srgb, var(--color-text) 84%, var(--color-text-light) 16%);
+}
+
+.dark .detail-floating-nav,
+body.site-shell[data-current-theme="galaxy"] .detail-floating-nav {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, white 10%, transparent), transparent 100%),
+        color-mix(in srgb, var(--color-card-bg) 62%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+    box-shadow: 0 14px 28px rgba(2, 6, 23, 0.34);
+    color: color-mix(in srgb, white 88%, var(--color-text) 12%);
+}
+
+.detail-floating-nav-link {
+    color: inherit;
+    text-shadow: 0 1px 10px rgba(15, 23, 42, 0.18);
+}
+
+.detail-floating-nav-link:hover {
+    color: color-mix(in srgb, var(--color-primary) 70%, var(--color-text) 30%);
+}
+
+.dark .detail-floating-nav-link:hover,
+body.site-shell[data-current-theme="galaxy"] .detail-floating-nav-link:hover {
+    color: color-mix(in srgb, var(--color-primary) 62%, white 38%);
+}
+
+.detail-floating-nav-divider {
+    color: color-mix(in srgb, currentColor 34%, transparent);
 }
 
 /* 正文卡片玻璃化：保留背景氛围，同时保证阅读可读性 */
@@ -123,6 +147,30 @@
     margin-inline: auto;
 }
 
+.detail-cover-micro .micro-detail-nav {
+    width: min(100%, 58rem);
+    margin-inline: auto;
+}
+
+.detail-cover-micro {
+    --micro-surface-solid-bg: color-mix(in srgb, var(--color-card-bg) 98%, var(--color-background-alt) 2%);
+    --micro-surface-soft-bg: color-mix(in srgb, var(--color-card-bg) 92%, var(--color-background-alt) 8%);
+    --micro-surface-border: color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+    --micro-surface-text: color-mix(in srgb, var(--color-text) 94%, black 6%);
+    --micro-surface-muted: color-mix(in srgb, var(--color-text-light) 88%, var(--color-text) 12%);
+    --micro-surface-accent: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+}
+
+.dark .detail-cover-micro,
+body.site-shell[data-current-theme="galaxy"] .detail-cover-micro {
+    --micro-surface-solid-bg: color-mix(in srgb, var(--color-card-bg) 96%, var(--color-background-alt) 4%);
+    --micro-surface-soft-bg: color-mix(in srgb, var(--color-card-bg) 88%, var(--color-background-alt) 12%);
+    --micro-surface-border: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    --micro-surface-text: color-mix(in srgb, white 92%, var(--color-text) 8%);
+    --micro-surface-muted: color-mix(in srgb, var(--color-text-light) 92%, white 8%);
+    --micro-surface-accent: color-mix(in srgb, var(--color-primary) 64%, white 36%);
+}
+
 /* 适合玻璃化：卡片头部等操作层 */
 .detail-cover-shell .article-detail-card > header,
 .detail-cover-shell .micro-detail-card > header {
@@ -131,6 +179,155 @@
         var(--detail-glass-header-top) 0%,
         var(--detail-glass-header-bottom) 100%
     );
+}
+
+.detail-cover-micro .micro-detail-card > header,
+.detail-cover-micro .micro-detail-card > footer,
+.detail-cover-micro .micro-detail-card > div.border-t {
+    color: var(--micro-surface-text);
+}
+
+.detail-cover-micro .micro-detail-card > div.border-t,
+.detail-cover-micro .micro-detail-card > footer {
+    background: color-mix(in srgb, var(--micro-surface-soft-bg) 88%, transparent);
+    border-top-color: var(--micro-surface-border) !important;
+}
+
+.micro-detail-card {
+    border-color: var(--micro-surface-border) !important;
+    background: color-mix(in srgb, var(--micro-surface-solid-bg) 94%, transparent) !important;
+}
+
+.micro-detail-header {
+    border-bottom-color: var(--micro-surface-border) !important;
+}
+
+.micro-detail-avatar {
+    ring-color: color-mix(in srgb, var(--color-primary) 26%, transparent) !important;
+}
+
+.micro-detail-author {
+    color: var(--micro-surface-text);
+}
+
+.micro-detail-meta,
+.micro-detail-meta-sep {
+    color: var(--micro-surface-muted);
+}
+
+.micro-detail-format {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--micro-surface-border) 78%);
+    background:
+        linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--color-primary) 82%, white 18%),
+            color-mix(in srgb, var(--color-primary) 66%, var(--micro-surface-text) 34%)
+        );
+    color: white;
+}
+
+.micro-detail-title-gradient {
+    background-image: linear-gradient(
+        135deg,
+        var(--micro-surface-text) 0%,
+        color-mix(in srgb, var(--color-primary) 54%, var(--micro-surface-text) 46%) 58%,
+        color-mix(in srgb, var(--micro-surface-text) 86%, var(--color-primary) 14%) 100%
+    );
+}
+
+.micro-detail-excerpt {
+    color: var(--micro-surface-muted);
+    border-left-color: color-mix(in srgb, var(--color-primary) 42%, var(--micro-surface-border) 58%);
+}
+
+.micro-grid-item {
+    border-color: var(--micro-surface-border) !important;
+}
+
+.micro-detail-feedback {
+    border-top-color: var(--micro-surface-border) !important;
+}
+
+.micro-detail-action-chip {
+    color: var(--micro-surface-muted);
+}
+
+.micro-detail-action-chip:hover {
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--micro-surface-solid-bg) 90%);
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--micro-surface-text) 26%);
+}
+
+.micro-detail-footer {
+    color: var(--micro-surface-muted);
+    border-top-color: var(--micro-surface-border) !important;
+}
+
+.micro-detail-body {
+    min-height: 0;
+}
+
+.micro-detail-card:fullscreen,
+.micro-detail-card:-webkit-full-screen,
+.micro-detail-card.is-immersive {
+    width: 100vw !important;
+    max-width: none !important;
+    height: 100vh;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border-width: 0 !important;
+    display: flex;
+    flex-direction: column;
+    background: color-mix(in srgb, var(--micro-surface-solid-bg) 92%, rgba(2, 6, 23, 0.68)) !important;
+    box-shadow: none !important;
+}
+
+.micro-detail-card.is-immersive {
+    position: fixed;
+    inset: 0;
+    z-index: 140;
+}
+
+body.micro-immersive-open {
+    overflow: hidden;
+}
+
+.micro-detail-card:fullscreen .micro-detail-header,
+.micro-detail-card:-webkit-full-screen .micro-detail-header,
+.micro-detail-card.is-immersive .micro-detail-header,
+.micro-detail-card:fullscreen .micro-detail-feedback,
+.micro-detail-card:-webkit-full-screen .micro-detail-feedback,
+.micro-detail-card.is-immersive .micro-detail-feedback,
+.micro-detail-card:fullscreen .micro-detail-footer,
+.micro-detail-card:-webkit-full-screen .micro-detail-footer,
+.micro-detail-card.is-immersive .micro-detail-footer {
+    flex-shrink: 0;
+}
+
+.micro-detail-card:fullscreen .micro-detail-body,
+.micro-detail-card:-webkit-full-screen .micro-detail-body,
+.micro-detail-card.is-immersive .micro-detail-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding-right: clamp(1rem, 3vw, 2.2rem);
+    scrollbar-width: thin;
+}
+
+.micro-detail-card:fullscreen .micro-detail-body::-webkit-scrollbar,
+.micro-detail-card:-webkit-full-screen .micro-detail-body::-webkit-scrollbar,
+.micro-detail-card.is-immersive .micro-detail-body::-webkit-scrollbar {
+    width: 10px;
+}
+
+.micro-detail-card:fullscreen .micro-detail-body::-webkit-scrollbar-thumb,
+.micro-detail-card:-webkit-full-screen .micro-detail-body::-webkit-scrollbar-thumb,
+.micro-detail-card.is-immersive .micro-detail-body::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-primary) 42%, transparent);
+    border-radius: 999px;
+}
+
+.micro-action-btn.is-active {
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--micro-surface-solid-bg) 86%);
+    color: color-mix(in srgb, var(--color-primary) 80%, var(--micro-surface-text) 20%);
 }
 
 /* 不适合高透玻璃：长文本阅读区域保持纯净可读 */
@@ -450,16 +647,16 @@
 }
 
 .post-content p:first-of-type::first-letter {
-    float: left;
-    font-size: 4em;
-    line-height: 0.8;
-    margin: 0.1em 0.1em 0.1em 0;
-    font-family: var(--font-family-heading);
-    font-weight: 700;
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    float: none;
+    font-size: inherit;
+    line-height: inherit;
+    margin: 0;
+    font-family: inherit;
+    font-weight: inherit;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    background-clip: border-box;
+    color: inherit;
 }
 
 /* 标题样式 */
@@ -789,88 +986,167 @@
 }
 
 /* ===== Donation Widget (Detail Page) ===== */
-.donation-widget {
+body.site-shell .donation-widget {
     --donation-radius: 0.9rem;
+    --donation-surface-bg:
+        linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 58%),
+        var(--detail-glass-card-bg);
+    --donation-surface-border: color-mix(in srgb, var(--color-primary) 14%, var(--color-border));
+    --donation-surface-shadow: var(--detail-glass-shadow);
+    --donation-title-color: var(--color-text);
+    --donation-muted-color: color-mix(in srgb, var(--color-text-light) 88%, var(--color-text) 12%);
+    --donation-accent-color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
     position: relative;
     margin: 1rem auto 1.35rem;
-    width: fit-content;
+    width: min(100%, 44rem);
     max-width: 100%;
+    padding: 0;
     border-radius: var(--donation-radius);
-    border: 1px solid color-mix(in srgb, var(--color-primary) 14%, var(--color-border));
+    border: 1px solid var(--donation-surface-border);
     overflow: hidden;
-    box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.35);
-    background: color-mix(in srgb, var(--color-card-bg) 94%, transparent);
+    box-shadow: var(--donation-surface-shadow);
+    background: var(--donation-surface-bg);
+    backdrop-filter: var(--detail-glass-filter);
+    -webkit-backdrop-filter: var(--detail-glass-filter);
 }
 
-.donation-widget .donation-shell {
-    padding: 0.75rem 0.85rem;
+body.site-shell .donation-widget::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, white 14%, transparent) 0%,
+            transparent 28%,
+            transparent 100%
+        );
+    opacity: 0.9;
 }
 
-.donation-widget .donation-header {
+body.site-shell .donation-widget[data-surface-style="soft"] {
+    --donation-surface-bg:
+        linear-gradient(
+            145deg,
+            color-mix(in srgb, var(--color-primary) 8%, transparent),
+            transparent 58%
+        ),
+        color-mix(in srgb, var(--color-card-bg) 76%, transparent);
+    --donation-accent-color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%);
+}
+
+body.site-shell .donation-widget[data-surface-style="solid"] {
+    --donation-surface-bg:
+        linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 6%, transparent), transparent 60%),
+        color-mix(in srgb, var(--color-card-bg) 88%, transparent);
+    --donation-surface-border: color-mix(in srgb, var(--color-primary) 12%, var(--color-border));
+    --donation-accent-color: color-mix(in srgb, var(--color-primary) 68%, var(--color-text) 32%);
+}
+
+body.site-shell .donation-widget .donation-shell {
+    padding: 0.9rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+body.site-shell .donation-widget .donation-header {
     display: flex;
     align-items: flex-start;
     gap: 0.5rem;
 }
 
-.donation-widget .donation-mark {
-    display: none;
+body.site-shell .donation-widget .donation-copy {
+    min-width: 0;
+    flex: 1 1 auto;
 }
 
-.donation-widget .donation-kicker {
-    display: none;
+body.site-shell .donation-widget .donation-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 72%),
+        color-mix(in srgb, var(--color-card-bg) 72%, transparent);
+    color: var(--donation-accent-color);
+    font-size: 0.9rem;
+    font-weight: 700;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--donation-surface-border) 82%);
+    box-shadow: 0 12px 24px -18px color-mix(in srgb, var(--color-primary) 20%, rgba(15, 23, 42, 0.3));
 }
 
-.donation-widget .donation-title {
+body.site-shell .donation-widget .donation-kicker {
+    display: block;
+    margin: 0 0 0.12rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--donation-muted-color);
+}
+
+body.site-shell .donation-widget .donation-title {
     margin: 0;
-    font-size: 0.92rem;
-    line-height: 1.35;
-    font-weight: 600;
-    color: var(--color-text);
+    display: block;
+    font-size: 0.96rem;
+    line-height: 1.42;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    color: var(--donation-title-color);
 }
 
-.donation-widget .donation-description {
+body.site-shell .donation-widget .donation-description {
     margin: 0.2rem 0 0;
-    font-size: 0.78rem;
-    line-height: 1.55;
-    color: var(--color-text-light);
+    font-size: 0.8rem;
+    line-height: 1.65;
+    color: var(--donation-muted-color);
 }
 
-.donation-widget .donation-methods {
-    margin-top: 0.56rem;
+body.site-shell .donation-widget .donation-methods {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.45rem;
 }
 
-.donation-widget .donation-qr-block {
+body.site-shell .donation-widget .donation-qr-block {
     margin: 0;
-    padding: 0.34rem;
+    padding: 0.42rem;
     border-radius: 0.65rem;
     border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border));
-    background: color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 6%, transparent), transparent 68%),
+        color-mix(in srgb, var(--color-card-bg) 74%, transparent);
     display: inline-flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 0.2rem;
     min-width: 88px;
+    backdrop-filter: blur(10px) saturate(126%);
+    -webkit-backdrop-filter: blur(10px) saturate(126%);
+    box-shadow: 0 12px 28px -22px color-mix(in srgb, var(--color-primary) 18%, rgba(15, 23, 42, 0.26));
 }
 
-.donation-widget .donation-qr-image {
+body.site-shell .donation-widget .donation-qr-image {
     width: 64px;
     height: 64px;
     border-radius: 0.45rem;
     object-fit: cover;
-    box-shadow: none;
+    box-shadow: 0 10px 22px -18px rgba(15, 23, 42, 0.3);
 }
 
-.donation-widget .donation-qr-hint {
+body.site-shell .donation-widget .donation-qr-hint {
     font-size: 0.66rem;
-    color: var(--color-text-light);
+    color: var(--donation-muted-color);
 }
 
-.donation-widget .donation-action-btn {
+body.site-shell .donation-widget .donation-action-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -881,34 +1157,71 @@
     text-decoration: none;
     font-size: 0.76rem;
     font-weight: 600;
-    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
-    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg));
+    color: var(--donation-accent-color);
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 68%),
+        color-mix(in srgb, var(--color-card-bg) 76%, transparent);
     border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
-    box-shadow: none;
-    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    box-shadow: 0 12px 24px -20px color-mix(in srgb, var(--color-primary) 18%, rgba(15, 23, 42, 0.26));
+    backdrop-filter: blur(10px) saturate(126%);
+    -webkit-backdrop-filter: blur(10px) saturate(126%);
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
 }
 
-.donation-widget .donation-action-btn:hover {
+body.site-shell .donation-widget[data-donation-layout="link-only"] {
+    width: min(100%, 46rem);
+}
+
+body.site-shell .donation-theme-elegant[data-donation-layout="link-only"] .donation-shell,
+body.site-shell .donation-theme-minimal[data-donation-layout="link-only"] .donation-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.95rem;
+}
+
+body.site-shell .donation-theme-elegant[data-donation-layout="link-only"] .donation-methods,
+body.site-shell .donation-theme-minimal[data-donation-layout="link-only"] .donation-methods {
+    justify-content: flex-end;
+}
+
+body.site-shell .donation-theme-elegant[data-donation-layout="link-only"] .donation-action-btn {
+    min-width: 148px;
+}
+
+body.site-shell .donation-theme-elegant[data-donation-layout="dual"] .donation-methods {
+    justify-content: space-between;
+}
+
+body.site-shell .donation-widget .donation-action-btn:hover {
     transform: translateY(-1px);
-    background: color-mix(in srgb, var(--color-primary) 15%, var(--color-card-bg));
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 64%),
+        color-mix(in srgb, var(--color-card-bg) 84%, transparent);
     border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+    color: color-mix(in srgb, var(--color-primary) 80%, var(--color-text) 20%);
 }
 
-.donation-widget .donation-action-arrow {
+body.site-shell .donation-widget .donation-action-arrow {
     font-size: 0.72rem;
     opacity: 0.75;
 }
 
-.donation-theme-elegant {
-    background: color-mix(in srgb, var(--color-primary) 7%, var(--color-card-bg));
+body.site-shell .donation-theme-elegant {
+    --donation-title-color: color-mix(in srgb, var(--color-text) 94%, black 6%);
 }
 
-.donation-theme-minimal {
-    background: color-mix(in srgb, var(--color-card-bg) 97%, transparent);
+body.site-shell .donation-theme-minimal {
+    --donation-muted-color: color-mix(in srgb, var(--color-text-light) 90%, var(--color-text) 10%);
+}
+
+.donation-theme-minimal .donation-mark,
+.donation-theme-minimal .donation-kicker {
+    display: none;
 }
 
 .donation-theme-minimal .donation-shell {
-    padding: 0.68rem 0.78rem;
+    padding: 0.82rem 0.9rem;
 }
 
 .donation-theme-minimal .donation-header {
@@ -925,7 +1238,7 @@
 }
 
 .donation-theme-minimal .donation-methods {
-    margin-top: 0.42rem;
+    justify-content: flex-start;
 }
 
 .donation-theme-minimal .donation-action-btn {
@@ -933,14 +1246,16 @@
     padding: 0.36rem 0.6rem;
 }
 
-.donation-theme-card {
-    background: color-mix(in srgb, var(--color-primary) 4%, var(--color-card-bg));
+body.site-shell .donation-theme-card {
+    --donation-title-color: color-mix(in srgb, var(--color-text) 95%, black 5%);
+    --donation-surface-shadow: 0 18px 36px -24px color-mix(in srgb, var(--color-primary) 24%, rgba(15, 23, 42, 0.24));
 }
 
 .donation-theme-card .donation-card-shell {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.52rem;
+    gap: 0.9rem;
+    align-items: center;
 }
 
 .donation-theme-card .donation-card-shell.is-no-qr {
@@ -950,76 +1265,139 @@
 .donation-theme-card .donation-card-main {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    gap: 0.34rem;
 }
 
 .donation-theme-card .donation-card-side {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
 }
 
 .donation-theme-card .donation-qr-block.is-card {
     min-width: 84px;
-    padding: 0.3rem;
+    padding: 0.34rem;
 }
 
 .donation-theme-card .donation-action-btn.is-card {
-    margin-top: 0.16rem;
+    margin-top: 0.34rem;
+    width: fit-content;
 }
 
-.dark .donation-widget {
-    border-color: color-mix(in srgb, var(--color-primary) 18%, #334155);
-    background: color-mix(in srgb, #0f172a 88%, var(--color-card-bg));
-    box-shadow: 0 10px 24px -20px rgba(2, 6, 23, 0.8);
+body.site-shell .donation-theme-card[data-donation-layout="link-only"] {
+    width: min(100%, 40rem);
 }
 
-.dark .donation-theme-elegant {
-    background: color-mix(in srgb, var(--color-primary) 8%, #0f172a);
+body.site-shell .donation-theme-card[data-donation-layout="qr-only"] {
+    width: min(100%, 24rem);
 }
 
-.dark .donation-theme-minimal,
-.dark .donation-theme-card {
-    background: color-mix(in srgb, #0f172a 94%, var(--color-card-bg));
+html.dark body.site-shell .donation-widget,
+body.site-shell[data-current-theme="dark"] .donation-widget,
+body.site-shell[data-current-theme="galaxy"] .donation-widget {
+    --donation-surface-border: color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    --donation-surface-bg:
+        linear-gradient(150deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 62%),
+        color-mix(in srgb, var(--color-card-bg) 64%, transparent);
+    --donation-surface-shadow: 0 20px 40px -26px rgba(2, 6, 23, 0.82);
+    --donation-title-color: color-mix(in srgb, white 92%, var(--color-text) 8%);
+    --donation-muted-color: color-mix(in srgb, var(--color-text-light) 88%, var(--color-text) 12%);
+    --donation-accent-color: color-mix(in srgb, var(--color-primary) 68%, white 32%);
+}
+
+html.dark body.site-shell .donation-theme-elegant,
+body.site-shell[data-current-theme="dark"] .donation-theme-elegant,
+body.site-shell[data-current-theme="galaxy"] .donation-theme-elegant {
+    --donation-surface-bg:
+        linear-gradient(
+            145deg,
+            color-mix(in srgb, var(--color-primary) 12%, transparent),
+            transparent 58%
+        ),
+        color-mix(in srgb, var(--color-card-bg) 60%, transparent);
+}
+
+html.dark body.site-shell .donation-theme-minimal,
+html.dark body.site-shell .donation-theme-card,
+body.site-shell[data-current-theme="dark"] .donation-theme-minimal,
+body.site-shell[data-current-theme="dark"] .donation-theme-card,
+body.site-shell[data-current-theme="galaxy"] .donation-theme-minimal,
+body.site-shell[data-current-theme="galaxy"] .donation-theme-card {
+    --donation-surface-bg:
+        linear-gradient(150deg, color-mix(in srgb, var(--color-primary) 9%, transparent), transparent 64%),
+        color-mix(in srgb, var(--color-card-bg) 62%, transparent);
+}
+
+body.site-shell[data-current-theme="galaxy"] .donation-widget {
+    --donation-surface-border: color-mix(in srgb, #f0c878 26%, #7c5cff 18%, var(--color-border) 56%);
+    --donation-surface-shadow: 0 18px 38px -28px rgba(8, 10, 28, 0.88);
+}
+
+body.site-shell[data-current-theme="galaxy"] .donation-theme-elegant {
+    --donation-surface-bg:
+        linear-gradient(
+            145deg,
+            color-mix(in srgb, #f0c878 7%, #141225),
+            color-mix(in srgb, #141225 84%, #241c45 16%)
+        );
 }
 
 @media (max-width: 768px) {
-    .donation-widget {
+    body.site-shell .donation-widget {
         width: 100%;
         margin: 0.92rem 0 1.2rem;
     }
 
-    .donation-widget .donation-shell {
-        padding: 0.68rem 0.72rem;
+    body.site-shell .donation-widget .donation-shell {
+        padding: 0.76rem 0.8rem;
     }
 
-    .donation-widget .donation-methods {
+    body.site-shell .donation-widget .donation-methods {
         gap: 0.38rem;
     }
 
-    .donation-widget .donation-qr-block {
+    body.site-shell .donation-widget .donation-qr-block {
         min-width: 74px;
     }
 
-    .donation-widget .donation-qr-image {
+    body.site-shell .donation-widget .donation-qr-image {
         width: 56px;
         height: 56px;
     }
 
+    body.site-shell .donation-theme-elegant[data-donation-layout="link-only"] .donation-shell,
+    body.site-shell .donation-theme-minimal[data-donation-layout="link-only"] .donation-shell {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    body.site-shell .donation-theme-elegant[data-donation-layout="link-only"] .donation-methods,
+    body.site-shell .donation-theme-minimal[data-donation-layout="link-only"] .donation-methods,
+    body.site-shell .donation-theme-card[data-donation-layout="link-only"] .donation-action-btn.is-card {
+        width: 100%;
+        justify-content: center;
+    }
+
+    body.site-shell .donation-theme-elegant[data-donation-layout="dual"] .donation-methods {
+        justify-content: flex-start;
+    }
+
     .donation-theme-card .donation-card-shell {
         grid-template-columns: 1fr;
+        gap: 0.72rem;
     }
 
     .donation-theme-card .donation-card-side {
         justify-content: flex-start;
     }
 
-    .donation-widget .donation-action-btn {
+    body.site-shell .donation-widget .donation-action-btn {
         min-width: 96px;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .donation-widget .donation-action-btn {
+    body.site-shell .donation-widget .donation-action-btn {
         transition: none;
     }
 }
@@ -1189,6 +1567,35 @@
     padding-left: 1.2rem;
 }
 
+.micro-topic-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+}
+
+.micro-topic-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.18rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border) 80%);
+    background: color-mix(in srgb, var(--color-card-bg) 86%, var(--color-primary) 14%);
+    color: color-mix(in srgb, var(--color-text) 76%, var(--color-primary) 24%);
+    text-decoration: none;
+    font-size: 0.83rem;
+    line-height: 1;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.micro-topic-chip:hover {
+    background: color-mix(in srgb, var(--color-card-bg) 72%, var(--color-primary) 28%);
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%);
+    color: color-mix(in srgb, var(--color-text) 62%, var(--color-primary) 38%);
+    transform: translateY(-1px);
+}
+
 .micro-detail-card .micro-content li {
     margin: 0.18rem 0;
 }
@@ -1204,6 +1611,32 @@
 
 .micro-detail-card .micro-content blockquote p {
     margin-bottom: 0.35rem;
+}
+
+.post-license-card {
+    border-color: var(--micro-surface-border) !important;
+    background: var(--micro-surface-solid-bg) !important;
+}
+
+.post-license-icon {
+    color: var(--micro-surface-accent);
+}
+
+.post-license-copy {
+    color: var(--micro-surface-muted);
+    line-height: 1.72;
+}
+
+.post-license-copy strong {
+    color: var(--micro-surface-text);
+}
+
+.post-license-link {
+    color: var(--micro-surface-accent);
+}
+
+.post-license-link:hover {
+    color: color-mix(in srgb, var(--color-primary) 82%, var(--micro-surface-text) 18%);
 }
 
 /* Poem (centered, elegant, high-contrast heading rhythm) */
@@ -1272,6 +1705,12 @@
         transform: none;
     }
 
+    .micro-detail-card:fullscreen .micro-detail-body,
+    .micro-detail-card:-webkit-full-screen .micro-detail-body,
+    .micro-detail-card.is-immersive .micro-detail-body {
+        padding-right: 1rem;
+    }
+
     .article-detail-card .article-content,
     .micro-detail-card .micro-content {
         font-size: 1rem;
@@ -1306,15 +1745,6 @@
 }
 
 /* ===== 诗词详情毛玻璃主题（覆盖版） ===== */
-.poetry-section .detail-cover-overlay-soft {
-    background: linear-gradient(
-        180deg,
-        rgba(15, 23, 42, 0.2) 0%,
-        rgba(15, 23, 42, 0.14) 34%,
-        rgba(15, 23, 42, 0.3) 100%
-    ) !important;
-}
-
 .poetry-section .poetry-bg .absolute.inset-0 {
     background: linear-gradient(
         180deg,
@@ -1357,6 +1787,19 @@
     border-bottom-color: rgba(226, 232, 240, 0.46) !important;
 }
 
+.poetry-section .poetry-format-badge {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 16%, transparent), transparent 72%),
+        color-mix(in srgb, var(--color-card-bg) 82%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%) !important;
+    backdrop-filter: blur(12px) saturate(132%);
+    -webkit-backdrop-filter: blur(12px) saturate(132%);
+    box-shadow:
+        0 14px 28px -20px color-mix(in srgb, var(--color-primary) 18%, rgba(15, 23, 42, 0.24)),
+        inset 0 1px 0 color-mix(in srgb, white 18%, transparent);
+}
+
 .dark .poetry-section .poetry-header {
     background: linear-gradient(
         180deg,
@@ -1364,6 +1807,18 @@
         rgba(15, 23, 42, 0.14) 100%
     );
     border-bottom-color: rgba(71, 85, 105, 0.54) !important;
+}
+
+.dark .poetry-section .poetry-format-badge,
+body.site-shell[data-current-theme="galaxy"] .poetry-section .poetry-format-badge {
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 18%, transparent), transparent 70%),
+        color-mix(in srgb, var(--color-card-bg) 72%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%);
+    color: color-mix(in srgb, var(--color-primary) 54%, white 46%) !important;
+    box-shadow:
+        0 16px 30px -22px color-mix(in srgb, var(--color-primary) 22%, rgba(2, 6, 23, 0.32)),
+        inset 0 1px 0 color-mix(in srgb, white 10%, transparent);
 }
 
 .poetry-section .poetry-controls {
@@ -1541,12 +1996,20 @@
     margin-inline: auto;
 }
 
+.micro-followup-stack > .related-posts-shell,
+.micro-followup-stack > .detail-comments-shell {
+    width: min(100%, 58rem);
+    margin-inline: auto;
+}
+
 .poetry-related-shell {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.62));
-    border-color: rgba(216, 180, 254, 0.42);
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background:
+        linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 58%),
+        var(--detail-glass-card-bg);
+    border-color: var(--detail-glass-card-border);
+    box-shadow: var(--detail-glass-shadow);
+    backdrop-filter: var(--detail-glass-filter);
+    -webkit-backdrop-filter: var(--detail-glass-filter);
 }
 
 .poetry-related-link {
@@ -1556,15 +2019,22 @@
     align-items: center;
     padding: 0.8rem;
     border-radius: 1.15rem;
-    border: 1px solid rgba(226, 232, 240, 0.82);
-    background: rgba(255, 255, 255, 0.68);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 7%, transparent), transparent 62%),
+        color-mix(in srgb, var(--color-card-bg) 78%, transparent);
+    backdrop-filter: blur(12px) saturate(130%);
+    -webkit-backdrop-filter: blur(12px) saturate(130%);
+    box-shadow: 0 14px 30px -24px color-mix(in srgb, var(--color-primary) 20%, rgba(15, 23, 42, 0.28));
     transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
 .poetry-related-link:hover {
     transform: translateY(-1px);
-    border-color: rgba(129, 140, 248, 0.48);
-    background: rgba(255, 255, 255, 0.9);
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%);
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 58%),
+        color-mix(in srgb, var(--color-card-bg) 84%, transparent);
 }
 
 .poetry-related-thumb {
@@ -1576,7 +2046,8 @@
 }
 
 .related-post-card {
-    backdrop-filter: blur(6px);
+    backdrop-filter: blur(12px) saturate(130%);
+    -webkit-backdrop-filter: blur(12px) saturate(130%);
 }
 
 .related-post-link {
@@ -1741,20 +2212,26 @@
 
 .dark .poetry-related-shell,
 .dark .poetry-comments-shell {
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.76), rgba(15, 23, 42, 0.66)) !important;
-    border-color: rgba(109, 40, 217, 0.34) !important;
-    box-shadow: 0 22px 46px rgba(2, 6, 23, 0.24);
+    background:
+        linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 58%),
+        var(--detail-glass-card-bg) !important;
+    border-color: var(--detail-glass-card-border) !important;
+    box-shadow: var(--detail-glass-shadow);
 }
 
 .dark .poetry-related-link,
 .dark .poetry-comments-shell #comment-form-area {
-    background: rgba(30, 41, 59, 0.66);
-    border-color: rgba(99, 102, 241, 0.28);
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 9%, transparent), transparent 60%),
+        color-mix(in srgb, var(--color-card-bg) 74%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
 }
 
 .dark .poetry-related-link:hover {
-    background: rgba(30, 41, 59, 0.9);
-    border-color: rgba(196, 181, 253, 0.48);
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 56%),
+        color-mix(in srgb, var(--color-card-bg) 82%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border) 70%);
 }
 
 .dark .poetry-related-title {
@@ -1926,6 +2403,156 @@
     .detail-copy-sheet-btn {
         width: 100%;
     }
+}
+
+.micro-detail-nav {
+    color: color-mix(in srgb, var(--micro-surface-text) 82%, white 18%);
+}
+
+.micro-detail-nav-link {
+    color: inherit;
+    text-shadow: 0 1px 10px rgba(15, 23, 42, 0.2);
+}
+
+.micro-detail-nav-link:hover {
+    color: white;
+}
+
+.micro-detail-nav-divider {
+    color: color-mix(in srgb, var(--micro-surface-text) 32%, transparent);
+}
+
+.micro-reaction-menu {
+    border-color: color-mix(in srgb, var(--color-primary) 22%, var(--micro-surface-border) 78%) !important;
+    background:
+        linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 58%),
+        color-mix(in srgb, var(--micro-surface-solid-bg) 95%, transparent) !important;
+}
+
+.micro-reaction-option {
+    color: var(--micro-surface-muted);
+}
+
+.micro-reaction-option:hover {
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--micro-surface-solid-bg) 90%) !important;
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--micro-surface-text) 26%) !important;
+}
+
+.micro-reaction-count {
+    color: color-mix(in srgb, var(--micro-surface-muted) 88%, var(--micro-surface-text) 12%);
+}
+
+.related-posts-shell {
+    border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    background:
+        linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 58%),
+        var(--detail-glass-card-bg);
+    box-shadow: var(--detail-glass-shadow);
+    backdrop-filter: var(--detail-glass-filter);
+    -webkit-backdrop-filter: var(--detail-glass-filter);
+}
+
+.related-posts-heading {
+    color: var(--color-text);
+}
+
+.related-posts-more {
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%);
+}
+
+.related-posts-more:hover {
+    color: color-mix(in srgb, var(--color-primary-hover) 82%, var(--color-text) 18%);
+}
+
+.related-post-card {
+    border-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%) !important;
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 6%, transparent), transparent 62%),
+        color-mix(in srgb, var(--color-card-bg) 80%, transparent) !important;
+    box-shadow: 0 14px 30px -24px color-mix(in srgb, var(--color-primary) 18%, rgba(15, 23, 42, 0.28));
+}
+
+.related-post-card:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%) !important;
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 62%),
+        color-mix(in srgb, var(--color-card-bg) 86%, transparent) !important;
+}
+
+.related-post-link-plain,
+.related-post-link-cover {
+    min-height: 100%;
+}
+
+.poetry-related-link,
+.related-post-link-plain,
+.related-post-link-cover {
+    color: inherit;
+}
+
+.poetry-related-link {
+    border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 7%, transparent), transparent 62%),
+        color-mix(in srgb, var(--color-card-bg) 78%, transparent);
+}
+
+.poetry-related-link:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%);
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 58%),
+        color-mix(in srgb, var(--color-card-bg) 84%, transparent);
+}
+
+.poetry-related-title {
+    color: var(--color-text);
+}
+
+.poetry-related-summary {
+    color: var(--color-text-light);
+}
+
+.detail-comments-shell {
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 14%),
+        color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+}
+
+.detail-comments-shell-micro {
+    border-color: color-mix(in srgb, var(--color-primary) 24%, var(--micro-surface-border) 76%);
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 18%),
+        color-mix(in srgb, var(--micro-surface-soft-bg) 94%, transparent);
+}
+
+.detail-comments-shell-poetry {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 9%, transparent), transparent 16%),
+        color-mix(in srgb, var(--color-card-bg) 94%, transparent) !important;
+}
+
+.detail-comments-header {
+    border-bottom-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
+}
+
+.detail-comments-icon {
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%);
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+}
+
+.detail-comments-title {
+    color: var(--color-text);
+}
+
+.detail-comments-subtitle {
+    color: var(--color-text-light);
+}
+
+.detail-comments-badge {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    background: color-mix(in srgb, var(--color-card-bg) 98%, transparent);
+    color: color-mix(in srgb, var(--color-text) 92%, var(--color-primary) 8%);
 }
 
 

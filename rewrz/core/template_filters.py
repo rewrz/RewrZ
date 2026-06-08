@@ -24,6 +24,7 @@ from .content_utils import (
     markdown_to_plain_text,
     html_to_plain_text,
 )
+from .micro_text import enhance_micro_html
 from .content_intents import choose_primary_intent_slug, to_public_post_segment
 from ..core.config import settings # 导入settings
 from ..core.database import get_db
@@ -582,13 +583,20 @@ def compact_number_cn_filter(value) -> str:
     return f"-{text}" if is_negative else text
 
 
-def post_content_html_filter(post_obj) -> str:
+def post_content_html_filter(post_obj, db=None) -> str:
     if not post_obj:
         return ""
-    return get_effective_content_html(
+    html_content = get_effective_content_html(
         getattr(post_obj, "content_markdown", ""),
         getattr(post_obj, "content_html", ""),
     )
+    format_slugs = [
+        str(getattr(fmt, "slug", "") or "").strip().lower()
+        for fmt in getattr(post_obj, "formats", []) or []
+    ]
+    if "micro" in format_slugs:
+        return enhance_micro_html(html_content, db)
+    return html_content
 
 
 def post_preview_text_filter(post_obj, length: int = 200) -> str:
@@ -617,7 +625,10 @@ def post_summary_text_filter(post_obj, length: int = 200) -> str:
         return ""
     manual_excerpt = str(getattr(post_obj, "excerpt", "") or "").strip()
     if manual_excerpt:
-        return manual_excerpt
+        normalized_excerpt = html_to_plain_text(manual_excerpt) if "<" in manual_excerpt and ">" in manual_excerpt else manual_excerpt
+        if len(normalized_excerpt) <= length:
+            return normalized_excerpt
+        return f"{normalized_excerpt[:length]}..."
 
     plain_text = post_plain_text_filter(post_obj)
     if len(plain_text) <= length:

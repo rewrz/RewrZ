@@ -95,12 +95,16 @@ class DefaultPublicProfileResolver:
     def resolve_homepage_profile(self, request: Request, db: Session) -> Dict[str, Any]:
         site_title = str(getattr(request.state, "site_title", DEFAULT_BASE_SETTINGS["site_title"]) or DEFAULT_BASE_SETTINGS["site_title"])
         tagline = str(getattr(request.state, "tagline", DEFAULT_BASE_SETTINGS["tagline"]) or DEFAULT_BASE_SETTINGS["tagline"])
+        site_description = str(getattr(request.state, "site_description", DEFAULT_BASE_SETTINGS["site_description"]) or DEFAULT_BASE_SETTINGS["site_description"]).strip()
+        site_announcement = str(getattr(request.state, "site_announcement", DEFAULT_BASE_SETTINGS["site_announcement"]) or DEFAULT_BASE_SETTINGS["site_announcement"]).strip()
         site_url = str(_get_setting_value(db, "site_url", str(request.base_url)) or str(request.base_url)).strip()
 
         return {
             "display_name": site_title,
             "username": "",
-            "bio": tagline,
+            "bio": site_description or tagline,
+            "description": site_description,
+            "announcement": site_announcement,
             "website": site_url,
             "public_email": str(_get_setting_value(db, "public_contact_email", "") or "").strip(),
             "avatar_url": self._resolve_site_avatar_url(db),

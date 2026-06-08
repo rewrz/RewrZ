@@ -85,6 +85,67 @@ def _extract_csrf_token(response_text: str) -> str:
     return match.group(1)
 
 
+def _serialize_form_defaults(response_text: str, form_id: str | None = None) -> dict[str, str]:
+    pattern = re.compile(r"<form\b[^>]*>(?P<body>[\s\S]*?)</form>", re.IGNORECASE)
+    forms = list(pattern.finditer(response_text))
+    assert forms, "页面中未找到表单"
+
+    selected_form = None
+    if form_id:
+        for form_match in forms:
+            form_html = form_match.group(0)
+            if re.search(rf'id="{re.escape(form_id)}"', form_html):
+                selected_form = form_match.group("body")
+                break
+    if selected_form is None:
+        selected_form = forms[0].group("body")
+
+    data: dict[str, str] = {}
+
+    for match in re.finditer(r'<input\b([^>]*)>', selected_form, re.IGNORECASE):
+        attrs = match.group(1)
+        name_match = re.search(r'name="([^"]+)"', attrs)
+        if not name_match or re.search(r"\sdisabled(?:\s|=|>|$)", attrs):
+            continue
+        name = name_match.group(1)
+        input_type_match = re.search(r'type="([^"]+)"', attrs, re.IGNORECASE)
+        input_type = (input_type_match.group(1).lower() if input_type_match else "text")
+        if input_type in {"checkbox", "radio"}:
+            if not re.search(r"\schecked(?:\s|=|>|$)", attrs):
+                continue
+        value_match = re.search(r'value="([^"]*)"', attrs)
+        if name not in data:
+            data[name] = value_match.group(1) if value_match else ("on" if input_type in {"checkbox", "radio"} else "")
+
+    for match in re.finditer(r'<textarea\b([^>]*)>([\s\S]*?)</textarea>', selected_form, re.IGNORECASE):
+        attrs, value = match.groups()
+        name_match = re.search(r'name="([^"]+)"', attrs)
+        if not name_match or re.search(r"\sdisabled(?:\s|=|>|$)", attrs):
+            continue
+        data[name_match.group(1)] = value
+
+    for match in re.finditer(r'<select\b([^>]*)>([\s\S]*?)</select>', selected_form, re.IGNORECASE):
+        attrs, options_html = match.groups()
+        name_match = re.search(r'name="([^"]+)"', attrs)
+        if not name_match or re.search(r"\sdisabled(?:\s|=|>|$)", attrs):
+            continue
+        option_matches = list(re.finditer(r'<option\b([^>]*)>([\s\S]*?)</option>', options_html, re.IGNORECASE))
+        selected_value = None
+        for option_match in option_matches:
+            option_attrs = option_match.group(1)
+            if re.search(r"\sselected(?:\s|=|>|$)", option_attrs):
+                value_match = re.search(r'value="([^"]*)"', option_attrs)
+                selected_value = value_match.group(1) if value_match else ""
+                break
+        if selected_value is None and option_matches:
+            value_match = re.search(r'value="([^"]*)"', option_matches[0].group(1))
+            selected_value = value_match.group(1) if value_match else ""
+        if selected_value is not None:
+            data[name_match.group(1)] = selected_value
+
+    return data
+
+
 def test_top_level_admin_html_pages_are_not_public(monkeypatch):
     _set_installation_complete(monkeypatch, True)
     client = TestClient(main_module.app)
@@ -132,7 +193,7 @@ def test_settings_page_requires_csrf_for_submit_when_logged_in(test_db, monkeypa
                 "anniversaries_json": "[]",
             },
         )
-        assert response.status_code == 422
+        assert response.status_code == 403
     finally:
         main_module.app.dependency_overrides.clear()
 
@@ -151,6 +212,8 @@ def test_settings_page_can_save_and_re_render_saved_value(test_db, monkeypatch):
             data={
                 "site_title": "新的站点标题",
                 "tagline": "新的副标题",
+                "site_description": "这是新的站点描述。",
+                "site_announcement": "RewrZ Project",
                 "site_url": "https://example.com",
                 "admin_email": "admin@example.com",
                 "public_contact_email": "contact@example.com",
@@ -169,15 +232,92 @@ def test_settings_page_can_save_and_re_render_saved_value(test_db, monkeypatch):
         )
         assert response.status_code == 200
         assert "新的站点标题" in response.text
+        assert "这是新的站点描述。" in response.text
+        assert "RewrZ Project" in response.text
         assert "页脚说明" in response.text
         assert "smtp.example.com" in response.text
 
         response = client.get(f"{admin_prefix}/settings")
         assert response.status_code == 200
         assert "新的站点标题" in response.text
+        assert "这是新的站点描述。" in response.text
+        assert "RewrZ Project" in response.text
         assert "contact@example.com" in response.text
         assert "smtp.example.com" in response.text
         assert 'value="465"' in response.text
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_settings_page_save_button_explicitly_includes_full_form(test_db, monkeypatch):
+    client = _build_admin_client(test_db, monkeypatch)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+
+    try:
+        response = client.get(f"{admin_prefix}/settings")
+        assert response.status_code == 200
+        assert 'id="settings-save-button"' in response.text
+        assert 'type="button"' in response.text
+        assert 'hx-include="#admin-settings-form"' in response.text
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_settings_page_renders_site_description_and_announcement_fields(test_db, monkeypatch):
+    client = _build_admin_client(test_db, monkeypatch)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+
+    try:
+        response = client.get(f"{admin_prefix}/settings")
+        assert response.status_code == 200
+        assert 'name="site_description"' in response.text
+        assert 'name="site_announcement"' in response.text
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_settings_page_missing_required_fields_returns_400_instead_of_422(test_db, monkeypatch):
+    client = _build_admin_client(test_db, monkeypatch)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+
+    try:
+        page_response = client.get(f"{admin_prefix}/settings")
+        assert page_response.status_code == 200
+        csrf_token = _extract_csrf_token(page_response.text)
+
+        response = client.post(
+            f"{admin_prefix}/settings",
+            data={
+                "site_title": "",
+                "tagline": "新的副标题",
+                "site_url": "https://example.com",
+                "admin_email": "admin@example.com",
+                "copyright_info": "Copyright",
+                "social_links_json": "[]",
+                "anniversaries_json": "[]",
+                "csrf_token": csrf_token,
+            },
+        )
+        assert response.status_code == 400
+        assert "400 请求错误" in response.text
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_settings_page_can_submit_rendered_default_form(test_db, monkeypatch):
+    client = _build_admin_client(test_db, monkeypatch)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+
+    try:
+        page_response = client.get(f"{admin_prefix}/settings")
+        assert page_response.status_code == 200
+
+        response = client.post(
+            f"{admin_prefix}/settings",
+            data=_serialize_form_defaults(page_response.text, "admin-settings-form"),
+        )
+        assert response.status_code == 200
+        assert "设置已保存" in response.text
     finally:
         main_module.app.dependency_overrides.clear()
 
@@ -387,6 +527,80 @@ def test_error_settings_page_can_save_and_re_render_saved_value(test_db, monkeyp
         assert response.status_code == 200
         assert "页面走丢了" in response.text
         assert "friendly" in response.text
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_media_settings_page_can_submit_rendered_default_form(test_db, monkeypatch):
+    client = _build_admin_client(test_db, monkeypatch)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+
+    try:
+        page_response = client.get(f"{admin_prefix}/media/settings")
+        assert page_response.status_code == 200
+
+        response = client.post(
+            f"{admin_prefix}/api/v1/media/settings",
+            data=_serialize_form_defaults(page_response.text, "media-settings-form"),
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload.get("success") is True
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_comment_settings_page_can_submit_rendered_default_form(test_db, monkeypatch):
+    client = _build_admin_client(test_db, monkeypatch)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+
+    try:
+        page_response = client.get(f"{admin_prefix}/comment-settings")
+        assert page_response.status_code == 200
+
+        response = client.post(
+            f"{admin_prefix}/api/v1/comments/settings",
+            data=_serialize_form_defaults(page_response.text, "comment-settings-form"),
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload.get("success") is True
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_error_settings_page_can_submit_rendered_default_form(test_db, monkeypatch):
+    client = _build_admin_client(test_db, monkeypatch)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+
+    try:
+        page_response = client.get(f"{admin_prefix}/error-settings")
+        assert page_response.status_code == 200
+
+        response = client.post(
+            f"{admin_prefix}/error-settings",
+            data=_serialize_form_defaults(page_response.text, "error-settings-form"),
+        )
+        assert response.status_code == 200
+        assert "保存错误处理设置" in response.text
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_security_center_page_can_submit_rendered_default_form(test_db, monkeypatch):
+    client = _build_admin_client(test_db, monkeypatch)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+
+    try:
+        page_response = client.get(f"{admin_prefix}/security-center")
+        assert page_response.status_code == 200
+
+        response = client.post(
+            f"{admin_prefix}/security-center",
+            data=_serialize_form_defaults(page_response.text),
+        )
+        assert response.status_code == 200
+        assert "安全中心设置已保存" in response.text
     finally:
         main_module.app.dependency_overrides.clear()
 

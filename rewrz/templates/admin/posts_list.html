@@ -46,16 +46,21 @@
     </div>
 
     <form method="get" action="{{ request.state.admin_path }}/posts" class="admin-filter-panel admin-filter-grid flex flex-wrap items-end gap-3 rounded-2xl p-4">
-        <div class="min-w-64 flex-1">
+        <div class="flex-[0_1_18rem] min-w-[14rem] max-w-full lg:basis-[20rem]">
             <label for="search-input" class="mb-1 block text-xs text-[var(--color-text-light)]">搜索</label>
-            <input
-                type="text"
-                id="search-input"
-                name="search"
-                value="{{ search_query }}"
-                placeholder="搜索标题、摘要或正文..."
-                class="admin-form-field w-full rounded-md px-3 py-2"
-            >
+            <div class="admin-search-field">
+                <input
+                    type="text"
+                    id="search-input"
+                    name="search"
+                    value="{{ search_query }}"
+                    placeholder="搜索标题、摘要或正文..."
+                    class="admin-form-field w-full rounded-md px-3 py-2"
+                >
+                <button type="submit" class="admin-search-trigger" aria-label="搜索文章">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
         </div>
         <div>
             <label for="status-filter" class="mb-1 block text-xs text-[var(--color-text-light)]">状态</label>
@@ -66,11 +71,29 @@
             </select>
         </div>
         <div>
+            <label for="visibility-filter" class="mb-1 block text-xs text-[var(--color-text-light)]">可见性</label>
+            <select id="visibility-filter" name="visibility" class="admin-form-field rounded-md px-3 py-2">
+                <option value="">全部可见性</option>
+                <option value="public" {% if selected_visibility == "public" %}selected{% endif %}>公开</option>
+                <option value="private" {% if selected_visibility == "private" %}selected{% endif %}>私密</option>
+                <option value="password" {% if selected_visibility == "password" %}selected{% endif %}>密码保护</option>
+            </select>
+        </div>
+        <div>
             <label for="category-filter" class="mb-1 block text-xs text-[var(--color-text-light)]">分类</label>
             <select id="category-filter" name="category" class="admin-form-field rounded-md px-3 py-2">
                 <option value="">全部分类</option>
                 {% for category in categories %}
                 <option value="{{ category.id }}" {% if selected_category == (category.id|string) %}selected{% endif %}>{{ category.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="format-filter" class="mb-1 block text-xs text-[var(--color-text-light)]">格式</label>
+            <select id="format-filter" name="format" class="admin-form-field rounded-md px-3 py-2">
+                <option value="">全部格式</option>
+                {% for format in formats %}
+                <option value="{{ format.id }}" {% if selected_format == (format.id|string) %}selected{% endif %}>{{ format.name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -123,22 +146,55 @@
             </thead>
             <tbody class="admin-list-table-body divide-y">
                 {% for post in posts %}
+                {% set format_slugs = post.formats | map(attribute='slug') | list if post.formats else [] %}
+                {% set is_micro = 'micro' in format_slugs %}
+                {% set is_poem = 'poem' in format_slugs %}
+                {% set format_label = '文章' %}
+                {% set format_icon = 'fas fa-file-alt' %}
+                {% set format_tone = 'is-article' %}
+                {% if is_micro %}
+                    {% set format_label = '微博' %}
+                    {% set format_icon = 'fas fa-comment-dots' %}
+                    {% set format_tone = 'is-micro' %}
+                {% elif is_poem %}
+                    {% set format_label = '诗词' %}
+                    {% set format_icon = 'fas fa-feather-alt' %}
+                    {% set format_tone = 'is-poem' %}
+                {% endif %}
+                {% set post_title = (post.title or '') | trim %}
+                {% set plain_text = post | post_plain_text %}
+                {% set fallback_summary = post | post_summary_text(120) %}
+                {% set has_inline_micro_copy = is_micro and (not post_title) and plain_text %}
                 <tr class="transition-colors">
                     <td class="px-3 py-4 align-top">
                         <input type="checkbox" class="post-checkbox admin-form-check rounded border-gray-300" value="{{ post.id }}">
                     </td>
                     <td class="px-4 py-4 align-top">
-                        <div class="text-[15px] font-semibold tracking-tight leading-6 text-[var(--color-text)]">
-                            <a href="{{ post | post_url }}" target="_blank" class="admin-accent-link">
-                                {{ post.title or "(无标题)" }}
+                        <div class="admin-post-title-row text-[15px] font-semibold tracking-tight leading-6 text-[var(--color-text)]">
+                            <span class="admin-post-format-icon {{ format_tone }}" title="{{ format_label }}">
+                                <i class="{{ format_icon }}"></i>
+                            </span>
+                            {% if post.visibility == 'password' %}
+                            <span class="admin-post-lock-icon" title="密码保护文章" aria-label="密码保护文章">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                            {% endif %}
+                            <a href="{{ post | post_url }}" target="_blank" class="admin-accent-link admin-post-title-link {% if has_inline_micro_copy %}admin-post-title-link-micro{% endif %}">
+                                {% if has_inline_micro_copy %}
+                                    {{ plain_text }}
+                                {% else %}
+                                    {{ post_title or "(无标题)" }}
+                                {% endif %}
                             </a>
                         </div>
+                        {% if not has_inline_micro_copy %}
                         <div class="admin-list-meta-card mt-2 rounded-xl px-3 py-2 text-xs leading-5">
                             <span class="inline-block text-[11px] uppercase tracking-wide text-[var(--color-text-light)]">摘要</span>
                             <p class="mt-1 line-clamp-2 italic text-[var(--color-text-light)]">
-                                {{ post.excerpt[:120] if post.excerpt else '暂无摘要' }}{% if post.excerpt and post.excerpt|length > 120 %}...{% endif %}
+                                {{ fallback_summary or '暂无摘要' }}
                             </p>
                         </div>
+                        {% endif %}
                     </td>
                     <td class="px-4 py-4 align-top">
                         {% if post.status == 'published' %}
@@ -244,9 +300,89 @@
 </div>
 
 <style>
+    .admin-posts-shell .admin-post-title-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+        min-width: 0;
+    }
+
+    .admin-posts-shell .admin-post-format-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.8rem;
+        height: 1.8rem;
+        flex-shrink: 0;
+        margin-top: 0.08rem;
+        border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+        border-radius: 0.7rem;
+        background: color-mix(in srgb, var(--color-card-bg) 94%, transparent);
+        color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+        box-shadow: 0 12px 22px -20px color-mix(in srgb, var(--color-primary) 30%, rgba(15, 23, 42, 0.24));
+    }
+
+    .admin-posts-shell .admin-post-format-icon.is-micro {
+        border-radius: 0.6rem;
+        background:
+            linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 16%, transparent), transparent 72%),
+            color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+    }
+
+    .admin-posts-shell .admin-post-format-icon.is-poem {
+        border-radius: 999px;
+        background:
+            linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 72%),
+            color-mix(in srgb, var(--color-background-alt) 76%, var(--color-card-bg) 24%);
+    }
+
+    .admin-posts-shell .admin-post-title-link {
+        display: -webkit-box;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        word-break: break-word;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .admin-posts-shell .admin-post-lock-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.5rem;
+        height: 1.5rem;
+        flex-shrink: 0;
+        margin-top: 0.18rem;
+        border: 1px solid color-mix(in srgb, #f59e0b 34%, var(--color-border) 66%);
+        border-radius: 999px;
+        background:
+            linear-gradient(145deg, color-mix(in srgb, #f59e0b 12%, transparent), transparent 72%),
+            color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+        color: color-mix(in srgb, #f59e0b 74%, var(--color-text) 26%);
+        box-shadow: 0 12px 22px -20px color-mix(in srgb, #f59e0b 34%, rgba(15, 23, 42, 0.24));
+    }
+
+    .admin-posts-shell .admin-post-title-link-micro {
+        -webkit-line-clamp: 3;
+        font-weight: 600;
+        line-height: 1.55;
+    }
+
+    .admin-posts-shell .admin-post-inline-copy {
+        word-break: break-word;
+    }
+
     .admin-posts-shell .line-clamp-2 {
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .admin-posts-shell .line-clamp-3 {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
     }

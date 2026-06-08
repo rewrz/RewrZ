@@ -186,6 +186,7 @@ class SiteShellController {
     this.canPersistTheme = this.body?.dataset.themePersistAllowed === 'true';
     this.backgroundType = this.body?.dataset.backgroundType || 'none';
     this.backgroundUrl = this.body?.dataset.backgroundUrl || '';
+    this.pageBackgroundUrl = this.body?.dataset.pageBackgroundUrl || '';
     this.homepageMode = this.body?.dataset.homepageMode || 'default';
     this.isReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.themeToastTimer = null;
@@ -205,6 +206,7 @@ class SiteShellController {
     this.bindMobileMenu();
     this.bindBackToTop();
     this.bindVisibilitySync();
+    this.bindProfileMotion();
     this.setupHighlighting();
     window.themeManager = {
       getCurrentTheme: () => this.theme,
@@ -465,11 +467,23 @@ class SiteShellController {
 
   applyBackground() {
     if (!this.body) return;
-    this.body.classList.remove('bg-none', 'bg-gradient', 'bg-gradient-1', 'bg-gradient-2', 'bg-gradient-3', 'bg-gradient-4', 'bg-custom');
+    this.body.classList.remove('bg-none', 'bg-gradient', 'bg-gradient-1', 'bg-gradient-2', 'bg-gradient-3', 'bg-gradient-4', 'bg-custom', 'bg-page-cover');
     this.body.style.backgroundImage = '';
     this.body.style.backgroundSize = '';
     this.body.style.backgroundPosition = '';
     this.body.style.backgroundRepeat = '';
+    this.body.style.backgroundAttachment = '';
+    this.body.style.removeProperty('--page-bg-image');
+
+    if (this.pageBackgroundUrl) {
+      this.body.classList.add('bg-page-cover');
+      this.body.style.setProperty('--page-bg-image', `url('${this.pageBackgroundUrl}')`);
+      this.body.style.backgroundSize = 'cover';
+      this.body.style.backgroundPosition = 'center';
+      this.body.style.backgroundRepeat = 'no-repeat';
+      this.body.style.backgroundAttachment = 'fixed';
+      return;
+    }
 
     switch (this.backgroundType) {
       case 'gradient':
@@ -496,6 +510,7 @@ class SiteShellController {
           this.body.style.backgroundSize = 'cover';
           this.body.style.backgroundPosition = 'center';
           this.body.style.backgroundRepeat = 'no-repeat';
+          this.body.style.backgroundAttachment = 'fixed';
           break;
         }
       default:
@@ -618,6 +633,7 @@ class SiteShellController {
       this.applyAtmosphere(nextAtmosphereClass);
       this.backgroundType = payload.background?.type || 'none';
       this.backgroundUrl = payload.background?.custom_url || '';
+      this.pageBackgroundUrl = this.body?.dataset.pageBackgroundUrl || this.pageBackgroundUrl || '';
       this.homepageMode = payload.homepage_mode || this.homepageMode;
       this.applyBackground();
       this.applyHomepageMode();
@@ -630,6 +646,56 @@ class SiteShellController {
     } catch (_) {
       // ignore sync failures
     }
+  }
+
+  bindProfileMotion(root = document) {
+    if (this.isReducedMotion) {
+      return;
+    }
+
+    const scope = root && root.querySelectorAll ? root : document;
+    const cards = scope.querySelectorAll('[data-profile-motion]');
+    cards.forEach((card) => {
+      if (card.dataset.motionBound === 'true') {
+        return;
+      }
+
+      let rafId = null;
+
+      const resetMotion = () => {
+        card.style.setProperty('--motion-shift-x', '0px');
+        card.style.setProperty('--motion-shift-y', '0px');
+      };
+
+      const updateMotion = (event) => {
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+        }
+        rafId = requestAnimationFrame(() => {
+          const rect = card.getBoundingClientRect();
+          const offsetX = event.clientX - rect.left;
+          const offsetY = event.clientY - rect.top;
+          const xRatio = rect.width ? (offsetX / rect.width - 0.5) : 0;
+          const yRatio = rect.height ? (offsetY / rect.height - 0.5) : 0;
+          const shiftX = Math.max(-10, Math.min(10, xRatio * 12));
+          const shiftY = Math.max(-8, Math.min(8, yRatio * 10));
+          card.style.setProperty('--motion-shift-x', `${shiftX}px`);
+          card.style.setProperty('--motion-shift-y', `${shiftY}px`);
+        });
+      };
+
+      card.addEventListener('pointermove', updateMotion, { passive: true });
+      card.addEventListener('pointerleave', () => {
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        resetMotion();
+      });
+
+      resetMotion();
+      card.dataset.motionBound = 'true';
+    });
   }
 
   setupHighlighting() {
@@ -653,7 +719,9 @@ class SiteShellController {
     window.safeHighlightCodeBlocks = highlight;
     highlight(document);
     document.body?.addEventListener('htmx:afterSwap', (event) => {
-      highlight(event?.detail?.target || document);
+      const swapTarget = event?.detail?.target || document;
+      highlight(swapTarget);
+      this.bindProfileMotion(swapTarget);
     });
   }
 }

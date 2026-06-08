@@ -67,6 +67,7 @@
 
 .format-archive-glass .format-hero-card {
     border-radius: 1.6rem;
+    transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .format-archive-glass .format-hero-card .format-hero-summary {
@@ -90,16 +91,17 @@
 .format-archive-glass .format-hero-link-pill {
     border: 1px solid color-mix(in srgb, var(--color-primary) 18%, rgba(255, 255, 255, 0.78));
     background: color-mix(in srgb, var(--color-card-bg) 44%, transparent);
-    color: color-mix(in srgb, #0369a1 58%, var(--color-text) 42%);
+    color: color-mix(in srgb, var(--color-primary) 66%, var(--color-text) 34%);
     box-shadow: 0 12px 24px -22px rgba(14, 165, 233, 0.34);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    font-weight: 600;
 }
 
 .format-archive-glass .format-hero-link-pill:hover {
     background: color-mix(in srgb, var(--color-card-bg) 54%, rgba(14, 165, 233, 0.08));
     border-color: color-mix(in srgb, var(--color-primary) 26%, rgba(255, 255, 255, 0.74));
-    color: color-mix(in srgb, #075985 66%, var(--color-text) 34%);
+    color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
 }
 
 .dark .format-archive-glass .format-hero-link-pill {
@@ -194,7 +196,7 @@
     height: 100%;
     object-fit: cover;
     opacity: 0;
-    transform: scale(1.02);
+    transform: translate3d(var(--motion-shift-x, 0px), var(--motion-shift-y, 0px), 0) scale(var(--motion-scale, 1.02));
 }
 
 .format-archive-glass .format-hero-overlay-article {
@@ -456,6 +458,17 @@
     --article-hero-chip-ink: color-mix(in srgb, var(--article-hero-ink-source) 84%, var(--article-hero-tone-soft) 16%);
     --article-hero-box-surface: color-mix(in srgb, var(--article-hero-tone) 14%, transparent);
     --article-hero-box-border: color-mix(in srgb, var(--article-hero-tone-soft) 30%, transparent);
+    --article-hero-border-soft: rgba(242, 205, 132, 0.22);
+    --article-hero-border: rgba(242, 205, 132, 0.22);
+    --article-hero-ink: #fff1d2;
+    --article-hero-ink-soft: rgba(241, 223, 188, 0.84);
+    --article-hero-chip-ink: #f2d49a;
+    --article-hero-box-border: rgba(242, 205, 132, 0.2);
+    --article-hero-surface-weak: rgba(20, 25, 44, 0.34);
+    --article-hero-surface: rgba(20, 25, 44, 0.42);
+    --article-hero-surface-strong: rgba(20, 25, 44, 0.5);
+    --article-hero-surface-chip: rgba(20, 25, 44, 0.4);
+    --article-hero-box-surface: rgba(20, 25, 44, 0.38);
 }
 
 .dark .format-archive-glass > .container > .format-hero-card-article::before {
@@ -571,8 +584,8 @@
 }
 
 .dark .format-archive-glass .format-hero-link-pill-article:hover {
-    background: color-mix(in srgb, var(--article-hero-surface) 88%, var(--color-primary) 12%);
-    color: var(--article-hero-ink);
+    background: rgba(88, 61, 23, 0.34);
+    color: #fff1d2;
 }
 
 @media (max-width: 767px) {
@@ -631,40 +644,62 @@
         linear-gradient(120deg, color-mix(in srgb, var(--color-primary) 11%, transparent), transparent 60%);
 }
 
+.format-archive-glass .format-hero-card-poem {
+    --poem-hero-surface-strong: color-mix(in srgb, var(--color-card-bg) 84%, transparent);
+    --poem-hero-surface-soft: color-mix(in srgb, var(--color-card-bg) 66%, transparent);
+    --poem-hero-border: color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    --poem-hero-text: color-mix(in srgb, var(--color-text) 94%, var(--color-primary) 6%);
+    --poem-hero-muted: color-mix(in srgb, var(--color-text-light) 84%, var(--color-text) 16%);
+    --poem-hero-accent: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+    --poem-hero-shadow: color-mix(in srgb, var(--color-primary) 28%, rgba(15, 23, 42, 0.22));
+    border-color: var(--poem-hero-border) !important;
+    background:
+        radial-gradient(circle at top center, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 38%),
+        linear-gradient(180deg, color-mix(in srgb, var(--color-card-bg) 90%, transparent), color-mix(in srgb, var(--color-card-bg) 80%, transparent)) !important;
+}
+
 .format-archive-glass .format-hero-image-poem {
-    opacity: 0.46 !important;
+    opacity: 0.42 !important;
 }
 
 .format-archive-glass .format-hero-overlay-poem {
     background:
-        linear-gradient(180deg, rgba(69, 26, 3, 0.02) 0%, rgba(69, 26, 3, 0.08) 38%, rgba(69, 26, 3, 0.26) 100%),
-        linear-gradient(135deg, rgba(251, 191, 36, 0.08), transparent 62%);
+        linear-gradient(180deg, color-mix(in srgb, var(--color-background) 10%, transparent) 0%, color-mix(in srgb, var(--color-background) 18%, transparent) 38%, color-mix(in srgb, var(--color-background) 42%, transparent) 100%),
+        radial-gradient(circle at top center, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 54%);
 }
 
 .dark .format-archive-glass .format-hero-overlay-poem {
     background:
-        linear-gradient(180deg, rgba(28, 25, 23, 0.03) 0%, rgba(28, 25, 23, 0.1) 40%, rgba(28, 25, 23, 0.32) 100%),
-        linear-gradient(135deg, rgba(245, 158, 11, 0.08), transparent 62%);
+        linear-gradient(180deg, rgba(2, 6, 23, 0.12) 0%, rgba(2, 6, 23, 0.22) 40%, rgba(2, 6, 23, 0.5) 100%),
+        radial-gradient(circle at top center, rgba(245, 158, 11, 0.14), transparent 54%);
 }
 
 .format-archive-glass .format-hero-content-poem {
     text-align: center;
+    position: relative;
+    max-width: min(100%, 42rem);
+    margin: 0 auto;
+    padding: 0.8rem 0;
 }
 
 .format-archive-glass .format-hero-kicker-poem {
-    color: color-mix(in srgb, #b45309 64%, var(--color-text-light) 36%);
-    text-shadow: 0 1px 10px rgba(255, 251, 235, 0.24);
+    color: var(--poem-hero-accent);
+    text-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.16),
+        0 8px 20px rgba(15, 23, 42, 0.26);
 }
 
 .format-archive-glass .format-hero-title-poem {
-    color: color-mix(in srgb, #44403c 78%, #92400e 22%);
-    text-shadow: 0 2px 16px rgba(255, 251, 235, 0.18);
+    color: var(--poem-hero-text);
+    text-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.18),
+        0 10px 26px rgba(15, 23, 42, 0.3);
 }
 
 .format-archive-glass .format-hero-headline-poem {
-    color: color-mix(in srgb, #78716c 74%, #b45309 26%);
+    color: var(--poem-hero-muted);
     font-weight: 500;
-    text-shadow: 0 1px 10px rgba(255, 251, 235, 0.18);
+    text-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
 }
 
 .format-archive-glass .format-hero-copy-panel-poem {
@@ -672,108 +707,149 @@
     width: fit-content;
     max-width: min(100%, 46rem);
     padding: 0.95rem 1.1rem;
-    border: 1px solid color-mix(in srgb, #f59e0b 14%, rgba(255, 251, 235, 0.64));
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--poem-hero-border) 82%);
     border-radius: 1.1rem;
-    background: color-mix(in srgb, var(--color-card-bg) 22%, transparent);
-    box-shadow: 0 16px 28px -26px rgba(180, 83, 9, 0.28);
+    background: color-mix(in srgb, var(--color-card-bg) 82%, transparent);
+    box-shadow: 0 16px 28px -26px var(--poem-hero-shadow);
 }
 
 .format-archive-glass .format-hero-copy-poem {
-    color: color-mix(in srgb, #44403c 82%, #78350f 18%);
+    color: color-mix(in srgb, var(--poem-hero-text) 92%, var(--poem-hero-accent) 8%);
     font-weight: 500;
-    text-shadow: 0 1px 12px rgba(255, 251, 235, 0.14);
+    text-shadow: none;
 }
 
 .format-archive-glass .format-hero-motto-poem {
     display: inline-block;
     width: fit-content;
     max-width: min(100%, 38rem);
-    border: 1px solid color-mix(in srgb, #f59e0b 16%, rgba(255, 251, 235, 0.7));
-    background: color-mix(in srgb, var(--color-card-bg) 26%, transparent);
-    color: color-mix(in srgb, #92400e 76%, #44403c 24%);
-    box-shadow: 0 14px 24px -26px rgba(180, 83, 9, 0.24);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--poem-hero-border) 80%);
+    background: color-mix(in srgb, var(--color-card-bg) 76%, transparent);
+    color: var(--poem-hero-accent);
+    box-shadow: 0 14px 24px -26px var(--poem-hero-shadow);
 }
 
 .format-archive-glass .format-hero-chip-poem {
-    background: color-mix(in srgb, var(--color-card-bg) 32%, transparent) !important;
-    color: color-mix(in srgb, #57534e 76%, #92400e 24%) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--poem-hero-border) 82%) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 78%, transparent) !important;
+    color: color-mix(in srgb, var(--poem-hero-text) 88%, var(--poem-hero-accent) 12%) !important;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
 }
 
 .format-archive-glass .format-hero-link-pill-poem {
-    border: 1px solid color-mix(in srgb, #f59e0b 18%, rgba(255, 251, 235, 0.72));
-    background: color-mix(in srgb, var(--color-card-bg) 30%, transparent);
-    color: color-mix(in srgb, #78350f 74%, #44403c 26%);
-    box-shadow: 0 12px 22px -24px rgba(180, 83, 9, 0.28);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--poem-hero-border) 82%);
+    background: color-mix(in srgb, var(--color-card-bg) 76%, transparent);
+    color: color-mix(in srgb, var(--poem-hero-accent) 80%, var(--poem-hero-text) 20%);
+    box-shadow: 0 12px 22px -24px var(--poem-hero-shadow);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
 }
 
 .format-archive-glass .format-hero-link-pill-poem:hover {
-    background: color-mix(in srgb, var(--color-card-bg) 38%, rgba(251, 191, 36, 0.08));
-    border-color: color-mix(in srgb, #f59e0b 24%, rgba(255, 251, 235, 0.72));
-    color: color-mix(in srgb, #92400e 82%, #44403c 18%);
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%);
+    border-color: color-mix(in srgb, var(--color-primary) 28%, var(--poem-hero-border) 72%);
+    color: color-mix(in srgb, var(--poem-hero-accent) 88%, var(--poem-hero-text) 12%);
 }
 
 .dark .format-archive-glass .format-hero-kicker-poem {
-    color: rgba(253, 230, 138, 0.88);
-    text-shadow: 0 1px 10px rgba(28, 25, 23, 0.24);
+    color: #f3d59a;
+    text-shadow: 0 8px 24px rgba(2, 6, 23, 0.34);
 }
 
 .dark .format-archive-glass .format-hero-title-poem {
-    color: rgba(254, 243, 199, 0.96);
-    text-shadow: 0 2px 16px rgba(28, 25, 23, 0.24);
+    color: #fff2d6;
+    text-shadow: 0 2px 16px rgba(2, 6, 23, 0.2);
 }
 
 .dark .format-archive-glass .format-hero-headline-poem {
-    color: rgba(231, 229, 228, 0.84);
-    text-shadow: 0 1px 10px rgba(28, 25, 23, 0.22);
+    color: rgba(243, 225, 191, 0.9);
+    text-shadow: none;
 }
 
 .dark .format-archive-glass .format-hero-copy-panel-poem {
-    border-color: color-mix(in srgb, #f59e0b 14%, rgba(120, 113, 108, 0.28));
-    background: color-mix(in srgb, var(--color-card-bg) 16%, transparent);
+    border-color: rgba(242, 205, 132, 0.24);
+    background: linear-gradient(180deg, rgba(20, 25, 44, 0.44), rgba(20, 25, 44, 0.32));
 }
 
 .dark .format-archive-glass .format-hero-copy-poem {
-    color: rgba(245, 245, 244, 0.94);
-    text-shadow: 0 1px 14px rgba(28, 25, 23, 0.24);
+    color: rgba(248, 236, 214, 0.94);
+    text-shadow: none;
 }
 
 .dark .format-archive-glass .format-hero-motto-poem {
-    border-color: color-mix(in srgb, #f59e0b 14%, rgba(120, 113, 108, 0.3));
-    background: color-mix(in srgb, var(--color-card-bg) 18%, transparent);
-    color: rgba(253, 230, 138, 0.92);
+    border-color: rgba(242, 205, 132, 0.26);
+    background: rgba(20, 25, 44, 0.34);
+    color: #f2d49a;
 }
 
 .dark .format-archive-glass .format-hero-chip-poem {
-    background: color-mix(in srgb, var(--color-card-bg) 24%, transparent) !important;
-    color: rgba(245, 245, 244, 0.92) !important;
+    border-color: rgba(242, 205, 132, 0.22) !important;
+    background: rgba(20, 25, 44, 0.42) !important;
+    color: #f5dfb4 !important;
 }
 
 .dark .format-archive-glass .format-hero-link-pill-poem {
-    border-color: color-mix(in srgb, #f59e0b 16%, rgba(120, 113, 108, 0.32));
-    background: color-mix(in srgb, var(--color-card-bg) 20%, transparent);
-    color: rgba(253, 230, 138, 0.92);
+    border-color: rgba(242, 205, 132, 0.24);
+    background: rgba(20, 25, 44, 0.4);
+    color: #f5dfb4;
 }
 
 .dark .format-archive-glass .format-hero-link-pill-poem:hover {
-    background: color-mix(in srgb, var(--color-card-bg) 28%, rgba(245, 158, 11, 0.08));
-    border-color: color-mix(in srgb, #f59e0b 22%, rgba(120, 113, 108, 0.32));
-    color: #fef3c7;
+    background: rgba(88, 61, 23, 0.38);
+    border-color: rgba(247, 213, 141, 0.34);
+    color: #fff2d6;
+}
+
+.dark .format-archive-glass .format-hero-title-poem,
+.dark .format-archive-glass .format-hero-headline-poem,
+.dark .format-archive-glass .format-hero-copy-poem,
+.dark .format-archive-glass .format-hero-kicker-poem,
+.dark .format-archive-glass .format-hero-chip-poem,
+.dark .format-archive-glass .format-hero-link-pill-poem {
+    position: relative;
+    z-index: 1;
+    opacity: 1;
+}
+
+.dark .format-archive-glass .format-hero-title-poem {
+    color: #fff2d6;
+    text-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.04),
+        0 10px 30px rgba(2, 6, 23, 0.44);
+}
+
+.dark .format-archive-glass .format-hero-headline-poem {
+    color: rgba(243, 225, 191, 0.9);
+    text-shadow: 0 8px 24px rgba(2, 6, 23, 0.34);
+}
+
+.dark .format-archive-glass .format-hero-chip-poem {
+    background: rgba(20, 25, 44, 0.48) !important;
+    color: #f5dfb4 !important;
+}
+
+.dark .format-archive-glass .format-hero-link-pill-poem {
+    background: rgba(20, 25, 44, 0.46);
+    color: #f5dfb4;
 }
 
 .format-archive-glass .archive-card-poem {
-    border-color: color-mix(in srgb, #f59e0b 18%, rgba(120, 113, 108, 0.18)) !important;
-    background: color-mix(in srgb, var(--color-card-bg) 28%, transparent) !important;
-    box-shadow: 0 18px 30px -28px rgba(180, 83, 9, 0.26);
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 58%),
+        color-mix(in srgb, var(--color-card-bg) 94%, transparent) !important;
+    box-shadow: 0 18px 30px -28px color-mix(in srgb, var(--color-primary) 26%, rgba(15, 23, 42, 0.22));
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
 }
 
 .format-archive-glass .archive-card-poem:hover {
-    box-shadow: 0 24px 38px -28px rgba(180, 83, 9, 0.32);
+    border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border) 72%) !important;
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 58%),
+        color-mix(in srgb, var(--color-card-bg) 96%, transparent) !important;
+    box-shadow: 0 24px 38px -28px color-mix(in srgb, var(--color-primary) 34%, rgba(15, 23, 42, 0.24));
     transform: translateY(-2px);
 }
 
@@ -784,15 +860,15 @@
 }
 
 .format-archive-glass .archive-card-poem h3 {
-    color: color-mix(in srgb, #44403c 80%, #92400e 20%) !important;
+    color: color-mix(in srgb, var(--color-text) 94%, var(--color-primary) 6%) !important;
 }
 
 .format-archive-glass .archive-card-poem .result-excerpt {
-    color: color-mix(in srgb, #57534e 82%, #78350f 18%) !important;
+    color: var(--color-text-light) !important;
 }
 
 .format-archive-glass .archive-card-poem .archive-card-meta {
-    border-top-color: color-mix(in srgb, #f59e0b 12%, rgba(120, 113, 108, 0.18)) !important;
+    border-top-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%) !important;
 }
 
 .format-archive-glass .archive-card-poem [class*="bg-purple-100"],
@@ -803,33 +879,73 @@
 }
 
 .format-archive-glass .archive-card-poem a[href^="/archives/by-tag/"] {
-    background: color-mix(in srgb, var(--color-card-bg) 32%, transparent) !important;
-    border: 1px solid color-mix(in srgb, #f59e0b 16%, rgba(255, 251, 235, 0.64));
-    color: color-mix(in srgb, #92400e 76%, #57534e 24%) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 92%, transparent) !important;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%) !important;
 }
 
 .dark .format-archive-glass .archive-card-poem {
-    border-color: color-mix(in srgb, #f59e0b 14%, rgba(120, 113, 108, 0.26)) !important;
-    background: color-mix(in srgb, var(--color-card-bg) 18%, transparent) !important;
-    box-shadow: 0 20px 34px -30px rgba(28, 25, 23, 0.4);
+    border-color: rgba(242, 205, 132, 0.18) !important;
+    background:
+        linear-gradient(145deg, rgba(245, 158, 11, 0.08), transparent 58%),
+        color-mix(in srgb, var(--color-card-bg) 26%, transparent) !important;
+    box-shadow: 0 20px 34px -30px rgba(2, 6, 23, 0.4);
 }
 
 .dark .format-archive-glass .archive-card-poem h3 {
-    color: rgba(254, 243, 199, 0.96) !important;
+    color: #f7dfb2 !important;
 }
 
 .dark .format-archive-glass .archive-card-poem .result-excerpt {
-    color: rgba(231, 229, 228, 0.88) !important;
+    color: rgba(238, 229, 214, 0.88) !important;
 }
 
 .dark .format-archive-glass .archive-card-poem .archive-card-meta {
-    border-top-color: color-mix(in srgb, #f59e0b 10%, rgba(120, 113, 108, 0.22)) !important;
+    border-top-color: rgba(242, 205, 132, 0.14) !important;
 }
 
 .dark .format-archive-glass .archive-card-poem a[href^="/archives/by-tag/"] {
-    background: color-mix(in srgb, var(--color-card-bg) 22%, transparent) !important;
-    border-color: color-mix(in srgb, #f59e0b 14%, rgba(120, 113, 108, 0.3));
-    color: rgba(253, 230, 138, 0.9) !important;
+    background: rgba(20, 25, 44, 0.44) !important;
+    border-color: rgba(242, 205, 132, 0.18);
+    color: #f2d49a !important;
+}
+
+.dark .format-archive-glass .archive-card-poem-badge,
+.dark .format-archive-glass .archive-card-poem-chip {
+    border-color: rgba(242, 205, 132, 0.18) !important;
+    background: rgba(20, 25, 44, 0.44) !important;
+    color: #f2d49a !important;
+}
+
+.dark .format-archive-glass .archive-card-poem-date,
+.dark .format-archive-glass .archive-card-poem-meta-text {
+    color: rgba(236, 224, 205, 0.78);
+}
+
+.dark .format-archive-glass .archive-card-poem-link {
+    color: #f2d49a;
+}
+
+.dark .format-archive-glass .archive-card-poem-link:hover {
+    color: #fff0cf;
+}
+
+.dark .format-archive-glass .format-switch-pill-poem.is-active {
+    background: linear-gradient(135deg, #f0c673, #b88634) !important;
+    color: #24160a !important;
+    border-color: rgba(255, 232, 183, 0.34) !important;
+}
+
+.dark .format-archive-glass .format-switch-pill-poem:not(.is-active) {
+    border-color: rgba(242, 205, 132, 0.18) !important;
+    background: rgba(20, 25, 44, 0.42) !important;
+    color: #f2d49a !important;
+}
+
+.dark .format-archive-glass .format-switch-pill-poem:not(.is-active):hover {
+    background: rgba(88, 61, 23, 0.34) !important;
+    border-color: rgba(247, 213, 141, 0.28) !important;
+    color: #fff0cf !important;
 }
 
 .format-archive-glass #format-posts-panel .archive-card-poem {
@@ -842,12 +958,41 @@
     -webkit-backdrop-filter: none !important;
 }
 
+.format-archive-glass .archive-card-poem-badge,
+.format-archive-glass .archive-card-poem-chip {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    background: color-mix(in srgb, var(--color-card-bg) 92%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+}
+
+.format-archive-glass .archive-card-poem-date,
+.format-archive-glass .archive-card-poem-meta-text {
+    color: var(--color-text-light);
+}
+
+.format-archive-glass .archive-card-poem-cover {
+    border-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+}
+
+.format-archive-glass .archive-card-poem-link {
+    color: color-mix(in srgb, var(--color-text) 92%, var(--color-primary) 8%);
+}
+
+.format-archive-glass .archive-card-poem-link:hover {
+    color: color-mix(in srgb, var(--color-primary) 82%, var(--color-text) 18%);
+}
+
+.format-archive-glass .archive-card-poem-tag:hover {
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%) !important;
+}
+
 .format-archive-glass .format-hero-kicker-micro {
-    font-size: 0.8rem;
+    font-size: 0.84rem;
     font-weight: 600;
     letter-spacing: 0.08em;
-    color: color-mix(in srgb, #0369a1 54%, var(--color-text-light) 46%);
-    text-shadow: 0 1px 10px rgba(255, 255, 255, 0.18);
+    color: color-mix(in srgb, var(--color-primary) 58%, var(--color-text-light) 42%);
+    text-shadow: 0 1px 8px rgba(255, 255, 255, 0.14);
 }
 
 .format-archive-glass .format-hero-socials-micro {
@@ -867,9 +1012,10 @@
 }
 
 .format-archive-glass .format-hero-copy-micro {
-    font-weight: 500;
-    color: color-mix(in srgb, var(--color-text) 82%, #0f172a 18%);
-    text-shadow: 0 1px 12px rgba(255, 255, 255, 0.12);
+    font-weight: 560;
+    color: color-mix(in srgb, var(--color-text) 90%, black 10%);
+    text-shadow: 0 1px 8px rgba(255, 255, 255, 0.08);
+    line-height: 1.75;
 }
 
 .format-archive-glass .format-hero-card:is(.border-sky-200, .dark\\:border-sky-700\\/50) h1,
@@ -879,18 +1025,62 @@
 }
 
 .dark .format-archive-glass .format-hero-kicker-micro {
-    color: rgba(186, 230, 253, 0.86);
-    text-shadow: 0 1px 10px rgba(2, 6, 23, 0.26);
+    color: #f2d49a;
+    text-shadow: 0 1px 8px rgba(2, 6, 23, 0.2);
 }
 
 .dark .format-archive-glass .format-hero-copy-panel-micro {
-    border-color: color-mix(in srgb, var(--color-primary) 16%, rgba(148, 163, 184, 0.24));
-    background: color-mix(in srgb, var(--color-card-bg) 18%, transparent);
+    border-color: rgba(242, 205, 132, 0.22);
+    background: rgba(20, 25, 44, 0.36);
 }
 
 .dark .format-archive-glass .format-hero-copy-micro {
-    color: rgba(241, 245, 249, 0.94);
-    text-shadow: 0 1px 14px rgba(2, 6, 23, 0.24);
+    color: #fff1d2;
+    text-shadow: 0 1px 10px rgba(2, 6, 23, 0.2);
+}
+
+.dark .format-archive-glass .format-hero-card:is(.border-sky-200, .dark\\:border-sky-700\\/50) h1,
+.dark .format-archive-glass .format-hero-card:is(.border-sky-200, .dark\\:border-sky-700\\/50) .format-hero-stat .text-xl,
+.dark .format-archive-glass .format-hero-card:is(.border-sky-200, .dark\\:border-sky-700\\/50) .format-hero-stat .text-xs {
+    color: #fff1d2 !important;
+}
+
+.dark .format-archive-glass .format-hero-card:is(.border-sky-200, .dark\\:border-sky-700\\/50) .format-hero-link-pill,
+.dark .format-archive-glass .format-hero-card:is(.border-sky-200, .dark\\:border-sky-700\\/50) .format-hero-stat,
+.dark .format-archive-glass .format-hero-card:is(.border-sky-200, .dark\\:border-sky-700\\/50) .format-hero-chip {
+    border-color: rgba(242, 205, 132, 0.18) !important;
+    background: rgba(20, 25, 44, 0.4) !important;
+    color: #f2d49a !important;
+}
+
+.dark .format-archive-glass .format-hero-card:is(.border-sky-200, .dark\\:border-sky-700\\/50) .format-hero-link-pill:hover,
+.dark .format-archive-glass .format-hero-card:is(.border-sky-200, .dark\\:border-sky-700\\/50) .format-hero-chip:hover {
+    background: rgba(88, 61, 23, 0.32) !important;
+    border-color: rgba(247, 213, 141, 0.28) !important;
+    color: #fff1d2 !important;
+}
+
+.format-archive-glass .format-hero-socials-micro .format-hero-link-pill i,
+.format-archive-glass .micro-composer-badge,
+.format-archive-glass .format-switch-pill i {
+    color: inherit;
+}
+
+.format-archive-glass .format-hero-stat {
+    background: color-mix(in srgb, var(--color-card-bg) 78%, transparent) !important;
+}
+
+.format-archive-glass .format-hero-stat .text-xl {
+    font-size: clamp(1.45rem, 1.2rem + 0.4vw, 1.75rem);
+    line-height: 1.1;
+    color: color-mix(in srgb, var(--color-text) 92%, black 8%) !important;
+}
+
+.format-archive-glass .format-hero-stat .text-xs {
+    margin-top: 0.3rem;
+    font-size: 0.76rem;
+    letter-spacing: 0.03em;
+    color: color-mix(in srgb, var(--color-text-light) 86%, var(--color-text) 14%) !important;
 }
 
 /* 登录发布框：中玻璃 */
@@ -905,10 +1095,10 @@
 .format-archive-glass .micro-composer-shell-anime {
     position: relative;
     overflow: visible;
-    border-color: color-mix(in srgb, #7dd3fc 44%, var(--color-border) 56%) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%) !important;
     box-shadow:
-        0 24px 50px rgba(34, 211, 238, 0.16),
-        0 0 0 1px rgba(129, 140, 248, 0.14);
+        0 24px 50px color-mix(in srgb, var(--color-primary) 18%, transparent),
+        0 0 0 1px color-mix(in srgb, var(--color-primary) 16%, transparent);
 }
 
 .format-archive-glass .micro-composer-shell-anime::before,
@@ -927,7 +1117,7 @@
     width: 82px;
     height: 82px;
     background:
-        radial-gradient(circle at center, rgba(125, 211, 252, 0.32) 0, rgba(125, 211, 252, 0.08) 42%, transparent 72%);
+        radial-gradient(circle at center, color-mix(in srgb, var(--color-primary) 32%, transparent) 0, color-mix(in srgb, var(--color-primary) 8%, transparent) 42%, transparent 72%);
 }
 
 .format-archive-glass .micro-composer-shell-anime::after {
@@ -936,12 +1126,18 @@
     width: 56px;
     height: 56px;
     background:
-        radial-gradient(circle at center, rgba(192, 132, 252, 0.28) 0, rgba(192, 132, 252, 0.08) 45%, transparent 74%);
+        radial-gradient(circle at center, color-mix(in srgb, var(--color-primary) 28%, var(--color-card-bg) 72%) 0, color-mix(in srgb, var(--color-primary) 8%, transparent) 45%, transparent 74%);
 }
 
 .format-archive-glass .micro-composer-hero {
     position: relative;
     overflow: hidden;
+    border-bottom-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-card-bg) 84%, var(--color-primary) 16%),
+        color-mix(in srgb, var(--color-background-alt) 90%, var(--color-card-bg) 10%)
+    ) !important;
 }
 
 .format-archive-glass .micro-composer-hero::after {
@@ -951,7 +1147,11 @@
     width: 180px;
     height: 80px;
     border-radius: 999px;
-    background: linear-gradient(135deg, rgba(125, 211, 252, 0.24), rgba(196, 181, 253, 0.12));
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-primary) 24%, transparent),
+        color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%)
+    );
     transform: rotate(-7deg);
     pointer-events: none;
 }
@@ -961,23 +1161,24 @@
     align-items: center;
     gap: 0.32rem;
     border-radius: 999px;
-    border: 1px solid color-mix(in srgb, #7dd3fc 44%, rgba(255, 255, 255, 0.7) 56%);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border) 70%);
     background: color-mix(in srgb, var(--color-card-bg) 82%, transparent);
     padding: 0.34rem 0.72rem;
-    color: color-mix(in srgb, #0f172a 65%, #0284c7 35%);
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
 }
 
 .dark .format-archive-glass .micro-composer-badge {
-    border-color: color-mix(in srgb, #38bdf8 34%, rgba(148, 163, 184, 0.22) 66%);
+    border-color: color-mix(in srgb, var(--color-primary) 26%, var(--color-border) 74%);
     background: color-mix(in srgb, var(--color-card-bg) 68%, transparent);
-    color: #dbeafe;
+    color: color-mix(in srgb, var(--color-primary) 60%, var(--color-text) 40%);
 }
 
 .format-archive-glass .micro-composer-shell textarea {
     background: color-mix(in srgb, var(--color-card-bg) 60%, transparent) !important;
     border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%) !important;
+    caret-color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
 }
 
 .dark .format-archive-glass .micro-composer-shell textarea {
@@ -987,7 +1188,68 @@
 
 .format-archive-glass .micro-composer-textarea {
     min-height: 8.5rem;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, white 36%, transparent);
+    color: var(--color-text) !important;
+}
+
+.format-archive-glass .micro-composer-textarea::placeholder {
+    color: color-mix(in srgb, var(--color-text-light) 82%, var(--color-primary) 18%) !important;
+}
+
+.format-archive-glass .micro-composer-textarea:focus {
+    border-color: color-mix(in srgb, var(--color-primary) 36%, var(--color-border) 64%) !important;
+    box-shadow:
+        inset 0 1px 0 color-mix(in srgb, white 34%, transparent),
+        0 0 0 3px color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.format-archive-glass .micro-topic-hint {
+    border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 88%, transparent) !important;
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%) !important;
+}
+
+.format-archive-glass .micro-topic-hint:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 32%, var(--color-border) 68%) !important;
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card-bg) 88%) !important;
+}
+
+.format-archive-glass .micro-composer-panel {
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 86%, var(--color-background-alt) 14%) !important;
+    color: var(--color-text) !important;
+}
+
+.format-archive-glass .micro-panel-label {
+    color: color-mix(in srgb, var(--color-text-light) 82%, var(--color-primary) 18%) !important;
+}
+
+.format-archive-glass .micro-preview-content {
+    color: var(--color-text) !important;
+}
+
+.format-archive-glass .micro-status-text {
+    font-size: 0.75rem;
+}
+
+.format-archive-glass .micro-status-label {
+    font-size: 11px;
+}
+
+.format-archive-glass .micro-status-muted {
+    color: color-mix(in srgb, var(--color-text-light) 82%, var(--color-primary) 18%) !important;
+}
+
+.format-archive-glass .micro-status-ok {
+    color: color-mix(in srgb, var(--color-primary) 60%, #16a34a 40%) !important;
+}
+
+.format-archive-glass .micro-status-warn {
+    color: color-mix(in srgb, var(--color-primary) 34%, #f59e0b 66%) !important;
+}
+
+.format-archive-glass .micro-status-error {
+    color: color-mix(in srgb, var(--color-primary) 22%, #e11d48 78%) !important;
 }
 
 .format-archive-glass .micro-composer-corner-note {
@@ -999,38 +1261,73 @@
     text-align: right;
     font-size: 11px;
     line-height: 1.45;
-    color: color-mix(in srgb, var(--color-muted) 82%, #64748b 18%);
+    color: color-mix(in srgb, var(--color-text-light) 82%, var(--color-primary) 18%);
+}
+
+.format-archive-glass #micro-quick-media-list > div,
+.format-archive-glass #micro-quick-media-list > div > div:first-child,
+.format-archive-glass #micro-quick-media-list > div > div:last-child {
+    border-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 88%, transparent) !important;
+}
+
+.format-archive-glass .micro-progress-bar {
+    background: color-mix(in srgb, var(--color-primary) 68%, var(--color-text) 32%);
+}
+
+.format-archive-glass .micro-progress-bar.micro-progress-bar-ok {
+    background: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+}
+
+.format-archive-glass .micro-progress-bar.micro-progress-bar-warn {
+    background: color-mix(in srgb, var(--color-primary) 54%, #f59e0b 46%);
+}
+
+.format-archive-glass .micro-progress-bar.micro-progress-bar-danger {
+    background: color-mix(in srgb, var(--color-primary) 42%, #ef4444 58%);
 }
 
 .dark .format-archive-glass .micro-composer-corner-note {
-    color: rgba(191, 219, 254, 0.72);
+    color: color-mix(in srgb, var(--color-text-light) 80%, var(--color-primary) 20%);
 }
 
 .format-archive-glass .micro-tool-btn {
     border: 1px solid transparent;
     background: color-mix(in srgb, var(--color-card-bg) 78%, transparent);
+    color: color-mix(in srgb, var(--color-text) 72%, var(--color-primary) 28%) !important;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .format-archive-glass .micro-tool-btn:hover {
-    border-color: color-mix(in srgb, #7dd3fc 34%, var(--color-border) 66%);
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%);
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%) !important;
     transform: translateY(-1px);
 }
 
 .format-archive-glass .micro-tool-btn-accent {
-    border-color: color-mix(in srgb, #c084fc 32%, rgba(125, 211, 252, 0.26) 68%);
-    background: linear-gradient(135deg, rgba(236, 72, 153, 0.14), rgba(125, 211, 252, 0.16));
-    color: color-mix(in srgb, #7c3aed 55%, #0f172a 45%) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border) 72%);
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-primary) 16%, transparent),
+        color-mix(in srgb, var(--color-primary) 8%, var(--color-card-bg) 92%)
+    );
+    color: color-mix(in srgb, var(--color-primary) 62%, var(--color-text) 38%) !important;
 }
 
 .dark .format-archive-glass .micro-tool-btn-accent {
-    color: #f5d0fe !important;
+    color: color-mix(in srgb, var(--color-primary) 64%, var(--color-text) 36%) !important;
 }
 
 .format-archive-glass .micro-tool-btn-muted {
-    color: color-mix(in srgb, var(--color-muted) 86%, #64748b 14%) !important;
+    color: color-mix(in srgb, var(--color-text-light) 88%, var(--color-primary) 12%) !important;
+}
+
+.format-archive-glass .micro-tool-btn-active {
+    border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border) 72%);
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card-bg) 88%);
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%) !important;
 }
 
 .format-archive-glass .micro-tool-emoji {
@@ -1043,20 +1340,112 @@
 
 .format-archive-glass .micro-launch-btn {
     gap: 0.18rem;
-    border: 1px solid rgba(125, 211, 252, 0.22);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
     background:
-        linear-gradient(135deg, rgba(14, 165, 233, 0.94), rgba(99, 102, 241, 0.92)),
+        linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--color-primary) 82%, var(--color-text) 18%),
+            color-mix(in srgb, var(--color-primary) 66%, var(--color-background-alt) 34%)
+        ),
         linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0));
     box-shadow:
-        0 14px 28px rgba(14, 165, 233, 0.22),
+        0 14px 28px color-mix(in srgb, var(--color-primary) 24%, transparent),
         inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    color: var(--color-card-bg) !important;
 }
 
 .format-archive-glass .micro-launch-btn:hover {
     transform: translateY(-1px);
     box-shadow:
-        0 18px 32px rgba(79, 70, 229, 0.24),
+        0 18px 32px color-mix(in srgb, var(--color-primary) 28%, transparent),
         inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.format-archive-glass #micro-quick-detected-topics,
+.format-archive-glass #micro-quick-preview-panel,
+.format-archive-glass #micro-quick-emoji-panel {
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 86%, var(--color-background-alt) 14%) !important;
+    color: var(--color-text) !important;
+}
+
+.format-archive-glass #micro-quick-content::placeholder,
+.format-archive-glass #micro-quick-message,
+.format-archive-glass #micro-quick-draft-state,
+.format-archive-glass #micro-quick-counter,
+.format-archive-glass #micro-quick-upload-status {
+    color: color-mix(in srgb, var(--color-text-light) 82%, var(--color-primary) 18%) !important;
+}
+
+.format-archive-glass #micro-quick-topic-hints button {
+    border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 88%, transparent) !important;
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%) !important;
+}
+
+.format-archive-glass #micro-quick-topic-hints button:hover {
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card-bg) 88%) !important;
+}
+
+.format-archive-glass .micro-emoji-panel {
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+.format-archive-glass .micro-emoji-tab {
+    color: color-mix(in srgb, var(--color-text-light) 78%, var(--color-primary) 22%);
+}
+
+.format-archive-glass .micro-emoji-tab:hover {
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%);
+    color: color-mix(in srgb, var(--color-text) 70%, var(--color-primary) 30%);
+}
+
+.format-archive-glass .micro-emoji-tab.is-active {
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%);
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.format-archive-glass .micro-emoji-choice:hover {
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%);
+}
+
+.format-archive-glass .micro-detected-chip-topic {
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%);
+}
+
+.format-archive-glass .micro-detected-chip-mention {
+    background: color-mix(in srgb, var(--color-background-alt) 72%, var(--color-primary) 10%);
+    color: color-mix(in srgb, var(--color-text) 72%, var(--color-primary) 28%);
+}
+
+.format-archive-glass .micro-media-card {
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+    background: color-mix(in srgb, var(--color-card-bg) 92%, transparent);
+}
+
+.format-archive-glass .micro-media-card-placeholder {
+    background: color-mix(in srgb, var(--color-background-alt) 84%, var(--color-card-bg) 16%);
+    color: color-mix(in srgb, var(--color-text-light) 76%, var(--color-primary) 24%);
+}
+
+.format-archive-glass .micro-media-card-meta {
+    border-top-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+}
+
+.format-archive-glass .micro-media-card-name {
+    color: color-mix(in srgb, var(--color-text-light) 82%, var(--color-primary) 18%);
+}
+
+.format-archive-glass .micro-media-remove {
+    color: color-mix(in srgb, var(--color-text-light) 72%, var(--color-primary) 28%);
+}
+
+.format-archive-glass .micro-media-remove:hover {
+    background: color-mix(in srgb, #e11d48 10%, var(--color-card-bg) 90%);
+    color: color-mix(in srgb, var(--color-primary) 18%, #e11d48 82%);
 }
 
 /* 聚合卡片：中玻璃 */

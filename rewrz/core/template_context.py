@@ -30,6 +30,8 @@ HOMEPAGE_SETTING_KEYS = [
 DEFAULT_BASE_SETTINGS = {
     "site_title": "RewrZ",
     "tagline": "A Personal Blog System",
+    "site_description": "",
+    "site_announcement": "",
     "noindex_site": False,
     "block_ai_crawlers": False,
     # 新增：站点基础展示相关
@@ -173,6 +175,8 @@ def build_base_template_context(request: Request) -> dict:
         "theme_persist_allowed": theme_persist_allowed,
         "site_title": settings.get("site", {}).get("title") or getattr(request.state, "site_title", DEFAULT_BASE_SETTINGS["site_title"]),
         "tagline": settings.get("site", {}).get("tagline") or getattr(request.state, "tagline", DEFAULT_BASE_SETTINGS["tagline"]),
+        "site_description": settings.get("site", {}).get("description") or getattr(request.state, "site_description", DEFAULT_BASE_SETTINGS["site_description"]),
+        "site_announcement": settings.get("site", {}).get("announcement") or getattr(request.state, "site_announcement", DEFAULT_BASE_SETTINGS["site_announcement"]),
         "noindex_site": settings.get("seo", {}).get("noindex_site") if settings.get("seo", {}).get("noindex_site") is not None else getattr(request.state, "noindex_site", DEFAULT_BASE_SETTINGS["noindex_site"]),
         "block_ai_crawlers": settings.get("seo", {}).get("block_ai_crawlers") if settings.get("seo", {}).get("block_ai_crawlers") is not None else getattr(request.state, "block_ai_crawlers", DEFAULT_BASE_SETTINGS["block_ai_crawlers"]),
         

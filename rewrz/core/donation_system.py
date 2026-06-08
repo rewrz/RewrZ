@@ -103,6 +103,7 @@ class DonationSystem:
         has_link = bool(link_url)
         if not has_qr and not has_link:
             return ""
+        layout_mode = "dual" if has_qr and has_link else ("qr-only" if has_qr else "link-only")
 
         methods_html = []
         if has_qr:
@@ -125,8 +126,8 @@ class DonationSystem:
             )
 
         return f"""
-        <div class="donation-widget donation-theme-elegant" data-donation-theme="elegant">
-            <div class="donation-shell">
+        <div class="donation-widget donation-theme-elegant donation-surface-soft donation-layout-{layout_mode}" data-donation-theme="elegant" data-surface-style="soft" data-donation-layout="{layout_mode}">
+            <div class="donation-shell donation-shell-{layout_mode}">
                 <div class="donation-header">
                     <div class="donation-mark" aria-hidden="true">赏</div>
                     <div class="donation-copy">
@@ -154,6 +155,7 @@ class DonationSystem:
         has_link = bool(link_url)
         if not has_qr and not has_link:
             return ""
+        layout_mode = "dual" if has_qr and has_link else ("qr-only" if has_qr else "link-only")
 
         methods_html = []
         if has_qr:
@@ -175,8 +177,8 @@ class DonationSystem:
             )
 
         return f"""
-        <div class="donation-widget donation-theme-minimal" data-donation-theme="minimal">
-            <div class="donation-shell">
+        <div class="donation-widget donation-theme-minimal donation-surface-solid donation-layout-{layout_mode}" data-donation-theme="minimal" data-surface-style="solid" data-donation-layout="{layout_mode}">
+            <div class="donation-shell donation-shell-{layout_mode}">
                 <div class="donation-header">
                     <div class="donation-copy">
                         <h4 class="donation-title">{title}</h4>
@@ -202,6 +204,7 @@ class DonationSystem:
         has_link = bool(link_url)
         if not has_qr and not has_link:
             return ""
+        layout_mode = "dual" if has_qr and has_link else ("qr-only" if has_qr else "link-only")
 
         qr_html = ""
         if has_qr:
@@ -232,7 +235,7 @@ class DonationSystem:
             card_shell_class += " is-no-link"
 
         return f"""
-        <div class="donation-widget donation-theme-card" data-donation-theme="card">
+        <div class="donation-widget donation-theme-card donation-surface-soft donation-layout-{layout_mode}" data-donation-theme="card" data-surface-style="soft" data-donation-layout="{layout_mode}">
             <div class="{card_shell_class}">
                 <div class="donation-card-main">
                     <p class="donation-kicker">Creator Support</p>

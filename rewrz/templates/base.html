@@ -48,15 +48,15 @@
     <link rel="stylesheet" href="{{ static_asset(request, 'vendor/font-awesome/css/all.min.css') }}">
     
     <!-- SEO Meta Tags -->
-    <meta name="description" content="{% block meta_description %}{{ tagline if tagline else site_title }}{% endblock %}">
+    <meta name="description" content="{% block meta_description %}{{ site_description if site_description else (tagline if tagline else site_title) }}{% endblock %}">
     <meta property="og:title" content="{% block og_title %}{{ title if title else site_title }}{% endblock %}">
-    <meta property="og:description" content="{% block og_description %}{{ tagline if tagline else site_title }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ site_description if site_description else (tagline if tagline else site_title) }}{% endblock %}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ request.url }}">
     {% if featured_image_url %}<meta property="og:image" content="{{ featured_image_url }}">{% endif %}
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{% block twitter_title %}{{ title if title else site_title }}{% endblock %}">
-    <meta name="twitter:description" content="{% block twitter_description %}{{ tagline if tagline else site_title }}{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}{{ site_description if site_description else (tagline if tagline else site_title) }}{% endblock %}">
     {% if featured_image_url %}<meta name="twitter:image" content="{{ featured_image_url }}">{% endif %}
     {% if noindex_site %}<meta name="robots" content="noindex, nofollow">{% endif %}
     
@@ -140,6 +140,7 @@
       data-list-navigation-mode="{{ list_navigation_mode if list_navigation_mode else 'pagination' }}"
       data-glass-intensity="{{ glass_intensity }}"
       data-current-theme="{{ current_theme }}"
+      data-page-background-url="{{ page_background_image_url if page_background_image_url else '' }}"
       data-atmosphere-class="{{ atmosphere_class if atmosphere_class else '' }}"
       data-theme-csrf-token="{{ theme_csrf_token }}"
       data-theme-persist-allowed="{{ 'true' if theme_persist_allowed else 'false' }}"
@@ -442,13 +443,13 @@
     </button>
 
     <footer class="site-footer-shell relative mt-20 overflow-hidden">
-        <div class="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-indigo-100/70 via-cyan-100/20 to-transparent dark:from-slate-950 dark:via-slate-900/30 dark:to-transparent"></div>
-        <div class="pointer-events-none footer-orb footer-orb-main absolute -left-10 top-8 h-32 w-32 rounded-full bg-cyan-300/24 dark:bg-cyan-500/14"></div>
-        <div class="pointer-events-none footer-orb footer-orb-alt absolute right-2 top-12 h-20 w-20 rounded-full bg-amber-300/24 dark:bg-amber-500/14"></div>
+        <div class="site-footer-atmosphere pointer-events-none absolute inset-x-0 bottom-0 h-40"></div>
+        <div class="pointer-events-none footer-orb footer-orb-main site-footer-orb site-footer-orb-cool absolute -left-10 top-8 h-32 w-32 rounded-full"></div>
+        <div class="pointer-events-none footer-orb footer-orb-alt site-footer-orb site-footer-orb-warm absolute right-2 top-12 h-20 w-20 rounded-full"></div>
         <div class="relative container mx-auto px-4 lg:px-6">
             <div class="site-footer-panel rounded-[2rem] border border-white/60 px-5 py-7 md:px-8">
                 <div class="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
-                    <div class="space-y-4 text-slate-600 dark:text-slate-300">
+                    <div class="site-footer-primary space-y-4">
                         <div class="flex flex-wrap items-center gap-3">
                             <a href="https://github.com/rewrz/RewrZ" target="_blank" rel="noopener" class="site-footer-badge inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition-colors">
                                 <i class="fas fa-star text-[11px]"></i>
@@ -466,17 +467,17 @@
                             {% endif %}
                         </div>
                         <div class="space-y-2">
-                            <h3 class="text-2xl font-semibold text-slate-900 dark:text-white">{{ site_title }}</h3>
-                            <p class="text-sm text-slate-500 dark:text-slate-400">{{ tagline or '记录灵感、创作与心情，持续连接同频伙伴。' }}</p>
-                            <p class="text-xs text-slate-500 dark:text-slate-400">这就是 Steins;Gate 的选择，El Psy Congroo……</p>
+                            <h3 class="site-footer-title text-2xl font-semibold">{{ site_title }}</h3>
+                            <p class="site-footer-tagline text-sm">{{ tagline or '记录灵感、创作与心情，持续连接同频伙伴。' }}</p>
+                            <p class="site-footer-easter text-xs">这就是 Steins;Gate 的选择，El Psy Congroo……</p>
                         </div>
                         {% if custom_footer_text %}
-                        <div class="site-footer-note text-sm text-slate-600 dark:text-slate-300">{{ custom_footer_text | safe }}</div>
+                        <div class="site-footer-note text-sm">{{ custom_footer_text | safe }}</div>
                         {% endif %}
                     </div>
 
-                    <div class="site-footer-meta space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                        <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Power By <a href="https://github.com/rewrz" target="_blank" rel="noopener" class="hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors">RewrZ</a></div>
+                    <div class="site-footer-meta space-y-3 text-sm">
+                        <div class="site-footer-powered text-xs font-semibold uppercase tracking-[0.16em]">Power By <a href="https://github.com/rewrz" target="_blank" rel="noopener" class="site-footer-powered-link transition-colors">RewrZ</a></div>
                         <div class="site-footer-card rounded-2xl px-4 py-4">
                             {% if copyright_info_rendered %}
                                 <p>{{ copyright_info_rendered | safe }}</p>
@@ -484,13 +485,13 @@
                                 <p>&copy; {{ current_year }} {{ site_title }}. All rights reserved.</p>
                             {% endif %}
                             {% if icp_beian %}
-                                <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                                <p class="site-footer-meta-line mt-2 text-xs">
                                     ICP：
-                                    <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" class="hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors">{{ icp_beian }}</a>
+                                    <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" class="site-footer-powered-link transition-colors">{{ icp_beian }}</a>
                                 </p>
                             {% endif %}
                             {% if gongan_beian %}
-                                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">公安备案：{{ gongan_beian }}</p>
+                                <p class="site-footer-meta-line mt-1 text-xs">公安备案：{{ gongan_beian }}</p>
                             {% endif %}
                         </div>
                     </div>
@@ -499,45 +500,84 @@
         </div>
     </footer>
     <style>
-        .site-footer-shell .site-footer-panel {
-            background:
-                linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.68)),
-                linear-gradient(160deg, rgba(99, 102, 241, 0.06), transparent 42%);
-            box-shadow: 0 24px 52px -34px rgba(79, 70, 229, 0.38);
-            backdrop-filter: blur(18px) saturate(140%);
-            -webkit-backdrop-filter: blur(18px) saturate(140%);
+        .site-footer-shell {
+            --footer-atmosphere: linear-gradient(
+                180deg,
+                transparent 0%,
+                color-mix(in srgb, var(--color-primary) 5%, transparent) 54%,
+                transparent 100%
+            );
+            --footer-panel-bg:
+                linear-gradient(135deg, color-mix(in srgb, var(--color-text) 8%, transparent), transparent 26%),
+                linear-gradient(135deg, color-mix(in srgb, var(--color-card-bg) 34%, transparent), color-mix(in srgb, var(--color-card-bg) 18%, transparent)),
+                linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 44%);
+            --footer-panel-border: color-mix(in srgb, var(--color-primary) 16%, color-mix(in srgb, var(--color-border) 54%, transparent) 84%);
+            --footer-panel-shadow: 0 24px 52px -34px color-mix(in srgb, var(--color-primary) 26%, rgba(15, 23, 42, 0.26));
+            --footer-soft-bg: color-mix(in srgb, var(--color-card-bg) 18%, transparent);
+            --footer-soft-border: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+            --footer-text: color-mix(in srgb, var(--color-text) 96%, var(--color-primary) 4%);
+            --footer-muted: color-mix(in srgb, var(--color-text-light) 90%, var(--color-text) 10%);
+            --footer-accent: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+            --footer-cool-orb: color-mix(in srgb, var(--color-primary) 22%, transparent);
+            --footer-warm-orb: color-mix(in srgb, var(--color-text) 12%, var(--color-primary) 18%);
+            background: transparent;
         }
-        .dark .site-footer-shell .site-footer-panel {
-            background:
-                linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.72)),
-                linear-gradient(160deg, rgba(56, 189, 248, 0.06), transparent 42%);
-            box-shadow: 0 24px 56px -36px rgba(2, 6, 23, 0.56);
+        .site-footer-atmosphere {
+            background: var(--footer-atmosphere);
+            opacity: 0.82;
+        }
+        .site-footer-shell .site-footer-panel {
+            border-color: var(--footer-panel-border);
+            background: var(--footer-panel-bg);
+            box-shadow: var(--footer-panel-shadow);
+            backdrop-filter: blur(22px) saturate(145%);
+            -webkit-backdrop-filter: blur(22px) saturate(145%);
+        }
+        .site-footer-primary,
+        .site-footer-meta,
+        .site-footer-title,
+        .site-footer-powered,
+        .site-footer-card,
+        .site-footer-meta-line {
+            color: var(--footer-text);
         }
         .site-footer-badge,
         .site-footer-pill,
         .site-footer-card,
         .site-footer-note {
-            border: 1px solid color-mix(in srgb, var(--color-primary) 12%, rgba(255, 255, 255, 0.54));
-            background: color-mix(in srgb, var(--color-card-bg) 54%, transparent);
-            backdrop-filter: blur(12px) saturate(132%);
-            -webkit-backdrop-filter: blur(12px) saturate(132%);
-        }
-        .dark .site-footer-badge,
-        .dark .site-footer-pill,
-        .dark .site-footer-card,
-        .dark .site-footer-note {
-            border-color: color-mix(in srgb, var(--color-primary) 12%, rgba(148, 163, 184, 0.24));
-            background: color-mix(in srgb, var(--color-card-bg) 26%, transparent);
+            border: 1px solid var(--footer-soft-border);
+            background: var(--footer-soft-bg);
+            backdrop-filter: blur(16px) saturate(138%);
+            -webkit-backdrop-filter: blur(16px) saturate(138%);
+            box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-text) 8%, transparent);
         }
         .site-footer-badge {
-            color: color-mix(in srgb, #4338ca 68%, var(--color-text) 32%);
+            color: var(--footer-accent);
         }
         .site-footer-pill {
-            color: color-mix(in srgb, #0f766e 58%, var(--color-text) 42%);
+            color: color-mix(in srgb, var(--color-primary) 58%, var(--footer-text) 42%);
         }
         .site-footer-note {
             padding: 0.85rem 1rem;
             border-radius: 1rem;
+        }
+        .site-footer-tagline,
+        .site-footer-easter,
+        .site-footer-meta-line,
+        .site-footer-powered {
+            color: var(--footer-muted);
+        }
+        .site-footer-powered-link {
+            color: inherit;
+        }
+        .site-footer-powered-link:hover {
+            color: var(--footer-accent);
+        }
+        .site-footer-orb-cool {
+            background: radial-gradient(circle, var(--footer-cool-orb) 0%, transparent 72%);
+        }
+        .site-footer-orb-warm {
+            background: radial-gradient(circle, var(--footer-warm-orb) 0%, transparent 74%);
         }
         .footer-orb {
             filter: blur(0.5px);

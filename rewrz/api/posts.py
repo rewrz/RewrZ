@@ -3,10 +3,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-import re
 import json
-from urllib.parse import quote
-from slugify import slugify
 
 from ..core.admin_path import get_admin_path
 from ..core.database import get_db
@@ -14,10 +11,11 @@ from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..core.config import settings
 from ..core.page_templates import DEFAULT_PAGE_TEMPLATE, get_page_template_options, normalize_page_template
-from ..crud import post as crud_post, category as crud_category, tag as crud_tag, format as crud_format, setting as crud_setting, user as crud_user
+from ..crud import post as crud_post, category as crud_category, format as crud_format, setting as crud_setting
 from ..schemas import Post, PostCreate, PostUpdate, User, PostBatchUpdate, FormatCreate
 from ..core.content_intents import INTENT_SLUGS, INTENT_NAME_MAP, to_public_post_segment
 from ..core.content_utils import render_markdown_html
+from ..core.micro_text import enhance_micro_html, extract_micro_tags, strip_micro_tags
 from . import media as media_api
 
 router = APIRouter()
@@ -87,125 +85,12 @@ def _normalize_category_ids_for_intent(category_ids: Optional[List[int]], intent
     return cleaned
 
 
-_MICRO_QUICK_TAG_PATTERN = re.compile(r"(?<!\S)#([0-9A-Za-z_\u4e00-\u9fff-]{1,24})(?=\s|$)")
-_MICRO_QUICK_MENTION_PATTERN = re.compile(r"(?<!\S)@([0-9A-Za-z_\u4e00-\u9fff-]{1,32})(?=\s|$)")
-
-
 def _build_micro_quick_title(content: str) -> str:
     return ""
 
 
 def _build_micro_quick_slug(content: str) -> str:
     return datetime.now().strftime('%Y%m%d%H%M%S')
-
-
-def _extract_micro_quick_tags(content: str, limit: int = 8) -> List[str]:
-    tags: List[str] = []
-    for match in _MICRO_QUICK_TAG_PATTERN.finditer(content or ""):
-        raw = (match.group(1) or "").strip().strip("-_")
-        if not raw or raw in tags:
-            continue
-        tags.append(raw)
-        if len(tags) >= limit:
-            break
-    return tags
-
-
-def _normalize_external_link(raw_link: str) -> str:
-    value = str(raw_link or "").strip()
-    if not value:
-        return ""
-    if value.startswith("/"):
-        return value
-    if value.startswith(("http://", "https://")):
-        return value
-    return f"https://{value}"
-
-
-def _load_micro_mention_link_map(db: Session) -> Dict[str, str]:
-    setting = crud_setting.get_setting(db, "micro_mention_links_json")
-    if setting is None or not isinstance(setting.value, dict):
-        return {}
-
-    raw_value = setting.value.get("value")
-    if raw_value is None:
-        return {}
-
-    try:
-        parsed = json.loads(raw_value) if isinstance(raw_value, str) else raw_value
-    except (TypeError, json.JSONDecodeError):
-        return {}
-
-    if isinstance(parsed, list):
-        converted: Dict[str, str] = {}
-        for item in parsed:
-            if not isinstance(item, dict):
-                continue
-            key_candidate = str(item.get("name", "") or item.get("key", "")).strip()
-            link_candidate = str(item.get("url", "") or item.get("link", "")).strip()
-            if key_candidate and link_candidate:
-                converted[key_candidate] = link_candidate
-        parsed = converted
-
-    if not isinstance(parsed, dict):
-        return {}
-
-    result: Dict[str, str] = {}
-    for raw_name, raw_link in parsed.items():
-        name = str(raw_name or "").strip().lstrip("@").lower()
-        if not name:
-            continue
-        safe_link = _normalize_external_link(str(raw_link or ""))
-        if not safe_link:
-            continue
-        result[name] = safe_link
-    return result
-
-
-def _resolve_micro_mention_href(db: Session, mention_name: str, custom_map: Dict[str, str]) -> str:
-    normalized_name = str(mention_name or "").strip().lstrip("@")
-    if not normalized_name:
-        return ""
-
-    matched_user = crud_user.get_user_by_username(db, normalized_name)
-    if matched_user is None:
-        matched_user = crud_user.get_user_by_username(db, normalized_name.lower())
-    if matched_user is not None:
-        resolved_username = str(getattr(matched_user, "username", "") or "").strip()
-        if resolved_username:
-            return f"/authors/{quote(resolved_username)}"
-
-    return custom_map.get(normalized_name.lower(), "")
-
-
-def _build_micro_quick_markdown(db: Session, content: str) -> str:
-    source = str(content or "").strip()
-    if not source:
-        return ""
-
-    mention_link_map = _load_micro_mention_link_map(db)
-
-    def _replace_tag(match: re.Match) -> str:
-        tag_name = str(match.group(1) or "").strip()
-        if not tag_name:
-            return match.group(0)
-        tag_slug = slugify(tag_name)
-        if not tag_slug:
-            return match.group(0)
-        return f'<a href="/archives/by-tag/{tag_slug}" class="micro-topic-link">#{tag_name}</a>'
-
-    def _replace_mention(match: re.Match) -> str:
-        mention_name = str(match.group(1) or "").strip()
-        if not mention_name:
-            return match.group(0)
-        mention_href = _resolve_micro_mention_href(db, mention_name, mention_link_map)
-        if not mention_href:
-            return match.group(0)
-        return f'<a href="{mention_href}" class="micro-mention-link">@{mention_name}</a>'
-
-    transformed = _MICRO_QUICK_TAG_PATTERN.sub(_replace_tag, source)
-    transformed = _MICRO_QUICK_MENTION_PATTERN.sub(_replace_mention, transformed)
-    return transformed
 
 
 def _parse_micro_media_items(raw_media_items: Optional[str], limit: int = 9) -> List[Dict[str, str]]:
@@ -365,8 +250,8 @@ async def create_public_quick_micro_post(
         raise HTTPException(status_code=400, detail="动态内容或媒体至少填写一项")
     if len(normalized_content) > 2000:
         raise HTTPException(status_code=400, detail="动态内容最多 2000 字")
-    parsed_markdown = _build_micro_quick_markdown(db, normalized_content)
-    merged_content, featured_image_url = _merge_micro_content_with_media(parsed_markdown, parsed_media_items)
+    body_content = strip_micro_tags(normalized_content)
+    merged_content, featured_image_url = _merge_micro_content_with_media(body_content, parsed_media_items)
 
     intent_formats = {fmt.slug: fmt for fmt in _get_or_create_intent_formats(db)}
     micro_format = intent_formats.get("micro")
@@ -388,7 +273,7 @@ async def create_public_quick_micro_post(
         format_ids=[micro_format.id],
         license_type="cc_by_nc_sa_4",
     )
-    parsed_tags = _extract_micro_quick_tags(normalized_content)
+    parsed_tags = extract_micro_tags(normalized_content)
     created = crud_post.create_post(
         db=db,
         post=post_create_data,
@@ -425,10 +310,10 @@ async def preview_public_quick_micro_post(
         return {"success": True, "html": ""}
     if len(normalized_content) > 2000:
         raise HTTPException(status_code=400, detail="动态内容最多 2000 字")
-    parsed_markdown = _build_micro_quick_markdown(db, normalized_content)
+    preview_source = strip_micro_tags(normalized_content)
     return {
         "success": True,
-        "html": render_markdown_html(parsed_markdown),
+        "html": enhance_micro_html(render_markdown_html(preview_source), db),
     }
 
 @router.get(f"{ADMIN_PATH}/posts/new", response_class=HTMLResponse)

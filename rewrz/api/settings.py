@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Form
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from ..core.admin_path import get_request_admin_path
@@ -17,10 +17,30 @@ from ..core.template_context import (
     CODE_HIGHLIGHT_THEME_OPTIONS,
 )
 from ..core.url_normalizer import normalize_local_asset_url, normalize_local_asset_url_lines
+from ..core.config import get_env_file_path
 import bleach
+import os
 
 router = APIRouter()
 templates = get_templates()
+
+
+def _form_text(form, key: str, default: str = "") -> str:
+    return str(form.get(key, default) or "").strip()
+
+
+def _form_bool(form, key: str, default: bool = False) -> bool:
+    if key not in form:
+        return bool(default)
+    return str(form.get(key, "")).strip().lower() in {"1", "true", "on", "yes", "checked"}
+
+
+def _form_int(form, key: str, default: int) -> int:
+    try:
+        return int(str(form.get(key, default)).strip())
+    except (TypeError, ValueError):
+        return int(default)
+
 
 def _get_settings_data(db: Session, request: Request, current_user: User) -> Dict[str, Any]:
     """Helper function to fetch and structure settings data."""
@@ -58,6 +78,8 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
     settings_data = {
         "site_title": get_setting_value("site_title", DEFAULT_BASE_SETTINGS["site_title"]),
         "tagline": get_setting_value("tagline", DEFAULT_BASE_SETTINGS["tagline"]),
+        "site_description": get_setting_value("site_description", DEFAULT_BASE_SETTINGS["site_description"]),
+        "site_announcement": get_setting_value("site_announcement", DEFAULT_BASE_SETTINGS["site_announcement"]),
         "site_url": get_setting_value("site_url", str(request.base_url)),
         "admin_email": get_setting_value("admin_email", current_user.email),
         "public_contact_email": get_setting_value("public_contact_email", ""),
@@ -133,75 +155,81 @@ async def update_admin_settings(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    site_title: str = Form(...),
-    tagline: str = Form(...),
-    site_url: str = Form(...),
-    admin_email: str = Form(...),
-    public_contact_email: Optional[str] = Form(None),
-    smtp_host: Optional[str] = Form(None),
-    smtp_port: int = Form(587),
-    smtp_username: Optional[str] = Form(None),
-    smtp_password: Optional[str] = Form(None),
-    smtp_from_email: Optional[str] = Form(None),
-    smtp_use_tls: bool = Form(False),
-    smtp_use_ssl: bool = Form(False),
-    site_logo_light: Optional[str] = Form(None),
-    site_logo_dark: Optional[str] = Form(None),
-    favicon: Optional[str] = Form(None),
-    site_cover_url: Optional[str] = Form(None),
-    admin_login_background_image_url: Optional[str] = Form(None),
-    admin_login_background_video_url: Optional[str] = Form(None),
-    copyright_info: str = Form(...),
-    custom_footer_text: Optional[str] = Form(None),
-    icp_beian: Optional[str] = Form(None),
-    gongan_beian: Optional[str] = Form(None),
-    social_links_json: str = Form("[]"), # Expecting a JSON string for social links
-    anniversaries_json: str = Form("[]"), # Expecting a JSON string for anniversaries
-    sitemap_enabled: bool = Form(False),
-    noindex_site: bool = Form(DEFAULT_BASE_SETTINGS["noindex_site"]),
-    block_ai_crawlers: bool = Form(DEFAULT_BASE_SETTINGS["block_ai_crawlers"]),
-    rss_enabled: bool = Form(False),
-    rss_items_limit: int = Form(20),
-    rss_cache_duration: int = Form(60),
-    rss_description: Optional[str] = Form(None),
-    homepage_posts_limit: int = Form(10),
-    archive_posts_limit: int = Form(20),
-    search_results_limit: int = Form(15),
-    list_navigation_mode: str = Form("pagination"),
-    related_posts_limit: int = Form(5),
-    content_primary_mode: str = Form("markdown"),
-    code_highlight_theme: str = Form(DEFAULT_BASE_SETTINGS["code_highlight_theme"]),
-    article_card_fallback_source: str = Form("local"),
-    article_card_fallback_api_url: Optional[str] = Form(None),
-    article_card_fallback_local_dir: Optional[str] = Form(None),
-    article_card_api_cache_enabled: bool = Form(True),
-    article_card_api_cache_ttl_minutes: int = Form(360),
-    article_card_api_cache_cleanup_minutes: int = Form(120),
-    # 打赏功能相关参数
-    donation_enabled: bool = Form(False),
-    donation_title: str = Form('如果这篇文章对您有帮助，请考虑支持作者'),
-    donation_description: str = Form('您的支持是我创作的动力！'),
-    donation_qr_code_url: Optional[str] = Form(None),
-    donation_link_text: Optional[str] = Form(None),
-    donation_link_url: Optional[str] = Form(None),
-    donation_style_theme: str = Form('elegant'),
-    donation_show_position: str = Form('article_end'),
-    # 主页个性化设置相关参数
-    homepage_mode: str = Form(DEFAULT_HOMEPAGE_SETTINGS["homepage_mode"]),
-    homepage_background_image_url: Optional[str] = Form(None),
-    homepage_background_video_url: Optional[str] = Form(None),
-    homepage_background_music_url: Optional[str] = Form(None),
-    homepage_music_autoplay: bool = Form(DEFAULT_HOMEPAGE_SETTINGS["homepage_music_autoplay"]),
-    csrf_token: str = Form(...),
 ):
+    form = await request.form()
+
+    site_title = _form_text(form, "site_title", DEFAULT_BASE_SETTINGS["site_title"])
+    tagline = _form_text(form, "tagline", DEFAULT_BASE_SETTINGS["tagline"])
+    site_description = str(form.get("site_description", DEFAULT_BASE_SETTINGS["site_description"]) or "").strip()
+    site_announcement = str(form.get("site_announcement", DEFAULT_BASE_SETTINGS["site_announcement"]) or "").strip()
+    site_url = _form_text(form, "site_url", str(request.base_url))
+    admin_email = _form_text(form, "admin_email", current_user.email or "")
+    public_contact_email = _form_text(form, "public_contact_email", "")
+    smtp_host = _form_text(form, "smtp_host", "")
+    smtp_port = _form_int(form, "smtp_port", 587)
+    smtp_username = _form_text(form, "smtp_username", "")
+    smtp_password = str(form.get("smtp_password", "") or "")
+    smtp_from_email = _form_text(form, "smtp_from_email", "")
+    smtp_use_tls = _form_bool(form, "smtp_use_tls", False)
+    smtp_use_ssl = _form_bool(form, "smtp_use_ssl", False)
+    site_logo_light = _form_text(form, "site_logo_light", "")
+    site_logo_dark = _form_text(form, "site_logo_dark", "")
+    favicon = _form_text(form, "favicon", "")
+    site_cover_url = _form_text(form, "site_cover_url", "")
+    admin_login_background_image_url = _form_text(form, "admin_login_background_image_url", "")
+    admin_login_background_video_url = _form_text(form, "admin_login_background_video_url", "")
+    copyright_info = _form_text(form, "copyright_info", f"&copy; {datetime.now().year} RewrZ. All rights reserved.")
+    custom_footer_text = str(form.get("custom_footer_text", "") or "")
+    icp_beian = _form_text(form, "icp_beian", "")
+    gongan_beian = _form_text(form, "gongan_beian", "")
+    social_links_json = str(form.get("social_links_json", "[]") or "[]")
+    anniversaries_json = str(form.get("anniversaries_json", "[]") or "[]")
+    sitemap_enabled = _form_bool(form, "sitemap_enabled", False)
+    noindex_site = _form_bool(form, "noindex_site", DEFAULT_BASE_SETTINGS["noindex_site"])
+    block_ai_crawlers = _form_bool(form, "block_ai_crawlers", DEFAULT_BASE_SETTINGS["block_ai_crawlers"])
+    rss_enabled = _form_bool(form, "rss_enabled", False)
+    rss_items_limit = _form_int(form, "rss_items_limit", 20)
+    rss_cache_duration = _form_int(form, "rss_cache_duration", 60)
+    rss_description = str(form.get("rss_description", "") or "")
+    homepage_posts_limit = _form_int(form, "homepage_posts_limit", 10)
+    archive_posts_limit = _form_int(form, "archive_posts_limit", 20)
+    search_results_limit = _form_int(form, "search_results_limit", 15)
+    list_navigation_mode = _form_text(form, "list_navigation_mode", "pagination")
+    related_posts_limit = _form_int(form, "related_posts_limit", 5)
+    content_primary_mode = _form_text(form, "content_primary_mode", "markdown")
+    code_highlight_theme = _form_text(form, "code_highlight_theme", DEFAULT_BASE_SETTINGS["code_highlight_theme"])
+    article_card_fallback_source = _form_text(form, "article_card_fallback_source", "local")
+    article_card_fallback_api_url = _form_text(form, "article_card_fallback_api_url", "")
+    article_card_fallback_local_dir = _form_text(form, "article_card_fallback_local_dir", "")
+    article_card_api_cache_enabled = _form_bool(form, "article_card_api_cache_enabled", True)
+    article_card_api_cache_ttl_minutes = _form_int(form, "article_card_api_cache_ttl_minutes", 360)
+    article_card_api_cache_cleanup_minutes = _form_int(form, "article_card_api_cache_cleanup_minutes", 120)
+    donation_enabled = _form_bool(form, "donation_enabled", False)
+    donation_title = _form_text(form, "donation_title", '如果这篇文章对您有帮助，请考虑支持作者')
+    donation_description = str(form.get("donation_description", '您的支持是我创作的动力！') or '您的支持是我创作的动力！')
+    donation_qr_code_url = _form_text(form, "donation_qr_code_url", "")
+    donation_link_text = _form_text(form, "donation_link_text", "")
+    donation_link_url = _form_text(form, "donation_link_url", "")
+    donation_style_theme = _form_text(form, "donation_style_theme", "elegant")
+    donation_show_position = _form_text(form, "donation_show_position", "article_end")
+    homepage_mode = _form_text(form, "homepage_mode", DEFAULT_HOMEPAGE_SETTINGS["homepage_mode"])
+    homepage_background_image_url = str(form.get("homepage_background_image_url", "") or "")
+    homepage_background_video_url = _form_text(form, "homepage_background_video_url", "")
+    homepage_background_music_url = _form_text(form, "homepage_background_music_url", "")
+    homepage_music_autoplay = _form_bool(form, "homepage_music_autoplay", DEFAULT_HOMEPAGE_SETTINGS["homepage_music_autoplay"])
+    csrf_token = _form_text(form, "csrf_token", "")
+
     from ..core.security import verify_csrf_token
     verify_csrf_token(request, csrf_token)
+
+    if not site_title or not tagline or not site_url or not admin_email or not copyright_info:
+        raise HTTPException(status_code=400, detail="常规设置缺少必填字段，请刷新页面后重试。")
 
     try:
         social_links = json.loads(social_links_json)
         anniversaries = json.loads(anniversaries_json)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON format for social links or anniversaries.")
+        raise HTTPException(status_code=400, detail="社交链接或纪念日配置不是合法的 JSON 格式。")
 
     # Sanitize custom footer HTML to prevent XSS while allowing basic formatting and links
     if custom_footer_text:
@@ -260,6 +288,8 @@ async def update_admin_settings(
     settings_to_update = {
         "site_title": site_title,
         "tagline": tagline,
+        "site_description": site_description,
+        "site_announcement": site_announcement,
         "site_url": site_url,
         "admin_email": admin_email,
         "public_contact_email": (public_contact_email or "").strip(),
@@ -385,7 +415,7 @@ async def update_admin_path(
             new_path = new_path.rstrip("/")
         
         # 更新.env文件
-        env_file_path = ".env"
+        env_file_path = get_env_file_path()
         if os.path.exists(env_file_path):
             # 读取现有的.env文件内容
             with open(env_file_path, "r", encoding="utf-8") as f:

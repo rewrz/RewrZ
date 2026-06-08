@@ -173,6 +173,38 @@
         .admin-confirm-submit-danger:hover {
             background: #b91c1c;
         }
+        .admin-search-field {
+            position: relative;
+        }
+        .admin-search-field .admin-form-field {
+            padding-right: 3rem;
+        }
+        .admin-search-trigger {
+            position: absolute;
+            right: 0.45rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.1rem;
+            height: 2.1rem;
+            border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--color-card-bg) 94%, transparent);
+            color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+            transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+        }
+        .admin-search-trigger:hover {
+            background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card-bg) 88%);
+            border-color: color-mix(in srgb, var(--color-primary) 32%, var(--color-border) 68%);
+            color: color-mix(in srgb, var(--color-primary) 82%, var(--color-text) 18%);
+            transform: translateY(-50%) scale(1.03);
+        }
+        .admin-search-trigger:focus-visible {
+            outline: none;
+            box-shadow: var(--ui-ring);
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -186,9 +218,9 @@
         <div id="admin-content" class="admin-main-shell">
             <div class="admin-page-shell">
                 <header class="admin-topbar flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <button type="button" id="admin-sidebar-toggle" class="admin-sidebar-toggle md:hidden" aria-label="展开侧边栏菜单">
-                        <i class="fas fa-bars"></i>
-                        菜单
+                    <button type="button" id="admin-sidebar-toggle" class="admin-sidebar-toggle" aria-label="收起侧边栏">
+                        <i class="fas fa-angles-left"></i>
+                        <span class="admin-sidebar-toggle-label">收起侧栏</span>
                     </button>
                     <h1 class="admin-page-title text-2xl md:text-3xl font-semibold">{% block page_title %}{% endblock %}</h1>
                     <div class="flex flex-wrap items-center gap-3 md:gap-4 text-sm">
@@ -213,8 +245,6 @@
             </div>
         </div>
     </div>
-
-    <div class="admin-anime-float" aria-hidden="true"></div>
 
     <script>
         function getToastIcon(type) {
@@ -426,15 +456,58 @@
             consumeFlashNotice();
             syncAdminTheme(true);
 
+            const sidebarStateKey = 'rewrz_admin_sidebar_collapsed';
+            const shell = document.querySelector('.admin-shell');
             const sidebar = document.getElementById('admin-sidebar');
             const openSidebarBtn = document.getElementById('admin-sidebar-toggle');
             const closeSidebarBtn = document.getElementById('admin-sidebar-close');
+            const getIsDesktop = () => window.innerWidth > 900;
 
             const closeSidebar = () => sidebar?.classList.remove('is-open');
             const openSidebar = () => sidebar?.classList.add('is-open');
-
-            openSidebarBtn?.addEventListener('click', openSidebar);
             closeSidebarBtn?.addEventListener('click', closeSidebar);
+
+            const setDesktopCollapsed = (collapsed, persist = true) => {
+                if (!shell) return;
+                shell.classList.toggle('is-sidebar-collapsed', Boolean(collapsed));
+                if (persist) {
+                    localStorage.setItem(sidebarStateKey, collapsed ? '1' : '0');
+                }
+            };
+
+            const syncSidebarToggleButton = () => {
+                if (!openSidebarBtn) return;
+                const isDesktop = getIsDesktop();
+                const isCollapsed = shell?.classList.contains('is-sidebar-collapsed');
+                if (isDesktop) {
+                    openSidebarBtn.setAttribute('aria-label', isCollapsed ? '展开侧边栏' : '收起侧边栏');
+                    openSidebarBtn.innerHTML = `
+                        <i class="fas ${isCollapsed ? 'fa-angles-right' : 'fa-angles-left'}"></i>
+                        <span class="admin-sidebar-toggle-label">${isCollapsed ? '展开侧栏' : '收起侧栏'}</span>
+                    `;
+                    return;
+                }
+                openSidebarBtn.setAttribute('aria-label', '展开侧边栏菜单');
+                openSidebarBtn.innerHTML = `
+                    <i class="fas fa-bars"></i>
+                    <span class="admin-sidebar-toggle-label">菜单</span>
+                `;
+            };
+
+            const storedCollapsed = localStorage.getItem(sidebarStateKey) === '1';
+            if (getIsDesktop()) {
+                setDesktopCollapsed(storedCollapsed, false);
+            }
+            syncSidebarToggleButton();
+
+            openSidebarBtn?.addEventListener('click', () => {
+                if (getIsDesktop()) {
+                    setDesktopCollapsed(!(shell?.classList.contains('is-sidebar-collapsed')));
+                    syncSidebarToggleButton();
+                    return;
+                }
+                openSidebar();
+            });
 
             document.addEventListener('click', (event) => {
                 if (!sidebar || window.innerWidth > 900 || !sidebar.classList.contains('is-open')) return;
@@ -443,7 +516,11 @@
             });
 
             window.addEventListener('resize', () => {
-                if (window.innerWidth > 900) closeSidebar();
+                if (getIsDesktop()) {
+                    closeSidebar();
+                    setDesktopCollapsed(localStorage.getItem(sidebarStateKey) === '1', false);
+                }
+                syncSidebarToggleButton();
             });
         });
 

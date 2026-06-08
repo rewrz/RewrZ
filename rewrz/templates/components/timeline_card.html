@@ -4,7 +4,8 @@
 {% set is_micro = 'micro' in format_slugs %}
 {% set is_poem = 'poem' in format_slugs %}
 
-{% set rendered_html = post | post_content_html %}
+{% set template_db = db if db is defined and db else request.state.db %}
+{% set rendered_html = post | post_content_html(template_db) %}
 {% set content_images = (rendered_html | extract_image_urls(post.featured_image_url)) if rendered_html else [] %}
 {% set has_featured_image = post.featured_image_url and post.featured_image_url != 'None' %}
 {% set has_video = rendered_html and ('<video' in rendered_html or 'youtube.com' in rendered_html or 'bilibili.com' in rendered_html or 'vimeo.com' in rendered_html) %}
@@ -12,36 +13,36 @@
 {% set summary_text = post | post_summary_text(200) %}
 
 {% if is_micro %}
-<div class="archive-card-equal bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-all duration-300">
+<div class="archive-card-equal timeline-card timeline-card-micro rounded-lg shadow-sm border p-4 hover:shadow-md transition-all duration-300">
     <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2">
-            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+            <span class="timeline-card-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
                 <i class="fas fa-comment-dots mr-1"></i>微博
             </span>
-            <span class="text-sm text-gray-500 dark:text-gray-400">{{ post.published_at.strftime('%m月%d日 %H:%M') }}</span>
+            <span class="timeline-card-meta-text text-sm">{{ post.published_at.strftime('%m月%d日 %H:%M') }}</span>
         </div>
-        <span class="text-xs text-gray-500 dark:text-gray-400"><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
+        <span class="timeline-card-meta-text text-xs"><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
     </div>
 
     {% if post.title and post.title.strip() %}
-    <h3 class="font-medium text-gray-900 dark:text-white mb-2 leading-tight">
-        <a href="{{ post | post_url }}" class="result-title hover:text-blue-600 dark:hover:text-blue-400 transition-colors">{{ post.title }}</a>
+    <h3 class="timeline-card-title font-medium mb-2 leading-tight">
+        <a href="{{ post | post_url }}" class="result-title timeline-card-link transition-colors">{{ post.title }}</a>
     </h3>
     {% endif %}
 
     {% if summary_text %}
-    <div class="result-excerpt line-clamp-4 text-gray-700 dark:text-gray-300 text-sm leading-relaxed mb-3">{{ summary_text }}</div>
+    <div class="result-excerpt timeline-card-summary line-clamp-4 text-sm leading-relaxed mb-3">{{ summary_text }}</div>
     {% endif %}
 
     {% if has_featured_image or content_images %}
     <div class="mb-3 space-y-2">
         {% if has_featured_image %}
-        <a href="{{ post | post_url }}" class="block overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-            <img src="{{ post.featured_image_url | thumb_url('related_card', request.state.db) }}"
-                 srcset="{{ post.featured_image_url | thumb_srcset('related_card', request.state.db) }}"
+        <a href="{{ post | post_url }}" class="archive-card-cover-motion block overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-profile-motion>
+            <img src="{{ post.featured_image_url | thumb_url('related_card', template_db) }}"
+                 srcset="{{ post.featured_image_url | thumb_srcset('related_card', template_db) }}"
                  sizes="(max-width: 768px) 100vw, 480px"
                  alt="{{ post.title or '微博配图' }}"
-                 class="w-full h-48 object-cover hover:scale-[1.02] transition-transform duration-300"
+                 class="archive-card-cover-image w-full h-48 object-cover"
                  loading="lazy"
                  decoding="async">
         </a>
@@ -52,12 +53,12 @@
         {% set grid_cols = 'grid-cols-2' if thumb_images|length in [2, 4] else 'grid-cols-3' %}
         <div class="grid {{ grid_cols }} gap-1.5">
             {% for img_url in thumb_images %}
-            <a href="{{ post | post_url }}" class="block overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
-                <img src="{{ img_url | thumb_url('media_lib_card', request.state.db) }}"
-                     srcset="{{ img_url | thumb_srcset('media_lib_card', request.state.db) }}"
+            <a href="{{ post | post_url }}" class="archive-card-cover-motion block overflow-hidden rounded-md border border-gray-200 dark:border-gray-700" data-profile-motion>
+                <img src="{{ img_url | thumb_url('media_lib_card', template_db) }}"
+                     srcset="{{ img_url | thumb_srcset('media_lib_card', template_db) }}"
                      sizes="160px"
                      alt="{{ post.title or '微博图片' }}"
-                     class="h-24 w-full object-cover hover:scale-105 transition-transform duration-300"
+                     class="archive-card-cover-image h-24 w-full object-cover"
                      loading="lazy"
                      decoding="async">
             </a>
@@ -70,94 +71,94 @@
     <div class="archive-card-meta pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
         <div class="flex flex-wrap items-center gap-2 text-xs">
             {% if has_video %}
-            <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"><i class="fas fa-video mr-1"></i>视频</span>
+            <span class="timeline-card-chip timeline-card-chip-video px-2 py-0.5 rounded-full"><i class="fas fa-video mr-1"></i>视频</span>
             {% endif %}
             {% if has_audio %}
-            <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"><i class="fas fa-music mr-1"></i>音频</span>
+            <span class="timeline-card-chip timeline-card-chip-audio px-2 py-0.5 rounded-full"><i class="fas fa-music mr-1"></i>音频</span>
             {% endif %}
             {% if post.tags %}
                 {% for tag in post.tags[:2] %}
-                <span class="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">#{{ tag.name }}</span>
+                <a href="/archives/by-tag/{{ tag.slug }}" class="timeline-card-chip timeline-card-chip-tag px-2 py-0.5 rounded-full">#{{ tag.name }}</a>
                 {% endfor %}
             {% endif %}
         </div>
-        <a href="{{ post | post_url }}" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">查看详情</a>
+        <a href="{{ post | post_url }}" class="timeline-card-link text-xs hover:underline">查看详情</a>
     </div>
 </div>
 
 {% elif is_poem %}
-<div class="archive-card-equal archive-card-poem rounded-lg shadow-sm border border-purple-200/70 dark:border-slate-700 p-4 hover:shadow-md transition-all duration-300">
+<div class="archive-card-equal archive-card-poem rounded-lg shadow-sm border p-4 hover:shadow-md transition-all duration-300">
     <div class="flex items-center justify-between mb-3">
-        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">
+        <span class="archive-card-poem-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
             <i class="fas fa-feather-alt mr-1"></i>诗词歌赋
         </span>
-        <span class="text-xs text-gray-500 dark:text-gray-400">{{ post.published_at.strftime('%Y-%m-%d') }}</span>
+        <span class="archive-card-poem-date text-xs">{{ post.published_at.strftime('%Y-%m-%d') }}</span>
     </div>
 
     {% if has_featured_image %}
-    <a href="{{ post | post_url }}" class="block overflow-hidden rounded-lg mb-3 border border-white/50 dark:border-slate-600">
-        <img src="{{ post.featured_image_url | thumb_url('related_card', request.state.db) }}"
-             srcset="{{ post.featured_image_url | thumb_srcset('related_card', request.state.db) }}"
+    <a href="{{ post | post_url }}" class="archive-card-poem-cover archive-card-cover-motion block overflow-hidden rounded-lg mb-3 border" data-profile-motion>
+        <img src="{{ post.featured_image_url | thumb_url('related_card', template_db) }}"
+             srcset="{{ post.featured_image_url | thumb_srcset('related_card', template_db) }}"
              sizes="(max-width: 768px) 100vw, 480px"
              alt="{{ post.title or '诗词封面' }}"
-             class="w-full h-44 object-cover hover:scale-[1.02] transition-transform duration-300"
+             class="archive-card-cover-image w-full h-44 object-cover"
              loading="lazy"
              decoding="async">
     </a>
     {% endif %}
 
     {% if post.title and post.title.strip() %}
-    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2 leading-tight text-center">
-        <a href="{{ post | post_url }}" class="result-title hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{{ post.title }}</a>
+    <h3 class="archive-card-poem-title text-xl font-semibold mb-2 leading-tight text-center">
+        <a href="{{ post | post_url }}" class="result-title archive-card-poem-link transition-colors">{{ post.title }}</a>
     </h3>
     {% endif %}
 
     {% if summary_text %}
-    <p class="result-excerpt text-sm text-gray-700 dark:text-gray-300 leading-7 text-center italic mb-3 line-clamp-4">{{ summary_text }}</p>
+    <p class="result-excerpt archive-card-poem-excerpt text-sm leading-7 text-center italic mb-3 line-clamp-4">{{ summary_text }}</p>
     {% endif %}
 
     {% set poem_updated_at = post.updated_at if post.updated_at else post.published_at %}
-    <div class="archive-card-meta pt-2 border-t border-purple-100 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2">
+    <div class="archive-card-meta archive-card-poem-meta pt-2 border-t flex flex-wrap items-center justify-between gap-2">
         <div class="flex flex-wrap items-center gap-2 text-xs">
             {% if has_audio %}
-            <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"><i class="fas fa-music mr-1"></i>音频</span>
+            <span class="archive-card-poem-chip archive-card-poem-chip-audio px-2 py-0.5 rounded-full"><i class="fas fa-music mr-1"></i>音频</span>
             {% endif %}
             {% if content_images and not has_featured_image %}
-            <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"><i class="far fa-images mr-1"></i>{{ content_images|length }} 图</span>
+            <span class="archive-card-poem-chip archive-card-poem-chip-image px-2 py-0.5 rounded-full"><i class="far fa-images mr-1"></i>{{ content_images|length }} 图</span>
             {% endif %}
             {% if post.tags %}
                 {% for tag in post.tags[:3] %}
-                <a href="/archives/by-tag/{{ tag.slug }}" class="px-2 py-0.5 rounded-full bg-purple-100/85 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:hover:bg-purple-900/70">#{{ tag.name }}</a>
+                <a href="/archives/by-tag/{{ tag.slug }}" class="archive-card-poem-tag px-2 py-0.5 rounded-full">#{{ tag.name }}</a>
                 {% endfor %}
             {% endif %}
         </div>
-        <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+        <div class="archive-card-poem-meta-text flex flex-wrap items-center gap-3 text-xs">
             <span><i class="far fa-clock mr-1"></i>更新 {{ poem_updated_at.strftime('%Y-%m-%d') if poem_updated_at else '-' }}</span>
             <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
-            <a href="{{ post | post_url }}" class="text-indigo-600 dark:text-indigo-400 hover:underline">阅读</a>
+            <a href="{{ post | post_url }}" class="archive-card-poem-link hover:underline">阅读</a>
         </div>
     </div>
 </div>
 
 {% else %}
-<div class="archive-card-equal bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all duration-300">
+<div class="archive-card-equal timeline-card timeline-card-article rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-all duration-300">
     {% if has_featured_image %}
-    <a href="{{ post | post_url }}" class="block overflow-hidden">
-        <img src="{{ post.featured_image_url | thumb_url('related_card', request.state.db) }}"
-             srcset="{{ post.featured_image_url | thumb_srcset('related_card', request.state.db) }}"
+    <a href="{{ post | post_url }}" class="archive-card-cover-motion block overflow-hidden" data-profile-motion>
+        <img src="{{ post.featured_image_url | thumb_url('related_card', template_db) }}"
+             srcset="{{ post.featured_image_url | thumb_srcset('related_card', template_db) }}"
              sizes="(max-width: 768px) 100vw, 480px"
              alt="{{ post.title or '文章配图' }}"
-             class="w-full h-48 object-cover hover:scale-[1.02] transition-transform duration-300"
+             class="archive-card-cover-image w-full h-48 object-cover"
              loading="lazy"
              decoding="async">
     </a>
     {% elif content_images %}
-    <a href="{{ post | post_url }}" class="block overflow-hidden">
-        <img src="{{ content_images[0] | thumb_url('related_card', request.state.db) }}"
-             srcset="{{ content_images[0] | thumb_srcset('related_card', request.state.db) }}"
+    <a href="{{ post | post_url }}" class="archive-card-cover-motion block overflow-hidden" data-profile-motion>
+        <img src="{{ content_images[0] | thumb_url('related_card', template_db) }}"
+             srcset="{{ content_images[0] | thumb_srcset('related_card', template_db) }}"
              sizes="(max-width: 768px) 100vw, 480px"
              alt="{{ post.title or '文章图片' }}"
-             class="w-full h-48 object-cover hover:scale-[1.02] transition-transform duration-300"
+             class="archive-card-cover-image w-full h-48 object-cover"
              loading="lazy"
              decoding="async">
     </a>
@@ -165,42 +166,42 @@
 
     <div class="archive-card-body p-4">
         <div class="flex items-center justify-between mb-2">
-            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+            <span class="timeline-card-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
                 <i class="fas fa-file-alt mr-1"></i>文章
             </span>
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ post.published_at.strftime('%Y-%m-%d') }}</span>
+            <span class="timeline-card-meta-text text-xs">{{ post.published_at.strftime('%Y-%m-%d') }}</span>
         </div>
 
         {% if post.title and post.title.strip() %}
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2 leading-tight">
-            <a href="{{ post | post_url }}" class="result-title hover:text-blue-600 dark:hover:text-blue-400 transition-colors">{{ post.title }}</a>
+        <h3 class="timeline-card-title text-lg font-semibold mb-2 leading-tight">
+            <a href="{{ post | post_url }}" class="result-title timeline-card-link transition-colors">{{ post.title }}</a>
         </h3>
         {% endif %}
 
         {% if summary_text %}
-        <p class="result-excerpt text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-3">{{ summary_text }}</p>
+        <p class="result-excerpt timeline-card-summary text-sm mb-3 line-clamp-3">{{ summary_text }}</p>
         {% endif %}
 
         <div class="flex flex-wrap items-center gap-2 mb-3 text-xs">
             {% if content_images %}
-            <span class="px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300"><i class="far fa-images mr-1"></i>{{ content_images|length }} 图</span>
+            <span class="timeline-card-chip timeline-card-chip-image px-2 py-0.5 rounded-full"><i class="far fa-images mr-1"></i>{{ content_images|length }} 图</span>
             {% endif %}
             {% if has_video %}
-            <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"><i class="fas fa-video mr-1"></i>视频</span>
+            <span class="timeline-card-chip timeline-card-chip-video px-2 py-0.5 rounded-full"><i class="fas fa-video mr-1"></i>视频</span>
             {% endif %}
             {% if has_audio %}
-            <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"><i class="fas fa-music mr-1"></i>音频</span>
+            <span class="timeline-card-chip timeline-card-chip-audio px-2 py-0.5 rounded-full"><i class="fas fa-music mr-1"></i>音频</span>
             {% endif %}
             {% if post.tags %}
                 {% for tag in post.tags[:2] %}
-                <span class="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">#{{ tag.name }}</span>
+                <a href="/archives/by-tag/{{ tag.slug }}" class="timeline-card-chip timeline-card-chip-tag px-2 py-0.5 rounded-full">#{{ tag.name }}</a>
                 {% endfor %}
             {% endif %}
         </div>
 
-        <div class="archive-card-meta flex items-center justify-between border-t border-gray-100 pt-2.5 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
-            <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
-            <a href="{{ post | post_url }}" class="text-blue-600 dark:text-blue-400 hover:underline">阅读更多 →</a>
+        <div class="archive-card-meta timeline-card-divider flex items-center justify-between border-t pt-2.5 text-xs">
+            <span class="timeline-card-meta-text"><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
+            <a href="{{ post | post_url }}" class="timeline-card-link hover:underline">阅读更多 →</a>
         </div>
     </div>
 </div>
@@ -221,5 +222,21 @@
     line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+
+.archive-card-cover-motion {
+    --motion-shift-x: 0px;
+    --motion-shift-y: 0px;
+    --motion-scale: 1.02;
+}
+
+.archive-card-cover-image {
+    transform: translate3d(var(--motion-shift-x, 0px), var(--motion-shift-y, 0px), 0) scale(var(--motion-scale, 1.02));
+    transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+}
+
+.archive-card-cover-motion:hover {
+    --motion-scale: 1.05;
 }
 </style>

@@ -27,11 +27,16 @@ from ..crud import category as crud_category
 from ..crud import tag as crud_tag
 from ..crud import format as crud_format
 from ..schemas import UserCreate, SettingCreate, CategoryCreate, TagCreate, FormatCreate
-from ..core.config import settings
+from ..core.config import get_env_file_path, settings
 from typing import Dict, Any
 
 router = APIRouter()
 templates = get_templates()
+
+
+def _is_installer_locked() -> bool:
+    """统一安装状态判定，避免未完成安装时被残留文件误锁死。"""
+    return bool(settings.installation_complete)
 
 
 def _ensure_installer_csrf_token(request: Request) -> str:
@@ -56,8 +61,7 @@ async def installer_page(request: Request):
     
     检查系统是否已安装，如果已安装则重定向到管理后台
     """
-    # 如果 .env 文件存在，说明已经安装过了，不返回后台路径相关信息
-    if os.path.exists(".env"):
+    if _is_installer_locked():
         return RedirectResponse(url="/")
     
     # 初始化 CSRF 令牌（绑定到会话）
@@ -130,8 +134,7 @@ async def check_environment(request: Request):
     except ImportError as e:
         errors.append(f"缺少关键依赖库: {str(e)}")
     
-    # 检查是否已安装
-    if os.path.exists(".env"):
+    if _is_installer_locked():
         errors.append("系统已经安装，如需重新安装请删除 .env 文件")
     
     can_proceed = len(errors) == 0 and all(checks.values())
@@ -150,7 +153,7 @@ async def get_install_step(step_number: float, request: Request):
     
     根据步骤编号返回相应的安装步骤模板
     """
-    if os.path.exists(".env"):
+    if _is_installer_locked():
         return JSONResponse({"error": "系统已安装"}, status_code=400)
     
     csrf_token = _ensure_installer_csrf_token(request)
@@ -554,12 +557,17 @@ async def finalize_installation(
         # 验证 CSRF 令牌
         verify_csrf_token(request, csrf_token)
         
-        # 检查是否已安装
-        if os.path.exists(".env"):
+        if _is_installer_locked():
             return JSONResponse({
                 "success": False,
                 "error": "系统已经安装"
             }, status_code=400)
+        
+        env_path = Path(get_env_file_path())
+        previous_env_content = None
+        previous_env_existed = env_path.exists()
+        if previous_env_existed:
+            previous_env_content = env_path.read_text(encoding="utf-8")
         
         # 获取数据库路径配置（从会话中获取用户自定义的路径）
         database_path = request.session.get("database_path", "./data/rewrz.db")
@@ -602,8 +610,7 @@ INSTALLATION_COMPLETE="true"
 '''
         
         # 写入 .env 文件
-        with open(".env", "w", encoding="utf-8") as f:
-            f.write(env_content)
+        env_path.write_text(env_content, encoding="utf-8")
         
         # 关键修复：立即重新加载配置和数据库连接
         from ..core.config import settings
@@ -616,18 +623,12 @@ INSTALLATION_COMPLETE="true"
         db_initialized = db_manager.initialize()
         
         if not db_initialized:
-            return JSONResponse({
-                "success": False,
-                "error": "配置文件创建成功，但数据库连接初始化失败"
-            }, status_code=500)
+            raise RuntimeError("配置文件创建成功，但数据库连接初始化失败")
         
         # 使用新的数据库连接保存安装状态
         db = db_manager.get_session()
         if not db:
-            return JSONResponse({
-                "success": False,
-                "error": "无法获取数据库会话"
-            }, status_code=500)
+            raise RuntimeError("无法获取数据库会话")
         
         try:
             # 更新安装状态设置
@@ -661,6 +662,18 @@ INSTALLATION_COMPLETE="true"
         })
         
     except Exception as e:
+        if 'env_path' in locals():
+            try:
+                if previous_env_existed and previous_env_content is not None:
+                    env_path.write_text(previous_env_content, encoding="utf-8")
+                elif env_path.exists():
+                    env_path.unlink()
+            except OSError:
+                pass
+            try:
+                settings.reload_config()
+            except Exception:
+                pass
         return JSONResponse({
             "success": False,
             "error": f"完成安装失败: {str(e)}"
@@ -687,7 +700,7 @@ async def run_installer(
         verify_csrf_token(request, csrf_token)
 
         # 检查是否已安装
-        if os.path.exists(".env"):
+        if _is_installer_locked():
             raise HTTPException(status_code=400, detail="系统已经安装")
 
         # 1. 创建 .env 文件
@@ -700,7 +713,8 @@ DATABASE_URL="sqlite:///{database_path}"
 ADMIN_PATH="{admin_path}"
 MEDIA_UPLOAD_DIR="media_uploads"
 '''
-        with open(".env", "w") as f:
+        env_path = Path(get_env_file_path())
+        with open(env_path, "w", encoding="utf-8") as f:
             f.write(env_content.strip())
         env_created = True
 
@@ -751,7 +765,8 @@ MEDIA_UPLOAD_DIR="media_uploads"
     except HTTPException:
         raise
     except Exception as e:
-        if env_created and os.path.exists(".env"):
-            os.remove(".env")  # 仅清理当前安装流程新建的 .env，避免误删已部署配置
+        env_path = Path(get_env_file_path())
+        if env_created and env_path.exists():
+            env_path.unlink()  # 仅清理当前安装流程新建的 .env，避免误删已部署配置
         raise HTTPException(status_code=500, detail=f"安装失败: {str(e)}")
 

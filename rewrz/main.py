@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 from .core.template_filters import get_templates  # 导入带过滤器的模板系统
 from .core.template_context import build_base_template_context, HOMEPAGE_SETTING_KEYS, DEFAULT_HOMEPAGE_SETTINGS, DEFAULT_BASE_SETTINGS
 from .core.database import get_db, create_all_tables, db_manager
-from .core.config import settings  # 导入settings实例
+from .core.config import get_env_file_path, settings  # 导入settings实例
 from .schemas import UserCreate, User, PostCreate, PostUpdate, SettingCreate, SettingUpdate
 from .crud import user as crud_user
 from .core.security import get_current_user, verify_password, decode_access_token, is_user_token_payload_valid, should_use_secure_cookie  # 导入安全函数
@@ -71,6 +71,7 @@ from .core.content_access import (
 )
 from .core.toc import build_toc_from_html
 from .core.content_utils import get_effective_content_html
+from .core.micro_text import enhance_micro_html
 from .core.content_intents import (
     choose_primary_intent_slug,
     normalize_intent_slug,
@@ -97,7 +98,7 @@ ADMIN_ROUTES_REGISTERED = False
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 启动时检查.env文件，如果不存在则重定向到安装向导
-    if not os.path.exists(".env"):
+    if not os.path.exists(get_env_file_path()):
         print("INFO: .env file not found. Redirecting to installer.")
         # 这不会立即重定向，但会为根路由设置条件
     create_all_tables()
@@ -292,6 +293,8 @@ def register_admin_routes():
                 db_post.id,
                 can_view_hidden=can_view_hidden,
             )
+        if active_format_slug == "micro":
+            display_content_html = enhance_micro_html(display_content_html, db)
 
         # 自动目录（TOC）：达到阈值时生成
         display_content_html, toc_items = build_toc_from_html(display_content_html, min_headings=3)
@@ -317,6 +320,7 @@ def register_admin_routes():
         # 构建模板上下文（现在包含统一的设置数据）
         context = build_base_template_context(request)
         context.update({
+            "db": db,
             "post": db_post,
             "seo_data": seo_data,
             "donation_config": donation_config,
@@ -325,6 +329,7 @@ def register_admin_routes():
             "active_format_slug": active_format_slug,
             "format_profile": format_profile,
             "related_articles": related_articles,
+            "page_background_image_url": getattr(db_post, "detail_cover_url", "") or "",
         })
         
         return templates.TemplateResponse("post_detail.html", context)
@@ -410,16 +415,19 @@ def register_admin_routes():
             )
 
         display_content_html, toc_items = build_toc_from_html(display_content_html, min_headings=3)
+        _attach_article_cover_urls(db, [db_page], attr_name="detail_cover_url")
         
         # 构建模板上下文（现在包含统一的设置数据）
         context = build_base_template_context(request)
         selected_page_template = normalize_page_template(getattr(db_page, "page_template", DEFAULT_PAGE_TEMPLATE))
         context.update({
+            "db": db,
             "post": db_page,
             "seo_data": seo_data,
             "display_content_html": display_content_html,
             "toc_items": toc_items,
             "selected_page_template": selected_page_template,
+            "page_background_image_url": getattr(db_page, "detail_cover_url", "") or "",
         })
 
         return templates.TemplateResponse(resolve_page_template_file(selected_page_template), context)
