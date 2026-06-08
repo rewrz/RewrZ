@@ -28,6 +28,7 @@ class User(Base):
     display_name = Column(String, nullable=True) # 显示名称
     bio = Column(Text, nullable=True) # 个人简介
     website = Column(String, nullable=True) # 个人网站
+    theme_preference = Column(String, nullable=True) # 已登录用户的主题偏好
     
     # 时间戳字段
     created_at = Column(DateTime, default=func.now(), nullable=False)

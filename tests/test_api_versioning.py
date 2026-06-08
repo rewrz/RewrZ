@@ -176,6 +176,8 @@ def test_dynamic_admin_api_routes_have_v1_aliases():
     assert f"{admin_prefix}/api/v1/theme-schedule/save" in app_paths
     assert f"{admin_prefix}/api/v1/theme-schedule/clear" in app_paths
     assert f"{admin_prefix}/api/v1/admin/themes/background" in app_paths
+    assert f"{admin_prefix}/effects" in app_paths
+    assert f"{admin_prefix}/effects/update" in app_paths
     assert f"{admin_prefix}/api/v1/system-info" in app_paths
     assert f"{admin_prefix}/api/v1/dashboard/stats" in app_paths
     assert f"{admin_prefix}/api/v1/dashboard/site-health" in app_paths

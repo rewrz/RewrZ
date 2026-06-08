@@ -1,231 +1,56 @@
 {% extends "admin/base.html" %}
 
-{% block title_text %}主题管理{% endblock %}
-{% block page_title %}<i class="fas fa-palette admin-accent-text mr-3"></i>主题管理{% endblock %}
+{% block title_text %}主题系统{% endblock %}
+{% block page_title %}<i class="fas fa-palette admin-accent-text mr-3"></i>主题系统{% endblock %}
 {% block content %}
 <div class="theme-admin-page space-y-6">
-    
-    <!-- 优先级说明卡片 -->
-    <div class="admin-panel theme-admin-panel bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+    <div class="admin-panel theme-admin-panel bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-6">
         <h2 class="text-lg font-semibold text-blue-800 mb-3">
-            <i class="fas fa-info-circle mr-2"></i>
-            主题优先级说明
+            <i class="fas fa-circle-info mr-2"></i>
+            主题系统边界
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div class="bg-white rounded-lg p-4 border-l-4 border-red-500">
-                <div class="font-medium text-red-700 mb-1">🎯 纪念日氛围（最高优先级）</div>
-                <div class="text-gray-600">重大节日/纪念日的全站统一氛围</div>
+            <div class="bg-white rounded-lg p-4 border-l-4 border-blue-500">
+                <div class="font-medium text-blue-700 mb-1">主题只负责视觉基底</div>
+                <div class="text-gray-600">统一管理配色、布局变量、毛玻璃强度与背景，不再接管纪念日氛围。</div>
             </div>
-            <div class="bg-white rounded-lg p-4 border-l-4 border-yellow-500">
-                <div class="font-medium text-yellow-700 mb-1">🌙 用户明暗切换（中等优先级）</div>
-                <div class="text-gray-600">用户在前端手动切换的明暗主题</div>
+            <div class="bg-white rounded-lg p-4 border-l-4 border-emerald-500">
+                <div class="font-medium text-emerald-700 mb-1">前台只认服务端主题源</div>
+                <div class="text-gray-600">全站主题由服务端统一解析，登录用户偏好优先，游客不再持久化主题选择。</div>
             </div>
-            <div class="bg-white rounded-lg p-4 border-l-4 border-green-500">
-                <div class="font-medium text-green-700 mb-1">🎨 主题调度（基础优先级）</div>
-                <div class="text-gray-600">后台设置的时间段主题策略</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 纪念日氛围设置 -->
-    <div class="admin-panel theme-admin-panel bg-white shadow-sm rounded-lg">
-        <div class="px-6 py-4 border-b border-gray-200 bg-red-50">
-            <h2 class="text-xl font-semibold text-red-800">
-                <i class="fas fa-calendar-heart mr-2"></i>
-                纪念日氛围模式（最高优先级）
-            </h2>
-            <p class="text-red-600 text-sm mt-1">设置重大节日和纪念日的全站氛围效果</p>
-        </div>
-        
-        <div class="p-6">
-            <!-- 纪念日列表 -->
-            <div id="anniversaries-container" class="space-y-4 mb-6">
-                {% if settings.anniversaries %}
-                    {% for anniversary in settings.anniversaries %}
-                    <div class="anniversary-item theme-anniversary-item bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
-                            <!-- 日期设置 -->
-                            <div class="flex space-x-2">
-                                <input type="number" class="w-16 px-2 py-2 border border-gray-300 rounded text-center" 
-                                       placeholder="月" min="1" max="12" value="{{ anniversary.month }}">
-                                <span class="py-2 text-gray-500">月</span>
-                                <input type="number" class="w-16 px-2 py-2 border border-gray-300 rounded text-center" 
-                                       placeholder="日" min="1" max="31" value="{{ anniversary.day }}">
-                                <span class="py-2 text-gray-500">日</span>
-                            </div>
-                            
-                            <!-- 名称 -->
-                            <div>
-                                <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded" 
-                                       placeholder="节日名称（如：国庆节）" value="{{ anniversary.name }}">
-                            </div>
-                            
-                            <!-- 氛围类型 -->
-                            <div>
-                                <select class="w-full px-3 py-2 border border-gray-300 rounded anniversary-type-select">
-                                    <option value="festive" {% if anniversary.type == 'festive' %}selected{% endif %}>🎉 喜庆节日</option>
-                                    <option value="mourn" {% if anniversary.type == 'mourn' %}selected{% endif %}>🕯️ 纪念悼念</option>
-                                    <option value="spring_festival" {% if anniversary.type == 'spring_festival' %}selected{% endif %}>🏮 春节</option>
-                                    <option value="new_year" {% if anniversary.type == 'new_year' %}selected{% endif %}>🎆 新年</option>
-                                    <option value="cherry_blossom" {% if anniversary.type == 'cherry_blossom' %}selected{% endif %}>🌸 樱花节</option>
-                                    <option value="winter" {% if anniversary.type == 'winter' %}selected{% endif %}>❄️ 冬季</option>
-                                    <option value="autumn" {% if anniversary.type == 'autumn' %}selected{% endif %}>🍂 秋季</option>
-                                    <option value="celebration" {% if anniversary.type == 'celebration' %}selected{% endif %}>🎊 庆祝</option>
-                                    <option value="memorial" {% if anniversary.type == 'memorial' %}selected{% endif %}>🕊️ 追悼</option>
-                                    <option value="valentine" {% if anniversary.type == 'valentine' %}selected{% endif %}>💖 情人节</option>
-                                    <option value="christmas" {% if anniversary.type == 'christmas' %}selected{% endif %}>🎄 圣诞节</option>
-                                    <option value="national_day" {% if anniversary.type == 'national_day' %}selected{% endif %}>🇨🇳 国庆节</option>
-                                    <option value="rainy_day" {% if anniversary.type == 'rainy_day' %}selected{% endif %}>🌧️ 雨天</option>
-                                    <option value="stormy" {% if anniversary.type == 'stormy' %}selected{% endif %}>⛈️ 暴风雨</option>
-                                    <option value="sunny" {% if anniversary.type == 'sunny' %}selected{% endif %}>☀️ 晴天</option>
-                                    <option value="cloudy" {% if anniversary.type == 'cloudy' %}selected{% endif %}>☁️ 多云</option>
-                                    <option value="spring" {% if anniversary.type == 'spring' %}selected{% endif %}>🌱 春天</option>
-                                    <option value="summer" {% if anniversary.type == 'summer' %}selected{% endif %}>😎 夏天</option>
-                                    <option value="thunderstorm" {% if anniversary.type == 'thunderstorm' %}selected{% endif %}>⚡ 雷雨</option>
-                                </select>
-                            </div>
-                            
-                            <!-- 特效选择（多选） -->
-                            <div>
-                                <label class="text-xs text-gray-500 block mb-1">特效选择（可多选）</label>
-                                <div class="max-h-32 overflow-y-auto border border-gray-300 rounded bg-white">
-                                    <div class="p-2 space-y-1">
-                                        <div class="text-xs font-medium text-gray-600 border-b pb-1">🎉 喜庆特效</div>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="fireworks" class="effect-checkbox mr-2" {% if anniversary.effects and 'fireworks' in anniversary.effects %}checked{% endif %}>
-                                            🎆 烟花绽放
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="lanterns" class="effect-checkbox mr-2" {% if anniversary.effects and 'lanterns' in anniversary.effects %}checked{% endif %}>
-                                            🏮 红灯笼
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="firecrackers" class="effect-checkbox mr-2" {% if anniversary.effects and 'firecrackers' in anniversary.effects %}checked{% endif %}>
-                                            🧨 爆竹声声
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="confetti" class="effect-checkbox mr-2" {% if anniversary.effects and 'confetti' in anniversary.effects %}checked{% endif %}>
-                                            🎊 彩带飞舞
-                                        </label>
-                                        
-                                        <div class="text-xs font-medium text-gray-600 border-b pb-1 pt-2">🕯️ 纪念特效</div>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="grayscale" class="effect-checkbox mr-2" {% if anniversary.effects and 'grayscale' in anniversary.effects %}checked{% endif %}>
-                                            ⚫ 全站灰白
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="candles" class="effect-checkbox mr-2" {% if anniversary.effects and 'candles' in anniversary.effects %}checked{% endif %}>
-                                            🕯️ 蜡烛摇曳
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="petals" class="effect-checkbox mr-2" {% if anniversary.effects and 'petals' in anniversary.effects %}checked{% endif %}>
-                                            🌸 花瓣飘落
-                                        </label>
-                                        
-                                        <div class="text-xs font-medium text-gray-600 border-b pb-1 pt-2">🌨️ 季节特效</div>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="snow" class="effect-checkbox mr-2" {% if anniversary.effects and 'snow' in anniversary.effects %}checked{% endif %}>
-                                            ❄️ 雪花飘飘
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="sakura" class="effect-checkbox mr-2" {% if anniversary.effects and 'sakura' in anniversary.effects %}checked{% endif %}>
-                                            🌸 樱花飞舞
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="leaves" class="effect-checkbox mr-2" {% if anniversary.effects and 'leaves' in anniversary.effects %}checked{% endif %}>
-                                            🍂 落叶纷飞
-                                        </label>
-                                        
-                                        <div class="text-xs font-medium text-gray-600 border-b pb-1 pt-2">🌦️ 天气特效</div>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="rain" class="effect-checkbox mr-2" {% if anniversary.effects and 'rain' in anniversary.effects %}checked{% endif %}>
-                                            🌧️ 下雨天
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="thunder" class="effect-checkbox mr-2" {% if anniversary.effects and 'thunder' in anniversary.effects %}checked{% endif %}>
-                                            ⚡ 雷电交加
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="clouds" class="effect-checkbox mr-2" {% if anniversary.effects and 'clouds' in anniversary.effects %}checked{% endif %}>
-                                            ☁️ 云雾缭绕
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="sunshine" class="effect-checkbox mr-2" {% if anniversary.effects and 'sunshine' in anniversary.effects %}checked{% endif %}>
-                                            ☀️ 阳光明媚
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- 操作按钮 -->
-                            <div class="flex space-x-2">
-                                <button type="button" class="preview-anniversary px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                                    <i class="fas fa-eye"></i> 预览
-                                </button>
-                                <button type="button" class="remove-anniversary px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="text-center py-8 text-gray-500">
-                        <i class="fas fa-calendar-plus text-4xl mb-4"></i>
-                        <p>还没有设置任何纪念日氛围</p>
-                        <p class="text-sm">点击下方按钮添加第一个纪念日</p>
-                    </div>
-                {% endif %}
-            </div>
-            
-            <!-- 操作按钮 -->
-            <div class="flex flex-col gap-3 pt-4 border-t border-gray-200 sm:flex-row sm:items-center sm:justify-between">
-                <button type="button" id="add-anniversary" 
-                        class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                    <i class="fas fa-plus mr-2"></i>添加纪念日
-                </button>
-                <div class="flex flex-wrap items-center gap-3 sm:justify-end">
-                    <button type="button" id="preview-all-anniversaries"
-                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        <i class="fas fa-eye mr-2"></i>预览所有效果
-                    </button>
-                    <button type="button" id="save-anniversaries"
-                            class="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-                        <i class="fas fa-save mr-2"></i>保存纪念日设置
-                    </button>
-                </div>
+            <div class="bg-white rounded-lg p-4 border-l-4 border-amber-500">
+                <div class="font-medium text-amber-700 mb-1">自定义主题继续保留</div>
+                <div class="text-gray-600">允许按统一变量模型扩展多配色、多布局风格，作为后续主题家族能力的基础。</div>
             </div>
         </div>
     </div>
 
-    <!-- 基础主题设置 -->
     <div class="admin-panel theme-admin-panel bg-white shadow-sm rounded-lg">
         <div class="px-6 py-4 border-b border-gray-200 bg-blue-50">
             <h2 class="text-xl font-semibold text-blue-800">
                 <i class="fas fa-swatchbook mr-2"></i>
                 基础主题设置
             </h2>
-            <p class="text-blue-600 text-sm mt-1">设置网站的基础视觉主题</p>
+            <p class="text-blue-600 text-sm mt-1">设置全站默认主题、毛玻璃强度与背景资源。</p>
         </div>
-        
+
         <div class="p-6">
             <form id="theme-form" hx-post="{{ request.state.admin_path }}/themes/update" hx-trigger="change" hx-swap="none">
-    <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
-                
+                <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
+
                 <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.85fr)] gap-6 items-start">
-                    <!-- 当前主题 -->
                     <div class="space-y-3">
                         <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                            <label class="block text-sm font-medium text-gray-700">当前主题（含二次元风格）</label>
-                            <p class="text-xs text-gray-500">命名统一为颜色感受，方便快速识别氛围。</p>
+                            <label class="block text-sm font-medium text-gray-700">当前默认主题</label>
+                            <p class="text-xs text-gray-500">登录用户若设置了个人主题偏好，会在前台覆盖这里的默认值。</p>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3">
                             {% for theme_id, theme_config in default_themes.items() %}
                             <div class="theme-option relative">
-                                <input type="radio" name="current_theme" value="{{ theme_id }}" 
+                                <input type="radio" name="current_theme" value="{{ theme_id }}"
                                        id="theme-{{ theme_id }}" class="sr-only"
                                        {{ 'checked' if theme_id == current_theme else '' }}>
-                                <label for="theme-{{ theme_id }}" 
+                                <label for="theme-{{ theme_id }}"
                                        class="theme-option-label flex h-full min-h-[176px] flex-col justify-between rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100/80 p-4 cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg {{ 'is-active ring-2 ring-blue-200 border-blue-400 shadow-lg' if theme_id == current_theme else '' }}">
                                     <div class="space-y-4 text-center">
                                         <div class="text-2xl">
@@ -255,94 +80,106 @@
                                         </div>
                                     </div>
                                     <div class="mt-4 flex items-center justify-center gap-2">
-                                            <div class="h-6 w-6 rounded-full border border-gray-300 shadow-sm" 
-                                                 style="background-color: {{ theme_config.variables.get('--color-primary', '#6366f1') }}"></div>
-                                            <div class="h-6 w-6 rounded-full border border-gray-300 shadow-sm" 
-                                                 style="background-color: {{ theme_config.variables.get('--color-background', '#ffffff') }}"></div>
-                                            <div class="h-6 w-6 rounded-full border border-gray-300 shadow-sm" 
-                                                 style="background-color: {{ theme_config.variables.get('--color-border', '#cbd5e1') }}"></div>
+                                        <div class="h-6 w-6 rounded-full border border-gray-300 shadow-sm"
+                                             style="background-color: {{ theme_config.variables.get('--color-primary', '#6366f1') }}"></div>
+                                        <div class="h-6 w-6 rounded-full border border-gray-300 shadow-sm"
+                                             style="background-color: {{ theme_config.variables.get('--color-background', '#ffffff') }}"></div>
+                                        <div class="h-6 w-6 rounded-full border border-gray-300 shadow-sm"
+                                             style="background-color: {{ theme_config.variables.get('--color-border', '#cbd5e1') }}"></div>
+                                    </div>
+                                </label>
+                            </div>
+                            {% endfor %}
+                            {% for theme_id, theme_config in custom_themes.items() %}
+                            <div class="theme-option relative">
+                                <input type="radio" name="current_theme" value="{{ theme_id }}"
+                                       id="theme-{{ theme_id }}" class="sr-only"
+                                       {{ 'checked' if theme_id == current_theme else '' }}>
+                                <label for="theme-{{ theme_id }}"
+                                       class="theme-option-label flex h-full min-h-[176px] flex-col justify-between rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100/80 p-4 cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg {{ 'is-active ring-2 ring-blue-200 border-blue-400 shadow-lg' if theme_id == current_theme else '' }}">
+                                    <div class="space-y-4 text-center">
+                                        <div class="text-2xl">🧩</div>
+                                        <div class="space-y-1">
+                                            <div class="font-semibold text-sm text-slate-800">{{ theme_config.name or theme_id }}</div>
+                                            <div class="text-xs text-slate-500">自定义主题，统一参与服务端主题解析链。</div>
                                         </div>
+                                    </div>
+                                    <div class="mt-4 flex items-center justify-center gap-2">
+                                        <div class="h-6 w-6 rounded-full border border-gray-300 shadow-sm"
+                                             style="background-color: {{ theme_config.variables.get('--color-primary', '#6366f1') }}"></div>
+                                        <div class="h-6 w-6 rounded-full border border-gray-300 shadow-sm"
+                                             style="background-color: {{ theme_config.variables.get('--color-background', '#ffffff') }}"></div>
+                                        <div class="h-6 w-6 rounded-full border border-gray-300 shadow-sm"
+                                             style="background-color: {{ theme_config.variables.get('--color-border', '#cbd5e1') }}"></div>
+                                    </div>
                                 </label>
                             </div>
                             {% endfor %}
                         </div>
                     </div>
-                    
-                    <!-- 自动切换设置 -->
-                    <div class="space-y-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-3">高级设置</label>
-                        <div class="space-y-4">
-                            <div class="flex items-start gap-3 p-4 border border-gray-200 rounded-2xl bg-slate-50/80">
-                                <input type="checkbox" name="auto_theme_enabled" 
-                                       id="auto-theme" class="mt-1 h-4 w-4 text-blue-600 rounded"
-                                       {{ 'checked' if auto_theme_enabled else '' }}>
-                                <label for="auto-theme" class="min-w-0">
-                                    <div class="font-medium">启用主题调度</div>
-                                    <div class="text-sm text-gray-500">根据时间段自动切换主题</div>
-                                </label>
-                            </div>
 
-                            <div class="p-4 border border-gray-200 rounded-2xl bg-white">
-                                <label for="glass-intensity" class="block text-sm font-medium text-gray-700 mb-2">
-                                    毛玻璃强度
-                                </label>
-                                <select id="glass-intensity" name="glass_intensity" class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
-                                    <option value="weak" {% if glass_intensity == 'weak' %}selected{% endif %}>弱（通透，模糊更轻）</option>
-                                    <option value="medium" {% if glass_intensity == 'medium' %}selected{% endif %}>中（推荐）</option>
-                                    <option value="strong" {% if glass_intensity == 'strong' %}selected{% endif %}>强（更实、更稳重）</option>
-                                </select>
-                                <p class="mt-2 text-xs text-gray-500">影响聚合卡片、发布框和详情卡片，不影响长文本可读性层。</p>
-                            </div>
-                            
-                            <!-- 背景图片选择 -->
-                            <div class="p-4 border border-gray-200 rounded-2xl bg-white">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">背景图片</label>
-                                <div class="space-y-3">
-                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                        <label class="cursor-pointer">
-                                            <input type="radio" name="background_type" value="none" class="sr-only" {% if not background_settings or background_settings.type == 'none' %}checked{% endif %}>
-                                            <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300 bg-white">
-                                                <div class="text-2xl mb-1">🚫</div>
-                                                <div class="text-xs">无背景</div>
-                                            </div>
-                                        </label>
-                                        <label class="cursor-pointer">
-                                            <input type="radio" name="background_type" value="gradient1" class="sr-only" {% if background_settings and background_settings.type == 'gradient1' %}checked{% endif %}>
-                                            <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                                                <div class="text-white text-xs">渐变1</div>
-                                            </div>
-                                        </label>
-                                        <label class="cursor-pointer">
-                                            <input type="radio" name="background_type" value="gradient2" class="sr-only" {% if background_settings and background_settings.type == 'gradient2' %}checked{% endif %}>
-                                            <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);">
-                                                <div class="text-white text-xs">渐变2</div>
-                                            </div>
-                                        </label>
-                                        <label class="cursor-pointer">
-                                            <input type="radio" name="background_type" value="gradient3" class="sr-only" {% if background_settings and background_settings.type == 'gradient3' %}checked{% endif %}>
-                                            <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
-                                                <div class="text-gray-700 text-xs">渐变3</div>
-                                            </div>
-                                        </label>
-                                        <label class="cursor-pointer">
-                                            <input type="radio" name="background_type" value="gradient4" class="sr-only" {% if background_settings and background_settings.type == 'gradient4' %}checked{% endif %}>
-                                            <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
-                                                <div class="text-gray-700 text-xs">渐变4</div>
-                                            </div>
-                                        </label>
-                                        <label class="cursor-pointer">
-                                            <input type="radio" name="background_type" value="custom" class="sr-only" {% if background_settings and background_settings.type == 'custom' %}checked{% endif %}>
-                                            <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300 bg-gray-50">
-                                                <div class="text-2xl mb-1">📁</div>
-                                                <div class="text-xs">自定义</div>
-                                            </div>
-                                        </label>
-                                    </div>
-                                    <div id="custom-background-input" class="hidden">
-                                        <input type="url" name="custom_background_url" placeholder="输入背景图片URL" 
-                                               class="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-                                               {% if background_settings and background_settings.type == 'custom' and background_settings.custom_url %}value="{{ background_settings.custom_url }}"{% endif %}>
-                                    </div>
+                    <div class="space-y-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">主题附加设置</label>
+
+                        <div class="p-4 border border-gray-200 rounded-2xl bg-white">
+                            <label for="glass-intensity" class="block text-sm font-medium text-gray-700 mb-2">
+                                毛玻璃强度
+                            </label>
+                            <select id="glass-intensity" name="glass_intensity" class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
+                                <option value="weak" {% if glass_intensity == 'weak' %}selected{% endif %}>弱（通透，模糊更轻）</option>
+                                <option value="medium" {% if glass_intensity == 'medium' %}selected{% endif %}>中（推荐）</option>
+                                <option value="strong" {% if glass_intensity == 'strong' %}selected{% endif %}>强（更实、更稳重）</option>
+                            </select>
+                            <p class="mt-2 text-xs text-gray-500">影响聚合卡片、发布框和详情卡片，不影响长文本可读性层。</p>
+                        </div>
+
+                        <div class="p-4 border border-gray-200 rounded-2xl bg-white">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">背景图片</label>
+                            <div class="space-y-3">
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="background_type" value="none" class="sr-only" {% if not background_settings or background_settings.type == 'none' %}checked{% endif %}>
+                                        <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300 bg-white">
+                                            <div class="text-2xl mb-1">🚫</div>
+                                            <div class="text-xs">无背景</div>
+                                        </div>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="background_type" value="gradient1" class="sr-only" {% if background_settings and background_settings.type == 'gradient1' %}checked{% endif %}>
+                                        <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                            <div class="text-white text-xs">渐变1</div>
+                                        </div>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="background_type" value="gradient2" class="sr-only" {% if background_settings and background_settings.type == 'gradient2' %}checked{% endif %}>
+                                        <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);">
+                                            <div class="text-white text-xs">渐变2</div>
+                                        </div>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="background_type" value="gradient3" class="sr-only" {% if background_settings and background_settings.type == 'gradient3' %}checked{% endif %}>
+                                        <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
+                                            <div class="text-gray-700 text-xs">渐变3</div>
+                                        </div>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="background_type" value="gradient4" class="sr-only" {% if background_settings and background_settings.type == 'gradient4' %}checked{% endif %}>
+                                        <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
+                                            <div class="text-gray-700 text-xs">渐变4</div>
+                                        </div>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="background_type" value="custom" class="sr-only" {% if background_settings and background_settings.type == 'custom' %}checked{% endif %}>
+                                        <div class="p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300 bg-gray-50">
+                                            <div class="text-2xl mb-1">📁</div>
+                                            <div class="text-xs">自定义</div>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div id="custom-background-input" class="hidden">
+                                    <input type="url" name="custom_background_url" placeholder="输入背景图片 URL"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                           {% if background_settings and background_settings.type == 'custom' and background_settings.custom_url %}value="{{ background_settings.custom_url }}"{% endif %}>
                                 </div>
                             </div>
                         </div>
@@ -352,773 +189,82 @@
         </div>
     </div>
 
-    <!-- 主题调度设置 -->
     <div class="admin-panel theme-admin-panel bg-white shadow-sm rounded-lg">
-        <div class="px-6 py-4 border-b border-gray-200 bg-green-50">
-            <h2 class="text-xl font-semibold text-green-800">
-                <i class="fas fa-clock mr-2"></i>
-                主题调度（基础优先级）
+        <div class="px-6 py-4 border-b border-gray-200 bg-emerald-50">
+            <h2 class="text-xl font-semibold text-emerald-800">
+                <i class="fas fa-sliders mr-2"></i>
+                自定义主题
             </h2>
-            <p class="text-green-600 text-sm mt-1">设置特定时间段的主题策略，优先级低于纪念日氛围</p>
+            <p class="text-emerald-600 text-sm mt-1">保留用户可扩展空间，统一走同一套主题变量模型。</p>
         </div>
-        
-        <div class="p-6">
-            <div id="schedule-container" class="space-y-4 mb-6">
-                {% if theme_schedule %}
-                    {% for item in theme_schedule %}
-                    <div class="schedule-item theme-schedule-item bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                            <!-- 时间范围 -->
-                            <div class="space-y-2">
-                                <label class="text-xs text-gray-500">开始时间</label>
-                                <input type="date" value="{{ item.start_date }}" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
+
+        <div class="p-6 space-y-6">
+            <form id="custom-theme-form" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <div class="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-4">
+                    <div>
+                        <label for="theme-name" class="block text-sm font-medium text-gray-700 mb-2">主题标识</label>
+                        <input id="theme-name" name="theme_name" type="text" class="w-full px-3 py-2 border border-gray-300 rounded text-sm" placeholder="例如：aurora">
+                        <p class="mt-2 text-xs text-gray-500">建议使用英文、数字和连字符，作为主题唯一 ID。</p>
+                    </div>
+                    <div>
+                        <label for="theme-data" class="block text-sm font-medium text-gray-700 mb-2">主题配置 JSON</label>
+                        <textarea id="theme-data" name="theme_data" rows="10" class="w-full px-3 py-2 border border-gray-300 rounded font-mono text-xs" spellcheck="false">{
+  "name": "极光主题",
+  "variables": {
+    "--color-primary": "#0ea5e9",
+    "--color-background": "#f8fafc",
+    "--color-card-bg": "#ffffff",
+    "--color-text": "#0f172a",
+    "--color-border": "#cbd5e1"
+  }
+}</textarea>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-200">
+                    <p class="text-xs text-gray-500">创建后会立即进入统一主题池，可作为全站默认主题或用户个人偏好使用。</p>
+                    <button type="submit" class="px-5 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">
+                        <i class="fas fa-plus mr-2"></i>创建自定义主题
+                    </button>
+                </div>
+            </form>
+
+            <div class="space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                    <h3 class="text-sm font-semibold text-gray-700">已存在的自定义主题</h3>
+                    <span class="text-xs text-gray-500">共 {{ custom_themes|length }} 个</span>
+                </div>
+
+                {% if custom_themes %}
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    {% for theme_id, theme_config in custom_themes.items() %}
+                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3" data-custom-theme-card="{{ theme_id }}">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="font-semibold text-gray-800">{{ theme_config.name or theme_id }}</div>
+                                <div class="text-xs text-gray-500">{{ theme_id }}</div>
                             </div>
-                            <div class="space-y-2">
-                                <label class="text-xs text-gray-500">结束时间</label>
-                                <input type="date" value="{{ item.end_date }}" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
-                            </div>
-                            
-                            <!-- 氛围主题选择 -->
-                            <div class="space-y-2">
-                                <label class="text-xs text-gray-500">氛围主题</label>
-                                <select class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
-                                    <option value="">默认主题</option>
-                                    {% for atmosphere_id, atmosphere_config in atmosphere_themes.items() %}
-                                    <option value="{{ atmosphere_id }}" {{ 'selected' if atmosphere_id == item.atmosphere else '' }}>
-                                        {{ atmosphere_config.name }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            
-                            <!-- 操作按钮 -->
-                            <div class="flex space-x-2">
-                                <button type="button" class="preview-schedule px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button type="button" class="remove-schedule px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
+                            <button type="button"
+                                    class="delete-custom-theme px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                                    data-theme-name="{{ theme_id }}">
+                                <i class="fas fa-trash mr-1"></i>删除
+                            </button>
                         </div>
+                        <pre class="rounded-lg bg-slate-900 text-slate-100 text-xs p-3 overflow-x-auto">{{ theme_config.variables | tojson(indent=2) }}</pre>
                     </div>
                     {% endfor %}
+                </div>
                 {% else %}
-                    <div class="text-center py-8 text-gray-500">
-                        <i class="fas fa-calendar-alt text-4xl mb-4"></i>
-                        <p>还没有设置任何主题调度</p>
-                        <p class="text-sm">点击下方按钮添加第一个调度规则</p>
-                    </div>
+                <div class="text-center py-8 text-gray-500 border border-dashed border-gray-300 rounded-2xl">
+                    <i class="fas fa-paint-brush text-3xl mb-3"></i>
+                    <p>当前还没有自定义主题</p>
+                    <p class="text-sm">可以先创建一套新的配色变量方案。</p>
+                </div>
                 {% endif %}
-            </div>
-            
-            <!-- 操作按钮 -->
-            <div class="flex flex-col gap-3 pt-4 border-t border-gray-200 sm:flex-row sm:items-center sm:justify-between">
-                <button type="button" id="add-schedule" 
-                        class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                    <i class="fas fa-plus mr-2"></i>添加调度规则
-                </button>
-                <button type="button" id="save-schedule"
-                        class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                    <i class="fas fa-save mr-2"></i>保存调度设置
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 特效预览区域 -->
-    <div class="admin-panel theme-admin-panel bg-white shadow-sm rounded-lg">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-xl font-semibold text-gray-800">
-                <i class="fas fa-magic mr-2"></i>
-                特效预览
-            </h2>
-            <p class="text-gray-600 text-sm mt-1">预览各种氛围特效的效果</p>
-        </div>
-        
-        <div class="p-6">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="fireworks">
-                    <div class="text-2xl mb-2">🎆</div>
-                    <div class="font-medium">烟花绽放</div>
-                    <div class="text-xs text-gray-500">节日庆典</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="lanterns">
-                    <div class="text-2xl mb-2">🏮</div>
-                    <div class="font-medium">红灯笼</div>
-                    <div class="text-xs text-gray-500">传统节日</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="sakura">
-                    <div class="text-2xl mb-2">🌸</div>
-                    <div class="font-medium">樱花飞舞</div>
-                    <div class="text-xs text-gray-500">春季浪漫</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="snow">
-                    <div class="text-2xl mb-2">❄️</div>
-                    <div class="font-medium">雪花飘飘</div>
-                    <div class="text-xs text-gray-500">冬季氛围</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="grayscale">
-                    <div class="text-2xl mb-2">⚫</div>
-                    <div class="font-medium">全站灰白</div>
-                    <div class="text-xs text-gray-500">纪念悼念</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="firecrackers">
-                    <div class="text-2xl mb-2">🧨</div>
-                    <div class="font-medium">爆竹声声</div>
-                    <div class="text-xs text-gray-500">新年庆祝</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="confetti">
-                    <div class="text-2xl mb-2">🎊</div>
-                    <div class="font-medium">彩带飞舞</div>
-                    <div class="text-xs text-gray-500">庆祝活动</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="rain">
-                    <div class="text-2xl mb-2">🌧️</div>
-                    <div class="font-medium">下雨天</div>
-                    <div class="text-xs text-gray-500">雨滴飘洒</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="thunder">
-                    <div class="text-2xl mb-2">⚡</div>
-                    <div class="font-medium">雷电交加</div>
-                    <div class="text-xs text-gray-500">闪电雷鸣</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="clouds">
-                    <div class="text-2xl mb-2">☁️</div>
-                    <div class="font-medium">云雾缭绕</div>
-                    <div class="text-xs text-gray-500">云朵飘动</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="sunshine">
-                    <div class="text-2xl mb-2">☀️</div>
-                    <div class="font-medium">阳光明媚</div>
-                    <div class="text-xs text-gray-500">阳光普照</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-red-300 hover:bg-red-50 transition-colors" data-effect="stop">
-                    <div class="text-2xl mb-2">⏹️</div>
-                    <div class="font-medium">停止特效</div>
-                    <div class="text-xs text-gray-500">清除所有</div>
-                </button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- 引入特效管理器 -->
-<script src="{{ static_asset(request, 'js/effects/effect-manager.js') }}"></script>
-
-<script>
-// 纪念日管理功能
-function addAnniversaryItem() {
-    const container = document.getElementById('anniversaries-container');
-    
-    // 如果是空状态，先清除提示信息
-    const emptyState = container.querySelector('.text-center');
-    if (emptyState) {
-        emptyState.remove();
-    }
-    
-    const newItem = document.createElement('div');
-    newItem.className = 'anniversary-item theme-anniversary-item bg-gray-50 rounded-lg p-4 border border-gray-200';
-    newItem.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
-            <div class="flex space-x-2">
-                <input type="number" class="w-16 px-2 py-2 border border-gray-300 rounded text-center" 
-                       placeholder="月" min="1" max="12">
-                <span class="py-2 text-gray-500">月</span>
-                <input type="number" class="w-16 px-2 py-2 border border-gray-300 rounded text-center" 
-                       placeholder="日" min="1" max="31">
-                <span class="py-2 text-gray-500">日</span>
-            </div>
-            <div>
-                <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded" 
-                       placeholder="节日名称（如：国庆节）">
-            </div>
-            <div>
-                <select class="w-full px-3 py-2 border border-gray-300 rounded anniversary-type-select">
-                    <option value="festive">🎉 喜庆节日</option>
-                    <option value="mourn">🕯️ 纪念悼念</option>
-                    <option value="spring_festival">🏮 春节</option>
-                    <option value="new_year">🎆 新年</option>
-                    <option value="cherry_blossom">🌸 樱花节</option>
-                    <option value="winter">❄️ 冬季</option>
-                    <option value="autumn">🍂 秋季</option>
-                    <option value="celebration">🎊 庆祝</option>
-                    <option value="memorial">🕊️ 追悼</option>
-                    <option value="valentine">💖 情人节</option>
-                    <option value="christmas">🎄 圣诞节</option>
-                    <option value="national_day">🇨🇳 国庆节</option>
-                    <option value="rainy_day">🌧️ 雨天</option>
-                    <option value="stormy">⛈️ 暴风雨</option>
-                    <option value="sunny">☀️ 晴天</option>
-                    <option value="cloudy">☁️ 多云</option>
-                    <option value="spring">🌱 春天</option>
-                    <option value="summer">😎 夏天</option>
-                    <option value="thunderstorm">⚡ 雷雨</option>
-                </select>
-            </div>
-            <div>
-                <label class="text-xs text-gray-500 block mb-1">特效选择（可多选）</label>
-                <div class="max-h-32 overflow-y-auto border border-gray-300 rounded bg-white">
-                    <div class="p-2 space-y-1">
-                        <div class="text-xs font-medium text-gray-600 border-b pb-1">🎉 喜庆特效</div>
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" value="fireworks" class="effect-checkbox mr-2">
-                            🎆 烟花绽放
-                        </label>
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" value="lanterns" class="effect-checkbox mr-2">
-                            🏮 红灯笼
-                        </label>
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" value="firecrackers" class="effect-checkbox mr-2">
-                            🧨 爆竹声声
-                        </label>
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" value="confetti" class="effect-checkbox mr-2">
-                            🎊 彩带飞舞
-                        </label>
-                        
-                        <div class="text-xs font-medium text-gray-600 border-b pb-1 pt-2">🕯️ 纪念特效</div>
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" value="grayscale" class="effect-checkbox mr-2">
-                            ⚫ 全站灰白
-                        </label>
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" value="candles" class="effect-checkbox mr-2">
-                            🕯️ 蜡烛摇曳
-                        </label>
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" value="petals" class="effect-checkbox mr-2">
-                            🌸 花瓣飘落
-                        </label>
-                        
-                        <div class="text-xs font-medium text-gray-600 border-b pb-1 pt-2">🌨️ 季节特效</div>
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" value="snow" class="effect-checkbox mr-2">
-                            ❄️ 雪花飘飘
-                        </label>
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" value="sakura" class="effect-checkbox mr-2">
-                            🌸 樱花飞舞
-                        </label>
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" value="leaves" class="effect-checkbox mr-2">
-                            🍂 落叶纷飞
-                        </label>
-                        
-                        <div class="text-xs font-medium text-gray-600 border-b pb-1 pt-2">🌦️ 天气特效</div>
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" value="rain" class="effect-checkbox mr-2">
-                            🌧️ 下雨天
-                        </label>
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" value="thunder" class="effect-checkbox mr-2">
-                            ⚡ 雷电交加
-                        </label>
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" value="clouds" class="effect-checkbox mr-2">
-                            ☁️ 云雾缭绕
-                        </label>
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" value="sunshine" class="effect-checkbox mr-2">
-                            ☀️ 阳光明媚
-                        </label>
-                    </div>
-                </div>
-            </div>
-            <div class="flex flex-wrap gap-2">
-                <button type="button" class="preview-anniversary px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                    <i class="fas fa-eye"></i> 预览
-                </button>
-                <button type="button" class="remove-anniversary px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    `;
-    container.appendChild(newItem);
-    
-    // 添加事件监听器
-    attachAnniversaryEvents(newItem);
-}
-
-function attachAnniversaryEvents(item) {
-    // 删除按钮
-    item.querySelector('.remove-anniversary').addEventListener('click', function() {
-        item.remove();
-        
-        // 如果没有项目了，显示空状态
-        const container = document.getElementById('anniversaries-container');
-        if (container.children.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-8 text-gray-500">
-                    <i class="fas fa-calendar-plus text-4xl mb-4"></i>
-                    <p>还没有设置任何纪念日氛围</p>
-                    <p class="text-sm">点击下方按钮添加第一个纪念日</p>
-                </div>
-            `;
-        }
-    });
-    
-    // 预览按钮
-    item.querySelector('.preview-anniversary').addEventListener('click', function() {
-        const inputs = item.querySelectorAll('input[type="number"], input[type="text"], select');
-        const checkboxes = item.querySelectorAll('.effect-checkbox:checked');
-        const month = inputs[0].value;
-        const day = inputs[1].value;
-        const name = inputs[2].value;
-        const type = inputs[3].value;
-        const effects = Array.from(checkboxes).map(cb => cb.value);
-        
-        if (month && day && name && effects.length > 0) {
-            previewMultipleEffects(effects, `${name}（${month}月${day}日）`);
-        } else {
-            showNotification('请先完整填写纪念日信息并选择至少一个特效', 'warning');
-        }
-    });
-}
-
-// 特效预览功能
-function previewEffect(effect, title = '') {
-    if (effect === 'stop') {
-        // 停止所有特效
-        if (window.effectManager) {
-            window.effectManager.stopAll();
-        }
-        showNotification('已停止所有特效', 'info');
-        return;
-    }
-    
-    // 启动特效
-    if (window.effectManager) {
-        window.effectManager.startEffect(effect);
-        showNotification(`正在预览：${title || effect}`, 'success');
-        
-        // 5秒后自动停止预览
-        setTimeout(() => {
-            window.effectManager.stopEffect(effect);
-        }, 5000);
-    } else {
-        showNotification('特效系统未加载，请刷新页面重试', 'error');
-    }
-}
-
-// 多特效预览功能
-function previewMultipleEffects(effects, title = '') {
-    if (!window.effectManager) {
-        showNotification('特效系统未加载，请刷新页面重试', 'error');
-        return;
-    }
-    
-    // 先停止所有现有特效
-    window.effectManager.stopAll();
-    
-    // 启动多个特效
-    effects.forEach((effect, index) => {
-        setTimeout(() => {
-            window.effectManager.startEffect(effect);
-        }, index * 200); // 每个特效间隔200ms启动
-    });
-    
-    showNotification(`正在预览：${title || '多重特效'} (${effects.length}个特效)`, 'success');
-    
-    // 8秒后自动停止所有预览特效
-    setTimeout(() => {
-        effects.forEach(effect => {
-            window.effectManager.stopEffect(effect);
-        });
-    }, 8000);
-}
-
-// 保存纪念日设置
-async function saveAnniversaries() {
-    const anniversaries = [];
-    document.querySelectorAll('.anniversary-item').forEach(item => {
-        const inputs = item.querySelectorAll('input[type="number"], input[type="text"], select');
-        const checkboxes = item.querySelectorAll('.effect-checkbox:checked');
-        
-        if (inputs.length >= 4) {
-            const month = parseInt(inputs[0].value);
-            const day = parseInt(inputs[1].value);
-            const name = inputs[2].value.trim();
-            const type = inputs[3].value;
-            const effects = Array.from(checkboxes).map(cb => cb.value);
-            
-            if (month && day && name && type) {
-                anniversaries.push({ 
-                    month, 
-                    day, 
-                    name, 
-                    type,
-                    effects: effects
-                });
-            }
-        }
-    });
-    
-    try {
-        const response = await fetch(`${window.ADMIN_PATH}/api/v1/anniversary-mode/save`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
-            },
-            body: JSON.stringify({ anniversaries })
-        });
-        
-        // 检查响应是否成功
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        if (result.success) {
-            showNotification(`已保存 ${anniversaries.length} 个纪念日设置`, 'success');
-        } else {
-            throw new Error(result.message || '保存失败');
-        }
-    } catch (error) {
-        console.error('保存纪念日设置错误:', error);
-        showNotification('保存失败: ' + error.message, 'error');
-    }
-}
-
-// 保存主题调度设置
-async function saveSchedule() {
-    const schedules = [];
-    document.querySelectorAll('.schedule-item').forEach(item => {
-        const inputs = item.querySelectorAll('input[type="date"], select');
-        if (inputs.length >= 3) {
-            const startDate = inputs[0].value;
-            const endDate = inputs[1].value;
-            const atmosphere = inputs[2].value;
-            
-            if (startDate && endDate && atmosphere) {
-                schedules.push({
-                    start_date: startDate,
-                    end_date: endDate,
-                    atmosphere: atmosphere
-                });
-            }
-        }
-    });
-    
-    try {
-        const response = await fetch(`${window.ADMIN_PATH}/api/v1/theme-schedule/save`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
-            },
-            body: JSON.stringify({ schedules })
-        });
-        
-        // 检查响应是否成功
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        if (result.success) {
-            showNotification(`已保存 ${schedules.length} 个主题调度规则`, 'success');
-        } else {
-            throw new Error(result.message || '保存失败');
-        }
-    } catch (error) {
-        console.error('保存主题调度设置错误:', error);
-        showNotification('保存失败: ' + error.message, 'error');
-    }
-}
-
-// 主题调度管理
-function addScheduleItem() {
-    const container = document.getElementById('schedule-container');
-    
-    // 如果是空状态，先清除提示信息
-    const emptyState = container.querySelector('.text-center');
-    if (emptyState) {
-        emptyState.remove();
-    }
-    
-    const scheduleOptionsHtml = (() => {
-        const sourceSelect = document.querySelector('#schedule-container .schedule-item select');
-        if (sourceSelect) {
-            return sourceSelect.innerHTML;
-        }
-
-        const fallbackOptions = [
-            { value: '', label: '默认主题' },
-            { value: 'festive', label: '🎉 节日氛围' },
-            { value: 'memorial', label: '🕯️ 纪念氛围' },
-            { value: 'celebration', label: '🎊 庆祝氛围' }
-        ];
-
-        return fallbackOptions
-            .map(item => `<option value="${item.value}">${item.label}</option>`)
-            .join('');
-    })();
-
-    const newItem = document.createElement('div');
-    newItem.className = 'schedule-item theme-schedule-item bg-gray-50 rounded-lg p-4 border border-gray-200';
-    newItem.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-            <div class="space-y-2">
-                <label class="text-xs text-gray-500">开始时间</label>
-                <input type="date" class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
-            </div>
-            <div class="space-y-2">
-                <label class="text-xs text-gray-500">结束时间</label>
-                <input type="date" class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
-            </div>
-            <div class="space-y-2">
-                <label class="text-xs text-gray-500">氛围主题</label>
-                <select class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
-                    ${scheduleOptionsHtml}
-                </select>
-            </div>
-            <div class="flex flex-wrap gap-2">
-                <button type="button" class="preview-schedule px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button type="button" class="remove-schedule px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    `;
-    container.appendChild(newItem);
-    
-    // 添加事件监听器
-    attachScheduleEvents(newItem);
-}
-
-function attachScheduleEvents(item) {
-    // 删除按钮
-    item.querySelector('.remove-schedule').addEventListener('click', function() {
-        item.remove();
-        
-        // 如果没有项目了，显示空状态
-        const container = document.getElementById('schedule-container');
-        if (container.children.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-8 text-gray-500">
-                    <i class="fas fa-calendar-alt text-4xl mb-4"></i>
-                    <p>还没有设置任何主题调度</p>
-                    <p class="text-sm">点击下方按钮添加第一个调度规则</p>
-                </div>
-            `;
-        }
-    });
-    
-    // 预览按钮
-    item.querySelector('.preview-schedule').addEventListener('click', function() {
-        const inputs = item.querySelectorAll('input[type="date"], select');
-        const startDate = inputs[0].value;
-        const endDate = inputs[1].value;
-        const atmosphere = inputs[2].value;
-        
-        if (startDate && endDate && atmosphere) {
-            showNotification(`预览调度：${startDate} 至 ${endDate} - ${atmosphere}`, 'info');
-        } else {
-            showNotification('请先完整填写调度信息', 'warning');
-        }
-    });
-}
-
-// 通知显示功能
-function showNotification(message, type = 'info') {
-    if (window.adminNotify && typeof window.adminNotify === 'function') {
-        window.adminNotify(message, type);
-        return;
-    }
-
-    alert(message);
-}
-
-// 保存背景图片设置
-async function saveBackgroundImage() {
-    const selectedValue = document.querySelector('input[name="background_type"]:checked')?.value || 'none';
-    const customUrl = document.querySelector('input[name="custom_background_url"]')?.value || '';
-    
-    try {
-        const formData = new FormData();
-        formData.append('background_type', selectedValue);
-        if (selectedValue === 'custom' && customUrl) {
-            formData.append('custom_background_url', customUrl);
-        }
-        formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
-        
-        const response = await fetch(`${window.ADMIN_PATH}/api/v1/admin/themes/background`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        if (result.success) {
-            // 应用背景图片到当前页面
-            const bodyStyle = document.body.style;
-            switch(selectedValue) {
-                case 'gradient1':
-                    bodyStyle.backgroundImage = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                    break;
-                case 'gradient2':
-                    bodyStyle.backgroundImage = 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)';
-                    break;
-                case 'gradient3':
-                    bodyStyle.backgroundImage = 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)';
-                    break;
-                case 'gradient4':
-                    bodyStyle.backgroundImage = 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)';
-                    break;
-                case 'custom':
-                    if (customUrl) {
-                        bodyStyle.backgroundImage = `url('${customUrl}')`;
-                    } else {
-                        bodyStyle.backgroundImage = 'none';
-                    }
-                    break;
-                default:
-                    bodyStyle.backgroundImage = 'none';
-                    break;
-            }
-            
-            showNotification('背景图片设置已保存并应用', 'success');
-        } else {
-            throw new Error(result.message || '保存失败');
-        }
-    } catch (error) {
-        console.error('保存背景图片设置错误:', error);
-        showNotification('保存背景图片设置失败: ' + error.message, 'error');
-    }
-}
-
-// 页面加载完成后初始化
-document.addEventListener('DOMContentLoaded', function() {
-    // 纪念日管理事件
-    document.getElementById('add-anniversary')?.addEventListener('click', addAnniversaryItem);
-    document.getElementById('save-anniversaries')?.addEventListener('click', saveAnniversaries);
-    
-    // 主题调度事件
-    document.getElementById('add-schedule')?.addEventListener('click', addScheduleItem);
-    document.getElementById('save-schedule')?.addEventListener('click', saveSchedule);
-    
-    // 特效预览按钮
-    document.querySelectorAll('.effect-preview-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const effect = this.dataset.effect;
-            previewEffect(effect);
-        });
-    });
-    
-    // 为现有项目添加事件监听器
-    document.querySelectorAll('.anniversary-item').forEach(attachAnniversaryEvents);
-    document.querySelectorAll('.schedule-item').forEach(attachScheduleEvents);
-    
-    // 主题选择变化监听
-    document.querySelectorAll('input[name="current_theme"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            // 更新所有主题选项的样式
-            document.querySelectorAll('.theme-option .theme-option-label').forEach(label => {
-                label.classList.remove('is-active');
-            });
-            
-            // 为选中的主题添加高亮样式
-            if (this.checked) {
-                const label = this.nextElementSibling;
-                label.classList.add('is-active');
-                showNotification(`已切换到 ${label.querySelector('.font-medium').textContent} 主题`, 'success');
-                window.dispatchEvent(new Event('adminThemeRefreshRequested'));
-                if (window.adminThemeSync && typeof window.adminThemeSync.syncNow === 'function') {
-                    setTimeout(() => window.adminThemeSync.syncNow(), 120);
-                }
-            }
-        });
-    });
-
-    const themeForm = document.getElementById('theme-form');
-    if (themeForm) {
-        themeForm.addEventListener('htmx:afterRequest', function() {
-            window.dispatchEvent(new Event('adminThemeRefreshRequested'));
-            if (window.adminThemeSync && typeof window.adminThemeSync.syncNow === 'function') {
-                setTimeout(() => window.adminThemeSync.syncNow(), 80);
-            }
-        });
-    }
-    
-    // 背景图片选择监听
-    document.querySelectorAll('input[name="background_type"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.value === 'custom') {
-                document.getElementById('custom-background-input').classList.remove('hidden');
-            } else {
-                document.getElementById('custom-background-input').classList.add('hidden');
-            }
-            // 自动保存背景图片设置
-            saveBackgroundImage();
-        });
-    });
-
-    const selectedBackgroundType = document.querySelector('input[name="background_type"]:checked')?.value;
-    if (selectedBackgroundType === 'custom') {
-        document.getElementById('custom-background-input')?.classList.remove('hidden');
-    }
-    
-    // 自定义背景URL输入监听
-    const customBackgroundInput = document.querySelector('input[name="custom_background_url"]');
-    if (customBackgroundInput) {
-        customBackgroundInput.addEventListener('blur', saveBackgroundImage);
-    }
-    
-    // --- 自动勾选特效 ---
-    const effectCombinations = {
-        'festive': ['fireworks', 'confetti', 'lanterns'],
-        'mourn': ['grayscale', 'candles'],
-        'spring_festival': ['lanterns', 'firecrackers'],
-        'new_year': ['fireworks', 'confetti'],
-        'cherry_blossom': ['sakura', 'petals'],
-        'winter': ['snow', 'clouds'],
-        'autumn': ['leaves'],
-        'celebration': ['fireworks', 'confetti'],
-        'memorial': ['grayscale', 'candles'],
-        'valentine': ['sakura', 'petals'],
-        'christmas': ['snow', 'fireworks'],
-        'national_day': ['fireworks', 'lanterns'],
-        'rainy_day': ['rain', 'clouds'],
-        'stormy': ['rain', 'thunder', 'clouds'],
-        'sunny': ['sunshine'],
-        'cloudy': ['clouds'],
-        'spring': ['sakura', 'petals', 'sunshine'],
-        'summer': ['sunshine'],
-        'thunderstorm': ['thunder', 'rain']
-    };
-
-    function updateEffectCheckboxes(anniversaryItem, selectedType) {
-        const effects = effectCombinations[selectedType] || [];
-        const checkboxes = anniversaryItem.querySelectorAll('.effect-checkbox');
-
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = effects.includes(checkbox.value);
-        });
-    }
-
-    // 使用事件委托处理现有和新增的纪念日项目
-    document.getElementById('anniversaries-container').addEventListener('change', function(event) {
-        if (event.target.classList.contains('anniversary-type-select')) {
-            const anniversaryItem = event.target.closest('.anniversary-item');
-            if (anniversaryItem) {
-                updateEffectCheckboxes(anniversaryItem, event.target.value);
-            }
-        }
-    });
-});
-</script>
+<script src="{{ static_asset(request, 'js/admin/theme-system-page.js') }}" defer></script>
 {% endblock %}

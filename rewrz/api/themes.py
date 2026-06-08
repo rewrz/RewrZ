@@ -19,6 +19,7 @@ from ..core.database import get_db
 from ..core.security import ensure_admin_user, get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..crud import setting as crud_setting
+from ..crud import user as crud_user
 from ..schemas import Setting, SettingCreate, SettingUpdate, User
 
 router = APIRouter()
@@ -211,67 +212,31 @@ DEFAULT_THEMES = {
     }
 }
 
-# 历史主题键兼容映射
-BACKWARD_COMPAT_THEME_ALIASES = {
-    "forest": "nature"
-}
-
-# 氛围主题配置
-ATMOSPHERE_THEMES = {
-    "festive": {
-        "name": "节日氛围",
-        "description": "春节、圣诞节等节日主题",
-        "css_class": "atmosphere-festive",
-        "effects": ["fireworks", "confetti", "lanterns"],
-        "variables": {
-            "--color-primary": "#ef4444",
-            "--color-secondary": "#fbbf24"
-        }
-    },
-    "memorial": {
-        "name": "纪念氛围", 
-        "description": "纪念日、哀悼日等肃穆主题",
-        "css_class": "atmosphere-memorial",
-        "effects": ["grayscale", "candles"],
-        "variables": {
-            "--color-primary": "#6b7280",
-            "--color-secondary": "#9ca3af"
-        }
-    },
-    "celebration": {
-        "name": "庆祝氛围",
-        "description": "生日、周年等庆祝主题",
-        "css_class": "atmosphere-celebration", 
-        "effects": ["fireworks", "confetti"],
-        "variables": {
-            "--color-primary": "#8b5cf6",
-            "--color-secondary": "#f59e0b"
-        }
-    }
-}
-
-# 氛围别名：将扩展类型映射到基础氛围样式
-ATMOSPHERE_THEME_ALIASES = {
+# 节日/纪念日场景别名：将扩展类型映射到基础特效场景
+EFFECT_SCENE_ALIASES = {
     "mourn": "memorial",
-    "spring_festival": "festive",
-    "new_year": "celebration",
-    "cherry_blossom": "celebration",
-    "winter": "memorial",
-    "autumn": "celebration",
-    "valentine": "celebration",
-    "christmas": "festive",
-    "national_day": "festive",
-    "rainy_day": "memorial",
-    "stormy": "memorial",
-    "sunny": "celebration",
-    "cloudy": "memorial",
-    "spring": "celebration",
-    "summer": "celebration",
-    "thunderstorm": "memorial"
+    "spring_festival": "spring_festival",
+    "new_year": "new_year",
+    "cherry_blossom": "cherry_blossom",
+    "winter": "winter",
+    "autumn": "autumn",
+    "valentine": "valentine",
+    "christmas": "christmas",
+    "national_day": "national_day",
+    "rainy_day": "rainy_day",
+    "stormy": "stormy",
+    "sunny": "sunny",
+    "cloudy": "cloudy",
+    "spring": "spring",
+    "summer": "summer",
+    "thunderstorm": "thunderstorm",
+    "festive": "festive",
+    "celebration": "celebration",
+    "memorial": "memorial",
 }
 
-# 扩展氛围默认特效映射（与前端 effect-manager 保持一致）
-ATMOSPHERE_EFFECT_PRESETS = {
+# 特效场景默认特效映射（与前端 effect-manager 保持一致）
+EFFECT_SCENE_PRESETS = {
     "festive": ["fireworks", "confetti", "lanterns"],
     "mourn": ["grayscale", "candles"],
     "spring_festival": ["lanterns", "firecrackers"],
@@ -334,7 +299,6 @@ def normalize_theme_name(theme_name: Optional[str]) -> str:
         return "light"
 
     normalized = str(theme_name).strip().lower()
-    normalized = BACKWARD_COMPAT_THEME_ALIASES.get(normalized, normalized)
     return normalized if normalized in DEFAULT_THEMES else "light"
 
 
@@ -343,7 +307,7 @@ def resolve_theme_name(theme_name: Optional[str], custom_themes: Optional[Dict[s
     if not raw_theme:
         return "light"
 
-    normalized_default = BACKWARD_COMPAT_THEME_ALIASES.get(raw_theme.lower(), raw_theme.lower())
+    normalized_default = raw_theme.lower()
     if normalized_default in DEFAULT_THEMES:
         return normalized_default
 
@@ -356,12 +320,12 @@ def resolve_theme_name(theme_name: Optional[str], custom_themes: Optional[Dict[s
     return "light"
 
 
-def normalize_atmosphere_name(atmosphere: Optional[str]) -> Optional[str]:
-    if not atmosphere:
+def normalize_effect_scene_name(scene: Optional[str]) -> Optional[str]:
+    if not scene:
         return None
 
-    normalized = str(atmosphere).strip().lower()
-    return ATMOSPHERE_THEME_ALIASES.get(normalized, normalized)
+    normalized = str(scene).strip().lower()
+    return EFFECT_SCENE_ALIASES.get(normalized, normalized)
 
 
 def normalize_glass_intensity(intensity: Optional[str]) -> str:
@@ -373,75 +337,290 @@ def normalize_glass_intensity(intensity: Optional[str]) -> str:
     return DEFAULT_GLASS_INTENSITY
 
 
-def get_atmosphere_effects(atmosphere: Optional[str], explicit_effects: Optional[List[str]] = None) -> List[str]:
+def get_scene_effects(scene: Optional[str], explicit_effects: Optional[List[str]] = None) -> List[str]:
     if explicit_effects:
         return explicit_effects
 
-    if not atmosphere:
+    if not scene:
         return []
 
-    atmosphere_key = str(atmosphere).strip().lower()
-    if atmosphere_key in ATMOSPHERE_EFFECT_PRESETS:
-        return ATMOSPHERE_EFFECT_PRESETS[atmosphere_key]
+    scene_key = str(scene).strip().lower()
+    if scene_key in EFFECT_SCENE_PRESETS:
+        return EFFECT_SCENE_PRESETS[scene_key]
 
-    normalized = normalize_atmosphere_name(atmosphere_key)
-    if normalized in ATMOSPHERE_THEMES:
-        return ATMOSPHERE_THEMES[normalized].get("effects", [])
+    normalized = normalize_effect_scene_name(scene_key)
+    if normalized in EFFECT_SCENE_PRESETS:
+        return EFFECT_SCENE_PRESETS[normalized]
 
     return []
 
-# 主题管理页面已移至 main.py 中的动态路由注册系统
-# 这样可以根据 ADMIN_PATH 配置动态生成路由，提高安全性
-async def admin_themes_page(request: Request, db: Session, current_user: User):
-    """主题管理页面 - 供 main.py 动态路由调用"""
-    templates = get_templates()
-    # 获取当前主题设置
-    theme_setting = crud_setting.get_setting(db, key="current_theme")
+
+def load_custom_themes(db: Session) -> Dict[str, Any]:
     custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
-    atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
-    auto_theme_setting = crud_setting.get_setting(db, key="auto_theme_enabled")
+    if not custom_themes_setting or not isinstance(custom_themes_setting.value, dict):
+        return {}
+    value = custom_themes_setting.value.get("value")
+    return value if isinstance(value, dict) else {}
+
+
+def resolve_theme_variables(theme_name: str, custom_themes: Dict[str, Any]) -> Dict[str, Any]:
+    if theme_name in DEFAULT_THEMES:
+        return dict(DEFAULT_THEMES[theme_name]["variables"])
+    if theme_name in custom_themes and isinstance(custom_themes[theme_name], dict):
+        variables = custom_themes[theme_name].get("variables")
+        if isinstance(variables, dict):
+            return dict(variables)
+    return dict(DEFAULT_THEMES["light"]["variables"])
+
+
+def get_site_default_theme(db: Session, custom_themes: Dict[str, Any]) -> str:
+    theme_setting = crud_setting.get_setting(db, key="current_theme")
+    return resolve_theme_name(_extract_setting_value(theme_setting, "light"), custom_themes)
+
+
+def resolve_active_theme(
+    db: Session,
+    request: Optional[Request] = None,
+    explicit_theme: Optional[str] = None,
+) -> Dict[str, Any]:
+    custom_themes = load_custom_themes(db)
+    theme_source = "system_default"
+    resolved_theme = "light"
+
+    if explicit_theme:
+        resolved_theme = resolve_theme_name(explicit_theme, custom_themes)
+        theme_source = "request_override"
+    else:
+        request_user = getattr(request.state, "authenticated_user", None) if request is not None else None
+        user_theme = resolve_theme_name(getattr(request_user, "theme_preference", None), custom_themes) if request_user else "light"
+        if request_user and getattr(request_user, "theme_preference", None) and user_theme != "light":
+            resolved_theme = user_theme
+            theme_source = "user_preference"
+        else:
+            site_theme = get_site_default_theme(db, custom_themes)
+            if site_theme:
+                resolved_theme = site_theme
+                theme_source = "site_default"
+
     glass_intensity_setting = crud_setting.get_setting(db, key="glass_intensity")
-    theme_schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
-    background_setting = crud_setting.get_setting(db, key="background_image_settings")
-    
-    current_theme = normalize_theme_name(_extract_setting_value(theme_setting, "light"))
-    custom_themes = custom_themes_setting.value.get("value") if custom_themes_setting else {}
-    current_atmosphere, _ = parse_atmosphere_setting(atmosphere_setting)
-    auto_theme_enabled = bool(_extract_setting_value(auto_theme_setting, False))
     glass_intensity = normalize_glass_intensity(_extract_setting_value(glass_intensity_setting, DEFAULT_GLASS_INTENSITY))
-    theme_schedule = theme_schedule_setting.value.get("value") if theme_schedule_setting else []
-    background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
-    
-    # 获取纪念日设置
+    background_setting = crud_setting.get_setting(db, key="background_image_settings")
+    background = background_setting.value.get("value") if background_setting and isinstance(background_setting.value, dict) else {"type": "none", "custom_url": None}
+
+    return {
+        "theme_id": resolved_theme,
+        "theme_source": theme_source,
+        "variables": resolve_theme_variables(resolved_theme, custom_themes),
+        "glass_intensity": glass_intensity,
+        "background": background or {"type": "none", "custom_url": None},
+    }
+
+
+def _load_anniversaries(db: Session) -> List[Dict[str, Any]]:
     anniversaries_setting = crud_setting.get_setting(db, key="anniversaries_json")
-    anniversaries = []
-    if anniversaries_setting and anniversaries_setting.value:
+    if not anniversaries_setting or anniversaries_setting.value is None:
+        return []
+
+    raw_value = anniversaries_setting.value
+    if isinstance(raw_value, dict):
+        raw_value = raw_value.get("value", raw_value)
+
+    try:
+        if isinstance(raw_value, str):
+            data = json.loads(raw_value)
+        elif isinstance(raw_value, list):
+            data = raw_value
+        else:
+            data = []
+    except (TypeError, ValueError, json.JSONDecodeError):
+        data = []
+
+    return data if isinstance(data, list) else []
+
+
+def resolve_current_anniversary_scene(db: Session) -> Optional[Dict[str, Any]]:
+    anniversaries = _load_anniversaries(db)
+    today = date.today()
+    for anniversary in anniversaries:
+        if not isinstance(anniversary, dict):
+            continue
         try:
-            anniversaries_json = anniversaries_setting.value.get("value") if isinstance(anniversaries_setting.value, dict) else anniversaries_setting.value
-            anniversaries = json.loads(anniversaries_json) if isinstance(anniversaries_json, str) else anniversaries_json
-        except:
-            anniversaries = []
-    
-    # 创建settings对象
-    settings = type('Settings', (), {
-        'anniversaries': anniversaries,
-        'background_image_settings': background_settings
+            month = int(anniversary.get("month"))
+            day = int(anniversary.get("day"))
+        except (TypeError, ValueError):
+            continue
+        if month == today.month and day == today.day:
+            raw_scene = anniversary.get("type")
+            normalized_scene = normalize_effect_scene_name(raw_scene)
+            return {
+                "scene": normalized_scene,
+                "raw_scene": str(raw_scene or "").strip() or None,
+                "effects": get_scene_effects(normalized_scene, anniversary.get("effects") if isinstance(anniversary.get("effects"), list) else []),
+                "name": str(anniversary.get("name") or "").strip() or "纪念日",
+                "source": "anniversary",
+            }
+    return None
+
+
+def check_scheduled_effect_scene(db: Session) -> Optional[Dict[str, Any]]:
+    enabled_setting = crud_setting.get_setting(db, key="effects_schedule_enabled")
+    enabled = _extract_setting_value(enabled_setting, False)
+    if not bool(enabled):
+        return None
+
+    schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
+    if not schedule_setting:
+        return None
+
+    schedule = schedule_setting.value.get("value", []) if isinstance(schedule_setting.value, dict) else []
+    today = date.today()
+
+    for item in schedule:
+        if not isinstance(item, dict):
+            continue
+
+        try:
+            start_date = datetime.strptime(item["start_date"], "%Y-%m-%d").date()
+            end_date = datetime.strptime(item["end_date"], "%Y-%m-%d").date()
+        except (KeyError, ValueError, TypeError):
+            continue
+
+        if start_date <= today <= end_date:
+            raw_scene = item.get("atmosphere") or item.get("scene")
+            normalized_scene = normalize_effect_scene_name(raw_scene)
+            if normalized_scene:
+                return {
+                    "scene": normalized_scene,
+                    "raw_scene": str(raw_scene).strip().lower(),
+                    "effects": get_scene_effects(normalized_scene),
+                    "source": "schedule",
+                    "start_date": item.get("start_date"),
+                    "end_date": item.get("end_date"),
+                }
+
+    return None
+
+
+def resolve_active_effects(db: Session) -> Dict[str, Any]:
+    anniversary_scene = resolve_current_anniversary_scene(db)
+    if anniversary_scene:
+        return {
+            "scene": anniversary_scene["scene"],
+            "source": "anniversary",
+            "effects": anniversary_scene["effects"],
+            "body_classes": [f"atmosphere-{anniversary_scene['scene']}"] if anniversary_scene["scene"] else [],
+            "label": anniversary_scene.get("name", "纪念日"),
+        }
+
+    manual_setting = crud_setting.get_setting(db, key="current_atmosphere")
+    manual_scene, manual_effects = parse_atmosphere_setting(manual_setting)
+    normalized_manual_scene = normalize_effect_scene_name(manual_scene)
+    if normalized_manual_scene:
+        return {
+            "scene": normalized_manual_scene,
+            "source": "manual",
+            "effects": get_scene_effects(normalized_manual_scene, manual_effects),
+            "body_classes": [f"atmosphere-{normalized_manual_scene}"],
+            "label": normalized_manual_scene,
+        }
+
+    scheduled_scene = check_scheduled_effect_scene(db)
+    if scheduled_scene:
+        return {
+            "scene": scheduled_scene["scene"],
+            "source": "schedule",
+            "effects": scheduled_scene["effects"],
+            "body_classes": [f"atmosphere-{scheduled_scene['scene']}"] if scheduled_scene["scene"] else [],
+            "label": scheduled_scene["scene"],
+        }
+
+    return {
+        "scene": None,
+        "source": "none",
+        "effects": [],
+        "body_classes": [],
+        "label": "",
+    }
+
+def _load_anniversaries_setting(db: Session) -> list[dict[str, Any]]:
+    anniversaries_setting = crud_setting.get_setting(db, key="anniversaries_json")
+    if not anniversaries_setting or not anniversaries_setting.value:
+        return []
+
+    try:
+        anniversaries_json = anniversaries_setting.value.get("value") if isinstance(anniversaries_setting.value, dict) else anniversaries_setting.value
+        anniversaries = json.loads(anniversaries_json) if isinstance(anniversaries_json, str) else anniversaries_json
+    except Exception:
+        return []
+
+    return anniversaries if isinstance(anniversaries, list) else []
+
+
+def _build_settings_holder(*, anniversaries: list[dict[str, Any]], background_settings: dict[str, Any]):
+    return type("Settings", (), {
+        "anniversaries": anniversaries,
+        "background_image_settings": background_settings,
     })()
-    
-    return templates.TemplateResponse("admin/themes.html", {
+
+
+def _get_theme_page_context(request: Request, current_user: User, db: Session) -> Dict[str, Any]:
+    theme_setting = crud_setting.get_setting(db, key="current_theme")
+    custom_themes = load_custom_themes(db)
+    glass_intensity_setting = crud_setting.get_setting(db, key="glass_intensity")
+    background_setting = crud_setting.get_setting(db, key="background_image_settings")
+
+    current_theme = resolve_theme_name(_extract_setting_value(theme_setting, "light"), custom_themes)
+    glass_intensity = normalize_glass_intensity(_extract_setting_value(glass_intensity_setting, DEFAULT_GLASS_INTENSITY))
+    background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
+
+    return {
         "request": request,
         "user": current_user,
         "current_theme": current_theme,
         "default_themes": DEFAULT_THEMES,
         "custom_themes": custom_themes,
-        "atmosphere_themes": ATMOSPHERE_THEMES,
-        "current_atmosphere": current_atmosphere,
-        "auto_theme_enabled": auto_theme_enabled,
         "glass_intensity": glass_intensity,
+        "background_settings": background_settings,
+        "settings": _build_settings_holder(anniversaries=[], background_settings=background_settings),
+    }
+
+
+def _get_effects_page_context(request: Request, current_user: User, db: Session) -> Dict[str, Any]:
+    atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
+    effects_schedule_setting = crud_setting.get_setting(db, key="effects_schedule_enabled")
+    theme_schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
+    background_setting = crud_setting.get_setting(db, key="background_image_settings")
+
+    current_effect_scene, _ = parse_atmosphere_setting(atmosphere_setting)
+    effects_schedule_enabled = bool(_extract_setting_value(effects_schedule_setting, False))
+    theme_schedule = theme_schedule_setting.value.get("value") if theme_schedule_setting else []
+    background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
+    anniversaries = _load_anniversaries_setting(db)
+
+    return {
+        "request": request,
+        "user": current_user,
+        "effect_scene_presets": EFFECT_SCENE_PRESETS,
+        "current_effect_scene": normalize_effect_scene_name(current_effect_scene),
+        "effects_schedule_enabled": effects_schedule_enabled,
         "theme_schedule": theme_schedule,
         "background_settings": background_settings,
-        "settings": settings
-    })
+        "settings": _build_settings_holder(anniversaries=anniversaries, background_settings=background_settings),
+    }
+
+
+# 主题管理页面已移至 main.py 中的动态路由注册系统
+# 这样可以根据 ADMIN_PATH 配置动态生成路由，提高安全性
+async def admin_theme_system_page(request: Request, db: Session, current_user: User):
+    """主题系统页面 - 供 main.py 动态路由调用"""
+    templates = get_templates()
+    return templates.TemplateResponse("admin/themes.html", _get_theme_page_context(request, current_user, db))
+
+
+async def admin_effects_page(request: Request, db: Session, current_user: User):
+    """节日特效引擎页面 - 供 main.py 动态路由调用"""
+    templates = get_templates()
+    return templates.TemplateResponse("admin/effects.html", _get_effects_page_context(request, current_user, db))
 
 # 主题更新路由已移至 main.py 中的动态路由注册系统
 async def update_theme_settings(
@@ -449,15 +628,14 @@ async def update_theme_settings(
     db: Session,
     current_user: User,
     current_theme: str,
-    current_atmosphere: Optional[str],
-    auto_theme_enabled: bool,
     glass_intensity: str,
     csrf_token: str
 ):
     """更新主题设置"""
     verify_csrf_token(request, csrf_token)
     
-    normalized_current_theme = normalize_theme_name(current_theme)
+    custom_themes = load_custom_themes(db)
+    normalized_current_theme = resolve_theme_name(current_theme, custom_themes)
     normalized_glass_intensity = normalize_glass_intensity(glass_intensity)
 
     # 更新当前主题
@@ -472,30 +650,6 @@ async def update_theme_settings(
             category="theme"
         ))
     
-    # 更新氛围主题
-    atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
-    if atmosphere_setting:
-        crud_setting.update_setting(db, key="current_atmosphere", setting_update=SettingUpdate(value={"value": current_atmosphere}))
-    else:
-        crud_setting.create_setting(db, setting=SettingCreate(
-            key="current_atmosphere",
-            value={"value": current_atmosphere},
-            description="当前氛围主题",
-            category="theme"
-        ))
-    
-    # 更新自动主题设置
-    auto_setting = crud_setting.get_setting(db, key="auto_theme_enabled")
-    if auto_setting:
-        crud_setting.update_setting(db, key="auto_theme_enabled", setting_update=SettingUpdate(value={"value": auto_theme_enabled}))
-    else:
-        crud_setting.create_setting(db, setting=SettingCreate(
-            key="auto_theme_enabled",
-            value={"value": auto_theme_enabled}, 
-            description="是否启用自动主题切换",
-            category="theme"
-        ))
-
     # 更新毛玻璃强度档位
     glass_intensity_setting = crud_setting.get_setting(db, key="glass_intensity")
     if glass_intensity_setting:
@@ -533,6 +687,53 @@ async def update_theme_settings(
         return JSONResponse({"success": True, "message": "主题设置已更新"})
 
 
+async def update_effects_settings(
+    request: Request,
+    db: Session,
+    current_user: User,
+    effects_schedule_enabled: bool,
+    csrf_token: str,
+):
+    """更新节日特效引擎设置"""
+    verify_csrf_token(request, csrf_token)
+    ensure_admin_user(current_user)
+
+    effects_schedule_setting = crud_setting.get_setting(db, key="effects_schedule_enabled")
+    if effects_schedule_setting:
+        crud_setting.update_setting(
+            db,
+            key="effects_schedule_enabled",
+            setting_update=SettingUpdate(value={"value": effects_schedule_enabled}),
+        )
+    else:
+        crud_setting.create_setting(
+            db,
+            setting=SettingCreate(
+                key="effects_schedule_enabled",
+                value={"value": effects_schedule_enabled},
+                description="是否启用节日特效调度",
+                category="effects",
+            ),
+        )
+
+    if request.headers.get("HX-Request"):
+        return HTMLResponse(
+            """
+        <div class="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50"
+             style="animation: slideIn 0.3s ease-out;">
+            <i class="fas fa-check-circle mr-2"></i>节日特效引擎设置已更新
+        </div>
+        <script>
+            setTimeout(() => {
+                document.querySelector('.fixed.top-4.right-4')?.remove();
+            }, 3000);
+        </script>
+        """
+        )
+
+    return JSONResponse({"success": True, "message": "节日特效引擎设置已更新"})
+
+
 
 
 
@@ -547,6 +748,7 @@ async def create_custom_theme(
 ):
     """创建自定义主题"""
     verify_csrf_token(request, csrf_token)
+    ensure_admin_user(current_user)
     
     try:
         theme_config = json.loads(theme_data)
@@ -582,9 +784,13 @@ async def delete_custom_theme(
     theme_name: str,
     request: Request,
     db: Session,
-    current_user: User
+    current_user: User,
+    csrf_token: str,
 ):
     """删除自定义主题"""
+    verify_csrf_token(request, csrf_token)
+    ensure_admin_user(current_user)
+
     custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
     if not custom_themes_setting:
         raise HTTPException(status_code=404, detail="未找到自定义主题")
@@ -606,7 +812,7 @@ async def schedule_themes(
     schedule_data: str,
     csrf_token: str
 ):
-    """更新主题调度设置"""
+    """更新节日特效调度设置"""
     verify_csrf_token(request, csrf_token)
     
     try:
@@ -621,8 +827,8 @@ async def schedule_themes(
         crud_setting.create_setting(db, setting=SettingCreate(
             key="theme_schedule",
             value={"value": schedule},
-            description="主题自动调度配置",
-            category="theme"
+            description="节日特效调度配置",
+            category="effects"
         ))
     
     return JSONResponse({"success": True, "message": "主题调度已更新"})
@@ -683,97 +889,25 @@ async def update_background_image_api(
 @router.get("/api/v1/theme/current")
 @router.get("/api/theme/current")
 async def get_current_theme(request: Request, db: Session = Depends(get_db)):
-    """获取当前主题配置（前端API）"""
+    """获取当前主题配置（前端 API）"""
     requested_theme = str(request.query_params.get("theme") or "").strip()
-
-    # 获取当前主题设置
-    theme_setting = crud_setting.get_setting(db, key="current_theme")
-    stored_theme = _extract_setting_value(theme_setting, "light")
-    
-    # 获取氛围主题
-    atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
-    current_atmosphere, current_effects = parse_atmosphere_setting(atmosphere_setting)
-    
-    # 检查是否有自动调度的主题
-    if current_atmosphere is None:
-        current_atmosphere = check_scheduled_atmosphere(db)
-    normalized_atmosphere = normalize_atmosphere_name(current_atmosphere)
-    current_effects = get_atmosphere_effects(current_atmosphere, current_effects)
-    
-    # 获取背景图片设置
-    background_setting = crud_setting.get_setting(db, key="background_image_settings")
-    background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
-    glass_intensity_setting = crud_setting.get_setting(db, key="glass_intensity")
-    glass_intensity = normalize_glass_intensity(_extract_setting_value(glass_intensity_setting, DEFAULT_GLASS_INTENSITY))
-    
-    # 构建主题配置
-    theme_variables: Dict[str, Any] = {}
-    custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
-    custom_themes = custom_themes_setting.value.get("value") if custom_themes_setting else {}
-    current_theme_source = requested_theme or stored_theme
-    current_theme = resolve_theme_name(current_theme_source, custom_themes)
-    
-    # 基础主题变量
-    if current_theme in DEFAULT_THEMES:
-        theme_variables.update(DEFAULT_THEMES[current_theme]["variables"])
-    else:
-        if current_theme in custom_themes:
-            theme_variables.update(custom_themes[current_theme]["variables"])
-        else:
-            # 默认回退到浅色主题
-            theme_variables.update(DEFAULT_THEMES["light"]["variables"])
-    
-    # 氛围主题覆盖
-    atmosphere_class = ""
-    if normalized_atmosphere and normalized_atmosphere in ATMOSPHERE_THEMES:
-        atmosphere_config = ATMOSPHERE_THEMES[normalized_atmosphere]
-        theme_variables.update(atmosphere_config["variables"])
-        atmosphere_class = atmosphere_config["css_class"]
-    
+    resolved_theme = resolve_active_theme(db, request=request, explicit_theme=requested_theme or None)
+    resolved_effects = resolve_active_effects(db)
     return JSONResponse({
-        "theme": current_theme,
-        "atmosphere": current_atmosphere,
-        "normalized_atmosphere": normalized_atmosphere,
-        "atmosphere_class": atmosphere_class,
-        "atmosphere_effects": current_effects,
-        "background": background_settings,
-        "glass_intensity": glass_intensity,
-        "variables": theme_variables
+        "theme": resolved_theme["theme_id"],
+        "theme_source": resolved_theme["theme_source"],
+        "background": resolved_theme["background"],
+        "glass_intensity": resolved_theme["glass_intensity"],
+        "variables": resolved_theme["variables"],
+        "resolved_effects": resolved_effects,
     })
-
-def check_scheduled_atmosphere(db: Session) -> Optional[str]:
-    """检查是否有计划中的氛围主题"""
-    schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
-    if not schedule_setting:
-        return None
-        
-    schedule = schedule_setting.value.get("value", []) if isinstance(schedule_setting.value, dict) else []
-    today = date.today()
-    
-    for item in schedule:
-        if not isinstance(item, dict):
-            continue
-
-        try:
-            start_date = datetime.strptime(item["start_date"], "%Y-%m-%d").date()
-            end_date = datetime.strptime(item["end_date"], "%Y-%m-%d").date()
-        except (KeyError, ValueError, TypeError):
-            continue
-
-        if start_date <= today <= end_date:
-            atmosphere = item.get("atmosphere")
-            if atmosphere:
-                return str(atmosphere).strip().lower()
-    
-    return None
 
 @router.get("/api/v1/theme/variables.css")
 @router.get("/api/theme/variables.css")
 async def theme_variables_css(request: Request, db: Session = Depends(get_db)):
-    """动态生成 CSS 变量文件，优先使用请求中显式指定的主题。"""
+    """动态生成 CSS 变量文件，仅处理主题变量。"""
     from fastapi.responses import Response
     
-    # 获取当前主题配置
     theme_response = await get_current_theme(request, db)
     theme_data = json.loads(theme_response.body)
     
@@ -782,14 +916,6 @@ async def theme_variables_css(request: Request, db: Session = Depends(get_db)):
     for var_name, var_value in theme_data["variables"].items():
         css_content += f"    {var_name}: {var_value};\n"
     css_content += "}\n"
-    
-    # 添加氛围主题样式
-    if theme_data["atmosphere_class"]:
-        css_content += f"""
-.{theme_data['atmosphere_class']} {{
-    /* 氛围主题特殊样式 */
-}}
-"""
     
     return Response(
         content=css_content,
@@ -806,29 +932,21 @@ async def update_theme_realtime(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """实时更新主题设置"""
+    """实时更新已登录用户的主题偏好。"""
     verify_csrf_token(request, csrf_token)
-    ensure_admin_user(current_user)
     
-    # 验证主题是否存在
-    normalized_default_theme = BACKWARD_COMPAT_THEME_ALIASES.get(str(theme).strip().lower(), str(theme).strip().lower())
-    if normalized_default_theme not in DEFAULT_THEMES:
-        custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
-        custom_themes = custom_themes_setting.value.get("value") if custom_themes_setting else {}
-        if theme not in custom_themes:
-            raise HTTPException(status_code=400, detail="主题不存在")
-        theme_to_save = theme
-    else:
-        theme_to_save = normalized_default_theme
-    
-    # 更新主题设置
-    theme_setting = crud_setting.get_setting(db, key="current_theme")
-    if theme_setting:
-        crud_setting.update_setting(db, key="current_theme", setting_update=SettingUpdate(value={"value": theme_to_save}))
-    else:
-        crud_setting.create_setting(db, setting=SettingCreate(key="current_theme", value={"value": theme_to_save}))
-    
-    return JSONResponse({"success": True, "theme": theme_to_save})
+    custom_themes = load_custom_themes(db)
+    theme_to_save = resolve_theme_name(theme, custom_themes)
+    if str(theme_to_save).strip() == "light" and str(theme).strip().lower() not in DEFAULT_THEMES and str(theme).strip() not in custom_themes:
+        raise HTTPException(status_code=400, detail="主题不存在")
+
+    updated_user = crud_user.set_user_theme_preference(
+        db,
+        int(current_user.id),
+        theme_preference=theme_to_save,
+    )
+    request.state.authenticated_user = updated_user
+    return JSONResponse({"success": True, "theme": theme_to_save, "theme_source": "user_preference"})
 
 @router.post("/api/v1/atmosphere/update")
 @router.post("/api/atmosphere/update")
@@ -840,18 +958,17 @@ async def update_atmosphere_realtime(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """实时更新氛围模式设置"""
+    """实时更新手动特效场景设置"""
     verify_csrf_token(request, csrf_token)
     ensure_admin_user(current_user)
     
-    # 验证氛围主题是否存在
-    if atmosphere and atmosphere not in ATMOSPHERE_THEMES:
-        raise HTTPException(status_code=400, detail="氛围主题不存在")
+    normalized_scene = normalize_effect_scene_name(atmosphere)
+    if atmosphere and not normalized_scene:
+        raise HTTPException(status_code=400, detail="特效场景不存在")
     
-    # 更新氛围设置
     atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
     atmosphere_data = {
-        "value": atmosphere,
+        "value": normalized_scene,
         "effects": effects,
         "updated_at": datetime.now().isoformat()
     }
@@ -861,49 +978,23 @@ async def update_atmosphere_realtime(
     else:
         crud_setting.create_setting(db, setting=SettingCreate(key="current_atmosphere", value=atmosphere_data))
     
-    return JSONResponse({"success": True, "atmosphere": atmosphere, "effects": effects})
+    return JSONResponse({"success": True, "scene": normalized_scene, "effects": effects})
 
 @router.get("/api/v1/theme/sync")
 @router.get("/api/theme/sync")
 async def sync_theme_settings(request: Request, db: Session = Depends(get_db)):
-    """同步主题设置 - 用于前端实时获取最新配置"""
-    # 获取当前主题
-    theme_setting = crud_setting.get_setting(db, key="current_theme")
-    custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
-    custom_themes = custom_themes_setting.value.get("value") if custom_themes_setting else {}
-    current_theme = resolve_theme_name(_extract_setting_value(theme_setting, "light"), custom_themes)
-    
-    # 获取当前氛围
-    atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
-    current_atmosphere, current_effects = parse_atmosphere_setting(atmosphere_setting)
-    if current_atmosphere is None:
-        current_atmosphere = check_scheduled_atmosphere(db)
-    current_effects = get_atmosphere_effects(current_atmosphere, current_effects)
-    normalized_atmosphere = normalize_atmosphere_name(current_atmosphere)
-
-    atmosphere_payload = None
-    if current_atmosphere:
-        atmosphere_payload = {
-            "value": current_atmosphere,
-            "normalized": normalized_atmosphere,
-            "effects": current_effects
-        }
-    
-    # 获取主页设置
+    """同步主题与特效设置。"""
+    resolved_theme = resolve_active_theme(db, request=request)
+    resolved_effects = resolve_active_effects(db)
     homepage_setting = crud_setting.get_setting(db, key="homepage_mode")
     homepage_mode = homepage_setting.value.get("value") if homepage_setting else "default"
-    
-    # 获取背景图片设置
-    background_setting = crud_setting.get_setting(db, key="background_image_settings")
-    background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
-    glass_intensity_setting = crud_setting.get_setting(db, key="glass_intensity")
-    glass_intensity = normalize_glass_intensity(_extract_setting_value(glass_intensity_setting, DEFAULT_GLASS_INTENSITY))
-    
+
     return JSONResponse({
-        "theme": current_theme,
-        "atmosphere": atmosphere_payload,
+        "theme": resolved_theme["theme_id"],
+        "theme_source": resolved_theme["theme_source"],
+        "resolved_effects": resolved_effects,
         "homepage_mode": homepage_mode,
-        "background": background_settings,
-        "glass_intensity": glass_intensity,
+        "background": resolved_theme["background"],
+        "glass_intensity": resolved_theme["glass_intensity"],
         "timestamp": datetime.now().isoformat()
     }, headers={"Cache-Control": "no-cache, must-revalidate"})

@@ -430,8 +430,11 @@
                 body.classList.add(themeName);
 
                 body.className = body.className.replace(/atmosphere-\w+/g, '').trim();
-                const atmosphereClass = config.atmosphere && config.atmosphere.normalized
-                    ? `atmosphere-${config.atmosphere.normalized}`
+                const effectsBodyClasses = Array.isArray(config.resolved_effects?.body_classes)
+                    ? config.resolved_effects.body_classes
+                    : [];
+                const atmosphereClass = effectsBodyClasses.length > 0
+                    ? effectsBodyClasses[0]
                     : '';
                 if (atmosphereClass) {
                     body.classList.add(atmosphereClass);

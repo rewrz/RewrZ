@@ -164,6 +164,8 @@ def test_sidebar_admin_pages_exist_under_dynamic_admin_path(test_db, monkeypatch
             f"{admin_prefix}/dashboard",
             f"{admin_prefix}/settings",
             f"{admin_prefix}/users",
+            f"{admin_prefix}/themes",
+            f"{admin_prefix}/effects",
             f"{admin_prefix}/comment-settings",
             f"{admin_prefix}/data-management",
             f"{admin_prefix}/security-center",
@@ -172,6 +174,42 @@ def test_sidebar_admin_pages_exist_under_dynamic_admin_path(test_db, monkeypatch
         ):
             response = client.get(path)
             assert response.status_code == 200, path
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_theme_and_effects_pages_are_split_into_independent_panels(test_db, monkeypatch):
+    client = _build_admin_client(test_db, monkeypatch)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+
+    try:
+        theme_response = client.get(f"{admin_prefix}/themes")
+        assert theme_response.status_code == 200
+        assert "主题系统边界" in theme_response.text
+        assert "基础主题设置" in theme_response.text
+        assert "自定义主题" in theme_response.text
+        assert "纪念日特效规则" not in theme_response.text
+
+        effects_response = client.get(f"{admin_prefix}/effects")
+        assert effects_response.status_code == 200
+        assert "节日特效引擎边界" in effects_response.text
+        assert "纪念日特效规则" in effects_response.text
+        assert "节日特效调度" in effects_response.text
+        assert "基础主题设置" not in effects_response.text
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_sidebar_uses_updated_menu_labels(test_db, monkeypatch):
+    client = _build_admin_client(test_db, monkeypatch)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+
+    try:
+        response = client.get(f"{admin_prefix}/settings")
+        assert response.status_code == 200
+        assert "多媒体库" in response.text
+        assert "节日特效" in response.text
+        assert "节日特效引擎" not in response.text
     finally:
         main_module.app.dependency_overrides.clear()
 

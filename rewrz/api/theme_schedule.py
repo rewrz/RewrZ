@@ -14,7 +14,7 @@ from ..crud import setting as crud_setting
 from ..core.security import ensure_admin_user, get_current_user, verify_csrf_token
 from ..schemas import User, SettingUpdate  # 这里已经正确导入了SettingUpdate
 from ..schemas import SettingCreate
-from .themes import normalize_atmosphere_name
+from .themes import normalize_effect_scene_name
 
 router = APIRouter()
 
@@ -124,7 +124,7 @@ async def get_current_theme_schedule(
                 if start_date <= today <= end_date:
                     current_schedule = {
                         **schedule,
-                        "normalized_atmosphere": normalize_atmosphere_name(schedule.get("atmosphere"))
+                        "normalized_atmosphere": normalize_effect_scene_name(schedule.get("atmosphere"))
                     }
                     break
             except (ValueError, KeyError):

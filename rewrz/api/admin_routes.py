@@ -480,7 +480,15 @@ def register_admin_primary_routes(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await themes_api.admin_themes_page(request, db, current_user)
+        return await themes_api.admin_theme_system_page(request, db, current_user)
+
+    @app.get(f"{admin_path}/effects", response_class=HTMLResponse)
+    async def dynamic_admin_effects_page(
+        request: Request,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+    ):
+        return await themes_api.admin_effects_page(request, db, current_user)
 
     @app.post(f"{admin_path}/themes/update")
     async def dynamic_update_theme(
@@ -494,9 +502,22 @@ def register_admin_primary_routes(
             db=db,
             current_user=current_user,
             current_theme=form_data.get("current_theme", "light"),
-            current_atmosphere=form_data.get("current_atmosphere"),
-            auto_theme_enabled=bool(form_data.get("auto_theme_enabled")),
             glass_intensity=form_data.get("glass_intensity", "medium"),
+            csrf_token=form_data.get("csrf_token", ""),
+        )
+
+    @app.post(f"{admin_path}/effects/update")
+    async def dynamic_update_effects(
+        request: Request,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+    ):
+        form_data = await request.form()
+        return await themes_api.update_effects_settings(
+            request=request,
+            db=db,
+            current_user=current_user,
+            effects_schedule_enabled=bool(form_data.get("effects_schedule_enabled")),
             csrf_token=form_data.get("csrf_token", ""),
         )
 
@@ -522,8 +543,9 @@ def register_admin_primary_routes(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
+        csrf_token: str = Header(..., alias="X-CSRF-Token"),
     ):
-        return await themes_api.delete_custom_theme(theme_name, request, db, current_user)
+        return await themes_api.delete_custom_theme(theme_name, request, db, current_user, csrf_token)
 
     @app.post(f"{admin_path}/themes/schedule")
     async def dynamic_schedule_themes(

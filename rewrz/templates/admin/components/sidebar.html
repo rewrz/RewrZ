@@ -39,8 +39,8 @@
         <a href="{{ admin_root }}/comments" class="admin-nav-link {% if current_path.startswith(admin_root + '/comments') %}active{% endif %}" title="评论管理">
             <i class="fas fa-comments w-5 text-center"></i><span class="admin-nav-label">评论管理</span>
         </a>
-        <a href="{{ admin_root }}/media" class="admin-nav-link {% if current_path.startswith(admin_root + '/media') and not current_path.startswith(admin_root + '/media/settings') %}active{% endif %}" title="媒体库">
-            <i class="fas fa-photo-video w-5 text-center"></i><span class="admin-nav-label">媒体库</span>
+        <a href="{{ admin_root }}/media" class="admin-nav-link {% if current_path.startswith(admin_root + '/media') and not current_path.startswith(admin_root + '/media/settings') %}active{% endif %}" title="多媒体库">
+            <i class="fas fa-photo-video w-5 text-center"></i><span class="admin-nav-label">多媒体库</span>
         </a>
 
         <div class="admin-nav-group-title">结构与标签</div>
@@ -55,8 +55,11 @@
         <a href="{{ admin_root }}/settings" class="admin-nav-link {% if current_path.startswith(admin_root + '/settings') %}active{% endif %}" title="常规设置">
             <i class="fas fa-cogs w-5 text-center"></i><span class="admin-nav-label">常规设置</span>
         </a>
-        <a href="{{ admin_root }}/themes" class="admin-nav-link {% if current_path.startswith(admin_root + '/themes') %}active{% endif %}" title="主题管理">
-            <i class="fas fa-palette w-5 text-center"></i><span class="admin-nav-label">主题管理</span>
+        <a href="{{ admin_root }}/themes" class="admin-nav-link {% if current_path.startswith(admin_root + '/themes') %}active{% endif %}" title="主题系统">
+            <i class="fas fa-palette w-5 text-center"></i><span class="admin-nav-label">主题系统</span>
+        </a>
+        <a href="{{ admin_root }}/effects" class="admin-nav-link {% if current_path.startswith(admin_root + '/effects') %}active{% endif %}" title="节日特效">
+            <i class="fas fa-hand-sparkles w-5 text-center"></i><span class="admin-nav-label">节日特效</span>
         </a>
         <a href="{{ admin_root }}/users" class="admin-nav-link {% if current_path.startswith(admin_root + '/users') %}active{% endif %}" title="用户管理">
             <i class="fas fa-user-cog w-5 text-center"></i><span class="admin-nav-label">用户管理</span>

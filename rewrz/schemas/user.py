@@ -19,6 +19,7 @@ class UserUpdate(UserBase):
     display_name: Optional[str] = None
     bio: Optional[str] = None
     website: Optional[str] = None
+    theme_preference: Optional[str] = None
 
 class UserAvatarUpdate(BaseModel):
     """用户头像更新模型"""
@@ -57,6 +58,7 @@ class User(UserBase):
     avatar_url: Optional[str] = None
     avatar_filename: Optional[str] = None
     use_gravatar: str = "auto" # 修改为str类型，默认值为"auto"
+    theme_preference: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     last_login_at: Optional[datetime] = None

@@ -472,9 +472,13 @@ app.include_router(theme_schedule_api.router, prefix="/api")
 # 抽取：构建全局请求上下文（初始化默认值、读取设置、主题调度/纪念日、后台路径）
 def _populate_global_request_state(request: Request) -> None:
     # 初始化全局上下文变量
-    request.state.atmosphere_class = ""
+    request.state.effect_body_class = ""
     request.state.current_atmosphere = None
+    request.state.current_effect_scene = None
+    request.state.current_effects = []
+    request.state.effects_source = "none"
     request.state.current_theme = "light"
+    request.state.current_theme_source = "site_default"
     request.state.glass_intensity = "medium"
     request.state.background_image_settings = {"type": "none", "custom_url": None}
     request.state.site_title = DEFAULT_BASE_SETTINGS["site_title"]
@@ -507,78 +511,17 @@ def _populate_global_request_state(request: Request) -> None:
         all_settings = crud_setting.get_settings_by_keys(db, list(settings_keys.keys()))
         for key, default_value in settings_keys.items():
             setattr(request.state, key, all_settings.get(key, default_value))
-        request.state.current_theme = themes_api.normalize_theme_name(all_settings.get("current_theme", "light"))
-        request.state.glass_intensity = themes_api.normalize_glass_intensity(all_settings.get("glass_intensity", "medium"))
-        request.state.background_image_settings = all_settings.get(
-            "background_image_settings",
-            {"type": "none", "custom_url": None},
-        ) or {"type": "none", "custom_url": None}
-
-        # 氛围模式优先级：纪念日氛围 > 前端明暗模式 > 主题管理调度
-        
-        # 1. 最高优先级：检查纪念日氛围模式
-        # 优先检查 anniversaries_json（常规设置），然后检查 anniversaries（旧版本兼容）
-        anniversaries_setting = crud_setting.get_setting(db, key="anniversaries_json")
-        if not anniversaries_setting:
-            anniversaries_setting = crud_setting.get_setting(db, key="anniversaries")
-        
-        anniversary_atmosphere = None
-        if anniversaries_setting and anniversaries_setting.value:
-            try:
-                anniversaries_raw = anniversaries_setting.value
-                if isinstance(anniversaries_raw, dict):
-                    anniversaries_raw = anniversaries_raw.get("value", anniversaries_raw)
-                if isinstance(anniversaries_raw, str):
-                    anniversaries = json.loads(anniversaries_raw)
-                elif isinstance(anniversaries_raw, list):
-                    anniversaries = anniversaries_raw
-                else:
-                    anniversaries = []
-                
-                today = date.today()
-                for anniversary in anniversaries:
-                    if isinstance(anniversary, dict) and "month" in anniversary and "day" in anniversary and "type" in anniversary:
-                        try:
-                            if anniversary["month"] == today.month and anniversary["day"] == today.day:
-                                anniversary_atmosphere = themes_api.normalize_atmosphere_name(anniversary['type'])
-                                break
-                        except (KeyError, TypeError):
-                            continue
-            except (json.JSONDecodeError, KeyError, TypeError, ValueError):
-                # 如果解析失败，忽略纪念日设置
-                pass
-        
-        # 如果有纪念日氛围，直接应用（最高优先级）
-        if anniversary_atmosphere:
-            request.state.current_atmosphere = anniversary_atmosphere
-            request.state.atmosphere_class = f"atmosphere-{anniversary_atmosphere}"
-        else:
-            # 2. 中等优先级：前端用户明暗模式切换（由前端JavaScript处理）
-            # 这里不设置atmosphere_class，让前端JavaScript根据用户偏好处理
-            
-            # 3. 最低优先级：检查主题管理中的调度设置
-            scheduled_atmosphere = None
-            schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
-            if schedule_setting and schedule_setting.value:
-                schedule = schedule_setting.value.get("value", [])
-                today = date.today()
-                
-                for item in schedule:
-                    if isinstance(item, dict) and "start_date" in item and "end_date" in item:
-                        try:
-                            start_date = datetime.strptime(item["start_date"], "%Y-%m-%d").date()
-                            end_date = datetime.strptime(item["end_date"], "%Y-%m-%d").date()
-                            
-                            if start_date <= today <= end_date:
-                                scheduled_atmosphere = themes_api.normalize_atmosphere_name(item.get("atmosphere"))
-                                break
-                        except (ValueError, KeyError):
-                            continue
-            
-            # 仅在没有纪念日氛围时应用调度氛围
-            if scheduled_atmosphere:
-                request.state.current_atmosphere = scheduled_atmosphere
-                request.state.atmosphere_class = f"atmosphere-{scheduled_atmosphere}"
+        resolved_theme = themes_api.resolve_active_theme(db, request=request)
+        resolved_effects = themes_api.resolve_active_effects(db)
+        request.state.current_theme = resolved_theme["theme_id"]
+        request.state.current_theme_source = resolved_theme["theme_source"]
+        request.state.glass_intensity = resolved_theme["glass_intensity"]
+        request.state.background_image_settings = resolved_theme["background"]
+        request.state.current_atmosphere = resolved_effects["scene"]
+        request.state.current_effect_scene = resolved_effects["scene"]
+        request.state.current_effects = resolved_effects["effects"]
+        request.state.effects_source = resolved_effects["source"]
+        request.state.effect_body_class = resolved_effects["body_classes"][0] if resolved_effects["body_classes"] else ""
     finally:
         try:
             if db_gen is not None:
@@ -634,6 +577,7 @@ async def add_global_context(request: Request, call_next):
         request.state.db = None
 
     try:
+        request.state.authenticated_user = auth_api._resolve_optional_authenticated_user(request, request.state.db) if request.state.db is not None else None
         # 构建全局上下文并确保 CSRF 令牌
         _populate_global_request_state(request)
         _ensure_csrf_token(request)

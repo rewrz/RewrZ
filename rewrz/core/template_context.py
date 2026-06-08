@@ -152,9 +152,21 @@ def build_base_template_context(request: Request) -> dict:
         getattr(request.state, "current_theme", None),
         custom_themes,
     )
-    current_atmosphere = themes_api.normalize_atmosphere_name(getattr(request.state, "current_atmosphere", None))
+    current_effect_scene = themes_api.normalize_effect_scene_name(getattr(request.state, "current_effect_scene", None))
     background_settings = getattr(request.state, "background_image_settings", {"type": "none", "custom_url": None}) or {"type": "none", "custom_url": None}
     glass_intensity = themes_api.normalize_glass_intensity(getattr(request.state, "glass_intensity", "medium"))
+    resolved_theme = {
+        "theme_id": current_theme,
+        "theme_source": getattr(request.state, "current_theme_source", "site_default"),
+        "glass_intensity": glass_intensity,
+        "background": background_settings,
+    }
+    resolved_effects = {
+        "scene": current_effect_scene,
+        "source": getattr(request.state, "effects_source", "none"),
+        "effects": getattr(request.state, "current_effects", []),
+        "body_classes": [getattr(request.state, "effect_body_class", "")] if getattr(request.state, "effect_body_class", "") else [],
+    }
     
     # 构建上下文，优先使用结构化的设置数据，回退到平铺字段（向后兼容）
     current_year = datetime.now().year
@@ -166,11 +178,13 @@ def build_base_template_context(request: Request) -> dict:
         "settings": settings,  # 新增：结构化的设置对象
         
         # 保持向后兼容性：继续提供平铺的字段
-        "atmosphere_class": getattr(request.state, "atmosphere_class", ""),
+        "atmosphere_class": getattr(request.state, "effect_body_class", ""),
         "current_theme": current_theme,
-        "current_atmosphere": current_atmosphere,
+        "current_atmosphere": current_effect_scene,
         "glass_intensity": glass_intensity,
         "background_image_settings": background_settings,
+        "resolved_theme": resolved_theme,
+        "resolved_effects": resolved_effects,
         "theme_csrf_token": getattr(request.state, "csrf_token", ""),
         "theme_persist_allowed": theme_persist_allowed,
         "site_title": settings.get("site", {}).get("title") or getattr(request.state, "site_title", DEFAULT_BASE_SETTINGS["site_title"]),

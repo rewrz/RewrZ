@@ -182,6 +182,7 @@ class SiteShellController {
     this.hljsThemeLink = document.getElementById('hljs-theme-link');
     this.theme = this.root.dataset.currentTheme || this.body?.dataset.currentTheme || 'light';
     this.atmosphereClass = this.body?.dataset.atmosphereClass || '';
+    this.activeEffects = this.parseBodyEffects();
     this.themeCsrfToken = this.body?.dataset.themeCsrfToken || '';
     this.canPersistTheme = this.body?.dataset.themePersistAllowed === 'true';
     this.backgroundType = this.body?.dataset.backgroundType || 'none';
@@ -193,13 +194,10 @@ class SiteShellController {
     this.themeSyncInFlight = null;
   }
 
-  isUserThemePreferred() {
-    return Boolean(this.getStoredThemePreference());
-  }
-
   init() {
     this.applyTheme(this.theme, { persist: false, sync: false, announce: false });
     this.applyAtmosphere(this.atmosphereClass);
+    this.applyEffects(this.activeEffects);
     this.applyBackground();
     this.applyHomepageMode();
     this.bindThemeToggle();
@@ -221,17 +219,18 @@ class SiteShellController {
     return AVAILABLE_THEMES.includes(theme) ? theme : 'light';
   }
 
-  getThemeMeta(theme) {
-    return THEME_UI_META[theme] || { name: theme || '浅色', icon: 'fa-palette' };
+  parseBodyEffects() {
+    try {
+      const raw = this.body?.dataset.activeEffects || '[]';
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
   }
 
-  getStoredThemePreference() {
-    try {
-      const value = localStorage.getItem('rewrz-theme') || localStorage.getItem('user_theme_preference') || '';
-      return this.normalizeTheme(value);
-    } catch (_) {
-      return '';
-    }
+  getThemeMeta(theme) {
+    return THEME_UI_META[theme] || { name: theme || '浅色', icon: 'fa-palette' };
   }
 
   hexToRgb(hex) {
@@ -401,11 +400,6 @@ class SiteShellController {
     this.refreshHighlightTheme(normalizedTheme);
     this.updateThemeToggleUI(normalizedTheme);
 
-    if (options.persist !== false) {
-      localStorage.setItem('rewrz-theme', normalizedTheme);
-      localStorage.setItem('user_theme_preference', normalizedTheme);
-    }
-
     if (options.sync) {
       this.persistThemeToBackend(normalizedTheme);
     }
@@ -462,6 +456,20 @@ class SiteShellController {
       this.body.dataset.atmosphereClass = className;
     } else {
       delete this.body.dataset.atmosphereClass;
+    }
+  }
+
+  async applyEffects(effects) {
+    this.activeEffects = Array.isArray(effects) ? effects : [];
+    if (this.body) {
+      this.body.dataset.activeEffects = JSON.stringify(this.activeEffects);
+    }
+    if (!window.effectManager) {
+      return;
+    }
+    window.effectManager.stopAll();
+    for (const effectName of this.activeEffects) {
+      await window.effectManager.startEffect(effectName);
     }
   }
 
@@ -622,15 +630,14 @@ class SiteShellController {
       if (!response.ok) return;
       const payload = await response.json();
 
-      const hasAtmosphere = Boolean(payload.atmosphere && payload.atmosphere.normalized);
-      const shouldRespectUserTheme = !hasAtmosphere && this.isUserThemePreferred();
-      if (!shouldRespectUserTheme && payload.theme && payload.theme !== this.theme) {
+      if (payload.theme && payload.theme !== this.theme) {
         this.applyTheme(payload.theme, { persist: true, sync: false, announce: false, source: 'theme-sync' });
       }
-      const nextAtmosphereClass = payload.atmosphere && payload.atmosphere.normalized
-        ? `atmosphere-${payload.atmosphere.normalized}`
+      const nextAtmosphereClass = Array.isArray(payload.resolved_effects?.body_classes) && payload.resolved_effects.body_classes.length > 0
+        ? payload.resolved_effects.body_classes[0]
         : '';
       this.applyAtmosphere(nextAtmosphereClass);
+      await this.applyEffects(payload.resolved_effects?.effects || []);
       this.backgroundType = payload.background?.type || 'none';
       this.backgroundUrl = payload.background?.custom_url || '';
       this.pageBackgroundUrl = this.body?.dataset.pageBackgroundUrl || this.pageBackgroundUrl || '';

@@ -24,17 +24,9 @@
         (function() {
             var doc = document.documentElement;
             var darkThemes = ['dark', 'galaxy'];
-            var bodyTheme = {{ current_theme | tojson }};
-            var theme = bodyTheme || 'light';
-            var storedTheme = '';
-            try {
-                storedTheme = localStorage.getItem('rewrz-theme') || localStorage.getItem('user_theme_preference') || '';
-            } catch (_) {
-                storedTheme = '';
-            }
-            theme = storedTheme || bodyTheme || 'light';
+            var theme = {{ current_theme | tojson }} || 'light';
             doc.dataset.currentTheme = theme;
-            doc.dataset.themeSource = storedTheme ? 'user-preference' : 'server';
+            doc.dataset.themeSource = {{ resolved_theme.theme_source | tojson if resolved_theme else '"site_default"' }};
             doc.classList.add(theme);
             if (darkThemes.indexOf(theme) >= 0) {
                 doc.classList.add('dark');
@@ -142,8 +134,9 @@
       data-current-theme="{{ current_theme }}"
       data-page-background-url="{{ page_background_image_url if page_background_image_url else '' }}"
       data-atmosphere-class="{{ atmosphere_class if atmosphere_class else '' }}"
+      data-active-effects='{{ resolved_effects.effects | tojson if resolved_effects else "[]" }}'
       data-theme-csrf-token="{{ theme_csrf_token }}"
-      data-theme-persist-allowed="{{ 'true' if theme_persist_allowed else 'false' }}"
+      data-theme-persist-allowed="{{ 'true' if is_logged_in else 'false' }}"
       data-background-type="{{ background_image_settings.type if background_image_settings else 'none' }}"
       data-background-url="{{ background_image_settings.custom_url if background_image_settings and background_image_settings.custom_url else '' }}"
       data-homepage-mode="{{ homepage_mode if homepage_mode else 'default' }}">
@@ -622,6 +615,7 @@
         });
     </script>
     <script src="{{ static_asset(request, 'js/site-shell.js') }}" defer></script>
+    <script src="{{ static_asset(request, 'js/effects/effect-manager.js') }}" defer></script>
     <script type="module" src="{{ static_asset(request, 'js/multi-format-interactions.js') }}"></script>
     <script type="module" src="{{ static_asset(request, 'js/ui-enhancements.js') }}"></script>
     {% block scripts %}{% endblock %}

@@ -211,3 +211,14 @@ def force_logout_user(db: Session, user_id: int):
         db.commit()
         db.refresh(db_user)
     return db_user
+
+
+def set_user_theme_preference(db: Session, user_id: int, *, theme_preference: str | None):
+    """更新用户的主题偏好。"""
+    db_user = get_user(db, user_id)
+    if db_user:
+        normalized_value = str(theme_preference or "").strip() or None
+        db_user.theme_preference = normalized_value
+        db.commit()
+        db.refresh(db_user)
+    return db_user

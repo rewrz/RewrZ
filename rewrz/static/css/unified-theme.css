@@ -847,14 +847,14 @@ body.admin-app {
     flex-shrink: 0;
     position: sticky;
     top: 0;
-    height: 100vh;
-    padding: 1rem 1rem 1.2rem;
+    align-self: flex-start;
+    min-height: 100vh;
+    padding: 1rem 1rem 1.5rem;
     border-right: 1px solid var(--ui-border);
     background:
         linear-gradient(150deg, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 38%),
         color-mix(in srgb, var(--color-card-bg) 94%, transparent);
     backdrop-filter: blur(14px);
-    overflow-y: auto;
     transition: width var(--anime-normal) var(--anime-smooth), padding var(--anime-normal) var(--anime-smooth), transform var(--anime-normal) var(--anime-smooth);
 }
 
@@ -1365,7 +1365,7 @@ body.site-shell > footer a:hover {
 /* 后台侧边栏悬浮动画 */
 .admin-sidebar-shell {
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .admin-sidebar-shell::before {
@@ -3042,6 +3042,10 @@ body.site-shell .media-external-box {
         padding-right: 0.7rem;
     }
 
+    .admin-shell.is-sidebar-collapsed .admin-main-shell {
+        padding-left: 0.7rem;
+    }
+
     .admin-shell.is-sidebar-collapsed .admin-logo-link {
         justify-content: center;
         padding-left: 0.45rem;
@@ -3088,7 +3092,7 @@ body.site-shell .media-external-box {
 }
 
 .admin-sidebar-nav {
-    padding-bottom: 1.2rem;
+    padding-bottom: 0.5rem;
 }
 
 .admin-logo-link {
@@ -3107,12 +3111,14 @@ body.site-shell .media-external-box {
         left: 0;
         width: min(82vw, 310px);
         height: 100vh;
+        min-height: 100vh;
         z-index: 70;
         transform: translateX(-105%);
         transition: transform var(--anime-normal) var(--anime-smooth);
         border-right: 1px solid var(--ui-border);
         border-bottom: none;
         box-shadow: var(--ui-shadow-card);
+        padding-bottom: 1.5rem;
     }
 
     .admin-sidebar-shell.is-open {
