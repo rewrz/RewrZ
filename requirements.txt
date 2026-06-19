@@ -1,6 +1,6 @@
 aiohttp==3.13.3
 beautifulsoup4==4.14.3
-bleach==6.3.0
+bleach==6.4.0
 cachetools==7.0.1
 fastapi==0.133.0
 Jinja2==3.1.6
