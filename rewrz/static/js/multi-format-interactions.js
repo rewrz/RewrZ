@@ -16,32 +16,40 @@ class MultiFormatInteractions {
     }
 
     init() {
-        this.initMicroPosts();
-        this.initMicroArchiveActions();
-        this.initPhotoAlbums();
-        this.initVideoPlayers();
-        this.initAudioPlayers();
-        this.initMediaPlayers();
-        this.initLazyLoading();
-        this.initInfiniteScroll();
-        this.initImageGallery();
-        this.initResponsiveGrid();
-        this.adjustImageGrid();
-        this.initReactionSystem();
-        this.initPoetryFeatures();
-        this.initGalleryFeatures();
-        this.initVideoFeatures();
-        this.initLightboxFromDataset();
-        this.initMicroDetailActions();
-        this.initPoetryAutoScroll();
-        this.initVideoTheaterMode();
-        this.initReadingProgress();
-        this.initFloatingTocPanels();
-        this.initTocHighlight();
-        this.initKeyboardNavigation();
-        this.bindGlobalHtmxHooks();
-        this.bindReactionMenuDismiss();
+        this.runInitStep('微博内容', () => this.initMicroPosts());
+        this.runInitStep('微博归档动作', () => this.initMicroArchiveActions());
+        this.runInitStep('相册布局', () => this.initPhotoAlbums());
+        this.runInitStep('视频播放器', () => this.initVideoPlayers());
+        this.runInitStep('音频播放器', () => this.initAudioPlayers());
+        this.runInitStep('媒体播放器', () => this.initMediaPlayers());
+        this.runInitStep('懒加载', () => this.initLazyLoading());
+        this.runInitStep('无限滚动', () => this.initInfiniteScroll());
+        this.runInitStep('图片画廊', () => this.initImageGallery());
+        this.runInitStep('响应式网格', () => this.initResponsiveGrid());
+        this.runInitStep('图片网格收口', () => this.adjustImageGrid());
+        this.runInitStep('互动系统', () => this.initReactionSystem());
+        this.runInitStep('诗词功能', () => this.initPoetryFeatures());
+        this.runInitStep('画廊增强', () => this.initGalleryFeatures());
+        this.runInitStep('视频增强', () => this.initVideoFeatures());
+        this.runInitStep('灯箱', () => this.initLightboxFromDataset());
+        this.runInitStep('微博详情动作', () => this.initMicroDetailActions());
+        this.runInitStep('诗词自动滚动', () => this.initPoetryAutoScroll());
+        this.runInitStep('视频影院模式', () => this.initVideoTheaterMode());
+        this.runInitStep('阅读进度', () => this.initReadingProgress());
+        this.runInitStep('悬浮目录', () => this.initFloatingTocPanels());
+        this.runInitStep('目录高亮', () => this.initTocHighlight());
+        this.runInitStep('键盘导航', () => this.initKeyboardNavigation());
+        this.runInitStep('HTMX 钩子', () => this.bindGlobalHtmxHooks());
+        this.runInitStep('表态菜单收口', () => this.bindReactionMenuDismiss());
         window.addEventListener('resize', () => this.adjustImageGrid(), { passive: true });
+    }
+
+    runInitStep(stepName, handler) {
+        try {
+            handler();
+        } catch (error) {
+            console.error(`初始化${stepName}失败:`, error);
+        }
     }
 
     /**
@@ -148,6 +156,9 @@ class MultiFormatInteractions {
     openReactionMenu(menu, toggle) {
         if (!menu || !toggle) return;
         this.closeAllReactionMenus(menu);
+        if (menu.parentElement !== document.body) {
+            document.body.appendChild(menu);
+        }
         menu.classList.remove('hidden');
         menu.dataset.open = '1';
         menu.style.visibility = 'hidden';
@@ -1182,16 +1193,26 @@ class MultiFormatInteractions {
             const normalizedIndex = Math.max(0, Math.min(index, groups.length - 1));
 
             const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 z-[70] bg-black/90 flex items-center justify-center p-4';
+            modal.dataset.lightboxModal = '1';
+            modal.style.cssText = `
+                position: fixed;
+                inset: 0;
+                z-index: 220;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 1rem;
+                background: rgba(0, 0, 0, 0.9);
+            `;
             modal.innerHTML = `
-                <button type="button" class="absolute top-4 right-6 text-white text-4xl leading-none" data-close-lightbox>&times;</button>
-                <button type="button" class="absolute left-3 md:left-6 text-white text-3xl px-3 py-2 bg-black/35 rounded-lg" data-lightbox-prev><i class="fas fa-chevron-left"></i></button>
-                <div class="relative max-w-6xl w-full">
-                    <img data-lightbox-img class="max-h-[84vh] w-full object-contain rounded-lg" />
-                    <div class="mt-3 text-center text-sm text-white/80" data-lightbox-title></div>
-                    <div class="mt-1 text-center text-xs text-white/60" data-lightbox-counter></div>
+                <button type="button" data-close-lightbox aria-label="关闭大图" style="position:absolute;top:1rem;right:1.5rem;border:none;background:transparent;color:#fff;font-size:2.25rem;line-height:1;cursor:pointer;">&times;</button>
+                <button type="button" data-lightbox-prev aria-label="上一张" style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);border:none;border-radius:0.75rem;background:rgba(0,0,0,0.35);color:#fff;font-size:1.875rem;padding:0.5rem 0.85rem;cursor:pointer;"><i class="fas fa-chevron-left"></i></button>
+                <div style="position:relative;width:100%;max-width:72rem;">
+                    <img data-lightbox-img style="display:block;width:100%;max-height:84vh;object-fit:contain;border-radius:0.75rem;" />
+                    <div data-lightbox-title style="margin-top:0.75rem;text-align:center;font-size:0.875rem;color:rgba(255,255,255,0.82);"></div>
+                    <div data-lightbox-counter style="margin-top:0.25rem;text-align:center;font-size:0.75rem;color:rgba(255,255,255,0.62);"></div>
                 </div>
-                <button type="button" class="absolute right-3 md:right-6 text-white text-3xl px-3 py-2 bg-black/35 rounded-lg" data-lightbox-next><i class="fas fa-chevron-right"></i></button>
+                <button type="button" data-lightbox-next aria-label="下一张" style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);border:none;border-radius:0.75rem;background:rgba(0,0,0,0.35);color:#fff;font-size:1.875rem;padding:0.5rem 0.85rem;cursor:pointer;"><i class="fas fa-chevron-right"></i></button>
             `;
             document.body.appendChild(modal);
             document.body.classList.add('overflow-hidden');
@@ -1662,11 +1683,20 @@ class MultiFormatInteractions {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    if (!window.multiFormatInteractions) {
+const bootstrapMultiFormatInteractions = () => {
+    if (window.multiFormatInteractions) return;
+    try {
         window.multiFormatInteractions = new MultiFormatInteractions();
+    } catch (error) {
+        console.error('初始化多格式交互系统失败:', error);
     }
-});
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrapMultiFormatInteractions, { once: true });
+} else {
+    bootstrapMultiFormatInteractions();
+}
 
 export default MultiFormatInteractions;
 

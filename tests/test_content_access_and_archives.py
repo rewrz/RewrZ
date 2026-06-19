@@ -243,6 +243,89 @@ def test_get_posts_by_media_attachment_uses_persisted_summary_filters(db: Sessio
     assert [post.slug for post in video_posts] == ["video-post"]
 
 
+def test_public_media_attachment_queries_exclude_private_and_password_posts(db: Session, test_user: User):
+    posts = [
+        Post(
+            title="公开图片",
+            slug="public-image-post",
+            content_markdown="x",
+            content_html='<p><img src="/media/a.jpg"></p>',
+            excerpt="x",
+            featured_image_url=None,
+            media_attachment_summary={
+                "images": True,
+                "gallery": False,
+                "videos": False,
+                "link": False,
+                "audio": False,
+                "image_count": 1,
+                "image_urls": ["/media/a.jpg"],
+                "external_links": [],
+                "flags": {"images": True, "gallery": False, "videos": False, "link": False, "audio": False},
+            },
+            post_type="post",
+            status="published",
+            visibility="public",
+            author_id=test_user.id,
+            published_at=datetime(2026, 3, 1, 10, 0, 0),
+        ),
+        Post(
+            title="私密图片",
+            slug="private-image-post",
+            content_markdown="y",
+            content_html='<p><img src="/media/b.jpg"></p>',
+            excerpt="y",
+            featured_image_url=None,
+            media_attachment_summary={
+                "images": True,
+                "gallery": False,
+                "videos": False,
+                "link": False,
+                "audio": False,
+                "image_count": 1,
+                "image_urls": ["/media/b.jpg"],
+                "external_links": [],
+                "flags": {"images": True, "gallery": False, "videos": False, "link": False, "audio": False},
+            },
+            post_type="post",
+            status="published",
+            visibility="private",
+            author_id=test_user.id,
+            published_at=datetime(2026, 3, 2, 10, 0, 0),
+        ),
+        Post(
+            title="密码图片",
+            slug="password-image-post",
+            content_markdown="z",
+            content_html='<p><img src="/media/c.jpg"></p>',
+            excerpt="z",
+            featured_image_url=None,
+            media_attachment_summary={
+                "images": True,
+                "gallery": False,
+                "videos": False,
+                "link": False,
+                "audio": False,
+                "image_count": 1,
+                "image_urls": ["/media/c.jpg"],
+                "external_links": [],
+                "flags": {"images": True, "gallery": False, "videos": False, "link": False, "audio": False},
+            },
+            post_type="post",
+            status="published",
+            visibility="password",
+            author_id=test_user.id,
+            published_at=datetime(2026, 3, 3, 10, 0, 0),
+        ),
+    ]
+    db.add_all(posts)
+    db.commit()
+
+    assert crud_post.count_posts_by_media_attachment(db, "images") == 1
+    image_posts = crud_post.get_posts_by_media_attachment(db, "images")
+    assert [post.slug for post in image_posts] == ["public-image-post"]
+
+
 def test_get_posts_by_tag_filters_published_articles(db: Session, test_user: User):
     tag = Tag(name="TagA", slug="tag-a")
     db.add(tag)

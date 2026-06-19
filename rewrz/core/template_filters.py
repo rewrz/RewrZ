@@ -24,6 +24,7 @@ from .content_utils import (
     markdown_to_plain_text,
     html_to_plain_text,
 )
+from .content_access import strip_hide_blocks
 from .micro_text import enhance_micro_html
 from .content_intents import choose_primary_intent_slug, to_public_post_segment
 from ..core.config import settings # 导入settings
@@ -599,6 +600,26 @@ def post_content_html_filter(post_obj, db=None) -> str:
     return html_content
 
 
+def post_public_content_html_filter(post_obj, db=None) -> str:
+    if not post_obj:
+        return ""
+    raw_markdown = getattr(post_obj, "content_markdown", "") or ""
+    raw_html = getattr(post_obj, "content_html", "") or ""
+    sanitized_markdown = strip_hide_blocks(raw_markdown)
+    if sanitized_markdown != raw_markdown:
+        html_content = get_effective_content_html(sanitized_markdown, "")
+    else:
+        html_content = get_effective_content_html(raw_markdown, raw_html)
+
+    format_slugs = [
+        str(getattr(fmt, "slug", "") or "").strip().lower()
+        for fmt in getattr(post_obj, "formats", []) or []
+    ]
+    if "micro" in format_slugs:
+        return enhance_micro_html(html_content, db)
+    return html_content
+
+
 def post_preview_text_filter(post_obj, length: int = 200) -> str:
     if not post_obj:
         return ""
@@ -620,6 +641,17 @@ def post_plain_text_filter(post_obj) -> str:
     )
 
 
+def post_public_plain_text_filter(post_obj) -> str:
+    if not post_obj:
+        return ""
+    raw_markdown = getattr(post_obj, "content_markdown", "") or ""
+    raw_html = getattr(post_obj, "content_html", "") or ""
+    sanitized_markdown = strip_hide_blocks(raw_markdown)
+    if sanitized_markdown != raw_markdown:
+        return get_effective_plain_text(sanitized_markdown, "")
+    return get_effective_plain_text(raw_markdown, raw_html)
+
+
 def post_summary_text_filter(post_obj, length: int = 200) -> str:
     if not post_obj:
         return ""
@@ -630,7 +662,7 @@ def post_summary_text_filter(post_obj, length: int = 200) -> str:
             return normalized_excerpt
         return f"{normalized_excerpt[:length]}..."
 
-    plain_text = post_plain_text_filter(post_obj)
+    plain_text = post_public_plain_text_filter(post_obj)
     if len(plain_text) <= length:
         return plain_text
     return f"{plain_text[:length]}..."
@@ -832,8 +864,10 @@ def register_template_filters(app):
     templates.env.filters['url'] = url_filter # 注册url过滤器
     templates.env.filters['fa_compat'] = fa_compat_filter # 注册Font Awesome兼容过滤器
     templates.env.filters['post_content_html'] = post_content_html_filter
+    templates.env.filters['post_public_content_html'] = post_public_content_html_filter
     templates.env.filters['post_preview_text'] = post_preview_text_filter
     templates.env.filters['post_plain_text'] = post_plain_text_filter
+    templates.env.filters['post_public_plain_text'] = post_public_plain_text_filter
     templates.env.filters['post_summary_text'] = post_summary_text_filter
     templates.env.filters['strip_media_nodes'] = strip_media_nodes_filter
     templates.env.globals['static_asset'] = static_asset
@@ -876,8 +910,10 @@ def get_templates():
         _templates.env.filters['fa_compat'] = fa_compat_filter # 注册Font Awesome兼容过滤器
         _templates.env.filters['post_url'] = post_url_filter # 注册文章URL生成过滤器
         _templates.env.filters['post_content_html'] = post_content_html_filter
+        _templates.env.filters['post_public_content_html'] = post_public_content_html_filter
         _templates.env.filters['post_preview_text'] = post_preview_text_filter
         _templates.env.filters['post_plain_text'] = post_plain_text_filter
+        _templates.env.filters['post_public_plain_text'] = post_public_plain_text_filter
         _templates.env.filters['post_summary_text'] = post_summary_text_filter
         _templates.env.filters['strip_media_nodes'] = strip_media_nodes_filter
         _templates.env.globals['static_asset'] = static_asset

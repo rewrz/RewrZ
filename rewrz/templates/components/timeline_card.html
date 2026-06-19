@@ -5,7 +5,7 @@
 {% set is_poem = 'poem' in format_slugs %}
 
 {% set template_db = db if db is defined and db else request.state.db %}
-{% set rendered_html = post | post_content_html(template_db) %}
+{% set rendered_html = post | post_public_content_html(template_db) %}
 {% set content_images = (rendered_html | extract_image_urls(post.featured_image_url)) if rendered_html else [] %}
 {% set has_featured_image = post.featured_image_url and post.featured_image_url != 'None' %}
 {% set has_video = rendered_html and ('<video' in rendered_html or 'youtube.com' in rendered_html or 'bilibili.com' in rendered_html or 'vimeo.com' in rendered_html) %}
@@ -19,7 +19,7 @@
             <span class="timeline-card-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
                 <i class="fas fa-comment-dots mr-1"></i>微博
             </span>
-            <span class="timeline-card-meta-text text-sm">{{ post.published_at.strftime('%m月%d日 %H:%M') }}</span>
+            <span class="timeline-card-meta-text text-sm"><i class="far fa-calendar-alt mr-1"></i>{{ post.published_at.strftime('%m月%d日 %H:%M') }}</span>
         </div>
         <span class="timeline-card-meta-text text-xs"><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
     </div>
@@ -92,7 +92,7 @@
         <span class="archive-card-poem-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
             <i class="fas fa-feather-alt mr-1"></i>诗词歌赋
         </span>
-        <span class="archive-card-poem-date text-xs">{{ post.published_at.strftime('%Y-%m-%d') }}</span>
+        <span class="archive-card-poem-date text-xs"><i class="far fa-calendar-alt mr-1"></i>{{ post.published_at.strftime('%Y-%m-%d') }}</span>
     </div>
 
     {% if has_featured_image %}
@@ -133,7 +133,7 @@
             {% endif %}
         </div>
         <div class="archive-card-poem-meta-text flex flex-wrap items-center gap-3 text-xs">
-            <span><i class="far fa-clock mr-1"></i>更新 {{ poem_updated_at.strftime('%Y-%m-%d') if poem_updated_at else '-' }}</span>
+            <span><i class="far fa-clock mr-1"></i>{{ poem_updated_at.strftime('%Y-%m-%d') if poem_updated_at else '-' }}</span>
             <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
             <a href="{{ post | post_url }}" class="archive-card-poem-link hover:underline">阅读</a>
         </div>
@@ -169,7 +169,7 @@
             <span class="timeline-card-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
                 <i class="fas fa-file-alt mr-1"></i>文章
             </span>
-            <span class="timeline-card-meta-text text-xs">{{ post.published_at.strftime('%Y-%m-%d') }}</span>
+            <span class="timeline-card-meta-text text-xs"><i class="far fa-calendar-alt mr-1"></i>{{ post.published_at.strftime('%Y-%m-%d') }}</span>
         </div>
 
         {% if post.title and post.title.strip() %}

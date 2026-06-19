@@ -11,12 +11,14 @@
         {% include "components/list_pagination.html" %}
     </div>
     {% elif is_article %}
-    <div class="archive-grid-equal grid grid-cols-1 gap-6 md:grid-cols-2">
-        {% for post in posts %}
-        {% set article_cover_url_map = archive_cover_url_map if archive_cover_url_map is defined else {} %}
-        {% set post_archive_cover_url = article_cover_url_map.get(post.id, '') if article_cover_url_map else '' %}
-        {% include "components/article_archive_card.html" %}
-        {% endfor %}
+    <div class="mt-6">
+        <div class="archive-grid-equal grid grid-cols-1 gap-6 md:grid-cols-2">
+            {% for post in posts %}
+            {% set article_cover_url_map = archive_cover_url_map if archive_cover_url_map is defined else {} %}
+            {% set post_archive_cover_url = article_cover_url_map.get(post.id, '') if article_cover_url_map else '' %}
+            {% include "components/article_archive_card.html" %}
+            {% endfor %}
+        </div>
     </div>
     {% elif is_poem %}
     <div class="archive-grid-equal grid grid-cols-1 gap-5 md:grid-cols-2">

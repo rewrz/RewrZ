@@ -166,6 +166,8 @@ def register_admin_primary_routes(
     @app.get(f"{admin_path}/users", response_class=HTMLResponse)
     async def dynamic_admin_users_page(
         request: Request,
+        page: int = 1,
+        page_size: Optional[int] = None,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
@@ -1328,6 +1330,8 @@ def register_admin_primary_routes(
     @app.get(f"{admin_path}/security-center", response_class=HTMLResponse)
     async def dynamic_admin_security_center_page(
         request: Request,
+        page: int = 1,
+        page_size: Optional[int] = None,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
@@ -1342,6 +1346,8 @@ def register_admin_primary_routes(
         login_ban_minutes: int = Form(15),
         new_ip_login_alert_enabled: bool = Form(False),
         comment_rate_limit_per_min: int = Form(30),
+        login_audit_auto_cleanup_enabled: bool = Form(False),
+        login_audit_retention_days: int = Form(30),
         csrf_token: str = Form(...),
     ):
         return await security_center_api.update_security_center(
@@ -1352,6 +1358,24 @@ def register_admin_primary_routes(
             login_ban_minutes=login_ban_minutes,
             new_ip_login_alert_enabled=new_ip_login_alert_enabled,
             comment_rate_limit_per_min=comment_rate_limit_per_min,
+            login_audit_auto_cleanup_enabled=login_audit_auto_cleanup_enabled,
+            login_audit_retention_days=login_audit_retention_days,
+            csrf_token=csrf_token,
+        )
+
+    @app.post(f"{admin_path}/security-center/audit/cleanup", response_class=HTMLResponse)
+    async def dynamic_clear_security_audit_logs(
+        request: Request,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+        clear_mode: str = Form(...),
+        csrf_token: str = Form(...),
+    ):
+        return await security_center_api.clear_security_audit_logs(
+            request=request,
+            db=db,
+            current_user=current_user,
+            clear_mode=clear_mode,
             csrf_token=csrf_token,
         )
 

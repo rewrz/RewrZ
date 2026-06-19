@@ -1169,10 +1169,36 @@
     -webkit-backdrop-filter: blur(12px);
 }
 
+.format-archive-glass .micro-composer-badge-action {
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.format-archive-glass .micro-composer-badge-action:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border) 58%);
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card-bg) 88%);
+    transform: translateY(-1px);
+}
+
+.format-archive-glass .micro-composer-badge-action.is-active {
+    border-color: color-mix(in srgb, var(--color-primary) 48%, var(--color-border) 52%);
+    background: color-mix(in srgb, var(--color-primary) 18%, var(--color-card-bg) 82%);
+    color: color-mix(in srgb, var(--color-primary) 82%, var(--color-text) 18%);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
 .dark .format-archive-glass .micro-composer-badge {
     border-color: color-mix(in srgb, var(--color-primary) 26%, var(--color-border) 74%);
     background: color-mix(in srgb, var(--color-card-bg) 68%, transparent);
     color: color-mix(in srgb, var(--color-primary) 60%, var(--color-text) 40%);
+}
+
+.dark .format-archive-glass .micro-composer-badge-action:hover {
+    background: color-mix(in srgb, var(--color-primary) 18%, var(--color-card-bg) 82%);
+}
+
+.dark .format-archive-glass .micro-composer-badge-action.is-active {
+    background: color-mix(in srgb, var(--color-primary) 24%, var(--color-card-bg) 76%);
 }
 
 .format-archive-glass .micro-composer-shell textarea {
@@ -1218,6 +1244,62 @@
     border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
     background: color-mix(in srgb, var(--color-card-bg) 86%, var(--color-background-alt) 14%) !important;
     color: var(--color-text) !important;
+}
+
+.format-archive-glass .micro-quick-password-input {
+    border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    background: color-mix(in srgb, var(--color-card-bg) 74%, transparent);
+    color: var(--color-text);
+}
+
+.format-archive-glass .micro-password-shell {
+    position: relative;
+}
+
+.format-archive-glass .micro-password-icon {
+    position: absolute;
+    left: 0.88rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: color-mix(in srgb, var(--color-primary) 54%, var(--color-text-light) 46%);
+    pointer-events: none;
+}
+
+.format-archive-glass .micro-quick-password-input::placeholder {
+    color: var(--color-text-light);
+}
+
+.format-archive-glass .micro-quick-password-input {
+    padding-left: 2.5rem;
+    padding-right: 3rem;
+}
+
+.format-archive-glass .micro-quick-password-input:focus {
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.format-archive-glass .micro-password-toggle {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-card-bg) 94%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 68%, var(--color-text) 32%);
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.format-archive-glass .micro-password-toggle:hover {
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card-bg) 88%);
+    border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border) 72%);
+    transform: translateY(-50%) scale(1.02);
 }
 
 .format-archive-glass .micro-panel-label {

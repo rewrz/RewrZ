@@ -36,6 +36,12 @@ def extract_hide_block(content_markdown: Optional[str], index: int) -> Optional[
     return (matches[index].group(1) or "").strip()
 
 
+def strip_hide_blocks(content_markdown: Optional[str]) -> str:
+    if not content_markdown:
+        return ""
+    return HIDE_BLOCK_RE.sub("", content_markdown)
+
+
 def build_hidden_placeholder_html(post_id: int, block_index: int) -> str:
     placeholder_id = f"hidden-content-{post_id}-{block_index}"
     return (

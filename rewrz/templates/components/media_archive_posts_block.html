@@ -38,7 +38,7 @@
             </p>
             <div class="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                 <span>{{ post.author_display_name if post.author_display_name is defined and post.author_display_name else "匿名作者" }}</span>
-                <span>{{ post.published_at.strftime('%Y-%m-%d') if post.published_at else '-' }}</span>
+                <span><i class="far fa-calendar-alt mr-1"></i>{{ post.published_at.strftime('%Y-%m-%d') if post.published_at else '-' }}</span>
             </div>
         </div>
     </article>
@@ -86,7 +86,7 @@
             <div class="absolute inset-x-0 bottom-0 p-3 text-white">
                 <p class="{% if is_micro %}line-clamp-5{% else %}line-clamp-3{% endif %} text-sm font-medium leading-6">{{ overlay_text }}</p>
                 <div class="mt-1 flex items-center justify-between text-[11px] text-white/75">
-                    <span>{{ post.published_at.strftime('%Y-%m-%d') if post.published_at else '-' }}</span>
+                    <span><i class="far fa-calendar-alt mr-1"></i>{{ post.published_at.strftime('%Y-%m-%d') if post.published_at else '-' }}</span>
                     <span class="inline-flex items-center rounded-full bg-black/35 px-2 py-0.5">观影</span>
                 </div>
             </div>
@@ -219,7 +219,7 @@
             </div>
             {% endif %}
             <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                发布于 {{ post.published_at.strftime('%Y-%m-%d') if post.published_at else "-" }}
+                <i class="far fa-calendar-alt mr-1"></i>{{ post.published_at.strftime('%Y-%m-%d') if post.published_at else "-" }}
             </div>
         </a>
     </article>

@@ -13,7 +13,7 @@ from rewrz.crud import post as crud_post
 from rewrz.core.api_keys import build_api_key_plaintext, hash_api_key_secret
 from rewrz.core.database import Base
 from rewrz.core.database import get_db
-from rewrz.core.security import create_access_token
+from rewrz.core.security import create_access_token, verify_password
 from rewrz.models import ApiKey, Category, Format, Post, Setting, Tag, User as DbUser
 
 
@@ -582,6 +582,78 @@ def test_frontend_quick_post_public_path_still_works_with_login_and_csrf(monkeyp
             assert "@admin" in (created_post.content_markdown or "")
             assert "前台快捷动态里继续@admin" in (created_post.content_markdown or "")
             assert any(tag.slug == "ce-shi" for tag in created_post.tags)
+    finally:
+        main_module.app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_frontend_quick_post_supports_password_visibility_and_hide_block(monkeypatch, tmp_path):
+    client, session_factory, engine = _build_client(monkeypatch, tmp_path)
+    with session_factory() as db:
+        seeded_user = _seed_external_api_basics(db)
+        seeded_user.display_name = "终极改写"
+        db.commit()
+
+    try:
+        access_token = create_access_token({"sub": "1"})
+        client.cookies.set("access_token", access_token)
+        page_response = client.get("/formats/micro")
+        assert page_response.status_code == 200
+        csrf_token = _extract_csrf_token(page_response.text)
+
+        response = client.post(
+            "/api/v1/posts/quick",
+            data={
+                "content": "前台密码动态\n\n[hide]这里是评论后可见内容[/hide]",
+                "media_items": "[]",
+                "visibility": "password",
+                "password": "micro-secret",
+                "csrf_token": csrf_token,
+            },
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["success"] is True
+
+        created_slug = payload["post_url"].rsplit("/", 1)[-1]
+        with session_factory() as db:
+            created_post = db.query(Post).filter(Post.slug == created_slug).first()
+            assert created_post is not None
+            assert created_post.visibility == "password"
+            assert verify_password("micro-secret", created_post.password)
+            assert "[hide]这里是评论后可见内容[/hide]" in (created_post.content_markdown or "")
+    finally:
+        main_module.app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_frontend_quick_post_password_visibility_requires_password(monkeypatch, tmp_path):
+    client, session_factory, engine = _build_client(monkeypatch, tmp_path)
+    with session_factory() as db:
+        seeded_user = _seed_external_api_basics(db)
+        seeded_user.display_name = "终极改写"
+        db.commit()
+
+    try:
+        access_token = create_access_token({"sub": "1"})
+        client.cookies.set("access_token", access_token)
+        page_response = client.get("/formats/micro")
+        assert page_response.status_code == 200
+        csrf_token = _extract_csrf_token(page_response.text)
+
+        response = client.post(
+            "/api/v1/posts/quick",
+            data={
+                "content": "没有密码的受保护动态",
+                "media_items": "[]",
+                "visibility": "password",
+                "password": "",
+                "csrf_token": csrf_token,
+            },
+        )
+        assert response.status_code == 400
+        payload = response.json()
+        assert payload["error"]["message"] == "密码保护动态必须设置访问密码"
     finally:
         main_module.app.dependency_overrides.clear()
         engine.dispose()

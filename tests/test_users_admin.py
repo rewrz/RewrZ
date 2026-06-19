@@ -126,6 +126,40 @@ def test_users_admin_page_lists_managed_users(monkeypatch, tmp_path):
         assert response.status_code == 200
         assert "后台用户列表" in response.text
         assert "editor@example.com" in response.text
+        assert "普通管理员" in response.text
+        assert "超级管理员" in response.text
+    finally:
+        main_module.app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_users_admin_page_supports_pagination(monkeypatch, tmp_path):
+    client, session_factory, engine = _build_admin_client(monkeypatch, tmp_path)
+    admin_prefix = main_module.settings.ADMIN_PATH.rstrip("/")
+    try:
+        with session_factory() as db:
+            for index in range(3, 15):
+                db.add(
+                    DbUser(
+                        id=index,
+                        username=f"user{index}",
+                        hashed_password=get_password_hash("userpass123"),
+                        email=f"user{index}@example.com",
+                        is_active=True,
+                        role="admin",
+                        use_gravatar="auto",
+                        display_name=f"用户{index}",
+                        token_version=1,
+                    )
+                )
+            db.commit()
+
+        response = client.get(f"{admin_prefix}/users?page=2&page_size=10")
+        assert response.status_code == 200
+        assert "第 2 / 2 页" in response.text
+        assert "user10@example.com" not in response.text
+        assert "user11@example.com" in response.text
+        assert "user14@example.com" in response.text
     finally:
         main_module.app.dependency_overrides.clear()
         engine.dispose()
@@ -163,7 +197,7 @@ def test_users_admin_page_shows_recent_activity_summary(monkeypatch, tmp_path):
         assert response.status_code == 200
         assert "最近活动" in response.text
         assert "角色已更新" in response.text
-        assert "角色切换为 super_admin" in response.text
+        assert "角色切换为 超级管理员" in response.text
     finally:
         main_module.app.dependency_overrides.clear()
         engine.dispose()

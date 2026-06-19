@@ -50,3 +50,27 @@ def test_default_media_navigation_contains_required_keys():
     nav = get_default_media_navigation()
     keys = [item["key"] for item in nav]
     assert keys == ["images", "gallery", "videos", "link", "audio"]
+
+
+def test_media_attachment_summary_ignores_comment_visible_hide_blocks():
+    markdown = """
+    公开摘要
+
+    [hide]
+    ![](/media/hidden-a.jpg)
+    ![](/media/hidden-b.jpg)
+    [/hide]
+    """
+    html = '<p>公开摘要</p><p>[hide]<img src="/media/hidden-a.jpg"><img src="/media/hidden-b.jpg">[/hide]</p>'
+
+    summary = summarize_media_attachments(
+        html,
+        content_markdown=markdown,
+        featured_image_url=None,
+    )
+    flags = detect_media_flags(summary)
+
+    assert summary.image_count == 0
+    assert summary.image_urls == []
+    assert flags["images"] is False
+    assert flags["gallery"] is False

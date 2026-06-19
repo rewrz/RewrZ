@@ -18,6 +18,8 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, List, MutableMapping, Optional
 
+from .content_access import strip_hide_blocks
+
 
 MEDIA_ATTACHMENT_KEYS = ("images", "gallery", "videos", "link", "audio")
 
@@ -107,10 +109,16 @@ def extract_external_links(content_html: Optional[str], max_count: int = 20) -> 
 def summarize_media_attachments(
     content_html: Optional[str],
     *,
+    content_markdown: Optional[str] = None,
     featured_image_url: Optional[str] = None,
     gallery_threshold: int = DEFAULT_GALLERY_THRESHOLD,
 ) -> MediaAttachmentSummary:
     html = (content_html or "").strip()
+    markdown = str(content_markdown or "").strip()
+    if markdown:
+        markdown_without_hidden = strip_hide_blocks(markdown)
+        if markdown_without_hidden != markdown:
+            html = re.sub(r"\[hide\].*?\[/hide\]", "", html, flags=re.IGNORECASE | re.DOTALL).strip()
     image_urls = extract_image_urls(html, featured_image_url=featured_image_url)
     image_count = len(image_urls) + (1 if (featured_image_url or "").strip() else 0)
     external_links = extract_external_links(html)

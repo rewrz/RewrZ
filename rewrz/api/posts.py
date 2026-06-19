@@ -231,6 +231,8 @@ async def create_public_quick_micro_post(
     request: Request,
     content: str = Form(""),
     media_items: Optional[str] = Form(None),
+    visibility: str = Form("public"),
+    password: Optional[str] = Form(None),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -245,11 +247,19 @@ async def create_public_quick_micro_post(
     verify_csrf_token(request, csrf_token)
 
     normalized_content = (content or "").strip()
+    normalized_visibility = str(visibility or "public").strip().lower() or "public"
+    normalized_password = (password or "").strip() or None
     parsed_media_items = _parse_micro_media_items(media_items)
     if not normalized_content and not parsed_media_items:
         raise HTTPException(status_code=400, detail="动态内容或媒体至少填写一项")
     if len(normalized_content) > 2000:
         raise HTTPException(status_code=400, detail="动态内容最多 2000 字")
+    if normalized_visibility not in {"public", "private", "password"}:
+        raise HTTPException(status_code=400, detail="动态可见性无效")
+    if normalized_visibility == "password" and not normalized_password:
+        raise HTTPException(status_code=400, detail="密码保护动态必须设置访问密码")
+    if normalized_visibility != "password":
+        normalized_password = None
     body_content = strip_micro_tags(normalized_content)
     merged_content, featured_image_url = _merge_micro_content_with_media(body_content, parsed_media_items)
 
@@ -266,8 +276,8 @@ async def create_public_quick_micro_post(
         featured_image_url=featured_image_url,
         post_type="post",
         status="published",
-        visibility="public",
-        password=None,
+        visibility=normalized_visibility,
+        password=normalized_password,
         allow_comments=True,
         category_ids=[],
         format_ids=[micro_format.id],

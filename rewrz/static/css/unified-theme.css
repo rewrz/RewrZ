@@ -4058,6 +4058,68 @@ body.site-shell .media-external-box {
     color: var(--color-text-light) !important;
 }
 
+.users-admin-page .admin-section-card {
+    box-shadow: 0 14px 28px -24px color-mix(in srgb, var(--color-primary) 18%, rgba(15, 23, 42, 0.18)) !important;
+}
+
+.users-admin-summary-chip {
+    border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    background: color-mix(in srgb, var(--color-background-alt) 72%, transparent);
+}
+
+.users-admin-toolbar,
+.users-admin-create-panel {
+    align-items: center;
+}
+
+.users-admin-page .users-admin-toolbar .admin-form-field,
+.users-admin-page .users-admin-create-panel .admin-form-field {
+    min-height: 2.75rem;
+}
+
+.users-admin-page .users-admin-toolbar .admin-primary-btn,
+.users-admin-page .users-admin-toolbar .admin-secondary-btn,
+.users-admin-page .users-admin-create-panel .admin-primary-btn {
+    min-height: 2.75rem;
+}
+
+.users-admin-page .users-admin-create-panel {
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 44%),
+        color-mix(in srgb, var(--color-background-alt) 70%, var(--color-card-bg) 30%) !important;
+}
+
+.users-admin-table thead th {
+    white-space: nowrap;
+}
+
+.users-admin-table tbody tr {
+    vertical-align: top;
+}
+
+.users-admin-table tbody td {
+    line-height: 1.5;
+}
+
+.users-admin-actions .admin-soft-btn,
+.users-admin-actions .admin-primary-btn,
+.users-admin-actions .admin-secondary-btn {
+    min-height: 2rem;
+    box-shadow: none;
+}
+
+@media (max-width: 1279px) {
+    .users-admin-page .users-admin-toolbar,
+    .users-admin-page .users-admin-create-panel form {
+        align-items: stretch;
+    }
+
+    .users-admin-page .users-admin-toolbar > *,
+    .users-admin-page .users-admin-create-panel form > * {
+        width: 100%;
+    }
+}
+
 .post-editor-admin-page .admin-panel,
 .post-editor-admin-page .editor-toolbar,
 .post-editor-admin-page .editor-surface,

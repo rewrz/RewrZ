@@ -3,6 +3,7 @@
 {% block title_text %}安全中心{% endblock %}
 {% block page_title %}<i class="fas fa-shield-alt admin-accent-text mr-3"></i>安全中心{% endblock %}
 {% block content %}
+{% set audit_pagination = audit_pagination if audit_pagination is defined and audit_pagination else None %}
 <div class="space-y-6">
     <form method="post" action="{{ admin_path }}/security-center" class="space-y-6">
         <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
@@ -62,6 +63,37 @@
             </div>
         </div>
 
+        <div class="admin-section-card p-6 rounded-lg">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">登录审计清理</h2>
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                    <label class="inline-flex items-center">
+                        <input
+                            type="checkbox"
+                            name="login_audit_auto_cleanup_enabled"
+                            class="admin-form-check form-checkbox"
+                            {% if config.login_audit_auto_cleanup_enabled %}checked{% endif %}
+                        >
+                        <span class="ml-2 text-gray-700">启用自动清理过期登录审计</span>
+                    </label>
+                    <p class="mt-2 text-xs text-gray-500">系统会按保留天数每天自动清理一次超期数据库记录。</p>
+                </div>
+                <div>
+                    <label for="login_audit_retention_days" class="block text-sm font-medium text-gray-700">保留天数</label>
+                    <input
+                        type="number"
+                        id="login_audit_retention_days"
+                        name="login_audit_retention_days"
+                        min="1"
+                        max="3650"
+                        value="{{ config.login_audit_retention_days }}"
+                        class="admin-form-field mt-1 block w-full md:w-72 px-3 py-2 rounded-md shadow-sm"
+                    >
+                    <p class="mt-2 text-xs text-gray-500">超出该天数的登录审计记录会被自动清理；建议保留 30 到 180 天。</p>
+                </div>
+            </div>
+        </div>
+
         <div class="flex justify-end">
             <button type="submit" class="admin-primary-btn px-6 py-2 rounded-md">
                 保存设置
@@ -76,8 +108,41 @@
     {% endif %}
 
     <div class="admin-section-card p-6 rounded-lg">
-        <h2 class="text-xl font-semibold text-gray-800 mb-2">登录审计</h2>
-        <p class="text-sm text-gray-500 mb-4">日志文件：<code class="admin-code-box rounded px-2 py-1">{{ audit_log_path }}</code></p>
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+            <div>
+                <h2 class="text-xl font-semibold text-gray-800 mb-2">登录审计</h2>
+                <p class="text-sm text-gray-500">日志文件：<code class="admin-code-box rounded px-2 py-1">{{ audit_log_path }}</code></p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <form method="post" action="{{ admin_path }}/security-center/audit/cleanup">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                    <input type="hidden" name="clear_mode" value="expired">
+                    <button type="submit" class="admin-secondary-btn px-4 py-2 rounded-md">清理过期记录</button>
+                </form>
+                <form method="post" action="{{ admin_path }}/security-center/audit/cleanup" onsubmit="return window.confirm('确认清空全部登录审计记录与日志文件吗？');">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                    <input type="hidden" name="clear_mode" value="all">
+                    <button type="submit" class="admin-soft-btn admin-soft-btn-danger px-4 py-2 rounded-md">全部清空</button>
+                </form>
+            </div>
+        </div>
+
+        {% if audit_pagination %}
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <form method="get" action="{{ admin_path }}/security-center" class="flex items-center gap-2">
+                <input type="hidden" name="page" value="1">
+                <label for="audit-page-size" class="text-xs text-gray-500">每页数量</label>
+                <select id="audit-page-size" name="page_size" class="admin-form-field rounded-md px-3 py-2 text-sm" onchange="this.form.submit()">
+                    {% for size in audit_pagination.allowed_page_sizes %}
+                    <option value="{{ size }}" {% if audit_pagination.page_size == size %}selected{% endif %}>{{ size }} / 页</option>
+                    {% endfor %}
+                </select>
+            </form>
+            <div class="text-sm text-gray-600">
+                共 {{ audit_pagination.filtered_total }} 条记录，第 {{ audit_pagination.current_page }} / {{ audit_pagination.total_pages }} 页
+            </div>
+        </div>
+        {% endif %}
 
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
@@ -113,6 +178,28 @@
                 </tbody>
             </table>
         </div>
+
+        {% if audit_pagination %}
+        <div class="mt-4 flex flex-wrap items-center justify-end gap-1">
+            {% if audit_pagination.has_prev %}
+            <a href="{{ audit_pagination.prev_url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">上一页</a>
+            {% else %}
+            <span class="admin-pagination-link is-disabled px-3 py-1.5 text-sm rounded cursor-not-allowed">上一页</span>
+            {% endif %}
+            {% for link in audit_pagination.page_links %}
+                {% if link.is_current %}
+                <span class="admin-pagination-link is-current px-3 py-1.5 text-sm rounded">{{ link.page }}</span>
+                {% else %}
+                <a href="{{ link.url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">{{ link.page }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if audit_pagination.has_next %}
+            <a href="{{ audit_pagination.next_url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">下一页</a>
+            {% else %}
+            <span class="admin-pagination-link is-disabled px-3 py-1.5 text-sm rounded cursor-not-allowed">下一页</span>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

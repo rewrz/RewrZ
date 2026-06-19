@@ -49,6 +49,7 @@ from .api import admin_routes as admin_routes_api
 from .api import external as external_api
 from .api import public_pages as public_pages_api
 from .core.public_profile import get_public_profile_resolver
+from .core.admin_security import should_run_login_audit_auto_cleanup, run_login_audit_auto_cleanup
 from .crud import post as crud_post
 from .crud import comment as crud_comment
 from .crud import setting as crud_setting # Import crud_setting
@@ -123,6 +124,27 @@ def register_default_scheduled_tasks() -> None:
             handler=themes_api.run_public_holiday_rollover_task,
             description="每年 12 月 31 日凌晨重建下一年公共节日清单",
         )
+
+    if "login_audit_auto_cleanup" not in registered:
+        default_task_scheduler.register_interval_task(
+            name="login_audit_auto_cleanup",
+            interval_seconds=1800,
+            handler=run_login_audit_auto_cleanup_task,
+            description="按安全中心配置自动清理过期登录审计记录",
+        )
+
+
+def run_login_audit_auto_cleanup_task() -> int:
+    session = db_manager.get_session()
+    if session is None:
+        return 0
+
+    try:
+        if not should_run_login_audit_auto_cleanup(session):
+            return 0
+        return run_login_audit_auto_cleanup(session)
+    finally:
+        session.close()
 
 # 应用生命周期管理器
 @asynccontextmanager

@@ -5,7 +5,7 @@
 from datetime import datetime
 
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import func, select
 from ..models import User
 from ..schemas import UserCreate, UserUpdate
 
@@ -44,8 +44,26 @@ def get_users(
             .order_by(User.id.asc())
             .offset(max(0, int(skip)))
             .limit(max(1, int(limit)))
-        )
+    )
     return db.execute(stmt).scalars().all()
+
+
+def count_users(
+    db: Session,
+    *,
+    search: str | None = None,
+) -> int:
+    """统计用户数量，可按用户名/邮箱/显示名进行轻量搜索。"""
+    stmt = select(func.count(User.id))
+    search_text = str(search or "").strip()
+    if search_text:
+        like_text = f"%{search_text}%"
+        stmt = stmt.filter(
+            (User.username.ilike(like_text))
+            | (User.email.ilike(like_text))
+            | (User.display_name.ilike(like_text))
+        )
+    return int(db.execute(stmt).scalar_one() or 0)
 
 from ..core.security import get_password_hash
 

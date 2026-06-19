@@ -6,124 +6,175 @@
 {% set profile_gravatar_mode = profile_user.use_gravatar if profile_user.use_gravatar else 'auto' %}
 {% set ps = profile_settings if profile_settings is defined and profile_settings else {} %}
 {% set can_manage_admin_users = profile_user.role == 'super_admin' %}
+{% set role_labels = admin_role_labels if admin_role_labels is defined and admin_role_labels else {} %}
+{% set managed_pagination = managed_users_pagination if managed_users_pagination is defined and managed_users_pagination else None %}
 <section class="users-admin-page mb-6 space-y-4">
-    <div class="admin-section-card rounded-2xl p-5">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <h2 class="text-lg font-semibold text-[var(--color-text)]">后台用户列表</h2>
-                <p class="mt-1 text-sm text-[var(--color-text-light)]">
-                    {% if can_manage_admin_users %}
-                    当前提供最小必要的用户管理能力：搜索、新增、启停、角色切换、密码重置、强制退出。
-                    {% else %}
-                    当前账号可查看后台用户列表与最近活动；高风险用户管理动作仅超级管理员可执行。
+    <div class="admin-section-card rounded-2xl p-4 lg:p-5">
+        <div class="flex flex-col gap-3">
+            <div class="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                <div class="space-y-2">
+                    <div>
+                        <h2 class="text-lg font-semibold text-[var(--color-text)]">后台用户列表</h2>
+                        <p class="mt-1 text-sm leading-6 text-[var(--color-text-light)]">
+                            {% if can_manage_admin_users %}
+                            搜索、新增、启停、角色切换、密码重置、强制退出都集中在这一页处理。
+                            {% else %}
+                            当前账号可查看后台用户列表与最近活动；高风险用户管理动作仅超级管理员可执行。
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% if managed_pagination %}
+                    <div class="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-light)]">
+                        <span class="users-admin-summary-chip inline-flex items-center rounded-full border px-2.5 py-1">共 {{ managed_pagination.filtered_total }} 位用户</span>
+                        <span class="users-admin-summary-chip inline-flex items-center rounded-full border px-2.5 py-1">第 {{ managed_pagination.current_page }} / {{ managed_pagination.total_pages }} 页</span>
+                        {% if managed_users_search %}
+                        <span class="users-admin-summary-chip inline-flex items-center rounded-full border px-2.5 py-1">搜索：{{ managed_users_search }}</span>
+                        {% endif %}
+                    </div>
                     {% endif %}
-                </p>
-            </div>
-            <div class="flex w-full max-w-3xl flex-col gap-3 lg:items-end">
+                </div>
+
                 <form hx-get="{{ request.state.admin_path }}/users"
                       hx-target="#admin-content"
                       hx-swap="outerHTML"
                       hx-select="#admin-content"
-                      class="flex w-full gap-2">
+                      class="users-admin-toolbar flex w-full flex-wrap items-center gap-2 xl:max-w-4xl xl:justify-end">
                     <input type="text"
                            name="q"
                            value="{{ managed_users_search or '' }}"
                            placeholder="搜索用户名、邮箱或显示名"
-                           class="admin-form-field block w-full rounded-md px-3 py-2 text-sm">
-                    <button type="submit" class="admin-primary-btn rounded-md px-4 py-2 text-sm">搜索</button>
+                           class="admin-form-field block min-w-[14rem] flex-1 rounded-md px-3 py-2 text-sm">
+                    <input type="hidden" name="page" value="1">
+                    <select id="managed-users-page-size"
+                            name="page_size"
+                            class="admin-form-field min-w-[6.5rem] rounded-md px-3 py-2 text-sm"
+                            onchange="this.form.requestSubmit()">
+                        {% for size in managed_pagination.allowed_page_sizes if managed_pagination %}
+                        <option value="{{ size }}" {% if managed_pagination.page_size == size %}selected{% endif %}>{{ size }} / 页</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="admin-primary-btn inline-flex items-center rounded-md px-4 py-2 text-sm">
+                        <i class="fas fa-search mr-1 text-xs"></i>搜索
+                    </button>
+                    {% if managed_users_search %}
+                    <a href="{{ request.state.admin_path }}/users" class="admin-secondary-btn inline-flex items-center rounded-md px-4 py-2 text-sm">
+                        <i class="fas fa-undo-alt mr-1 text-xs"></i>清空
+                    </a>
+                    {% endif %}
                 </form>
-                {% if can_manage_admin_users %}
-                <form id="managed-user-create-form" class="admin-filter-panel grid w-full gap-2 rounded-xl p-3 md:grid-cols-5">
+            </div>
+
+            {% if can_manage_admin_users %}
+            <div class="users-admin-create-panel admin-filter-panel rounded-2xl p-3.5">
+                <div class="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h3 class="text-sm font-semibold text-[var(--color-text)]">新增后台用户</h3>
+                        <p class="text-xs text-[var(--color-text-light)]">紧凑创建，提交后可立即分配身份与初始密码。</p>
+                    </div>
+                </div>
+                <form id="managed-user-create-form" class="mt-3 grid w-full gap-2 md:grid-cols-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(12rem,1.2fr)_minmax(10rem,1fr)_minmax(12rem,1.1fr)_9rem_auto]">
                     <input type="text" name="username" placeholder="新用户名" class="admin-form-field rounded-md px-3 py-2 text-sm">
                     <input type="email" name="email" placeholder="邮箱" class="admin-form-field rounded-md px-3 py-2 text-sm">
                     <input type="text" name="display_name" placeholder="显示名（可选）" class="admin-form-field rounded-md px-3 py-2 text-sm">
                     <input type="password" name="password" placeholder="初始密码（至少 8 位）" class="admin-form-field rounded-md px-3 py-2 text-sm">
-                    <div class="flex gap-2">
-                        <select name="role" class="admin-form-field w-full rounded-md px-3 py-2 text-sm">
-                            {% for role_name in allowed_admin_roles %}
-                            <option value="{{ role_name }}" {% if role_name == 'admin' %}selected{% endif %}>{{ role_name }}</option>
-                            {% endfor %}
-                        </select>
-                        <button type="button" id="managed-user-create-btn" class="admin-primary-btn shrink-0 rounded-md px-4 py-2 text-sm">新增</button>
-                    </div>
+                    <select name="role" class="admin-form-field w-full rounded-md px-3 py-2 text-sm">
+                        {% for role_name in allowed_admin_roles %}
+                        <option value="{{ role_name }}" {% if role_name == 'admin' %}selected{% endif %}>{{ role_labels.get(role_name, role_name) }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" id="managed-user-create-btn" class="admin-primary-btn inline-flex items-center justify-center rounded-md px-4 py-2 text-sm">
+                        <i class="fas fa-user-plus mr-1 text-xs"></i>新增
+                    </button>
                 </form>
-                {% endif %}
             </div>
+            {% endif %}
         </div>
 
-        <div class="admin-table-shell mt-4 overflow-x-auto rounded-2xl">
-            <table class="admin-list-table min-w-[960px] text-sm">
+        <div class="admin-table-shell mt-3 overflow-x-auto rounded-2xl">
+            <table class="users-admin-table admin-list-table min-w-[1140px] text-sm">
                 <thead class="admin-list-table-head">
                     <tr>
-                        <th class="w-[25%] px-4 py-3 text-left font-medium text-[var(--color-text-light)]">用户</th>
-                        <th class="w-[12%] px-4 py-3 text-left font-medium text-[var(--color-text-light)]">显示名</th>
-                        <th class="w-[12%] px-4 py-3 text-left font-medium text-[var(--color-text-light)]">角色</th>
-                        <th class="w-[10%] px-4 py-3 text-left font-medium text-[var(--color-text-light)]">状态</th>
-                        <th class="w-[12%] px-4 py-3 text-left font-medium text-[var(--color-text-light)]">最近登录</th>
-                        <th class="w-[17%] px-4 py-3 text-left font-medium text-[var(--color-text-light)]">最近活动</th>
-                        <th class="w-[12%] px-4 py-3 text-right font-medium text-[var(--color-text-light)]">操作</th>
+                        <th class="w-[28%] px-4 py-2.5 text-left text-xs font-medium tracking-[0.08em] text-[var(--color-text-light)]">用户</th>
+                        <th class="w-[14%] px-4 py-2.5 text-left text-xs font-medium tracking-[0.08em] text-[var(--color-text-light)]">身份</th>
+                        <th class="w-[9%] px-4 py-2.5 text-left text-xs font-medium tracking-[0.08em] text-[var(--color-text-light)]">状态</th>
+                        <th class="w-[14%] px-4 py-2.5 text-left text-xs font-medium tracking-[0.08em] text-[var(--color-text-light)]">最近登录</th>
+                        <th class="w-[17%] px-4 py-2.5 text-left text-xs font-medium tracking-[0.08em] text-[var(--color-text-light)]">最近活动</th>
+                        <th class="w-[18%] px-4 py-2.5 text-right text-xs font-medium tracking-[0.08em] text-[var(--color-text-light)]">操作</th>
                     </tr>
                 </thead>
                 <tbody class="admin-list-table-body divide-y">
                     {% for item in managed_users %}
                     <tr data-managed-user-row="{{ item.id }}">
-                        <td class="px-4 py-3 align-top">
+                        <td class="px-4 py-2.5 align-top">
                             <div class="font-medium text-[var(--color-text)]">{{ item.username }}</div>
-                            <div class="text-xs text-[var(--color-text-light)]">{{ item.email }}</div>
+                            <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                                <span class="text-sm text-[var(--color-text)]">{{ item.display_name or '未设置显示名' }}</span>
+                                {% if item.id == profile_user.id %}
+                                <span class="users-admin-summary-chip inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] text-[var(--color-text-light)]">当前登录</span>
+                                {% endif %}
+                            </div>
+                            <div class="mt-1 text-xs leading-5 text-[var(--color-text-light)]">{{ item.email }}</div>
                         </td>
-                        <td class="px-4 py-3 align-top text-[var(--color-text)]">{{ item.display_name or '-' }}</td>
-                        <td class="px-4 py-3 align-top">
-                            <select class="managed-user-role admin-form-field min-w-[7.5rem] rounded-md px-2 py-1 text-sm"
+                        <td class="px-4 py-2.5 align-top">
+                            <select class="managed-user-role admin-form-field min-w-[8.5rem] rounded-md px-2 py-1 text-sm"
                                     data-user-id="{{ item.id }}"
                                     {% if item.id == profile_user.id %}data-current-user="true"{% endif %}
                                     {% if not can_manage_admin_users %}disabled{% endif %}>
                                 {% for role_name in allowed_admin_roles %}
-                                <option value="{{ role_name }}" {% if item.role == role_name %}selected{% endif %}>{{ role_name }}</option>
+                                <option value="{{ role_name }}" {% if item.role == role_name %}selected{% endif %}>{{ role_labels.get(role_name, role_name) }}</option>
                                 {% endfor %}
                             </select>
+                            {% if item.id == profile_user.id %}
+                            <div class="mt-1 text-[11px] text-[var(--color-text-light)]">当前账号</div>
+                            {% endif %}
                         </td>
-                        <td class="px-4 py-3 align-top">
+                        <td class="px-4 py-2.5 align-top">
                             <span class="admin-badge {% if item.is_active %}admin-badge-success{% else %}admin-badge-danger{% endif %} inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium">
                                 {{ '启用中' if item.is_active else '已停用' }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 align-top text-xs text-[var(--color-text-light)]">{{ item.last_login_at.strftime('%Y-%m-%d %H:%M') if item.last_login_at else '暂无' }}</td>
-                        <td class="px-4 py-3 align-top text-xs text-[var(--color-text-light)]">
+                        <td class="px-4 py-2.5 align-top text-xs text-[var(--color-text-light)]">
+                            <div class="font-medium text-[var(--color-text)]">{{ item.last_login_at.strftime('%Y-%m-%d %H:%M') if item.last_login_at else '暂无' }}</div>
+                            {% if item.last_login_at %}
+                            <div class="mt-1 text-[11px] leading-4 text-[var(--color-text-light)]">最近一次成功登录</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-2.5 align-top text-xs text-[var(--color-text-light)]">
                             {% set activity = item.admin_recent_activity if item.admin_recent_activity is defined else {} %}
                             {% if activity and activity.timestamp %}
                             <div class="font-medium text-[var(--color-text)]">{{ activity.label or '后台管理操作' }}</div>
-                            <div class="mt-1">{{ activity.detail_text or '-' }}</div>
-                            <div class="mt-1 text-[11px] text-[var(--color-text-light)]">
-                                {{ activity.timestamp[:16].replace('T', ' ') }}
-                                {% if activity.actor_username %} · {{ activity.actor_username }}{% endif %}
-                            </div>
+                            <div class="mt-1 line-clamp-2 leading-5">{{ activity.detail_text or '-' }}</div>
+                            <div class="mt-1 text-[11px] leading-4 text-[var(--color-text-light)]">{{ activity.timestamp[:16].replace('T', ' ') }}{% if activity.actor_username %} · {{ activity.actor_username }}{% endif %}</div>
                             {% else %}
                             <span>暂无</span>
                             {% endif %}
                         </td>
-                        <td class="px-4 py-3 align-top">
+                        <td class="px-4 py-2.5 align-top">
                             {% if can_manage_admin_users %}
-                            <div class="flex flex-col items-end gap-2 whitespace-nowrap">
+                            <div class="users-admin-actions flex flex-wrap justify-end gap-1.5 whitespace-nowrap">
                                 <button type="button"
-                                        class="managed-user-status admin-soft-btn min-w-[4rem] rounded-md px-3 py-1.5 text-xs {% if item.is_active %}admin-soft-btn-danger{% else %}admin-soft-btn-success{% endif %}"
+                                        title="{{ '停用该用户' if item.is_active else '启用该用户' }}"
+                                        class="managed-user-status admin-soft-btn min-w-[4.5rem] rounded-md px-2.5 py-1.5 text-[11px] {% if item.is_active %}admin-soft-btn-danger{% else %}admin-soft-btn-success{% endif %}"
                                         data-user-id="{{ item.id }}"
                                         data-next-status="{{ 'false' if item.is_active else 'true' }}"
                                         {% if not can_manage_admin_users %}disabled{% endif %}>
-                                    {{ '停用' if item.is_active else '启用' }}
+                                    <i class="fas {{ 'fa-user-slash' if item.is_active else 'fa-user-check' }} mr-1"></i>{{ '停用' if item.is_active else '启用' }}
                                 </button>
                                 <button type="button"
-                                        class="managed-user-password admin-primary-btn min-w-[4.75rem] rounded-md px-3 py-1.5 text-xs"
+                                        title="重置用户密码"
+                                        class="managed-user-password admin-primary-btn min-w-[4.75rem] rounded-md px-2.5 py-1.5 text-[11px]"
                                         data-user-id="{{ item.id }}"
                                         data-username="{{ item.username }}"
                                         {% if not can_manage_admin_users %}disabled{% endif %}>
-                                    重置密码
+                                    <i class="fas fa-key mr-1"></i>重置
                                 </button>
                                 <button type="button"
-                                        class="managed-user-force-logout admin-secondary-btn min-w-[4.75rem] rounded-md px-3 py-1.5 text-xs"
+                                        title="强制当前所有登录态失效"
+                                        class="managed-user-force-logout admin-secondary-btn min-w-[4.75rem] rounded-md px-2.5 py-1.5 text-[11px]"
                                         data-user-id="{{ item.id }}"
                                         data-username="{{ item.username }}"
                                         {% if not can_manage_admin_users %}disabled{% endif %}>
-                                    强制退出
+                                    <i class="fas fa-sign-out-alt mr-1"></i>下线
                                 </button>
                             </div>
                             {% else %}
@@ -133,13 +184,46 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="admin-empty-state px-4 py-8 text-center text-sm text-[var(--color-text-light)]">暂无匹配用户。</td>
+                        <td colspan="6" class="admin-empty-state px-4 py-8 text-center text-sm text-[var(--color-text-light)]">暂无匹配用户。</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        <p class="mt-3 text-xs text-[var(--color-text-light)]">最近活动为后台用户管理轻量审计摘要；登录审计详见安全中心与 <code>data/logs/admin_login_audit.log</code>。</p>
+        {% if managed_pagination %}
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <form method="get" action="{{ request.state.admin_path }}/users" class="flex items-center gap-2">
+                <input type="hidden" name="q" value="{{ managed_users_search or '' }}">
+                <input type="hidden" name="page" value="1">
+                <label for="managed-users-page-size-footer" class="text-xs text-[var(--color-text-light)]">每页数量</label>
+                <select id="managed-users-page-size-footer" name="page_size" class="admin-form-field rounded-md px-3 py-2 text-sm" onchange="this.form.submit()">
+                    {% for size in managed_pagination.allowed_page_sizes %}
+                    <option value="{{ size }}" {% if managed_pagination.page_size == size %}selected{% endif %}>{{ size }} / 页</option>
+                    {% endfor %}
+                </select>
+            </form>
+            <div class="flex items-center gap-1">
+                {% if managed_pagination.has_prev %}
+                <a href="{{ managed_pagination.prev_url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">上一页</a>
+                {% else %}
+                <span class="admin-pagination-link is-disabled px-3 py-1.5 text-sm rounded cursor-not-allowed">上一页</span>
+                {% endif %}
+                {% for link in managed_pagination.page_links %}
+                    {% if link.is_current %}
+                    <span class="admin-pagination-link is-current px-3 py-1.5 text-sm rounded">{{ link.page }}</span>
+                    {% else %}
+                    <a href="{{ link.url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">{{ link.page }}</a>
+                    {% endif %}
+                {% endfor %}
+                {% if managed_pagination.has_next %}
+                <a href="{{ managed_pagination.next_url }}" class="admin-pagination-link px-3 py-1.5 text-sm rounded">下一页</a>
+                {% else %}
+                <span class="admin-pagination-link is-disabled px-3 py-1.5 text-sm rounded cursor-not-allowed">下一页</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        <p class="mt-3 text-xs leading-5 text-[var(--color-text-light)]">最近活动为后台用户管理轻量审计摘要；登录审计详见安全中心与 <code>data/logs/admin_login_audit.log</code>。</p>
     </div>
 </section>
 

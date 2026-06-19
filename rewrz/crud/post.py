@@ -43,7 +43,7 @@ def _normalize_post_type_value(post_type: Optional[str], *, allow_none: bool = F
 
 def get_public_post_conditions(*, published_only: bool = True):
     """公开文章列表统一过滤条件。"""
-    conditions = [Post.post_type == "post"]
+    conditions = [Post.post_type == "post", Post.visibility == "public"]
     if published_only:
         conditions.extend([
             Post.status == "published",
@@ -84,6 +84,7 @@ def _build_media_attachment_summary_payload(
     rendered_html = get_effective_content_html(content_markdown, content_html)
     summary = summarize_media_attachments(
         rendered_html,
+        content_markdown=content_markdown,
         featured_image_url=featured_image_url,
     )
     flags = detect_media_flags(summary)

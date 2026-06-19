@@ -268,13 +268,20 @@
                         </div>
                     </div>
                     <div class="micro-composer-badges flex flex-wrap items-center gap-2 text-[11px] font-semibold">
-                        <span class="micro-composer-badge">电波频道</span>
-                        <span class="micro-composer-badge">即时掉落</span>
+                        <div class="micro-quick-visibility-group inline-flex flex-wrap items-center gap-2" role="group" aria-label="动态可见性">
+                            <button type="button" data-quick-visibility="public" class="micro-composer-badge micro-composer-badge-action is-active">公开</button>
+                            <button type="button" data-quick-visibility="private" class="micro-composer-badge micro-composer-badge-action">私密</button>
+                            <button type="button" data-quick-visibility="password" class="micro-composer-badge micro-composer-badge-action">密码保护</button>
+                        </div>
+                        <button type="button" id="micro-quick-insert-hide" class="micro-composer-badge micro-composer-badge-action">
+                            <i class="fas fa-comment-dots micro-tool-emoji" aria-hidden="true"></i>评论可见
+                        </button>
                     </div>
                 </div>
                 <div class="p-4 md:p-5">
                     <form id="micro-quick-post-form" class="space-y-3">
                         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                        <input type="hidden" id="micro-quick-visibility" name="visibility" value="public">
                         <input id="micro-quick-media-input" type="file" class="hidden" accept="image/*,video/*,audio/*" multiple>
 
                         <div class="relative">
@@ -310,6 +317,33 @@
 
                         <div id="micro-quick-detected-topics" class="micro-composer-panel hidden flex flex-wrap items-center gap-1.5 rounded-xl border px-3 py-2 text-xs"></div>
 
+                        <div id="micro-quick-password-panel" class="micro-composer-panel hidden rounded-2xl border p-3">
+                            <label for="micro-quick-password" class="micro-panel-label mb-2 block text-xs font-semibold tracking-wide">访问密码</label>
+                            <div class="micro-password-shell">
+                                <span class="micro-password-icon" aria-hidden="true">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                <input
+                                    id="micro-quick-password"
+                                    name="password"
+                                    type="password"
+                                    maxlength="64"
+                                    class="micro-quick-password-input w-full rounded-xl border px-3 py-2 text-sm outline-none transition"
+                                    placeholder="仅密码保护动态需要填写"
+                                >
+                                <button
+                                    type="button"
+                                    id="micro-quick-password-toggle"
+                                    class="micro-password-toggle"
+                                    aria-label="显示访问密码"
+                                    aria-pressed="false"
+                                >
+                                    <i class="fas fa-eye" id="micro-quick-password-toggle-icon"></i>
+                                </button>
+                            </div>
+                            <p class="micro-status-label micro-status-muted mt-2">选择“密码保护”后，访客需输入密码才能查看这条动态。</p>
+                        </div>
+
                         <div id="micro-quick-preview-panel" class="micro-composer-panel hidden rounded-2xl border p-3">
                             <p class="micro-panel-label mb-2 text-xs font-semibold tracking-wide">预览</p>
                             <div id="micro-quick-preview" class="micro-preview-content prose prose-sm max-w-none break-words text-sm leading-7"></div>
@@ -336,7 +370,7 @@
                                     <i class="fas fa-at micro-tool-emoji" aria-hidden="true"></i>提及
                                 </button>
                                 <div class="relative">
-                                    <button id="micro-quick-emoji-toggle" type="button" class="micro-tool-btn micro-tool-btn-accent inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                    <button id="micro-quick-emoji-toggle" type="button" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100" aria-expanded="false">
                                         <i class="fas fa-face-smile micro-tool-emoji" aria-hidden="true"></i>表情
                                     </button>
                                     <div id="micro-quick-emoji-panel" class="micro-emoji-panel fixed z-[140] hidden w-80 max-w-[92vw] rounded-2xl border p-2 shadow-2xl">
@@ -466,6 +500,13 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         const mediaUploadTrigger = document.getElementById("micro-quick-upload-trigger");
         const mediaList = document.getElementById("micro-quick-media-list");
         const uploadStatus = document.getElementById("micro-quick-upload-status");
+        const visibilityInput = document.getElementById("micro-quick-visibility");
+        const visibilityButtons = Array.from(document.querySelectorAll("[data-quick-visibility]"));
+        const passwordPanel = document.getElementById("micro-quick-password-panel");
+        const passwordInput = document.getElementById("micro-quick-password");
+        const passwordToggle = document.getElementById("micro-quick-password-toggle");
+        const passwordToggleIcon = document.getElementById("micro-quick-password-toggle-icon");
+        const insertHideButton = document.getElementById("micro-quick-insert-hide");
         if (!textarea || !submitButton || !progressBar || !counter || !message) {
             window.__rewrzMicroComposer.reason = "required_elements_missing";
             return;
@@ -879,6 +920,40 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         textarea.dispatchEvent(new Event("input"));
     };
 
+    const getSelectedVisibility = () => {
+        return String(visibilityInput?.value || "public").trim().toLowerCase() || "public";
+    };
+
+    const syncVisibilityControls = () => {
+        const currentVisibility = getSelectedVisibility();
+        visibilityButtons.forEach((button) => {
+            const isActive = (button.getAttribute("data-quick-visibility") || "") === currentVisibility;
+            button.classList.toggle("is-active", isActive);
+            button.setAttribute("aria-pressed", isActive ? "true" : "false");
+        });
+        if (!passwordPanel) {
+            return;
+        }
+        const needsPassword = currentVisibility === "password";
+        passwordPanel.classList.toggle("hidden", !needsPassword);
+        if (!needsPassword && passwordInput) {
+            passwordInput.value = "";
+            setPasswordRevealState(false);
+        }
+    };
+
+    const setPasswordRevealState = (revealed) => {
+        if (!passwordInput || !passwordToggle || !passwordToggleIcon) {
+            return;
+        }
+        const isRevealed = Boolean(revealed);
+        passwordInput.type = isRevealed ? "text" : "password";
+        passwordToggle.setAttribute("aria-pressed", isRevealed ? "true" : "false");
+        passwordToggle.setAttribute("aria-label", isRevealed ? "隐藏访问密码" : "显示访问密码");
+        passwordToggleIcon.classList.toggle("fa-eye", !isRevealed);
+        passwordToggleIcon.classList.toggle("fa-eye-slash", isRevealed);
+    };
+
     const refreshState = () => {
         const content = (textarea.value || "");
         const trimmed = content.trim();
@@ -904,6 +979,10 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             return;
         }
         emojiPanel.classList.add("hidden");
+        if (emojiToggle) {
+            emojiToggle.className = "micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs transition";
+            emojiToggle.setAttribute("aria-expanded", "false");
+        }
     };
 
     const isEmojiPanelVisible = () => {
@@ -956,6 +1035,10 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         activeEmojiTab = "recent";
         renderEmojiGrid();
         emojiPanel.classList.remove("hidden");
+        if (emojiToggle) {
+            emojiToggle.className = "micro-tool-btn micro-tool-btn-active inline-flex items-center rounded-full px-2.5 py-1.5 text-xs transition";
+            emojiToggle.setAttribute("aria-expanded", "true");
+        }
         positionEmojiPanel();
     };
 
@@ -1149,6 +1232,33 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         });
     }
 
+    visibilityButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            const nextVisibility = String(button.getAttribute("data-quick-visibility") || "").trim();
+            if (!visibilityInput || !nextVisibility) {
+                return;
+            }
+            visibilityInput.value = nextVisibility;
+            syncVisibilityControls();
+            if (nextVisibility === "password" && passwordInput) {
+                passwordInput.focus();
+            }
+        });
+    });
+
+    if (passwordToggle && passwordInput) {
+        passwordToggle.addEventListener("click", () => {
+            setPasswordRevealState(passwordInput.type === "password");
+        });
+        setPasswordRevealState(false);
+    }
+
+    if (insertHideButton) {
+        insertHideButton.addEventListener("click", () => {
+            insertTextAtCursor("\n[hide]\n这里填写评论后可见内容\n[/hide]\n");
+        });
+    }
+
     if (emojiToggle && emojiPanel) {
         emojiToggle.addEventListener("click", (event) => {
             event.stopPropagation();
@@ -1287,6 +1397,14 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             refreshState();
             return;
         }
+        if (getSelectedVisibility() === "password" && !String(passwordInput?.value || "").trim()) {
+            setMessage("密码保护动态必须设置访问密码。", "error");
+            if (passwordInput) {
+                passwordInput.focus();
+            }
+            refreshState();
+            return;
+        }
 
         isSubmitting = true;
         submitButton.textContent = "发布中...";
@@ -1355,6 +1473,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         syncTextareaHeight();
         renderEmojiGrid();
         renderMediaList();
+        syncVisibilityControls();
         refreshState();
         window.__rewrzMicroComposer = { ready: true, reason: "ok" };
     } catch (error) {

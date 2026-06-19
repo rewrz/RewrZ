@@ -81,7 +81,7 @@
                         {% if post.updated_at and post.created_at and post.updated_at != post.created_at %}
                         <span class="page-meta-item">
                             <i class="fas fa-rotate"></i>
-                            更新于 {{ post.updated_at.strftime('%Y年%m月%d日') }}
+                            {{ post.updated_at.strftime('%Y年%m月%d日') }}
                         </span>
                         {% endif %}
                     </div>

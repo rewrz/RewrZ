@@ -30,12 +30,21 @@ SECURITY_LOGIN_BAN_MINUTES_KEY = "security_login_ban_minutes"
 SECURITY_NEW_IP_ALERT_ENABLED_KEY = "security_new_ip_login_alert_enabled"
 SECURITY_KNOWN_LOGIN_IPS_KEY = "security_known_login_ips"
 SECURITY_COMMENT_RATE_LIMIT_KEY = "security_comment_rate_limit_per_min"
+SECURITY_LOGIN_AUDIT_AUTO_CLEANUP_ENABLED_KEY = "security_login_audit_auto_cleanup_enabled"
+SECURITY_LOGIN_AUDIT_RETENTION_DAYS_KEY = "security_login_audit_retention_days"
+SECURITY_LOGIN_AUDIT_LAST_CLEANED_AT_KEY = "security_login_audit_last_cleaned_at"
 ADMIN_USER_ACTIVITY_SUMMARY_KEY = "admin_user_activity_summary"
 
 DEFAULT_LOGIN_MAX_ATTEMPTS = 3
 DEFAULT_LOGIN_BAN_MINUTES = 15
 DEFAULT_NEW_IP_ALERT_ENABLED = False
 DEFAULT_COMMENT_RATE_LIMIT_PER_MIN = 30
+DEFAULT_LOGIN_AUDIT_AUTO_CLEANUP_ENABLED = False
+DEFAULT_LOGIN_AUDIT_RETENTION_DAYS = 30
+ADMIN_ROLE_LABELS = {
+    "admin": "普通管理员",
+    "super_admin": "超级管理员",
+}
 
 _AUDIT_LOG_PATH = Path("data/logs/admin_login_audit.log")
 _ADMIN_ACTION_AUDIT_LOG_PATH = Path("data/logs/admin_action_audit.log")
@@ -93,6 +102,20 @@ def get_login_security_config(db: Session) -> dict:
                 db, SECURITY_COMMENT_RATE_LIMIT_KEY, DEFAULT_COMMENT_RATE_LIMIT_PER_MIN
             )
         ),
+        "login_audit_auto_cleanup_enabled": bool(
+            _get_setting_value(
+                db,
+                SECURITY_LOGIN_AUDIT_AUTO_CLEANUP_ENABLED_KEY,
+                DEFAULT_LOGIN_AUDIT_AUTO_CLEANUP_ENABLED,
+            )
+        ),
+        "login_audit_retention_days": int(
+            _get_setting_value(
+                db,
+                SECURITY_LOGIN_AUDIT_RETENTION_DAYS_KEY,
+                DEFAULT_LOGIN_AUDIT_RETENTION_DAYS,
+            )
+        ),
     }
 
 
@@ -103,6 +126,8 @@ def save_security_config(
     login_ban_minutes: int,
     new_ip_login_alert_enabled: bool,
     comment_rate_limit_per_min: int,
+    login_audit_auto_cleanup_enabled: bool,
+    login_audit_retention_days: int,
 ) -> None:
     _upsert_setting(
         db,
@@ -127,6 +152,18 @@ def save_security_config(
         SECURITY_COMMENT_RATE_LIMIT_KEY,
         int(comment_rate_limit_per_min),
         "评论提交API每分钟请求上限（按IP）",
+    )
+    _upsert_setting(
+        db,
+        SECURITY_LOGIN_AUDIT_AUTO_CLEANUP_ENABLED_KEY,
+        bool(login_audit_auto_cleanup_enabled),
+        "是否启用登录审计自动清理",
+    )
+    _upsert_setting(
+        db,
+        SECURITY_LOGIN_AUDIT_RETENTION_DAYS_KEY,
+        int(login_audit_retention_days),
+        "登录审计自动清理保留天数",
     )
 
 
@@ -242,6 +279,10 @@ def record_admin_user_action(
     normalized_event = str(event or "").strip().lower() or "unknown"
     now_utc = _now_utc()
     detail_payload = detail if isinstance(detail, dict) else {}
+    detail_role = ADMIN_ROLE_LABELS.get(
+        str(detail_payload.get("role", "") or "").strip().lower(),
+        str(detail_payload.get("role", "-") or "-"),
+    )
 
     event_labels = {
         "status_updated": "状态已更新",
@@ -256,10 +297,10 @@ def record_admin_user_action(
             if bool(detail_payload.get("is_active"))
             else "已停用"
         ),
-        "role_updated": f"角色切换为 {detail_payload.get('role', '-')}",
+        "role_updated": f"角色切换为 {detail_role}",
         "password_reset": "管理员已重置密码",
         "force_logout": "现有登录态已失效",
-        "created": f"新建角色 {detail_payload.get('role', 'admin')}",
+        "created": f"新建角色 {detail_role}",
     }
 
     record = {
@@ -299,6 +340,131 @@ def get_recent_login_attempts(db: Session, limit: int = 50) -> List[LoginAttempt
         .scalars()
         .all()
     )
+
+
+def count_login_attempts(db: Session) -> int:
+    return int(db.execute(select(func.count(LoginAttempt.id))).scalar_one() or 0)
+
+
+def get_login_attempts_paginated(
+    db: Session,
+    *,
+    skip: int = 0,
+    limit: int = 50,
+) -> List[LoginAttempt]:
+    return list(
+        db.execute(
+            select(LoginAttempt)
+            .order_by(LoginAttempt.created_at.desc())
+            .offset(max(0, int(skip)))
+            .limit(max(1, int(limit)))
+        )
+        .scalars()
+        .all()
+    )
+
+
+def clear_login_attempts(
+    db: Session,
+    *,
+    older_than_days: int | None = None,
+) -> int:
+    stmt = select(LoginAttempt)
+    if older_than_days is not None:
+        cutoff = _to_naive(_now_utc()) - timedelta(days=max(1, int(older_than_days)))
+        stmt = stmt.where(LoginAttempt.created_at < cutoff)
+
+    rows = db.execute(stmt).scalars().all()
+    deleted_count = len(rows)
+    if deleted_count == 0:
+        return 0
+
+    for row in rows:
+        db.delete(row)
+    db.commit()
+    return deleted_count
+
+
+def truncate_login_audit_log() -> None:
+    _AUDIT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _AUDIT_LOG_PATH.write_text("", encoding="utf-8")
+
+
+def prune_login_audit_log(*, older_than_days: int) -> int:
+    retention_days = max(1, int(older_than_days))
+    if not _AUDIT_LOG_PATH.exists():
+        return 0
+
+    cutoff = _to_naive(_now_utc()) - timedelta(days=retention_days)
+    kept_lines: List[str] = []
+    removed_count = 0
+
+    for raw_line in _AUDIT_LOG_PATH.read_text(encoding="utf-8").splitlines():
+        line = str(raw_line or "").rstrip("\n")
+        if not line:
+            continue
+        timestamp_text = line.split("\t", 1)[0].strip()
+        try:
+            parsed_time = datetime.strptime(timestamp_text, "%Y-%m-%d %H:%M:%S UTC")
+        except ValueError:
+            kept_lines.append(line)
+            continue
+        if parsed_time < cutoff:
+            removed_count += 1
+            continue
+        kept_lines.append(line)
+
+    output = "\n".join(kept_lines)
+    if output:
+        output += "\n"
+    _AUDIT_LOG_PATH.write_text(output, encoding="utf-8")
+    return removed_count
+
+
+def mark_login_audit_cleanup_run(db: Session, *, cleaned_at: datetime | None = None) -> None:
+    timestamp = (cleaned_at or _now_utc()).astimezone(timezone.utc).isoformat()
+    _upsert_setting(
+        db,
+        SECURITY_LOGIN_AUDIT_LAST_CLEANED_AT_KEY,
+        timestamp,
+        "登录审计最近一次清理时间",
+    )
+
+
+def _parse_iso_datetime(raw_value: object) -> datetime | None:
+    text = str(raw_value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def should_run_login_audit_auto_cleanup(db: Session, *, now: datetime | None = None) -> bool:
+    config = get_login_security_config(db)
+    if not bool(config.get("login_audit_auto_cleanup_enabled")):
+        return False
+
+    current = (now or _now_utc()).astimezone(timezone.utc)
+    last_cleaned_at = _parse_iso_datetime(
+        _get_setting_value(db, SECURITY_LOGIN_AUDIT_LAST_CLEANED_AT_KEY, "")
+    )
+    if last_cleaned_at is None:
+        return True
+    return last_cleaned_at.date() < current.date()
+
+
+def run_login_audit_auto_cleanup(db: Session) -> int:
+    config = get_login_security_config(db)
+    retention_days = max(1, int(config.get("login_audit_retention_days", DEFAULT_LOGIN_AUDIT_RETENTION_DAYS) or DEFAULT_LOGIN_AUDIT_RETENTION_DAYS))
+    deleted_count = clear_login_attempts(db, older_than_days=retention_days)
+    prune_login_audit_log(older_than_days=retention_days)
+    mark_login_audit_cleanup_run(db)
+    return deleted_count
 
 
 def get_ip_lock_state(

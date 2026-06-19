@@ -9,6 +9,7 @@
 - 密码重置
 """
 
+from math import ceil
 from typing import Optional, Dict, Any
 import json
 
@@ -18,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from ..core.admin_path import get_request_admin_path
 from ..core.admin_security import get_admin_user_activity_map, get_client_ip, record_admin_user_action
+from ..core.admin_security import ADMIN_ROLE_LABELS
 from ..core.security import ensure_admin_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..core.avatar import get_avatar_service
@@ -51,6 +53,8 @@ PROFILE_SETTINGS_DEFAULTS = {
 }
 ALLOWED_GRAVATAR_MODES = {"auto", "enabled", "disabled"}
 ALLOWED_ADMIN_ROLES = {"admin", "super_admin"}
+MANAGED_USERS_ALLOWED_PAGE_SIZES = [10, 20, 50, 100]
+MANAGED_USERS_DEFAULT_PAGE_SIZE = 20
 
 
 def _get_setting_value(db: Session, key: str, default: Any = None) -> Any:
@@ -173,7 +177,21 @@ def _build_profile_context(
     avatar_data = _resolve_profile_avatar_data(db, db_user)
     profile_settings = _get_profile_settings(db)
     search_query = str(request.query_params.get("q", "") or "").strip()
-    user_rows = crud_user.get_users(db, search=search_query, limit=200)
+    page = max(1, int(request.query_params.get("page", 1) or 1))
+    try:
+        page_size = int(request.query_params.get("page_size", MANAGED_USERS_DEFAULT_PAGE_SIZE) or MANAGED_USERS_DEFAULT_PAGE_SIZE)
+    except (TypeError, ValueError):
+        page_size = MANAGED_USERS_DEFAULT_PAGE_SIZE
+    if page_size not in MANAGED_USERS_ALLOWED_PAGE_SIZES:
+        page_size = MANAGED_USERS_DEFAULT_PAGE_SIZE
+
+    filtered_total = crud_user.count_users(db, search=search_query)
+    total_pages = max(1, ceil(filtered_total / page_size)) if filtered_total else 1
+    if page > total_pages:
+        page = total_pages
+
+    offset = (page - 1) * page_size
+    user_rows = crud_user.get_users(db, search=search_query, skip=offset, limit=page_size)
     activity_map = get_admin_user_activity_map(
         db,
         user_ids=[int(getattr(item, "id", 0) or 0) for item in user_rows],
@@ -182,6 +200,30 @@ def _build_profile_context(
     for managed_user in user_rows:
         activity_payload = activity_map.get(int(getattr(managed_user, "id", 0) or 0), {})
         setattr(managed_user, "admin_recent_activity", activity_payload)
+
+    def _build_page_url(target_page: int) -> str:
+        params: Dict[str, str] = {"page": str(target_page), "page_size": str(page_size)}
+        if search_query:
+            params["q"] = search_query
+        return str(request.url.replace_query_params(**params))
+
+    page_window_start = max(1, page - 2)
+    page_window_end = min(total_pages, page_window_start + 4)
+    page_window_start = max(1, page_window_end - 4)
+    page_numbers = list(range(page_window_start, page_window_end + 1))
+
+    pagination = {
+        "current_page": page,
+        "page_size": page_size,
+        "allowed_page_sizes": MANAGED_USERS_ALLOWED_PAGE_SIZES,
+        "total_pages": total_pages,
+        "filtered_total": filtered_total,
+        "has_prev": page > 1,
+        "has_next": page < total_pages,
+        "prev_url": _build_page_url(page - 1) if page > 1 else None,
+        "next_url": _build_page_url(page + 1) if page < total_pages else None,
+        "page_links": [{"page": p, "url": _build_page_url(p), "is_current": p == page} for p in page_numbers],
+    }
 
     return {
         "request": request,
@@ -194,6 +236,8 @@ def _build_profile_context(
         "profile_error": error,
         "admin_path": get_request_admin_path(request),
         "allowed_admin_roles": sorted(ALLOWED_ADMIN_ROLES),
+        "admin_role_labels": ADMIN_ROLE_LABELS,
+        "managed_users_pagination": pagination,
         **avatar_data,
     }
 

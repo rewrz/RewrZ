@@ -1,5 +1,5 @@
 {% set template_db = db if db is defined and db else request.state.db %}
-{% set rendered_html = post | post_content_html(template_db) %}
+{% set rendered_html = post | post_public_content_html(template_db) %}
 {% set content_images = (rendered_html | extract_image_urls(post.featured_image_url)) if rendered_html else [] %}
 {% set featured_cover_url = (post.featured_image_url or '') | trim %}
 {% if featured_cover_url == 'None' %}
@@ -75,7 +75,7 @@
             <span class="inline-flex items-center"><i class="fas fa-clock mr-1.5"></i>{{ (post.content_markdown or post.content_html) | reading_time }}</span>
             {% set stats = (post.content_markdown or post.content_html) | reading_stats(post) %}
             <span class="inline-flex items-center"><i class="fas fa-file-alt mr-1.5"></i>{{ stats.word_count or 0 }}字</span>
-            <span class="inline-flex items-center"><i class="fas fa-history mr-1.5"></i>更新 {{ (post.updated_at or post.published_at or post.created_at).strftime('%Y-%m-%d') }}</span>
+            <span class="inline-flex items-center"><i class="fas fa-history mr-1.5"></i>{{ (post.updated_at or post.published_at or post.created_at).strftime('%Y-%m-%d') }}</span>
         </div>
     </div>
 </article>

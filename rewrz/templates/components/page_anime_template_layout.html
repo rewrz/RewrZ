@@ -56,7 +56,7 @@
                         <span><i class="fas fa-calendar-alt mr-1"></i>{{ (post.published_at if post.published_at else post.created_at).strftime('%Y年%m月%d日') if (post.published_at or post.created_at) else '-' }}</span>
                         <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
                         {% if post.updated_at and post.created_at and post.updated_at != post.created_at %}
-                        <span><i class="fas fa-rotate mr-1"></i>更新于 {{ post.updated_at.strftime('%Y年%m月%d日') }}</span>
+                        <span><i class="fas fa-rotate mr-1"></i>{{ post.updated_at.strftime('%Y年%m月%d日') }}</span>
                         {% endif %}
                     </div>
                     {% endif %}
