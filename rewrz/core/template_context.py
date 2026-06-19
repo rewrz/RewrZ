@@ -177,10 +177,10 @@ def build_base_template_context(request: Request) -> dict:
         "request": request,  # 添加 request 对象到上下文
         "settings": settings,  # 新增：结构化的设置对象
         
-        # 保持向后兼容性：继续提供平铺的字段
-        "atmosphere_class": getattr(request.state, "effect_body_class", ""),
+        # 保留平铺字段，供模板快速读取
+        "effect_body_class": getattr(request.state, "effect_body_class", ""),
         "current_theme": current_theme,
-        "current_atmosphere": current_effect_scene,
+        "current_effect_scene": current_effect_scene,
         "glass_intensity": glass_intensity,
         "background_image_settings": background_settings,
         "resolved_theme": resolved_theme,

@@ -193,9 +193,28 @@ def test_theme_and_effects_pages_are_split_into_independent_panels(test_db, monk
         effects_response = client.get(f"{admin_prefix}/effects")
         assert effects_response.status_code == 200
         assert "节日特效引擎边界" in effects_response.text
-        assert "纪念日特效规则" in effects_response.text
-        assert "节日特效调度" in effects_response.text
+        assert "运行与调度" in effects_response.text
+        assert "公共节日预设" in effects_response.text
+        assert "自定义纪念日" in effects_response.text
         assert "基础主题设置" not in effects_response.text
+        assert ">winter_solstice<" not in effects_response.text
+        assert ">solar_fixed<" not in effects_response.text
+        assert ">festive<" not in effects_response.text
+        assert "系统预设" in effects_response.text
+        assert "公历固定日" in effects_response.text
+        assert "展开详情" in effects_response.text
+        assert "优先级最高" not in effects_response.text
+        assert "当前共 41 种基础特效" in effects_response.text
+        assert "节庆烟火" not in effects_response.text
+        assert "气球上升" in effects_response.text
+        assert "梦幻气泡" in effects_response.text
+        assert "月光皎洁" in effects_response.text
+        assert "星光闪烁" in effects_response.text
+        assert "红包飘落" in effects_response.text
+        assert "元宝飘落" in effects_response.text
+        assert "龙舟横渡" in effects_response.text
+        assert "桂花飘落" in effects_response.text
+        assert "饺子飘落" in effects_response.text
     finally:
         main_module.app.dependency_overrides.clear()
 
@@ -228,7 +247,6 @@ def test_settings_page_requires_csrf_for_submit_when_logged_in(test_db, monkeypa
                 "admin_email": "admin@example.com",
                 "copyright_info": "Copyright",
                 "social_links_json": "[]",
-                "anniversaries_json": "[]",
             },
         )
         assert response.status_code == 403
@@ -264,7 +282,6 @@ def test_settings_page_can_save_and_re_render_saved_value(test_db, monkeypatch):
                 "copyright_info": "Copyright",
                 "custom_footer_text": "<strong>页脚说明</strong>",
                 "social_links_json": "[]",
-                "anniversaries_json": "[]",
                 "csrf_token": csrf_token,
             },
         )
@@ -332,7 +349,6 @@ def test_settings_page_missing_required_fields_returns_400_instead_of_422(test_d
                 "admin_email": "admin@example.com",
                 "copyright_info": "Copyright",
                 "social_links_json": "[]",
-                "anniversaries_json": "[]",
                 "csrf_token": csrf_token,
             },
         )
@@ -384,7 +400,6 @@ def test_settings_page_normalizes_local_asset_urls_on_save(test_db, monkeypatch)
                 "admin_login_background_video_url": "http://127.0.0.1:8000/media/admin-bg.mp4",
                 "copyright_info": "Copyright",
                 "social_links_json": "[]",
-                "anniversaries_json": "[]",
                 "csrf_token": csrf_token,
             },
         )
@@ -448,7 +463,6 @@ def test_settings_page_normalizes_multiline_homepage_background_image_urls_on_sa
                 "homepage_background_image_url": raw_backgrounds,
                 "copyright_info": "Copyright",
                 "social_links_json": "[]",
-                "anniversaries_json": "[]",
                 "csrf_token": csrf_token,
             },
         )

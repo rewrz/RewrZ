@@ -1,26 +1,26 @@
 {% extends "admin/base.html" %}
 
 {% block title_text %}节日特效引擎{% endblock %}
-{% block page_title %}<i class="fas fa-wand-magic-sparkles admin-accent-text mr-3"></i>节日特效引擎{% endblock %}
+{% block page_title %}<i class="fas fa-magic admin-accent-text mr-3"></i>节日特效引擎{% endblock %}
 {% block content %}
-<div class="theme-admin-page space-y-6">
+<div class="theme-admin-page space-y-6" id="effects-admin-root">
     <div class="admin-panel theme-admin-panel bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-lg p-6">
-        <h2 class="text-lg font-semibold text-emerald-800 mb-3">
-            <i class="fas fa-sparkles mr-2"></i>
-            节日特效引擎边界
-        </h2>
+            <h2 class="text-lg font-semibold text-emerald-800 mb-3">
+                <i class="fas fa-magic mr-2"></i>
+                节日特效引擎边界
+            </h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div class="bg-white rounded-lg p-4 border-l-4 border-red-500">
-                <div class="font-medium text-red-700 mb-1">纪念日归特效域</div>
-                <div class="text-gray-600">纪念日、节日、天气与粒子效果由特效引擎统一管理，不再改写主题变量。</div>
+                <div class="font-medium text-red-700 mb-1">公共节日是预设实例</div>
+                <div class="text-gray-600">系统按年度生成公共节日清单，后台只负责调整、启停、重置与换年重建。</div>
             </div>
             <div class="bg-white rounded-lg p-4 border-l-4 border-green-500">
-                <div class="font-medium text-green-700 mb-1">调度只切特效场景</div>
-                <div class="text-gray-600">时间规则命中后只启停特效场景，不再承担主题切换职责。</div>
+                <div class="font-medium text-green-700 mb-1">自定义纪念日优先于公共节日</div>
+                <div class="text-gray-600">命中同一天多个节日时，自定义纪念日主导场景，所有命中特效会先合并、去重，再叠加执行。</div>
             </div>
             <div class="bg-white rounded-lg p-4 border-l-4 border-cyan-500">
-                <div class="font-medium text-cyan-700 mb-1">手动预览不改主题</div>
-                <div class="text-gray-600">预览仅作用于效果层，方便校验节日氛围，不会污染全站基础主题。</div>
+                <div class="font-medium text-cyan-700 mb-1">主题与特效彻底拆域</div>
+                <div class="text-gray-600">节日特效只控制效果层，不改写全站主题变量，也不覆盖用户主题偏好。</div>
             </div>
         </div>
     </div>
@@ -28,12 +28,12 @@
     <div class="admin-panel theme-admin-panel bg-white shadow-sm rounded-lg">
         <div class="px-6 py-4 border-b border-gray-200 bg-green-50">
             <h2 class="text-xl font-semibold text-green-800">
-                <i class="fas fa-clock mr-2"></i>
-                调度开关
+                <i class="fas fa-tachometer-alt mr-2"></i>
+                运行与调度
             </h2>
-            <p class="text-green-600 text-sm mt-1">独立控制是否启用节日特效调度。</p>
+            <p class="text-green-600 text-sm mt-1">查看当前命中的节日特效状态，并控制自动调度与公共节日换年重建。</p>
         </div>
-        <div class="p-6">
+        <div class="p-6 space-y-6">
             <form id="effects-form" hx-post="{{ request.state.admin_path }}/effects/update" hx-trigger="change" hx-swap="none">
                 <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
                 <div class="flex items-start gap-3 p-4 border border-gray-200 rounded-2xl bg-slate-50/80">
@@ -42,144 +42,309 @@
                            {{ 'checked' if effects_schedule_enabled else '' }}>
                     <label for="effects-schedule-enabled" class="min-w-0">
                         <div class="font-medium">启用节日特效调度</div>
-                        <div class="text-sm text-gray-500">根据时间段自动启用对应的节日特效场景，不影响主题配色。</div>
+                        <div class="text-sm text-gray-500">启用后，系统每日按公共节日、自定义纪念日、手动覆盖与调度规则重新解析当前特效结果。</div>
                     </label>
                 </div>
             </form>
+
+            <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.92fr)] gap-4">
+                <div class="rounded-2xl border border-gray-200 p-5 bg-gray-50/80">
+                    <div class="flex items-center justify-between gap-4 mb-4">
+                        <div>
+                            <h3 class="text-base font-semibold">当前命中状态</h3>
+                            <p class="text-sm text-gray-500">以服务端最终解析结果为准，仅展示用户可读语义。</p>
+                        </div>
+                        <span class="inline-flex items-center rounded-full border border-gray-300 px-3 py-1 text-xs font-medium">
+                            场景：{{ current_effect_scene or '无特效' }}
+                        </span>
+                    </div>
+
+            <div class="space-y-3">
+                        {% if resolved_effect_matches %}
+                            {% for item in resolved_effect_matches %}
+                            <div class="rounded-xl border border-gray-200 bg-white p-4">
+                                <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+                                    <div class="font-medium">{{ item.name }}</div>
+                                    <div class="text-xs text-gray-500">
+                                        来源：{{ item.source_label }} · 场景：{{ item.scene_label }}
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    {% for effect in item.effects_display %}
+                                    <span class="inline-flex items-center rounded-full border border-gray-200 px-2.5 py-1 text-xs bg-gray-50">
+                                        {{ effect.icon }} {{ effect.label }}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="rounded-xl border border-dashed border-gray-300 bg-white p-6 text-sm text-gray-500 text-center">
+                                当前没有命中任何节日特效规则。
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-gray-200 p-5 bg-gray-50/80">
+                    <div class="mb-4">
+                        <h3 class="text-base font-semibold">公共节日换年</h3>
+                        <p class="text-sm text-gray-500">当前公共节日清单年份：{{ public_holiday_catalog_year or '未生成' }}</p>
+                    </div>
+
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <label class="flex-1">
+                            <span class="text-xs text-gray-500 block mb-1">目标年份</span>
+                            <input type="number" id="public-holiday-year" class="w-full px-3 py-2 border border-gray-300 rounded"
+                                   min="2026" max="2100" value="{{ public_holiday_catalog_year }}">
+                        </label>
+                        <button type="button" id="rebuild-public-holidays"
+                                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 self-end">
+                            <i class="fas fa-rotate mr-2"></i>重建公共节日清单
+                        </button>
+                    </div>
+
+                    <p class="text-xs text-gray-500 mt-3">系统会按预设规则重新生成该年的 27 个公共节日实例，不影响自定义纪念日。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-panel theme-admin-panel bg-white shadow-sm rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200 bg-blue-50">
+            <h2 class="text-xl font-semibold text-blue-800">
+                <i class="fas fa-calendar-alt mr-2"></i>
+                公共节日预设
+            </h2>
+            <p class="text-blue-600 text-sm mt-1">公共节日由系统预设生成，默认只显示摘要，点击后再展开调整启用状态、场景和特效组合。</p>
+        </div>
+
+        <div class="p-6">
+            <div class="flex items-center justify-between gap-3 mb-5">
+                <div class="text-sm text-gray-500">共 {{ settings.public_holidays|length }} 条公共节日实例</div>
+                <button type="button" id="save-public-holidays"
+                        class="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    <i class="fas fa-save mr-2"></i>保存公共节日配置
+                </button>
+            </div>
+
+            <div id="public-holidays-container" class="space-y-4">
+                {% for holiday in settings.public_holidays %}
+                <div class="theme-anniversary-item rounded-2xl border border-gray-200 p-5 bg-gray-50/80 public-holiday-item"
+                     data-code="{{ holiday.code }}"
+                     data-start-at="{{ holiday.start_at }}"
+                     data-calendar-type-label="{{ holiday.calendar_type_label }}">
+                    <div class="flex flex-col gap-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <h3 class="text-lg font-semibold public-holiday-title">{{ holiday.name }}</h3>
+                                    <span class="inline-flex items-center rounded-full border border-gray-200 px-2.5 py-1 text-xs bg-white">
+                                        系统预设
+                                    </span>
+                                    <span class="public-holiday-status inline-flex items-center rounded-full border px-2.5 py-1 text-xs {{ 'border-emerald-200 bg-emerald-50 text-emerald-700' if holiday.enabled else 'border-gray-200 bg-white text-gray-500' }}">
+                                        {{ '已启用' if holiday.enabled else '已停用' }}
+                                    </span>
+                                </div>
+                                <div class="public-holiday-summary text-sm text-gray-500 mt-2">
+                                    日期：{{ holiday.start_at }} · 类型：{{ holiday.calendar_type_label }} · 场景：{{ holiday.effect_scene_label }} · {{ holiday.effects_display|length }} 个特效
+                                </div>
+                            </div>
+                            <button type="button"
+                                    class="effect-config-toggle inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                                    data-target-id="public-holiday-{{ holiday.code }}">
+                                <span class="effect-config-toggle-label">展开详情</span>
+                                <i class="fas fa-chevron-down effect-config-toggle-icon text-xs"></i>
+                            </button>
+                        </div>
+
+                        <div id="public-holiday-{{ holiday.code }}" class="effect-config-panel hidden rounded-2xl border border-gray-200 bg-white p-4">
+                            <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)] gap-5">
+                                <div class="space-y-4">
+                                    <div class="rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-blue-700">
+                                        公共节日只需要调整是否启用、场景和特效组合。同日叠加时系统会自动合并并去重，无需手动设置内部排序。
+                                    </div>
+                                    <div class="flex flex-wrap items-start justify-between gap-3">
+                                        <label class="flex-1 min-w-[220px]">
+                                            <span class="text-xs text-gray-500 block mb-1">名称</span>
+                                            <input type="text" class="public-holiday-name w-full px-3 py-2 border border-gray-300 rounded"
+                                                   value="{{ holiday.name }}">
+                                        </label>
+                                        <label class="inline-flex items-center gap-2 text-sm pt-6">
+                                            <input type="checkbox" class="public-holiday-enabled h-4 w-4" {{ 'checked' if holiday.enabled else '' }}>
+                                            启用这个公共节日
+                                        </label>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <span class="text-xs text-gray-500 block mb-1">日期</span>
+                                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">{{ holiday.start_at }}</div>
+                                        </div>
+                                        <label>
+                                            <span class="text-xs text-gray-500 block mb-1">场景</span>
+                                            <select class="public-holiday-scene w-full px-3 py-2 border border-gray-300 rounded">
+                                                {% for scene_option in effect_scene_options %}
+                                                <option value="{{ scene_option.value }}" {{ 'selected' if scene_option.value == holiday.effect_scene else '' }}>
+                                                    {{ scene_option.label }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="text-xs text-gray-500 block mb-2">特效组合</div>
+                                    <div class="rounded-xl border border-gray-200 bg-white p-3 grid grid-cols-2 gap-2">
+                                        {% for option in effect_options %}
+                                        <label class="flex items-center gap-2 text-sm">
+                                            <input type="checkbox" class="public-holiday-effect h-4 w-4"
+                                                   value="{{ option.value }}"
+                                                   {{ 'checked' if holiday.effects and option.value in holiday.effects else '' }}>
+                                            <span>{{ option.icon }}</span>
+                                            <span>{{ option.label }}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
     </div>
 
     <div class="admin-panel theme-admin-panel bg-white shadow-sm rounded-lg">
         <div class="px-6 py-4 border-b border-gray-200 bg-red-50">
             <h2 class="text-xl font-semibold text-red-800">
-                <i class="fas fa-calendar-heart mr-2"></i>
-                纪念日特效规则
+                <i class="fas fa-heart mr-2"></i>
+                自定义纪念日
             </h2>
-            <p class="text-red-600 text-sm mt-1">纪念日属于节日特效引擎，只控制全站特效，不改写主题配色。</p>
+            <p class="text-red-600 text-sm mt-1">自定义纪念日默认高于公共节日，用于生日、站庆、个人纪念日等手动规则，默认只显示摘要。</p>
         </div>
 
         <div class="p-6">
-            <div id="anniversaries-container" class="space-y-4 mb-6">
-                {% if settings.anniversaries %}
-                    {% for anniversary in settings.anniversaries %}
-                    <div class="anniversary-item theme-anniversary-item bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
-                            <div class="flex space-x-2">
-                                <input type="number" class="w-16 px-2 py-2 border border-gray-300 rounded text-center"
-                                       placeholder="月" min="1" max="12" value="{{ anniversary.month }}">
-                                <span class="py-2 text-gray-500">月</span>
-                                <input type="number" class="w-16 px-2 py-2 border border-gray-300 rounded text-center"
-                                       placeholder="日" min="1" max="31" value="{{ anniversary.day }}">
-                                <span class="py-2 text-gray-500">日</span>
-                            </div>
-
-                            <div>
-                                <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded"
-                                       placeholder="节日名称（如：国庆节）" value="{{ anniversary.name }}">
-                            </div>
-
-                            <div>
-                                <select class="w-full px-3 py-2 border border-gray-300 rounded anniversary-type-select">
-                                    <option value="festive" {% if anniversary.type == 'festive' %}selected{% endif %}>🎉 喜庆节日</option>
-                                    <option value="mourn" {% if anniversary.type == 'mourn' %}selected{% endif %}>🕯️ 纪念悼念</option>
-                                    <option value="spring_festival" {% if anniversary.type == 'spring_festival' %}selected{% endif %}>🏮 春节</option>
-                                    <option value="new_year" {% if anniversary.type == 'new_year' %}selected{% endif %}>🎆 新年</option>
-                                    <option value="cherry_blossom" {% if anniversary.type == 'cherry_blossom' %}selected{% endif %}>🌸 樱花节</option>
-                                    <option value="winter" {% if anniversary.type == 'winter' %}selected{% endif %}>❄️ 冬季</option>
-                                    <option value="autumn" {% if anniversary.type == 'autumn' %}selected{% endif %}>🍂 秋季</option>
-                                    <option value="celebration" {% if anniversary.type == 'celebration' %}selected{% endif %}>🎊 庆祝</option>
-                                    <option value="memorial" {% if anniversary.type == 'memorial' %}selected{% endif %}>🕊️ 追悼</option>
-                                    <option value="valentine" {% if anniversary.type == 'valentine' %}selected{% endif %}>💖 情人节</option>
-                                    <option value="christmas" {% if anniversary.type == 'christmas' %}selected{% endif %}>🎄 圣诞节</option>
-                                    <option value="national_day" {% if anniversary.type == 'national_day' %}selected{% endif %}>🇨🇳 国庆节</option>
-                                    <option value="rainy_day" {% if anniversary.type == 'rainy_day' %}selected{% endif %}>🌧️ 雨天</option>
-                                    <option value="stormy" {% if anniversary.type == 'stormy' %}selected{% endif %}>⛈️ 暴风雨</option>
-                                    <option value="sunny" {% if anniversary.type == 'sunny' %}selected{% endif %}>☀️ 晴天</option>
-                                    <option value="cloudy" {% if anniversary.type == 'cloudy' %}selected{% endif %}>☁️ 多云</option>
-                                    <option value="spring" {% if anniversary.type == 'spring' %}selected{% endif %}>🌱 春天</option>
-                                    <option value="summer" {% if anniversary.type == 'summer' %}selected{% endif %}>😎 夏天</option>
-                                    <option value="thunderstorm" {% if anniversary.type == 'thunderstorm' %}selected{% endif %}>⚡ 雷雨</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="text-xs text-gray-500 block mb-1">特效选择（可多选）</label>
-                                <div class="max-h-32 overflow-y-auto border border-gray-300 rounded bg-white">
-                                    <div class="p-2 space-y-1">
-                                        <div class="text-xs font-medium text-gray-600 border-b pb-1">🎉 喜庆特效</div>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="fireworks" class="effect-checkbox mr-2" {% if anniversary.effects and 'fireworks' in anniversary.effects %}checked{% endif %}>
-                                            🎆 烟花绽放
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="lanterns" class="effect-checkbox mr-2" {% if anniversary.effects and 'lanterns' in anniversary.effects %}checked{% endif %}>
-                                            🏮 红灯笼
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="firecrackers" class="effect-checkbox mr-2" {% if anniversary.effects and 'firecrackers' in anniversary.effects %}checked{% endif %}>
-                                            🧨 爆竹声声
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="confetti" class="effect-checkbox mr-2" {% if anniversary.effects and 'confetti' in anniversary.effects %}checked{% endif %}>
-                                            🎊 彩带飞舞
-                                        </label>
-
-                                        <div class="text-xs font-medium text-gray-600 border-b pb-1 pt-2">🕯️ 纪念特效</div>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="grayscale" class="effect-checkbox mr-2" {% if anniversary.effects and 'grayscale' in anniversary.effects %}checked{% endif %}>
-                                            ⚫ 全站灰白
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="candles" class="effect-checkbox mr-2" {% if anniversary.effects and 'candles' in anniversary.effects %}checked{% endif %}>
-                                            🕯️ 蜡烛摇曳
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="petals" class="effect-checkbox mr-2" {% if anniversary.effects and 'petals' in anniversary.effects %}checked{% endif %}>
-                                            🌸 花瓣飘落
-                                        </label>
-
-                                        <div class="text-xs font-medium text-gray-600 border-b pb-1 pt-2">🌨️ 季节特效</div>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="snow" class="effect-checkbox mr-2" {% if anniversary.effects and 'snow' in anniversary.effects %}checked{% endif %}>
-                                            ❄️ 雪花飘飘
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="sakura" class="effect-checkbox mr-2" {% if anniversary.effects and 'sakura' in anniversary.effects %}checked{% endif %}>
-                                            🌸 樱花飞舞
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="leaves" class="effect-checkbox mr-2" {% if anniversary.effects and 'leaves' in anniversary.effects %}checked{% endif %}>
-                                            🍂 落叶纷飞
-                                        </label>
-
-                                        <div class="text-xs font-medium text-gray-600 border-b pb-1 pt-2">🌦️ 天气特效</div>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="rain" class="effect-checkbox mr-2" {% if anniversary.effects and 'rain' in anniversary.effects %}checked{% endif %}>
-                                            🌧️ 下雨天
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="thunder" class="effect-checkbox mr-2" {% if anniversary.effects and 'thunder' in anniversary.effects %}checked{% endif %}>
-                                            ⚡ 雷电交加
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="clouds" class="effect-checkbox mr-2" {% if anniversary.effects and 'clouds' in anniversary.effects %}checked{% endif %}>
-                                            ☁️ 云雾缭绕
-                                        </label>
-                                        <label class="flex items-center text-sm">
-                                            <input type="checkbox" value="sunshine" class="effect-checkbox mr-2" {% if anniversary.effects and 'sunshine' in anniversary.effects %}checked{% endif %}>
-                                            ☀️ 阳光明媚
-                                        </label>
+            <div id="custom-anniversaries-container" class="space-y-4 mb-6">
+                {% if settings.custom_anniversaries %}
+                    {% for anniversary in settings.custom_anniversaries %}
+                    <div class="anniversary-item theme-anniversary-item rounded-2xl border border-gray-200 p-5 bg-gray-50/80 custom-anniversary-item"
+                         data-id="{{ anniversary.id }}">
+                        <div class="flex flex-col gap-4">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <h3 class="text-lg font-semibold custom-anniversary-title">{{ anniversary.name }}</h3>
+                                        <span class="inline-flex items-center rounded-full border border-red-100 px-2.5 py-1 text-xs bg-red-50 text-red-700">
+                                            自定义纪念日
+                                        </span>
+                                        <span class="custom-anniversary-status inline-flex items-center rounded-full border px-2.5 py-1 text-xs {{ 'border-emerald-200 bg-emerald-50 text-emerald-700' if anniversary.enabled else 'border-gray-200 bg-white text-gray-500' }}">
+                                            {{ '已启用' if anniversary.enabled else '已停用' }}
+                                        </span>
+                                    </div>
+                                    <div class="custom-anniversary-summary text-sm text-gray-500 mt-2">
+                                        日期：{{ anniversary.date_rule.month if anniversary.date_rule else '?' }} 月 {{ anniversary.date_rule.day if anniversary.date_rule else '?' }} 日 · {{ anniversary.date_type_label }} · 场景：{{ anniversary.effect_scene_label }} · {{ anniversary.effects_display|length }} 个特效
                                     </div>
                                 </div>
+                                <button type="button"
+                                        class="effect-config-toggle inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                                        data-target-id="custom-anniversary-{{ anniversary.id }}">
+                                    <span class="effect-config-toggle-label">展开详情</span>
+                                    <i class="fas fa-chevron-down effect-config-toggle-icon text-xs"></i>
+                                </button>
                             </div>
 
-                            <div class="flex space-x-2">
-                                <button type="button" class="preview-anniversary px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                                    <i class="fas fa-eye"></i> 预览
-                                </button>
-                                <button type="button" class="remove-anniversary px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600">
-                                    <i class="fas fa-trash"></i>
-                                </button>
+                            <div id="custom-anniversary-{{ anniversary.id }}" class="effect-config-panel hidden rounded-2xl border border-gray-200 bg-white p-4">
+                                <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.9fr)] gap-5">
+                                    <div class="space-y-4">
+                                        <div class="rounded-xl border border-red-100 bg-red-50/70 px-4 py-3 text-sm text-red-700 custom-anniversary-meta">
+                                            自定义纪念日默认高于公共节日；如果同一天还有其他节日命中，系统会自动合并并去重特效。
+                                        </div>
+
+                                        <div class="flex flex-wrap items-start justify-between gap-3">
+                                            <label class="flex-1 min-w-[220px]">
+                                                <span class="text-xs text-gray-500 block mb-1">名称</span>
+                                                <input type="text" class="custom-anniversary-name w-full px-3 py-2 border border-gray-300 rounded"
+                                                       value="{{ anniversary.name }}">
+                                            </label>
+                                            <label class="inline-flex items-center gap-2 text-sm pt-6">
+                                                <input type="checkbox" class="custom-anniversary-enabled h-4 w-4" {{ 'checked' if anniversary.enabled else '' }}>
+                                                启用这个纪念日
+                                            </label>
+                                        </div>
+
+                                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                                            <label>
+                                                <span class="text-xs text-gray-500 block mb-1">日期类型</span>
+                                                <select class="custom-anniversary-date-type w-full px-3 py-2 border border-gray-300 rounded">
+                                                    <option value="solar_fixed" {{ 'selected' if anniversary.date_type == 'solar_fixed' or anniversary.calendar_type == 'solar_fixed' else '' }}>公历固定</option>
+                                                    <option value="lunar_fixed" {{ 'selected' if anniversary.date_type == 'lunar_fixed' or anniversary.calendar_type == 'lunar_fixed' else '' }}>农历固定</option>
+                                                </select>
+                                            </label>
+                                            <label>
+                                                <span class="text-xs text-gray-500 block mb-1">月</span>
+                                                <input type="number" class="custom-anniversary-month w-full px-3 py-2 border border-gray-300 rounded"
+                                                       min="1" max="12" value="{{ anniversary.date_rule.month if anniversary.date_rule else '' }}">
+                                            </label>
+                                            <label>
+                                                <span class="text-xs text-gray-500 block mb-1">日</span>
+                                                <input type="number" class="custom-anniversary-day w-full px-3 py-2 border border-gray-300 rounded"
+                                                       min="1" max="31" value="{{ anniversary.date_rule.day if anniversary.date_rule else '' }}">
+                                            </label>
+                                            <label class="flex items-end">
+                                                <span class="inline-flex items-center gap-2 text-sm py-2">
+                                                    <input type="checkbox" class="custom-anniversary-recurring h-4 w-4" {{ 'checked' if anniversary.is_recurring else '' }}>
+                                                    每年循环
+                                                </span>
+                                            </label>
+                                        </div>
+
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <label>
+                                                <span class="text-xs text-gray-500 block mb-1">场景</span>
+                                                <select class="custom-anniversary-scene w-full px-3 py-2 border border-gray-300 rounded">
+                                                    {% for scene_option in effect_scene_options %}
+                                                    <option value="{{ scene_option.value }}" {{ 'selected' if scene_option.value == anniversary.effect_scene else '' }}>
+                                                        {{ scene_option.label }}
+                                                    </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </label>
+                                            <label>
+                                                <span class="text-xs text-gray-500 block mb-1">备注</span>
+                                                <input type="text" class="custom-anniversary-notes w-full px-3 py-2 border border-gray-300 rounded"
+                                                       value="{{ anniversary.notes or '' }}">
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="space-y-4">
+                                        <div>
+                                            <div class="text-xs text-gray-500 block mb-2">特效组合</div>
+                                            <div class="rounded-xl border border-gray-200 bg-white p-3 grid grid-cols-2 gap-2">
+                                                {% for option in effect_options %}
+                                                <label class="flex items-center gap-2 text-sm">
+                                                    <input type="checkbox" class="custom-anniversary-effect h-4 w-4"
+                                                           value="{{ option.value }}"
+                                                           {{ 'checked' if anniversary.effects and option.value in anniversary.effects else '' }}>
+                                                    <span>{{ option.icon }}</span>
+                                                    <span>{{ option.label }}</span>
+                                                </label>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <button type="button" class="preview-anniversary px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
+                                                <i class="fas fa-eye mr-1"></i>预览
+                                            </button>
+                                            <button type="button" class="remove-anniversary px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600">
+                                                <i class="fas fa-trash mr-1"></i>删除
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -187,8 +352,8 @@
                 {% else %}
                     <div class="text-center py-8 text-gray-500">
                         <i class="fas fa-calendar-plus text-4xl mb-4"></i>
-                        <p>还没有设置任何纪念日特效规则</p>
-                        <p class="text-sm">点击下方按钮添加第一条纪念日规则</p>
+                        <p>还没有设置任何自定义纪念日</p>
+                        <p class="text-sm">点击下方按钮添加第一条自定义纪念日规则</p>
                     </div>
                 {% endif %}
             </div>
@@ -196,16 +361,16 @@
             <div class="flex flex-col gap-3 pt-4 border-t border-gray-200 sm:flex-row sm:items-center sm:justify-between">
                 <button type="button" id="add-anniversary"
                         class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                    <i class="fas fa-plus mr-2"></i>添加纪念日规则
+                    <i class="fas fa-plus mr-2"></i>添加自定义纪念日
                 </button>
                 <div class="flex flex-wrap items-center gap-3 sm:justify-end">
                     <button type="button" id="preview-all-anniversaries"
                             class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        <i class="fas fa-eye mr-2"></i>预览所有效果
+                        <i class="fas fa-eye mr-2"></i>预览全部自定义特效
                     </button>
                     <button type="button" id="save-anniversaries"
                             class="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-                        <i class="fas fa-save mr-2"></i>保存纪念日规则
+                        <i class="fas fa-save mr-2"></i>保存自定义纪念日
                     </button>
                 </div>
             </div>
@@ -213,152 +378,33 @@
     </div>
 
     <div class="admin-panel theme-admin-panel bg-white shadow-sm rounded-lg">
-        <div class="px-6 py-4 border-b border-gray-200 bg-green-50">
-            <h2 class="text-xl font-semibold text-green-800">
-                <i class="fas fa-calendar-days mr-2"></i>
-                节日特效调度
-            </h2>
-            <p class="text-green-600 text-sm mt-1">设置特定时间段启用哪组节日特效场景，不再承担主题切换职责。</p>
-        </div>
-
-        <div class="p-6">
-            <div id="schedule-container" class="space-y-4 mb-6">
-                {% if theme_schedule %}
-                    {% for item in theme_schedule %}
-                    <div class="schedule-item theme-schedule-item bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                            <div class="space-y-2">
-                                <label class="text-xs text-gray-500">开始时间</label>
-                                <input type="date" value="{{ item.start_date }}"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-xs text-gray-500">结束时间</label>
-                                <input type="date" value="{{ item.end_date }}"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
-                            </div>
-
-                            <div class="space-y-2">
-                                <label class="text-xs text-gray-500">特效场景</label>
-                                <select class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
-                                    <option value="">无特效</option>
-                                    {% for effect_scene_id, effect_list in effect_scene_presets.items() %}
-                                    <option value="{{ effect_scene_id }}" {{ 'selected' if effect_scene_id == item.atmosphere else '' }}>
-                                        {{ effect_scene_id }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-
-                            <div class="flex space-x-2">
-                                <button type="button" class="preview-schedule px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button type="button" class="remove-schedule px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="text-center py-8 text-gray-500">
-                        <i class="fas fa-calendar-alt text-4xl mb-4"></i>
-                        <p>还没有设置任何节日特效调度</p>
-                        <p class="text-sm">点击下方按钮添加第一条调度规则</p>
-                    </div>
-                {% endif %}
-            </div>
-
-            <div class="flex flex-col gap-3 pt-4 border-t border-gray-200 sm:flex-row sm:items-center sm:justify-between">
-                <button type="button" id="add-schedule"
-                        class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                    <i class="fas fa-plus mr-2"></i>添加调度规则
-                </button>
-                <button type="button" id="save-schedule"
-                        class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                    <i class="fas fa-save mr-2"></i>保存特效调度
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div class="admin-panel theme-admin-panel bg-white shadow-sm rounded-lg">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-xl font-semibold text-gray-800">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800">
                 <i class="fas fa-magic mr-2"></i>
                 特效预览
-            </h2>
-            <p class="text-gray-600 text-sm mt-1">预览节日特效引擎中的效果层，不影响主题系统。</p>
+                    </h2>
+                    <p class="text-gray-600 text-sm mt-1">仅预览效果层，不会写入真实节日规则。预览区按用途分组，默认只展开首组，避免页面过长。</p>
+                </div>
+                <span class="inline-flex items-center rounded-full border border-gray-200 px-3 py-1 text-xs bg-white">
+                    当前共 {{ effect_options|length }} 种基础特效
+                </span>
+            </div>
         </div>
 
         <div class="p-6">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="fireworks">
-                    <div class="text-2xl mb-2">🎆</div>
-                    <div class="font-medium">烟花绽放</div>
-                    <div class="text-xs text-gray-500">节日庆典</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="lanterns">
-                    <div class="text-2xl mb-2">🏮</div>
-                    <div class="font-medium">红灯笼</div>
-                    <div class="text-xs text-gray-500">传统节日</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="sakura">
-                    <div class="text-2xl mb-2">🌸</div>
-                    <div class="font-medium">樱花飞舞</div>
-                    <div class="text-xs text-gray-500">春季浪漫</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="snow">
-                    <div class="text-2xl mb-2">❄️</div>
-                    <div class="font-medium">雪花飘飘</div>
-                    <div class="text-xs text-gray-500">冬季氛围</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="grayscale">
-                    <div class="text-2xl mb-2">⚫</div>
-                    <div class="font-medium">全站灰白</div>
-                    <div class="text-xs text-gray-500">纪念悼念</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="firecrackers">
-                    <div class="text-2xl mb-2">🧨</div>
-                    <div class="font-medium">爆竹声声</div>
-                    <div class="text-xs text-gray-500">新年庆祝</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="confetti">
-                    <div class="text-2xl mb-2">🎊</div>
-                    <div class="font-medium">彩带飞舞</div>
-                    <div class="text-xs text-gray-500">庆祝活动</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="rain">
-                    <div class="text-2xl mb-2">🌧️</div>
-                    <div class="font-medium">下雨天</div>
-                    <div class="text-xs text-gray-500">雨滴飘洒</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="thunder">
-                    <div class="text-2xl mb-2">⚡</div>
-                    <div class="font-medium">雷电交加</div>
-                    <div class="text-xs text-gray-500">闪电雷鸣</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="clouds">
-                    <div class="text-2xl mb-2">☁️</div>
-                    <div class="font-medium">云雾缭绕</div>
-                    <div class="text-xs text-gray-500">云朵飘动</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-effect="sunshine">
-                    <div class="text-2xl mb-2">☀️</div>
-                    <div class="font-medium">阳光明媚</div>
-                    <div class="text-xs text-gray-500">阳光普照</div>
-                </button>
-                <button type="button" class="effect-preview-btn p-4 border border-gray-200 rounded-lg hover:border-red-300 hover:bg-red-50 transition-colors" data-effect="stop">
-                    <div class="text-2xl mb-2">⏹️</div>
-                    <div class="font-medium">停止特效</div>
-                    <div class="text-xs text-gray-500">清除所有</div>
-                </button>
-            </div>
+            <div id="effect-preview-groups" class="space-y-4"></div>
         </div>
     </div>
 </div>
 
+<script>
+    window.__EFFECT_SCENE_PRESETS__ = {{ effect_scene_presets | tojson }};
+    window.__EFFECT_SCENE_OPTIONS__ = {{ effect_scene_options | tojson }};
+    window.__EFFECT_OPTIONS__ = {{ effect_options | tojson }};
+    window.__PUBLIC_HOLIDAY_CATALOG_YEAR__ = {{ public_holiday_catalog_year | tojson }};
+</script>
 <script src="{{ static_asset(request, 'js/effects/effect-manager.js') }}" defer></script>
 <script src="{{ static_asset(request, 'js/admin/effects-engine-page.js') }}" defer></script>
 {% endblock %}

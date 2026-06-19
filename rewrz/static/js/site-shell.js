@@ -181,7 +181,7 @@ class SiteShellController {
     this.themeLink = document.getElementById('theme-variables-link');
     this.hljsThemeLink = document.getElementById('hljs-theme-link');
     this.theme = this.root.dataset.currentTheme || this.body?.dataset.currentTheme || 'light';
-    this.atmosphereClass = this.body?.dataset.atmosphereClass || '';
+    this.effectBodyClass = this.body?.dataset.effectBodyClass || '';
     this.activeEffects = this.parseBodyEffects();
     this.themeCsrfToken = this.body?.dataset.themeCsrfToken || '';
     this.canPersistTheme = this.body?.dataset.themePersistAllowed === 'true';
@@ -196,7 +196,7 @@ class SiteShellController {
 
   init() {
     this.applyTheme(this.theme, { persist: false, sync: false, announce: false });
-    this.applyAtmosphere(this.atmosphereClass);
+    this.applyEffectBodyClass(this.effectBodyClass);
     this.applyEffects(this.activeEffects);
     this.applyBackground();
     this.applyHomepageMode();
@@ -209,7 +209,7 @@ class SiteShellController {
     window.themeManager = {
       getCurrentTheme: () => this.theme,
       setTheme: (theme) => this.applyTheme(theme, { persist: true, sync: true, announce: false }),
-      setAtmosphere: (atmosphereClass) => this.applyAtmosphere(atmosphereClass || ''),
+      setEffectBodyClass: (effectBodyClass) => this.applyEffectBodyClass(effectBodyClass || ''),
       toggleTheme: () => this.toggleTheme(),
       syncFromServer: () => this.syncThemeFromServer(true),
     };
@@ -446,16 +446,16 @@ class SiteShellController {
     return this.themeSyncInFlight;
   }
 
-  applyAtmosphere(className) {
+  applyEffectBodyClass(className) {
     if (!this.body) return;
     Array.from(this.body.classList)
       .filter((value) => value.startsWith('atmosphere-'))
       .forEach((value) => this.body.classList.remove(value));
     if (className) {
       this.body.classList.add(className);
-      this.body.dataset.atmosphereClass = className;
+      this.body.dataset.effectBodyClass = className;
     } else {
-      delete this.body.dataset.atmosphereClass;
+      this.body.dataset.effectBodyClass = '';
     }
   }
 
@@ -633,10 +633,10 @@ class SiteShellController {
       if (payload.theme && payload.theme !== this.theme) {
         this.applyTheme(payload.theme, { persist: true, sync: false, announce: false, source: 'theme-sync' });
       }
-      const nextAtmosphereClass = Array.isArray(payload.resolved_effects?.body_classes) && payload.resolved_effects.body_classes.length > 0
+      const nextEffectBodyClass = Array.isArray(payload.resolved_effects?.body_classes) && payload.resolved_effects.body_classes.length > 0
         ? payload.resolved_effects.body_classes[0]
         : '';
-      this.applyAtmosphere(nextAtmosphereClass);
+      this.applyEffectBodyClass(nextEffectBodyClass);
       await this.applyEffects(payload.resolved_effects?.effects || []);
       this.backgroundType = payload.background?.type || 'none';
       this.backgroundUrl = payload.background?.custom_url || '';

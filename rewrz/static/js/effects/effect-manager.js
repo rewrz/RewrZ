@@ -9,11 +9,38 @@ class EffectManager {
         this.loadingEffects = new Map();
         this.effectClasses = {
             'fireworks': 'FireworksEffect',
-            'sakura': 'SakuraEffect', 
+            'sakura': 'SakuraEffect',
             'snow': 'SnowEffect',
             'lanterns': 'LanternsEffect',
             'firecrackers': 'FirecrackersEffect',
             'confetti': 'ConfettiEffect',
+            'golden_dust': 'GoldenDustEffect',
+            'floating_lights': 'FloatingLightsEffect',
+            'hearts': 'HeartsEffect',
+            'balloons': 'BalloonsEffect',
+            'bubbles': 'BubblesEffect',
+            'moonlight': 'MoonlightEffect',
+            'stars': 'StarsEffect',
+            'embers': 'EmbersEffect',
+            'rice_grains': 'RiceGrainsEffect',
+            'countdown_banner': 'CountdownBannerEffect',
+            'red_packets': 'RedPacketsEffect',
+            'ingots': 'IngotsEffect',
+            'tangyuan': 'TangyuanEffect',
+            'dragon_shape': 'DragonShapeEffect',
+            'willow_catkins': 'WillowCatkinsEffect',
+            'gear_icons': 'GearIconsEffect',
+            'tie_icons': 'TieIconsEffect',
+            'dragon_boats': 'DragonBoatsEffect',
+            'zongzi': 'ZongziEffect',
+            'star_bridge': 'StarBridgeEffect',
+            'feathers': 'FeathersEffect',
+            'paper_charms': 'PaperCharmsEffect',
+            'lotus_lights': 'LotusLightsEffect',
+            'chalk_writing': 'ChalkWritingEffect',
+            'osmanthus': 'OsmanthusEffect',
+            'dumplings': 'DumplingsEffect',
+            'tree_lights': 'TreeLightsEffect',
             'candles': 'CandlesEffect',
             'petals': 'PetalsEffect',
             'leaves': 'LeavesEffect',
@@ -21,6 +48,23 @@ class EffectManager {
             'thunder': 'ThunderEffect',
             'clouds': 'CloudsEffect',
             'sunshine': 'SunshineEffect'
+        };
+        this.effectScriptFiles = {
+            'golden_dust': 'golden-dust.js',
+            'floating_lights': 'floating-lights.js',
+            'rice_grains': 'rice-grains.js',
+            'countdown_banner': 'countdown-banner.js',
+            'red_packets': 'red-packets.js',
+            'dragon_shape': 'dragon-shape.js',
+            'willow_catkins': 'willow-catkins.js',
+            'gear_icons': 'gear-icons.js',
+            'tie_icons': 'tie-icons.js',
+            'dragon_boats': 'dragon-boats.js',
+            'star_bridge': 'star-bridge.js',
+            'paper_charms': 'paper-charms.js',
+            'lotus_lights': 'lotus-lights.js',
+            'chalk_writing': 'chalk-writing.js',
+            'tree_lights': 'tree-lights.js',
         };
         this.loadedScripts = new Set();
     }
@@ -34,7 +78,8 @@ class EffectManager {
         }
 
         // 检查是否已经存在相同的脚本标签
-        const existingScript = document.querySelector(`script[src*="${effectName}.js"]`);
+        const scriptFileName = this.effectScriptFiles[effectName] || `${effectName}.js`;
+        const existingScript = document.querySelector(`script[src*="${scriptFileName}"]`);
         if (existingScript) {
             this.loadedScripts.add(effectName);
             return true;
@@ -42,7 +87,7 @@ class EffectManager {
 
         try {
             const script = document.createElement('script');
-            script.src = `/static/js/effects/${effectName}.js`;
+            script.src = `/static/js/effects/${scriptFileName}`;
             script.setAttribute('data-effect', effectName);
             const loader = new Promise((resolve) => {
                 script.onload = () => {
@@ -182,33 +227,42 @@ class EffectManager {
 
         // 预定义的特效组合
         const effectCombinations = {
-            'festive': ['fireworks', 'confetti', 'lanterns'], // 喜庆节日
-            'mourn': ['grayscale', 'candles'], // 纪念悼念
-            'spring_festival': ['lanterns', 'firecrackers'], // 春节
-            'new_year': ['fireworks', 'confetti'], // 新年
+            'festive': ['fireworks', 'confetti', 'lanterns', 'golden_dust', 'stars'], // 喜庆节日
+            'mourn': ['grayscale', 'candles', 'floating_lights', 'paper_charms'], // 纪念悼念
+            'spring_festival': ['lanterns', 'firecrackers', 'golden_dust', 'embers', 'red_packets'], // 春节
+            'new_year': ['fireworks', 'confetti', 'golden_dust', 'stars', 'countdown_banner'], // 新年
             'cherry_blossom': ['sakura', 'petals'], // 樱花节
-            'winter': ['snow', 'clouds'], // 冬季
+            'winter': ['snow', 'clouds', 'moonlight'], // 冬季
             'autumn': ['leaves'], // 秋季
-            'celebration': ['fireworks', 'confetti'], // 庆祝
-            'memorial': ['grayscale', 'candles'], // 追悼
-            'valentine': ['sakura', 'petals'], // 情人节
-            'christmas': ['snow', 'fireworks'], // 圣诞节
-            'national_day': ['fireworks', 'lanterns'], // 国庆节
+            'celebration': ['fireworks', 'confetti', 'golden_dust', 'balloons'], // 庆祝
+            'memorial': ['grayscale', 'candles', 'floating_lights'], // 追悼
+            'valentine': ['hearts', 'petals', 'sakura', 'stars', 'feathers'], // 情人节
+            'christmas': ['snow', 'fireworks', 'floating_lights', 'stars', 'tree_lights'], // 圣诞节
+            'national_day': ['fireworks', 'lanterns', 'golden_dust', 'stars'], // 国庆节
             'rainy_day': ['rain', 'clouds'], // 雨天
             'stormy': ['rain', 'thunder', 'clouds'], // 暴风雨
             'sunny': ['sunshine'], // 晴天
             'cloudy': ['clouds'], // 多云
             'spring': ['sakura', 'petals', 'sunshine'], // 春天
-            'summer': ['sunshine'], // 夏天
+            'summer': ['sunshine', 'bubbles', 'balloons'], // 夏天
             'thunderstorm': ['thunder', 'rain'] // 雷雨
         };
 
         // 使用传入的特效列表，如果没有则使用预定义组合
-        const effectsToStart = (effects.length > 0 ? effects : (effectCombinations[anniversaryType] || []))
-            .slice(0, 2);
-        
+        const effectsToStart = [...new Set(effects.length > 0 ? effects : (effectCombinations[anniversaryType] || []))];
+
+        const prioritizedEffects = effectsToStart.sort((left, right) => {
+            if (left === 'grayscale') {
+                return -1;
+            }
+            if (right === 'grayscale') {
+                return 1;
+            }
+            return 0;
+        });
+
         // 启动特效
-        for (const effectName of effectsToStart) {
+        for (const effectName of prioritizedEffects) {
             await this.startEffect(effectName);
             await new Promise(resolve => setTimeout(resolve, 100));
         }

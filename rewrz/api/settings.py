@@ -71,10 +71,6 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         return DEFAULT_BASE_SETTINGS["code_highlight_theme"]
 
     social_links = parse_json_list(get_setting_value("social_links", []), [])
-    anniversaries = parse_json_list(get_setting_value("anniversaries", None), None)
-    if not anniversaries:
-        anniversaries = parse_json_list(get_setting_value("anniversaries_json", "[]"), [])
-
     settings_data = {
         "site_title": get_setting_value("site_title", DEFAULT_BASE_SETTINGS["site_title"]),
         "tagline": get_setting_value("tagline", DEFAULT_BASE_SETTINGS["tagline"]),
@@ -101,7 +97,6 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "icp_beian": get_setting_value("icp_beian", ""),
         "gongan_beian": get_setting_value("gongan_beian", ""),
         "social_links": social_links,
-        "anniversaries": anniversaries,
         "sitemap_enabled": get_setting_value("sitemap_enabled", False),
         "noindex_site": get_setting_value("noindex_site", DEFAULT_BASE_SETTINGS["noindex_site"]),
         "block_ai_crawlers": get_setting_value("block_ai_crawlers", DEFAULT_BASE_SETTINGS["block_ai_crawlers"]),
@@ -183,7 +178,6 @@ async def update_admin_settings(
     icp_beian = _form_text(form, "icp_beian", "")
     gongan_beian = _form_text(form, "gongan_beian", "")
     social_links_json = str(form.get("social_links_json", "[]") or "[]")
-    anniversaries_json = str(form.get("anniversaries_json", "[]") or "[]")
     sitemap_enabled = _form_bool(form, "sitemap_enabled", False)
     noindex_site = _form_bool(form, "noindex_site", DEFAULT_BASE_SETTINGS["noindex_site"])
     block_ai_crawlers = _form_bool(form, "block_ai_crawlers", DEFAULT_BASE_SETTINGS["block_ai_crawlers"])
@@ -227,9 +221,8 @@ async def update_admin_settings(
 
     try:
         social_links = json.loads(social_links_json)
-        anniversaries = json.loads(anniversaries_json)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="社交链接或纪念日配置不是合法的 JSON 格式。")
+        raise HTTPException(status_code=400, detail="社交链接配置不是合法的 JSON 格式。")
 
     # Sanitize custom footer HTML to prevent XSS while allowing basic formatting and links
     if custom_footer_text:
@@ -311,8 +304,6 @@ async def update_admin_settings(
         "icp_beian": icp_beian,
         "gongan_beian": gongan_beian,
         "social_links": social_links,
-        "anniversaries_json": anniversaries_json,  # 保存原始JSON字符串
-        "anniversaries": anniversaries,  # 保存解析后的数据（向后兼容）
         "sitemap_enabled": sitemap_enabled,
         "noindex_site": noindex_site,
         "block_ai_crawlers": block_ai_crawlers,

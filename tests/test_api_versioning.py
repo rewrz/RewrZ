@@ -97,8 +97,6 @@ def test_theme_api_has_v1_and_legacy_paths():
     assert "/api/theme/variables.css" in paths
     assert "/api/v1/theme/update" in paths
     assert "/api/theme/update" in paths
-    assert "/api/v1/atmosphere/update" in paths
-    assert "/api/atmosphere/update" in paths
     assert "/api/v1/theme/sync" in paths
     assert "/api/theme/sync" in paths
     assert "/api/v1/admin/themes/background" in paths
@@ -155,16 +153,6 @@ def test_posts_api_has_v1_and_legacy_paths():
     assert f"{admin_prefix}/api/pages/{{page_id}}" not in paths
 
 
-def test_anniversary_and_theme_schedule_have_v1_prefix_routes():
-    app_paths = _paths(main_module.app)
-    assert "/api/v1/anniversary-mode/current" in app_paths
-    assert "/api/anniversary-mode/current" in app_paths
-    assert "/api/v1/custom-theme" in app_paths
-    assert "/api/custom-theme" in app_paths
-    assert "/api/v1/theme-schedule/current" in app_paths
-    assert "/api/theme-schedule/current" in app_paths
-
-
 def test_dynamic_admin_api_routes_have_v1_aliases():
     _ensure_admin_routes_registered()
     app_paths = _paths(main_module.app)
@@ -172,9 +160,6 @@ def test_dynamic_admin_api_routes_have_v1_aliases():
     assert f"{admin_prefix}/api/v1/update-admin-path" in app_paths
     assert f"{admin_prefix}/api/update-admin-path" in app_paths
     assert f"{admin_prefix}/api/v1/categories/options" in app_paths
-    assert f"{admin_prefix}/api/v1/anniversary-mode/save" in app_paths
-    assert f"{admin_prefix}/api/v1/theme-schedule/save" in app_paths
-    assert f"{admin_prefix}/api/v1/theme-schedule/clear" in app_paths
     assert f"{admin_prefix}/api/v1/admin/themes/background" in app_paths
     assert f"{admin_prefix}/effects" in app_paths
     assert f"{admin_prefix}/effects/update" in app_paths
@@ -205,12 +190,9 @@ def test_external_api_and_frontend_public_api_do_not_expose_admin_path():
 
 def test_public_app_does_not_expose_admin_only_theme_write_routes():
     app_paths = _paths(main_module.app)
-    assert "/api/v1/anniversary-mode/save" not in app_paths
-    assert "/api/anniversary-mode/save" not in app_paths
-    assert "/api/v1/theme-schedule/save" not in app_paths
-    assert "/api/theme-schedule/save" not in app_paths
-    assert "/api/v1/theme-schedule/clear" not in app_paths
-    assert "/api/theme-schedule/clear" not in app_paths
+    assert "/api/v1/effects/public-holidays/save" not in app_paths
+    assert "/api/v1/effects/public-holidays/rebuild" not in app_paths
+    assert "/api/v1/effects/custom-anniversaries/save" not in app_paths
 
 
 def test_no_conflicting_top_level_format_alias_routes():

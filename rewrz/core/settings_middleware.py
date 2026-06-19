@@ -57,7 +57,7 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                 "noindex_site", "block_ai_crawlers",
                 
                 # 社交和其他设置
-                "social_links_json", "anniversaries_json",
+                "social_links_json",
                 
                 # RSS设置
                 "rss_enabled", "rss_items_limit", "rss_cache_duration", "rss_description",
@@ -123,7 +123,6 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                 },
                 "social": {
                     "links_json": all_settings.get("social_links_json", "[]"),
-                    "anniversaries_json": all_settings.get("anniversaries_json", "[]"),
                 },
                 "rss": {
                     "enabled": all_settings.get("rss_enabled", DEFAULT_BASE_SETTINGS["rss_enabled"]),

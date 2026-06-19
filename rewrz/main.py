@@ -45,8 +45,6 @@ from .api import search as search_api # 导入搜索路由
 from .api import rss as rss_api # 导入RSS路由
 from .api import media_settings as media_settings_api # 导入媒体设置路由
 from .api import captcha as captcha_api # 导入验证码API路由
-from .api import anniversary_mode as anniversary_api # 导入纪念日氛围模式API路由
-from .api import theme_schedule as theme_schedule_api # 导入主题调度API路由
 from .api import admin_routes as admin_routes_api
 from .api import external as external_api
 from .api import public_pages as public_pages_api
@@ -64,6 +62,7 @@ from starlette.middleware.sessions import SessionMiddleware # 导入会话中间
 from .core.security import generate_csrf_token # 导入CSRF令牌生成函数
 from .core.settings_middleware import SettingsMiddleware # 导入设置中间件
 from .core.admin_path import get_admin_path
+from .core.task_scheduler import default_task_scheduler
 from .core.content_access import (
     has_hide_blocks,
     get_comment_unlock_cookie_name,
@@ -94,6 +93,37 @@ from .core.page_templates import (
 # 全局状态，用于标记后台路由是否已注册
 ADMIN_ROUTES_REGISTERED = False
 
+
+def register_default_scheduled_tasks() -> None:
+    """
+    注册项目默认定时任务。
+
+    当前先接入节日特效引擎需要的两个核心任务，后续其他模块
+    直接继续向统一调度器注册即可。
+    """
+    registered = default_task_scheduler.get_registered_tasks()
+    if "effects_daily_refresh" not in registered:
+        default_task_scheduler.register_daily_task(
+            name="effects_daily_refresh",
+            hour=0,
+            minute=0,
+            second=0,
+            handler=themes_api.run_daily_effects_refresh_task,
+            description="每日凌晨重算当前节日特效结果并清理过期状态",
+        )
+
+    if "public_holiday_rollover" not in registered:
+        default_task_scheduler.register_yearly_task(
+            name="public_holiday_rollover",
+            month=12,
+            day=31,
+            hour=0,
+            minute=0,
+            second=0,
+            handler=themes_api.run_public_holiday_rollover_task,
+            description="每年 12 月 31 日凌晨重建下一年公共节日清单",
+        )
+
 # 应用生命周期管理器
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -102,8 +132,11 @@ async def lifespan(app: FastAPI):
         print("INFO: .env file not found. Redirecting to installer.")
         # 这不会立即重定向，但会为根路由设置条件
     create_all_tables()
+    register_default_scheduled_tasks()
+    await default_task_scheduler.start()
     yield
     # 关闭时的清理工作（如果需要）
+    await default_task_scheduler.stop()
 
 # 只保留一个FastAPI实例定义，包含lifespan参数，完全关闭api接口防止滥用
 app = FastAPI(
@@ -463,17 +496,10 @@ app.include_router(media_settings_api.router)
 app.include_router(external_api.router)
 # 包含验证码API路由
 app.include_router(captcha_api.router)
-app.include_router(anniversary_api.router, prefix="/api/v1")
-app.include_router(anniversary_api.router, prefix="/api")
-# 包含主题调度API路由  
-app.include_router(theme_schedule_api.router, prefix="/api/v1")
-app.include_router(theme_schedule_api.router, prefix="/api")
-
 # 抽取：构建全局请求上下文（初始化默认值、读取设置、主题调度/纪念日、后台路径）
 def _populate_global_request_state(request: Request) -> None:
     # 初始化全局上下文变量
     request.state.effect_body_class = ""
-    request.state.current_atmosphere = None
     request.state.current_effect_scene = None
     request.state.current_effects = []
     request.state.effects_source = "none"
@@ -517,7 +543,6 @@ def _populate_global_request_state(request: Request) -> None:
         request.state.current_theme_source = resolved_theme["theme_source"]
         request.state.glass_intensity = resolved_theme["glass_intensity"]
         request.state.background_image_settings = resolved_theme["background"]
-        request.state.current_atmosphere = resolved_effects["scene"]
         request.state.current_effect_scene = resolved_effects["scene"]
         request.state.current_effects = resolved_effects["effects"]
         request.state.effects_source = resolved_effects["source"]

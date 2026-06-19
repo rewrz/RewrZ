@@ -128,12 +128,12 @@
         })();
     </script>
 </head>
-<body class="site-shell min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300 {{ atmosphere_class if atmosphere_class else '' }}"
+<body class="site-shell min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300 {{ effect_body_class if effect_body_class else '' }}"
       data-list-navigation-mode="{{ list_navigation_mode if list_navigation_mode else 'pagination' }}"
       data-glass-intensity="{{ glass_intensity }}"
       data-current-theme="{{ current_theme }}"
       data-page-background-url="{{ page_background_image_url if page_background_image_url else '' }}"
-      data-atmosphere-class="{{ atmosphere_class if atmosphere_class else '' }}"
+      data-effect-body-class="{{ effect_body_class if effect_body_class is not none else '' }}"
       data-active-effects='{{ resolved_effects.effects | tojson if resolved_effects else "[]" }}'
       data-theme-csrf-token="{{ theme_csrf_token }}"
       data-theme-persist-allowed="{{ 'true' if is_logged_in else 'false' }}"

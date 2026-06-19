@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import json
 from math import ceil
 from typing import Optional
 
-from fastapi import BackgroundTasks, Body, Depends, FastAPI, Form, Header, Request, Response
+from fastapi import BackgroundTasks, Depends, FastAPI, Form, Header, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, or_, select
@@ -23,7 +24,6 @@ from ..crud import post as crud_post
 from ..schemas import User
 from . import (
     admin_dashboard as admin_dashboard_api,
-    anniversary_mode as anniversary_api,
     api_keys as api_keys_api,
     auth as auth_api,
     categories as categories_api,
@@ -36,7 +36,6 @@ from . import (
     system_info as system_info_api,
     security_center as security_center_api,
     tags as tags_api,
-    theme_schedule as theme_schedule_api,
     themes as themes_api,
     users as users_api,
 )
@@ -401,39 +400,42 @@ def register_admin_primary_routes(
     ):
         return await settings_api.update_admin_path(request, db, current_user)
 
-    @app.post(f"{admin_path}/api/v1/anniversary-mode/save")
-    async def dynamic_save_anniversaries(
+    @app.post(f"{admin_path}/api/v1/effects/public-holidays/save")
+    async def dynamic_save_public_holidays(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
         csrf_token: str = Header(..., alias="X-CSRF-Token"),
     ):
-        return await anniversary_api.save_anniversaries(request, db, current_user, csrf_token)
-
-    @app.post(f"{admin_path}/api/v1/theme-schedule/save")
-    async def dynamic_save_theme_schedule(
-        request: Request,
-        schedule_data: dict = Body(...),
-        db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
-        csrf_token: str = Header(..., alias="X-CSRF-Token"),
-    ):
-        return await theme_schedule_api.save_theme_schedule(
+        return await themes_api.save_public_holiday_settings(
             request=request,
-            schedule_data=schedule_data,
             db=db,
             current_user=current_user,
             csrf_token=csrf_token,
         )
 
-    @app.delete(f"{admin_path}/api/v1/theme-schedule/clear")
-    async def dynamic_clear_theme_schedule(
+    @app.post(f"{admin_path}/api/v1/effects/public-holidays/rebuild")
+    async def dynamic_rebuild_public_holidays(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
         csrf_token: str = Header(..., alias="X-CSRF-Token"),
     ):
-        return await theme_schedule_api.clear_theme_schedule(
+        return await themes_api.rebuild_public_holiday_settings(
+            request=request,
+            db=db,
+            current_user=current_user,
+            csrf_token=csrf_token,
+        )
+
+    @app.post(f"{admin_path}/api/v1/effects/custom-anniversaries/save")
+    async def dynamic_save_custom_anniversaries(
+        request: Request,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+        csrf_token: str = Header(..., alias="X-CSRF-Token"),
+    ):
+        return await themes_api.save_custom_anniversary_settings(
             request=request,
             db=db,
             current_user=current_user,
@@ -554,13 +556,40 @@ def register_admin_primary_routes(
         current_user: User = Depends(get_current_user),
     ):
         form_data = await request.form()
-        return await themes_api.schedule_themes(
-            request=request,
-            db=db,
-            current_user=current_user,
-            schedule_data=form_data.get("schedule_data", ""),
-            csrf_token=form_data.get("csrf_token", ""),
-        )
+        themes_api.verify_csrf_token(request, form_data.get("csrf_token", ""))
+        themes_api.ensure_admin_user(current_user)
+        schedule_data = form_data.get("schedule_data", "")
+        try:
+            parsed_schedule = json.loads(schedule_data) if schedule_data else {"schedules": []}
+        except json.JSONDecodeError:
+            return JSONResponse({"success": False, "message": "调度配置格式错误"}, status_code=400)
+
+        schedules = parsed_schedule if isinstance(parsed_schedule, list) else parsed_schedule.get("schedules", [])
+        normalized_schedules = []
+        for item in schedules:
+            if not isinstance(item, dict):
+                continue
+            scene = themes_api.normalize_effect_scene_name(item.get("scene") or item.get("atmosphere"))
+            start_date = item.get("start_date") or item.get("start_at")
+            end_date = item.get("end_date") or item.get("end_at")
+            if not start_date or not end_date or not scene:
+                continue
+            normalized_schedules.append(
+                {
+                    "name": str(item.get("name") or themes_api.get_effect_scene_label(scene)).strip() or "特效调度规则",
+                    "start_at": start_date,
+                    "end_at": end_date,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "scene": scene,
+                    "effects": themes_api.get_scene_effects(scene, item.get("effects")),
+                    "enabled": bool(item.get("enabled", True)),
+                    "priority": int(item.get("priority") or 1000),
+                }
+            )
+
+        themes_api.effects_engine.save_schedule_rules(db, normalized_schedules)
+        return JSONResponse({"success": True, "message": "节日特效调度已更新"})
 
     @app.get(f"{admin_path}/posts", response_class=HTMLResponse)
     async def dynamic_admin_posts_list_page(

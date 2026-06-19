@@ -849,12 +849,16 @@ body.admin-app {
     top: 0;
     align-self: flex-start;
     min-height: 100vh;
+    max-height: 100vh;
+    display: flex;
+    flex-direction: column;
     padding: 1rem 1rem 1.5rem;
     border-right: 1px solid var(--ui-border);
     background:
         linear-gradient(150deg, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 38%),
         color-mix(in srgb, var(--color-card-bg) 94%, transparent);
     backdrop-filter: blur(14px);
+    overflow: hidden;
     transition: width var(--anime-normal) var(--anime-smooth), padding var(--anime-normal) var(--anime-smooth), transform var(--anime-normal) var(--anime-smooth);
 }
 
@@ -1365,7 +1369,7 @@ body.site-shell > footer a:hover {
 /* 后台侧边栏悬浮动画 */
 .admin-sidebar-shell {
     position: relative;
-    overflow: visible;
+    overflow: hidden;
 }
 
 .admin-sidebar-shell::before {
@@ -3091,6 +3095,23 @@ body.site-shell .media-external-box {
     z-index: 2;
 }
 
+.admin-sidebar-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0.15rem;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.admin-sidebar-scroll::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
 .admin-sidebar-nav {
     padding-bottom: 0.5rem;
 }
@@ -3112,6 +3133,7 @@ body.site-shell .media-external-box {
         width: min(82vw, 310px);
         height: 100vh;
         min-height: 100vh;
+        max-height: 100vh;
         z-index: 70;
         transform: translateX(-105%);
         transition: transform var(--anime-normal) var(--anime-smooth);
@@ -3301,6 +3323,31 @@ body.site-shell .media-external-box {
     transform: translateY(-3px);
     border-color: color-mix(in srgb, var(--color-primary) 55%, transparent) !important;
     box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--color-primary) 42%, transparent);
+}
+
+.theme-admin-page .effect-preview-group {
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border)) !important;
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 58%),
+        color-mix(in srgb, var(--color-card-bg) 95%, transparent) !important;
+    box-shadow: var(--ui-shadow-soft);
+}
+
+.theme-admin-page .effect-preview-group-toggle {
+    color: var(--color-text);
+    transition: background-color var(--anime-fast) ease;
+}
+
+.theme-admin-page .effect-preview-group-toggle:hover {
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.theme-admin-page .effect-preview-group-toggle-icon {
+    transition: transform var(--anime-fast) ease;
+}
+
+.theme-admin-page .effect-preview-group-panel {
+    border-top: 1px solid color-mix(in srgb, var(--color-primary) 14%, var(--color-border));
 }
 
 .theme-admin-page .admin-panel.theme-admin-panel,

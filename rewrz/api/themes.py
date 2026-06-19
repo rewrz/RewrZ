@@ -1,21 +1,23 @@
 """
-动态主题系统和氛围引擎 API 模块
+动态主题系统和节日特效引擎 API 模块。
 
 提供以下功能：
 1. 主题配置管理（浅色/深色/自定义主题）
-2. 氛围引擎（节日主题、纪念日主题、特殊活动主题）
-3. 主题预设和自定义CSS变量
-4. 主题调度和自动切换
+2. 节日特效引擎（节日、纪念日、特殊活动特效）
+3. 主题预设和自定义 CSS 变量
+4. 特效调度与自动切换
 """
 import json
 import os
+import logging
 from datetime import datetime, date
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from ..core.database import get_db
+from ..core.database import get_db, db_manager
+from ..core import effects_engine
 from ..core.security import ensure_admin_user, get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..crud import setting as crud_setting
@@ -23,6 +25,7 @@ from ..crud import user as crud_user
 from ..schemas import Setting, SettingCreate, SettingUpdate, User
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # 预定义主题配置（8种预设主题，含二次元风格）
 DEFAULT_THEMES = {
@@ -237,25 +240,156 @@ EFFECT_SCENE_ALIASES = {
 
 # 特效场景默认特效映射（与前端 effect-manager 保持一致）
 EFFECT_SCENE_PRESETS = {
-    "festive": ["fireworks", "confetti", "lanterns"],
-    "mourn": ["grayscale", "candles"],
-    "spring_festival": ["lanterns", "firecrackers"],
-    "new_year": ["fireworks", "confetti"],
+    "festive": ["fireworks", "confetti", "lanterns", "golden_dust", "stars"],
+    "mourn": ["grayscale", "candles", "floating_lights"],
+    "spring_festival": ["lanterns", "firecrackers", "golden_dust", "embers"],
+    "new_year": ["fireworks", "confetti", "golden_dust", "stars"],
     "cherry_blossom": ["sakura", "petals"],
-    "winter": ["snow", "clouds"],
+    "winter": ["snow", "clouds", "moonlight"],
     "autumn": ["leaves"],
-    "celebration": ["fireworks", "confetti"],
-    "memorial": ["grayscale", "candles"],
-    "valentine": ["sakura", "petals"],
-    "christmas": ["snow", "fireworks"],
-    "national_day": ["fireworks", "lanterns"],
+    "celebration": ["fireworks", "confetti", "golden_dust", "balloons"],
+    "memorial": ["grayscale", "candles", "floating_lights"],
+    "valentine": ["hearts", "petals", "sakura", "stars"],
+    "christmas": ["snow", "fireworks", "floating_lights", "stars"],
+    "national_day": ["fireworks", "lanterns", "golden_dust", "stars"],
     "rainy_day": ["rain", "clouds"],
     "stormy": ["rain", "thunder", "clouds"],
     "sunny": ["sunshine"],
     "cloudy": ["clouds"],
     "spring": ["sakura", "petals", "sunshine"],
-    "summer": ["sunshine"],
+    "summer": ["sunshine", "bubbles", "balloons"],
     "thunderstorm": ["thunder", "rain"]
+}
+
+AVAILABLE_EFFECT_OPTIONS = [
+    {"value": "fireworks", "label": "烟花绽放", "icon": "🎆"},
+    {"value": "countdown_banner", "label": "跨年倒计时", "icon": "⏳"},
+    {"value": "lanterns", "label": "红灯笼", "icon": "🏮"},
+    {"value": "firecrackers", "label": "爆竹声声", "icon": "🧨"},
+    {"value": "confetti", "label": "彩带飞舞", "icon": "🎊"},
+    {"value": "golden_dust", "label": "金色流光", "icon": "✨"},
+    {"value": "floating_lights", "label": "漂浮光点", "icon": "🏮"},
+    {"value": "hearts", "label": "爱心漂浮", "icon": "💖"},
+    {"value": "balloons", "label": "气球上升", "icon": "🎈"},
+    {"value": "bubbles", "label": "梦幻气泡", "icon": "🫧"},
+    {"value": "moonlight", "label": "月光皎洁", "icon": "🌕"},
+    {"value": "stars", "label": "星光闪烁", "icon": "✨"},
+    {"value": "embers", "label": "暖焰余烬", "icon": "🔥"},
+    {"value": "rice_grains", "label": "米粒飘落", "icon": "🌾"},
+    {"value": "red_packets", "label": "红包飘落", "icon": "🧧"},
+    {"value": "ingots", "label": "元宝飘落", "icon": "💰"},
+    {"value": "tangyuan", "label": "汤圆漂浮", "icon": "🍡"},
+    {"value": "dragon_shape", "label": "龙形轮廓", "icon": "🐉"},
+    {"value": "willow_catkins", "label": "柳絮飘落", "icon": "🌿"},
+    {"value": "gear_icons", "label": "齿轮漂浮", "icon": "⚙️"},
+    {"value": "tie_icons", "label": "领带漂浮", "icon": "👔"},
+    {"value": "dragon_boats", "label": "龙舟横渡", "icon": "🚣"},
+    {"value": "zongzi", "label": "粽子飘落", "icon": "🍙"},
+    {"value": "star_bridge", "label": "星桥流光", "icon": "🌌"},
+    {"value": "feathers", "label": "羽毛飘落", "icon": "🪶"},
+    {"value": "paper_charms", "label": "纸符飘落", "icon": "🪔"},
+    {"value": "lotus_lights", "label": "河灯漂浮", "icon": "🪷"},
+    {"value": "chalk_writing", "label": "粉笔字横幅", "icon": "✍️"},
+    {"value": "osmanthus", "label": "桂花飘落", "icon": "🌼"},
+    {"value": "dumplings", "label": "饺子飘落", "icon": "🥟"},
+    {"value": "tree_lights", "label": "圣诞灯串", "icon": "🎄"},
+    {"value": "grayscale", "label": "全站灰白", "icon": "⚫"},
+    {"value": "candles", "label": "蜡烛摇曳", "icon": "🕯️"},
+    {"value": "petals", "label": "花瓣飘落", "icon": "🌸"},
+    {"value": "sakura", "label": "樱花飞舞", "icon": "🌺"},
+    {"value": "snow", "label": "雪花飘飘", "icon": "❄️"},
+    {"value": "leaves", "label": "落叶纷飞", "icon": "🍂"},
+    {"value": "rain", "label": "下雨天", "icon": "🌧️"},
+    {"value": "thunder", "label": "雷电交加", "icon": "⚡"},
+    {"value": "clouds", "label": "云雾缭绕", "icon": "☁️"},
+    {"value": "sunshine", "label": "阳光明媚", "icon": "☀️"},
+]
+
+EFFECT_SCENE_DISPLAY_NAMES = {
+    "festive": "节庆热闹",
+    "mourn": "肃穆追思",
+    "spring_festival": "新春喜庆",
+    "new_year": "跨年庆典",
+    "cherry_blossom": "樱花烂漫",
+    "winter": "冬日静景",
+    "autumn": "秋意层叠",
+    "celebration": "欢庆时刻",
+    "memorial": "纪念追思",
+    "valentine": "浪漫告白",
+    "christmas": "圣诞冬夜",
+    "national_day": "国庆欢腾",
+    "rainy_day": "细雨氛围",
+    "stormy": "风暴来临",
+    "sunny": "晴朗明快",
+    "cloudy": "云雾轻覆",
+    "spring": "春日生机",
+    "summer": "夏日明亮",
+    "thunderstorm": "雷雨交织",
+}
+
+EFFECT_SOURCE_DISPLAY_NAMES = {
+    "custom": "自定义纪念日",
+    "manual": "手动触发",
+    "public": "公共节日",
+    "schedule": "调度规则",
+    "none": "未命中",
+}
+
+CALENDAR_TYPE_DISPLAY_NAMES = {
+    "solar_fixed": "公历固定日",
+    "solar_weekday": "公历按星期",
+    "lunar_fixed": "农历固定日",
+    "solar_term": "节气日",
+}
+
+EFFECT_OPTION_DESCRIPTIONS = {
+    "fireworks": "适合跨年、国庆与庆典场景",
+    "countdown_banner": "适合元旦、跨年与倒计时场景",
+    "lanterns": "适合春节、元宵与中式节日",
+    "firecrackers": "适合春节、除夕等热闹场景",
+    "confetti": "适合祝贺、庆生与站庆场景",
+    "golden_dust": "适合新春、国庆与节庆流光氛围",
+    "floating_lights": "适合中元、中秋与冬夜静态光点氛围",
+    "hearts": "适合情人节、七夕与温柔告白场景",
+    "balloons": "适合儿童节、生日与站庆欢庆场景",
+    "bubbles": "适合儿童节、夏季与轻盈梦幻氛围",
+    "moonlight": "适合中秋、冬至与夜景静态氛围",
+    "stars": "适合七夕、中秋、圣诞与星夜场景",
+    "embers": "适合小年、除夕与暖焰灶火氛围",
+    "rice_grains": "适合腊八与细碎粮食飘落氛围",
+    "red_packets": "适合春节、新春与红包飘落场景",
+    "ingots": "适合破五、迎财神与财运场景",
+    "tangyuan": "适合元宵与团圆漂浮场景",
+    "dragon_shape": "适合龙抬头与龙形轮廓场景",
+    "willow_catkins": "适合清明与轻柔柳絮场景",
+    "gear_icons": "适合劳动节与工业符号场景",
+    "tie_icons": "适合父亲节与成熟礼赠场景",
+    "dragon_boats": "适合端午与龙舟横渡场景",
+    "zongzi": "适合端午与粽子飘落场景",
+    "star_bridge": "适合七夕与鹊桥星桥场景",
+    "feathers": "适合七夕与轻柔羽毛场景",
+    "paper_charms": "适合中元与肃穆纸符场景",
+    "lotus_lights": "适合中元与河灯静景场景",
+    "chalk_writing": "适合教师节与粉笔字祝福场景",
+    "osmanthus": "适合中秋与桂花夜香场景",
+    "dumplings": "适合冬至与饺子团圆场景",
+    "tree_lights": "适合圣诞与灯串装饰场景",
+    "grayscale": "适合追思、纪念与庄重场景",
+    "candles": "适合纪念、追思与夜间氛围",
+    "petals": "适合节庆、教师节与温柔氛围",
+    "sakura": "适合情人节、七夕与春日氛围",
+    "snow": "适合冬至、圣诞与冬日氛围",
+    "leaves": "适合重阳与秋季氛围",
+    "rain": "适合雨季与天气类场景",
+    "thunder": "适合雷雨与强烈天气氛围",
+    "clouds": "适合中秋、冬至与朦胧场景",
+    "sunshine": "适合儿童节、夏季与明快场景",
+}
+
+PUBLIC_HOLIDAY_CODE_DISPLAY_NAMES = {
+    str(item.get("code")): str(item.get("name"))
+    for item in effects_engine.PUBLIC_HOLIDAY_PRESETS
+    if item.get("code") and item.get("name")
 }
 
 GLASS_INTENSITY_LEVELS = {"weak", "medium", "strong"}
@@ -268,30 +402,6 @@ def _extract_setting_value(setting: Optional[Setting], default: Any = None) -> A
     if isinstance(setting.value, dict):
         return setting.value.get("value", default)
     return setting.value
-
-
-def parse_atmosphere_setting(setting: Optional[Setting]) -> Tuple[Optional[str], List[str]]:
-    if not setting or setting.value is None:
-        return None, []
-
-    raw_value = setting.value
-    atmosphere = None
-    effects: List[str] = []
-
-    if isinstance(raw_value, dict):
-        atmosphere = raw_value.get("value")
-        if isinstance(atmosphere, dict):
-            atmosphere = atmosphere.get("value")
-        raw_effects = raw_value.get("effects", [])
-        if isinstance(raw_effects, list):
-            effects = raw_effects
-    elif isinstance(raw_value, str):
-        atmosphere = raw_value
-
-    if atmosphere is not None:
-        atmosphere = str(atmosphere).strip().lower() or None
-
-    return atmosphere, effects
 
 
 def normalize_theme_name(theme_name: Optional[str]) -> str:
@@ -355,6 +465,112 @@ def get_scene_effects(scene: Optional[str], explicit_effects: Optional[List[str]
     return []
 
 
+def get_effect_option_meta(effect: Optional[str]) -> Dict[str, str]:
+    effect_key = str(effect or "").strip().lower()
+    for option in AVAILABLE_EFFECT_OPTIONS:
+        if option["value"] == effect_key:
+            return {
+                "value": option["value"],
+                "label": option["label"],
+                "icon": option["icon"],
+                "description": EFFECT_OPTION_DESCRIPTIONS.get(option["value"], option["label"]),
+            }
+    return {
+        "value": effect_key,
+        "label": effect_key or "未命名特效",
+        "icon": "✨",
+        "description": "自定义特效",
+    }
+
+
+def get_effect_scene_label(scene: Optional[str]) -> str:
+    normalized = normalize_effect_scene_name(scene)
+    if not normalized:
+        return "无特效"
+    return EFFECT_SCENE_DISPLAY_NAMES.get(normalized, normalized)
+
+
+def get_effect_source_label(source: Optional[str]) -> str:
+    key = str(source or "").strip().lower()
+    return EFFECT_SOURCE_DISPLAY_NAMES.get(key, key or "未命中")
+
+
+def get_calendar_type_label(calendar_type: Optional[str]) -> str:
+    key = str(calendar_type or "").strip().lower()
+    return CALENDAR_TYPE_DISPLAY_NAMES.get(key, key or "未设置")
+
+
+def _build_effect_options_for_display() -> List[Dict[str, Any]]:
+    return [get_effect_option_meta(option["value"]) for option in AVAILABLE_EFFECT_OPTIONS]
+
+
+def _build_effect_scene_options() -> List[Dict[str, Any]]:
+    options: List[Dict[str, Any]] = []
+    for scene_key in EFFECT_SCENE_PRESETS:
+        options.append(
+            {
+                "value": scene_key,
+                "label": get_effect_scene_label(scene_key),
+                "effects": [get_effect_option_meta(effect) for effect in get_scene_effects(scene_key)],
+            }
+        )
+    return options
+
+
+def _build_effect_badges(effects: Optional[List[str]]) -> List[Dict[str, str]]:
+    return [get_effect_option_meta(effect) for effect in effects or []]
+
+
+def _build_public_holiday_display_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    display_items: List[Dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        code = str(item.get("code") or "").strip()
+        display_items.append(
+            {
+                **item,
+                "name": str(item.get("name") or PUBLIC_HOLIDAY_CODE_DISPLAY_NAMES.get(code) or "未命名公共节日").strip(),
+                "calendar_type_label": get_calendar_type_label(item.get("calendar_type")),
+                "effect_scene_label": get_effect_scene_label(item.get("effect_scene")),
+                "effects_display": _build_effect_badges(item.get("effects")),
+            }
+        )
+    return display_items
+
+
+def _build_custom_anniversary_display_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    display_items: List[Dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        display_items.append(
+            {
+                **item,
+                "date_type_label": get_calendar_type_label(item.get("date_type") or item.get("calendar_type")),
+                "effect_scene_label": get_effect_scene_label(item.get("effect_scene")),
+                "effects_display": _build_effect_badges(item.get("effects")),
+            }
+        )
+    return display_items
+
+
+def _build_resolved_effect_match_display_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    display_items: List[Dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        display_items.append(
+            {
+                **item,
+                "source_label": get_effect_source_label(item.get("source")),
+                "scene_label": get_effect_scene_label(item.get("scene")),
+                "effects_display": _build_effect_badges(item.get("effects")),
+            }
+        )
+    return display_items
+
+
 def load_custom_themes(db: Session) -> Dict[str, Any]:
     custom_themes_setting = crud_setting.get_setting(db, key="custom_themes")
     if not custom_themes_setting or not isinstance(custom_themes_setting.value, dict):
@@ -416,149 +632,97 @@ def resolve_active_theme(
     }
 
 
-def _load_anniversaries(db: Session) -> List[Dict[str, Any]]:
-    anniversaries_setting = crud_setting.get_setting(db, key="anniversaries_json")
-    if not anniversaries_setting or anniversaries_setting.value is None:
-        return []
-
-    raw_value = anniversaries_setting.value
-    if isinstance(raw_value, dict):
-        raw_value = raw_value.get("value", raw_value)
-
-    try:
-        if isinstance(raw_value, str):
-            data = json.loads(raw_value)
-        elif isinstance(raw_value, list):
-            data = raw_value
-        else:
-            data = []
-    except (TypeError, ValueError, json.JSONDecodeError):
-        data = []
-
-    return data if isinstance(data, list) else []
-
-
-def resolve_current_anniversary_scene(db: Session) -> Optional[Dict[str, Any]]:
-    anniversaries = _load_anniversaries(db)
-    today = date.today()
-    for anniversary in anniversaries:
-        if not isinstance(anniversary, dict):
-            continue
-        try:
-            month = int(anniversary.get("month"))
-            day = int(anniversary.get("day"))
-        except (TypeError, ValueError):
-            continue
-        if month == today.month and day == today.day:
-            raw_scene = anniversary.get("type")
-            normalized_scene = normalize_effect_scene_name(raw_scene)
-            return {
-                "scene": normalized_scene,
-                "raw_scene": str(raw_scene or "").strip() or None,
-                "effects": get_scene_effects(normalized_scene, anniversary.get("effects") if isinstance(anniversary.get("effects"), list) else []),
-                "name": str(anniversary.get("name") or "").strip() or "纪念日",
-                "source": "anniversary",
-            }
-    return None
-
-
 def check_scheduled_effect_scene(db: Session) -> Optional[Dict[str, Any]]:
     enabled_setting = crud_setting.get_setting(db, key="effects_schedule_enabled")
     enabled = _extract_setting_value(enabled_setting, False)
     if not bool(enabled):
         return None
 
-    schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
-    if not schedule_setting:
-        return None
-
-    schedule = schedule_setting.value.get("value", []) if isinstance(schedule_setting.value, dict) else []
-    today = date.today()
-
-    for item in schedule:
-        if not isinstance(item, dict):
-            continue
-
-        try:
-            start_date = datetime.strptime(item["start_date"], "%Y-%m-%d").date()
-            end_date = datetime.strptime(item["end_date"], "%Y-%m-%d").date()
-        except (KeyError, ValueError, TypeError):
-            continue
-
-        if start_date <= today <= end_date:
-            raw_scene = item.get("atmosphere") or item.get("scene")
-            normalized_scene = normalize_effect_scene_name(raw_scene)
-            if normalized_scene:
-                return {
-                    "scene": normalized_scene,
-                    "raw_scene": str(raw_scene).strip().lower(),
-                    "effects": get_scene_effects(normalized_scene),
-                    "source": "schedule",
-                    "start_date": item.get("start_date"),
-                    "end_date": item.get("end_date"),
-                }
-
+    resolved = effects_engine.resolve_active_effects_state(db, include_matches=True)
+    for item in resolved.get("matched_items", []) or []:
+        if item.get("source") == "schedule":
+            return {
+                "scene": item.get("scene"),
+                "raw_scene": item.get("scene"),
+                "effects": item.get("effects", []),
+                "source": "schedule",
+            }
     return None
 
 
 def resolve_active_effects(db: Session) -> Dict[str, Any]:
-    anniversary_scene = resolve_current_anniversary_scene(db)
-    if anniversary_scene:
-        return {
-            "scene": anniversary_scene["scene"],
-            "source": "anniversary",
-            "effects": anniversary_scene["effects"],
-            "body_classes": [f"atmosphere-{anniversary_scene['scene']}"] if anniversary_scene["scene"] else [],
-            "label": anniversary_scene.get("name", "纪念日"),
-        }
-
-    manual_setting = crud_setting.get_setting(db, key="current_atmosphere")
-    manual_scene, manual_effects = parse_atmosphere_setting(manual_setting)
-    normalized_manual_scene = normalize_effect_scene_name(manual_scene)
-    if normalized_manual_scene:
-        return {
-            "scene": normalized_manual_scene,
-            "source": "manual",
-            "effects": get_scene_effects(normalized_manual_scene, manual_effects),
-            "body_classes": [f"atmosphere-{normalized_manual_scene}"],
-            "label": normalized_manual_scene,
-        }
-
-    scheduled_scene = check_scheduled_effect_scene(db)
-    if scheduled_scene:
-        return {
-            "scene": scheduled_scene["scene"],
-            "source": "schedule",
-            "effects": scheduled_scene["effects"],
-            "body_classes": [f"atmosphere-{scheduled_scene['scene']}"] if scheduled_scene["scene"] else [],
-            "label": scheduled_scene["scene"],
-        }
-
-    return {
-        "scene": None,
-        "source": "none",
-        "effects": [],
-        "body_classes": [],
-        "label": "",
+    resolved = effects_engine.resolve_active_effects_state(db)
+    source = str(resolved.get("source") or "none")
+    source_alias = {
+        "custom": "anniversary",
+        "public": "anniversary",
+        "manual": "manual",
+        "schedule": "schedule",
+        "none": "none",
     }
+    resolved["source"] = source_alias.get(source, source)
+    return resolved
 
-def _load_anniversaries_setting(db: Session) -> list[dict[str, Any]]:
-    anniversaries_setting = crud_setting.get_setting(db, key="anniversaries_json")
-    if not anniversaries_setting or not anniversaries_setting.value:
-        return []
+
+def run_daily_effects_refresh_task() -> None:
+    """
+    每日节日特效刷新任务。
+
+    当前阶段先统一走解析链并记录结果，确保后续正式接入
+    公共节日实例生成与自定义纪念日清理时无需再改调度器结构。
+    """
+    session = db_manager.get_session()
+    if session is None:
+        logger.warning("每日节日特效刷新任务跳过：数据库会话不可用")
+        return
 
     try:
-        anniversaries_json = anniversaries_setting.value.get("value") if isinstance(anniversaries_setting.value, dict) else anniversaries_setting.value
-        anniversaries = json.loads(anniversaries_json) if isinstance(anniversaries_json, str) else anniversaries_json
-    except Exception:
-        return []
+        current_year = date.today().year
+        effects_engine.ensure_public_holiday_catalog(session, current_year)
+        resolved_effects = resolve_active_effects(session)
+        logger.info(
+            "每日节日特效刷新任务完成：scene=%s source=%s effects=%s",
+            resolved_effects.get("scene"),
+            resolved_effects.get("source"),
+            resolved_effects.get("effects", []),
+        )
+    finally:
+        session.close()
 
-    return anniversaries if isinstance(anniversaries, list) else []
+
+def run_public_holiday_rollover_task() -> None:
+    """
+    公共节日年度换年任务。
+
+    当前阶段先保留正式任务入口并记录日志，后续接入公共节日
+    年度实例生成逻辑时直接补充此函数即可。
+    """
+    session = db_manager.get_session()
+    if session is None:
+        logger.warning("公共节日换年任务跳过：数据库会话不可用")
+        return
+
+    try:
+        next_year = date.today().year + 1
+        effects_engine.rebuild_public_holiday_catalog(session, next_year)
+        logger.info("公共节日换年任务完成：已重建 %s 年公共节日清单", next_year)
+    finally:
+        session.close()
 
 
-def _build_settings_holder(*, anniversaries: list[dict[str, Any]], background_settings: dict[str, Any]):
+def _build_settings_holder(
+    *,
+    anniversaries: list[dict[str, Any]],
+    background_settings: dict[str, Any],
+    public_holidays: Optional[list[dict[str, Any]]] = None,
+    custom_anniversaries: Optional[list[dict[str, Any]]] = None,
+    schedule_rules: Optional[list[dict[str, Any]]] = None,
+):
     return type("Settings", (), {
         "anniversaries": anniversaries,
+        "public_holidays": public_holidays or [],
+        "custom_anniversaries": custom_anniversaries or anniversaries,
+        "schedule_rules": schedule_rules or [],
         "background_image_settings": background_settings,
     })()
 
@@ -586,26 +750,37 @@ def _get_theme_page_context(request: Request, current_user: User, db: Session) -
 
 
 def _get_effects_page_context(request: Request, current_user: User, db: Session) -> Dict[str, Any]:
-    atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
     effects_schedule_setting = crud_setting.get_setting(db, key="effects_schedule_enabled")
-    theme_schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
     background_setting = crud_setting.get_setting(db, key="background_image_settings")
 
-    current_effect_scene, _ = parse_atmosphere_setting(atmosphere_setting)
     effects_schedule_enabled = bool(_extract_setting_value(effects_schedule_setting, False))
-    theme_schedule = theme_schedule_setting.value.get("value") if theme_schedule_setting else []
     background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
-    anniversaries = _load_anniversaries_setting(db)
+    custom_anniversaries = effects_engine.load_custom_anniversaries(db)
+    public_catalog = effects_engine.ensure_public_holiday_catalog(db, date.today().year)
+    schedule_rules = effects_engine.load_schedule_rules(db)
+    current_resolved_effects = effects_engine.resolve_active_effects_state(db, include_matches=True)
+    public_holidays_display = _build_public_holiday_display_items(public_catalog.get("items", []))
+    custom_anniversaries_display = _build_custom_anniversary_display_items(custom_anniversaries)
+    resolved_effect_matches = _build_resolved_effect_match_display_items(current_resolved_effects.get("matched_items", []))
 
     return {
         "request": request,
         "user": current_user,
         "effect_scene_presets": EFFECT_SCENE_PRESETS,
-        "current_effect_scene": normalize_effect_scene_name(current_effect_scene),
+        "effect_scene_options": _build_effect_scene_options(),
+        "effect_options": _build_effect_options_for_display(),
+        "current_effect_scene": get_effect_scene_label(current_resolved_effects.get("scene")),
         "effects_schedule_enabled": effects_schedule_enabled,
-        "theme_schedule": theme_schedule,
         "background_settings": background_settings,
-        "settings": _build_settings_holder(anniversaries=anniversaries, background_settings=background_settings),
+        "settings": _build_settings_holder(
+            anniversaries=[],
+            public_holidays=public_holidays_display,
+            custom_anniversaries=custom_anniversaries_display,
+            schedule_rules=schedule_rules,
+            background_settings=background_settings,
+        ),
+        "public_holiday_catalog_year": public_catalog.get("year"),
+        "resolved_effect_matches": resolved_effect_matches,
     }
 
 
@@ -734,6 +909,70 @@ async def update_effects_settings(
     return JSONResponse({"success": True, "message": "节日特效引擎设置已更新"})
 
 
+async def save_public_holiday_settings(
+    request: Request,
+    db: Session,
+    current_user: User,
+    csrf_token: str,
+) -> JSONResponse:
+    """保存公共节日预设实例。"""
+    verify_csrf_token(request, csrf_token)
+    ensure_admin_user(current_user)
+
+    data = await request.json()
+    target_year = int(data.get("year") or date.today().year)
+    holidays = data.get("holidays", [])
+    catalog = effects_engine.normalize_public_holiday_payloads(target_year, holidays)
+    effects_engine.save_public_holiday_catalog(db, catalog)
+    return JSONResponse({
+        "success": True,
+        "message": f"已保存 {len(catalog.get('items', []))} 条公共节日配置",
+        "year": target_year,
+    })
+
+
+async def rebuild_public_holiday_settings(
+    request: Request,
+    db: Session,
+    current_user: User,
+    csrf_token: str,
+) -> JSONResponse:
+    """重建指定年份的公共节日实例。"""
+    verify_csrf_token(request, csrf_token)
+    ensure_admin_user(current_user)
+
+    data = await request.json()
+    target_year = int(data.get("year") or date.today().year)
+    catalog = effects_engine.rebuild_public_holiday_catalog(db, target_year)
+    return JSONResponse({
+        "success": True,
+        "message": f"已重建 {target_year} 年公共节日清单",
+        "year": target_year,
+        "count": len(catalog.get("items", [])),
+    })
+
+
+async def save_custom_anniversary_settings(
+    request: Request,
+    db: Session,
+    current_user: User,
+    csrf_token: str,
+) -> JSONResponse:
+    """保存自定义纪念日。"""
+    verify_csrf_token(request, csrf_token)
+    ensure_admin_user(current_user)
+
+    data = await request.json()
+    anniversaries = data.get("anniversaries", [])
+    normalized = effects_engine.normalize_custom_anniversary_payloads(anniversaries)
+    effects_engine.save_custom_anniversaries(db, normalized)
+    return JSONResponse({
+        "success": True,
+        "message": f"已保存 {len(normalized)} 条自定义纪念日规则",
+        "count": len(normalized),
+    })
+
+
 
 
 
@@ -803,35 +1042,6 @@ async def delete_custom_theme(
     crud_setting.update_setting(db, key="custom_themes", setting_update=SettingUpdate(value={"value": custom_themes}))
     
     return JSONResponse({"success": True, "message": "主题已删除"})
-
-# 主题调度路由已移至 main.py 中的动态路由注册系统
-async def schedule_themes(
-    request: Request,
-    db: Session,
-    current_user: User,
-    schedule_data: str,
-    csrf_token: str
-):
-    """更新节日特效调度设置"""
-    verify_csrf_token(request, csrf_token)
-    
-    try:
-        schedule = json.loads(schedule_data)
-    except json.JSONDecodeError:
-        return JSONResponse({"success": False, "message": "调度配置格式错误"})
-    
-    schedule_setting = crud_setting.get_setting(db, key="theme_schedule")
-    if schedule_setting:
-        crud_setting.update_setting(db, key="theme_schedule", setting_update=SettingUpdate(value={"value": schedule}))
-    else:
-        crud_setting.create_setting(db, setting=SettingCreate(
-            key="theme_schedule",
-            value={"value": schedule},
-            description="节日特效调度配置",
-            category="effects"
-        ))
-    
-    return JSONResponse({"success": True, "message": "主题调度已更新"})
 
 # 背景图片更新路由已移至 main.py 中的动态路由注册系统
 async def update_background_image(
@@ -947,38 +1157,6 @@ async def update_theme_realtime(
     )
     request.state.authenticated_user = updated_user
     return JSONResponse({"success": True, "theme": theme_to_save, "theme_source": "user_preference"})
-
-@router.post("/api/v1/atmosphere/update")
-@router.post("/api/atmosphere/update")
-async def update_atmosphere_realtime(
-    request: Request,
-    atmosphere: Optional[str] = Form(None),
-    effects: List[str] = Form([]),
-    csrf_token: str = Form(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """实时更新手动特效场景设置"""
-    verify_csrf_token(request, csrf_token)
-    ensure_admin_user(current_user)
-    
-    normalized_scene = normalize_effect_scene_name(atmosphere)
-    if atmosphere and not normalized_scene:
-        raise HTTPException(status_code=400, detail="特效场景不存在")
-    
-    atmosphere_setting = crud_setting.get_setting(db, key="current_atmosphere")
-    atmosphere_data = {
-        "value": normalized_scene,
-        "effects": effects,
-        "updated_at": datetime.now().isoformat()
-    }
-    
-    if atmosphere_setting:
-        crud_setting.update_setting(db, key="current_atmosphere", setting_update=SettingUpdate(value=atmosphere_data))
-    else:
-        crud_setting.create_setting(db, setting=SettingCreate(key="current_atmosphere", value=atmosphere_data))
-    
-    return JSONResponse({"success": True, "scene": normalized_scene, "effects": effects})
 
 @router.get("/api/v1/theme/sync")
 @router.get("/api/theme/sync")
