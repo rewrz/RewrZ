@@ -14,6 +14,7 @@
 | API 到 APP 的实现路径 | [`architecture/API_APP.md`](architecture/API_APP.md) |
 | 生产部署手册 | [`operations/DEPLOYMENT.md`](operations/DEPLOYMENT.md) |
 | 生产更新手册 | [`operations/UPDATE.md`](operations/UPDATE.md) |
+| 发布包生成 | [`operations/RELEASE.md`](operations/RELEASE.md) |
 | 故障排查与运维检查 | [`operations/TROUBLESHOOTING.md`](operations/TROUBLESHOOTING.md) |
 | 版本变更记录 | [`operations/CHANGELOG.md`](operations/CHANGELOG.md) |
 | 当前路线与下一步方向 | [`planning/ROADMAP.md`](planning/ROADMAP.md) |
@@ -31,6 +32,8 @@
 | `planning/` | 当前路线、边界决策、仍有效的后续方向 | 过时的阶段性推进过程 |
 | `testing/` | 当前测试基线、真实环境验收结论 | 失效的中间测试记录 |
 | `references/` | 高频命令与速查表 | 设计决策与背景说明 |
+
+`operations/RELEASE.md` 专门描述 GitHub Release 干净发布包生成流程。
 
 文档去重规则：
 - `README.md` 只保留项目定位、亮点和文档入口，不承载细节手册。

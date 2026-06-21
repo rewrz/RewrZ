@@ -10,7 +10,7 @@
 .\.venv\Scripts\python.exe -m pytest --collect-only -q
 ```
 
-- `240 tests collected in 1.60s`
+- `291 tests collected in 4.26s`
 
 ## 2. 当前已验证的专项回归
 
@@ -52,6 +52,20 @@
 
 - `2 passed`
 - `2 passed`
+
+### 2.4 前台可见性、媒体归档与后台用户管理
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests\test_users_admin.py tests\test_media_attachments.py tests\test_content_access_and_archives.py -q
+```
+
+- `32 passed`
+
+覆盖点：
+
+- 后台用户分页、角色文案、最近活动摘要与管理动作
+- 评论可见隐藏块中的媒体不进入公开摘要
+- 公开媒体归档不暴露私密、密码保护与未公开内容
 
 ## 3. 使用规则
 

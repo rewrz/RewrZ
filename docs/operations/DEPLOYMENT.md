@@ -25,6 +25,12 @@ sudo apt install -y python3 python3-venv python3-pip nginx certbot python3-certb
 
 ## 3. 拉取代码与安装依赖
 
+如果你不想在生产机直接执行 `git clone`，也可以先在本地生成干净发布包，再上传到服务器解压：
+
+- 发布包生成手册：[`RELEASE.md`](RELEASE.md)
+
+默认方式仍建议使用 Git 仓库拉取：
+
 ```bash
 sudo mkdir -p /srv
 cd /srv

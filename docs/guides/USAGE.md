@@ -12,7 +12,7 @@
 
 ### 2.1 启动步骤
 ```bash
-git clone https://github.com/rewrz/RewrZ.git
+git clone https://github.com/RewrZ/RewrZ.git
 cd RewrZ
 python -m venv .venv
 # Windows: .venv\Scripts\activate
@@ -57,6 +57,7 @@ npm run build:css
 生产上线请直接看以下两份主文档：
 - 首次部署：[`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md)
 - 日常更新：[`../operations/UPDATE.md`](../operations/UPDATE.md)
+- 发布包生成：[`../operations/RELEASE.md`](../operations/RELEASE.md)
 
 这里仅保留三条不会变的原则：
 - 新站点首次上线时，不要预先手工创建 `.env`

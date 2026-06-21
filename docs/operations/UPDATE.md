@@ -2,6 +2,10 @@
 
 本文档描述已上线站点的日常更新、回滚与最小验证流程。
 
+如果你准备通过 GitHub Release ZIP 更新线上站点，先看：
+
+- [`RELEASE.md`](RELEASE.md)
+
 ## 1. 更新原则
 
 - 先备份，再更新
@@ -38,7 +42,7 @@ sudo systemctl stop rewrz
 
 ### 3.2 更新代码
 
-推荐切到明确版本，而不是盲目长期 `git pull`：
+推荐切到明确版本，而不是盲目长期 `git pull`。如果你使用本地生成的 GitHub Release 发布包，也应先确认包名和版本号与目标版本一致：
 
 ```bash
 cd /srv/rewrz

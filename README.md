@@ -4,7 +4,7 @@
 > 用哲学的态度，重写最后一次。
 
 一个面向个人创作者的博客系统：**FastAPI + HTMX + SQLite**，强调轻量部署、可控安全和长期可维护。
-当前阶段：开发中（建议先在测试环境试跑，再用于生产）。
+当前版本：**3.0 正式版**。
 
 ## 前端资源构建
 - 项目当前使用本地 Tailwind 编译产物，不再依赖前台运行时 CDN。
@@ -86,22 +86,43 @@ RewrZ 不是“大而全 CMS”，也不是“纯静态生成器”，而是偏�
 - 使用文档：[`docs/guides/USAGE.md`](docs/guides/USAGE.md)
 - 开发文档：[`docs/guides/DEVELOPMENT.md`](docs/guides/DEVELOPMENT.md)
 - APP 开发指南：[`docs/architecture/API_APP.md`](docs/architecture/API_APP.md)
+- 发布包生成：[`docs/operations/RELEASE.md`](docs/operations/RELEASE.md)
 - 路线图（含 AI / 联邦化方向）：[`docs/planning/ROADMAP.md`](docs/planning/ROADMAP.md)
 
 ## 快速开始
-```bash
+```powershell
 git clone https://github.com/RewrZ/RewrZ.git
 cd RewrZ
+python -m venv .venv
+.\.venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn rewrz.main:app --reload
+.\.venv\Scripts\python.exe -m uvicorn rewrz.main:app --host 127.0.0.1 --port 8001 --reload
 ```
 
 首次启动请访问安装向导：`/installer`
+
+## 生成干净发布包
+
+如需为 GitHub Release 生成 `3.0` 正式版干净 ZIP 发布包，可直接执行：
+
+```powershell
+.\scripts\build_release_package.ps1 -Version 3.0
+```
+
+生成结果默认输出到 `release/`，详细说明见：
+
+- [`docs/operations/RELEASE.md`](docs/operations/RELEASE.md)
 
 ## 界面预览
 
 ### 首页
 ![首页预览](preview/首页.jpg)
+
+### 微博页
+![微博页预览](preview/微博页.jpg)
+
+### 后台登录页
+![后台管理-登录页预览](preview/后台管理-登录页.jpg)
 
 ### 后台管理（仪表盘）
 ![后台管理-仪表盘预览](preview/后台管理-仪表盘.jpg)

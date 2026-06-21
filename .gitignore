@@ -38,6 +38,7 @@ pip-delete-this-directory.txt
 
 # Unit test / coverage reports
 htmlcov/
+.pytest_cache/
 .tox/
 .coverage
 .coverage.*
@@ -106,4 +107,7 @@ rewrz/media/uploads/
 *.sqlite3
 *.db
 media_uploads/
+release/
+tmp_*
+*.tmp
 AGENTS.md

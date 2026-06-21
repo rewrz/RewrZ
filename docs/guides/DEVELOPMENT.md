@@ -63,14 +63,14 @@ alembic/
 ## 5. 本地开发流程
 
 ### 5.1 启动
-```bash
+```powershell
 python -m venv .venv
 # Windows
-.venv\Scripts\activate
+.\.venv\Scripts\activate
 pip install -r requirements.txt
 npm install
 npm run build:css
-uvicorn rewrz.main:app --reload
+.\.venv\Scripts\python.exe -m uvicorn rewrz.main:app --host 127.0.0.1 --port 8001 --reload
 ```
 
 ### 5.2 数据库迁移
@@ -104,6 +104,24 @@ npm run watch:css
 - 修改 `rewrz/templates/` 中的 Tailwind 类名
 - 修改 `rewrz/static/js/` 中会动态写入 Tailwind 类名的逻辑
 - 修改 `tailwind.config.js`
+
+### 5.5 生成发布包
+
+如需生成可上传到 GitHub Release 的干净源码发布包：
+
+```powershell
+.\scripts\build_release_package.ps1 -Version v2026.06.21
+```
+
+或：
+
+```powershell
+.\.venv\Scripts\python.exe .\scripts\build_release_package.py --version v2026.06.21
+```
+
+详细说明见：
+
+- [`../operations/RELEASE.md`](../operations/RELEASE.md)
 
 提交前要求：
 - 本地 Tailwind 编译产物已更新
