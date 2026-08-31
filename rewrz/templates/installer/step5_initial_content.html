@@ -1,10 +1,13 @@
 <!-- Step 5: Initial Content Setup -->
+{% set preview_categories = default_content.categories if default_content is defined else [] %}
+{% set preview_tags = default_content.tags if default_content is defined else [] %}
+{% set preview_formats = default_content.formats if default_content is defined else [] %}
 <div class="text-center mb-6">
     <h2 class="text-2xl font-bold text-gray-900 mb-2">初始内容设置</h2>
     <p class="text-gray-600">为您的个人博客创建基础的内容分类体系</p>
 </div>
 
-<!-- 默认内容预览 -->
+<!-- 默认内容预览（数据来源与创建逻辑共用 default_content，避免前后端漂移） -->
 <div class="mb-8">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- 分类 -->
@@ -14,21 +17,15 @@
                 默认分类
             </h3>
             <ul class="space-y-2">
+                {% for category in preview_categories %}
                 <li class="flex items-center text-sm text-blue-800">
                     <i class="fas fa-circle text-xs text-blue-500 mr-2"></i>
-                    技术 - 技术相关文章
+                    {{ category.name }}{% if category.description %} - {{ category.description }}{% endif %}
                 </li>
-                <li class="flex items-center text-sm text-blue-800">
-                    <i class="fas fa-circle text-xs text-blue-500 mr-2"></i>
-                    生活 - 生活随笔和感悟
-                </li>
-                <li class="flex items-center text-sm text-blue-800">
-                    <i class="fas fa-circle text-xs text-blue-500 mr-2"></i>
-                    思考 - 个人思考和观点
-                </li>
+                {% endfor %}
             </ul>
         </div>
-        
+
         <!-- 标签 -->
         <div class="bg-green-50 rounded-lg p-6">
             <h3 class="text-lg font-semibold text-green-900 mb-4">
@@ -36,13 +33,12 @@
                 默认标签
             </h3>
             <div class="flex flex-wrap gap-2">
-                <span class="px-2 py-1 bg-green-200 text-green-800 text-xs rounded-full">Python</span>
-                <span class="px-2 py-1 bg-green-200 text-green-800 text-xs rounded-full">Web开发</span>
-                <span class="px-2 py-1 bg-green-200 text-green-800 text-xs rounded-full">编程</span>
-                <span class="px-2 py-1 bg-green-200 text-green-800 text-xs rounded-full">教程</span>
+                {% for tag in preview_tags %}
+                <span class="px-2 py-1 bg-green-200 text-green-800 text-xs rounded-full">{{ tag.name }}</span>
+                {% endfor %}
             </div>
         </div>
-        
+
         <!-- 内容类型 -->
         <div class="bg-purple-50 rounded-lg p-6">
             <h3 class="text-lg font-semibold text-purple-900 mb-4">
@@ -50,18 +46,12 @@
                 内容类型
             </h3>
             <ul class="space-y-2">
+                {% for format in preview_formats %}
                 <li class="flex items-center text-sm text-purple-800">
                     <i class="fas fa-file-alt text-xs text-purple-500 mr-2"></i>
-                    标准文章
+                    {{ format.name }}
                 </li>
-                <li class="flex items-center text-sm text-purple-800">
-                    <i class="fas fa-comment text-xs text-purple-500 mr-2"></i>
-                    微博
-                </li>
-                <li class="flex items-center text-sm text-purple-800">
-                    <i class="fas fa-book text-xs text-purple-500 mr-2"></i>
-                    诗词歌赋
-                </li>
+                {% endfor %}
             </ul>
         </div>
     </div>
@@ -69,7 +59,7 @@
 
 <form id="initial-content-form" class="mb-8">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    
+
     <!-- 内容选项 -->
     <div class="bg-gray-50 rounded-lg p-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">
@@ -78,33 +68,33 @@
         </h3>
         <div class="space-y-4">
             <div class="flex items-start">
-                <input type="checkbox" 
-                       id="create_default_content" 
-                       name="create_default_content" 
+                <input type="checkbox"
+                       id="create_default_content"
+                       name="create_default_content"
                        checked
                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1">
                 <div class="ml-3">
                     <label for="create_default_content" class="block text-sm font-medium text-gray-900">
                         创建默认分类、标签和内容类型
                     </label>
-                    <p class="text-xs text-gray-500 mt-1">为您的博客创建基础内容体系，包括技术、生活、思考 3 个分类，Python、Web开发、编程、教程 4 个标签，以及文章、微博、诗词歌赋 3 种内容类型。</p>
+                    <p class="text-xs text-gray-500 mt-1">创建 {{ preview_categories|length }} 个分类、{{ preview_tags|length }} 个标签，以及 {{ preview_formats|length }} 种内容类型（标准文章、微博、诗词歌赋）。</p>
                 </div>
             </div>
             <div class="flex items-start">
-                <input type="checkbox" 
-                       id="create_sample_content" 
-                       name="create_sample_content" 
+                <input type="checkbox"
+                       id="create_sample_content"
+                       name="create_sample_content"
                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1">
                 <div class="ml-3">
                     <label for="create_sample_content" class="block text-sm font-medium text-gray-900">
                         创建示例文章
                     </label>
-                    <p class="text-xs text-gray-500 mt-1">创建一篇示例文章，展示博客的功能和格式（可选）</p>
+                    <p class="text-xs text-gray-500 mt-1">创建一篇已发布的示例文章（内容为文章类型），展示博客的基础排版；示例文章需要归属，会自动补齐首个默认分类与标签。</p>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <!-- 说明信息 -->
     <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6">
         <div class="flex">
@@ -121,6 +111,7 @@
                         <li>所有分类、标签和内容类型都可以在管理后台随时修改或删除</li>
                         <li>如果您已有明确的内容规划，也可以跳过此步骤</li>
                         <li>内容类型决定语义，图片/视频/音频通过媒体附件体现</li>
+                        <li>重复提交不会重复创建，结果只统计本次真正新增的记录</li>
                     </ul>
                 </div>
             </div>
@@ -133,29 +124,29 @@
 </div>
 
 <div class="flex justify-between">
-    <button type="button" 
+    <button type="button"
             class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
             hx-get="/installer/step/4"
             hx-target="#installation-content"
             hx-swap="innerHTML">
         <i class="fas fa-arrow-left mr-2"></i>上一步
     </button>
-    <button id="create-content-btn" 
-            type="button" 
+    <button id="create-content-btn"
+            type="button"
             class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
         <i class="fas fa-magic mr-2"></i>创建初始内容
     </button>
-    <button id="skip-content-btn" 
-            type="button" 
+    <button id="skip-content-btn"
+            type="button"
             class="px-6 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors"
             hx-get="/installer/step/6"
             hx-target="#installation-content"
             hx-swap="innerHTML">
         跳过此步骤<i class="fas fa-arrow-right ml-2"></i>
     </button>
-    <button id="next-step-btn" 
-            type="button" 
-            class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg cursor-not-allowed" 
+    <button id="next-step-btn"
+            type="button"
+            class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg cursor-not-allowed"
             disabled
             hx-get="/installer/step/6"
             hx-target="#installation-content"
@@ -167,7 +158,7 @@
 <script>
     // 更新步骤指示器
     updateStepIndicator(5);
-    
+
     // 创建初始内容按钮事件
     document.getElementById('create-content-btn').addEventListener('click', function() {
         const form = document.getElementById('initial-content-form');
@@ -175,12 +166,12 @@
         const nextBtn = document.getElementById('next-step-btn');
         const skipBtn = document.getElementById('skip-content-btn');
         const resultsContainer = document.getElementById('initial-content-results');
-        
+
         // 禁用按钮并显示加载状态
         button.disabled = true;
         button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>创建中...';
         skipBtn.disabled = true;
-        
+
         // 显示进度信息
         resultsContainer.innerHTML = `
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -204,10 +195,10 @@
                 </div>
             </div>
         `;
-        
+
         // 准备表单数据
         const formData = new FormData(form);
-        
+
         // 发送创建请求
         fetch('/installer/create-initial-content', {
             method: 'POST',
@@ -216,40 +207,49 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                const created = data.created;
+                const created = data.created || {};
+                const rows = [];
+                if (created.categories) {
+                    rows.push(`创建了 ${created.categories} 个分类`);
+                }
+                if (created.tags) {
+                    rows.push(`创建了 ${created.tags} 个标签`);
+                }
+                if (created.formats) {
+                    rows.push(`创建了 ${created.formats} 种内容类型`);
+                }
+                if (created.sample_post) {
+                    rows.push('创建了示例文章');
+                }
+                if (rows.length === 0) {
+                    rows.push('未创建任何新内容（已存在或未勾选）');
+                }
+
                 resultsContainer.innerHTML = `
                     <div class="bg-green-50 border border-green-200 rounded-lg p-4">
                         <div class="flex items-center">
                             <i class="fas fa-check-circle text-green-600 text-lg mr-3"></i>
-                            <span class="font-semibold text-green-800">初始内容创建成功！</span>
+                            <span class="font-semibold text-green-800">初始内容处理完成</span>
                         </div>
                         <p class="text-green-700 text-sm mt-2">${data.message}</p>
                         <div class="mt-3 space-y-1 text-sm text-green-700">
-                            <div class="flex items-center">
-                                <i class="fas fa-check text-green-500 mr-2"></i>
-                                创建了 ${created.categories} 个分类
-                            </div>
-                            <div class="flex items-center">
-                                <i class="fas fa-check text-green-500 mr-2"></i>
-                                创建了 ${created.tags} 个标签
-                            </div>
-                            <div class="flex items-center">
-                                <i class="fas fa-check text-green-500 mr-2"></i>
-                                创建了 ${created.formats} 种内容类型
-                            </div>
-                            ${created.sample_post ? '<div class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>创建了示例文章</div>' : ''}
+                            ${rows.map(row => `
+                                <div class="flex items-center">
+                                    <i class="fas fa-check text-green-500 mr-2"></i>${row}
+                                </div>
+                            `).join('')}
                         </div>
                     </div>
                 `;
-                
+
                 // 启用下一步按钮
                 nextBtn.disabled = false;
                 nextBtn.className = 'px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors';
-                
+
                 // 隐藏创建和跳过按钮
                 button.style.display = 'none';
                 skipBtn.style.display = 'none';
-                
+
                 // 禁用表单
                 const inputs = form.querySelectorAll('input');
                 inputs.forEach(input => input.disabled = true);
@@ -263,7 +263,7 @@
                         <p class="text-red-700 text-sm mt-2">${data.error}</p>
                     </div>
                 `;
-                
+
                 // 重新启用按钮
                 button.disabled = false;
                 button.innerHTML = '<i class="fas fa-magic mr-2"></i>重新创建';
@@ -281,7 +281,7 @@
                     <p class="text-red-700 text-sm mt-2">无法连接到服务器，请检查网络连接。</p>
                 </div>
             `;
-            
+
             // 重新启用按钮
             button.disabled = false;
             button.innerHTML = '<i class="fas fa-magic mr-2"></i>重新创建';
@@ -289,4 +289,3 @@
         });
     });
 </script>
-

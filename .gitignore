@@ -108,6 +108,7 @@ rewrz/media/uploads/
 *.db
 media_uploads/
 release/
+backups/
 tmp_*
 *.tmp
 AGENTS.md

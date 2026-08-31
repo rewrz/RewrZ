@@ -13,7 +13,7 @@ from html import escape
 from datetime import datetime
 from typing import Optional
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 from jinja2 import Environment
 from .license_manager import render_license, LicenseManager
 from .donation_system import render_donation_widget
@@ -563,8 +563,8 @@ def compact_number_cn_filter(value) -> str:
 
     规则：
     - < 1万：原值
-    - >= 1万：按“万”缩写
-    - >= 1亿：按“亿”缩写
+    - >= 1万：按"万"缩写
+    - >= 1亿：按"亿"缩写
     """
     try:
         number = float(value)
@@ -816,14 +816,21 @@ def static_asset(request, path: str) -> str:
     """
     生成带文件时间戳的静态资源链接，避免浏览器继续使用旧缓存。
 
+    链接统一收口为根相对路径（不含协议与域名端口），
+    这样即使反代入口的域名、端口或 Host 头发生变化，
+    也不会生成跨域绝对地址导致静态资源被浏览器拦截。
+
     Args:
         request: 当前请求对象
         path: 相对 static 目录的资源路径
 
     Returns:
-        附带版本参数的静态资源 URL
+        附带版本参数的静态资源根相对路径
     """
-    asset_url = str(request.url_for("static", path=path))
+    resolved_path = urlsplit(str(request.url_for("static", path=path))).path
+    root_path = str(request.scope.get("root_path") or "")
+    asset_url = f"{root_path}{resolved_path}"
+
     asset_path = _STATIC_ROOT / Path(path)
     if not asset_path.is_file():
         return asset_url

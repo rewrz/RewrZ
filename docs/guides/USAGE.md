@@ -43,7 +43,8 @@ npm run build:css
 3. 管理员创建
 4. 站点配置
 5. 后台路径配置
-6. 完成安装并进入登录页
+6. 初始内容设置（默认分类、标签、内容类型与示例文章，可跳过）
+7. 完成安装并进入登录页
 
 安装完成后会生成 `.env`（包含 `SECRET_KEY`、`DATABASE_URL`、`ADMIN_PATH` 等）。
 
@@ -62,7 +63,7 @@ npm run build:css
 这里仅保留三条不会变的原则：
 - 新站点首次上线时，不要预先手工创建 `.env`
 - 先完成 `/installer`，再补生产安全项、SMTP 与反向代理
-- 上线和更新前后都执行一次 `alembic upgrade head`
+- 新装站点由安装向导自动标记迁移版本，不要重复执行 `alembic upgrade head`；只有更新已有站点才执行
 
 ## 4. 关键配置
 

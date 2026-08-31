@@ -29,6 +29,7 @@ from rewrz.models.comment import Comment
 from rewrz.models.media import Media # Import the new Media model
 from rewrz.models.format import Format # Import the new Format model
 from rewrz.models.setting import Setting # Import the new Setting model
+from rewrz.core.config import settings
 
 target_metadata = Base.metadata
 
@@ -36,6 +37,16 @@ target_metadata = Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+
+def resolve_database_url() -> str:
+    """解析迁移目标库地址。
+
+    优先使用应用配置（.env 中的 DATABASE_URL），
+    避免 alembic.ini 中写死的路径导致迁移跑到错误的库。
+    """
+    app_database_url = str(getattr(settings, "DATABASE_URL", "") or "").strip()
+    return app_database_url or config.get_main_option("sqlalchemy.url")
 
 
 def run_migrations_offline() -> None:
@@ -50,7 +61,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    url = resolve_database_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -69,8 +80,10 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    configuration = config.get_section(config.config_ini_section, {})
+    configuration["sqlalchemy.url"] = resolve_database_url()
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

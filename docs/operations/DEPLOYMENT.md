@@ -23,6 +23,13 @@ sudo apt install -y python3 python3-venv python3-pip nginx certbot python3-certb
 - 计划使用的运行用户已确定（例如 `www-data`）
 - 站点目录使用本地磁盘，不放网络盘
 
+### 关于本文中的示例路径
+
+本文统一使用 `/srv/rewrz` 作为部署目录示例。
+实际部署时请**全局替换**为你自己的目录（放在 `/srv`、`/opt` 或用户主目录下均可），
+至少包括：systemd 的 `WorkingDirectory` 与 `ExecStart`、Nginx 的 `alias`、
+以及所有 `cd` 目标路径。下文不再逐处重复提示。
+
 ## 3. 拉取代码与安装依赖
 
 如果你不想在生产机直接执行 `git clone`，也可以先在本地生成干净发布包，再上传到服务器解压：
@@ -73,7 +80,8 @@ uvicorn rewrz.main:app --host 127.0.0.1 --port 8000
 3. 管理员创建
 4. 站点配置
 5. 后台路径配置
-6. 完成安装
+6. 初始内容设置（默认分类、标签、内容类型与示例文章，可跳过）
+7. 完成安装
 
 安装完成后会生成 `.env`，其中至少包含：
 - `DATABASE_URL`
@@ -85,13 +93,24 @@ uvicorn rewrz.main:app --host 127.0.0.1 --port 8000
 
 停止刚才的临时前台进程后，先补两件事：
 
-### 5.1 执行数据库迁移
+### 5.1 数据库迁移：新装站点不需要执行
+
+安装向导在建库时已经把新库标记为 Alembic 最新版本（`alembic stamp head`），
+因此**全新安装的站点不要再执行 `alembic upgrade head`**，
+否则会重复执行建表迁移并报错。
+
+只有升级已有站点才需要迁移，见 [`UPDATE.md`](UPDATE.md)。
+
+如果要确认当前版本状态，可执行：
 
 ```bash
 cd /srv/rewrz
 source .venv/bin/activate
-alembic upgrade head
+alembic current
 ```
+
+说明：迁移目标库来自 `.env` 的 `DATABASE_URL`，`alembic.ini` 里的
+`sqlalchemy.url` 只是兜底值，不需要手工修改。
 
 ### 5.2 补生产环境配置
 
@@ -101,6 +120,20 @@ alembic upgrade head
 COOKIE_SECURE=true
 SESSION_HTTPS_ONLY=true
 ```
+
+不要使用 `echo >> .env` 直接追加，重复键会导致配置歧义（后写的值覆盖前面的）。
+请先把整行删除再写入，保证每个键只出现一次、可重复执行：
+
+```bash
+sed -i '/^COOKIE_SECURE=/d;/^SESSION_HTTPS_ONLY=/d' .env
+cat >> .env <<'EOF'
+COOKIE_SECURE=true
+SESSION_HTTPS_ONLY=true
+EOF
+```
+
+注意：`COOKIE_SECURE=true` 只在 HTTPS 生效后才启用。
+如果你仍在 HTTP 下访问，保持 `false`，否则会出现登录后立即掉线。
 
 如需邮件能力，再补：
 
@@ -118,6 +151,9 @@ SMTP_FROM=notify@example.com
 - `MEDIA_UPLOAD_DIR` 是否与实际媒体目录一致
 
 ## 6. 配置 systemd
+
+以下步骤全部需要 `sudo` 权限。`/etc/systemd/system/` 普通用户不可写，
+如果无法直接写入，可先写到 `/tmp/rewrz.service`，再用 `sudo cp` 移动过去。
 
 创建 `/etc/systemd/system/rewrz.service`：
 
@@ -152,7 +188,21 @@ sudo systemctl status rewrz
 
 ## 7. 配置 Nginx
 
-创建 `/etc/nginx/sites-available/rewrz.conf`：
+### 7.1 先看端口是否被占用
+
+`80` / `443` 常被 Docker、宝塔或已有 Web 服务占用，配置前先确认：
+
+```bash
+sudo ss -tlnp | grep -E ':80|:443'
+```
+
+如果被占用，二选一：
+- 停掉占用进程
+- 改用其他端口（例如 `listen 8080;`），并保持与用户实际访问入口一致
+
+### 7.2 创建站点配置
+
+创建 `/etc/nginx/sites-available/rewrz.conf`（需要 `sudo`）：
 
 ```nginx
 server {
@@ -161,10 +211,20 @@ server {
 
     client_max_body_size 100m;
 
+    # 静态资源由 Nginx 直出，减轻应用层压力
+    location /static/ {
+        alias /srv/rewrz/rewrz/static/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # 媒体目录不要在这里直出：/media/variant/... 是动态缩略图路由，
+    # 被静态 location 抢先匹配后会导致缩略图 404。
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
+        # 传原始 Host（含端口），避免应用按错误的入口生成站内地址
+        proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -172,13 +232,20 @@ server {
 }
 ```
 
-启用配置：
+说明：
+- `alias` 路径中的 `/srv/rewrz` 要替换成你的实际部署目录
+- 文中出现的 `$http_host` 是 Nginx 变量，不是 shell 变量，不要转义
+
+### 7.3 启用配置
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/rewrz.conf /etc/nginx/sites-enabled/rewrz.conf
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo ln -sf /etc/nginx/sites-available/rewrz.conf /etc/nginx/sites-enabled/rewrz.conf
 sudo nginx -t
 sudo systemctl reload nginx
 ```
+
+`default` 默认站点会抢占 `80` 端口，建议删除。
 
 ## 8. 配置 HTTPS
 
@@ -195,10 +262,16 @@ sudo certbot --nginx -d example.com
 最少确认以下项目：
 
 ```bash
-curl -I https://example.com/
-curl -I https://example.com/<你的ADMIN_PATH>/login
+# 服务与配置
 sudo systemctl status rewrz --no-pager
 sudo nginx -t
+
+# 首页与后台
+curl -I https://example.com/
+curl -I https://example.com/<你的ADMIN_PATH>/login
+
+# 静态资源（必须 200，不能是跨域绝对地址）
+curl -I https://example.com/static/css/site-tailwind.css
 ```
 
 人工验收建议：
@@ -225,6 +298,7 @@ sudo nginx -t
 
 ## 11. 长期运维建议
 
+- 日常更新优先使用仓库根目录的一键脚本，流程与参数见 [`UPDATE.md`](UPDATE.md)
 - SQLite 生产环境保持单实例
 - 定期导出备份，并做恢复演练
 - 监控登录失败与异常请求

@@ -9,25 +9,39 @@
 5. 初始内容和设置
 6. 安装完成确认
 """
-import os
-import json
 import secrets
 from datetime import datetime
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from ..core.database import get_db, create_all_tables
 from ..core.security import get_password_hash, verify_csrf_token, generate_csrf_token
 from ..core.template_filters import get_templates
+from ..models import Post, User
 from ..crud import user as crud_user
 from ..crud import setting as crud_setting
 from ..crud import category as crud_category
 from ..crud import tag as crud_tag
 from ..crud import format as crud_format
-from ..schemas import UserCreate, SettingCreate, CategoryCreate, TagCreate, FormatCreate
+from ..crud import post as crud_post
+from ..schemas import (
+    UserCreate,
+    SettingCreate,
+    CategoryCreate,
+    TagCreate,
+    FormatCreate,
+    PostCreate,
+)
 from ..core.config import get_env_file_path, settings
+from ..core.default_content import (
+    DEFAULT_CATEGORIES,
+    DEFAULT_TAGS,
+    SAMPLE_POST,
+    get_default_formats,
+)
 from typing import Dict, Any
 
 router = APIRouter()
@@ -53,6 +67,66 @@ def _ensure_installer_csrf_token(request: Request) -> str:
         except Exception:
             pass
     return csrf_token
+
+
+def _open_installer_session(request: Request) -> Session:
+    """按安装向导中选定的数据库路径打开独立会话。"""
+    import sqlalchemy as sa
+    from sqlalchemy.orm import sessionmaker
+
+    database_path = request.session.get("database_path", "./data/rewrz.db")
+    new_engine = sa.create_engine(
+        f"sqlite:///{database_path}", connect_args={"check_same_thread": False}
+    )
+    return sessionmaker(autocommit=False, autoflush=False, bind=new_engine)()
+
+
+def _get_or_create_category(db: Session, payload: Dict[str, Any]):
+    """按 slug/name 幂等创建分类，返回（分类对象，是否为新建）。"""
+    existing = crud_category.get_category_by_slug(db, payload["slug"])
+    if existing is None:
+        existing = crud_category.get_category_by_name(db, payload["name"])
+    if existing is not None:
+        return existing, False
+    return crud_category.create_category(db, CategoryCreate(**payload)), True
+
+
+def _get_or_create_tag(db: Session, payload: Dict[str, Any]):
+    """按 slug/name 幂等创建标签，返回（标签对象，是否为新建）。"""
+    existing = crud_tag.get_tag_by_slug(db, payload["slug"])
+    if existing is None:
+        existing = crud_tag.get_tag_by_name(db, payload["name"])
+    if existing is not None:
+        return existing, False
+    return crud_tag.create_tag(db, TagCreate(**payload)), True
+
+
+def _ensure_default_formats(db: Session) -> int:
+    """补齐 `content_intents` 定义的默认内容类型，返回新建数量。"""
+    created = 0
+    for payload in get_default_formats():
+        if crud_format.get_format_by_slug(db, payload["slug"]) is not None:
+            continue
+        crud_format.create_format(db, FormatCreate(**payload))
+        created += 1
+    return created
+
+
+def _stamp_alembic_head(database_url: str) -> None:
+    """把新库标记为 Alembic 最新版本。
+
+    安装阶段由 `create_all` 直接建表，若不标记 head，
+    后续 `alembic upgrade head` 会重复执行建表迁移而失败。
+    """
+    from alembic import command
+    from alembic.config import Config
+
+    config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
+    # 安装阶段 .env 尚未生成，应用配置中的 DATABASE_URL 为空，
+    # alembic/env.py 会回落到这里的 sqlalchemy.url。
+    config.set_main_option("sqlalchemy.url", database_url)
+    command.stamp(config, "head")
+
 
 @router.get("/installer", response_class=HTMLResponse)
 async def installer_page(request: Request):
@@ -170,12 +244,22 @@ async def get_install_step(step_number: float, request: Request):
     
     if step_number not in step_templates:
         raise HTTPException(status_code=404, detail="安装步骤不存在")
-    
-    return templates.TemplateResponse(step_templates[step_number], {
+
+    context: Dict[str, Any] = {
         "request": request,
         "csrf_token": csrf_token,
         "step_number": step_number
-    })
+    }
+
+    # 初始内容步骤的预览数据来自后端同一份定义，避免与创建逻辑漂移
+    if step_number == 5.0:
+        context["default_content"] = {
+            "categories": [dict(item) for item in DEFAULT_CATEGORIES],
+            "tags": [dict(item) for item in DEFAULT_TAGS],
+            "formats": [dict(item) for item in get_default_formats()],
+        }
+
+    return templates.TemplateResponse(step_templates[step_number], context)
 
 @router.post("/installer/initialize-database")
 async def initialize_database(
@@ -210,7 +294,10 @@ async def initialize_database(
         
         # 创建数据库表
         Base.metadata.create_all(bind=new_engine)
-        
+
+        # 新库已包含最新结构，直接标记为 Alembic head
+        _stamp_alembic_head(new_database_url)
+
         return JSONResponse({
             "success": True,
             "message": "数据库初始化成功"
@@ -239,17 +326,8 @@ async def create_admin_user(
         # 验证 CSRF 令牌
         verify_csrf_token(request, csrf_token)
         
-        # 获取数据库会话
-        from ..core.database import SessionLocal
-        from sqlalchemy.orm import sessionmaker
-        # 使用安装向导中设置的数据库路径
-        database_path = request.session.get("database_path", "./data/rewrz.db")
-        new_database_url = f"sqlite:///{database_path}"
-        import sqlalchemy as sa
-        new_engine = sa.create_engine(new_database_url, connect_args={"check_same_thread": False})
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=new_engine)
-        db = SessionLocal()
-        
+        db = _open_installer_session(request)
+
         try:
             # 检查用户名是否已存在
             existing_user = crud_user.get_user_by_username(db, username=username)
@@ -280,7 +358,10 @@ async def create_admin_user(
             # 设置为超级管理员
             admin_user.role = "super_admin"
             db.commit()
-            
+
+            # 记录管理员 ID，供初始内容步骤作为示例文章作者
+            request.session["admin_user_id"] = admin_user.id
+
             return JSONResponse({
                 "success": True,
                 "message": "管理员账户创建成功",
@@ -314,17 +395,8 @@ async def configure_site(
         # 验证 CSRF 令牌
         verify_csrf_token(request, csrf_token)
         
-        # 获取数据库会话
-        from ..core.database import SessionLocal
-        from sqlalchemy.orm import sessionmaker
-        # 使用安装向导中设置的数据库路径
-        database_path = request.session.get("database_path", "./data/rewrz.db")
-        new_database_url = f"sqlite:///{database_path}"
-        import sqlalchemy as sa
-        new_engine = sa.create_engine(new_database_url, connect_args={"check_same_thread": False})
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=new_engine)
-        db = SessionLocal()
-        
+        db = _open_installer_session(request)
+
         try:
             # 基础站点设置
             settings_data = [
@@ -386,90 +458,108 @@ async def configure_site(
 @router.post("/installer/create-initial-content")
 async def create_initial_content(
     request: Request,
+    create_default_content: bool = Form(False),
     create_sample_content: bool = Form(False),
     csrf_token: str = Form(...),
 ):
     """
     创建初始内容
-    
-    创建默认分类、标签、格式和示例内容
+
+    - create_default_content：创建默认分类、标签与内容类型
+    - create_sample_content：创建一篇示例文章
+
+    数量统计只统计本次真正新建的记录，重复提交同一库时计数为 0。
     """
     try:
         # 验证 CSRF 令牌
         verify_csrf_token(request, csrf_token)
-        
-        # 获取数据库会话
-        from ..core.database import SessionLocal
-        from sqlalchemy.orm import sessionmaker
-        # 使用安装向导中设置的数据库路径
-        database_path = request.session.get("database_path", "./data/rewrz.db")
-        new_database_url = f"sqlite:///{database_path}"
-        import sqlalchemy as sa
-        new_engine = sa.create_engine(new_database_url, connect_args={"check_same_thread": False})
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=new_engine)
-        db = SessionLocal()
-        
+
+        created = {
+            "categories": 0,
+            "tags": 0,
+            "formats": 0,
+            "sample_post": False,
+        }
+
+        if not create_default_content and not create_sample_content:
+            return JSONResponse({
+                "success": True,
+                "message": "未勾选任何初始内容，已跳过",
+                "created": created
+            })
+
+        db = _open_installer_session(request)
+
         try:
-            # 创建默认分类
-            default_categories = [
-                {"name": "技术", "slug": "tech", "description": "技术相关文章"},
-                {"name": "生活", "slug": "life", "description": "生活随笔和感悟"},
-                {"name": "思考", "slug": "thoughts", "description": "个人思考和观点"}
-            ]
-            
-            # 只有当用户选择创建默认内容时才创建
+            category_ids = []
+            tag_ids = []
+
+            if create_default_content:
+                for payload in DEFAULT_CATEGORIES:
+                    category, is_new = _get_or_create_category(db, payload)
+                    category_ids.append(category.id)
+                    created["categories"] += int(is_new)
+
+                for payload in DEFAULT_TAGS:
+                    tag, is_new = _get_or_create_tag(db, payload)
+                    tag_ids.append(tag.id)
+                    created["tags"] += int(is_new)
+
+            # 内容类型是内容意图（article/micro/poem），只要创建内容就必须可用
+            if create_default_content or create_sample_content:
+                created["formats"] += _ensure_default_formats(db)
+
             if create_sample_content:
-                for cat_data in default_categories:
-                    try:
-                        category = CategoryCreate(**cat_data)
-                        crud_category.create_category(db, category)
-                    except:
-                        pass  # 忽略重复创建错误
-                
-                # 创建默认标签
-                default_tags = [
-                    {"name": "Python", "slug": "python"},
-                    {"name": "Web开发", "slug": "web-dev"},
-                    {"name": "编程", "slug": "programming"},
-                    {"name": "教程", "slug": "tutorial"}
-                ]
-                
-                for tag_data in default_tags:
-                    try:
-                        tag = TagCreate(**tag_data)
-                        crud_tag.create_tag(db, tag)
-                    except:
-                        pass  # 忽略重复创建错误
-                
-                # 创建默认格式
-                default_formats = [
-                    {"name": "标准文章", "slug": "article", "description": "长内容、深度表达"},
-                    {"name": "微博", "slug": "micro", "description": "短内容、即时更新"},
-                    {"name": "诗词歌赋", "slug": "poem", "description": "文学体裁、特殊排版"},
-                ]
-                
-                for format_data in default_formats:
-                    try:
-                        format_obj = FormatCreate(**format_data)
-                        crud_format.create_format(db, format_obj)
-                    except:
-                        pass  # 忽略重复创建错误
-            
-            content_created = {
-                "categories": len(default_categories) if create_sample_content else 0,
-                "tags": len(default_tags) if create_sample_content else 0, 
-                "formats": len(default_formats) if create_sample_content else 0,
-                "sample_post": create_sample_content
-            }
-            
+                # 示例文章按 slug 幂等，重复提交不重复创建
+                existing_sample = db.execute(
+                    select(Post).filter(Post.slug == SAMPLE_POST["slug"])
+                ).scalar_one_or_none()
+
+                if existing_sample is None:
+                    # 示例文章需要归属，未勾选默认内容时补齐首个默认分类与标签
+                    if not category_ids:
+                        category, is_new = _get_or_create_category(db, DEFAULT_CATEGORIES[0])
+                        category_ids.append(category.id)
+                        created["categories"] += int(is_new)
+                    if not tag_ids:
+                        tag, is_new = _get_or_create_tag(db, DEFAULT_TAGS[0])
+                        tag_ids.append(tag.id)
+                        created["tags"] += int(is_new)
+
+                    # 作者优先取管理员创建步骤记录的 ID，兜底用首个后台用户
+                    author_id = request.session.get("admin_user_id")
+                    if author_id is None:
+                        first_user = db.execute(
+                            select(User).order_by(User.id)
+                        ).scalars().first()
+                        author_id = first_user.id if first_user else None
+
+                    article_format = crud_format.get_format_by_slug(db, "article")
+                    crud_post.create_post(
+                        db,
+                        PostCreate(
+                            title=SAMPLE_POST["title"],
+                            slug=SAMPLE_POST["slug"],
+                            content_markdown=SAMPLE_POST["content_markdown"],
+                            excerpt=SAMPLE_POST["excerpt"],
+                            post_type="post",
+                            status="published",
+                            category_ids=[category_ids[0]],
+                            tag_ids=[tag_ids[0]],
+                        ),
+                        author_id=author_id,
+                        format_ids=[article_format.id],
+                    )
+                    created["sample_post"] = True
+
             return JSONResponse({
                 "success": True,
                 "message": "初始内容创建成功",
-                "created": content_created
+                "created": created
             })
         finally:
             db.close()
-        
+
     except Exception as e:
         return JSONResponse({
             "success": False,

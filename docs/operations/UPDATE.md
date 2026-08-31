@@ -6,6 +6,28 @@
 
 - [`RELEASE.md`](RELEASE.md)
 
+## 一键更新脚本（推荐）
+
+仓库根目录提供了 `update.sh`，它按顺序完成备份、拉代码、装依赖、
+执行迁移、重启服务、重载 Nginx 与最小烟测，等价于本文「标准更新流程」。
+
+```bash
+cd /srv/rewrz                      # 换成你的部署目录
+chmod +x update.sh
+./update.sh                        # 更新到当前分支最新
+./update.sh v0.9.2                 # 更新到指定标签或提交
+./update.sh --no-backup            # 已有备份时跳过自动备份
+```
+
+可用环境变量：
+- `REWRZ_SERVICE`：systemd 服务名，默认 `rewrz.service`
+- `REWRZ_HEALTH_URL`：健康检查入口，默认 `http://127.0.0.1:8000/`
+
+说明：
+- 备份写入 `backups/<时间戳>/`，脚本不会改写 `.env`
+- 脚本会检测 `.env` 中重复的配置项并提示，但不会自动修复
+- 手工执行流程见下文，二者保持一致；修改脚本时必须同步本文
+
 ## 1. 更新原则
 
 - 先备份，再更新
