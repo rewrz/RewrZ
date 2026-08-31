@@ -41,10 +41,10 @@ class PetalsEffect {
         document.body.appendChild(this.canvas);
         
         // 监听窗口大小变化
-        window.addEventListener('resize', () => {
+        this.handleWindowResize = () => {
             this.canvas.width = window.innerWidth;
             this.canvas.height = window.innerHeight;
-        });
+        };
     }
 
     generatePetals() {

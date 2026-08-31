@@ -7,6 +7,10 @@ class EffectManager {
     constructor() {
         this.activeEffects = new Map();
         this.loadingEffects = new Map();
+        // 用户偏好减少动态效果时，跳过画布类特效（灰度滤镜除外，它是内容呈现而非动画）
+        this.prefersReducedMotion = window.matchMedia
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        this.resizeHandler = () => this.handleWindowResize();
         this.effectClasses = {
             'fireworks': 'FireworksEffect',
             'sakura': 'SakuraEffect',
@@ -120,6 +124,10 @@ class EffectManager {
             return true;
         }
 
+        if (this.prefersReducedMotion) {
+            return false;
+        }
+
         // 加载特效脚本
         const loaded = await this.loadEffect(effectName);
         if (!loaded) {
@@ -147,14 +155,45 @@ class EffectManager {
             // 创建并启动特效实例
             const effectInstance = new window[effectClassName]();
             effectInstance.init();
-            
+
             // 保存到活动特效列表
             this.activeEffects.set(effectName, effectInstance);
-            
+            this.syncResizeListener();
+
             return true;
         } catch (error) {
             return false;
         }
+    }
+
+    /**
+     * 统一管理窗口 resize 监听：
+     * 有画布特效时注册，全部停止后移除，避免监听器随特效重启而累积
+     */
+    syncResizeListener() {
+        if (this.activeEffects.size > 0) {
+            window.addEventListener('resize', this.resizeHandler);
+        } else {
+            window.removeEventListener('resize', this.resizeHandler);
+        }
+    }
+
+    handleWindowResize() {
+        this.activeEffects.forEach((effect) => {
+            const hasOwnHandler = typeof effect.handleWindowResize === 'function';
+            // 特效自带处理器时由其自行调整画布，避免重复设置导致画布被清空两次
+            if (!hasOwnHandler && effect.canvas) {
+                effect.canvas.width = window.innerWidth;
+                effect.canvas.height = window.innerHeight;
+            }
+            if (hasOwnHandler) {
+                try {
+                    effect.handleWindowResize();
+                } catch (_) {
+                    // 单个特效的 resize 失败不影响其他特效
+                }
+            }
+        });
     }
 
     stopEffect(effectName) {
@@ -169,6 +208,7 @@ class EffectManager {
             try {
                 effect.stop();
                 this.activeEffects.delete(effectName);
+                this.syncResizeListener();
                 return true;
             } catch (error) {
                 return false;

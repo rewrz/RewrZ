@@ -14,7 +14,7 @@
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     {% endif %}
 
-    <link rel="stylesheet" href="{{ static_asset(request, 'css/admin-tailwind.css') }}">
+    <link rel="stylesheet" href="{{ static_asset(request, 'css/site-tailwind.css') }}">
     <script src="{{ static_asset(request, 'vendor/htmx/htmx.min.js') }}" defer></script>
     <link rel="stylesheet" href="{{ static_asset(request, 'vendor/font-awesome/css/all.min.css') }}">
 
@@ -36,11 +36,11 @@
             align-items: flex-start;
             gap: 0.5rem;
             border-radius: 0.5rem;
-            border: 1px solid transparent;
+            border: 1px solid var(--color-border);
             padding: 0.75rem 0.875rem;
             box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
-            background: #ffffff;
-            color: #0f172a;
+            background: var(--color-card-bg);
+            color: var(--color-text);
             opacity: 0;
             transform: translateY(-6px);
             transition: opacity 0.2s ease, transform 0.2s ease;
@@ -111,9 +111,9 @@
         .admin-confirm-panel {
             width: min(30rem, 100%);
             border-radius: 0.75rem;
-            border: 1px solid #e5e7eb;
-            background: #ffffff;
-            color: #111827;
+            border: 1px solid var(--color-border);
+            background: var(--color-card-bg);
+            color: var(--color-text);
             box-shadow: 0 24px 48px rgba(15, 23, 42, 0.24);
             transform: translateY(6px);
             transition: transform 0.2s ease;
@@ -128,13 +128,13 @@
             padding: 1rem 1.125rem 0.25rem;
             font-size: 1rem;
             font-weight: 600;
-            color: #111827;
+            color: var(--color-text);
         }
         .admin-confirm-message {
             padding: 0.5rem 1.125rem 0;
             font-size: 0.925rem;
             line-height: 1.5;
-            color: #374151;
+            color: var(--color-text-light);
             white-space: pre-line;
             word-break: break-word;
         }
@@ -153,19 +153,19 @@
             cursor: pointer;
         }
         .admin-confirm-cancel {
-            border-color: #d1d5db;
-            background: #ffffff;
-            color: #374151;
+            border-color: var(--color-border);
+            background: var(--color-card-bg);
+            color: var(--color-text-light);
         }
         .admin-confirm-cancel:hover {
-            background: #f9fafb;
+            background: var(--color-background-alt);
         }
         .admin-confirm-submit {
-            background: #2563eb;
+            background: var(--color-primary);
             color: #ffffff;
         }
         .admin-confirm-submit:hover {
-            background: #1d4ed8;
+            background: var(--color-primary-hover);
         }
         .admin-confirm-submit-danger {
             background: #dc2626;

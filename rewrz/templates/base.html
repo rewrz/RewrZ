@@ -105,9 +105,10 @@
     </style>
     
     <style>
+        /* 标题字体使用仓库内 GB2312 子集化 woff2（约 1.1MB），正文回退系统字体不再触发下载 */
         @font-face {
             font-family: 'SourceHanSansCN';
-            src: url('/static/fonts/SourceHanSansCN-Medium.otf') format('opentype');
+            src: url('/static/fonts/SourceHanSansCN-Medium.woff2') format('woff2');
             font-weight: 500;
             font-style: normal;
             font-display: swap;
@@ -115,6 +116,8 @@
     </style>
     <script>
         (function() {
+            // 尽早挂载 js-ready：首帧不带颜色过渡，之后主题切换恢复平滑动画
+            document.documentElement.classList.add('js-ready');
             var link = document.getElementById('hljs-theme-link');
             if (!link) {
                 return;
@@ -128,7 +131,7 @@
         })();
     </script>
 </head>
-<body class="site-shell min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300 {{ effect_body_class if effect_body_class else '' }}"
+<body class="site-shell min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 {{ effect_body_class if effect_body_class else '' }}"
       data-list-navigation-mode="{{ list_navigation_mode if list_navigation_mode else 'pagination' }}"
       data-glass-intensity="{{ glass_intensity }}"
       data-current-theme="{{ current_theme }}"

@@ -46,13 +46,13 @@ class EmbersEffect {
         this.ctx = this.canvas.getContext('2d');
         document.body.appendChild(this.canvas);
 
-        window.addEventListener('resize', () => {
+        this.handleWindowResize = () => {
             if (!this.canvas) {
                 return;
             }
             this.canvas.width = window.innerWidth;
             this.canvas.height = window.innerHeight;
-        });
+        };
     }
 
     createEmber(fromBottom = false) {

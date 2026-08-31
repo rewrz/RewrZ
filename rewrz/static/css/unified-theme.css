@@ -1,5 +1,7 @@
 :root {
-    --font-family-base: 'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
+    /* 正文走系统字体栈（零下载、原生渲染）；
+       标题/装饰保留 SourceHanSansCN（仓库内 1.1MB 子集 woff2），只有标题元素会触发下载 */
+    --font-family-base: 'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --font-family-heading: 'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
     --font-family-decorative: 'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
     --font-family-primary: var(--font-family-base);
@@ -2655,10 +2657,11 @@ body.site-shell[data-current-theme="sunset"] .format-hero-overlay-poem {
     transform: rotate(12deg) scale(1.06);
 }
 
-.timeline-card-shell > div {
-    border-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-border)) !important;
-    background-color: color-mix(in srgb, var(--color-card-bg) 95%, transparent) !important;
-}
+/* 时光轴卡片壳内部不加任何底色：
+   壳自身已带 94% 半透明底 + 主题色边框 + 毛玻璃，
+   早年给壳内每个直接子行叠加 95% 底色的规则会让
+   徽标行/标签行/元信息行与标题、摘要之间出现色差横块，
+   已删除；行容器保持透明，整卡单一表面 */
 
 body.site-shell .anime-page-shell .anime-license-box,
 body.site-shell .anime-page-shell .anime-content pre code.hljs,
@@ -4603,27 +4606,33 @@ body.site-shell .timeline-card-meta-text {
     color: var(--surface-muted-text);
 }
 
+/* 卡内徽标与标签片：底色直接透明，透出卡片自身背景。
+   半透明外壳（shell 94%）+ 卡片 + 片层多层叠加时，
+   任何独立计算的底色都可能与卡片产生细微色差，
+   透明背景从机制上根除该问题；层次感只由边框与文字色承担 */
 body.site-shell .timeline-card-badge,
 body.site-shell .timeline-card-chip {
     border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
-    background: var(--surface-solid-bg);
+    background: transparent;
     color: color-mix(in srgb, var(--color-primary) 68%, var(--color-text) 32%);
 }
 
+/* 图/视频/音频/标签片：半透明色带直接覆盖在卡片底色上，
+   与卡片表面天然融合，不产生独立底色 */
 body.site-shell .timeline-card-chip-image {
-    background: color-mix(in srgb, var(--color-primary) 10%, var(--surface-solid-bg));
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
 
 body.site-shell .timeline-card-chip-video {
-    background: color-mix(in srgb, #059669 10%, var(--surface-solid-bg));
+    background: color-mix(in srgb, #059669 10%, transparent);
 }
 
 body.site-shell .timeline-card-chip-audio {
-    background: color-mix(in srgb, #d97706 10%, var(--surface-solid-bg));
+    background: color-mix(in srgb, #d97706 10%, transparent);
 }
 
 body.site-shell .timeline-card-chip-tag {
-    background: color-mix(in srgb, var(--color-background-alt) 74%, var(--surface-solid-bg) 26%);
+    background: color-mix(in srgb, var(--color-background-alt) 60%, transparent);
     color: var(--surface-muted-text);
 }
 

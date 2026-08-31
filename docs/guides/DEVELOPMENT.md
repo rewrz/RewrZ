@@ -124,8 +124,7 @@ npm run watch:css
 - [`../operations/RELEASE.md`](../operations/RELEASE.md)
 
 提交前要求：
-- 本地 Tailwind 编译产物已更新
-- 前台 `site-tailwind.css` 与后台 `admin-tailwind.css` 均可正常生成
+- 本地 Tailwind 编译产物已更新（前台与后台共用 `site-tailwind.css` 一份产物）
 
 ## 6. 安全开发要求
 

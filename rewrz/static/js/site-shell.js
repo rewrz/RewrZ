@@ -195,7 +195,17 @@ class SiteShellController {
   }
 
   init() {
-    this.applyTheme(this.theme, { persist: false, sync: false, announce: false });
+    // 首屏以服务端渲染的 variables.css 为准：
+    // 不用 JS 预设覆盖（避免打掉后台自定义主题色），也不重复重拉样式表
+    this.applyTheme(this.theme, {
+      persist: false,
+      sync: false,
+      announce: false,
+      applyVariables: false,
+      reloadCss: false,
+    });
+    // variables.css 加载失败时，用本地预设兜底，避免页面裸奔
+    this.themeLink?.addEventListener('error', () => this.applyThemeVariables(this.theme));
     this.applyEffectBodyClass(this.effectBodyClass);
     this.applyEffects(this.activeEffects);
     this.applyBackground();
@@ -393,7 +403,9 @@ class SiteShellController {
       this.body.classList.toggle('dark', DARK_MODE_THEMES.has(normalizedTheme));
     }
 
-    this.applyThemeVariables(normalizedTheme);
+    if (options.applyVariables !== false) {
+      this.applyThemeVariables(normalizedTheme);
+    }
     if (options.reloadCss !== false) {
       this.refreshThemeStylesheet();
     }
@@ -637,7 +649,15 @@ class SiteShellController {
         ? payload.resolved_effects.body_classes[0]
         : '';
       this.applyEffectBodyClass(nextEffectBodyClass);
-      await this.applyEffects(payload.resolved_effects?.effects || []);
+      // 特效配置未变化时不重启画布，避免每次回到标签页都重建特效与监听器
+      // 排序后比较：服务端返回顺序不同不应触发无谓重建
+      const nextEffects = Array.isArray(payload.resolved_effects?.effects)
+        ? [...payload.resolved_effects.effects].sort()
+        : [];
+      const currentEffects = [...this.activeEffects].sort();
+      if (JSON.stringify(nextEffects) !== JSON.stringify(currentEffects)) {
+        await this.applyEffects(payload.resolved_effects?.effects || []);
+      }
       this.backgroundType = payload.background?.type || 'none';
       this.backgroundUrl = payload.background?.custom_url || '';
       this.pageBackgroundUrl = this.body?.dataset.pageBackgroundUrl || this.pageBackgroundUrl || '';

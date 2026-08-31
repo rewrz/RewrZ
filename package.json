@@ -3,11 +3,9 @@
   "private": true,
   "scripts": {
     "build:css:site": "tailwindcss -c tailwind.config.js -i ./rewrz/static/css/src/site-tailwind.css -o ./rewrz/static/css/site-tailwind.css --minify",
-    "build:css:admin": "tailwindcss -c tailwind.config.js -i ./rewrz/static/css/src/admin-tailwind.css -o ./rewrz/static/css/admin-tailwind.css --minify",
-    "build:css": "npm run build:css:site && npm run build:css:admin",
+    "build:css": "npm run build:css:site",
     "watch:css:site": "tailwindcss -c tailwind.config.js -i ./rewrz/static/css/src/site-tailwind.css -o ./rewrz/static/css/site-tailwind.css --watch",
-    "watch:css:admin": "tailwindcss -c tailwind.config.js -i ./rewrz/static/css/src/admin-tailwind.css -o ./rewrz/static/css/admin-tailwind.css --watch",
-    "watch:css": "npm-run-all --parallel watch:css:site watch:css:admin"
+    "watch:css": "npm run watch:css:site"
   },
   "devDependencies": {
     "@tailwindcss/line-clamp": "^0.4.4",

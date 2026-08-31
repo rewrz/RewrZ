@@ -577,7 +577,7 @@ body.micro-immersive-open {
     background: var(--color-surface-secondary);
     border-radius: var(--radius-full);
     border: 1px solid var(--color-border-secondary);
-    transition: all var(--duration-fast) var(--easing-smooth);
+    transition: all var(--duration-fast) var(--ease-in-out);
 }
 
 .post-meta-item:hover {
@@ -605,7 +605,7 @@ body.micro-immersive-open {
     width: 100%;
     height: auto;
     display: block;
-    transition: transform var(--duration-normal) var(--easing-smooth);
+    transition: transform var(--duration-normal) var(--ease-in-out);
 }
 
 .post-featured-image:hover img {
@@ -622,7 +622,7 @@ body.micro-immersive-open {
         transparent 80%, 
         var(--color-secondary) 100%);
     opacity: 0;
-    transition: opacity var(--duration-fast) var(--easing-smooth);
+    transition: opacity var(--duration-fast) var(--ease-in-out);
     pointer-events: none;
 }
 
@@ -698,7 +698,7 @@ body.micro-immersive-open {
     text-decoration: none;
     position: relative;
     font-weight: 500;
-    transition: all var(--duration-fast) var(--easing-smooth);
+    transition: all var(--duration-fast) var(--ease-in-out);
 }
 
 .post-content a::after {
@@ -709,7 +709,7 @@ body.micro-immersive-open {
     width: 0;
     height: 2px;
     background: var(--gradient-primary);
-    transition: width var(--duration-fast) var(--easing-smooth);
+    transition: width var(--duration-fast) var(--ease-in-out);
 }
 
 .post-content a:hover::after {
@@ -801,7 +801,7 @@ body.micro-immersive-open {
     margin: var(--spacing-6) auto;
     display: block;
     box-shadow: var(--shadow-md);
-    transition: all var(--duration-normal) var(--easing-smooth);
+    transition: all var(--duration-normal) var(--ease-in-out);
 }
 
 .post-content img:hover {
@@ -868,7 +868,7 @@ body.micro-immersive-open {
     border-radius: var(--radius-full);
     font-size: var(--font-size-sm);
     border: 1px solid var(--color-border-secondary);
-    transition: all var(--duration-fast) var(--easing-smooth);
+    transition: all var(--duration-fast) var(--ease-in-out);
 }
 
 .post-tag:hover {

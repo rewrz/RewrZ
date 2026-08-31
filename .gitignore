@@ -106,6 +106,9 @@ rewrz/media/uploads/
 /alembic/versions/
 *.sqlite3
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 media_uploads/
 release/
 backups/

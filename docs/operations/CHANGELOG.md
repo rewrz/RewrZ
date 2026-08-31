@@ -4,6 +4,21 @@
 
 ## 2026-08-31
 
+### 前端性能与细节打磨
+
+- 字体瘦身：全站正文字体改用系统字体栈（零下载），标题字体替换为 GB2312 常用字集子集化 woff2（8.6MB → 1.15MB，减少 87%）；验证码改用专用字符子集字体（11.8KB，`scripts/build_captcha_font.py` 可重建）
+- 修复主题系统双源冲突与性能问题：首屏不再用 JS 预设覆盖服务端主题变量、不再重复重拉 variables.css；`variables.css` 加载失败时才用本地预设兜底
+- 修复特效监听器泄漏：23 个画布特效的 window resize 监听统一迁移到 effect-manager 注册/销毁；回到标签页时特效配置无变化不再 stopAll 重启
+- 特效系统尊重 `prefers-reduced-motion`（灰度滤镜除外）；脚本加载保留 onerror 兜底
+- 修复 `admin/post_snapshots.html` 整文件属性引号被错误转义（`\"`），该页样式与 htmx 实际未生效的问题
+- admin 提示条/确认弹窗大面积面板色全部主题变量化，跟随动态主题；语义强调色保留固定色
+- 全局打磨层：选区颜色、键盘焦点环（:focus-visible）、主题色滚动条、首帧过渡抑制（js-ready）、`prefers-reduced-motion` 全站兜底
+- 资产合并与清理：前后台共用一份 `site-tailwind.css`（删除重复的 admin-tailwind 产物与构建脚本）；删除零引用死文件 `homepage-animations.js`、`reading-progress.js`、`animations.css`、`performance.css`、`anniversary-effects.css`、`multi-format-layout.css`
+- `ui-enhancements.js` 清理死分支（.navbar/.timeline-item/.page-loader/.modal Esc），通知消息改文本节点防注入；Ctrl+K 聚焦站内搜索保留
+- 修复首页时光轴卡片行级色差：删除 `.timeline-card-shell > div` 的 `!important` 底色规则（壳内每个直接子行被叠加 95% 底色，而标题/摘要不受影响，导致徽标行/标签行/元信息行出现横块）；卡内徽标与标签片底色改透明，整卡回归单一表面
+- 修复 `post-detail.css` 中 7 处 `transition` 因引用未定义的 `--easing-smooth` 而整条失效（收敛到已有的 `--ease-in-out`）
+- 修正批量改造的副作用：23 个特效文件的 `handleWindowResize` 缩进错位、41 个文件行尾被写成 LF（已统一回 CRLF）
+
 ### 安装向导
 
 - 修复初始内容创建不生效的问题：预览与创建共用同一份默认内容定义（`rewrz/core/default_content.py`），结果只统计实际新增，重复提交幂等

@@ -11,8 +11,9 @@ import io
 
 router = APIRouter()
 
-# 创建 fonts 文件夹，并放入了 SourceHanSansCN-Medium.ttf
-FONT_PATH = 'rewrz/static/fonts/SourceHanSansCN-Medium.otf' 
+# 验证码专用字体：仅包含 CAPTCHA_CHAR_SET 字符的思源黑体子集（约 12KB），
+# 由 scripts/build_captcha_font.py 生成；字符集调整后需重新生成
+FONT_PATH = 'rewrz/static/fonts/captcha-sourcehansans.otf'
 
 # 融合了玄学、易经、二次元风格的自定义字符集
 CAPTCHA_CHAR_SET = (
