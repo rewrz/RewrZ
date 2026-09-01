@@ -302,7 +302,7 @@ def register_admin_routes():
                 "next_url": request.url.path,
                 "error_message": None,
             })
-            return templates.TemplateResponse("password_protected.html", context, status_code=401)
+            return templates.TemplateResponse(request, "password_protected.html", context, status_code=401)
         
         # 验证路由段与文章主类型是否匹配（只使用内容类型，不再按媒体类型分流）
         raw_format_slugs = [fmt.slug for fmt in db_post.formats if getattr(fmt, "slug", None)] if db_post.formats else []
@@ -387,7 +387,7 @@ def register_admin_routes():
             "page_background_image_url": getattr(db_post, "detail_cover_url", "") or "",
         })
         
-        return templates.TemplateResponse("post_detail.html", context)
+        return templates.TemplateResponse(request, "post_detail.html", context)
 
     # 动态页面路由处理器
     @app.get("/{page_slug}", response_class=HTMLResponse)
@@ -445,7 +445,7 @@ def register_admin_routes():
                 "next_url": request.url.path,
                 "error_message": None,
             })
-            return templates.TemplateResponse("password_protected.html", context, status_code=401)
+            return templates.TemplateResponse(request, "password_protected.html", context, status_code=401)
 
         # 访问即计数：页面详情浏览量 +1
         try:
@@ -485,7 +485,7 @@ def register_admin_routes():
             "page_background_image_url": getattr(db_page, "detail_cover_url", "") or "",
         })
 
-        return templates.TemplateResponse(resolve_page_template_file(selected_page_template), context)
+        return templates.TemplateResponse(request, resolve_page_template_file(selected_page_template), context)
 
 # 包含安装向导路由
 app.include_router(installer_api.router)
@@ -1404,7 +1404,7 @@ async def unlock_password_protected_post(
             "next_url": safe_next_url,
             "error_message": "访问密码错误，请重试。",
         })
-        return templates.TemplateResponse("password_protected.html", context, status_code=403)
+        return templates.TemplateResponse(request, "password_protected.html", context, status_code=403)
 
     if safe_next_url == "/":
         if db_post.post_type == "page":

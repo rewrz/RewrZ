@@ -75,7 +75,7 @@ def register_admin_primary_routes(
 
     @app.get(f"{admin_path}/login", response_class=HTMLResponse)
     async def dynamic_admin_login_page(request: Request):
-        return templates.TemplateResponse("admin/login.html", {"request": request, "admin_path": admin_path})
+        return templates.TemplateResponse(request, "admin/login.html", {"request": request, "admin_path": admin_path})
 
     @app.post(f"{admin_path}/auth")
     async def dynamic_admin_login(
@@ -738,7 +738,7 @@ def register_admin_primary_routes(
             if getattr(item, "slug", None) in {"article", "micro", "poem"}
         ]
 
-        return templates.TemplateResponse("admin/posts_list.html", {
+        return templates.TemplateResponse(request, "admin/posts_list.html", {
             "request": request,
             "posts": posts,
             "categories": categories,
@@ -865,7 +865,7 @@ def register_admin_primary_routes(
             "page_links": [{"page": p, "url": _build_page_url(p), "is_current": p == page} for p in page_numbers],
         }
 
-        return templates.TemplateResponse("admin/categories_list.html", {
+        return templates.TemplateResponse(request, "admin/categories_list.html", {
             "request": request,
             "categories": categories,
             "search_query": search or "",
@@ -979,7 +979,7 @@ def register_admin_primary_routes(
             "page_links": [{"page": p, "url": _build_page_url(p), "is_current": p == page} for p in page_numbers],
         }
 
-        return templates.TemplateResponse("admin/tags_list.html", {
+        return templates.TemplateResponse(request, "admin/tags_list.html", {
             "request": request,
             "tags": tags,
             "search_query": search or "",
@@ -1109,7 +1109,7 @@ def register_admin_primary_routes(
             "page_links": [{"page": p, "url": _build_page_url(p), "is_current": p == page} for p in page_numbers],
         }
 
-        return templates.TemplateResponse("admin/comments_list.html", {
+        return templates.TemplateResponse(request, "admin/comments_list.html", {
             "request": request,
             "comments_with_avatars": comments_with_avatars,
             "user": current_user,
@@ -1236,7 +1236,7 @@ def register_admin_primary_routes(
             "page_links": [{"page": p, "url": _build_page_url(p), "is_current": p == page} for p in page_numbers],
         }
 
-        return templates.TemplateResponse("admin/pages_list.html", {
+        return templates.TemplateResponse(request, "admin/pages_list.html", {
             "request": request,
             "pages": pages,
             "search_query": search or "",

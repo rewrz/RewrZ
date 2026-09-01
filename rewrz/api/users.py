@@ -249,7 +249,7 @@ async def admin_users_page(
 ) -> HTMLResponse:
     ensure_admin_user(current_user)
     context = _build_profile_context(request, db, current_user)
-    return templates.TemplateResponse("admin/users.html", context)
+    return templates.TemplateResponse(request, "admin/users.html", context)
 
 
 async def create_admin_user_action(
@@ -342,22 +342,22 @@ async def update_admin_user_profile(
 
     if not normalized_username:
         context = _build_profile_context(request, db, current_user, error="用户名不能为空。")
-        return templates.TemplateResponse("admin/users.html", context, status_code=400)
+        return templates.TemplateResponse(request, "admin/users.html", context, status_code=400)
     if not normalized_email:
         context = _build_profile_context(request, db, current_user, error="邮箱不能为空。")
-        return templates.TemplateResponse("admin/users.html", context, status_code=400)
+        return templates.TemplateResponse(request, "admin/users.html", context, status_code=400)
     if normalized_use_gravatar not in ALLOWED_GRAVATAR_MODES:
         normalized_use_gravatar = "auto"
 
     existing_user = crud_user.get_user_by_username(db, normalized_username)
     if existing_user and existing_user.id != db_user.id:
         context = _build_profile_context(request, db, current_user, error="用户名已被占用。")
-        return templates.TemplateResponse("admin/users.html", context, status_code=400)
+        return templates.TemplateResponse(request, "admin/users.html", context, status_code=400)
 
     existing_email = crud_user.get_user_by_email(db, normalized_email)
     if existing_email and existing_email.id != db_user.id:
         context = _build_profile_context(request, db, current_user, error="邮箱已被占用。")
-        return templates.TemplateResponse("admin/users.html", context, status_code=400)
+        return templates.TemplateResponse(request, "admin/users.html", context, status_code=400)
 
     db_user.username = normalized_username
     db_user.email = normalized_email
@@ -394,7 +394,7 @@ async def update_admin_user_profile(
         current_user,
         message="个人资料已更新。",
     )
-    return templates.TemplateResponse("admin/users.html", context)
+    return templates.TemplateResponse(request, "admin/users.html", context)
 
 
 async def update_user_status_action(

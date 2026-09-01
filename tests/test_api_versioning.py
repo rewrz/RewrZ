@@ -18,8 +18,31 @@ from rewrz.api import (
 from rewrz.core.config import settings as app_settings
 
 
+def _iter_routes(router, visited=None):
+    """
+    递归遍历路由集合。
+
+    FastAPI 0.141+ 会把 include_router 传入的路由包装成 _IncludedRouter，
+    真实路由保存在其 original_router 上，不再平铺到 app.routes 中，
+    因此需要逐层展开，否则路由路径断言会漏判。
+    """
+    if visited is None:
+        visited = set()
+    if id(router) in visited:
+        return
+    visited.add(id(router))
+
+    for route in getattr(router, "routes", []):
+        yield route
+        inner_router = getattr(route, "original_router", None)
+        if inner_router is not None:
+            yield from _iter_routes(inner_router, visited)
+        if hasattr(route, "routes"):
+            yield from _iter_routes(route, visited)
+
+
 def _paths(router):
-    return {getattr(route, "path", "") for route in router.routes}
+    return {getattr(route, "path", "") for route in _iter_routes(router)}
 
 
 def _ensure_admin_routes_registered():

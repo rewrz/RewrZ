@@ -44,7 +44,7 @@ async def system_info_page(
     # 收集系统信息
     system_info = await get_system_info(db)
     
-    return templates.TemplateResponse("admin/system_info.html", {
+    return templates.TemplateResponse(request, "admin/system_info.html", {
         "request": request,
         "user": current_user,
         "system_info": system_info,

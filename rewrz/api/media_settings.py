@@ -79,6 +79,7 @@ async def media_settings_page(
         media_settings[setting.key] = setting.value.get("value") if setting.value else None
 
     return templates.TemplateResponse(
+        request,
         "admin/media_settings.html",
         {
             "request": request,

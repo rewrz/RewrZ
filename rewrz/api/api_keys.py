@@ -26,6 +26,7 @@ async def admin_api_keys_page(request: Request, db: Session, current_user: User)
     ensure_admin_user(current_user)
     api_keys = crud_api_key.get_api_keys(db)
     return templates.TemplateResponse(
+        request,
         "admin/api_keys.html",
         {
             "request": request,

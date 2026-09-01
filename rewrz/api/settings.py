@@ -139,7 +139,7 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
 async def admin_settings_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     settings_data = _get_settings_data(db, request, current_user)
     
-    return templates.TemplateResponse("admin/settings.html", {
+    return templates.TemplateResponse(request, "admin/settings.html", {
         "request": request, 
         "user": current_user, 
         "settings": settings_data,
@@ -351,7 +351,7 @@ async def update_admin_settings(
     # Re-fetch settings using the helper function to ensure the template gets the latest data
     settings_data = _get_settings_data(db, request, current_user)
 
-    return templates.TemplateResponse("admin/settings.html", {
+    return templates.TemplateResponse(request, "admin/settings.html", {
         "request": request, 
         "user": current_user, 
         "settings": settings_data, 

@@ -127,10 +127,10 @@ async def search_page(
     }
 
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
-        return templates.TemplateResponse("fragments/search_results_append.html", context)
+        return templates.TemplateResponse(request, "fragments/search_results_append.html", context)
     if request.headers.get("HX-Request") == "true":
-        return templates.TemplateResponse("components/search_results_panel.html", context)
-    return templates.TemplateResponse("search_results.html", context)
+        return templates.TemplateResponse(request, "components/search_results_panel.html", context)
+    return templates.TemplateResponse(request, "search_results.html", context)
 
 @router.get("/api/v1/search")
 @router.get("/api/search")

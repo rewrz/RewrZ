@@ -63,7 +63,7 @@ async def get_post_snapshots(
         processed_snapshots.append(processed_snapshot)
     
     # 渲染模板
-    return templates.TemplateResponse("admin/post_snapshots.html", {
+    return templates.TemplateResponse(request, "admin/post_snapshots.html", {
         "request": request,
         "user": current_user,
         "post": db_post,

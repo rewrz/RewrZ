@@ -87,7 +87,7 @@ async def comment_settings_page(
             }
             settings_data[key] = default_values.get(key)
     
-    return templates.TemplateResponse("admin/comment_settings.html", {
+    return templates.TemplateResponse(request, "admin/comment_settings.html", {
         "request": request,
         "user": current_user,
         "settings": settings_data,

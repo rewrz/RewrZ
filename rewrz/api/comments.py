@@ -262,6 +262,7 @@ async def create_comment_api(
     
     # 返回评论组件，包含头像信息
     approved_response = templates.TemplateResponse(
+        request,
         "components/comment_item.html", 
         {
             "request": request, 
@@ -333,6 +334,7 @@ async def get_reply_form(request: Request, post_id: int, parent_id: int, db: Ses
     logged_in_public_name = _resolve_public_display_name(logged_in_user) if logged_in_user else ""
     
     return templates.TemplateResponse(
+        request,
         "components/reply_form.html", 
         {
             "request": request, 
@@ -376,6 +378,7 @@ async def get_comment_form(request: Request, post_id: int, db: Session = Depends
     logged_in_public_name = _resolve_public_display_name(logged_in_user) if logged_in_user else ""
     
     return templates.TemplateResponse(
+        request,
         "components/comment_form.html", 
         {
             "request": request, 
@@ -410,6 +413,7 @@ async def get_inline_comment_embed(request: Request, post_id: int, db: Session =
     logged_in_public_name = _resolve_public_display_name(logged_in_user) if logged_in_user else ""
 
     return templates.TemplateResponse(
+        request,
         "components/micro_comments_embed.html",
         {
             "request": request,

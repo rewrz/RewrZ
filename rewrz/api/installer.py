@@ -141,7 +141,7 @@ async def installer_page(request: Request):
     # 初始化 CSRF 令牌（绑定到会话）
     csrf_token = _ensure_installer_csrf_token(request)
     
-    return templates.TemplateResponse("installer/welcome.html", {
+    return templates.TemplateResponse(request, "installer/welcome.html", {
         "request": request,
         "csrf_token": csrf_token
     })
@@ -259,7 +259,7 @@ async def get_install_step(step_number: float, request: Request):
             "formats": [dict(item) for item in get_default_formats()],
         }
 
-    return templates.TemplateResponse(step_templates[step_number], context)
+    return templates.TemplateResponse(request, step_templates[step_number], context)
 
 @router.post("/installer/initialize-database")
 async def initialize_database(

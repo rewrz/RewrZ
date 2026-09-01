@@ -106,7 +106,7 @@ async def error_settings_page(
     saved_config = error_config_setting.value.get("value", {}) if error_config_setting and error_config_setting.value else {}
     config = _normalize_error_config(saved_config)
 
-    return templates.TemplateResponse("admin/error_settings.html", {
+    return templates.TemplateResponse(request, "admin/error_settings.html", {
         "request": request,
         "user": current_user,
         "admin_path": get_request_admin_path(request),
@@ -192,7 +192,7 @@ async def update_error_settings(
             ),
         )
 
-    return templates.TemplateResponse("admin/error_settings.html", {
+    return templates.TemplateResponse(request, "admin/error_settings.html", {
         "request": request,
         "user": current_user,
         "admin_path": get_request_admin_path(request),

@@ -162,6 +162,7 @@ def get_site_health_snapshot(db: Session) -> dict:
 async def dashboard_page(request: Request, db: Session, current_user: User):
     recent_comments = crud_comment.get_comments(db, sort_by_latest=True, limit=8)
     return templates.TemplateResponse(
+        request,
         "admin/dashboard.html",
         {
             "request": request,
@@ -180,6 +181,7 @@ async def get_dashboard_stats(
 ):
     stats = _collect_stats(db)
     return templates.TemplateResponse(
+        request,
         "admin/components/dashboard_stats.html",
         {"request": request, "stats": stats},
     )
@@ -193,6 +195,7 @@ async def get_site_health(
 ):
     health = get_site_health_snapshot(db)
     return templates.TemplateResponse(
+        request,
         "admin/components/dashboard_site_health.html",
         {"request": request, "health": health},
     )

@@ -194,9 +194,9 @@ async def homepage(request: Request, page: int = 1, append: int = 0, db: Session
     )
 
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
-        return _templates.TemplateResponse("fragments/homepage_append.html", context)
+        return _templates.TemplateResponse(request, "fragments/homepage_append.html", context)
 
-    return _templates.TemplateResponse("index.html", context)
+    return _templates.TemplateResponse(request, "index.html", context)
 
 
 @router.get("/archives/media/{media_slug}", response_class=HTMLResponse)
@@ -280,8 +280,8 @@ async def posts_by_media_attachment(
         }
     )
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
-        return _templates.TemplateResponse("fragments/media_archive_append.html", context)
-    return _templates.TemplateResponse("media_archive.html", context)
+        return _templates.TemplateResponse(request, "fragments/media_archive_append.html", context)
+    return _templates.TemplateResponse(request, "media_archive.html", context)
 
 
 @router.get("/formats/{format_slug}", response_class=HTMLResponse)
@@ -406,9 +406,9 @@ async def format_page(
     )
 
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
-        return _templates.TemplateResponse("fragments/format_archive_append.html", context)
+        return _templates.TemplateResponse(request, "fragments/format_archive_append.html", context)
 
-    return _templates.TemplateResponse("format_archive.html", context)
+    return _templates.TemplateResponse(request, "format_archive.html", context)
 
 
 @router.get("/archives/by-category/{category_slug}", response_class=HTMLResponse)
@@ -463,9 +463,9 @@ async def posts_by_category(
     )
 
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
-        return _templates.TemplateResponse("fragments/category_archive_append.html", context)
+        return _templates.TemplateResponse(request, "fragments/category_archive_append.html", context)
 
-    return _templates.TemplateResponse("category_archive.html", context)
+    return _templates.TemplateResponse(request, "category_archive.html", context)
 
 
 @router.get("/archives/by-tag/{tag_slug}", response_class=HTMLResponse)
@@ -520,9 +520,9 @@ async def posts_by_tag(
     )
 
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
-        return _templates.TemplateResponse("fragments/tag_archive_append.html", context)
+        return _templates.TemplateResponse(request, "fragments/tag_archive_append.html", context)
 
-    return _templates.TemplateResponse("tag_archive.html", context)
+    return _templates.TemplateResponse(request, "tag_archive.html", context)
 
 
 @router.get("/archives/{year}/{month}", response_class=HTMLResponse)
@@ -566,9 +566,9 @@ async def posts_by_month(
     )
 
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
-        return _templates.TemplateResponse("fragments/monthly_archive_append.html", context)
+        return _templates.TemplateResponse(request, "fragments/monthly_archive_append.html", context)
 
-    return _templates.TemplateResponse("monthly_archive.html", context)
+    return _templates.TemplateResponse(request, "monthly_archive.html", context)
 
 
 @router.get("/archives", response_class=HTMLResponse)
@@ -612,7 +612,7 @@ async def archives_page(
 
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
         if context["append_view"] == "monthly":
-            return _templates.TemplateResponse("fragments/archives_monthly_append.html", context)
-        return _templates.TemplateResponse("fragments/archives_yearly_append.html", context)
+            return _templates.TemplateResponse(request, "fragments/archives_monthly_append.html", context)
+        return _templates.TemplateResponse(request, "fragments/archives_yearly_append.html", context)
 
-    return _templates.TemplateResponse("archives.html", context)
+    return _templates.TemplateResponse(request, "archives.html", context)

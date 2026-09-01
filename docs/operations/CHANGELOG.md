@@ -2,6 +2,21 @@
 
 本文档只保留当前仍有参考价值的近期变更摘要，不维护已经过时的占位版本号或文档初始化记录。
 
+## 2026-09-01
+
+### 安全依赖升级
+
+- 修复 GitHub 安全告警涉及的直接依赖，统一升到当前已修复版本：`starlette` 0.52.1 → 1.6.0、`python-multipart` 0.0.20 → 0.0.32、`Pillow` 12.1.1 → 12.3.0、`aiohttp` 3.13.3 → 3.14.3
+- 同步处理 Dependabot 待合并项：`bleach` 6.3.0 → 6.4.0、`python-dotenv` 1.2.1 → 1.2.3、`pytest` 9.0.2 → 9.1.1
+- `fastapi` 0.133.0 → 0.141.1：Starlette 1.x 是首个稳定大版本，需同步升级 FastAPI 以保证兼容
+- 新增 `httpx2` 2.12.0 作为测试依赖：`starlette.testclient` 已改用 httpx2，继续回退到 httpx 会抛出弃用警告，安装后测试无警告输出
+- 修复 npm 开发依赖 4 个高危告警（`shell-quote`、`brace-expansion`、`postcss`、`nanoid`），`npm audit` 已归零
+
+### Starlette 1.x 兼容性迁移
+
+- Starlette 1.0 移除了已废弃的 `TemplateResponse(name, context)` 两参数写法，全站 64 处调用统一改为 `TemplateResponse(request, name, context)`
+- FastAPI 0.141 起 `include_router` 不再把路由平铺进 `app.routes`，而是包装为 `_IncludedRouter`；测试中的路由收集辅助函数改为递归展开其 `original_router`
+
 ## 2026-08-31
 
 ### 前端性能与细节打磨

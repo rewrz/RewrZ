@@ -80,6 +80,7 @@ def _render_security_center(
         "page_links": [{"page": p, "url": _build_page_url(p), "is_current": p == page} for p in page_numbers],
     }
     return templates.TemplateResponse(
+        request,
         "admin/security_center.html",
         {
             "request": request,

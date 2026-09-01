@@ -789,13 +789,13 @@ def _get_effects_page_context(request: Request, current_user: User, db: Session)
 async def admin_theme_system_page(request: Request, db: Session, current_user: User):
     """主题系统页面 - 供 main.py 动态路由调用"""
     templates = get_templates()
-    return templates.TemplateResponse("admin/themes.html", _get_theme_page_context(request, current_user, db))
+    return templates.TemplateResponse(request, "admin/themes.html", _get_theme_page_context(request, current_user, db))
 
 
 async def admin_effects_page(request: Request, db: Session, current_user: User):
     """节日特效引擎页面 - 供 main.py 动态路由调用"""
     templates = get_templates()
-    return templates.TemplateResponse("admin/effects.html", _get_effects_page_context(request, current_user, db))
+    return templates.TemplateResponse(request, "admin/effects.html", _get_effects_page_context(request, current_user, db))
 
 # 主题更新路由已移至 main.py 中的动态路由注册系统
 async def update_theme_settings(

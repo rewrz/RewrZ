@@ -102,6 +102,7 @@ def _render_password_reset_request_page(
     status_code: int = 200,
 ):
     return templates.TemplateResponse(
+        request,
         "admin/forgot_password.html",
         {
             "request": request,
@@ -124,6 +125,7 @@ def _render_password_reset_form_page(
     status_code: int = 200,
 ):
     return templates.TemplateResponse(
+        request,
         "admin/reset_password.html",
         {
             "request": request,

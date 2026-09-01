@@ -861,6 +861,7 @@ async def media_library_page(
     page_size = MEDIA_LIBRARY_PAGE_SIZE
 
     return templates.TemplateResponse(
+        request,
         "admin/media.html",
         {
             "request": request,

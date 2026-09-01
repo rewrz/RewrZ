@@ -334,7 +334,7 @@ async def new_post_page(request: Request, db: Session = Depends(get_db), current
     categories = crud_category.get_categories(db)
     formats = _get_or_create_intent_formats(db)
     content_primary_mode = _get_content_primary_mode(db)
-    return templates.TemplateResponse("admin/post_form.html", {
+    return templates.TemplateResponse(request, "admin/post_form.html", {
         "request": request,
         "user": current_user,
         "admin_path": ADMIN_PATH,
@@ -359,7 +359,7 @@ async def edit_post_page(post_id: int, request: Request, db: Session = Depends(g
     formats = _get_or_create_intent_formats(db)
     content_primary_mode = _get_content_primary_mode(db)
     
-    return templates.TemplateResponse("admin/post_form.html", {
+    return templates.TemplateResponse(request, "admin/post_form.html", {
         "request": request,
         "user": current_user,
         "admin_path": ADMIN_PATH,
@@ -654,7 +654,7 @@ async def new_page_page(request: Request, db: Session = Depends(get_db), current
     """
     from ..core.template_filters import get_license_options_filter
     content_primary_mode = _get_content_primary_mode(db)
-    return templates.TemplateResponse("admin/page_form.html", {
+    return templates.TemplateResponse(request, "admin/page_form.html", {
         "request": request,
         "user": current_user,
         "admin_path": ADMIN_PATH,
@@ -675,7 +675,7 @@ async def edit_page_page(page_id: int, request: Request, db: Session = Depends(g
     
     from ..core.template_filters import get_license_options_filter
     content_primary_mode = _get_content_primary_mode(db)
-    return templates.TemplateResponse("admin/page_form.html", {
+    return templates.TemplateResponse(request, "admin/page_form.html", {
         "request": request,
         "user": current_user,
         "admin_path": ADMIN_PATH,

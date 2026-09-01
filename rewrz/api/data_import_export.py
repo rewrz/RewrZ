@@ -399,7 +399,7 @@ async def data_management_page(
     
     显示数据导入导出的管理界面
     """
-    return templates.TemplateResponse("admin/data_management.html", {
+    return templates.TemplateResponse(request, "admin/data_management.html", {
         "request": request,
         "user": current_user,
         "admin_path": get_request_admin_path(request),
