@@ -144,13 +144,7 @@ echo ">>> 检查 Python 依赖..."
 .venv/bin/pip install -q -r requirements.txt
 ok "依赖已就绪"
 
-# 7. 执行数据库迁移
-echo ""
-echo ">>> 执行数据库迁移..."
-.venv/bin/alembic upgrade head
-ok "数据库迁移完成"
-
-# 8. 检查 .env 是否存在重复配置项
+# 7. 检查 .env 是否存在重复配置项
 if [ -f ".env" ]; then
     DUPLICATE_KEYS="$(grep -vE '^[[:space:]]*(#|$)' .env | cut -d= -f1 | sort | uniq -d || true)"
     if [ -n "$DUPLICATE_KEYS" ]; then
@@ -163,7 +157,7 @@ else
     warn ".env 不存在，请先运行安装向导 /installer"
 fi
 
-# 9. 提示前端产物重建
+# 8. 提示前端产物重建
 if [ "$IN_GIT_REPO" = true ] && [ "$CHANGED" = true ] && [ -n "$OLD_REV" ]; then
     FRONTEND_CHANGED="$(git diff --name-only "$OLD_REV" HEAD -- rewrz/templates tailwind.config.js package.json 2>/dev/null || true)"
     if [ -n "$FRONTEND_CHANGED" ]; then
@@ -173,7 +167,7 @@ if [ "$IN_GIT_REPO" = true ] && [ "$CHANGED" = true ] && [ -n "$OLD_REV" ]; then
     fi
 fi
 
-# 10. 重启服务
+# 9. 重启服务
 echo ""
 echo ">>> 重启服务..."
 if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
@@ -191,7 +185,7 @@ else
     warn "未找到 $SERVICE_NAME，请按 docs/operations/DEPLOYMENT.md 配置 systemd 后手动启动"
 fi
 
-# 11. 重新加载 Nginx（仅在配置通过检测时）
+# 10. 重新加载 Nginx（仅在配置通过检测时）
 if [ "$CHANGED" = true ] && command -v nginx >/dev/null 2>&1; then
     echo ""
     echo ">>> 检查 Nginx..."
@@ -203,7 +197,7 @@ if [ "$CHANGED" = true ] && command -v nginx >/dev/null 2>&1; then
     fi
 fi
 
-# 12. 最小烟测
+# 11. 最小烟测
 echo ""
 echo ">>> 最小烟测..."
 if command -v curl >/dev/null 2>&1; then

@@ -10,9 +10,10 @@
 
 import os
 import json
-import copy
+import logging
 import tempfile
 import threading
+import time
 import uuid
 import re
 import shutil
@@ -33,19 +34,27 @@ from ..core.data_manager import (
     DEFAULT_WP_IMPORT_OPTIONS,
 )
 from ..core.content_intents import normalize_intent_slug
+from ..models.import_job import ImportJob
 from ..schemas import User
-from datetime import datetime
+from datetime import datetime, timedelta
 from ..crud import setting as crud_setting
 from ..schemas import SettingCreate, SettingUpdate
 
 router = APIRouter()
 templates = get_templates()
+logger = logging.getLogger(__name__)
 
-IMPORT_JOB_STATUSES = {"queued", "running", "completed", "failed"}
-_IMPORT_JOBS: Dict[str, Dict[str, Any]] = {}
-_IMPORT_JOBS_LOCK = threading.Lock()
+IMPORT_JOB_STATUSES = {"queued", "running", "completed", "failed", "interrupted"}
 _IMPORT_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="import-jobs")
-_MAX_IMPORT_JOB_COUNT = 200
+# 终态任务保留时长，超期后在创建新任务时顺手清理
+_IMPORT_JOB_RETENTION_SECONDS = 7 * 24 * 3600
+# 执行进程心跳间隔与僵死判定阈值（多 worker 部署下 worker 重启后可及时收敛任务）
+_IMPORT_JOB_HEARTBEAT_INTERVAL_SECONDS = 30
+_IMPORT_JOB_STALE_SECONDS = 120
+# 进度落库节流：阶段切换与终态立即写入，同阶段连续更新合并，降低数据库写压力
+_PROGRESS_THROTTLE_SECONDS = 0.3
+_PROGRESS_THROTTLE_STATE: Dict[str, tuple] = {}
+_PROGRESS_THROTTLE_LOCK = threading.Lock()
 _UPLOAD_CHUNK_SIZE = 1024 * 1024
 _MAX_WXR_IMPORT_SIZE = 50 * 1024 * 1024
 _MAX_JSON_IMPORT_SIZE = 10 * 1024 * 1024
@@ -208,6 +217,10 @@ def _normalize_wp_import_options(payload: Optional[Dict[str, Any]]) -> Dict[str,
     if markdown_strategy not in {"html_to_markdown", "raw_html"}:
         markdown_strategy = "html_to_markdown"
     merged["markdown_strategy"] = markdown_strategy
+    slug_conflict = str(merged.get("slug_conflict", "skip")).strip().lower()
+    if slug_conflict not in {"skip", "suffix"}:
+        slug_conflict = "skip"
+    merged["slug_conflict"] = slug_conflict
     return merged
 
 
@@ -246,52 +259,75 @@ def _save_wp_import_options(db: Session, options: Dict[str, Any]) -> Dict[str, A
     return normalized
 
 
-def _create_import_job(user_id: int, job_type: str, filename: str) -> Dict[str, Any]:
+def _cleanup_expired_import_jobs(db: Session) -> None:
+    """清理超过保留时长的终态任务，避免任务表无限增长。"""
+    cutoff = datetime.utcnow() - timedelta(seconds=_IMPORT_JOB_RETENTION_SECONDS)
+    db.query(ImportJob).filter(
+        ImportJob.status.in_(("completed", "failed", "interrupted")),
+        ImportJob.created_at < cutoff,
+    ).delete(synchronize_session=False)
+    db.commit()
+
+
+def _create_import_job(db: Session, user_id: int, job_type: str, filename: str) -> str:
+    """创建导入任务并写入数据库，返回任务ID。"""
     job_id = uuid.uuid4().hex
-    now = datetime.utcnow().isoformat()
-    job = {
-        "id": job_id,
-        "user_id": int(user_id),
-        "type": job_type,
-        "filename": filename,
-        "status": "queued",
-        "created_at": now,
-        "updated_at": now,
-        "progress": {
-            "stage": "queued",
-            "message": "任务已创建，等待执行。",
-            "current": 0,
-            "total": 1,
-            "percent": 0,
-        },
-        "result": None,
-        "error": None,
-    }
-    with _IMPORT_JOBS_LOCK:
-        _IMPORT_JOBS[job_id] = job
-        _prune_import_jobs_locked()
-    return job
+    now = datetime.utcnow()
+    job = ImportJob(
+        id=job_id,
+        user_id=int(user_id),
+        job_type=job_type,
+        filename=filename,
+        status="queued",
+        progress_stage="queued",
+        progress_message="任务已创建，等待执行。",
+        progress_current=0,
+        progress_total=1,
+        progress_percent=0,
+        progress_extra=None,
+        result=None,
+        error=None,
+        worker_pid=None,
+        heartbeat_at=None,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(job)
+    db.commit()
+    _cleanup_expired_import_jobs(db)
+    return job_id
 
 
-def _prune_import_jobs_locked() -> None:
-    if len(_IMPORT_JOBS) <= _MAX_IMPORT_JOB_COUNT:
+def _update_import_job(db: Session, job_id: str, **fields: Any) -> None:
+    """更新导入任务字段（状态、结果、错误等）。"""
+    job = db.get(ImportJob, job_id)
+    if not job:
         return
-    sorted_jobs = sorted(_IMPORT_JOBS.values(), key=lambda item: item.get("updated_at", ""))
-    overflow = len(_IMPORT_JOBS) - _MAX_IMPORT_JOB_COUNT
-    for job in sorted_jobs[:overflow]:
-        _IMPORT_JOBS.pop(job["id"], None)
+    for key, value in fields.items():
+        setattr(job, key, value)
+    job.updated_at = datetime.utcnow()
+    db.commit()
 
 
-def _update_import_job(job_id: str, **fields: Any) -> None:
-    with _IMPORT_JOBS_LOCK:
-        job = _IMPORT_JOBS.get(job_id)
-        if not job:
-            return
-        job.update(fields)
-        job["updated_at"] = datetime.utcnow().isoformat()
+def _should_write_progress(job_id: str, stage: str) -> bool:
+    """判断本次进度更新是否需要落库：阶段切换与终态立即写，其余按节流合并。"""
+    now = time.monotonic()
+    force = stage in {"completed", "failed"}
+    with _PROGRESS_THROTTLE_LOCK:
+        last = _PROGRESS_THROTTLE_STATE.get(job_id)
+        should_write = (
+            force
+            or last is None
+            or last[0] != stage
+            or (now - last[1]) >= _PROGRESS_THROTTLE_SECONDS
+        )
+        if should_write:
+            _PROGRESS_THROTTLE_STATE[job_id] = (stage, now)
+    return should_write
 
 
 def _set_import_job_progress(
+    db: Session,
     job_id: str,
     stage: str,
     message: str,
@@ -300,48 +336,128 @@ def _set_import_job_progress(
     percent: Optional[int] = None,
     extra: Optional[Dict[str, Any]] = None,
 ) -> None:
-    with _IMPORT_JOBS_LOCK:
-        job = _IMPORT_JOBS.get(job_id)
-        if not job:
-            return
-        progress = dict(job.get("progress") or {})
-        progress["stage"] = stage
-        progress["message"] = message
-        if current is not None:
-            progress["current"] = int(max(current, 0))
-        if total is not None:
-            progress["total"] = int(max(total, 0))
-        if percent is None:
-            cur = progress.get("current")
-            tot = progress.get("total")
-            if isinstance(cur, int) and isinstance(tot, int) and tot > 0:
-                percent = int(max(0, min(100, round((cur / tot) * 100))))
-        if percent is not None:
-            progress["percent"] = int(max(0, min(100, percent)))
-        if isinstance(extra, dict):
-            progress.update(extra)
-        job["progress"] = progress
-        job["updated_at"] = datetime.utcnow().isoformat()
+    if not _should_write_progress(job_id, stage):
+        return
+    job = db.get(ImportJob, job_id)
+    if not job:
+        return
+    if current is not None:
+        job.progress_current = int(max(current, 0))
+    if total is not None:
+        job.progress_total = int(max(total, 0))
+    if percent is None:
+        if job.progress_total > 0:
+            percent = int(max(0, min(100, round((job.progress_current / job.progress_total) * 100))))
+    if percent is not None:
+        job.progress_percent = int(max(0, min(100, percent)))
+    job.progress_stage = stage
+    job.progress_message = message
+    if isinstance(extra, dict):
+        merged = dict(job.progress_extra or {})
+        merged.update(extra)
+        job.progress_extra = merged
+    job.updated_at = datetime.utcnow()
+    db.commit()
 
 
-def _get_import_job(job_id: str) -> Optional[Dict[str, Any]]:
-    with _IMPORT_JOBS_LOCK:
-        job = _IMPORT_JOBS.get(job_id)
-        if not job:
-            return None
-        return copy.deepcopy(job)
+def _touch_import_job_heartbeat(db: Session, job_id: str, pid: int) -> None:
+    """由执行进程周期性调用，更新心跳用于僵死任务检测。"""
+    job = db.get(ImportJob, job_id)
+    if not job or job.status != "running":
+        return
+    job.heartbeat_at = datetime.utcnow()
+    job.worker_pid = pid
+    db.commit()
+
+
+def _import_job_heartbeat_loop(job_id: str, stop_event: threading.Event) -> None:
+    """导入任务执行期间的心跳循环，使用独立数据库会话，避免干扰导入事务。"""
+    while not stop_event.wait(_IMPORT_JOB_HEARTBEAT_INTERVAL_SECONDS):
+        try:
+            db_manager.reload_if_needed()
+            heartbeat_db = db_manager.get_session()
+            if heartbeat_db is None:
+                continue
+            try:
+                _touch_import_job_heartbeat(heartbeat_db, job_id, os.getpid())
+            finally:
+                heartbeat_db.close()
+        except Exception:
+            # 心跳失败不影响导入主流程，仅影响僵死检测的时效
+            pass
+
+
+def _finalize_stale_import_job(db: Session, job: ImportJob) -> None:
+    """执行进程心跳超时的任务判定为中断（多见于 worker 重启），避免前端无限轮询。"""
+    if job.status != "running":
+        return
+    heartbeat = job.heartbeat_at
+    if heartbeat is None:
+        # 刚进入 running 尚未写入首次心跳，留给下一次轮询判定
+        return
+    if (datetime.utcnow() - heartbeat).total_seconds() <= _IMPORT_JOB_STALE_SECONDS:
+        return
+    job.status = "interrupted"
+    job.error = "任务执行进程已停止（服务可能已重启），任务被标记为中断，请重新发起导入。"
+    job.updated_at = datetime.utcnow()
+    db.commit()
+
+
+def _import_job_to_dict(job: ImportJob) -> Dict[str, Any]:
+    """将任务模型转换为字典（含 user_id 供权限校验，返回前端前需剥离）。"""
+    progress = {
+        "stage": job.progress_stage,
+        "message": job.progress_message,
+        "current": job.progress_current,
+        "total": job.progress_total,
+        "percent": job.progress_percent,
+    }
+    if isinstance(job.progress_extra, dict):
+        progress.update(job.progress_extra)
+    return {
+        "id": job.id,
+        "user_id": job.user_id,
+        "type": job.job_type,
+        "filename": job.filename,
+        "status": job.status,
+        "created_at": job.created_at.isoformat() if job.created_at else None,
+        "updated_at": job.updated_at.isoformat() if job.updated_at else None,
+        "progress": progress,
+        "result": job.result,
+        "error": job.error,
+    }
+
+
+def _get_import_job(db: Session, job_id: str) -> Optional[Dict[str, Any]]:
+    """从数据库查询导入任务，任何 worker 进程均可访问。"""
+    job = db.get(ImportJob, job_id)
+    if not job:
+        return None
+    _finalize_stale_import_job(db, job)
+    return _import_job_to_dict(job)
 
 
 def _run_wordpress_import_job(job_id: str, wxr_path: str, options: Dict[str, Any]) -> None:
-    _update_import_job(job_id, status="running")
-    _set_import_job_progress(job_id, "prepare", "开始导入任务...", current=0, total=1, percent=0)
-
     db = None
+    heartbeat_stop = threading.Event()
+    heartbeat_thread: Optional[threading.Thread] = None
     try:
         db_manager.reload_if_needed()
         db = db_manager.get_session()
         if db is None:
             raise RuntimeError("数据库连接不可用")
+
+        _update_import_job(db, job_id, status="running", worker_pid=os.getpid(), heartbeat_at=datetime.utcnow())
+        _set_import_job_progress(db, job_id, "prepare", "开始导入任务...", current=0, total=1, percent=0)
+
+        # 启动心跳线程，供查询端检测执行进程是否存活（worker 重启等场景）
+        heartbeat_thread = threading.Thread(
+            target=_import_job_heartbeat_loop,
+            args=(job_id, heartbeat_stop),
+            daemon=True,
+            name=f"import-job-hb-{job_id[:8]}",
+        )
+        heartbeat_thread.start()
 
         def progress_callback(payload: Dict[str, Any]) -> None:
             stage = str(payload.get("stage") or "running")
@@ -354,6 +470,7 @@ def _run_wordpress_import_job(job_id: str, wxr_path: str, options: Dict[str, Any
                 if key not in {"stage", "message", "current", "total"}
             }
             _set_import_job_progress(
+                db,
                 job_id,
                 stage=stage,
                 message=message,
@@ -366,20 +483,28 @@ def _run_wordpress_import_job(job_id: str, wxr_path: str, options: Dict[str, Any
         result = importer.import_from_wxr(wxr_path)
 
         if isinstance(result, dict) and result.get("error"):
-            _update_import_job(job_id, status="failed", error=str(result.get("error")), result={"stats": result})
-            _set_import_job_progress(job_id, "failed", f"导入失败：{result.get('error')}", percent=100)
+            _update_import_job(db, job_id, status="failed", error=str(result.get("error")), result={"stats": result})
+            _set_import_job_progress(db, job_id, "failed", f"导入失败：{result.get('error')}", percent=100)
         else:
-            _update_import_job(job_id, status="completed", result={"stats": result}, error=None)
-            _set_import_job_progress(job_id, "completed", "导入完成。", percent=100)
+            _update_import_job(db, job_id, status="completed", result={"stats": result}, error=None)
+            _set_import_job_progress(db, job_id, "completed", "导入完成。", percent=100)
     except Exception as exc:
         try:
             if db is not None:
                 db.rollback()
         except Exception:
             pass
-        _update_import_job(job_id, status="failed", error=str(exc), result=None)
-        _set_import_job_progress(job_id, "failed", f"导入失败：{str(exc)}", percent=100)
+        if db is not None:
+            try:
+                _update_import_job(db, job_id, status="failed", error=str(exc), result=None)
+                _set_import_job_progress(db, job_id, "failed", f"导入失败：{str(exc)}", percent=100)
+            except Exception:
+                # 任务状态更新失败时至少保证不吞掉原始异常信息
+                logger.exception("更新导入任务失败状态时出错: job_id=%s", job_id)
     finally:
+        heartbeat_stop.set()
+        if heartbeat_thread is not None:
+            heartbeat_thread.join(timeout=2)
         if db is not None:
             db.close()
         try:
@@ -565,17 +690,18 @@ async def create_wordpress_import_task(
     )
     try:
         wp_options = _get_wp_import_options(db)
-        job = _create_import_job(
+        job_id = _create_import_job(
+            db,
             user_id=current_user.id,
             job_type="wordpress_import",
             filename=filename,
         )
-        _IMPORT_EXECUTOR.submit(_run_wordpress_import_job, job["id"], temp_file_path, wp_options)
+        _IMPORT_EXECUTOR.submit(_run_wordpress_import_job, job_id, temp_file_path, wp_options)
         return JSONResponse(
             {
                 "success": True,
                 "message": "WordPress导入任务已启动",
-                "job_id": job["id"],
+                "job_id": job_id,
             },
             status_code=202,
         )
@@ -592,12 +718,14 @@ async def create_wordpress_import_task(
 @router.get("/api/import/jobs/{job_id}")
 async def get_import_job_status(
     job_id: str,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
     获取异步导入任务状态。
+    任务状态持久化在数据库中，多 worker 部署下任意进程均可查询。
     """
-    job = _get_import_job(job_id)
+    job = _get_import_job(db, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="任务不存在或已过期")
     if int(job.get("user_id", -1)) != int(current_user.id):

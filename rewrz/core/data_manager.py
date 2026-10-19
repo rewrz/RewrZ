@@ -45,6 +45,9 @@ DEFAULT_WP_IMPORT_OPTIONS = {
     "postmeta_whitelist": ["views", "post_views_count"],
     "post_type_format_map": {},
     "markdown_strategy": "html_to_markdown",
+    # slug 冲突策略：skip=跳过已存在文章（幂等，重复导入/中断重传不产生副本）；
+    # suffix=加 -imported 后缀另存（用于从其它站点聚合同 slug 不同内容）
+    "slug_conflict": "skip",
 }
 
 
@@ -354,6 +357,10 @@ class WordPressImporter:
             strategy = "latest_month"
         merged["remote_media_path_strategy"] = strategy
         merged["markdown_strategy"] = str(merged.get("markdown_strategy", "html_to_markdown")).strip() or "html_to_markdown"
+        slug_conflict = str(merged.get("slug_conflict", "skip")).strip().lower()
+        if slug_conflict not in {"skip", "suffix"}:
+            slug_conflict = "skip"
+        merged["slug_conflict"] = slug_conflict
         return merged
     
     def import_from_wxr(self, wxr_file_path: str) -> Dict[str, Any]:
@@ -386,6 +393,7 @@ class WordPressImporter:
             # 导入统计
             stats = {
                 "posts_imported": 0,
+                "posts_skipped": 0,
                 "categories_imported": 0,
                 "tags_imported": 0,
                 "comments_imported": 0,
@@ -429,6 +437,7 @@ class WordPressImporter:
             return {
                 "error": f"导入失败: {str(e)}",
                 "posts_imported": 0,
+                "posts_skipped": 0,
                 "categories_imported": 0,
                 "tags_imported": 0,
                 "comments_imported": 0,
@@ -577,10 +586,22 @@ class WordPressImporter:
                     if not slug:
                         slug = self._generate_slug_from_title(title.text)
                     
-                    # 检查文章是否已存在
+                    # 检查文章是否已存在，按 slug_conflict 策略处理冲突
                     existing_post = crud_post.get_post_by_slug(self.db, slug)
                     if existing_post:
-                        slug = f"{slug}-imported"
+                        if self.options.get("slug_conflict") == "suffix":
+                            # 聚合同 slug 不同内容：加后缀另存；后缀 slug 也已存在时仍跳过，
+                            # 避免撞唯一约束把整批导入拖进 errors
+                            suffixed_slug = f"{slug}-imported"
+                            if crud_post.get_post_by_slug(self.db, suffixed_slug) is None:
+                                slug = suffixed_slug
+                            else:
+                                stats["posts_skipped"] += 1
+                                continue
+                        else:
+                            # 幂等策略：跳过已存在文章（重复导入/中断重传不产生副本）
+                            stats["posts_skipped"] += 1
+                            continue
                     
                     markdown_strategy = self.options.get("markdown_strategy")
                     if markdown_strategy == "raw_html":

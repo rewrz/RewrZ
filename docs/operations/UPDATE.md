@@ -9,7 +9,7 @@
 ## 一键更新脚本（推荐）
 
 仓库根目录提供了 `update.sh`，它按顺序完成备份、拉代码、装依赖、
-执行迁移、重启服务、重载 Nginx 与最小烟测，等价于本文「标准更新流程」。
+重启服务、重载 Nginx 与最小烟测，等价于本文「标准更新流程」。
 
 ```bash
 cd /srv/rewrz                      # 换成你的部署目录
@@ -26,14 +26,17 @@ chmod +x update.sh
 说明：
 - 备份写入 `backups/<时间戳>/`，脚本不会改写 `.env`
 - 脚本会检测 `.env` 中重复的配置项并提示，但不会自动修复
+- 数据库表结构由应用启动时的 `create_all` 自动维护（只建不存在的表），
+  不需要也不应当执行 `alembic upgrade head`
 - 手工执行流程见下文，二者保持一致；修改脚本时必须同步本文
 
 ## 1. 更新原则
 
 - 先备份，再更新
-- 先停服务，再改代码和数据库
-- 先执行迁移，再恢复服务
-- Alembic 一旦改动生产库，不要指望临时 `downgrade` 解决问题；回滚优先恢复备份
+- 先停服务，再改代码
+- 表结构随应用启动自动补齐，无需单独执行数据库迁移
+- Alembic 迁移脚本仅服务于本地开发库的 schema 演进；不要在生产库上执行
+  `alembic upgrade head`（生产库缺少迁移脚本，必然失败），回滚优先恢复备份
 
 ## 2. 更新前备份
 
@@ -80,13 +83,17 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3.4 执行数据库迁移
+### 3.4 数据库表结构（自动）
+
+不需要手工执行迁移。应用启动时会调用 `create_all` 基于当前模型补齐缺失的表
+和列（已存在的对象不动），因此更新代码后直接恢复服务即可：
 
 ```bash
-cd /srv/rewrz
-source .venv/bin/activate
-alembic upgrade head
+sudo systemctl start rewrz
+sudo journalctl -u rewrz -n 50 --no-pager   # 确认无启动报错
 ```
+
+如对表结构变更有疑问，可对照本地开发库的 `alembic/versions/` 迁移脚本。
 
 ### 3.5 恢复服务
 
@@ -171,12 +178,12 @@ sudo systemctl status rewrz --no-pager
 ```
 
 说明：
-- 如果本次更新已经执行了生产迁移，优先恢复整个数据库备份
+- 如需回滚数据库变更，优先恢复整个数据库备份
 - 不建议把生产回滚建立在 `alembic downgrade` 的临时运气上
 
 ## 7. 常见失误
 
 - 更新前没备份数据库和媒体目录
 - 用多个实例同时指向同一个 SQLite
-- 更新了代码但没执行 `alembic upgrade head`
+- 更新了代码但没重启服务（表结构与新代码要等重启后才生效）
 - 修改了 `.env` 却忘了重启服务

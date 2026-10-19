@@ -29,6 +29,7 @@ from rewrz.models.comment import Comment
 from rewrz.models.media import Media # Import the new Media model
 from rewrz.models.format import Format # Import the new Format model
 from rewrz.models.setting import Setting # Import the new Setting model
+from rewrz.models.import_job import ImportJob # Import the async import job model
 from rewrz.core.config import settings
 
 target_metadata = Base.metadata

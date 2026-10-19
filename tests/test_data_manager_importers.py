@@ -1317,3 +1317,128 @@ def test_wordpress_import_decodes_percent_encoded_link_slug_when_post_name_missi
     assert crud_post.get_post_by_slug(db, decoded_slug) is not None
     assert crud_post.get_post_by_slug(db, encoded_slug) is None
 
+
+def _write_wxr_with_items(tmp_path, items_xml: str) -> str:
+    """用给定 item 列表组装一份最小 WXR 文件并返回路径。"""
+    wxr_file = tmp_path / "wordpress_slug_conflict.xml"
+    wxr_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+{items_xml}
+  </channel>
+</rss>
+"""
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+    return str(wxr_file)
+
+
+def _wp_item_xml(slug: str, title: str) -> str:
+    return f"""    <item>
+      <title>{title}</title>
+      <content:encoded><![CDATA[<p>{title}正文</p>]]></content:encoded>
+      <wp:post_name>{slug}</wp:post_name>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2021-01-01 00:00:00</wp:post_date>
+    </item>"""
+
+
+def test_wordpress_import_slug_conflict_skip_is_idempotent(db, tmp_path):
+    """skip 策略（默认）：重复导入同一文件不产生副本，全部跳过。"""
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin_skip", email="admin_skip@example.com", password="password123"),
+    )
+    wxr_path = _write_wxr_with_items(
+        tmp_path,
+        _wp_item_xml("idempotent-post", "幂等测试") + "\n" + _wp_item_xml("idempotent-post-2", "幂等测试二"),
+    )
+
+    first = WordPressImporter(db).import_from_wxr(wxr_path)
+    second = WordPressImporter(db).import_from_wxr(wxr_path)
+
+    assert first["posts_imported"] == 2
+    assert first["posts_skipped"] == 0
+    assert second["posts_imported"] == 0
+    assert second["posts_skipped"] == 2
+    assert second["errors"] == []
+    assert crud_post.get_post_by_slug(db, "idempotent-post") is not None
+    assert crud_post.get_post_by_slug(db, "idempotent-post-imported") is None
+
+
+def test_wordpress_import_slug_conflict_skip_backfills_deleted_post(db, tmp_path):
+    """skip 策略：删除部分文章后重新导入，自动补导缺失的文章。"""
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin_backfill", email="admin_backfill@example.com", password="password123"),
+    )
+    wxr_path = _write_wxr_with_items(
+        tmp_path,
+        _wp_item_xml("backfill-a", "补导A") + "\n" + _wp_item_xml("backfill-b", "补导B"),
+    )
+
+    WordPressImporter(db).import_from_wxr(wxr_path)
+    deleted = crud_post.get_post_by_slug(db, "backfill-a")
+    crud_post.delete_post(db, deleted.id)
+
+    second = WordPressImporter(db).import_from_wxr(wxr_path)
+
+    assert second["posts_imported"] == 1
+    assert second["posts_skipped"] == 1
+    assert second["errors"] == []
+    assert crud_post.get_post_by_slug(db, "backfill-a") is not None
+
+
+def test_wordpress_import_slug_conflict_suffix_keeps_both(db, tmp_path):
+    """suffix 策略：撞 slug 加 -imported 后缀并存，服务多站聚合场景。"""
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin_suffix", email="admin_suffix@example.com", password="password123"),
+    )
+    wxr_path = _write_wxr_with_items(tmp_path, _wp_item_xml("aggregated-post", "聚合文章"))
+
+    first = WordPressImporter(db, options={"slug_conflict": "suffix"}).import_from_wxr(wxr_path)
+    second = WordPressImporter(db, options={"slug_conflict": "suffix"}).import_from_wxr(wxr_path)
+
+    assert first["posts_imported"] == 1
+    assert second["posts_imported"] == 1
+    assert second["posts_skipped"] == 0
+    assert second["errors"] == []
+    assert crud_post.get_post_by_slug(db, "aggregated-post") is not None
+    assert crud_post.get_post_by_slug(db, "aggregated-post-imported") is not None
+
+
+def test_wordpress_import_slug_conflict_suffix_third_time_skips(db, tmp_path):
+    """suffix 策略下后缀文章也已存在时跳过，避免撞唯一约束把导入拖进 errors。"""
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin_suffix3", email="admin_suffix3@example.com", password="password123"),
+    )
+    wxr_path = _write_wxr_with_items(tmp_path, _wp_item_xml("third-time-post", "第三次导入"))
+
+    for _ in range(2):
+        WordPressImporter(db, options={"slug_conflict": "suffix"}).import_from_wxr(wxr_path)
+    third = WordPressImporter(db, options={"slug_conflict": "suffix"}).import_from_wxr(wxr_path)
+
+    assert third["posts_imported"] == 0
+    assert third["posts_skipped"] == 1
+    assert third["errors"] == []
+
+
+def test_wordpress_import_slug_conflict_invalid_value_falls_back_to_skip(db, tmp_path):
+    """非法 slug_conflict 值回落为 skip。"""
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin_invalid", email="admin_invalid@example.com", password="password123"),
+    )
+    wxr_path = _write_wxr_with_items(tmp_path, _wp_item_xml("fallback-post", "回落测试"))
+
+    WordPressImporter(db, options={"slug_conflict": "覆盖"}).import_from_wxr(wxr_path)
+    second = WordPressImporter(db, options={"slug_conflict": "覆盖"}).import_from_wxr(wxr_path)
+
+    assert second["posts_imported"] == 0
+    assert second["posts_skipped"] == 1
+    assert crud_post.get_post_by_slug(db, "fallback-post-imported") is None
+

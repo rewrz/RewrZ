@@ -135,7 +135,7 @@
                                 <option value="latest_month">全新迁移：下载到当前年月目录（如 2026/02）</option>
                                 <option value="preserve_relative_path">一比一还原：保持原始相对路径（优先按原 URL 里的 年/月 段）</option>
                             </select>
-                            <p class="mt-1 text-xs text-gray-500">大量媒体建议使用“一比一还原”，可避免全部集中到同一月份目录。</p>
+                            <p class="mt-1 text-xs text-gray-500">大量媒体建议使用"一比一还原"，可避免全部集中到同一月份目录。</p>
                         </div>
                         <label class="inline-flex items-center gap-2">
                             <input type="checkbox" id="wp-import-type-post" class="admin-form-check form-checkbox" checked>
@@ -166,6 +166,14 @@
                             <option value="html_to_markdown">转换为 Markdown 并保存到 Markdown 字段</option>
                             <option value="raw_html">保留原始 HTML 并保存到 HTML 字段</option>
                         </select>
+                    </div>
+                    <div class="mt-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">文章已存在时（slug 冲突）</label>
+                        <select id="wp-slug-conflict" class="admin-form-field block w-full rounded px-3 py-2 text-sm">
+                            <option value="skip">跳过已存在的文章（重复导入不会产生副本，中断后重传自动继续）</option>
+                            <option value="suffix">另存为新文章（加 -imported 后缀，用于从其它站点聚合同 slug 不同内容）</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">选择“跳过”时，重复导入同一文件、删除部分文章后补导、导入中断后重传，都只会导入缺失的文章。</p>
                     </div>
                     <div class="mt-3 flex items-center gap-2">
                         <button type="button" id="save-wp-options-button" class="admin-secondary-btn px-3 py-2 rounded transition-colors text-sm">
@@ -241,6 +249,18 @@ function buildDataManagementCsrfHeaders(extraHeaders = {}) {
     return Object.assign({}, extraHeaders, {
         'X-CSRF-Token': dataManagementCsrfToken
     });
+}
+
+// 统一提取后端错误信息：收敛到项目现行错误体 {"error": {"code","message"}}，
+// 避免把 error 对象直接交给 Error 导致展示为 [object Object]
+function extractApiErrorMessage(result, response) {
+    if (result && typeof result.error === 'string' && result.error) {
+        return result.error;
+    }
+    if (result && result.error && typeof result.error === 'object' && result.error.message) {
+        return String(result.error.message);
+    }
+    return `请求失败 (${response ? response.status : '未知状态'})`;
 }
 
 // 页面加载时获取数据统计
@@ -324,7 +344,8 @@ function collectWordPressImportOptions() {
             .split(',')
             .map(item => item.trim())
             .filter(Boolean),
-        markdown_strategy: document.getElementById('wp-markdown-strategy')?.value || 'html_to_markdown'
+        markdown_strategy: document.getElementById('wp-markdown-strategy')?.value || 'html_to_markdown',
+        slug_conflict: document.getElementById('wp-slug-conflict')?.value || 'skip'
     };
 }
 
@@ -391,6 +412,8 @@ function applyWordPressImportOptions(options) {
     const whitelist = Array.isArray(safe.postmeta_whitelist) ? safe.postmeta_whitelist : [];
     document.getElementById('wp-postmeta-whitelist').value = whitelist.join(',');
     document.getElementById('wp-markdown-strategy').value = safe.markdown_strategy || 'html_to_markdown';
+    const slugConflict = String(safe.slug_conflict || 'skip').toLowerCase();
+    document.getElementById('wp-slug-conflict').value = slugConflict === 'suffix' ? 'suffix' : 'skip';
 }
 
 async function loadWordPressImportOptions() {
@@ -466,7 +489,8 @@ function getImportStageLabel(stage) {
         tags: '导入标签',
         posts: '导入文章',
         completed: '已完成',
-        failed: '失败'
+        failed: '失败',
+        interrupted: '已中断'
     };
     return stageMap[String(stage || '').toLowerCase()] || '处理中';
 }
@@ -524,7 +548,7 @@ async function pollWordPressImportJob(jobId) {
             }
 
             if (!response.ok || !result.success || !result.job) {
-                throw new Error(result.detail || result.error || `状态查询失败 (${response.status})`);
+                throw new Error(extractApiErrorMessage(result, response));
             }
 
             failedAttempts = 0;
@@ -551,10 +575,13 @@ async function pollWordPressImportJob(jobId) {
                 return;
             }
 
-            if (job.status === 'failed') {
+            if (job.status === 'failed' || job.status === 'interrupted') {
                 activeWordPressImportJobId = null;
                 const stats = job.result && job.result.stats ? job.result.stats : null;
-                showOperationResult('error', `WordPress 导入失败: ${job.error || '任务执行失败'}`, stats);
+                const reason = job.status === 'interrupted'
+                    ? (job.error || '任务已被中断（服务可能已重启）。重新上传同一文件即可继续，已导入的文章会按当前冲突策略自动跳过。')
+                    : (job.error || '任务执行失败');
+                showOperationResult('error', `WordPress 导入失败: ${reason}`, stats);
                 return;
             }
         } catch (error) {
@@ -603,7 +630,7 @@ document.getElementById('wordpress-import-form').addEventListener('submit', asyn
             result = {};
         }
         if (!response.ok || !result.success || !result.job_id) {
-            throw new Error(result.detail || result.error || `任务创建失败 (${response.status})`);
+            throw new Error(extractApiErrorMessage(result, response));
         }
 
         activeWordPressImportJobId = result.job_id;
@@ -776,6 +803,7 @@ function showOperationResult(type, message, stats = null) {
                 <p class="font-semibold">导入统计</p>
                 <ul class="list-disc list-inside mt-1 space-y-1">
                     ${stats.posts_imported ? `<li>文章: ${stats.posts_imported} 篇${stats.views_imported ? `（含阅读量元数据 ${stats.views_imported} 篇）` : ''}</li>` : ''}
+                    ${stats.posts_skipped ? `<li>跳过已存在文章: ${stats.posts_skipped} 篇</li>` : ''}
                     ${stats.categories_imported ? `<li>分类: ${stats.categories_imported} 个</li>` : ''}
                     ${stats.tags_imported ? `<li>标签: ${stats.tags_imported} 个</li>` : ''}
                     ${stats.comments_imported ? `<li>评论: ${stats.comments_imported} 条</li>` : ''}
