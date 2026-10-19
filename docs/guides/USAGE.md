@@ -51,7 +51,7 @@ npm run build:css
 首次安装的重要约束：
 - 不要在进入 `/installer` 前手工创建 `.env`
 - 新站点的 `.env` 应由安装向导生成
-- 若后续要补 `COOKIE_SECURE`、`SESSION_HTTPS_ONLY`、SMTP 等生产配置，请在安装完成后再编辑 `.env`
+- 若后续要补 SMTP 等生产配置，请在安装完成后再编辑 `.env`（Cookie 安全标志按请求自动判定，无需配置）
 
 ## 3. 线上部署与更新
 
@@ -73,16 +73,15 @@ DATABASE_URL=sqlite:///./data/rewrz.db
 SECRET_KEY=请使用高强度随机字符串
 ADMIN_PATH=/your-admin-path
 MEDIA_UPLOAD_DIR=media_uploads
-COOKIE_SECURE=false
-SESSION_HTTPS_ONLY=false
 ```
 
 ### 4.2 生产建议
 - 强烈建议启用 HTTPS。
 - `ADMIN_PATH` 使用难猜测路径，避免默认后台暴露。
-- 反向代理场景建议开启：
-  - `COOKIE_SECURE=true`
-  - `SESSION_HTTPS_ONLY=true`
+- Cookie 的 `Secure` 标志按请求自动判定（识别 `X-Forwarded-Proto` 与请求协议），
+  HTTP、HTTPS 与反向代理切换均无需修改配置
+- 反向代理需传递 `X-Forwarded-Proto` 请求头；仅当反代不传递该头、或需要强制
+  所有 Cookie 携带 `Secure` 时，才设置 `COOKIE_SECURE=true`
 - 若要启用登录前找回密码邮件投递，还需额外配置 SMTP 环境变量。
 
 ## 5. 日常使用
@@ -162,10 +161,8 @@ SESSION_HTTPS_ONLY=false
 
 ### Q7：登录后立即掉线或反复跳回登录页？
 常见原因是 Cookie 安全配置与访问协议不匹配：
-- 如果你还在 HTTP 访问，不要启用 `COOKIE_SECURE=true`
-- 如果你已启用 HTTPS，建议：
-  - `COOKIE_SECURE=true`
-  - `SESSION_HTTPS_ONLY=true`
+- 默认按请求自动判定 `Secure`，一般无需干预
+- 若手动设置了 `COOKIE_SECURE=true`，请确认访问协议确实是 HTTPS，否则改回 `false` 或删除该项
 - 反向代理需传递 `X-Forwarded-Proto` 请求头
 
 ### Q8：忘记密码申请后没有收到邮件？

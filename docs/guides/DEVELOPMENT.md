@@ -139,10 +139,9 @@ npm run watch:css
 - 导入 ZIP 必须做解包安全校验（路径穿越、压缩比、总大小、单文件大小）
 
 ### 6.3 Cookie 与会话
-- 通过配置控制 `secure cookie` 与 `https_only session`
-- 生产建议在 HTTPS 下启用：
-  - `COOKIE_SECURE=true`
-  - `SESSION_HTTPS_ONLY=true`
+- `Secure` 标志按请求自动判定（`should_use_secure_cookie`：识别 `X-Forwarded-Proto` 与请求协议）
+- `RequestAwareSessionMiddleware` 让会话 Cookie 与普通 Cookie 使用同一判定，协议切换零配置
+- `COOKIE_SECURE=true` 仅为强制开启逃生阀（如反代不传递 `X-Forwarded-Proto`），默认不写
 
 ## 7. 关键代码路径
 

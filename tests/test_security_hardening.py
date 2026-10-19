@@ -12,6 +12,7 @@ from rewrz.api import data_import_export as data_api
 from rewrz.api import media as media_api
 from rewrz.core.config import settings
 from rewrz.core.security import get_current_user
+from rewrz.core.session_middleware import RequestAwareSessionMiddleware
 
 
 def _set_installation_complete(monkeypatch, value: bool) -> None:
@@ -138,3 +139,64 @@ def test_media_upload_stream_rejects_oversized_file(tmp_path):
         assert target.stat().st_size == 0
 
     anyio.run(_run)
+
+
+def _build_session_test_app() -> RequestAwareSessionMiddleware:
+    """构造一个会写会话的最小 ASGI 应用，外包一层被测中间件。"""
+
+    async def app(scope, receive, send):
+        session = scope["session"]
+        seen = session.get("marker") == "1"
+        session["marker"] = "1"
+        body = b"seen" if seen else b"fresh"
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [(b"content-type", b"text/plain")],
+            }
+        )
+        await send({"type": "http.response.body", "body": body})
+
+    return RequestAwareSessionMiddleware(app, secret_key="test-secret-key")
+
+
+def test_session_cookie_gets_secure_when_forwarded_proto_https():
+    client = TestClient(_build_session_test_app())
+    response = client.get("/", headers={"X-Forwarded-Proto": "https"})
+    assert response.status_code == 200
+    assert "secure" in response.headers["set-cookie"].lower()
+
+
+def test_session_cookie_without_secure_on_plain_http():
+    client = TestClient(_build_session_test_app())
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "secure" not in response.headers["set-cookie"].lower()
+
+
+def test_session_cookie_secure_when_request_scheme_is_https():
+    client = TestClient(_build_session_test_app(), base_url="https://testserver")
+    response = client.get("/")
+    assert "secure" in response.headers["set-cookie"].lower()
+
+
+def test_session_cookie_secure_forced_by_cookie_secure_setting(monkeypatch):
+    monkeypatch.setattr(settings, "COOKIE_SECURE", True)
+    client = TestClient(_build_session_test_app())
+    response = client.get("/")
+    assert "secure" in response.headers["set-cookie"].lower()
+
+
+def test_session_roundtrip_still_works_through_middleware():
+    client = TestClient(_build_session_test_app())
+    first = client.get("/")
+    assert first.text == "fresh"
+    assert "session=" in first.headers["set-cookie"]
+    second = client.get("/")
+    assert second.text == "seen"
+
+
+def test_main_app_registers_request_aware_session_middleware():
+    registered = {middleware.cls for middleware in main_module.app.user_middleware}
+    assert RequestAwareSessionMiddleware in registered

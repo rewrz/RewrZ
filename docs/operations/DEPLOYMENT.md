@@ -114,26 +114,20 @@ alembic current
 
 ### 5.2 补生产环境配置
 
-编辑 `/srv/rewrz/.env`，至少确认以下项：
+编辑 `/srv/rewrz/.env`。
+
+Cookie 安全标志无需任何配置：`Secure` 按每个请求的实际协议自动判定
+（识别 `X-Forwarded-Proto` 与请求 scheme），HTTP、HTTPS 与后续新增反向代理
+都不需要修改配置或重启服务。
+
+唯一例外：反向代理**不**传递 `X-Forwarded-Proto`、或你希望强制所有 Cookie
+携带 `Secure` 时，才手动设置：
 
 ```env
 COOKIE_SECURE=true
-SESSION_HTTPS_ONLY=true
 ```
 
-不要使用 `echo >> .env` 直接追加，重复键会导致配置歧义（后写的值覆盖前面的）。
-请先把整行删除再写入，保证每个键只出现一次、可重复执行：
-
-```bash
-sed -i '/^COOKIE_SECURE=/d;/^SESSION_HTTPS_ONLY=/d' .env
-cat >> .env <<'EOF'
-COOKIE_SECURE=true
-SESSION_HTTPS_ONLY=true
-EOF
-```
-
-注意：`COOKIE_SECURE=true` 只在 HTTPS 生效后才启用。
-如果你仍在 HTTP 下访问，保持 `false`，否则会出现登录后立即掉线。
+注意：HTTP 直连场景下设置 `COOKIE_SECURE=true` 会导致登录后立即掉线。
 
 如需邮件能力，再补：
 
@@ -144,6 +138,9 @@ SMTP_USERNAME=your-user
 SMTP_PASSWORD=your-password
 SMTP_FROM=notify@example.com
 ```
+
+不要使用 `echo >> .env` 直接追加，重复键会导致配置歧义（后写的值覆盖前面的）。
+请先把整行删除再写入，保证每个键只出现一次、可重复执行。
 
 建议同时核对：
 - `ADMIN_PATH` 是否为安装向导生成的隐藏后台路径
@@ -253,9 +250,8 @@ sudo systemctl reload nginx
 sudo certbot --nginx -d example.com
 ```
 
-证书生效后，再检查一次 `.env`：
-- `COOKIE_SECURE=true`
-- `SESSION_HTTPS_ONLY=true`
+证书生效后无需修改 `.env`：Cookie 的 `Secure` 标志按请求自动判定，
+HTTPS 下自动带上，HTTP 下自动不带。
 
 ## 9. 上线后验收清单
 

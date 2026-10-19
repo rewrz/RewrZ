@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 import secrets # For CSRF token generation
+from starlette.requests import HTTPConnection
 from starlette.responses import RedirectResponse
 from urllib.parse import urlparse
 
@@ -78,14 +79,14 @@ def is_user_token_payload_valid(db_user, payload: dict | None) -> bool:
     return payload_version == user_version
 
 
-def should_use_secure_cookie(request: Request) -> bool:
+def should_use_secure_cookie(connection: HTTPConnection) -> bool:
     """根据配置和请求上下文决定是否启用 Secure Cookie。"""
     if bool(getattr(settings, "COOKIE_SECURE", False)):
         return True
-    forwarded_proto = str(request.headers.get("x-forwarded-proto", "")).split(",")[0].strip().lower()
+    forwarded_proto = str(connection.headers.get("x-forwarded-proto", "")).split(",")[0].strip().lower()
     if forwarded_proto == "https":
         return True
-    return str(getattr(request.url, "scheme", "")).lower() == "https"
+    return str(getattr(connection.url, "scheme", "")).lower() == "https"
 
 # Dependency to get current user (for protected routes)
 async def get_current_user(token: str = Depends(get_token_from_cookie), db: Session = Depends(get_db)):

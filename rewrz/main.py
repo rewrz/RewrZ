@@ -59,7 +59,7 @@ from .core import error_handler  # 导入错误处理模块
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from sqlalchemy import select, func
 from datetime import date, datetime, timedelta, timezone # 导入date和datetime用于纪念日检查和主题调度
-from starlette.middleware.sessions import SessionMiddleware # 导入会话中间件
+from .core.session_middleware import RequestAwareSessionMiddleware # 导入按请求判定的会话中间件
 from .core.security import generate_csrf_token # 导入CSRF令牌生成函数
 from .core.settings_middleware import SettingsMiddleware # 导入设置中间件
 from .core.admin_path import get_admin_path
@@ -1437,12 +1437,11 @@ app.mount("/media", StaticFiles(directory=settings.MEDIA_UPLOAD_DIR), name="medi
 # 统一注册全局异常处理器（集中管理，降低重复与维护成本）
 error_handler.register_error_handlers(app)
 
-# 为CSRF保护添加会话中间件
+# 为CSRF保护添加会话中间件（Secure 标志按实际请求自动判定，HTTP/HTTPS/反代切换零配置）
 app.add_middleware(
-    SessionMiddleware,
+    RequestAwareSessionMiddleware,
     secret_key=settings.SECRET_KEY,
     same_site="lax",
-    https_only=bool(getattr(settings, "SESSION_HTTPS_ONLY", False)),
 )
 
 # 添加设置加载中间件（在会话中间件之后）

@@ -57,7 +57,7 @@ def test_finalize_restores_previous_incomplete_env_file_after_failure(monkeypatc
     env_path = tmp_path / ".env"
     monkeypatch.setenv("REWRZ_ENV_FILE", str(env_path))
     (tmp_path / "data").mkdir()
-    original_env = 'COOKIE_SECURE=true\nSESSION_HTTPS_ONLY=true\n'
+    original_env = 'COOKIE_SECURE=true\n'
     env_path.write_text(original_env, encoding="utf-8")
 
     client = TestClient(main_module.app)

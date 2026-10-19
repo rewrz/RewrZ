@@ -179,5 +179,4 @@ sudo systemctl status rewrz --no-pager
 - 更新前没备份数据库和媒体目录
 - 用多个实例同时指向同一个 SQLite
 - 更新了代码但没执行 `alembic upgrade head`
-- HTTPS 已启用但 `.env` 还保持 `COOKIE_SECURE=false`
 - 修改了 `.env` 却忘了重启服务

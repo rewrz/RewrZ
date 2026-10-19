@@ -94,7 +94,9 @@ flowchart TD
 
 ### 5.3 Cookie/Session 安全
 - `should_use_secure_cookie` 根据配置与请求协议决定 `Secure`。
-- `SessionMiddleware` 支持 `https_only`（由 `SESSION_HTTPS_ONLY` 控制）。
+- `RequestAwareSessionMiddleware` 继承 `SessionMiddleware`，会话 Cookie 的 `Secure`
+  同样按请求判定，HTTP/HTTPS/反代切换无需改配置。
+- `COOKIE_SECURE` 为可选的强制开启开关，默认不写。
 
 ### 5.4 上传与导入防护
 - 上传采用流式写入，限制大小，避免整文件读入内存。

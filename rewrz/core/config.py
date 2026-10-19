@@ -60,11 +60,8 @@ class DynamicSettings:
         except (TypeError, ValueError):
             self.ACCESS_TOKEN_EXPIRE_MINUTES = 1440
         self.MEDIA_UPLOAD_DIR: str = str(get_value("MEDIA_UPLOAD_DIR", "media_uploads")).strip() or "media_uploads"
+        # 可选强制开关：默认不写，Cookie Secure 标志由 should_use_secure_cookie 按请求自动判定
         self.COOKIE_SECURE: bool = _parse_bool_value(get_value("COOKIE_SECURE"), False)
-        self.SESSION_HTTPS_ONLY: bool = _parse_bool_value(
-            get_value("SESSION_HTTPS_ONLY"),
-            self.COOKIE_SECURE,
-        )
     
     def reload_config(self) -> bool:
         """重新加载配置，返回是否有变化"""

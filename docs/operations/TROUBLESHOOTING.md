@@ -54,10 +54,12 @@ uvicorn rewrz.main:app --host 127.0.0.1 --port 8000
 
 ### 3.1 登录后立即掉线
 常见原因是 Cookie 安全策略与协议不一致：
-- HTTP 场景不应启用 `COOKIE_SECURE=true`
-- HTTPS 场景建议同时启用：
-  - `COOKIE_SECURE=true`
-  - `SESSION_HTTPS_ONLY=true`
+- 默认按请求自动判定 `Secure`（识别 `X-Forwarded-Proto` 与请求协议），
+  HTTP/HTTPS 切换无需改配置
+- 若反代未传递 `X-Forwarded-Proto`，HTTPS 下会话 Cookie 可能不带 `Secure`，
+  需在反代侧补齐该请求头
+- 若手动设置了 `COOKIE_SECURE=true` 但仍在 HTTP 下访问，也会掉线，
+  改回 `false` 或删除该项
 
 ### 3.2 后台写接口返回 403
 重点检查 CSRF：
