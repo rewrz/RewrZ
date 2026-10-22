@@ -1,5 +1,6 @@
-aiohttp==3.14.3
+aiohttp==3.14.5
 alembic==1.16.4
+bcrypt==4.3.0
 beautifulsoup4==4.14.3
 bleach==6.4.0
 cachetools==7.0.1
@@ -9,7 +10,6 @@ itsdangerous==2.2.0
 Jinja2==3.1.6
 lunar_python==1.4.8
 Markdown==3.10.2
-passlib==1.7.4
 Pillow==12.3.0
 psutil==7.2.2
 pydantic==2.12.5

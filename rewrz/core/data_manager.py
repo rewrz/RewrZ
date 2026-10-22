@@ -35,6 +35,7 @@ from .cache import clear_cache, cache_key_for_setting, cache
 import re
 from .template_context import DEFAULT_BASE_SETTINGS
 from .content_intents import INTENT_NAME_MAP, normalize_intent_slug
+from .time_utils import utc_now_naive
 
 DEFAULT_WP_IMPORT_OPTIONS = {
     "import_post_types": ["post", "page"],
@@ -803,7 +804,7 @@ class WordPressImporter:
                     if comment_elem.find('wp:comment_date', self.namespaces) is not None
                     else None
                 ),
-            ) or datetime.utcnow()
+            ) or utc_now_naive()
 
             pending_comments.append(
                 {
@@ -1305,7 +1306,7 @@ class WordPressImporter:
         return f"/media/{relative_path}"
 
     def _resolve_media_year_month(self, reference_datetime: Optional[datetime]) -> Tuple[str, str]:
-        chosen = reference_datetime or datetime.utcnow()
+        chosen = reference_datetime or utc_now_naive()
         if chosen.tzinfo is not None:
             chosen = chosen.astimezone(timezone.utc).replace(tzinfo=None)
         return chosen.strftime("%Y"), chosen.strftime("%m")

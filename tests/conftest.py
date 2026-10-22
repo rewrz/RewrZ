@@ -46,9 +46,13 @@ def test_db(test_engine):
 @pytest.fixture(autouse=True)
 def clear_setting_cache_between_tests():
     """清理全局设置缓存，避免不同测试数据库之间串值。"""
+    from rewrz.core.public_metrics_cache import clear_public_metrics_memory_cache
+
     clear_cache()
+    clear_public_metrics_memory_cache()
     yield
     clear_cache()
+    clear_public_metrics_memory_cache()
 
 
 def get_db_session():

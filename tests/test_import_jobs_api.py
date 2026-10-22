@@ -9,7 +9,7 @@
 5. 进度落库节流策略
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -20,6 +20,7 @@ from sqlalchemy.orm import sessionmaker
 from rewrz import main as main_module
 from rewrz.api import data_import_export
 from rewrz.core.database import db_manager
+from rewrz.core.time_utils import utc_now_naive
 from rewrz.models import Base, ImportJob
 
 
@@ -109,7 +110,7 @@ def test_stale_running_job_marked_interrupted(test_db):
         job_type="wordpress_import",
         status="running",
         worker_pid=999999,
-        heartbeat_at=datetime.utcnow() - timedelta(seconds=data_import_export._IMPORT_JOB_STALE_SECONDS + 30),
+        heartbeat_at=utc_now_naive() - timedelta(seconds=data_import_export._IMPORT_JOB_STALE_SECONDS + 30),
     )
     test_db.add(job)
     test_db.commit()
@@ -128,7 +129,7 @@ def test_fresh_heartbeat_job_stays_running(test_db):
         job_type="wordpress_import",
         status="running",
         worker_pid=1,
-        heartbeat_at=datetime.utcnow() - timedelta(seconds=10),
+        heartbeat_at=utc_now_naive() - timedelta(seconds=10),
     )
     test_db.add(job)
     test_db.commit()
@@ -156,7 +157,7 @@ def test_running_job_without_heartbeat_not_interrupted(test_db):
 
 def test_cleanup_expired_import_jobs(test_db):
     """超过保留时长的终态任务被清理，未终态任务保留。"""
-    now = datetime.utcnow()
+    now = utc_now_naive()
     old = now - timedelta(seconds=data_import_export._IMPORT_JOB_RETENTION_SECONDS + 60)
     recent = now - timedelta(seconds=3600)
     test_db.add_all([

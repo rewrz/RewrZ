@@ -58,11 +58,10 @@ class Post(Base):
     categories = relationship("Category", secondary=post_categories, backref="posts")
     tags = relationship("Tag", secondary=post_tags, backref="posts")
     formats = relationship("Format", secondary=post_formats, backref="posts")
-    from sqlalchemy.orm import joinedload
     comments = relationship(
         "Comment",
         primaryjoin="and_(Post.id == Comment.post_id, Comment.status == 'approved')",
         order_by="Comment.created_at.asc()",
-        lazy="selectin",  # 使用 selectin 加载以优化性能
+        lazy="select",  # 列表页不加载评论，详情页显式预加载
         viewonly=True    # 这个关系是只读的，避免在修改时出现问题
     )

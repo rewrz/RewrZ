@@ -6,6 +6,7 @@ from rewrz.core.cache import clear_cache, cache_key_for_setting
 from rewrz.core.public_metrics_cache import (
     HOMEPAGE_STATS_CACHE_KEY,
     build_format_archive_cache_key,
+    clear_public_metrics_memory_cache,
     get_format_archive_stats_snapshot,
     get_homepage_stats_snapshot,
 )
@@ -41,6 +42,7 @@ def test_homepage_stats_snapshot_uses_cache_until_expired(test_db):
     cache_setting.value = {"value": cached_payload}
     test_db.commit()
     clear_cache(cache_key_for_setting(HOMEPAGE_STATS_CACHE_KEY))
+    clear_public_metrics_memory_cache()
 
     third = get_homepage_stats_snapshot(test_db, loader=loader, ttl_seconds=900)
     assert third["cache_hit"] is False
@@ -77,6 +79,7 @@ def test_format_archive_stats_snapshot_uses_cache_until_expired(test_db):
     cache_setting.value = {"value": cached_payload}
     test_db.commit()
     clear_cache(cache_key_for_setting(cache_key))
+    clear_public_metrics_memory_cache()
 
     third = get_format_archive_stats_snapshot(test_db, cache_key=cache_key, loader=loader, ttl_seconds=900)
     assert third["cache_hit"] is False

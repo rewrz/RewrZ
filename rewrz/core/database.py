@@ -1,8 +1,23 @@
-from sqlalchemy import create_engine
+import os
+import threading
+
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
+from starlette.requests import Request
 from ..models.base import Base
 from .config import settings
-import os
+
+VALID_SQLITE_JOURNAL_MODES = {"DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"}
+
+
+def _is_sqlite_url(database_url: str) -> bool:
+    return str(database_url or "").strip().lower().startswith("sqlite")
+
+
+def _is_memory_sqlite_url(database_url: str) -> bool:
+    normalized = str(database_url or "").strip().lower()
+    return normalized in {"sqlite://", "sqlite:///:memory:"} or ":memory:" in normalized
+
 
 class DatabaseManager:
     """数据库连接管理器，支持动态重新初始化"""
@@ -11,6 +26,8 @@ class DatabaseManager:
         self.engine = None
         self.SessionLocal = None
         self._initialized = False
+        self._pool_timeout_count = 0
+        self._pool_timeout_lock = threading.Lock()
         self.initialize()
     
     def initialize(self) -> bool:
@@ -20,11 +37,27 @@ class DatabaseManager:
             if self.engine:
                 self.engine.dispose()
             
-            # 创建新连接
-            self.engine = create_engine(
-                settings.DATABASE_URL, 
-                connect_args={"check_same_thread": False}
-            )
+            database_url = settings.DATABASE_URL
+            is_sqlite = _is_sqlite_url(database_url)
+            engine_kwargs = {
+                "pool_pre_ping": bool(getattr(settings, "DB_POOL_PRE_PING", True)),
+                "pool_recycle": int(getattr(settings, "DB_POOL_RECYCLE", 1800)),
+            }
+            if not (is_sqlite and _is_memory_sqlite_url(database_url)):
+                engine_kwargs.update({
+                    "pool_size": int(getattr(settings, "DB_POOL_SIZE", 10)),
+                    "max_overflow": int(getattr(settings, "DB_MAX_OVERFLOW", 20)),
+                    "pool_timeout": int(getattr(settings, "DB_POOL_TIMEOUT", 10)),
+                })
+            if is_sqlite:
+                engine_kwargs["connect_args"] = {
+                    "check_same_thread": False,
+                    "timeout": max(1, int(getattr(settings, "SQLITE_BUSY_TIMEOUT_MS", 30000) or 30000)) / 1000,
+                }
+
+            self.engine = create_engine(database_url, **engine_kwargs)
+            if is_sqlite:
+                self._configure_sqlite(self.engine)
             self.SessionLocal = sessionmaker(
                 autocommit=False, 
                 autoflush=False, 
@@ -33,7 +66,52 @@ class DatabaseManager:
             self._initialized = True
             return True
         return False
-    
+
+    @staticmethod
+    def _configure_sqlite(engine) -> None:
+        journal_mode = str(getattr(settings, "SQLITE_JOURNAL_MODE", "WAL") or "WAL").strip().upper()
+        if journal_mode not in VALID_SQLITE_JOURNAL_MODES:
+            journal_mode = "WAL"
+        busy_timeout_ms = max(1000, int(getattr(settings, "SQLITE_BUSY_TIMEOUT_MS", 30000) or 30000))
+
+        @event.listens_for(engine, "connect")
+        def _set_sqlite_pragmas(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            try:
+                cursor.execute(f"PRAGMA busy_timeout={busy_timeout_ms}")
+                cursor.execute(f"PRAGMA journal_mode={journal_mode}")
+            finally:
+                cursor.close()
+
+    def get_pool_status(self) -> dict:
+        """返回连接池使用情况，供异常日志和排障使用。"""
+        if not self.engine:
+            return {}
+        pool = self.engine.pool
+        status = {}
+        for key, method_name in (
+            ("size", "size"),
+            ("checked_in", "checkedin"),
+            ("checked_out", "checkedout"),
+            ("overflow", "overflow"),
+        ):
+            method = getattr(pool, method_name, None)
+            if callable(method):
+                try:
+                    status[key] = method()
+                except Exception:
+                    continue
+        status["timeout_seconds"] = int(getattr(settings, "DB_POOL_TIMEOUT", 10) or 10)
+        with self._pool_timeout_lock:
+            status["timeout_count"] = self._pool_timeout_count
+        return status
+
+    def record_pool_timeout(self) -> int:
+        """记录一次连接池等待超时，便于从日志和状态接口观察发生频率。"""
+        with self._pool_timeout_lock:
+            self._pool_timeout_count += 1
+            return self._pool_timeout_count
+
     def reload_if_needed(self) -> bool:
         """检查配置变化并重新加载"""
         if settings.reload_config():
@@ -55,8 +133,14 @@ class DatabaseManager:
 db_manager = DatabaseManager()
 
 # FastAPI依赖注入函数
-def get_db():
-    """获取数据库会话的依赖注入函数"""
+def get_db(request: Request = None):
+    """获取数据库会话的依赖注入函数，优先复用请求级会话。"""
+    shared_db = getattr(getattr(request, "state", None), "db", None) if request is not None else None
+    if shared_db is not None:
+        # 会话由 add_global_context 中间件统一关闭，这里不能重复关闭。
+        yield shared_db
+        return
+
     # 在每次请求时检查配置是否变化
     db_manager.reload_if_needed()
     

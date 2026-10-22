@@ -20,8 +20,10 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 # 新增导入：FastAPI 与 RequestValidationError
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
-from .database import get_db
+from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
+from .database import db_manager, get_db
 from .admin_path import get_request_admin_path
+from .request_context import get_request_id, redact_url_for_log
 from .template_filters import static_asset
 from ..crud import setting as setting_crud
 
@@ -164,9 +166,8 @@ async def global_exception_handler(request: Request, exc: Exception):
     # 根据Accept头判断返回JSON还是HTML
     accept_header = request.headers.get("accept", "")
 
-    request_path = str(getattr(request.url, "path", "") or "")
     if _should_return_json_error(request, accept_header):
-        return await _handle_json_response(exc)
+        return await _handle_json_response(request, exc)
     else:
         return await _handle_html_response(request, exc)
 
@@ -178,12 +179,33 @@ def _is_admin_api_request_path(request_path: str, admin_path: str) -> bool:
     return request_path.startswith(f"{normalized_admin_path}/api/")
 
 
+def _is_admin_login_request_path(request_path: str, admin_path: str) -> bool:
+    normalized_admin_path = str(admin_path or "").rstrip("/")
+    if not normalized_admin_path:
+        return False
+    return str(request_path or "").rstrip("/") == f"{normalized_admin_path}/auth"
+
+
 def _should_return_json_error(request: Request, accept_header: str) -> bool:
     request_path = str(getattr(request.url, "path", "") or "")
     admin_path = get_request_admin_path(request)
     if request_path.startswith("/api/") or _is_admin_api_request_path(request_path, admin_path):
         return True
+    if _is_admin_login_request_path(request_path, admin_path):
+        return True
     return "application/json" in str(accept_header or "")
+
+
+def _build_error_payload(request: Request, *, code: str, message, status_code: int, details=None) -> dict:
+    error_payload = {
+        "code": code,
+        "message": message,
+        "status_code": status_code,
+        "request_id": get_request_id(request),
+    }
+    if details is not None:
+        error_payload["details"] = details
+    return {"error": error_payload}
 
 
 def _should_redirect_admin_html_unauthorized(request: Request, status_code: int) -> bool:
@@ -206,65 +228,62 @@ def _should_redirect_admin_html_unauthorized(request: Request, status_code: int)
     return normalized_path not in auth_pages
 
 
-async def _handle_json_response(exc: Exception):
+async def _handle_json_response(request: Request, exc: Exception):
     """
     处理JSON响应
     
     Args:
+        request: 请求对象
         exc: 异常对象
         
     Returns:
         JSONResponse: JSON格式错误响应
     """
-    # 检查是否为HTTP异常（包括FastAPI和Starlette的HTTPException）
+    if isinstance(exc, BlogHTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=_build_error_payload(
+                request,
+                code=exc.error_code or "HTTP_ERROR",
+                message=exc.detail,
+                status_code=exc.status_code,
+            ),
+            headers=exc.headers,
+        )
+
     if isinstance(exc, (HTTPException, StarletteHTTPException)):
-        # 对于404错误，使用特定的错误代码
-        if exc.status_code == 404:
-            error_code = "NOT_FOUND"
-        elif exc.status_code == 500:
-            error_code = "INTERNAL_ERROR"
-        elif exc.status_code == 403:
-            error_code = "FORBIDDEN"
-        elif exc.status_code == 400:
-            error_code = "BAD_REQUEST"
-        elif exc.status_code == 422:
-            error_code = "VALIDATION_ERROR"
-        else:
-            error_code = getattr(exc, 'error_code', 'HTTP_ERROR')
-            
+        error_codes = {
+            400: "BAD_REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            404: "NOT_FOUND",
+            405: "METHOD_NOT_ALLOWED",
+            422: "VALIDATION_ERROR",
+            429: "TOO_MANY_REQUESTS",
+            500: "INTERNAL_ERROR",
+            503: "SERVICE_UNAVAILABLE",
+        }
+        error_code = error_codes.get(exc.status_code) or getattr(exc, "error_code", "HTTP_ERROR")
         return JSONResponse(
             status_code=exc.status_code,
-            content={
-                "error": {
-                    "code": error_code,
-                    "message": exc.detail,
-                    "status_code": exc.status_code
-                }
-            }
+            content=_build_error_payload(
+                request,
+                code=error_code,
+                message=exc.detail,
+                status_code=exc.status_code,
+            ),
+            headers=exc.headers,
         )
-    elif isinstance(exc, BlogHTTPException):
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
-                "error": {
-                    "code": exc.error_code,
-                    "message": exc.detail,
-                    "status_code": exc.status_code
-                }
-            }
-        )
-    else:
-        # 未知异常
-        return JSONResponse(
+
+    return JSONResponse(
+        status_code=500,
+        content=_build_error_payload(
+            request,
+            code="INTERNAL_ERROR",
+            message="服务器内部错误",
             status_code=500,
-            content={
-                "error": {
-                    "code": "INTERNAL_ERROR",
-                    "message": "服务器内部错误",
-                    "status_code": 500
-                }
-            }
-        )
+        ),
+    )
 
 
 async def _handle_html_response(request: Request, exc: Exception):
@@ -415,7 +434,7 @@ def log_error(request: Request, exc: Exception):
     logger.setLevel(log_level_value)
 
     # 获取请求相关信息
-    url = str(request.url)
+    url = redact_url_for_log(str(request.url), get_request_admin_path(request))
     method = request.method
     user_agent = request.headers.get('user-agent', 'N/A')
     client_ip = request.client.host if request.client else 'N/A'
@@ -423,6 +442,7 @@ def log_error(request: Request, exc: Exception):
     # 记录错误详情
     logger.error(
         f"错误详情 - "
+        f"请求ID: {get_request_id(request)}, "
         f"状态码: {getattr(exc, 'status_code', 'N/A')}, "
         f"错误代码: {getattr(exc, 'error_code', 'N/A')}, "
         f"错误信息: {str(exc)}, "
@@ -490,6 +510,17 @@ def register_error_handlers(app: FastAPI) -> None:
     async def _http_exception_handler(request: Request, exc: HTTPException):
         return await global_exception_handler(request, exc)
 
+    @app.exception_handler(SQLAlchemyTimeoutError)
+    async def _db_pool_timeout_handler(request: Request, exc: SQLAlchemyTimeoutError):
+        db_manager.record_pool_timeout()
+        logger.error(
+            "数据库连接池等待超时，请求ID: %s, 路径: %s, 连接池: %s",
+            get_request_id(request),
+            redact_url_for_log(str(request.url), get_request_admin_path(request)),
+            db_manager.get_pool_status(),
+        )
+        return build_database_unavailable_response(request)
+
     @app.exception_handler(RequestValidationError)
     async def _validation_exception_handler(request: Request, exc: RequestValidationError):
         # 记录验证错误日志
@@ -497,20 +528,57 @@ def register_error_handlers(app: FastAPI) -> None:
         
         # 根据Accept头判断返回JSON还是HTML
         accept_header = request.headers.get("accept", "")
-        
-        request_path = str(getattr(request.url, "path", "") or "")
 
         if _should_return_json_error(request, accept_header):
             return JSONResponse(
                 status_code=422,
-                content={
-                    "error": {
-                        "code": "VALIDATION_ERROR",
-                        "message": "请求参数验证失败",
-                        "details": exc.errors()
-                    }
-                }
+                content=_build_error_payload(
+                    request,
+                    code="VALIDATION_ERROR",
+                    message="请求参数验证失败",
+                    status_code=422,
+                    details=exc.errors(),
+                ),
             )
         else:
             # HTML 响应统一走可配置错误页逻辑，确保模板风格/缓存策略一致
             return await _handle_html_response(request, ValidationError("请求参数验证失败"))
+
+
+def build_database_unavailable_response(request: Request):
+    """构造连接池耗尽时的 503 响应，避免再次访问数据库。"""
+    retry_after = 3
+    message = "服务繁忙，请稍后重试。"
+    headers = {
+        "Retry-After": str(retry_after),
+        "Cache-Control": "no-store",
+        "X-Request-ID": get_request_id(request),
+    }
+    accept_header = request.headers.get("accept", "")
+    if _should_return_json_error(request, accept_header):
+        return JSONResponse(
+            status_code=503,
+            content=_build_error_payload(
+                request,
+                code="DATABASE_POOL_TIMEOUT",
+                message=message,
+                status_code=503,
+            ),
+            headers=headers,
+        )
+    return templates.TemplateResponse(
+        request,
+        "errors/error.html",
+        {
+            "request": request,
+            "status_code": 503,
+            "error_title": "503 服务暂时不可用",
+            "error_message": message,
+            "error_code": "DATABASE_POOL_TIMEOUT",
+            "error_page_template": "default",
+            "site_title": getattr(request.state, "site_title", "RewrZ"),
+            "request_id": get_request_id(request),
+        },
+        status_code=503,
+        headers=headers,
+    )

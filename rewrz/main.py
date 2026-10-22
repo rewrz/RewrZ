@@ -8,6 +8,7 @@ import os
 import hashlib
 import secrets
 import threading
+import time
 from math import ceil
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse, quote
 from urllib.request import Request as UrlRequest, urlopen
@@ -58,11 +59,13 @@ from .models import Post, Setting
 from .core import error_handler  # 导入错误处理模块
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from sqlalchemy import select, func
+from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from datetime import date, datetime, timedelta, timezone # 导入date和datetime用于纪念日检查和主题调度
 from .core.session_middleware import RequestAwareSessionMiddleware # 导入按请求判定的会话中间件
 from .core.security import generate_csrf_token # 导入CSRF令牌生成函数
 from .core.settings_middleware import SettingsMiddleware # 导入设置中间件
 from .core.admin_path import get_admin_path
+from .core.request_context import REQUEST_ID_HEADER, ensure_request_id, install_access_log_redaction_filter, redact_url_for_log
 from .core.task_scheduler import default_task_scheduler
 from .core.content_access import (
     has_hide_blocks,
@@ -93,6 +96,8 @@ from .core.page_templates import (
 
 # 全局状态，用于标记后台路由是否已注册
 ADMIN_ROUTES_REGISTERED = False
+
+install_access_log_redaction_filter()
 
 
 def register_default_scheduled_tasks() -> None:
@@ -191,6 +196,9 @@ _ARTICLE_API_CACHE_HTTP_TIMEOUT_SECONDS = 8
 _ARTICLE_API_CACHE_PUBLIC_PREFIX = f"/media/{_ARTICLE_API_CACHE_DIR_NAME}/"
 _ARTICLE_API_CACHE_PREFETCH_INFLIGHT: set[str] = set()
 _ARTICLE_API_CACHE_PREFETCH_LOCK = threading.Lock()
+_ARTICLE_FALLBACK_LOCAL_CACHE_TTL_SECONDS = 300
+_ARTICLE_FALLBACK_LOCAL_CACHE: dict[str, tuple[float, tuple[str, ...]]] = {}
+_ARTICLE_FALLBACK_LOCAL_CACHE_LOCK = threading.Lock()
 
 
 def _get_post_access_cookie_name(post_id: int) -> str:
@@ -597,6 +605,12 @@ def _ensure_csrf_token(request: Request) -> None:
 @app.middleware("http")
 async def add_global_context(request: Request, call_next):
     global ADMIN_ROUTES_REGISTERED
+    request_id = ensure_request_id(request)
+
+    def attach_request_id(response):
+        response.headers.setdefault(REQUEST_ID_HEADER, request_id)
+        return response
+
     # 动态注册后台路由（如果需要）
     # 在安装完成后，通过首次请求动态加载后台路由，避免重启服务器
     if settings.installation_complete and not ADMIN_ROUTES_REGISTERED:
@@ -605,14 +619,14 @@ async def add_global_context(request: Request, call_next):
 
     # 安装完成后，不再暴露 installer 路径，避免通过重定向等方式泄露后台入口信息
     if settings.installation_complete and request.url.path.startswith("/installer"):
-        return RedirectResponse(url="/")
+        return attach_request_id(RedirectResponse(url="/"))
 
     # 检查.env文件并重定向到安装向导
     if not settings.installation_complete and \
        not request.url.path.startswith("/installer") and \
        not request.url.path.startswith("/static") and \
        not request.url.path.startswith("/api"):
-        return RedirectResponse(url="/installer")
+        return attach_request_id(RedirectResponse(url="/installer"))
 
     # 复用一个 request 级数据库会话给模板层（如响应式图片、相关文章过滤器）
     request_db_gen = None
@@ -630,7 +644,16 @@ async def add_global_context(request: Request, call_next):
         _ensure_csrf_token(request)
 
         response = await call_next(request)
-        return response
+        return attach_request_id(response)
+    except SQLAlchemyTimeoutError:
+        db_manager.record_pool_timeout()
+        error_handler.logger.error(
+            "数据库连接池等待超时，请求ID: %s, 路径: %s, 连接池: %s",
+            request_id,
+            redact_url_for_log(str(request.url), get_admin_path()),
+            db_manager.get_pool_status(),
+        )
+        return error_handler.build_database_unavailable_response(request)
     finally:
         if request_db_gen is not None:
             try:
@@ -1117,19 +1140,30 @@ def _collect_local_article_fallback_images(raw_dir: Any) -> List[str]:
     if directory is None:
         return []
 
-    image_urls: List[str] = []
-    try:
-        files = sorted(p for p in directory.rglob("*") if p.is_file())
-    except Exception:
-        return []
+    cache_key = str(directory)
+    now = time.monotonic()
+    with _ARTICLE_FALLBACK_LOCAL_CACHE_LOCK:
+        cached = _ARTICLE_FALLBACK_LOCAL_CACHE.get(cache_key)
+        if cached is not None and cached[0] > now:
+            return list(cached[1])
 
-    for image_file in files:
-        if image_file.suffix.lower() not in _SUPPORTED_IMAGE_EXTENSIONS:
-            continue
-        public_url = _map_local_file_to_public_url(image_file)
-        if public_url:
-            image_urls.append(public_url)
-    return image_urls
+        image_urls: List[str] = []
+        try:
+            files = sorted(p for p in directory.rglob("*") if p.is_file())
+        except Exception:
+            return []
+
+        for image_file in files:
+            if image_file.suffix.lower() not in _SUPPORTED_IMAGE_EXTENSIONS:
+                continue
+            public_url = _map_local_file_to_public_url(image_file)
+            if public_url:
+                image_urls.append(public_url)
+        _ARTICLE_FALLBACK_LOCAL_CACHE[cache_key] = (
+            now + _ARTICLE_FALLBACK_LOCAL_CACHE_TTL_SECONDS,
+            tuple(image_urls),
+        )
+        return image_urls
 
 
 def _build_seeded_remote_image_url(raw_api_url: Any, seed_value: str) -> str:

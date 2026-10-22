@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 from ..core.admin_path import get_request_admin_path
 from ..core.database import get_db, db_manager
+from ..core.time_utils import utc_now_naive
 from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..core.data_manager import (
@@ -261,7 +262,7 @@ def _save_wp_import_options(db: Session, options: Dict[str, Any]) -> Dict[str, A
 
 def _cleanup_expired_import_jobs(db: Session) -> None:
     """清理超过保留时长的终态任务，避免任务表无限增长。"""
-    cutoff = datetime.utcnow() - timedelta(seconds=_IMPORT_JOB_RETENTION_SECONDS)
+    cutoff = utc_now_naive() - timedelta(seconds=_IMPORT_JOB_RETENTION_SECONDS)
     db.query(ImportJob).filter(
         ImportJob.status.in_(("completed", "failed", "interrupted")),
         ImportJob.created_at < cutoff,
@@ -272,7 +273,7 @@ def _cleanup_expired_import_jobs(db: Session) -> None:
 def _create_import_job(db: Session, user_id: int, job_type: str, filename: str) -> str:
     """创建导入任务并写入数据库，返回任务ID。"""
     job_id = uuid.uuid4().hex
-    now = datetime.utcnow()
+    now = utc_now_naive()
     job = ImportJob(
         id=job_id,
         user_id=int(user_id),
@@ -305,7 +306,7 @@ def _update_import_job(db: Session, job_id: str, **fields: Any) -> None:
         return
     for key, value in fields.items():
         setattr(job, key, value)
-    job.updated_at = datetime.utcnow()
+    job.updated_at = utc_now_naive()
     db.commit()
 
 
@@ -356,7 +357,7 @@ def _set_import_job_progress(
         merged = dict(job.progress_extra or {})
         merged.update(extra)
         job.progress_extra = merged
-    job.updated_at = datetime.utcnow()
+    job.updated_at = utc_now_naive()
     db.commit()
 
 
@@ -365,7 +366,7 @@ def _touch_import_job_heartbeat(db: Session, job_id: str, pid: int) -> None:
     job = db.get(ImportJob, job_id)
     if not job or job.status != "running":
         return
-    job.heartbeat_at = datetime.utcnow()
+    job.heartbeat_at = utc_now_naive()
     job.worker_pid = pid
     db.commit()
 
@@ -395,11 +396,11 @@ def _finalize_stale_import_job(db: Session, job: ImportJob) -> None:
     if heartbeat is None:
         # 刚进入 running 尚未写入首次心跳，留给下一次轮询判定
         return
-    if (datetime.utcnow() - heartbeat).total_seconds() <= _IMPORT_JOB_STALE_SECONDS:
+    if (utc_now_naive() - heartbeat).total_seconds() <= _IMPORT_JOB_STALE_SECONDS:
         return
     job.status = "interrupted"
     job.error = "任务执行进程已停止（服务可能已重启），任务被标记为中断，请重新发起导入。"
-    job.updated_at = datetime.utcnow()
+    job.updated_at = utc_now_naive()
     db.commit()
 
 
@@ -447,7 +448,7 @@ def _run_wordpress_import_job(job_id: str, wxr_path: str, options: Dict[str, Any
         if db is None:
             raise RuntimeError("数据库连接不可用")
 
-        _update_import_job(db, job_id, status="running", worker_pid=os.getpid(), heartbeat_at=datetime.utcnow())
+        _update_import_job(db, job_id, status="running", worker_pid=os.getpid(), heartbeat_at=utc_now_naive())
         _set_import_job_progress(db, job_id, "prepare", "开始导入任务...", current=0, total=1, percent=0)
 
         # 启动心跳线程，供查询端检测执行进程是否存活（worker 重启等场景）

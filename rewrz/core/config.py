@@ -14,6 +14,17 @@ def _parse_bool_value(raw_value, default: bool = False) -> bool:
     return str(raw_value).strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _parse_int_value(raw_value, default: int, *, minimum: int = 0, maximum: int | None = None) -> int:
+    try:
+        parsed = int(raw_value)
+    except (TypeError, ValueError):
+        parsed = default
+    parsed = max(minimum, parsed)
+    if maximum is not None:
+        parsed = min(maximum, parsed)
+    return parsed
+
+
 def _is_weak_secret_key(secret_key: str) -> bool:
     weak_values = {
         "",
@@ -55,6 +66,15 @@ class DynamicSettings:
         else:
             self.SECRET_KEY = env_secret_key
         self.DATABASE_URL: str = str(get_value("DATABASE_URL", "")).strip()
+        self.DB_POOL_SIZE: int = _parse_int_value(get_value("DB_POOL_SIZE", 10), 10, minimum=1, maximum=100)
+        self.DB_MAX_OVERFLOW: int = _parse_int_value(get_value("DB_MAX_OVERFLOW", 20), 20, minimum=0, maximum=200)
+        self.DB_POOL_TIMEOUT: int = _parse_int_value(get_value("DB_POOL_TIMEOUT", 10), 10, minimum=1, maximum=300)
+        self.DB_POOL_RECYCLE: int = _parse_int_value(get_value("DB_POOL_RECYCLE", 1800), 1800, minimum=0, maximum=86400)
+        self.DB_POOL_PRE_PING: bool = _parse_bool_value(get_value("DB_POOL_PRE_PING"), True)
+        self.SQLITE_BUSY_TIMEOUT_MS: int = _parse_int_value(
+            get_value("SQLITE_BUSY_TIMEOUT_MS", 30000), 30000, minimum=1000, maximum=300000
+        )
+        self.SQLITE_JOURNAL_MODE: str = str(get_value("SQLITE_JOURNAL_MODE", "WAL")).strip().upper() or "WAL"
         try:
             self.ACCESS_TOKEN_EXPIRE_MINUTES = int(get_value("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
         except (TypeError, ValueError):

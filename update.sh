@@ -142,6 +142,9 @@ fi
 echo ""
 echo ">>> 检查 Python 依赖..."
 .venv/bin/pip install -q -r requirements.txt
+if ! .venv/bin/python -c "import bcrypt" >/dev/null 2>&1; then
+    fail "bcrypt 依赖不可用，请检查 requirements.txt 安装结果"
+fi
 ok "依赖已就绪"
 
 # 7. 检查 .env 是否存在重复配置项

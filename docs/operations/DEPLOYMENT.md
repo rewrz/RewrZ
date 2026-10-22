@@ -147,6 +147,24 @@ SMTP_FROM=notify@example.com
 - `DATABASE_URL` 是否指向你真正要使用的生产库
 - `MEDIA_UPLOAD_DIR` 是否与实际媒体目录一致
 
+数据库连接池与 SQLite 并发参数均有安全默认值，不配置也可直接运行：
+
+```env
+# 每个 worker 进程独立的连接池，默认值适合 1-2 核小站
+DB_POOL_SIZE=10
+DB_MAX_OVERFLOW=20
+DB_POOL_TIMEOUT=10
+DB_POOL_RECYCLE=1800
+DB_POOL_PRE_PING=true
+# SQLite 默认启用 WAL，并将写锁等待上限提高到 30 秒
+SQLITE_BUSY_TIMEOUT_MS=30000
+SQLITE_JOURNAL_MODE=WAL
+```
+
+注意：`--workers 2` 时连接池上限按进程分别计算，生产库为 PostgreSQL 时
+总连接数约为 `workers * (DB_POOL_SIZE + DB_MAX_OVERFLOW)`，请确保不超过
+数据库实例的连接上限。SQLite 站点不要为了追求并发盲目调大 worker 数。
+
 ## 6. 配置 systemd
 
 以下步骤全部需要 `sudo` 权限。`/etc/systemd/system/` 普通用户不可写，
@@ -165,13 +183,18 @@ User=www-data
 Group=www-data
 WorkingDirectory=/srv/rewrz
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/srv/rewrz/.venv/bin/uvicorn rewrz.main:app --host 127.0.0.1 --port 8000 --workers 2
+ExecStart=/srv/rewrz/.venv/bin/uvicorn rewrz.main:app --host 127.0.0.1 --port 8000 --workers 2 --timeout-graceful-shutdown 10
 Restart=always
 RestartSec=3
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+`--timeout-graceful-shutdown 10` 让 Uvicorn 在重启时最多等待 10 秒处理完
+存量请求；`TimeoutStopSec=30` 给 systemd 留出应用退出和进程回收时间。
+两者需同时保留，避免更新时直接强杀进程。
 
 然后执行：
 

@@ -129,16 +129,13 @@ def build_base_template_context(request: Request) -> dict:
     )
 
     categories = crud_category.get_categories(db)
+    category_post_counts = crud_category.get_published_post_category_counts(db)
     nav_categories = []
     for category in categories:
-        published_posts = [
-            post for post in list(getattr(category, "posts", []) or [])
-            if str(getattr(post, "status", "") or "").strip().lower() == "published"
-            and str(getattr(post, "post_type", "") or "").strip().lower() == "post"
-        ]
-        if not published_posts:
+        published_post_count = int(category_post_counts.get(int(category.id), 0))
+        if published_post_count <= 0:
             continue
-        setattr(category, "posts_count", len(published_posts))
+        setattr(category, "posts_count", published_post_count)
         nav_categories.append(category)
 
     # 获取所有已发布的自定义页面

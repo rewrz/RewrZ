@@ -1,8 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-import logging
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -15,24 +14,32 @@ from urllib.parse import urlparse
 from .config import settings
 from .database import get_db  # 导入get_db函数
 
-# 静音passlib的bcrypt警告
-logging.getLogger('passlib').setLevel(logging.ERROR)
-
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 CSRF_TOKEN_LENGTH = 32 # Length of CSRF token in bytes
-
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+BCRYPT_MAX_PASSWORD_BYTES = 72
 
 # OAuth2 scheme 配置（注意：实际登录端点现在是动态的，格式为 {ADMIN_PATH}/auth）
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth")  # 这只是示例，实际使用动态路径
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
 
-def get_password_hash(password):
-    return pwd_context.hash(password)
+def _encode_password(password: str | bytes) -> bytes:
+    """按 bcrypt 的 72 字节上限截断密码。"""
+    raw = password if isinstance(password, bytes) else str(password or "").encode("utf-8")
+    return raw[:BCRYPT_MAX_PASSWORD_BYTES]
+
+
+def verify_password(plain_password, hashed_password) -> bool:
+    if not hashed_password:
+        return False
+    try:
+        return bcrypt.checkpw(_encode_password(plain_password), str(hashed_password).encode("utf-8"))
+    except (TypeError, ValueError):
+        return False
+
+
+def get_password_hash(password) -> str:
+    return bcrypt.hashpw(_encode_password(password), bcrypt.gensalt()).decode("utf-8")
 
 async def get_token_from_cookie(request: Request):
     token = request.cookies.get("access_token")

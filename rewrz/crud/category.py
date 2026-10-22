@@ -1,6 +1,6 @@
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 from sqlalchemy import select, func
-from ..models import Category
+from ..models import Category, Post
 from ..models.post import post_categories
 from ..schemas import CategoryCreate, CategoryUpdate
 
@@ -11,11 +11,25 @@ def get_category_by_slug(db: Session, slug: str):
     return db.execute(select(Category).filter(Category.slug == slug)).scalar_one_or_none()
 
 def get_categories(db: Session, skip: int = 0, limit: int = 100):
-    return db.execute(select(Category).options(selectinload(Category.posts)).offset(skip).limit(limit)).scalars().all()
+    return db.execute(select(Category).offset(skip).limit(limit)).scalars().all()
 
 def get_all_categories(db: Session):
     """获取所有分类（不分页）"""
-    return db.execute(select(Category).options(selectinload(Category.posts))).scalars().all()
+    return db.execute(select(Category)).scalars().all()
+
+
+def get_published_post_category_counts(db: Session) -> dict[int, int]:
+    """按分类聚合已发布文章数量，避免加载分类下的全部文章。"""
+    rows = db.execute(
+        select(post_categories.c.category_id, func.count(Post.id))
+        .join(Post, Post.id == post_categories.c.post_id)
+        .where(
+            Post.status == "published",
+            Post.post_type == "post",
+        )
+        .group_by(post_categories.c.category_id)
+    ).all()
+    return {int(category_id): int(count) for category_id, count in rows if category_id is not None}
 
 def count_categories(db: Session) -> int:
     """

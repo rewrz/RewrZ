@@ -141,6 +141,10 @@ sudo journalctl -u rewrz -n 100 --no-pager
 - `.env` 新增配置项：
   - 按变更说明补齐
   - 再重启服务
+  - 数据库池参数 `DB_POOL_SIZE`、`DB_MAX_OVERFLOW`、`DB_POOL_TIMEOUT`、
+    `DB_POOL_RECYCLE`、`DB_POOL_PRE_PING` 与 SQLite 参数
+    `SQLITE_BUSY_TIMEOUT_MS`、`SQLITE_JOURNAL_MODE` 均可选，不写时使用默认值；
+    `update.sh` 只检测 `.env`，不会自动写入这些配置
 
 ## 6. 回滚流程
 
