@@ -78,9 +78,11 @@ if [ "$DO_BACKUP" = true ]; then
     echo ">>> 更新前备份..."
     BACKUP_DIR="$SCRIPT_DIR/backups/$(date +%F-%H%M%S)"
     mkdir -p "$BACKUP_DIR"
+    chmod 700 "$BACKUP_DIR"
 
     if [ -f ".env" ]; then
         cp .env "$BACKUP_DIR/.env"
+        chmod 600 "$BACKUP_DIR/.env"
     else
         warn ".env 不存在，跳过配置备份"
     fi
@@ -93,8 +95,31 @@ if [ "$DO_BACKUP" = true ]; then
     fi
 
     if [ -n "$DB_PATH" ] && [ -f "$DB_PATH" ]; then
-        cp "$DB_PATH" "$BACKUP_DIR/$(basename "$DB_PATH")"
-        ok "数据库已备份: $DB_PATH"
+        DB_BASENAME="$(basename "$DB_PATH")"
+        if command -v sqlite3 >/dev/null 2>&1; then
+            # 在线备份可获取一致快照，无需手工复制 -wal/-shm
+            sqlite3 "$DB_PATH" ".backup '$BACKUP_DIR/$DB_BASENAME'"
+            INTEGRITY_RESULT="$(sqlite3 "$BACKUP_DIR/$DB_BASENAME" 'PRAGMA integrity_check;' || true)"
+            if [ "$INTEGRITY_RESULT" = "ok" ]; then
+                ok "数据库已在线备份并通过完整性校验: $DB_PATH"
+            else
+                fail "数据库备份完整性校验失败: $INTEGRITY_RESULT"
+            fi
+        else
+            # 无 sqlite3 时先停服务再复制主库与 WAL/SHM，避免备份处于不一致状态
+            if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+                sudo systemctl stop "$SERVICE_NAME"
+                warn "为保证备份一致性已临时停止 $SERVICE_NAME（后续步骤会重新启动）"
+            fi
+            cp "$DB_PATH" "$BACKUP_DIR/$DB_BASENAME"
+            if [ -f "${DB_PATH}-wal" ]; then
+                cp "${DB_PATH}-wal" "$BACKUP_DIR/${DB_BASENAME}-wal"
+            fi
+            if [ -f "${DB_PATH}-shm" ]; then
+                cp "${DB_PATH}-shm" "$BACKUP_DIR/${DB_BASENAME}-shm"
+            fi
+            ok "数据库已备份（含 WAL/SHM）: $DB_PATH"
+        fi
     else
         warn "未定位到数据库文件（DATABASE_URL=$DB_PATH），跳过数据库备份"
     fi

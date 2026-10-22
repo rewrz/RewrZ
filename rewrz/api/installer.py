@@ -9,6 +9,8 @@
 5. 初始内容和设置
 6. 安装完成确认
 """
+import os
+import re
 import secrets
 from datetime import datetime
 from pathlib import Path
@@ -53,6 +55,34 @@ def _is_installer_locked() -> bool:
     return bool(settings.installation_complete)
 
 
+def _normalize_database_path(raw_path: str) -> str:
+    """将安装向导提交的 SQLite 路径收敛到项目目录内。"""
+    project_root = Path(__file__).resolve().parents[2]
+    raw = str(raw_path or "").strip().replace("\\", "/")
+    if not raw:
+        raw = "data/rewrz.db"
+    if "\x00" in raw or "://" in raw:
+        raise ValueError("数据库路径不合法")
+    if raw.startswith("/") or re.match(r"^[A-Za-z]:", raw):
+        raise ValueError("数据库路径必须使用项目内的相对路径")
+    if ".." in [part for part in raw.split("/") if part]:
+        raise ValueError("数据库路径不能包含 ..")
+
+    resolved = (project_root / raw).resolve()
+    if project_root != resolved and project_root not in resolved.parents:
+        raise ValueError("数据库路径必须位于项目目录内")
+    return resolved.relative_to(project_root).as_posix()
+
+
+def _write_private_env_file(env_path: Path, content: str) -> None:
+    """写入 .env 并收紧为仅当前用户可读，避免同机用户读取密钥。"""
+    env_path.write_text(content, encoding="utf-8")
+    try:
+        os.chmod(env_path, 0o600)
+    except OSError:
+        pass
+
+
 def _ensure_installer_csrf_token(request: Request) -> str:
     """确保安装向导使用会话内一致的 CSRF 令牌。"""
     csrf_token = ""
@@ -74,7 +104,7 @@ def _open_installer_session(request: Request) -> Session:
     import sqlalchemy as sa
     from sqlalchemy.orm import sessionmaker
 
-    database_path = request.session.get("database_path", "./data/rewrz.db")
+    database_path = _normalize_database_path(request.session.get("database_path", "data/rewrz.db"))
     new_engine = sa.create_engine(
         f"sqlite:///{database_path}", connect_args={"check_same_thread": False}
     )
@@ -276,20 +306,21 @@ async def initialize_database(
         # 验证 CSRF 令牌
         verify_csrf_token(request, csrf_token)
 
-        # 保存数据库路径到会话中，供后续步骤使用
-        request.session["database_path"] = database_path
-        
+        # 保存数据库路径到会话中，供后续步骤使用（限定在项目目录内）
+        normalized_database_path = _normalize_database_path(database_path)
+        request.session["database_path"] = normalized_database_path
+
         # 创建数据目录（如果不存在）
         from pathlib import Path
-        db_path = Path(database_path)
+        db_path = Path(normalized_database_path)
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # 更新数据库URL并重新创建引擎
         from ..core.database import engine, SessionLocal, Base
         import sqlalchemy as sa
-        
+
         # 重新创建引擎使用用户指定的数据库路径
-        new_database_url = f"sqlite:///{database_path}"
+        new_database_url = f"sqlite:///{normalized_database_path}"
         new_engine = sa.create_engine(new_database_url, connect_args={"check_same_thread": False})
         
         # 创建数据库表
@@ -302,6 +333,11 @@ async def initialize_database(
             "success": True,
             "message": "数据库初始化成功"
         })
+    except ValueError as e:
+        return JSONResponse({
+            "success": False,
+            "error": f"数据库路径不合法: {str(e)}"
+        }, status_code=400)
     except Exception as e:
         return JSONResponse({
             "success": False,
@@ -659,8 +695,8 @@ async def finalize_installation(
         if previous_env_existed:
             previous_env_content = env_path.read_text(encoding="utf-8")
         
-        # 获取数据库路径配置（从会话中获取用户自定义的路径）
-        database_path = request.session.get("database_path", "./data/rewrz.db")
+        # 获取数据库路径配置（从会话中获取用户自定义的路径，并限定在项目目录内）
+        database_path = _normalize_database_path(request.session.get("database_path", "data/rewrz.db"))
         
         # 生成安全密钥
         secret_key = secrets.token_hex(32)
@@ -689,8 +725,8 @@ ADMIN_PATH="{admin_path}"
 # 媒体上传目录
 MEDIA_UPLOAD_DIR="media_uploads"
 
-# 会话过期时间（分钟）
-ACCESS_TOKEN_EXPIRE_MINUTES=43200
+# 会话过期时间（分钟，默认 1 天）
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
 # 日志级别
 LOG_LEVEL="INFO"
@@ -699,8 +735,8 @@ LOG_LEVEL="INFO"
 INSTALLATION_COMPLETE="true"
 '''
         
-        # 写入 .env 文件
-        env_path.write_text(env_content, encoding="utf-8")
+        # 写入 .env 文件，并收紧为仅当前用户可读
+        _write_private_env_file(env_path, env_content)
         
         # 关键修复：立即重新加载配置和数据库连接
         from ..core.config import settings
@@ -755,7 +791,7 @@ INSTALLATION_COMPLETE="true"
         if 'env_path' in locals():
             try:
                 if previous_env_existed and previous_env_content is not None:
-                    env_path.write_text(previous_env_content, encoding="utf-8")
+                    _write_private_env_file(env_path, previous_env_content)
                 elif env_path.exists():
                     env_path.unlink()
             except OSError:
@@ -804,8 +840,7 @@ ADMIN_PATH="{admin_path}"
 MEDIA_UPLOAD_DIR="media_uploads"
 '''
         env_path = Path(get_env_file_path())
-        with open(env_path, "w", encoding="utf-8") as f:
-            f.write(env_content.strip())
+        _write_private_env_file(env_path, env_content.strip())
         env_created = True
 
         # 2. 初始化数据库

@@ -1,5 +1,6 @@
 import re
 
+import pytest
 from fastapi.testclient import TestClient
 
 from rewrz import main as main_module
@@ -71,3 +72,16 @@ def test_finalize_restores_previous_incomplete_env_file_after_failure(monkeypatc
     assert response.status_code == 500
     assert response.json()["success"] is False
     assert env_path.read_text(encoding="utf-8") == original_env
+
+
+def test_normalize_database_path_limits_to_project_relative():
+    """安装器只接受项目内相对数据库路径。"""
+    from rewrz.api.installer import _normalize_database_path
+
+    assert _normalize_database_path("./data/rewrz.db") == "data/rewrz.db"
+    with pytest.raises(ValueError):
+        _normalize_database_path("/tmp/rewrz.db")
+    with pytest.raises(ValueError):
+        _normalize_database_path("../rewrz.db")
+    with pytest.raises(ValueError):
+        _normalize_database_path("C:/Windows/rewrz.db")

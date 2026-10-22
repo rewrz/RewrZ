@@ -10,13 +10,13 @@ import secrets
 import threading
 import time
 from math import ceil
-from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse, quote
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse, quote, urlsplit
 from urllib.request import Request as UrlRequest, urlopen
 from urllib.error import URLError, HTTPError
 from pathlib import Path
 from fastapi import FastAPI, Depends, HTTPException, Request, Response, Form, UploadFile, File, BackgroundTasks, Header, Body
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse, PlainTextResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.exceptions import RequestValidationError
 from fastapi import FastAPI
@@ -58,8 +58,8 @@ from .crud import format as crud_format # 导入格式CRUD模块以修复未定�
 from .models import Post, Setting
 from .core import error_handler  # 导入错误处理模块
 from typing import Any, Callable, Dict, List, Optional, Tuple
-from sqlalchemy import select, func
-from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
+from sqlalchemy import select, func, text
+from sqlalchemy.exc import IntegrityError, TimeoutError as SQLAlchemyTimeoutError
 from datetime import date, datetime, timedelta, timezone # 导入date和datetime用于纪念日检查和主题调度
 from .core.session_middleware import RequestAwareSessionMiddleware # 导入按请求判定的会话中间件
 from .core.security import generate_csrf_token # 导入CSRF令牌生成函数
@@ -602,6 +602,41 @@ def _ensure_csrf_token(request: Request) -> None:
         # 异常情况下，也生成一个临时令牌以避免应用崩溃
         request.state.csrf_token = generate_csrf_token()
 
+def _request_host_name(request: Request) -> str:
+    """从 Host 头提取小写主机名（自动去掉端口）。"""
+    raw_host = str(request.headers.get("host") or "").strip()
+    if not raw_host:
+        return ""
+    try:
+        return str(urlsplit(f"//{raw_host}").hostname or "").lower()
+    except ValueError:
+        return ""
+
+
+def _is_allowed_request_host(request: Request) -> bool:
+    """按 ALLOWED_HOSTS 白名单校验 Host，为空时保持旧行为。"""
+    allowed_hosts = getattr(settings, "ALLOWED_HOSTS", []) or []
+    if not allowed_hosts:
+        return True
+    if "*" in allowed_hosts:
+        return True
+
+    host = _request_host_name(request)
+    if not host:
+        return False
+    for item in allowed_hosts:
+        normalized = str(item or "").strip().lower()
+        if not normalized:
+            continue
+        if normalized.startswith("."):
+            suffix = normalized.lstrip(".")
+            if host == suffix or host.endswith("." + suffix):
+                return True
+        elif host == normalized:
+            return True
+    return False
+
+
 @app.middleware("http")
 async def add_global_context(request: Request, call_next):
     global ADMIN_ROUTES_REGISTERED
@@ -610,6 +645,9 @@ async def add_global_context(request: Request, call_next):
     def attach_request_id(response):
         response.headers.setdefault(REQUEST_ID_HEADER, request_id)
         return response
+
+    if not _is_allowed_request_host(request):
+        return attach_request_id(PlainTextResponse("非法的主机头", status_code=400))
 
     # 动态注册后台路由（如果需要）
     # 在安装完成后，通过首次请求动态加载后台路由，避免重启服务器
@@ -687,35 +725,78 @@ def _extract_metric_int(raw_value: Any, default: int = 0) -> int:
 
 
 def _increment_post_views_metric(db: Session, post_id: int, step: int = 1) -> int:
+    """原子递增浏览量，避免并发读取-写回丢计数。"""
     metric_key = f"post_views_count_{post_id}"
-    db_setting = crud_setting.get_setting(db, key=metric_key)
-    current_value = _extract_metric_int(db_setting.value if db_setting else 0, default=0)
-    next_value = max(0, current_value + max(1, int(step or 1)))
-    payload = {"value": next_value}
+    increment = max(1, int(step or 1))
+    try:
+        dialect_name = str(db.get_bind().dialect.name or "").lower()
+    except Exception:
+        dialect_name = "sqlite"
 
-    if db_setting:
-        crud_setting.update_setting(
-            db,
-            key=metric_key,
-            setting_update=SettingUpdate(
-                value=payload,
-                description="Post views metric",
-                category="post_metrics",
-                type="integer",
-            ),
+    if dialect_name == "postgresql":
+        statement = text(
+            """
+            UPDATE settings
+            SET value = (
+                    COALESCE(value::jsonb, '{}'::jsonb)
+                    || jsonb_build_object(
+                        'value',
+                        COALESCE((value ->> 'value')::int, 0) + :step
+                    )
+                ),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE key = :key
+            """
         )
     else:
-        crud_setting.create_setting(
-            db,
-            setting=SettingCreate(
+        statement = text(
+            """
+            UPDATE settings
+            SET value = json_set(
+                    CASE
+                        WHEN json_valid(value) THEN value
+                        ELSE json_object('value', 0)
+                    END,
+                    '$.value',
+                    COALESCE(
+                        json_extract(
+                            CASE
+                                WHEN json_valid(value) THEN value
+                                ELSE json_object('value', 0)
+                            END,
+                            '$.value'
+                        ),
+                        0
+                    ) + :step
+                ),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE key = :key
+            """
+        )
+
+    parameters = {"step": increment, "key": metric_key}
+    result = db.execute(statement, parameters)
+    if int(result.rowcount or 0) == 0:
+        try:
+            db.add(Setting(
                 key=metric_key,
-                value=payload,
+                value={"value": increment},
                 description="Post views metric",
                 category="post_metrics",
                 type="integer",
-            ),
-        )
-    return next_value
+            ))
+            db.commit()
+            return increment
+        except IntegrityError:
+            # 并发下另一个请求已创建同一 key，回退到原子更新
+            db.rollback()
+            db.execute(statement, parameters)
+
+    db.commit()
+    current_value = db.execute(
+        select(Setting.value).where(Setting.key == metric_key)
+    ).scalar_one_or_none()
+    return _extract_metric_int(current_value, default=increment)
 
 
 def _sum_post_views_metrics(db: Session) -> int:
@@ -1414,6 +1495,24 @@ public_pages_api.register_public_page_routes(
 app.include_router(public_pages_api.router)
 
 
+def _safe_local_redirect_target(raw_value: str, fallback: str = "/") -> str:
+    """仅允许站内根相对路径，拒绝 //evil.com 等开放重定向。"""
+    candidate = str(raw_value or "").strip()
+    if not candidate:
+        return fallback
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in candidate):
+        return fallback
+    if "\\" in candidate:
+        return fallback
+
+    parsed = urlsplit(candidate)
+    if parsed.scheme or parsed.netloc:
+        return fallback
+    if not parsed.path.startswith("/") or parsed.path.startswith("//"):
+        return fallback
+    return candidate
+
+
 @app.post("/api/v1/posts/{post_id}/unlock")
 async def unlock_password_protected_post(
     request: Request,
@@ -1429,7 +1528,7 @@ async def unlock_password_protected_post(
     if db_post is None or db_post.visibility != "password" or not db_post.password:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    safe_next_url = next_url if next_url and next_url.startswith("/") else "/"
+    safe_next_url = _safe_local_redirect_target(next_url)
 
     if not verify_password(password, db_post.password):
         context = build_base_template_context(request)

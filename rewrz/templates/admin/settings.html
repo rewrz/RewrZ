@@ -1472,9 +1472,14 @@
                 });
                 const data = await response.json();
                 if (data.success) {
-                    window.adminSetFlash(`后台路径已成功更新为：${data.new_path}`, 'success');
-                    // 跳转到新的后台路径
-                    window.location.href = data.new_path + '/settings';
+                    const tip = data.restart_required
+                        ? `新路径 ${data.new_path} 已写入配置，重启应用后旧路径才会失效`
+                        : `后台路径已成功更新为：${data.new_path}`;
+                    window.adminSetFlash(tip, 'success');
+                    window.adminNotify(tip, 'success', { duration: 5200 });
+                    // 新路由需重启后注册，当前页面保持在旧路径下，避免 404
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-shield-alt mr-2"></i>应用新路径';
                 } else {
                     window.adminNotify(`更新失败：${data.error || '未知错误'}`, 'error', { duration: 4200 });
                     // 恢复按钮状态

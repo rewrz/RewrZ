@@ -1,5 +1,6 @@
 {% set comment_depth = comment_depth | default(0) %}
 {% set approved_children = comment.children | selectattr('status', 'equalto', 'approved') | list %}
+{% set safe_author_url = comment.author_url | safe_comment_url %}
 
 <article
     id="comment-{{ comment.id }}"
@@ -35,8 +36,8 @@
         <div class="min-w-0 flex-1">
             <div class="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                 <div class="text-sm font-semibold text-gray-900 dark:text-white">
-                    {% if comment.author_url %}
-                    <a href="{{ comment.author_url }}" target="_blank" rel="nofollow noopener noreferrer" class="text-indigo-600 hover:underline dark:text-indigo-400">
+                    {% if safe_author_url %}
+                    <a href="{{ safe_author_url }}" target="_blank" rel="nofollow noopener noreferrer" class="text-indigo-600 hover:underline dark:text-indigo-400">
                         {{ comment.author_name }}
                     </a>
                     {% else %}
@@ -59,7 +60,7 @@
                     @{{ comment.parent.author_name }}
                 </a>
                 {% endif %}
-                {{ comment.content | safe }}
+                {{ comment.content | safe_comment_html | safe }}
             </div>
 
             <div class="mt-3 flex flex-wrap items-center justify-between gap-2">

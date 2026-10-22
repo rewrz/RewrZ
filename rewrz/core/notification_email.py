@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import os
 import smtplib
+import ssl
 from datetime import datetime
 from email.message import EmailMessage
 from pathlib import Path
@@ -96,21 +97,25 @@ def send_email(to_email: str, subject: str, body: str, *, db: Session | None = N
     msg.set_content(body)
 
     try:
+        # 统一校验证书与主机名，避免 SMTP 凭据在中间人攻击中泄露。
+        tls_context = ssl.create_default_context()
         if cfg["use_ssl"]:
-            with smtplib.SMTP_SSL(cfg["host"], cfg["port"], timeout=10) as server:
+            with smtplib.SMTP_SSL(
+                cfg["host"], cfg["port"], timeout=10, context=tls_context
+            ) as server:
                 if cfg["username"] and cfg["password"]:
                     server.login(cfg["username"], cfg["password"])
                 server.send_message(msg)
         else:
             with smtplib.SMTP(cfg["host"], cfg["port"], timeout=10) as server:
                 if cfg["use_tls"]:
-                    server.starttls()
+                    server.starttls(context=tls_context)
                 if cfg["username"] and cfg["password"]:
                     server.login(cfg["username"], cfg["password"])
                 server.send_message(msg)
         return True
     except Exception as exc:
-        logger.warning("Email send failed: %s", exc)
+        logger.warning("邮件发送失败: %s", exc)
         return False
 
 
@@ -160,17 +165,43 @@ def write_password_reset_debug_delivery(
     reset_url: str,
     expires_at: datetime,
 ) -> str:
-    """在未配置 SMTP 的开发环境中写入调试投递记录。"""
+    """在未配置 SMTP 的开发环境中写入调试投递记录。
+
+    日志包含重置 token，必须使用私有权限，并限制文件体积避免长期堆积。
+    """
     log_path = Path(os.getenv("PASSWORD_RESET_DEBUG_LOG_PATH", "data/logs/password_reset_debug.log"))
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    _trim_private_debug_log(log_path)
     expires_text = expires_at.astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
     line = (
         f"[{datetime.now().astimezone().isoformat()}] "
         f"username={username} email={email} expires_at={expires_text} reset_url={reset_url}\n"
     )
-    with log_path.open("a", encoding="utf-8") as handle:
+    # 以 0600 创建日志文件，避免同机其他用户读取重置链接。
+    fd = os.open(log_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    with os.fdopen(fd, "a", encoding="utf-8") as handle:
         handle.write(line)
+    try:
+        os.chmod(log_path, 0o600)
+    except OSError:
+        pass
     return str(log_path)
+
+
+_DEBUG_LOG_MAX_BYTES = 64 * 1024
+_DEBUG_LOG_KEEP_LINES = 50
+
+
+def _trim_private_debug_log(log_path: Path) -> None:
+    """超过体积上限时仅保留最近若干行，并保持私有权限。"""
+    try:
+        if not log_path.exists() or log_path.stat().st_size <= _DEBUG_LOG_MAX_BYTES:
+            return
+        lines = log_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+        log_path.write_text("\n".join(lines[-_DEBUG_LOG_KEEP_LINES:]) + "\n", encoding="utf-8")
+        os.chmod(log_path, 0o600)
+    except OSError:
+        return
 
 
 def send_new_comment_notification(

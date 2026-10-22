@@ -53,8 +53,8 @@ class AdminPathGenerator:
         }
     }
     
-    # 安全的路径字符集
-    SAFE_CHARS = re.compile(r'^[a-zA-Z0-9\-_/]+$')
+    # 安全的路径字符集：仅允许单段路径，避免 //evil 与多级路径绕过保留字校验
+    SAFE_CHARS = re.compile(r'^/[a-zA-Z0-9\-_]+$')
     
     # 保留的系统路径（不能使用的路径）
     RESERVED_PATHS = {
@@ -146,10 +146,11 @@ class AdminPathGenerator:
         
         # 检查字符安全性
         if not cls.SAFE_CHARS.match(path):
-            raise ValueError("路径包含不安全的字符，只允许字母、数字、连字符和下划线")
+            raise ValueError("路径只能是一级路径，且仅允许字母、数字、连字符和下划线")
         
-        # 检查是否为保留路径
-        if path.lower() in cls.RESERVED_PATHS:
+        # 保留路径按首段匹配，避免 /admin/xxx 之类的绕过
+        first_segment = "/" + path.strip("/").split("/", 1)[0].lower()
+        if first_segment in cls.RESERVED_PATHS:
             raise ValueError(f"路径 '{path}' 是系统保留路径，请选择其他路径")
         
         # 检查长度

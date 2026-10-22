@@ -250,13 +250,51 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
+
+# 未知 Host 兜底：避免任意 Host 落到 RewrZ 站点，污染密码重置链接与日志
+server {
+    listen 80 default_server;
+    listen 443 ssl default_server;
+    server_name _;
+
+    # certbot 执行后把这里替换为实际证书路径
+    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+
+    return 444;
+}
 ```
 
 说明：
 - `alias` 路径中的 `/srv/rewrz` 要替换成你的实际部署目录
 - 文中出现的 `$http_host` 是 Nginx 变量，不是 shell 变量，不要转义
+- 首次配置时如果证书尚未签发，可先只保留 `listen 80 default_server;`，执行完第 8 节的 certbot 后再补 `443 ssl default_server` 两行
+- 建议在 `.env` 中同时配置 `ALLOWED_HOSTS=example.com,127.0.0.1`，应用层会拒绝不匹配的 Host 头；
+  其中 `127.0.0.1` 用于保留 `update.sh` 的本机健康检查
 
-### 7.3 启用配置
+### 7.3 Cloudflare 场景
+
+如果站点经 Cloudflare 回源，源站看到的直连地址是 Cloudflare 节点，
+需让 Nginx 信任 Cloudflare 网段并改写真实客户端 IP（网段以 Cloudflare 官方列表为准）：
+
+```nginx
+# 放在 http 块或 server 块内，网段需要定期同步
+set_real_ip_from 173.245.48.0/20;
+set_real_ip_from 103.21.244.0/22;
+set_real_ip_from 104.16.0.0/13;
+set_real_ip_from 172.64.0.0/13;
+real_ip_header CF-Connecting-IP;
+
+# 改写后由 Nginx 覆盖写入，避免客户端伪造的 X-Forwarded-For 透传
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $remote_addr;
+```
+
+同时把 `.env` 中的 `TRUSTED_PROXIES` 设置为实际回源代理地址
+（默认 `127.0.0.1,::1` 只信任本机 Nginx）。应用只会在直连方属于可信代理时
+才采纳 `X-Forwarded-For`，并从右向左解析，客户端伪造的左侧条目不会生效。
+
+### 7.4 启用配置
 
 ```bash
 sudo rm -f /etc/nginx/sites-enabled/default

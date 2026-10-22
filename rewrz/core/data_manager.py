@@ -12,13 +12,15 @@ import os
 import json
 import mimetypes
 import hashlib
+import socket
 import xml.etree.ElementTree as ET
 import zipfile
 import shutil
 from datetime import datetime, timezone
+from ipaddress import ip_address
 from typing import Dict, List, Optional, Any, Tuple, Callable
 from urllib.parse import ParseResult, quote, unquote, urljoin, urlparse
-from urllib.request import Request as UrlRequest, urlopen
+from urllib.request import Request as UrlRequest, build_opener, HTTPRedirectHandler
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from bs4 import BeautifulSoup, Comment, NavigableString as BsNavigableString, Tag as BsTag
@@ -36,6 +38,12 @@ import re
 from .template_context import DEFAULT_BASE_SETTINGS
 from .content_intents import INTENT_NAME_MAP, normalize_intent_slug
 from .time_utils import utc_now_naive
+from .comment_security import (
+    normalize_comment_author_url,
+    sanitize_comment_content,
+    sanitize_comment_html,
+)
+from .config import settings
 
 DEFAULT_WP_IMPORT_OPTIONS = {
     "import_post_types": ["post", "page"],
@@ -50,6 +58,48 @@ DEFAULT_WP_IMPORT_OPTIONS = {
     # suffix=加 -imported 后缀另存（用于从其它站点聚合同 slug 不同内容）
     "slug_conflict": "skip",
 }
+
+
+def _assert_public_remote_url(url: str) -> ParseResult:
+    """校验远程媒体地址，拒绝私网、回环与保留地址，防止 SSRF。"""
+    parsed = urlparse(str(url or "").strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("远程地址协议或主机不合法")
+    if parsed.username or parsed.password:
+        raise ValueError("远程地址不允许包含认证信息")
+    try:
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    except ValueError as exc:
+        raise ValueError("远程地址端口不合法") from exc
+
+    try:
+        address_infos = socket.getaddrinfo(parsed.hostname, port, type=socket.SOCK_STREAM)
+    except OSError as exc:
+        raise ValueError(f"远程主机无法解析: {parsed.hostname}") from exc
+    if not address_infos:
+        raise ValueError("远程主机无可用地址")
+
+    for info in address_infos:
+        try:
+            resolved_ip = ip_address(str(info[4][0]))
+        except ValueError as exc:
+            raise ValueError("远程主机地址不合法") from exc
+        if not resolved_ip.is_global:
+            raise ValueError("远程地址指向私有或保留网络")
+    return parsed
+
+
+class _ValidatedRedirectHandler(HTTPRedirectHandler):
+    """重定向逐跳校验，避免跳转到内网地址。"""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _assert_public_remote_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _open_remote_media(request: UrlRequest, timeout: int):
+    opener = build_opener(_ValidatedRedirectHandler())
+    return opener.open(request, timeout=timeout)
 
 
 class DataExportManager:
@@ -70,6 +120,7 @@ class DataExportManager:
             "exported_at": datetime.now().isoformat(),
             "blog_info": self._export_blog_info(),
             "posts": self._export_posts(),
+            "comments": self._export_comments(),
             "categories": self._export_categories(),
             "tags": self._export_tags(),
             "media": self._export_media(),
@@ -110,7 +161,6 @@ class DataExportManager:
                 "page_template": getattr(post, "page_template", "default"),
                 "status": post.status,
                 "visibility": post.visibility,
-                "password": post.password,
                 "allow_comments": post.allow_comments,
                 "license_type": getattr(post, 'license_type', 'cc_by_nc_sa_4'),
                 "created_at": post.created_at.isoformat() if post.created_at else None,
@@ -125,7 +175,35 @@ class DataExportManager:
             exported_posts.append(post_data)
         
         return exported_posts
-    
+
+    def _export_comments(self) -> List[Dict[str, Any]]:
+        """导出评论（按文章 slug 关联，父评论用原 id 表示以便恢复层级）。"""
+        post_slug_map = {
+            post_id: slug
+            for post_id, slug in self.db.execute(select(Post.id, Post.slug)).all()
+        }
+        comments = self.db.execute(select(Comment).order_by(Comment.id.asc())).scalars().all()
+        exported_comments = []
+        for comment in comments:
+            post_slug = post_slug_map.get(comment.post_id)
+            if not post_slug:
+                continue
+            exported_comments.append({
+                "id": comment.id,
+                "post_slug": post_slug,
+                "parent_id": comment.parent_id,
+                "author_name": comment.author_name,
+                "author_email": comment.author_email,
+                "author_url": comment.author_url,
+                "content": comment.content,
+                "ip_address": comment.ip_address,
+                "user_agent": comment.user_agent,
+                "status": comment.status,
+                "is_admin_reply": bool(comment.is_admin_reply),
+                "created_at": comment.created_at.isoformat() if comment.created_at else None,
+            })
+        return exported_comments
+
     def _export_categories(self) -> List[Dict[str, Any]]:
         """导出所有分类"""
         categories = crud_category.get_all_categories(self.db)
@@ -159,7 +237,9 @@ class DataExportManager:
     
     def _export_media(self) -> List[Dict[str, Any]]:
         """导出媒体文件信息"""
-        media_items = crud_media.get_all_media(self.db)
+        # 导出全量媒体记录，避免默认分页上限导致备份缺项。
+        media_items = crud_media.get_all_media(self.db, skip=0, limit=10**9)
+        media_root = os.path.abspath(settings.MEDIA_UPLOAD_DIR)
         exported_media = []
         
         for media in media_items:
@@ -170,27 +250,34 @@ class DataExportManager:
             if not isinstance(metadata_value, (dict, list, str, int, float, bool, type(None))):
                 metadata_value = None
 
+            raw_filepath = str(getattr(media, "filepath", "") or "")
             file_size = getattr(media, "file_size", None)
-            if file_size is None:
-                filepath = getattr(media, "filepath", None)
-                if filepath:
-                    size_candidates = [
-                        filepath,
-                        os.path.join("media_uploads", filepath),
-                    ]
-                    for candidate in size_candidates:
-                        if os.path.exists(candidate):
-                            try:
-                                file_size = os.path.getsize(candidate)
-                            except OSError:
-                                file_size = None
-                            break
+            absolute_filepath = os.path.abspath(raw_filepath) if raw_filepath else ""
+            if file_size is None and absolute_filepath and os.path.exists(absolute_filepath):
+                try:
+                    file_size = os.path.getsize(absolute_filepath)
+                except OSError:
+                    file_size = None
+
+            relative_path = ""
+            if raw_filepath:
+                try:
+                    candidate = os.path.relpath(absolute_filepath, media_root)
+                    if not candidate.startswith(".."):
+                        relative_path = candidate.replace("\\", "/")
+                except ValueError:
+                    relative_path = os.path.basename(raw_filepath)
+                if not relative_path:
+                    relative_path = os.path.basename(raw_filepath)
 
             media_data = {
                 "id": getattr(media, "id", None),
                 "filename": getattr(media, "filename", ""),
                 "original_filename": original_filename,
-                "filepath": getattr(media, "filepath", ""),
+                "filepath": raw_filepath,
+                "relative_path": relative_path,
+                "folder": getattr(media, "folder", "") or "",
+                "file_hash": getattr(media, "file_hash", "") or "",
                 "file_type": getattr(media, "file_type", ""),
                 "file_size": file_size,
                 "mime_type": getattr(media, "mime_type", ""),
@@ -211,8 +298,14 @@ class DataExportManager:
         settings = crud_setting.get_all_settings(self.db)
         exported_settings = []
         
-        # 敏感设置不导出
-        sensitive_keys = {'admin_password', 'secret_key', 'jwt_secret', 'database_url'}
+        # 敏感设置不导出（导出包可能被下载或转发，不能携带凭据）
+        sensitive_keys = {
+            'admin_password',
+            'secret_key',
+            'jwt_secret',
+            'database_url',
+            'smtp_password',
+        }
         
         for setting in settings:
             if setting.key.lower() not in sensitive_keys:
@@ -252,11 +345,12 @@ class DataExportManager:
             with open(data_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             
-            # 复制媒体文件
-            media_dir = "media_uploads"
-            if os.path.exists(media_dir):
+            # 复制媒体文件（使用配置的媒体目录，避免硬编码）
+            media_dir = str(settings.MEDIA_UPLOAD_DIR or "media_uploads")
+            media_root = os.path.abspath(media_dir)
+            if os.path.isdir(media_root):
                 temp_media_dir = os.path.join(temp_dir, "media")
-                shutil.copytree(media_dir, temp_media_dir)
+                shutil.copytree(media_root, temp_media_dir)
             
             # 创建ZIP文件
             with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -748,7 +842,11 @@ class WordPressImporter:
         pending_comments = []
         for comment_elem in comment_items:
             content_elem = comment_elem.find('wp:comment_content', self.namespaces)
-            content = (content_elem.text or "").strip() if content_elem is not None else ""
+            raw_content = (content_elem.text or "").strip() if content_elem is not None else ""
+            if not raw_content:
+                continue
+            # 导入评论与公开提交走同一套清洗策略，避免第三方 WXR 注入脚本。
+            content = sanitize_comment_content(raw_content)
             if not content:
                 continue
 
@@ -769,11 +867,13 @@ class WordPressImporter:
                 if comment_elem.find('wp:comment_author_email', self.namespaces) is not None
                 else ""
             ) or "unknown@example.com"
-            author_url = (
-                (comment_elem.find('wp:comment_author_url', self.namespaces).text or "").strip()
-                if comment_elem.find('wp:comment_author_url', self.namespaces) is not None
-                else ""
-            ) or None
+            author_url = normalize_comment_author_url(
+                (
+                    comment_elem.find('wp:comment_author_url', self.namespaces).text or ""
+                    if comment_elem.find('wp:comment_author_url', self.namespaces) is not None
+                    else ""
+                ).strip()
+            )
             ip_address = (
                 (comment_elem.find('wp:comment_author_IP', self.namespaces).text or "").strip()
                 if comment_elem.find('wp:comment_author_IP', self.namespaces) is not None
@@ -1098,7 +1198,7 @@ class WordPressImporter:
         return self._extract_first_image_url_from_html(html_content, source_link=source_link)
 
     def _get_media_upload_root(self) -> str:
-        return os.path.abspath("media_uploads")
+        return os.path.abspath(str(settings.MEDIA_UPLOAD_DIR or "media_uploads"))
 
     def _sanitize_path_segment(self, value: str, fallback: str = "file") -> str:
         cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1F]+', "-", str(value or "").strip())
@@ -1211,7 +1311,8 @@ class WordPressImporter:
             request_url,
             headers={"User-Agent": "RewrZ-WordPressImporter/1.0"},
         )
-        with urlopen(request, timeout=max(1, timeout_seconds)) as response:
+        _assert_public_remote_url(request_url)
+        with _open_remote_media(request, max(1, timeout_seconds)) as response:
             content_type = (response.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
             chunks: List[bytes] = []
             total = 0
@@ -2115,6 +2216,8 @@ class RewrZImporter:
                 "tags_imported": 0,
                 "settings_imported": 0,
                 "comments_imported": 0,
+                "media_imported": 0,
+                "media_missing_files": [],
                 "views_imported": 0,
                 "errors": []
             }
@@ -2134,6 +2237,14 @@ class RewrZImporter:
             # 导入文章
             if "posts" in data:
                 self._import_posts(data["posts"], stats)
+
+            # 导入媒体元数据（备份包需先恢复媒体文件）
+            if "media" in data:
+                self._import_media(data["media"], stats)
+
+            # 导入评论（依赖文章已落库）
+            if "comments" in data:
+                self._import_comments(data["comments"], stats)
             
             return stats
             
@@ -2145,6 +2256,8 @@ class RewrZImporter:
                 "tags_imported": 0,
                 "settings_imported": 0,
                 "comments_imported": 0,
+                "media_imported": 0,
+                "media_missing_files": [],
                 "views_imported": 0,
                 "errors": [str(e)]
             }
@@ -2277,6 +2390,141 @@ class RewrZImporter:
             except Exception as e:
                 self.db.rollback()
                 stats["errors"].append(f"导入文章失败: {str(e)}")
+
+    def _import_media(self, media_items: List[Dict], stats: Dict[str, Any]):
+        """导入媒体元数据，文件需已恢复到配置的媒体目录。"""
+        media_root = os.path.abspath(str(settings.MEDIA_UPLOAD_DIR or "media_uploads"))
+        default_user = self._resolve_default_user()
+        for item in media_items:
+            try:
+                relative_path = str(item.get("relative_path") or "").strip().replace("\\", "/").lstrip("/")
+                if not relative_path:
+                    relative_path = os.path.basename(str(item.get("filepath") or ""))
+                if not relative_path or ".." in relative_path.split("/"):
+                    continue
+
+                target_path = os.path.abspath(os.path.join(media_root, relative_path))
+                if not target_path.startswith(media_root + os.sep):
+                    continue
+                if not os.path.isfile(target_path):
+                    stats["media_missing_files"].append(relative_path)
+                    continue
+                if crud_media.get_media_by_filepath(self.db, target_path) is not None:
+                    continue
+
+                filename = str(
+                    item.get("original_filename")
+                    or item.get("filename")
+                    or os.path.basename(target_path)
+                )
+                folder = str(item.get("folder") or "").strip()
+                if not folder:
+                    folder = os.path.dirname(relative_path).replace("\\", "/")
+                    if folder == ".":
+                        folder = ""
+                try:
+                    file_size = int(item.get("file_size") or 0)
+                except (TypeError, ValueError):
+                    file_size = 0
+                if file_size <= 0:
+                    file_size = os.path.getsize(target_path)
+
+                with self.db.begin_nested():
+                    db_media = Media(
+                        filename=filename,
+                        filepath=target_path,
+                        folder=folder,
+                        file_type=str(item.get("file_type") or "other"),
+                        mime_type=str(item.get("mime_type") or "application/octet-stream"),
+                        file_hash=str(item.get("file_hash") or ""),
+                        file_size=file_size,
+                        title=item.get("title") or os.path.splitext(filename)[0],
+                        alt_text=item.get("alt_text"),
+                        description=item.get("description"),
+                        uploaded_at=self._parse_iso_datetime(item.get("created_at")) or datetime.now(),
+                        uploaded_by_id=default_user.id if default_user else None,
+                    )
+                    self.db.add(db_media)
+                    self.db.flush()
+                stats["media_imported"] += 1
+            except Exception as e:
+                stats["errors"].append(f"导入媒体失败: {str(e)}")
+        self.db.commit()
+
+    def _import_comments(self, comments: List[Dict], stats: Dict[str, Any]):
+        """导入评论并按原 id 关系恢复父子层级。"""
+        post_id_map = {
+            str(slug): post_id
+            for post_id, slug in self.db.execute(select(Post.id, Post.slug)).all()
+        }
+        old_to_new: Dict[int, int] = {}
+        pending_parents: List[Tuple[Comment, Any]] = []
+
+        for comment_data in comments:
+            try:
+                post_id = post_id_map.get(str(comment_data.get("post_slug") or "").strip())
+                if not post_id:
+                    continue
+                content = sanitize_comment_html(comment_data.get("content"))
+                if not content:
+                    continue
+
+                author_email = str(comment_data.get("author_email") or "").strip() or "unknown@example.com"
+                author_name = str(comment_data.get("author_name") or "").strip() or "匿名"
+                created_at = self._parse_iso_datetime(comment_data.get("created_at")) or datetime.now()
+                status = str(comment_data.get("status") or "pending").strip().lower()
+                if status not in {"approved", "pending", "spam"}:
+                    status = "pending"
+                try:
+                    old_id = int(comment_data.get("id"))
+                except (TypeError, ValueError):
+                    old_id = None
+
+                existing = self.db.execute(
+                    select(Comment).where(
+                        Comment.post_id == post_id,
+                        Comment.created_at == created_at,
+                        Comment.author_email == author_email,
+                        Comment.content == content,
+                    )
+                ).scalars().first()
+                if existing is not None:
+                    if old_id:
+                        old_to_new[old_id] = existing.id
+                    continue
+
+                with self.db.begin_nested():
+                    db_comment = Comment(
+                        post_id=post_id,
+                        parent_id=None,
+                        author_name=author_name,
+                        author_email=author_email,
+                        author_url=normalize_comment_author_url(comment_data.get("author_url")),
+                        content=content,
+                        ip_address=str(comment_data.get("ip_address") or "") or None,
+                        user_agent=str(comment_data.get("user_agent") or "") or None,
+                        status=status,
+                        is_admin_reply=bool(comment_data.get("is_admin_reply")),
+                        created_at=created_at,
+                    )
+                    self.db.add(db_comment)
+                    self.db.flush()
+                if old_id:
+                    old_to_new[old_id] = db_comment.id
+                pending_parents.append((db_comment, comment_data.get("parent_id")))
+                stats["comments_imported"] += 1
+            except Exception as e:
+                stats["errors"].append(f"导入评论失败: {str(e)}")
+
+        for db_comment, parent_old_id in pending_parents:
+            try:
+                new_parent_id = old_to_new.get(int(parent_old_id))
+            except (TypeError, ValueError):
+                new_parent_id = None
+            if new_parent_id:
+                db_comment.parent_id = new_parent_id
+
+        self.db.commit()
 
     def _parse_iso_datetime(self, date_str: Optional[str]) -> Optional[datetime]:
         if not date_str:

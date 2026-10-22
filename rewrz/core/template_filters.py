@@ -25,6 +25,7 @@ from .content_utils import (
     html_to_plain_text,
 )
 from .content_access import strip_hide_blocks
+from .comment_security import normalize_comment_author_url, sanitize_comment_html
 from .micro_text import enhance_micro_html
 from .content_intents import choose_primary_intent_slug, to_public_post_segment
 from ..core.config import settings # 导入settings
@@ -840,6 +841,16 @@ def static_asset(request, path: str) -> str:
     return f"{asset_url}{separator}v={version}"
 
 
+def safe_comment_html_filter(raw_html) -> str:
+    """评论内容输出前的白名单过滤，兜底历史脏数据。"""
+    return sanitize_comment_html(raw_html)
+
+
+def safe_comment_url_filter(raw_url) -> str:
+    """评论作者主页输出前的协议校验，非法地址返回空串。"""
+    return normalize_comment_author_url(raw_url) or ""
+
+
 def register_template_filters(app):
     """
     注册所有模板过滤器到FastAPI应用
@@ -877,6 +888,8 @@ def register_template_filters(app):
     templates.env.filters['post_public_plain_text'] = post_public_plain_text_filter
     templates.env.filters['post_summary_text'] = post_summary_text_filter
     templates.env.filters['strip_media_nodes'] = strip_media_nodes_filter
+    templates.env.filters['safe_comment_html'] = safe_comment_html_filter
+    templates.env.filters['safe_comment_url'] = safe_comment_url_filter
     templates.env.globals['static_asset'] = static_asset
     
     return templates
@@ -923,6 +936,8 @@ def get_templates():
         _templates.env.filters['post_public_plain_text'] = post_public_plain_text_filter
         _templates.env.filters['post_summary_text'] = post_summary_text_filter
         _templates.env.filters['strip_media_nodes'] = strip_media_nodes_filter
+        _templates.env.filters['safe_comment_html'] = safe_comment_html_filter
+        _templates.env.filters['safe_comment_url'] = safe_comment_url_filter
         _templates.env.globals['static_asset'] = static_asset
 
     return _templates

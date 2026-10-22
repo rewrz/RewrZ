@@ -55,6 +55,19 @@ def clear_setting_cache_between_tests():
     clear_public_metrics_memory_cache()
 
 
+@pytest.fixture(autouse=True)
+def restore_dynamic_settings_between_tests():
+    """部分测试会触发 reload_config，需还原全局配置避免跨用例串扰。"""
+    from rewrz.core.config import settings
+
+    snapshot = dict(vars(settings))
+    yield
+    for key in [key for key in vars(settings) if key not in snapshot]:
+        delattr(settings, key)
+    for key, value in snapshot.items():
+        setattr(settings, key, value)
+
+
 def get_db_session():
     """
     获取数据库会话的便捷函数。

@@ -1,7 +1,7 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Request, Response, Form
 from fastapi.security import OAuth2PasswordRequestForm
@@ -39,6 +39,7 @@ from ..core.notification_email import (
     write_password_reset_debug_delivery,
 )
 from ..crud import user as crud_user
+from ..crud import setting as crud_setting
 from ..schemas import User
 
 router = APIRouter()
@@ -53,10 +54,28 @@ def _hash_password_reset_token(raw_token: str) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def _build_password_reset_url(request: Request, raw_token: str) -> str:
-    admin_path = get_admin_path()
+def _resolve_site_base_url(request: Request, db: Session | None = None) -> str:
+    """优先使用配置的站点地址，避免重置链接受 Host 头污染。"""
+    configured_values = []
+    if db is not None:
+        site_setting = crud_setting.get_setting(db, "site_url")
+        if site_setting and isinstance(site_setting.value, dict):
+            configured_values.append(site_setting.value.get("value"))
+    configured_values.append(settings.SITE_URL)
+
+    for raw_value in configured_values:
+        parsed = urlsplit(str(raw_value or "").strip())
+        if parsed.scheme in {"http", "https"} and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+
+    # 未配置站点地址时才回退到请求自身（仅用于本地开发）
+    return str(request.base_url).rstrip("/")
+
+
+def _build_password_reset_url(request: Request, raw_token: str, db: Session | None = None) -> str:
+    admin_path = get_admin_path().rstrip("/")
     query = urlencode({"token": raw_token})
-    return str(request.url_for("dynamic_admin_reset_password_page")) + f"?{query}"
+    return f"{_resolve_site_base_url(request, db)}{admin_path}/reset-password?{query}"
 
 
 def _build_password_reset_delivery_note() -> str:
@@ -180,7 +199,7 @@ def submit_forgot_password(
                 sent_at=now,
                 expires_at=expires_at,
             )
-            reset_url = _build_password_reset_url(request, raw_token)
+            reset_url = _build_password_reset_url(request, raw_token, db)
             if is_email_delivery_configured(db):
                 if background_tasks is not None:
                     background_tasks.add_task(

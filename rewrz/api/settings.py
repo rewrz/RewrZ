@@ -426,17 +426,20 @@ async def update_admin_path(
                     lines.append("\n")
                 lines.append(f"ADMIN_PATH={new_path}\n")
             
-            # 写回.env文件
+            # 写回.env文件（保持私有权限）
             with open(env_file_path, "w", encoding="utf-8") as f:
                 f.writelines(lines)
+            try:
+                os.chmod(env_file_path, 0o600)
+            except OSError:
+                pass
             
-            # 更新环境变量（需要重启应用才能生效）
-            os.environ["ADMIN_PATH"] = new_path
-            
+            # 路由在应用启动时注册，这里只写配置，不伪装成立即生效
             return JSONResponse({
                 "success": True, 
                 "new_path": new_path,
-                "message": "后台路径已成功更新"
+                "restart_required": True,
+                "message": "后台路径已写入配置，请重启应用后使用新路径访问"
             })
         else:
             return JSONResponse({"success": False, "error": ".env文件不存在"})

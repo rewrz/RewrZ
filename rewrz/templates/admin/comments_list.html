@@ -150,9 +150,9 @@
                             <div class="min-w-0">
                                 <div class="text-sm font-semibold text-gray-900 break-all">{{ comment.author_name }}</div>
                                 <div class="text-xs text-gray-500 break-all">{{ comment.author_email }}</div>
-                                {% if comment.author_url %}
-                                <a href="{{ comment.author_url }}" target="_blank" rel="noopener noreferrer" class="text-xs admin-accent-link hover:underline break-all">
-                                    {{ comment.author_url }}
+                                {% if comment.author_url | safe_comment_url %}
+                                <a href="{{ comment.author_url | safe_comment_url }}" target="_blank" rel="noopener noreferrer" class="text-xs admin-accent-link hover:underline break-all">
+                                    {{ comment.author_url | safe_comment_url }}
                                 </a>
                                 {% endif %}
                             </div>
@@ -259,9 +259,9 @@
                         {% endif %}
                     </div>
                     <div class="mt-1 text-xs text-gray-500 break-all">{{ comment.author_email }}</div>
-                    {% if comment.author_url %}
-                    <a href="{{ comment.author_url }}" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block text-xs admin-accent-link hover:underline break-all">
-                        {{ comment.author_url }}
+                    {% if comment.author_url | safe_comment_url %}
+                    <a href="{{ comment.author_url | safe_comment_url }}" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block text-xs admin-accent-link hover:underline break-all">
+                        {{ comment.author_url | safe_comment_url }}
                     </a>
                     {% endif %}
                 </div>

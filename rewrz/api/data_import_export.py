@@ -24,6 +24,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 from ..core.admin_path import get_request_admin_path
+from ..core.config import settings
 from ..core.database import get_db, db_manager
 from ..core.time_utils import utc_now_naive
 from ..core.security import get_current_user, verify_csrf_token
@@ -853,31 +854,32 @@ async def import_backup_package(
         if not data_file:
             raise HTTPException(status_code=400, detail="备份包中未找到有效的数据文件")
         
-        # 导入数据
-        importer = get_rewrz_importer(db)
-        result = importer.import_from_json(data_file)
-        
-        # 恢复媒体文件
+        # 先恢复媒体文件，再导入 JSON 元数据，保证 media 记录能找到对应文件。
         media_restored = 0
+        media_files_total = 0
         media_dir = os.path.join(extract_dir, "media")
+        target_media_dir = os.path.abspath(str(settings.MEDIA_UPLOAD_DIR or "media_uploads"))
         if os.path.exists(media_dir):
-            target_media_dir = "media_uploads"
-            if not os.path.exists(target_media_dir):
-                os.makedirs(target_media_dir)
-            
+            os.makedirs(target_media_dir, exist_ok=True)
             for root, dirs, files in os.walk(media_dir):
                 for file in files:
                     src_path = os.path.join(root, file)
                     rel_path = os.path.relpath(src_path, media_dir)
                     dst_path = os.path.join(target_media_dir, rel_path)
-                    
+                    media_files_total += 1
+
                     # 确保目标目录存在
                     os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-                    
+
                     if not os.path.exists(dst_path):
                         shutil.copy2(src_path, dst_path)
                         media_restored += 1
-        
+
+        # 导入数据（包含评论与媒体元数据）
+        importer = get_rewrz_importer(db)
+        result = importer.import_from_json(data_file)
+
+        result["media_files_total"] = media_files_total
         result["media_restored"] = media_restored
         
         return JSONResponse({
@@ -918,21 +920,20 @@ async def get_data_stats(
         posts_count = len(crud_post.get_all_posts(db))
         categories_count = len(crud_category.get_all_categories(db))
         tags_count = len(crud_tag.get_all_tags(db))
-        media_count = len(crud_media.get_all_media(db))
+        media_count = len(crud_media.get_all_media(db, limit=10**9))
         settings_count = len(crud_setting.get_all_settings(db))
         
         # 计算媒体文件总大小
-        import os
-        media_items = crud_media.get_all_media(db)
+        media_items = crud_media.get_all_media(db, limit=10**9)
         total_media_size = 0
+        media_root = os.path.abspath(str(settings.MEDIA_UPLOAD_DIR or "media_uploads"))
         for item in media_items:
             # 获取实际文件大小
             if os.path.exists(item.filepath):
                 total_media_size += os.path.getsize(item.filepath)
-            # 如果文件不存在，尝试从文件名推断路径
-            elif os.path.exists(os.path.join("media_uploads", item.filepath)):
-                total_media_size += os.path.getsize(os.path.join("media_uploads", item.filepath))
-            # 如果还是找不到文件，则跳过
+            # 兼容历史相对路径记录
+            elif os.path.exists(os.path.join(media_root, item.filepath)):
+                total_media_size += os.path.getsize(os.path.join(media_root, item.filepath))
         
         # 格式化文件大小
         def format_file_size(size_bytes):

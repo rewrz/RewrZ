@@ -14,6 +14,7 @@ import threading
 import time
 from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
+from ipaddress import ip_address, ip_network
 from pathlib import Path
 from typing import Deque, Dict, List, Optional, Tuple
 
@@ -23,6 +24,7 @@ from sqlalchemy.orm import Session
 from ..crud import setting as crud_setting
 from ..models.login_attempt import LoginAttempt
 from ..schemas import SettingCreate, SettingUpdate
+from .config import settings
 
 
 SECURITY_LOGIN_MAX_ATTEMPTS_KEY = "security_login_max_attempts"
@@ -167,13 +169,40 @@ def save_security_config(
     )
 
 
+def _is_trusted_proxy(value: str) -> bool:
+    """判断地址是否属于配置的可信代理。"""
+    try:
+        address = ip_address(str(value or "").strip())
+    except ValueError:
+        return False
+
+    for item in getattr(settings, "TRUSTED_PROXIES", []) or []:
+        try:
+            if address in ip_network(str(item).strip(), strict=False):
+                return True
+        except ValueError:
+            continue
+    return False
+
+
 def get_client_ip(request) -> str:
-    xff = request.headers.get("X-Forwarded-For", "")
-    if xff:
-        return xff.split(",")[0].strip()
-    if request.client and request.client.host:
-        return request.client.host
-    return "unknown"
+    """解析客户端 IP：仅信任可信代理追加的 X-Forwarded-For。"""
+    peer = request.client.host if request.client and request.client.host else ""
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if not forwarded or not _is_trusted_proxy(peer):
+        return peer or "unknown"
+
+    # Nginx 使用追加语义，真实客户端在链尾方向；从右向左跳过可信代理。
+    hops = [part.strip() for part in forwarded.split(",") if part.strip()]
+    for hop in reversed(hops):
+        if _is_trusted_proxy(hop):
+            continue
+        try:
+            ip_address(hop)
+        except ValueError:
+            continue
+        return hop
+    return peer or "unknown"
 
 
 def _write_audit_log(

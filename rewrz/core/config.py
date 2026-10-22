@@ -55,9 +55,13 @@ class DynamicSettings:
             }
 
         def get_value(key: str, default=""):
+            # 进程环境变量优先，便于测试与部署覆盖 .env
+            env_value = os.getenv(key)
+            if env_value is not None:
+                return env_value
             if key in file_env:
                 return file_env[key]
-            return os.getenv(key, default)
+            return default
         
         self.ADMIN_PATH: str = str(get_value("ADMIN_PATH", "/admin")).strip() or "/admin"
         env_secret_key = str(get_value("SECRET_KEY", "")).strip()
@@ -75,10 +79,26 @@ class DynamicSettings:
             get_value("SQLITE_BUSY_TIMEOUT_MS", 30000), 30000, minimum=1000, maximum=300000
         )
         self.SQLITE_JOURNAL_MODE: str = str(get_value("SQLITE_JOURNAL_MODE", "WAL")).strip().upper() or "WAL"
-        try:
-            self.ACCESS_TOKEN_EXPIRE_MINUTES = int(get_value("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
-        except (TypeError, ValueError):
-            self.ACCESS_TOKEN_EXPIRE_MINUTES = 1440
+        # 站点对外地址，用于生成邮件链接等，避免依赖请求 Host 头
+        self.SITE_URL: str = str(get_value("SITE_URL", "")).strip().rstrip("/")
+        # 允许的 Host 头白名单（逗号分隔，为空表示不启用校验）
+        self.ALLOWED_HOSTS: list[str] = [
+            item.strip().lower()
+            for item in str(get_value("ALLOWED_HOSTS", "")).split(",")
+            if item.strip()
+        ]
+        # 可信反向代理地址/CIDR（逗号分隔），用于解析 X-Forwarded-For
+        self.TRUSTED_PROXIES: list[str] = [
+            item.strip()
+            for item in str(get_value("TRUSTED_PROXIES", "127.0.0.1,::1")).split(",")
+            if item.strip()
+        ]
+        self.ACCESS_TOKEN_EXPIRE_MINUTES = _parse_int_value(
+            get_value("ACCESS_TOKEN_EXPIRE_MINUTES", 1440),
+            1440,
+            minimum=5,
+            maximum=10080,
+        )
         self.MEDIA_UPLOAD_DIR: str = str(get_value("MEDIA_UPLOAD_DIR", "media_uploads")).strip() or "media_uploads"
         # 可选强制开关：默认不写，Cookie Secure 标志由 should_use_secure_cookie 按请求自动判定
         self.COOKIE_SECURE: bool = _parse_bool_value(get_value("COOKIE_SECURE"), False)

@@ -987,7 +987,8 @@ def test_wordpress_fetch_remote_media_bytes_encodes_unicode_url(monkeypatch, db)
         captured["timeout"] = timeout
         return FakeResponse()
 
-    monkeypatch.setattr("rewrz.core.data_manager.urlopen", fake_urlopen)
+    monkeypatch.setattr("rewrz.core.data_manager._assert_public_remote_url", lambda url: None)
+    monkeypatch.setattr("rewrz.core.data_manager._open_remote_media", fake_urlopen)
 
     payload, mime_type = importer._fetch_remote_media_bytes(
         "https://rewrz.com/wp-content/uploads/2025/04/1745339325-云缨纸片人起舞5.png",
@@ -1441,4 +1442,38 @@ def test_wordpress_import_slug_conflict_invalid_value_falls_back_to_skip(db, tmp
     assert second["posts_imported"] == 0
     assert second["posts_skipped"] == 1
     assert crud_post.get_post_by_slug(db, "fallback-post-imported") is None
+
+
+def test_comment_sanitizer_blocks_script_and_javascript_url():
+    """评论清洗需移除脚本标签、事件属性与非法链接协议。"""
+    from rewrz.core.comment_security import (
+        normalize_comment_author_url,
+        sanitize_comment_content,
+        sanitize_comment_html,
+    )
+
+    assert "script" not in sanitize_comment_html("<p>hi</p><script>alert(1)</script>")
+    assert "onerror" not in sanitize_comment_html('<img src="x" onerror="alert(1)">')
+    assert normalize_comment_author_url("javascript:alert(1)") is None
+    assert normalize_comment_author_url("https://example.com") == "https://example.com"
+    assert "<strong>" in sanitize_comment_content("**加粗**")
+
+
+def test_assert_public_remote_url_rejects_private_and_allows_public(monkeypatch):
+    """媒体远程下载需拒绝私有地址，并放行公网地址。"""
+    from rewrz.core import data_manager
+
+    def private_getaddrinfo(host, port, *, type=None):
+        return [(2, 1, 6, "", ("127.0.0.1", port))]
+
+    monkeypatch.setattr(data_manager.socket, "getaddrinfo", private_getaddrinfo)
+    with pytest.raises(ValueError):
+        data_manager._assert_public_remote_url("http://example.com/file.jpg")
+
+    def public_getaddrinfo(host, port, *, type=None):
+        return [(2, 1, 6, "", ("93.184.216.34", port))]
+
+    monkeypatch.setattr(data_manager.socket, "getaddrinfo", public_getaddrinfo)
+    parsed = data_manager._assert_public_remote_url("http://example.com/file.jpg")
+    assert parsed.hostname == "example.com"
 

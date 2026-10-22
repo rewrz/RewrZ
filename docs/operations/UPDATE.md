@@ -23,8 +23,13 @@ chmod +x update.sh
 - `REWRZ_SERVICE`：systemd 服务名，默认 `rewrz.service`
 - `REWRZ_HEALTH_URL`：健康检查入口，默认 `http://127.0.0.1:8000/`
 
+生产依赖保持在 `requirements.txt`；`pytest`、`httpx2` 等测试依赖已移入
+`requirements-dev.txt`，本地跑测试时执行 `pip install -r requirements-dev.txt`。
+
 说明：
 - 备份写入 `backups/<时间戳>/`，脚本不会改写 `.env`
+- 数据库优先使用 `sqlite3 .backup` 在线备份并执行 `PRAGMA integrity_check`；
+  无 `sqlite3` 时会先停服务再复制主库与 WAL/SHM
 - 脚本会检测 `.env` 中重复的配置项并提示，但不会自动修复
 - 数据库表结构由应用启动时的 `create_all` 自动维护（只建不存在的表），
   不需要也不应当执行 `alembic upgrade head`
@@ -45,12 +50,24 @@ chmod +x update.sh
 ```bash
 cd /srv/rewrz
 
-cp .env .env.backup.$(date +%F-%H%M%S)
-cp data/rewrz.db data/rewrz.db.backup.$(date +%F-%H%M%S)
-tar -czf media_uploads.backup.$(date +%F-%H%M%S).tar.gz media_uploads
+STAMP=$(date +%F-%H%M%S)
+cp .env ".env.backup.$STAMP"
+chmod 600 ".env.backup.$STAMP"
+
+# SQLite：优先使用在线备份获取一致快照，并做完整性校验
+sqlite3 data/rewrz.db ".backup 'data/rewrz.db.backup.$STAMP'"
+sqlite3 "data/rewrz.db.backup.$STAMP" "PRAGMA integrity_check;"
+
+tar -czf "media_uploads.backup.$STAMP.tar.gz" media_uploads
 ```
 
+没有 `sqlite3` 命令时，必须先停止服务，再复制 `data/rewrz.db`、
+`data/rewrz.db-wal`、`data/rewrz.db-shm` 三个文件；只复制主库文件会丢失
+WAL 中尚未合并的事务。
+
 如果你已启用 PostgreSQL，请改为数据库原生备份命令。
+备份目录与 `.env` 副本应保持私有权限（目录 `700`、文件 `600`），
+避免同机其他用户读取数据库或密钥。
 
 更新前建议额外记录：
 - 当前代码提交号

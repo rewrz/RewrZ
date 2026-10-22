@@ -1,7 +1,11 @@
 """安装向导初始内容创建与数据库迁移标记的回归测试。"""
 
+import gc
 import re
+import shutil
+from uuid import uuid4
 
+import pytest
 from alembic.config import Config as AlembicConfig
 from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
@@ -10,6 +14,18 @@ from sqlalchemy.orm import sessionmaker
 
 from rewrz import main as main_module
 from rewrz.models import Category, Format, Post, Tag
+
+# 安装器只接受项目内相对路径，测试库统一放在该目录下并在用例结束后清理
+INSTALLER_TEST_DB_DIR = "tests/.tmp-installer"
+
+
+@pytest.fixture(autouse=True)
+def cleanup_installer_test_databases():
+    """清理安装器测试产生的临时数据库。"""
+    yield
+    # Windows 下 SQLite 连接需等对象回收后才释放文件锁
+    gc.collect()
+    shutil.rmtree(INSTALLER_TEST_DB_DIR, ignore_errors=True)
 
 
 def _set_installation_complete(monkeypatch, value: bool) -> None:
@@ -26,13 +42,18 @@ def _extract_csrf_token(html: str) -> str:
     return match.group(1)
 
 
-def _prepare_installer(monkeypatch, tmp_path) -> TestClient:
+def _new_database_path() -> str:
+    """生成项目内相对数据库路径，满足安装器路径约束。"""
+    return f"{INSTALLER_TEST_DB_DIR}/{uuid4().hex}.db"
+
+
+def _prepare_installer(monkeypatch, tmp_path) -> tuple[TestClient, str]:
     """初始化测试用的安装向导会话与数据库。"""
     _set_installation_complete(monkeypatch, False)
     monkeypatch.setenv("REWRZ_ENV_FILE", str(tmp_path / ".env"))
 
     client = TestClient(main_module.app)
-    database_path = (tmp_path / "data" / "rewrz.db").as_posix()
+    database_path = _new_database_path()
 
     step_response = client.get("/installer/step/5")
     assert step_response.status_code == 200
@@ -44,18 +65,17 @@ def _prepare_installer(monkeypatch, tmp_path) -> TestClient:
     )
     assert response.status_code == 200
     assert response.json()["success"] is True
-    return client
+    return client, database_path
 
 
-def _connect(tmp_path):
-    database_path = (tmp_path / "data" / "rewrz.db").as_posix()
+def _connect(database_path: str):
     engine = create_engine(f"sqlite:///{database_path}")
-    return sessionmaker(bind=engine)()
+    return sessionmaker(bind=engine)(), engine
 
 
 def test_step5_preview_matches_backend_definition(monkeypatch, tmp_path):
     """步骤页预览数据必须与后端默认内容定义同源。"""
-    client = _prepare_installer(monkeypatch, tmp_path)
+    client, _ = _prepare_installer(monkeypatch, tmp_path)
 
     response = client.get("/installer/step/5")
     assert response.status_code == 200
@@ -67,7 +87,7 @@ def test_step5_preview_matches_backend_definition(monkeypatch, tmp_path):
 
 def test_create_default_content_and_idempotent_counts(monkeypatch, tmp_path):
     """勾选默认内容后应创建 3 分类/4 标签/3 内容类型，重复提交计数归零。"""
-    client = _prepare_installer(monkeypatch, tmp_path)
+    client, database_path = _prepare_installer(monkeypatch, tmp_path)
     csrf_token = _extract_csrf_token(client.get("/installer/step/5").text)
 
     form = {
@@ -86,7 +106,7 @@ def test_create_default_content_and_idempotent_counts(monkeypatch, tmp_path):
         "sample_post": False,
     }
 
-    db = _connect(tmp_path)
+    db, engine = _connect(database_path)
     try:
         assert len(db.execute(select(Category)).scalars().all()) == 3
         assert len(db.execute(select(Tag)).scalars().all()) == 4
@@ -95,6 +115,7 @@ def test_create_default_content_and_idempotent_counts(monkeypatch, tmp_path):
         assert db.execute(select(Post)).scalars().first() is None
     finally:
         db.close()
+        engine.dispose()
 
     repeat = client.post("/installer/create-initial-content", data=form)
     assert repeat.status_code == 200
@@ -108,7 +129,7 @@ def test_create_default_content_and_idempotent_counts(monkeypatch, tmp_path):
 
 def test_create_sample_post_with_dependencies(monkeypatch, tmp_path):
     """仅勾选示例文章时，应补齐归属所需的分类、标签与内容类型。"""
-    client = _prepare_installer(monkeypatch, tmp_path)
+    client, database_path = _prepare_installer(monkeypatch, tmp_path)
 
     # 先创建管理员，为示例文章提供作者
     admin_csrf = _extract_csrf_token(client.get("/installer/step/3").text)
@@ -141,7 +162,7 @@ def test_create_sample_post_with_dependencies(monkeypatch, tmp_path):
     assert payload["created"]["tags"] == 1
     assert payload["created"]["formats"] == 3
 
-    db = _connect(tmp_path)
+    db, engine = _connect(database_path)
     try:
         post = db.execute(select(Post)).scalars().one()
         assert post.title == "欢迎使用 RewrZ"
@@ -151,11 +172,12 @@ def test_create_sample_post_with_dependencies(monkeypatch, tmp_path):
         assert [tag.slug for tag in post.tags] == ["python"]
     finally:
         db.close()
+        engine.dispose()
 
 
 def test_create_sample_post_is_idempotent(monkeypatch, tmp_path):
     """重复提交示例文章不应产生重复内容。"""
-    client = _prepare_installer(monkeypatch, tmp_path)
+    client, database_path = _prepare_installer(monkeypatch, tmp_path)
     admin_csrf = _extract_csrf_token(client.get("/installer/step/3").text)
     admin_response = client.post(
         "/installer/create-admin",
@@ -185,24 +207,26 @@ def test_create_sample_post_is_idempotent(monkeypatch, tmp_path):
         "sample_post": False,
     }
 
-    db = _connect(tmp_path)
+    db, engine = _connect(database_path)
     try:
         posts = db.execute(select(Post)).scalars().all()
         assert len(posts) == 1
         assert posts[0].slug == "welcome-to-rewrz"
     finally:
         db.close()
+        engine.dispose()
 
 
 def test_initialize_database_stamps_alembic_head(monkeypatch, tmp_path):
     """安装建库后应把新库标记为 Alembic head。"""
-    _prepare_installer(monkeypatch, tmp_path)
+    _, database_path = _prepare_installer(monkeypatch, tmp_path)
 
-    db = _connect(tmp_path)
+    db, engine = _connect(database_path)
     try:
         stamped = db.execute(text("SELECT version_num FROM alembic_version")).scalar()
     finally:
         db.close()
+        engine.dispose()
 
     config = AlembicConfig("alembic.ini")
     head_revision = ScriptDirectory.from_config(config).get_current_head()

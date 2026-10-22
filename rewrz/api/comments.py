@@ -16,10 +16,13 @@ from ..schemas import CommentCreate, Comment, User
 from ..core.security import get_current_user, verify_csrf_token, decode_access_token, should_use_secure_cookie
 from pydantic import BaseModel
 from typing import List, Optional
-import bleach # 导入bleach用于HTML净化
 from markdown import markdown
 from ..core.anti_spam import get_anti_spam_engine # 导入反垃圾引擎
 from ..core.avatar import get_avatar_service # 导入头像服务
+from ..core.comment_security import (
+    normalize_comment_author_url,
+    sanitize_comment_content,
+)
 from ..core.template_filters import get_templates # 导入模板函数
 from ..core.content_access import extract_hide_block, get_comment_unlock_cookie_name
 from ..core.admin_security import check_comment_rate_limit, get_admin_email, get_client_ip
@@ -76,9 +79,7 @@ class AdminReply(BaseModel):
 class IpGeoLookupRequest(BaseModel):
     ips: List[str]
 
-# 定义评论允许的HTML标签和属性 (需求规格 2.3.1)
-ALLOWED_TAGS = ['a', 'strong', 'em', 'code', 'p', 'br']
-ALLOWED_ATTRIBUTES = {'a': ['href', 'title']}
+# 评论允许的 HTML 标签与属性统一由 core.comment_security 维护
 
 @router.post("/api/v1/comments/{post_id:int}", response_class=HTMLResponse)
 @router.post("/api/comments/{post_id:int}", response_class=HTMLResponse)
@@ -118,7 +119,7 @@ async def create_comment_api(
     logged_in_public_name = _resolve_public_display_name(logged_in_user) if logged_in_user else ""
     resolved_author_name = (author_name or "").strip()
     resolved_author_email = (author_email or "").strip()
-    resolved_author_url = (author_url or "").strip() or None
+    resolved_author_url = normalize_comment_author_url(author_url)
 
     if logged_in_user is not None:
         resolved_author_name = _resolve_public_display_name(logged_in_user)
@@ -196,13 +197,8 @@ async def create_comment_api(
         comment_status = "approved"  # 直接通过
 
     # 净化评论内容 (需求规格 3.2.1 - XSS防护)
-    # 先进行Markdown转换，然后使用bleach进行严格的白名单过滤
-    sanitized_content = bleach.clean(
-        markdown(content), 
-        tags=ALLOWED_TAGS, 
-        attributes=ALLOWED_ATTRIBUTES,
-        strip=True  # 移除不允许的标签而不是转义
-    )
+    # 与后台导入共用同一套 Markdown + bleach 白名单策略
+    sanitized_content = sanitize_comment_content(content)
 
     comment_create = CommentCreate(
         post_id=post_id,
@@ -597,8 +593,8 @@ async def admin_reply_to_comment(
         parent_id=comment_id,
         author_name=_resolve_public_display_name(current_user),  # 使用对外显示名，避免暴露登录名
         author_email=admin_email,  # 使用管理员邮箱
-        author_url=site_url,    # 使用网站地址
-        content=reply.content,
+        author_url=normalize_comment_author_url(site_url),    # 使用网站地址
+        content=sanitize_comment_content(reply.content),
         status="approved",  # 管理员回复默认批准
         is_admin_reply=True
     )
