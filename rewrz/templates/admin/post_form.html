@@ -332,7 +332,7 @@
                                 <i class="fas fa-expand"></i><span>全屏</span>
                             </button>
                             <input type="file" id="direct-upload-input" class="hidden" multiple>
-                            <button type="button" id="direct-upload-button" class="admin-secondary-btn inline-flex items-center rounded-md px-3 py-2 text-sm">
+                            <button type="button" id="direct-upload-button" title="也可以直接把截图粘贴进编辑器" class="admin-secondary-btn inline-flex items-center rounded-md px-3 py-2 text-sm">
                                 <i class="fas fa-upload mr-2"></i>上传文件
                             </button>
                             <button type="button" id="insert-media-button" class="admin-primary-btn inline-flex items-center rounded-md px-3 py-2 text-sm">
@@ -555,8 +555,9 @@
             hooks: {
                 addImageBlobHook: async (blob, callback) => {
                     try {
-                        const uploaded = await uploadMediaFile(blob);
-                        callback(uploaded.url, uploaded.alt_text || uploaded.title || blob.name || 'image');
+                        const imageFile = normalizeImageFile(blob);
+                        const uploaded = await uploadMediaFile(imageFile);
+                        callback(uploaded.url, uploaded.alt_text || uploaded.title || imageFile.name || 'image');
                         markDirty();
                     } catch (error) {
                         window.adminNotify(`图片上传失败：${error.message}`, 'error', { duration: 4200 });
@@ -1216,6 +1217,29 @@
 
         const mediaUploadEndpoint = "{{ request.state.admin_path }}/media/upload";
         const mediaUploadCsrfToken = "{{ request.state.csrf_token }}";
+
+        // 粘贴的截图可能缺少带扩展名的文件名，按 MIME 类型补齐后再上传
+        function normalizeImageFile(file) {
+            const rawName = String((file && file.name) || '').trim();
+            if (rawName && /\.[a-z0-9]+$/i.test(rawName)) {
+                return file;
+            }
+            const mimeType = String((file && file.type) || 'image/png').toLowerCase();
+            const extensionMap = {
+                'image/png': 'png',
+                'image/jpeg': 'jpg',
+                'image/gif': 'gif',
+                'image/webp': 'webp',
+                'image/svg+xml': 'svg',
+                'image/bmp': 'bmp',
+            };
+            const extension = extensionMap[mimeType] || 'png';
+            try {
+                return new File([file], `pasted-image-${Date.now()}.${extension}`, { type: mimeType });
+            } catch (error) {
+                return file;
+            }
+        }
 
         async function uploadMediaFile(file) {
             const formData = new FormData();

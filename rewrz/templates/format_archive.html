@@ -291,7 +291,7 @@
                                 rows="4"
                                 maxlength="2000"
                                 class="micro-composer-textarea w-full resize-none rounded-2xl border px-4 py-3 text-[15px] leading-7 outline-none transition"
-                                placeholder="今天想掉落哪一段心情、灵感或碎片？支持 #标签、@对象、多媒体和 Ctrl+Enter 快捷发布"
+                                placeholder="今天想掉落哪一段心情、灵感或碎片？支持 #标签、@对象、粘贴截图和 Ctrl+Enter 快捷发布"
                             ></textarea>
                             <div class="micro-composer-corner-note">
                                 <span>☆ 适合发碎碎念、练习日志、临时脑洞和小广播</span>
@@ -351,7 +351,7 @@
 
                         <div class="space-y-3 border-t border-slate-100 pt-3 dark:border-slate-700/70">
                             <div class="flex flex-wrap items-center gap-2">
-                                <button id="micro-quick-upload-trigger" type="button" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                <button id="micro-quick-upload-trigger" type="button" title="也可以直接把截图粘贴进编辑框" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
                                     <i class="fas fa-image micro-tool-emoji" aria-hidden="true"></i>多媒体
                                 </button>
                                 <button type="button" data-wrap-markdown="bold" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
@@ -525,6 +525,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         };
         let isSubmitting = false;
         let isUploadingMedia = false;
+        let activeMediaUploads = 0;
         let previewEnabled = false;
         let draftTimer = null;
         let attachedMedia = [];
@@ -1046,6 +1047,51 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         document.body.appendChild(emojiPanel);
     }
 
+    // 粘贴截图时浏览器给出的文件名可能为空，这里按 MIME 类型补齐扩展名，避免后端校验失败
+    const buildPastedMediaFile = (file) => {
+        const mimeType = String(file.type || "").toLowerCase();
+        const rawName = String(file.name || "").trim();
+        if (rawName && /\.[a-z0-9]+$/i.test(rawName)) {
+            return file;
+        }
+        const extensionMap = {
+            "image/png": "png",
+            "image/jpeg": "jpg",
+            "image/gif": "gif",
+            "image/webp": "webp",
+            "image/svg+xml": "svg",
+            "video/mp4": "mp4",
+            "video/webm": "webm",
+            "audio/mpeg": "mp3",
+            "audio/wav": "wav",
+        };
+        const extension = extensionMap[mimeType] || (mimeType.split("/")[1] || "png").split("+")[0];
+        try {
+            return new File([file], `pasted-media-${Date.now()}.${extension}`, { type: mimeType });
+        } catch (error) {
+            return file;
+        }
+    };
+
+    const extractPastedMediaFiles = (clipboardData) => {
+        if (!clipboardData) {
+            return [];
+        }
+        const mediaTypePattern = /^(image|video|audio)\//i;
+        const files = (clipboardData.items ? Array.from(clipboardData.items) : [])
+            .filter((item) => item.kind === "file")
+            .map((item) => item.getAsFile())
+            .filter((file) => file && mediaTypePattern.test(String(file.type || "")));
+        if (!files.length) {
+            Array.from(clipboardData.files || []).forEach((file) => {
+                if (mediaTypePattern.test(String(file.type || ""))) {
+                    files.push(file);
+                }
+            });
+        }
+        return files.map(buildPastedMediaFile);
+    };
+
     const uploadMediaFiles = async (fileList) => {
         const selectedFiles = Array.from(fileList || []);
         if (!selectedFiles.length) {
@@ -1075,6 +1121,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             return;
         }
 
+        activeMediaUploads += 1;
         isUploadingMedia = true;
         refreshState();
         setUploadStatus(`正在上传 ${uploadingBatch.length} 个文件...`);
@@ -1117,7 +1164,9 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         } catch (error) {
             setUploadStatus(getErrorMessage(error, "媒体上传失败，请稍后重试"), "error");
         } finally {
-            isUploadingMedia = false;
+            // 允许多个上传批次并行，只有全部结束才恢复可提交状态
+            activeMediaUploads = Math.max(0, activeMediaUploads - 1);
+            isUploadingMedia = activeMediaUploads > 0;
             if (mediaInput) {
                 mediaInput.value = "";
             }
@@ -1336,6 +1385,24 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
     if (mediaInput) {
         mediaInput.addEventListener("change", async () => {
             await uploadMediaFiles(mediaInput.files);
+        });
+    }
+
+    // 支持直接把截图粘贴进编辑框，自动上传为媒体附件
+    if (textarea) {
+        textarea.addEventListener("paste", (event) => {
+            const clipboardData = event.clipboardData;
+            const pastedFiles = extractPastedMediaFiles(clipboardData);
+            if (!pastedFiles.length) {
+                return;
+            }
+            // 剪贴板同时带有正文时保留默认粘贴，避免吞掉用户复制的文字
+            const plainText = clipboardData ? clipboardData.getData("text/plain") : "";
+            if (plainText && plainText.trim()) {
+                return;
+            }
+            event.preventDefault();
+            uploadMediaFiles(pastedFiles);
         });
     }
 
