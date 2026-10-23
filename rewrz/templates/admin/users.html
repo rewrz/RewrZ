@@ -134,7 +134,7 @@
                             </span>
                         </td>
                         <td class="px-4 py-2.5 align-top text-xs text-[var(--color-text-light)]">
-                            <div class="font-medium text-[var(--color-text)]">{{ item.last_login_at.strftime('%Y-%m-%d %H:%M') if item.last_login_at else '暂无' }}</div>
+                            <div class="font-medium text-[var(--color-text)]">{{ item.last_login_at | localtime('%Y-%m-%d %H:%M') if item.last_login_at else '暂无' }}</div>
                             {% if item.last_login_at %}
                             <div class="mt-1 text-[11px] leading-4 text-[var(--color-text-light)]">最近一次成功登录</div>
                             {% endif %}

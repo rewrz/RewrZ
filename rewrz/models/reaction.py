@@ -1,5 +1,5 @@
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, UniqueConstraint, Index
-from sqlalchemy.sql import func
+from ..core.time_utils import utc_now_naive
 
 from .base import Base
 
@@ -13,8 +13,8 @@ class ContentReaction(Base):
     visitor_token = Column(String(96), nullable=False, index=True)
     like_active = Column(Boolean, nullable=False, default=False)
     reaction_type = Column(String(32), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=func.now())
-    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime, nullable=False, default=utc_now_naive)
+    updated_at = Column(DateTime, nullable=False, default=utc_now_naive, onupdate=utc_now_naive)
 
     __table_args__ = (
         UniqueConstraint("target_type", "target_id", "visitor_token", name="uq_content_reaction_target_visitor"),

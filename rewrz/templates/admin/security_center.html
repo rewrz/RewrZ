@@ -158,7 +158,7 @@
                 <tbody>
                     {% for item in recent_attempts %}
                     <tr class="border-b">
-                        <td class="py-2 pr-4">{{ item.created_at.strftime('%Y-%m-%d %H:%M:%S') if item.created_at else '-' }}</td>
+                        <td class="py-2 pr-4">{{ item.created_at | localtime('%Y-%m-%d %H:%M:%S') if item.created_at else '-' }}</td>
                         <td class="py-2 pr-4">{{ item.username }}</td>
                         <td class="py-2 pr-4">{{ item.ip_address }}</td>
                         <td class="py-2 pr-4">

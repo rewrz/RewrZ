@@ -1,6 +1,10 @@
 import os
 import secrets
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from dotenv import dotenv_values
+
+DEFAULT_SITE_TIMEZONE = "Asia/Shanghai"
 
 
 def get_env_file_path() -> str:
@@ -93,6 +97,13 @@ class DynamicSettings:
             for item in str(get_value("TRUSTED_PROXIES", "127.0.0.1,::1")).split(",")
             if item.strip()
         ]
+        # 站点展示时区（IANA 名称），数据库统一存 UTC，渲染时按该时区转换
+        raw_site_timezone = str(get_value("SITE_TIMEZONE", DEFAULT_SITE_TIMEZONE)).strip() or DEFAULT_SITE_TIMEZONE
+        try:
+            ZoneInfo(raw_site_timezone)
+        except (ZoneInfoNotFoundError, ValueError):
+            raw_site_timezone = DEFAULT_SITE_TIMEZONE
+        self.SITE_TIMEZONE: str = raw_site_timezone
         self.ACCESS_TOKEN_EXPIRE_MINUTES = _parse_int_value(
             get_value("ACCESS_TOKEN_EXPIRE_MINUTES", 1440),
             1440,

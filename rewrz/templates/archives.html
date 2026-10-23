@@ -43,7 +43,7 @@
         <div id="yearly-view" class="archive-view">
             {% set posts_by_year = {} %}
             {% for post in posts %}
-                {% set year = post.published_at.strftime('%Y') %}
+                {% set year = post.published_at | localtime('%Y') %}
                 {% if year not in posts_by_year %}
                     {% set _ = posts_by_year.update({year: []}) %}
                 {% endif %}
@@ -84,7 +84,7 @@
                                 <div class="archive-item-main flex items-center space-x-4 flex-1">
                                     <!-- 日期 -->
                                     <div class="archive-item-date text-sm text-gray-500 dark:text-gray-400 font-mono min-w-[5rem]">
-                                        {{ post.published_at.strftime('%m-%d') }}
+                                        {{ post.published_at | localtime('%m-%d') }}
                                     </div>
                                     
                                     <!-- 格式图标 -->
@@ -152,7 +152,7 @@
         <div id="monthly-view" class="archive-view hidden">
             {% set posts_by_month = {} %}
             {% for post in posts %}
-                {% set year_month = post.published_at.strftime('%Y-%m') %}
+                {% set year_month = post.published_at | localtime('%Y-%m') %}
                 {% if year_month not in posts_by_month %}
                     {% set _ = posts_by_month.update({year_month: []}) %}
                 {% endif %}
@@ -162,7 +162,7 @@
             <div id="archives-monthly-list" class="space-y-6">
                 {% for year_month, month_posts in posts_by_month.items() | sort(reverse=True) %}
                 {% set year, month = year_month.split('-') %}
-                {% set month_name = month_posts[0].published_at.strftime('%B') %}
+                {% set month_name = month_posts[0].published_at | localtime('%B') %}
                 {% set month_zh = {
                     'January': '一月', 'February': '二月', 'March': '三月', 'April': '四月',
                     'May': '五月', 'June': '六月', 'July': '七月', 'August': '八月',
@@ -201,7 +201,7 @@
                                 <div class="archive-item-main flex items-center space-x-4 flex-1">
                                     <!-- 日期 -->
                                     <div class="archive-item-date text-sm text-gray-500 dark:text-gray-400 font-mono min-w-[3rem]">
-                                        {{ post.published_at.strftime('%d日') }}
+                                        {{ post.published_at | localtime('%d日') }}
                                     </div>
                                     
                                     <!-- 格式图标 -->

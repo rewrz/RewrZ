@@ -14,7 +14,7 @@
     {% if related_variant == 'compact_poetry' %}
     <div class="space-y-3">
         {% for related_post in resolved_related_articles %}
-            {% set related_content_images = ((related_post.content_html if related_post.content_html else related_post.content_markdown) | extract_image_urls(related_post.featured_image_url)) %}
+            {% set related_content_images = ((related_post | post_public_content_html(request.state.db)) | extract_image_urls(related_post.featured_image_url)) %}
             {% set related_cover = related_post.related_cover_url if related_post.related_cover_url else (related_post.featured_image_url if related_post.featured_image_url else (related_content_images[0] if related_content_images else '')) %}
             {% set related_summary = related_post | post_summary_text(56) %}
             {% set related_title = related_post.title if related_post.title else '' %}
@@ -42,7 +42,7 @@
     {% else %}
     <div class="related-posts-grid grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-3">
         {% for related_post in resolved_related_articles %}
-            {% set related_content_images = ((related_post.content_html if related_post.content_html else related_post.content_markdown) | extract_image_urls(related_post.featured_image_url)) %}
+            {% set related_content_images = ((related_post | post_public_content_html(request.state.db)) | extract_image_urls(related_post.featured_image_url)) %}
             {% set related_cover = related_post.related_cover_url if related_post.related_cover_url else (related_post.featured_image_url if related_post.featured_image_url else (related_content_images[0] if related_content_images else '')) %}
             {% set related_summary = related_post | post_summary_text(52) %}
             {% set related_title = related_post.title if related_post.title else '' %}

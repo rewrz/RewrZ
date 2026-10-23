@@ -1,0 +1,429 @@
+{# 发布设置组件：状态 + 发布时间。发布时间按站点本地时间填写，保存时由后端换算为 UTC。 #}
+{% set initial_status = post.status if post and post.status else 'draft' %}
+{% set initial_badge_label = '已发布' if initial_status == 'published' else '草稿' %}
+{% set initial_badge_tone = 'published' if initial_status == 'published' else 'draft' %}
+{% set initial_publish_date = post.published_at | localtime('%Y-%m-%d') if post and post.published_at else '' %}
+{% set initial_publish_time = post.published_at | localtime('%H:%M') if post and post.published_at else '' %}
+{% set initial_publish_value = post.published_at | localtime('%Y-%m-%dT%H:%M:%S') if post and post.published_at else '' %}
+{% set resolved_timezone = site_timezone | default('', true) %}
+<div class="publish-settings" data-publish-settings data-site-timezone="{{ resolved_timezone }}">
+    <style>
+        .publish-settings {
+            padding-bottom: 1.25rem;
+            margin-bottom: 1.25rem;
+            border-bottom: 1px solid var(--ui-border);
+        }
+        .publish-settings-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.9rem;
+        }
+        .publish-settings-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.02rem;
+            font-weight: 600;
+            color: var(--color-text);
+        }
+        .publish-settings-title i {
+            color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%);
+        }
+        .publish-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            border: 1px solid var(--ui-border);
+            border-radius: 999px;
+            padding: 0.22rem 0.66rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: var(--color-text-light);
+            background: color-mix(in srgb, var(--color-background-alt) 70%, transparent);
+            white-space: nowrap;
+        }
+        .publish-badge[data-tone="published"] {
+            border-color: color-mix(in srgb, var(--color-primary) 32%, transparent);
+            background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+            color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+        }
+        .publish-badge[data-tone="scheduled"] {
+            border-style: dashed;
+            border-color: color-mix(in srgb, var(--color-primary) 44%, transparent);
+            background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+            color: color-mix(in srgb, var(--color-primary) 84%, var(--color-text) 16%);
+        }
+        .publish-field + .publish-field {
+            margin-top: 0.95rem;
+        }
+        .publish-label {
+            display: block;
+            margin-bottom: 0.42rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--color-text);
+        }
+        .publish-label-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0.42rem;
+        }
+        .publish-label-row .publish-label {
+            margin-bottom: 0;
+        }
+        .publish-tz {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            max-width: 62%;
+            overflow: hidden;
+            font-size: 0.7rem;
+            color: var(--color-text-light);
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        .publish-tz i {
+            color: color-mix(in srgb, var(--color-primary) 60%, var(--color-text-light) 40%);
+        }
+        .publish-datetime {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+            gap: 0.5rem;
+        }
+        .publish-input {
+            width: 100%;
+            border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+            border-radius: 0.6rem;
+            padding: 0.5rem 0.62rem;
+            font-size: 0.86rem;
+            background: color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+            color: var(--color-text);
+            box-shadow: 0 8px 18px -18px color-mix(in srgb, var(--color-primary) 32%, rgba(15, 23, 42, 0.2));
+        }
+        .publish-input:focus {
+            outline: none;
+            border-color: color-mix(in srgb, var(--color-primary) 58%, var(--color-border) 42%);
+            box-shadow: var(--ui-ring);
+        }
+        .publish-input::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            opacity: 0.65;
+        }
+        .publish-input::-webkit-calendar-picker-indicator:hover {
+            opacity: 1;
+        }
+        .publish-presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.38rem;
+            margin-top: 0.56rem;
+        }
+        .publish-preset {
+            border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--ui-border) 82%);
+            border-radius: 999px;
+            padding: 0.26rem 0.64rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+            background: color-mix(in srgb, var(--color-primary) 8%, var(--color-card-bg) 92%);
+            transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+        }
+        .publish-preset:hover {
+            border-color: color-mix(in srgb, var(--color-primary) 38%, var(--ui-border) 62%);
+            background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%);
+            transform: translateY(-1px);
+        }
+        .publish-hint {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.36rem;
+            margin-top: 0.58rem;
+            font-size: 0.74rem;
+            line-height: 1.6;
+            color: var(--color-text-light);
+        }
+        .publish-hint i {
+            margin-top: 0.16rem;
+            flex-shrink: 0;
+        }
+        .publish-hint.is-warning {
+            font-weight: 600;
+            color: color-mix(in srgb, var(--color-primary) 82%, var(--color-text) 18%);
+        }
+        @media (max-width: 480px) {
+            .publish-datetime {
+                grid-template-columns: minmax(0, 1fr);
+            }
+        }
+    </style>
+
+    <div class="publish-settings-head">
+        <span class="publish-settings-title">
+            <i class="fas fa-paper-plane" aria-hidden="true"></i>
+            发布设置
+        </span>
+        <span class="publish-badge" data-publish-badge data-tone="{{ initial_badge_tone }}">{{ initial_badge_label }}</span>
+    </div>
+
+    <label class="publish-field">
+        <span class="publish-label">状态</span>
+        <select name="status" data-publish-status class="admin-form-field block w-full rounded-md px-3 py-2 text-sm">
+            <option value="draft" {% if initial_status == "draft" %}selected{% endif %}>草稿</option>
+            <option value="published" {% if initial_status == "published" %}selected{% endif %}>已发布</option>
+        </select>
+    </label>
+
+    <div class="publish-field">
+        <div class="publish-label-row">
+            <span class="publish-label">发布时间</span>
+            <span class="publish-tz" title="发布时间按站点时区填写，保存时自动换算为 UTC">
+                <i class="fas fa-globe" aria-hidden="true"></i>
+                {% if resolved_timezone %}站点时区 {{ resolved_timezone }}{% else %}站点本地时间{% endif %}
+            </span>
+        </div>
+        <div class="publish-datetime">
+            <input
+                type="date"
+                data-publish-date
+                value="{{ initial_publish_date }}"
+                aria-label="发布时间（日期）"
+                class="publish-input"
+            >
+            <input
+                type="time"
+                data-publish-time
+                step="60"
+                value="{{ initial_publish_time }}"
+                aria-label="发布时间（时间）"
+                class="publish-input"
+            >
+        </div>
+        <div class="publish-presets" role="group" aria-label="发布时间快捷设置">
+            <button type="button" class="publish-preset" data-publish-preset="now">立即发布</button>
+            <button type="button" class="publish-preset" data-publish-preset="hour">+1 小时</button>
+            <button type="button" class="publish-preset" data-publish-preset="tomorrow9">明天 09:00</button>
+            <button type="button" class="publish-preset" data-publish-preset="week">+7 天</button>
+        </div>
+        <p class="publish-hint" data-publish-hint>
+            <i class="fas fa-circle-info" aria-hidden="true"></i>
+            <span data-publish-hint-text></span>
+        </p>
+    </div>
+
+    <input type="hidden" name="published_at" data-publish-hidden value="{{ initial_publish_value }}">
+</div>
+
+<script>
+(function () {
+    const root = document.querySelector('[data-publish-settings]');
+    if (!root || root.dataset.publishReady === 'true') return;
+    root.dataset.publishReady = 'true';
+
+    const siteTimezone = String(root.dataset.siteTimezone || '').trim();
+    const statusSelect = root.querySelector('[data-publish-status]');
+    const dateInput = root.querySelector('[data-publish-date]');
+    const timeInput = root.querySelector('[data-publish-time]');
+    const hiddenInput = root.querySelector('[data-publish-hidden]');
+    const badge = root.querySelector('[data-publish-badge]');
+    const hint = root.querySelector('[data-publish-hint]');
+    const hintText = root.querySelector('[data-publish-hint-text]');
+    const presetButtons = Array.from(root.querySelectorAll('[data-publish-preset]'));
+    const form = root.closest('form');
+
+    const pad = (value) => String(value).padStart(2, '0');
+    const toDateText = (parts) => `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
+    const toTimeText = (parts) => `${pad(parts.hour)}:${pad(parts.minute)}`;
+    const toNaiveMs = (parts) => Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+    const toMonthDayText = (parts) => `${parts.month}月${parts.day}日 ${pad(parts.hour)}:${pad(parts.minute)}`;
+
+    function getBrowserNowParts() {
+        const now = new Date();
+        return {
+            year: now.getFullYear(),
+            month: now.getMonth() + 1,
+            day: now.getDate(),
+            hour: now.getHours(),
+            minute: now.getMinutes(),
+        };
+    }
+
+    // 按站点时区取“墙上时间”，避免管理员浏览器时区与站点不一致时算错快捷时间
+    function getSiteNowParts() {
+        if (!siteTimezone) return getBrowserNowParts();
+        try {
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: siteTimezone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hourCycle: 'h23',
+            });
+            const parts = {};
+            formatter.formatToParts(new Date()).forEach((item) => {
+                if (item.type !== 'literal') parts[item.type] = item.value;
+            });
+            const hour = Number(parts.hour) % 24;
+            return {
+                year: Number(parts.year),
+                month: Number(parts.month),
+                day: Number(parts.day),
+                hour,
+                minute: Number(parts.minute),
+            };
+        } catch (error) {
+            return getBrowserNowParts();
+        }
+    }
+
+    function shiftParts(parts, minutes) {
+        const shifted = new Date(toNaiveMs(parts) + minutes * 60000);
+        return {
+            year: shifted.getUTCFullYear(),
+            month: shifted.getUTCMonth() + 1,
+            day: shifted.getUTCDate(),
+            hour: shifted.getUTCHours(),
+            minute: shifted.getUTCMinutes(),
+        };
+    }
+
+    function readSelectedParts() {
+        const dateText = dateInput.value;
+        const timeText = timeInput.value;
+        if (!dateText || !timeText) return null;
+        const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateText);
+        const timeMatch = /^(\d{2}):(\d{2})/.exec(timeText);
+        if (!dateMatch || !timeMatch) return null;
+        return {
+            year: Number(dateMatch[1]),
+            month: Number(dateMatch[2]),
+            day: Number(dateMatch[3]),
+            hour: Number(timeMatch[1]),
+            minute: Number(timeMatch[2]),
+        };
+    }
+
+    function hasPartialInput() {
+        return Boolean(dateInput.value) !== Boolean(timeInput.value);
+    }
+
+    function syncHidden() {
+        const parts = readSelectedParts();
+        hiddenInput.value = parts ? `${toDateText(parts)}T${toTimeText(parts)}:00` : '';
+    }
+
+    function setInputs(parts) {
+        dateInput.value = toDateText(parts);
+        timeInput.value = toTimeText(parts);
+    }
+
+    function applyPreset(preset) {
+        const nowParts = getSiteNowParts();
+        if (preset === 'now') {
+            setInputs(nowParts);
+        } else if (preset === 'hour') {
+            setInputs(shiftParts(nowParts, 60));
+        } else if (preset === 'tomorrow9') {
+            const tomorrow = shiftParts(nowParts, 24 * 60);
+            setInputs({ year: tomorrow.year, month: tomorrow.month, day: tomorrow.day, hour: 9, minute: 0 });
+        } else if (preset === 'week') {
+            setInputs(shiftParts(nowParts, 7 * 24 * 60));
+        }
+        // 定时发布只有在“已发布”状态下才会生效，选择预设时自动切换状态
+        if (statusSelect && statusSelect.value !== 'published') {
+            statusSelect.value = 'published';
+            statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        syncHidden();
+        updateStatusView();
+        // 触发编辑器表单的未保存状态监听
+        hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    function updateStatusView() {
+        const status = statusSelect ? statusSelect.value : 'draft';
+        const parts = readSelectedParts();
+        const nowParts = getSiteNowParts();
+        let tone = 'draft';
+        let label = '草稿';
+        let message = '';
+        let isWarning = false;
+
+        if (status === 'draft') {
+            if (parts) {
+                message = '草稿不会公开；保存为草稿时发布时间不会保留，切换为「已发布」后按设置时间上线。';
+            } else {
+                message = '草稿仅自己可见，不会出现在首页、归档、RSS 或搜索中。';
+            }
+        } else if (!parts) {
+            tone = 'published';
+            label = '立即发布';
+            if (hasPartialInput()) {
+                message = '请同时填写日期和时间，否则保存时将按当前时间立即发布。';
+                isWarning = true;
+            } else {
+                message = '未设置发布时间：保存后按当前时间发布。';
+            }
+        } else {
+            const diffMinutes = toNaiveMs(parts) - toNaiveMs(nowParts);
+            if (diffMinutes > 0) {
+                tone = 'scheduled';
+                label = '定时发布';
+                if (diffMinutes < 60) {
+                    message = `将在 ${Math.max(1, diffMinutes)} 分钟后自动公开（${toMonthDayText(parts)}）。`;
+                } else if (diffMinutes < 24 * 60) {
+                    message = `将在 ${Math.ceil(diffMinutes / 60)} 小时后自动公开（${toMonthDayText(parts)}）。`;
+                } else {
+                    message = `将在 ${Math.ceil(diffMinutes / (24 * 60))} 天后自动公开（${toMonthDayText(parts)}）。`;
+                }
+            } else {
+                tone = 'published';
+                label = '已发布';
+                message = `发布时间 ${toMonthDayText(parts)} 已到，保存后立即按可见性规则公开。`;
+            }
+        }
+
+        badge.textContent = label;
+        badge.dataset.tone = tone;
+        hint.classList.toggle('is-warning', isWarning);
+        hintText.textContent = message;
+    }
+
+    dateInput.addEventListener('input', () => {
+        syncHidden();
+        updateStatusView();
+    });
+    timeInput.addEventListener('input', () => {
+        syncHidden();
+        updateStatusView();
+    });
+    if (statusSelect) {
+        statusSelect.addEventListener('change', updateStatusView);
+    }
+    presetButtons.forEach((button) => {
+        button.addEventListener('click', () => applyPreset(button.dataset.publishPreset));
+    });
+
+    if (form) {
+        // 阻止“只填日期不填时间”这种半成品定时设置被提交
+        form.addEventListener('submit', (event) => {
+            if (!statusSelect || statusSelect.value !== 'published' || !hasPartialInput()) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            updateStatusView();
+            (dateInput.value ? timeInput : dateInput).focus();
+            if (typeof window.adminNotify === 'function') {
+                window.adminNotify('发布时间需要同时填写日期和时间，或点击「立即发布」。', 'warning', { duration: 3600 });
+            }
+        }, true);
+    }
+
+    updateStatusView();
+})();
+</script>

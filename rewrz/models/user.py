@@ -5,7 +5,7 @@
 支持自定义头像上传和管理功能。
 """
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
-from sqlalchemy.sql import func
+from ..core.time_utils import utc_now_naive
 from .base import Base
 
 class User(Base):
@@ -31,8 +31,8 @@ class User(Base):
     theme_preference = Column(String, nullable=True) # 已登录用户的主题偏好
     
     # 时间戳字段
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
     last_login_at = Column(DateTime, nullable=True) # 最后登录时间
     token_version = Column(Integer, default=1, nullable=False) # 令牌版本，用于轻量强制退出
     password_reset_token_hash = Column(String, nullable=True) # 找回密码令牌哈希

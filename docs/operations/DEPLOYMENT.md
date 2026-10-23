@@ -88,6 +88,7 @@ uvicorn rewrz.main:app --host 127.0.0.1 --port 8000
 - `SECRET_KEY`
 - `ADMIN_PATH`
 - `MEDIA_UPLOAD_DIR`
+- `SITE_TIMEZONE`（站点展示时区，默认 `Asia/Shanghai`；数据库统一存 UTC）
 
 ## 5. 安装完成后的立即处理
 
@@ -146,6 +147,7 @@ SMTP_FROM=notify@example.com
 - `ADMIN_PATH` 是否为安装向导生成的隐藏后台路径
 - `DATABASE_URL` 是否指向你真正要使用的生产库
 - `MEDIA_UPLOAD_DIR` 是否与实际媒体目录一致
+- `SITE_TIMEZONE` 是否为站点所在时区（IANA 名称，例如 `Asia/Shanghai`、`Asia/Tokyo`、`America/Toronto`）
 
 数据库连接池与 SQLite 并发参数均有安全默认值，不配置也可直接运行：
 

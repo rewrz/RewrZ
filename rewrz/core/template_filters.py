@@ -10,7 +10,7 @@ Jinja2模板过滤器
 import hashlib
 import re
 from html import escape
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from pathlib import Path
 from urllib.parse import urlparse, urlsplit
@@ -27,6 +27,7 @@ from .content_utils import (
 from .content_access import strip_hide_blocks
 from .comment_security import normalize_comment_author_url, sanitize_comment_html
 from .micro_text import enhance_micro_html
+from .time_utils import format_site_time, site_now, to_site_time, utc_iso
 from .content_intents import choose_primary_intent_slug, to_public_post_segment
 from ..core.config import settings # 导入settings
 from ..core.database import get_db
@@ -110,15 +111,10 @@ def time_ago_filter(dt: datetime) -> str:
     """
     if not dt:
         return ""
-    
-    now = datetime.now()
-    if dt.tzinfo is not None:
-        # 如果dt有时区信息，将now转换为同样的时区
-        now = now.replace(tzinfo=dt.tzinfo)
-    
-    delta = now - dt
-    seconds = delta.total_seconds()
-    
+
+    target = dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+    seconds = (datetime.now(timezone.utc) - target.astimezone(timezone.utc)).total_seconds()
+
     if seconds < 60:
         return "刚刚"
     elif seconds < 3600:
@@ -131,7 +127,7 @@ def time_ago_filter(dt: datetime) -> str:
         days = int(seconds // 86400)
         return f"{days}天前"
     else:
-        return dt.strftime('%Y年%m月%d日')
+        return format_site_time(dt, '%Y年%m月%d日')
 
 
 def micro_datetime_cn_filter(dt: datetime) -> str:
@@ -145,13 +141,13 @@ def micro_datetime_cn_filter(dt: datetime) -> str:
     if not dt:
         return ""
 
-    now = datetime.now()
-    if dt.tzinfo is not None:
-        now = now.replace(tzinfo=dt.tzinfo)
+    localized = to_site_time(dt)
+    if localized is None:
+        return ""
 
-    if dt.year == now.year:
-        return dt.strftime("%m月%d日 %H:%M")
-    return dt.strftime("%Y年%m月%d日 %H:%M")
+    if localized.year == site_now().year:
+        return localized.strftime("%m月%d日 %H:%M")
+    return localized.strftime("%Y年%m月%d日 %H:%M")
 
 
 def truncate_html_filter(html_content: str, length: int = 100) -> str:
@@ -550,11 +546,36 @@ def responsive_image_filter(image_url: str, alt_text: str = "",
 
 def date_filter(value, format_string: str = "%Y-%m-%d") -> str:
     if value == 'now':
-        value = datetime.now()
-    
+        value = site_now()
+
     if isinstance(value, datetime):
-        return value.strftime(format_string)
-    
+        return format_site_time(value, format_string)
+
+    return str(value)
+
+
+def localtime_filter(value, format_string: str = "%Y-%m-%d %H:%M:%S") -> str:
+    """把数据库中的 UTC 时间按站点时区格式化。"""
+    if not value:
+        return ""
+    if isinstance(value, datetime):
+        return format_site_time(value, format_string)
+    return str(value)
+
+
+def site_time_filter(value):
+    """把数据库中的 UTC 时间转换为站点时区的 datetime，供模板取年月日等字段。"""
+    if isinstance(value, datetime):
+        return to_site_time(value)
+    return value
+
+
+def utc_iso_filter(value) -> str:
+    """输出带 Z 的 UTC ISO 时间，供 time 标签的 datetime 属性使用。"""
+    if not value:
+        return ""
+    if isinstance(value, datetime):
+        return utc_iso(value)
     return str(value)
 
 
@@ -908,6 +929,9 @@ def register_template_filters(app):
     templates.env.filters['extract_image_urls'] = extract_image_urls_filter
     templates.env.filters['extract_media_assets'] = extract_media_assets_filter
     templates.env.filters['date'] = date_filter
+    templates.env.filters['localtime'] = localtime_filter
+    templates.env.filters['site_time'] = site_time_filter
+    templates.env.filters['utc_iso'] = utc_iso_filter
     templates.env.filters['compact_number_cn'] = compact_number_cn_filter
     templates.env.filters['license_html'] = license_html_filter
     templates.env.filters['license_options'] = get_license_options_filter
@@ -952,6 +976,9 @@ def get_templates():
         _templates.env.filters['extract_image_urls'] = extract_image_urls_filter
         _templates.env.filters['extract_media_assets'] = extract_media_assets_filter
         _templates.env.filters['date'] = date_filter
+        _templates.env.filters['localtime'] = localtime_filter
+        _templates.env.filters['site_time'] = site_time_filter
+        _templates.env.filters['utc_iso'] = utc_iso_filter
         _templates.env.filters['compact_number_cn'] = compact_number_cn_filter
         _templates.env.filters['license_html'] = license_html_filter
         _templates.env.filters['license_options'] = get_license_options_filter

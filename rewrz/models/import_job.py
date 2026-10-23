@@ -7,7 +7,7 @@
 3. 通过心跳检测执行进程存活，及时收敛僵死任务
 """
 from sqlalchemy import Column, DateTime, Integer, String, Text, JSON
-from sqlalchemy.sql import func
+from ..core.time_utils import utc_now_naive
 
 from .base import Base
 
@@ -33,5 +33,5 @@ class ImportJob(Base):
     # 执行进程信息，用于僵死任务检测
     worker_pid = Column(Integer, nullable=True)
     heartbeat_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=func.now(), nullable=False, index=True)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False, index=True)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)

@@ -5,7 +5,7 @@
 支持分类管理和类型标识。
 """
 from sqlalchemy import Column, Integer, String, Text, JSON, DateTime
-from sqlalchemy.sql import func
+from ..core.time_utils import utc_now_naive
 from .base import Base
 
 class Setting(Base):
@@ -18,5 +18,5 @@ class Setting(Base):
     description = Column(Text, nullable=True) # 设置描述
     category = Column(String, nullable=True, index=True) # 设置分类
     type = Column(String, nullable=True) # 设置类型（string, integer, boolean, array）
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)

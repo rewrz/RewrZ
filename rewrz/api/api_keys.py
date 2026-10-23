@@ -13,6 +13,7 @@ from ..core.api_keys import (
     write_api_key_audit_log,
 )
 from ..core.security import ensure_admin_user, get_client_ip, get_current_user, verify_csrf_token
+from ..core.time_utils import site_local_to_utc_naive
 from ..core.template_filters import get_templates
 from ..crud import api_key as crud_api_key
 from ..schemas import ApiKeyCreate, ApiKeyRotateRequest, ApiKeyStatusUpdate, ApiKeyUpdate, User
@@ -62,7 +63,8 @@ async def create_api_key_action(
         try:
             from datetime import datetime
 
-            expires_at = datetime.fromisoformat(raw_expires_at)
+            # 表单填写的是站点本地时间，入库前统一转换为 UTC
+            expires_at = site_local_to_utc_naive(datetime.fromisoformat(raw_expires_at))
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="过期时间格式不正确") from exc
 
@@ -152,7 +154,8 @@ async def rotate_api_key_action(
         try:
             from datetime import datetime
 
-            expires_at = datetime.fromisoformat(raw_expires_at)
+            # 表单填写的是站点本地时间，入库前统一转换为 UTC
+            expires_at = site_local_to_utc_naive(datetime.fromisoformat(raw_expires_at))
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="过期时间格式不正确") from exc
 
@@ -240,7 +243,8 @@ async def update_api_key_action(
         try:
             from datetime import datetime
 
-            expires_at = datetime.fromisoformat(raw_expires_at)
+            # 表单填写的是站点本地时间，入库前统一转换为 UTC
+            expires_at = site_local_to_utc_naive(datetime.fromisoformat(raw_expires_at))
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="过期时间格式不正确") from exc
 

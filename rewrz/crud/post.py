@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, func, delete
 from ..models import Post, Format, Category, Tag, Setting, Comment
 from ..schemas import PostCreate, PostUpdate, FormatCreate
-from datetime import datetime
 from slugify import slugify
+from ..core.time_utils import site_month_range_utc, utc_now_naive
 from ..core.security import get_password_hash, verify_password
 from ..crud import format as crud_format
 from ..core.content_utils import (
@@ -42,12 +42,17 @@ def _normalize_post_type_value(post_type: Optional[str], *, allow_none: bool = F
 
 
 def get_public_post_conditions(*, published_only: bool = True):
-    """公开文章列表统一过滤条件。"""
+    """公开文章列表统一过滤条件。
+
+    发布时间在未来的“已发布”内容视为定时发布：时间未到时不出现在任何公开结果中，
+    到点后自动按 visibility 规则生效，无需额外的状态翻转任务。
+    """
     conditions = [Post.post_type == "post", Post.visibility == "public"]
     if published_only:
         conditions.extend([
             Post.status == "published",
             Post.published_at.isnot(None),
+            Post.published_at <= utc_now_naive(),
         ])
     return tuple(conditions)
 
@@ -254,9 +259,13 @@ def get_posts(db: Session, skip: int = 0, limit: int = 100, status: Optional[str
         query = query.filter(*get_public_post_conditions())
     else:
         if status:
-            # 仅已发布内容要求 published_at 非空
+            # 已发布内容只暴露发布时间已到的记录，未来时间视为定时发布
             if status == "published":
-                query = query.filter(Post.status == status, Post.published_at.isnot(None))
+                query = query.filter(
+                    Post.status == status,
+                    Post.published_at.isnot(None),
+                    Post.published_at <= utc_now_naive(),
+                )
             else:
                 query = query.filter(Post.status == status)
         if normalized_post_type:
@@ -399,7 +408,7 @@ def create_post(
 
     resolved_published_at = post.published_at
     if post.status == "published" and resolved_published_at is None:
-        resolved_published_at = datetime.now()
+        resolved_published_at = utc_now_naive()
 
     post_kwargs = {
         "title": post.title,
@@ -481,7 +490,7 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
         # 保存旧内容作为版本快照
         old_content = db_post.content_markdown or db_post.content_html
         if old_content:
-            db_post.version_snapshots.insert(0, {"timestamp": datetime.now().isoformat(), "content": old_content})
+            db_post.version_snapshots.insert(0, {"timestamp": utc_now_naive().isoformat(), "content": old_content})
             if len(db_post.version_snapshots) > 5:
                 db_post.version_snapshots.pop()
 
@@ -574,7 +583,7 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
         
         # 如果状态变为已发布，更新发布时间
         if incoming_status == "published" and db_post.published_at is None:
-            db_post.published_at = datetime.now()
+            db_post.published_at = utc_now_naive()
         elif incoming_status is not None and incoming_status != "published" and db_post.published_at is not None:
             db_post.published_at = None # 或者保持不变，取决于具体取消发布的需求
 
@@ -614,7 +623,7 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
                 db_post.formats.append(default_intent)
 
         # 确保 updated_at 设置为当前时间
-        db_post.updated_at = datetime.now()
+        db_post.updated_at = utc_now_naive()
         db.commit()
         db.refresh(db_post)
     return db_post
@@ -630,11 +639,7 @@ def get_posts_by_year_month(
     if month < 1 or month > 12:
         return []
 
-    start = datetime(year, month, 1)
-    if month == 12:
-        end = datetime(year + 1, 1, 1)
-    else:
-        end = datetime(year, month + 1, 1)
+    start, end = site_month_range_utc(year, month)
 
     query = (
         select(Post)
@@ -792,7 +797,7 @@ def bulk_update_posts_status_by_ids(
     if not db_posts:
         return 0
 
-    now = datetime.now()
+    now = utc_now_naive()
     for db_post in db_posts:
         db_post.status = status
         if status == "published":

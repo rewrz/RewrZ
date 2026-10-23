@@ -8,7 +8,7 @@
 {% set summary_text = post | post_summary_text(200) %}
 {% set post_url_value = post | post_url %}
 {% set publish_dt = post.published_at or post.created_at %}
-{% set publish_marker = publish_dt.strftime('%m-%d') %}
+{% set publish_marker = publish_dt | localtime('%m-%d') %}
 
 {% set format_label = '文章' %}
 {% set format_icon = 'fas fa-file-alt' %}
@@ -34,7 +34,7 @@
                     <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ format_badge_class }}">
                         <i class="{{ format_icon }} mr-1"></i>{{ format_label }}
                     </span>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">更新 {{ (post.updated_at or post.published_at or post.created_at).strftime('%Y-%m-%d') }}</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">更新 {{ (post.updated_at or post.published_at or post.created_at) | localtime('%Y-%m-%d') }}</span>
                 </div>
                 {% if post.title and post.title.strip() %}
                 <h3 class="mt-3 text-lg font-semibold text-gray-900 dark:text-white leading-snug">
@@ -130,7 +130,7 @@
                     <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ format_badge_class }}">
                         <i class="{{ format_icon }} mr-1"></i>{{ format_label }}
                     </span>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">更新 {{ (post.updated_at or post.published_at or post.created_at).strftime('%Y-%m-%d') }}</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">更新 {{ (post.updated_at or post.published_at or post.created_at) | localtime('%Y-%m-%d') }}</span>
                 </div>
                 {% if post.title and post.title.strip() %}
                 <h3 class="mt-3 text-lg font-semibold text-gray-900 dark:text-white leading-snug">

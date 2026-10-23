@@ -3,6 +3,7 @@ from sqlalchemy import select, func
 from ..models import Category, Post
 from ..models.post import post_categories
 from ..schemas import CategoryCreate, CategoryUpdate
+from ..core.time_utils import utc_now_naive
 
 def get_category(db: Session, category_id: int):
     return db.execute(select(Category).filter(Category.id == category_id)).scalar_one_or_none()
@@ -26,6 +27,9 @@ def get_published_post_category_counts(db: Session) -> dict[int, int]:
         .where(
             Post.status == "published",
             Post.post_type == "post",
+            Post.visibility == "public",
+            Post.published_at.isnot(None),
+            Post.published_at <= utc_now_naive(),
         )
         .group_by(post_categories.c.category_id)
     ).all()

@@ -15,6 +15,7 @@ from ..crud import api_key as crud_api_key
 from ..core.database import get_db
 from ..core.security import get_client_ip
 from ..schemas.api_key import API_KEY_ACCESS_LEVELS
+from .time_utils import utc_now_naive
 
 
 API_KEY_PREFIX = "rwz"
@@ -143,7 +144,7 @@ async def get_current_external_api_key(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="API Key 已停用")
 
     expires_at = getattr(db_api_key, "expires_at", None)
-    if expires_at is not None and expires_at < datetime.now():
+    if expires_at is not None and expires_at < utc_now_naive():
         write_api_key_audit_log(
             "auth_failed",
             {"reason": "key_expired", "key_prefix": key_prefix, "ip": get_client_ip(request)},

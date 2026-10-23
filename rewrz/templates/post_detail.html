@@ -7,11 +7,12 @@
     {% set _format_for_title = post.formats[0].slug %}
 {% endif %}
 {% set _published_time = post.published_at if post.published_at else post.created_at %}
+{% set _published_local = _published_time | site_time %}
 {% if _title_text %}
     {{ _title_text }}
 {% else %}
-    {% if _published_time %}
-        {% set _fallback_prefix = _published_time.year ~ '年' ~ _published_time.month ~ '月' ~ _published_time.day ~ '日' ~ _published_time.hour ~ '时发布的' %}
+    {% if _published_local %}
+        {% set _fallback_prefix = _published_local.year ~ '年' ~ _published_local.month ~ '月' ~ _published_local.day ~ '日' ~ _published_local.hour ~ '时发布的' %}
     {% else %}
         {% set _fallback_prefix = '未记录发布时间的' %}
     {% endif %}
@@ -59,8 +60,9 @@
 {% set detail_display_title = (post.title or '') | trim %}
 {% if not detail_display_title %}
     {% set _detail_published_time = post.published_at if post.published_at else post.created_at %}
-    {% if _detail_published_time %}
-        {% set _detail_fallback_prefix = _detail_published_time.year ~ '年' ~ _detail_published_time.month ~ '月' ~ _detail_published_time.day ~ '日' ~ _detail_published_time.hour ~ '时发布的' %}
+    {% set _detail_published_local = _detail_published_time | site_time %}
+    {% if _detail_published_local %}
+        {% set _detail_fallback_prefix = _detail_published_local.year ~ '年' ~ _detail_published_local.month ~ '月' ~ _detail_published_local.day ~ '日' ~ _detail_published_local.hour ~ '时发布的' %}
     {% else %}
         {% set _detail_fallback_prefix = '未记录发布时间的' %}
     {% endif %}
@@ -289,7 +291,7 @@
                 
                 <div class="poetry-meta flex items-center justify-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                     <span><i class="far fa-user mr-1"></i>{{ post_author_name }}</span>
-                    <span><i class="far fa-calendar mr-1"></i>{{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}</span>
+                    <span><i class="far fa-calendar mr-1"></i>{{ (post.published_at or post.created_at) | localtime('%Y年%m月%d日') }}</span>
                     <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
                 </div>
             </div>
@@ -385,7 +387,7 @@
                 {% endif %}
 
                 <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                    <span><i class="fas fa-calendar-alt mr-2 text-blue-500"></i>{{ post.published_at.strftime('%Y年%m月%d日') if post.published_at else post.created_at.strftime('%Y年%m月%d日') }}</span>
+                    <span><i class="fas fa-calendar-alt mr-2 text-blue-500"></i>{{ (post.published_at or post.created_at) | localtime('%Y年%m月%d日') }}</span>
                     <span><i class="fas fa-user mr-2 text-green-500"></i>{{ post_author_name }}</span>
                     <span><i class="far fa-eye mr-2 text-indigo-500"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
 

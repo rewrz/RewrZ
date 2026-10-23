@@ -6,7 +6,6 @@ RewrZ 博客系统主应用模块
 """
 import os
 import hashlib
-import secrets
 import threading
 import time
 from io import BytesIO
@@ -71,11 +70,16 @@ from .core.admin_path import get_admin_path
 from .core.request_context import REQUEST_ID_HEADER, ensure_request_id, install_access_log_redaction_filter, redact_url_for_log
 from .core.task_scheduler import default_task_scheduler
 from .core.content_access import (
-    has_hide_blocks,
+    build_post_access_cookie_value,
     get_comment_unlock_cookie_name,
+    get_post_access_cookie_name,
+    has_hide_blocks,
+    has_valid_password_cookie,
     render_markdown_with_hide_blocks,
+    strip_hide_blocks,
 )
 from .core.toc import build_toc_from_html
+from .core.time_utils import utc_now_naive
 from .core.content_utils import get_effective_content_html
 from .core.micro_text import enhance_micro_html
 from .core.content_intents import (
@@ -237,15 +241,6 @@ _ARTICLE_FALLBACK_LOCAL_CACHE: dict[str, tuple[float, tuple[str, ...]]] = {}
 _ARTICLE_FALLBACK_LOCAL_CACHE_LOCK = threading.Lock()
 
 
-def _get_post_access_cookie_name(post_id: int) -> str:
-    return f"post_access_{post_id}"
-
-
-def _build_post_access_cookie_value(post_id: int, hashed_password: str) -> str:
-    payload = f"{post_id}:{hashed_password}:{settings.SECRET_KEY}"
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
-
 def _is_admin_authenticated(request: Request, db: Session) -> bool:
     token = request.cookies.get("access_token")
     if not token:
@@ -264,18 +259,6 @@ def _is_admin_authenticated(request: Request, db: Session) -> bool:
         return is_user_token_payload_valid(db_user, payload)
     except (TypeError, ValueError):
         return False
-
-
-def _has_valid_password_cookie(request: Request, post_obj) -> bool:
-    if not post_obj.password:
-        return False
-
-    cookie_value = request.cookies.get(_get_post_access_cookie_name(post_obj.id))
-    if not cookie_value:
-        return False
-
-    expected = _build_post_access_cookie_value(post_obj.id, post_obj.password)
-    return secrets.compare_digest(cookie_value, expected)
 
 
 def _resolve_format_by_slug(db: Session, format_slug: str):
@@ -334,12 +317,20 @@ def register_admin_routes():
         if db_post is None or db_post.post_type == "page" or (db_post.status != "published" and not is_admin):
             raise HTTPException(status_code=404, detail="Post not found")
 
+        # 发布时间在未来的已发布内容视为定时发布，未到时间仅管理员可预览
+        if (
+            not is_admin
+            and db_post.published_at is not None
+            and db_post.published_at > utc_now_naive()
+        ):
+            raise HTTPException(status_code=404, detail="Post not found")
+
         # 私密内容仅管理员可访问
         if db_post.visibility == "private" and not is_admin:
             raise HTTPException(status_code=404, detail="Post not found")
 
         # 密码保护内容：未通过验证时展示密码输入页
-        if db_post.visibility == "password" and not is_admin and not _has_valid_password_cookie(request, db_post):
+        if db_post.visibility == "password" and not is_admin and not has_valid_password_cookie(request, db_post):
             context = build_base_template_context(request)
             context.update({
                 "post": db_post,
@@ -477,12 +468,20 @@ def register_admin_routes():
             # 如果没有找到页面，检查是否是其他特殊路由
             raise HTTPException(status_code=404, detail="Page not found")
 
+        # 发布时间在未来的已发布页面视为定时发布，未到时间仅管理员可预览
+        if (
+            not is_admin
+            and db_page.published_at is not None
+            and db_page.published_at > utc_now_naive()
+        ):
+            raise HTTPException(status_code=404, detail="Page not found")
+
         # 私密页面仅管理员可访问
         if db_page.visibility == "private" and not is_admin:
             raise HTTPException(status_code=404, detail="Page not found")
 
         # 密码保护页面：未验证则返回密码输入页
-        if db_page.visibility == "password" and not is_admin and not _has_valid_password_cookie(request, db_page):
+        if db_page.visibility == "password" and not is_admin and not has_valid_password_cookie(request, db_page):
             context = build_base_template_context(request)
             context.update({
                 "post": db_page,
@@ -1348,10 +1347,14 @@ def _resolve_article_archive_cover_url(
     if featured_image_url and featured_image_url != "None":
         return featured_image_url
 
-    rendered_html = get_effective_content_html(
-        getattr(post, "content_markdown", ""),
-        getattr(post, "content_html", ""),
-    )
+    raw_markdown = getattr(post, "content_markdown", "") or ""
+    raw_html = getattr(post, "content_html", "") or ""
+    public_markdown = strip_hide_blocks(raw_markdown)
+    if public_markdown != raw_markdown:
+        # 隐藏块内的图片不能作为公开封面
+        rendered_html = get_effective_content_html(public_markdown, "")
+    else:
+        rendered_html = get_effective_content_html(raw_markdown, raw_html)
     content_images = extract_image_urls(rendered_html, featured_image_url=featured_image_url, max_count=1)
     if content_images:
         return content_images[0]
@@ -1621,8 +1624,8 @@ async def unlock_password_protected_post(
 
     response = RedirectResponse(url=safe_next_url, status_code=303)
     response.set_cookie(
-        key=_get_post_access_cookie_name(post_id),
-        value=_build_post_access_cookie_value(post_id, db_post.password),
+        key=get_post_access_cookie_name(post_id),
+        value=build_post_access_cookie_value(post_id, db_post.password),
         httponly=True,
         samesite="lax",
         secure=should_use_secure_cookie(request),

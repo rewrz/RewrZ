@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from ..core.time_utils import utc_now_naive
 from .base import Base
 
 class Comment(Base):
@@ -17,7 +17,7 @@ class Comment(Base):
     user_agent = Column(String, nullable=True)
     status = Column(String, nullable=False, default="pending") # 'approved', 'pending', 'spam'
     is_admin_reply = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime, default=utc_now_naive)
 
     post = relationship("Post", back_populates="comments")
     parent = relationship("Comment", remote_side=[id])

@@ -6,7 +6,7 @@
 2. IP 失败次数统计与封禁判断
 """
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
-from sqlalchemy.sql import func
+from ..core.time_utils import utc_now_naive
 
 from .base import Base
 
@@ -20,4 +20,4 @@ class LoginAttempt(Base):
     user_agent = Column(Text, nullable=True)
     success = Column(Boolean, nullable=False, default=False, index=True)
     reason = Column(String, nullable=True)
-    created_at = Column(DateTime, default=func.now(), nullable=False, index=True)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False, index=True)

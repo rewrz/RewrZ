@@ -82,7 +82,7 @@
             <span class="inline-flex items-center"><i class="fas fa-clock mr-1.5"></i>{{ (post.content_markdown or post.content_html) | reading_time }}</span>
             {% set stats = (post.content_markdown or post.content_html) | reading_stats(post) %}
             <span class="inline-flex items-center"><i class="fas fa-file-alt mr-1.5"></i>{{ stats.word_count or 0 }}字</span>
-            <span class="inline-flex items-center"><i class="fas fa-history mr-1.5"></i>{{ (post.updated_at or post.published_at or post.created_at).strftime('%Y-%m-%d') }}</span>
+            <span class="inline-flex items-center"><i class="fas fa-history mr-1.5"></i>{{ (post.updated_at or post.published_at or post.created_at) | localtime('%Y-%m-%d') }}</span>
         </div>
     </div>
 </article>

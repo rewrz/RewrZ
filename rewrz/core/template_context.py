@@ -3,7 +3,6 @@
 
 提供构建模板渲染所需的通用基础上下文字段，避免在各路由中重复注入。
 """
-from datetime import datetime
 import re
 from fastapi import Request
 from sqlalchemy.orm import Session
@@ -15,6 +14,7 @@ from ..core.content_intents import INTENT_SLUGS, normalize_intent_slug
 from ..core.media_attachments import get_default_media_navigation
 from ..core.security import decode_access_token, is_user_token_payload_valid
 from ..core.url_normalizer import normalize_local_asset_url, normalize_local_asset_url_lines
+from ..core.time_utils import site_now
 from ..api import themes as themes_api
 
 # 主页个性化设置键常量，集中管理，避免魔法字符串分散各处
@@ -138,8 +138,12 @@ def build_base_template_context(request: Request) -> dict:
         setattr(category, "posts_count", published_post_count)
         nav_categories.append(category)
 
-    # 获取所有已发布的自定义页面
-    custom_pages = crud_post.get_posts(db, post_type="page", status="published")
+    # 获取所有公开的已发布自定义页面，私密/密码页面不进入导航
+    custom_pages = [
+        page
+        for page in crud_post.get_posts(db, post_type="page", status="published")
+        if getattr(page, "visibility", "public") == "public"
+    ]
     
     # 获取中间件提供的统一设置数据
     settings = getattr(request.state, "settings", {})
@@ -168,7 +172,7 @@ def build_base_template_context(request: Request) -> dict:
     }
     
     # 构建上下文，优先使用结构化的设置数据，回退到平铺字段（向后兼容）
-    current_year = datetime.now().year
+    current_year = site_now().year
     raw_copyright_info = settings.get("site", {}).get("copyright_info") or getattr(request.state, "copyright_info", DEFAULT_BASE_SETTINGS["copyright_info"])
     rendered_copyright_info = _render_copyright_info(raw_copyright_info, current_year)
 

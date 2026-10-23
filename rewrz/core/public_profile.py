@@ -17,6 +17,7 @@ from ..models import User as UserModel
 from .avatar import get_avatar_service
 from .public_alias import resolve_public_display_name
 from .template_context import DEFAULT_BASE_SETTINGS, DEFAULT_HOMEPAGE_SETTINGS
+from .time_utils import format_site_time
 from .url_normalizer import normalize_local_asset_url, normalize_local_asset_url_lines
 
 
@@ -142,7 +143,7 @@ class DefaultPublicProfileResolver:
             owner_email = str(getattr(owner, "email", "") or "").strip()
             avatar_url = avatar_service.get_avatar_url(owner_email, getattr(owner, "id", None), size=128)
             if getattr(owner, "created_at", None):
-                joined_text = owner.created_at.strftime("%Y-%m")
+                joined_text = format_site_time(owner.created_at, "%Y-%m")
 
         normalized_slug = str(format_slug or "article").strip().lower()
         format_cover_map = {

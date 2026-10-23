@@ -26,7 +26,7 @@ from typing import Optional, Dict, Any
 from ..core.admin_path import get_request_admin_path
 from ..core.config import settings
 from ..core.database import get_db, db_manager
-from ..core.time_utils import utc_now_naive
+from ..core.time_utils import utc_iso, utc_now_naive
 from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..core.data_manager import (
@@ -422,8 +422,8 @@ def _import_job_to_dict(job: ImportJob) -> Dict[str, Any]:
         "type": job.job_type,
         "filename": job.filename,
         "status": job.status,
-        "created_at": job.created_at.isoformat() if job.created_at else None,
-        "updated_at": job.updated_at.isoformat() if job.updated_at else None,
+        "created_at": utc_iso(job.created_at),
+        "updated_at": utc_iso(job.updated_at),
         "progress": progress,
         "result": job.result,
         "error": job.error,

@@ -10,7 +10,6 @@ from fastapi.templating import Jinja2Templates
 from ..core.template_filters import get_templates
 from typing import List, Dict, Any, Optional
 import json
-from datetime import datetime
 from ..core.template_context import (
     DEFAULT_HOMEPAGE_SETTINGS,
     DEFAULT_BASE_SETTINGS,
@@ -18,6 +17,7 @@ from ..core.template_context import (
 )
 from ..core.url_normalizer import normalize_local_asset_url, normalize_local_asset_url_lines
 from ..core.config import get_env_file_path
+from ..core.time_utils import site_now
 import bleach
 import os
 
@@ -92,7 +92,7 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "site_cover_url": get_setting_value("site_cover_url", ""),
         "admin_login_background_image_url": get_setting_value("admin_login_background_image_url", ""),
         "admin_login_background_video_url": get_setting_value("admin_login_background_video_url", ""),
-        "copyright_info": get_setting_value("copyright_info", f"&copy; {datetime.now().year} RewrZ. All rights reserved."),
+        "copyright_info": get_setting_value("copyright_info", f"&copy; {site_now().year} RewrZ. All rights reserved."),
         "custom_footer_text": get_setting_value("custom_footer_text", ""),
         "icp_beian": get_setting_value("icp_beian", ""),
         "gongan_beian": get_setting_value("gongan_beian", ""),
@@ -173,7 +173,7 @@ async def update_admin_settings(
     site_cover_url = _form_text(form, "site_cover_url", "")
     admin_login_background_image_url = _form_text(form, "admin_login_background_image_url", "")
     admin_login_background_video_url = _form_text(form, "admin_login_background_video_url", "")
-    copyright_info = _form_text(form, "copyright_info", f"&copy; {datetime.now().year} RewrZ. All rights reserved.")
+    copyright_info = _form_text(form, "copyright_info", f"&copy; {site_now().year} RewrZ. All rights reserved.")
     custom_footer_text = str(form.get("custom_footer_text", "") or "")
     icp_beian = _form_text(form, "icp_beian", "")
     gongan_beian = _form_text(form, "gongan_beian", "")

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from ..core.time_utils import utc_now_naive
 
 from .base import Base
 
@@ -19,6 +19,6 @@ class ApiKey(Base):
     last_used_ip = Column(String(128), nullable=True)
     notes = Column(Text, nullable=True)
     created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
 
     created_by = relationship("User")

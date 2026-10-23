@@ -22,6 +22,7 @@ chmod +x update.sh
 可用环境变量：
 - `REWRZ_SERVICE`：systemd 服务名，默认 `rewrz.service`
 - `REWRZ_HEALTH_URL`：健康检查入口，默认 `http://127.0.0.1:8000/`
+- `REWRZ_HEALTH_TIMEOUT`：健康检查最长等待秒数，默认 `60`（应用冷启动约 30 秒）
 
 生产依赖保持在 `requirements.txt`；`pytest`、`httpx2` 等测试依赖已移入
 `requirements-dev.txt`，本地跑测试时执行 `pip install -r requirements-dev.txt`。
@@ -31,6 +32,8 @@ chmod +x update.sh
 - 数据库优先使用 `sqlite3 .backup` 在线备份并执行 `PRAGMA integrity_check`；
   无 `sqlite3` 时会先停服务再复制主库与 WAL/SHM
 - 脚本会检测 `.env` 中重复的配置项并提示，但不会自动修复
+- 重启后会等待 systemd 服务进入 active，再对健康检查入口做重试探测；
+  应用冷启动约 30 秒，默认最多等待 60 秒，避免把启动过程误报为健康检查失败
 - 数据库表结构由应用启动时的 `create_all` 自动维护（只建不存在的表），
   不需要也不应当执行 `alembic upgrade head`
 - 手工执行流程见下文，二者保持一致；修改脚本时必须同步本文
@@ -100,6 +103,9 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+`requirements.txt` 中的 `tzdata` 提供 IANA 时区数据库，缺少时
+`SITE_TIMEZONE` 会回落到默认时区，`update.sh` 会在依赖检查阶段直接报错。
+
 ### 3.4 数据库表结构（自动）
 
 不需要手工执行迁移。应用启动时会调用 `create_all` 基于当前模型补齐缺失的表
@@ -127,6 +133,8 @@ sudo systemctl reload nginx
 ```
 
 ## 4. 更新后最小烟测
+
+应用冷启动约需 30 秒，服务刚恢复时探测失败属于正常现象，应重试而非立即判定失败。
 
 至少检查以下项目：
 

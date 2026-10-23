@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_, func, desc, case
+from sqlalchemy import or_, and_, func, desc, case, select
 # 新增：引入正则用于分词
 import re
 from ..core.database import get_db
@@ -24,6 +24,8 @@ from ..crud import tag as crud_tag
 from ..crud import format as crud_format
 from ..crud import setting as crud_setting
 from ..core.template_context import build_base_template_context, HOMEPAGE_SETTING_KEYS
+from ..core.time_utils import utc_iso
+from ..core.content_access import strip_hide_blocks
 from ..core.content_intents import (
     INTENT_SLUGS,
     choose_primary_intent_slug,
@@ -39,6 +41,27 @@ templates = get_templates()
 def _normalize_list_navigation_mode(raw_value: Any) -> str:
     mode = str(raw_value or "pagination").strip().lower()
     return mode if mode in {"pagination", "infinite_scroll"} else "pagination"
+
+
+def _resolve_hidden_block_safe_post_ids(db: Session, tokens: List[str]) -> List[int]:
+    """
+    找出包含 [hide] 块、但所有关键词都能在公开部分命中的文章。
+
+    正文搜索默认只对不含隐藏块的文章生效，这些文章需要单独放行，
+    避免隐藏块内的关键词让文章被搜出来，形成权限内容的存在性泄漏。
+    """
+    rows = db.execute(
+        select(Post.id, Post.content_markdown)
+        .where(*crud_post.get_public_post_conditions())
+        .where(Post.content_markdown.ilike("%[hide]%"))
+    ).all()
+    normalized_tokens = [str(token).lower() for token in tokens]
+    safe_ids: List[int] = []
+    for post_id, content_markdown in rows:
+        public_markdown = strip_hide_blocks(content_markdown or "").lower()
+        if all(token in public_markdown for token in normalized_tokens):
+            safe_ids.append(int(post_id))
+    return safe_ids
 
 
 @router.get("/search", response_class=HTMLResponse)
@@ -176,7 +199,7 @@ async def search_api(
             "title": post.title,
             "slug": post.slug,
             "excerpt": post.excerpt,
-            "published_at": post.published_at.isoformat() if post.published_at else None,
+            "published_at": utc_iso(post.published_at),
             "featured_image_url": post.featured_image_url,
             "url": f"/{to_public_post_segment(primary_intent)}/{post.slug}",
             "categories": [{"name": cat.name, "slug": cat.slug} for cat in post.categories],
@@ -291,16 +314,31 @@ def perform_search(
     if not tokens:
         tokens = [query]
     
-    # 组合搜索条件：要求每个token在任意字段匹配（AND语义），字段包括：标题、摘要、正文
+    # 正文匹配只允许命中公开部分：含 [hide] 块的文章需先在 Python 侧确认公开正文命中
+    hidden_block_safe_ids = _resolve_hidden_block_safe_post_ids(db, tokens)
+    content_visibility_condition = or_(
+        Post.content_markdown.is_(None),
+        ~Post.content_markdown.ilike("%[hide]%"),
+    )
+    if hidden_block_safe_ids:
+        content_visibility_condition = or_(
+            content_visibility_condition,
+            Post.id.in_(hidden_block_safe_ids),
+        )
+
+    # 组合搜索条件：要求每个token在任意字段匹配（AND语义），字段包括：标题、摘要、公开正文
     token_conditions = []
     for tok in tokens:
         like = f"%{tok}%"
+        content_match_condition = and_(
+            content_visibility_condition,
+            or_(Post.content_html.ilike(like), Post.content_markdown.ilike(like)),
+        )
         token_conditions.append(
             or_(
                 Post.title.ilike(like),
                 Post.excerpt.ilike(like),
-                Post.content_html.ilike(like),
-                Post.content_markdown.ilike(like),
+                content_match_condition,
             )
         )
     base_query = base_query.filter(and_(*token_conditions))
@@ -337,8 +375,8 @@ def perform_search(
             part = (
                 case((Post.title.ilike(like), TITLE_W), else_=0) +
                 case((Post.excerpt.ilike(like), EXCERPT_W), else_=0) +
-                case((Post.content_html.ilike(like), CONTENT_W), else_=0) +
-                case((Post.content_markdown.ilike(like), CONTENT_W), else_=0)
+                case((and_(content_visibility_condition, Post.content_html.ilike(like)), CONTENT_W), else_=0) +
+                case((and_(content_visibility_condition, Post.content_markdown.ilike(like)), CONTENT_W), else_=0)
             )
             score_expr = part if score_expr is None else (score_expr + part)
         # 降序按分数、其次按发布时间

@@ -113,7 +113,7 @@
                     <div class="flex justify-between items-center">
                         <div class="text-sm text-gray-700">
                             <strong>{{ comment.author_name }}</strong>
-                            <span class="text-gray-500"> · {{ comment.created_at.strftime('%m-%d %H:%M') if comment.created_at else '-' }}</span>
+                            <span class="text-gray-500"> · {{ comment.created_at | localtime('%m-%d %H:%M') if comment.created_at else '-' }}</span>
                         </div>
                         <div class="text-xs">
                             {% if comment.status == 'pending' %}

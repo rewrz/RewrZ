@@ -84,9 +84,9 @@
                                 {{ item.status }}
                             </span>
                         </td>
-                        <td class="px-3 py-3 text-gray-700">{{ item.last_used_at.strftime('%Y-%m-%d %H:%M:%S') if item.last_used_at else '未使用' }}</td>
+                        <td class="px-3 py-3 text-gray-700">{{ item.last_used_at | localtime('%Y-%m-%d %H:%M:%S') if item.last_used_at else '未使用' }}</td>
                         <td class="px-3 py-3 text-gray-700">{{ item.last_used_ip or '—' }}</td>
-                        <td class="px-3 py-3 text-gray-700">{{ item.expires_at.strftime('%Y-%m-%d %H:%M:%S') if item.expires_at else '不过期' }}</td>
+                        <td class="px-3 py-3 text-gray-700">{{ item.expires_at | localtime('%Y-%m-%d %H:%M:%S') if item.expires_at else '不过期' }}</td>
                         <td class="px-3 py-3">
                             <div class="flex flex-wrap gap-2">
                                 <button type="button" class="admin-secondary-btn rounded-lg px-3 py-1.5 text-xs" onclick="toggleApiKeyStatus({{ item.id }}, '{{ 'disabled' if item.status == 'active' else 'active' }}')">

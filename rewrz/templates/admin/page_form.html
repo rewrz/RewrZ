@@ -208,13 +208,6 @@
             <div class="admin-panel editor-actionbar p-4 md:p-6">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div class="flex flex-wrap items-center gap-2">
-                            <label class="inline-flex items-center gap-2 text-sm">
-                                <span class="text-gray-600">状态</span>
-                                <select name="status" class="px-2.5 py-1.5 border border-gray-300 rounded-md text-sm">
-                                    <option value="draft" {% if post and post.status == "draft" %}selected{% endif %}>草稿</option>
-                                    <option value="published" {% if post and post.status == "published" %}selected{% endif %}>已发布</option>
-                                </select>
-                            </label>
                             <label class="inline-flex items-center gap-2 px-2.5 py-1.5 border border-gray-300 rounded-md text-sm">
                                 <input type="checkbox" name="allow_comments" {% if post is none or post.allow_comments %}checked{% endif %} class="form-checkbox">
                                 <span class="text-gray-700">允许评论</span>
@@ -247,6 +240,7 @@
         <!-- Sidebar -->
         <div id="editor-side-panel" class="xl:col-span-4">
             <div class="admin-panel p-4 md:p-6 space-y-6 xl:sticky xl:top-24">
+                {% include 'admin/components/publish_settings.html' %}
                 <div>
                     <h3 class="text-lg font-semibold mb-2">URL 别名 (Slug)</h3>
                     <input type="text" id="slug-input" name="slug" value="{% if post %}{{ post.slug }}{% endif %}" class="editor-input">

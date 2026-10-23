@@ -29,6 +29,7 @@ from ..crud import category as crud_category
 from ..crud import tag as crud_tag
 from ..crud import format as crud_format
 from ..crud import setting as crud_setting
+from .time_utils import utc_now_naive
 from ..crud import media as crud_media
 from ..crud import user as crud_user
 from ..models import Post, Category, Tag, Format, Media, User, Comment, Setting
@@ -1954,9 +1955,10 @@ class WordPressImporter:
         if wp_status == "private":
             visibility = "private"
 
-        if wp_status in {"publish", "private"}:
+        if wp_status in {"publish", "private", "future"}:
+            # future 保留原定发布时间，导入后由站点按定时发布规则自动上线
             status = "published"
-        elif wp_status in {"draft", "pending", "future", "auto-draft"}:
+        elif wp_status in {"draft", "pending", "auto-draft"}:
             status = "draft"
         else:
             status = "draft"
@@ -2441,7 +2443,7 @@ class RewrZImporter:
                         title=item.get("title") or os.path.splitext(filename)[0],
                         alt_text=item.get("alt_text"),
                         description=item.get("description"),
-                        uploaded_at=self._parse_iso_datetime(item.get("created_at")) or datetime.now(),
+                        uploaded_at=self._parse_iso_datetime(item.get("created_at")) or utc_now_naive(),
                         uploaded_by_id=default_user.id if default_user else None,
                     )
                     self.db.add(db_media)
@@ -2471,7 +2473,7 @@ class RewrZImporter:
 
                 author_email = str(comment_data.get("author_email") or "").strip() or "unknown@example.com"
                 author_name = str(comment_data.get("author_name") or "").strip() or "匿名"
-                created_at = self._parse_iso_datetime(comment_data.get("created_at")) or datetime.now()
+                created_at = self._parse_iso_datetime(comment_data.get("created_at")) or utc_now_naive()
                 status = str(comment_data.get("status") or "pending").strip().lower()
                 if status not in {"approved", "pending", "spam"}:
                     status = "pending"

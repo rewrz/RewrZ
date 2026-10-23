@@ -24,6 +24,7 @@ from ..core.avatar import get_avatar_service
 from ..core.config import settings
 from ..core.database import get_db
 from ..core.media_processor import get_media_processor
+from ..core.time_utils import site_local_to_utc_naive, site_now_naive, utc_iso
 from ..core.thumbnail_service import (
     ThumbnailServiceError,
     build_variant_url,
@@ -223,7 +224,7 @@ async def _store_media_upload(
     if normalized_folder:
         target_dir = (UPLOAD_ROOT / normalized_folder).resolve()
     else:
-        now = datetime.now()
+        now = site_now_naive()
         target_dir = (UPLOAD_ROOT / now.strftime("%Y") / now.strftime("%m")).resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -726,9 +727,11 @@ def _parse_media_filter_date(date_text: Optional[str], *, end_of_day: bool = Fal
         parsed = datetime.strptime(raw, "%Y-%m-%d")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="日期格式不正确，请使用 YYYY-MM-DD") from exc
+    # 后台按站点本地日期筛选，查询时需换算成 UTC 边界
     if end_of_day:
-        return parsed.replace(hour=23, minute=59, second=59, microsecond=999999)
-    return parsed
+        next_day = parsed + timedelta(days=1)
+        return site_local_to_utc_naive(next_day) - timedelta(microseconds=1)
+    return site_local_to_utc_naive(parsed)
 
 
 def _move_media_record_to_folder(db_media: MediaModel, target_folder: str) -> Tuple[str, str]:
@@ -877,7 +880,7 @@ def _collect_duplicate_groups(
                         "title": item.title or "",
                         "url": getattr(item, "url", ""),
                         "folder": getattr(item, "folder", ""),
-                        "uploaded_at": item.uploaded_at.isoformat() if item.uploaded_at else None,
+                        "uploaded_at": utc_iso(item.uploaded_at),
                     }
                     for item in items_sorted
                 ],

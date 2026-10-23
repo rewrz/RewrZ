@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..core.api_keys import ensure_api_key_permission, get_current_external_api_key
 from ..core.database import get_db
+from ..core.time_utils import utc_iso
 from ..crud import category as crud_category
 from ..crud import media as crud_media
 from ..crud import post as crud_post
@@ -66,9 +67,9 @@ def _serialize_post(post_obj: PostModel) -> Dict[str, Any]:
         "content_markdown": str(getattr(post_obj, "content_markdown", "") or ""),
         "content_html": str(getattr(post_obj, "content_html", "") or ""),
         "author_id": int(getattr(post_obj, "author_id", 0) or 0),
-        "created_at": post_obj.created_at.isoformat() if getattr(post_obj, "created_at", None) else None,
-        "published_at": post_obj.published_at.isoformat() if getattr(post_obj, "published_at", None) else None,
-        "updated_at": post_obj.updated_at.isoformat() if getattr(post_obj, "updated_at", None) else None,
+        "created_at": utc_iso(getattr(post_obj, "created_at", None)),
+        "published_at": utc_iso(getattr(post_obj, "published_at", None)),
+        "updated_at": utc_iso(getattr(post_obj, "updated_at", None)),
         "categories": [
             {"id": int(item.id), "name": str(item.name or ""), "slug": str(item.slug or "")}
             for item in (getattr(post_obj, "categories", None) or [])
@@ -94,7 +95,7 @@ def _serialize_media(media_obj: MediaModel) -> Dict[str, Any]:
         "folder": str(getattr(media_obj, "folder", "") or ""),
         "url": str(getattr(media_obj, "url", "") or ""),
         "preview_url": str(getattr(media_obj, "preview_url", "") or ""),
-        "uploaded_at": media_obj.uploaded_at.isoformat() if getattr(media_obj, "uploaded_at", None) else None,
+        "uploaded_at": utc_iso(getattr(media_obj, "uploaded_at", None)),
         "uploaded_by_id": int(getattr(media_obj, "uploaded_by_id", 0) or 0),
     }
 

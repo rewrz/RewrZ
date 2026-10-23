@@ -18,6 +18,7 @@ cd "$SCRIPT_DIR"
 
 SERVICE_NAME="${REWRZ_SERVICE:-rewrz.service}"
 HEALTH_URL="${REWRZ_HEALTH_URL:-http://127.0.0.1:8000/}"
+HEALTH_TIMEOUT="${REWRZ_HEALTH_TIMEOUT:-60}"
 TARGET_REF=""
 DO_BACKUP=true
 
@@ -30,6 +31,10 @@ ok()   { echo -e "${GREEN}[OK]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 info() { echo -e "$1"; }
 fail() { echo -e "${RED}[FAIL]${NC} $1"; exit 1; }
+
+if ! [[ "$HEALTH_TIMEOUT" =~ ^[0-9]+$ ]] || [ "$HEALTH_TIMEOUT" -le 0 ]; then
+    fail "REWRZ_HEALTH_TIMEOUT 必须是正整数秒（当前: $HEALTH_TIMEOUT）"
+fi
 
 for arg in "$@"; do
     case "$arg" in
@@ -170,6 +175,9 @@ echo ">>> 检查 Python 依赖..."
 if ! .venv/bin/python -c "import bcrypt" >/dev/null 2>&1; then
     fail "bcrypt 依赖不可用，请检查 requirements.txt 安装结果"
 fi
+if ! .venv/bin/python -c "from zoneinfo import ZoneInfo; ZoneInfo('Asia/Shanghai')" >/dev/null 2>&1; then
+    fail "tzdata 依赖不可用，时区转换需要它，请检查 requirements.txt 安装结果"
+fi
 ok "依赖已就绪"
 
 # 7. 检查 .env 是否存在重复配置项
@@ -200,8 +208,15 @@ echo ""
 echo ">>> 重启服务..."
 if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
     sudo systemctl restart "$SERVICE_NAME"
-    sleep 2
-    if systemctl is-active --quiet "$SERVICE_NAME"; then
+    SERVICE_ACTIVE=false
+    for _ in {1..10}; do
+        if systemctl is-active --quiet "$SERVICE_NAME"; then
+            SERVICE_ACTIVE=true
+            break
+        fi
+        sleep 1
+    done
+    if [ "$SERVICE_ACTIVE" = true ]; then
         ok "$SERVICE_NAME 已重启"
     else
         fail "$SERVICE_NAME 重启失败，请执行: sudo journalctl -u ${SERVICE_NAME%.service} -n 50"
@@ -225,14 +240,24 @@ if [ "$CHANGED" = true ] && command -v nginx >/dev/null 2>&1; then
     fi
 fi
 
-# 11. 最小烟测
+# 11. 最小烟测（应用冷启动约 30 秒，需重试等待）
 echo ""
-echo ">>> 最小烟测..."
+echo ">>> 最小烟测（最长等待 ${HEALTH_TIMEOUT}s）..."
 if command -v curl >/dev/null 2>&1; then
-    if curl -fsS -o /dev/null -w '%{http_code}' --max-time 10 "$HEALTH_URL" >/dev/null 2>&1; then
+    HEALTH_OK=false
+    HEALTH_DEADLINE=$((SECONDS + HEALTH_TIMEOUT))
+    while [ "$SECONDS" -lt "$HEALTH_DEADLINE" ]; do
+        if curl -fsS -o /dev/null --max-time 10 "$HEALTH_URL" >/dev/null 2>&1; then
+            HEALTH_OK=true
+            break
+        fi
+        sleep 2
+    done
+    if [ "$HEALTH_OK" = true ]; then
         ok "健康检查通过: $HEALTH_URL"
     else
-        warn "健康检查未通过: $HEALTH_URL（可用 REWRZ_HEALTH_URL 指定实际入口）"
+        warn "健康检查在 ${HEALTH_TIMEOUT}s 内未通过: $HEALTH_URL（可用 REWRZ_HEALTH_URL 指定实际入口）"
+        warn "请检查日志: sudo journalctl -u ${SERVICE_NAME%.service} -n 50"
     fi
 else
     warn "未安装 curl，跳过健康检查"

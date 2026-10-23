@@ -48,6 +48,7 @@ class PostUpdate(PostBase):
     tag_ids: Optional[List[int]] = None
     format_ids: Optional[List[int]] = None
     license_type: Optional[str] = None  # 版权协议更新
+    published_at: Optional[datetime] = None  # 发布时间，未来时间表示定时发布
 
 class Post(PostBase):
     id: int

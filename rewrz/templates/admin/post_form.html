@@ -350,13 +350,6 @@
                     <div class="admin-panel editor-actionbar p-4 md:p-6">
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <label class="inline-flex items-center gap-2 text-sm">
-                                        <span class="text-[var(--color-text-light)]">状态</span>
-                                        <select name="status" class="admin-form-field px-2.5 py-1.5 rounded-md text-sm">
-                                            <option value="draft" {% if post and post.status == "draft" %}selected{% endif %}>草稿</option>
-                                            <option value="published" {% if post and post.status == "published" %}selected{% endif %}>已发布</option>
-                                        </select>
-                                    </label>
                                     <label class="inline-flex items-center gap-2 rounded-md border border-[color:var(--ui-border)] px-2.5 py-1.5 text-sm text-[var(--color-text)]">
                                         <input type="checkbox" name="allow_comments" {% if post is none or post.allow_comments %}checked{% endif %} class="admin-form-check form-checkbox">
                                         <span class="text-[var(--color-text)]">允许评论</span>
@@ -389,6 +382,7 @@
                 <!-- Sidebar -->
                 <div id="editor-side-panel">
                     <div class="admin-panel space-y-6 p-4 md:p-6">
+                        {% include 'admin/components/publish_settings.html' %}
                         <div>
                             <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">URL 别名 (Slug)</h3>
                             <input type="text" id="slug-input" name="slug" value="{% if post %}{{ post.slug }}{% endif %}" class="editor-input" placeholder="例如 modern-writing-tips">
@@ -712,6 +706,7 @@
             const selectedFormat = formatInputs.find((item) => item.checked)?.value || '';
             const allowCommentsInput = postForm.querySelector('input[name="allow_comments"]');
             const statusSelect = postForm.querySelector('select[name="status"]');
+            const publishedAtInput = postForm.querySelector('input[name="published_at"]');
             const licenseSelect = postForm.querySelector('select[name="license_type"]');
             const excerptField = postForm.querySelector('textarea[name="excerpt"]');
             const passwordInput = postForm.querySelector('input[name="password"]');
@@ -721,6 +716,7 @@
                 title: titleInput ? titleInput.value : '',
                 slug: slugInput ? slugInput.value : '',
                 status: statusSelect ? statusSelect.value : '',
+                publishedAt: publishedAtInput ? publishedAtInput.value : '',
                 allowComments: Boolean(allowCommentsInput?.checked),
                 licenseType: licenseSelect ? licenseSelect.value : '',
                 visibility: visibilitySelect ? visibilitySelect.value : '',

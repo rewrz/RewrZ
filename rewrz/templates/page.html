@@ -73,7 +73,7 @@
                     <div class="page-meta-list mt-5">
                         <span class="page-meta-item">
                             <i class="fas fa-calendar-alt"></i>
-                            {{ (post.published_at if post.published_at else post.created_at).strftime('%Y年%m月%d日') if (post.published_at or post.created_at) else '-' }}
+                            {{ (post.published_at or post.created_at) | localtime('%Y年%m月%d日') if (post.published_at or post.created_at) else '-' }}
                         </span>
                         <span class="page-meta-item">
                             <i class="far fa-eye"></i>
@@ -82,7 +82,7 @@
                         {% if post.updated_at and post.created_at and post.updated_at != post.created_at %}
                         <span class="page-meta-item">
                             <i class="fas fa-sync"></i>
-                            {{ post.updated_at.strftime('%Y年%m月%d日') }}
+                            {{ post.updated_at | localtime('%Y年%m月%d日') }}
                         </span>
                         {% endif %}
                     </div>

@@ -3,15 +3,20 @@
 
 集中处理以下能力：
 1. [hide]...[/hide] 评论后可见内容解析与渲染
-2. 评论解锁 Cookie 命名约定
+2. 评论解锁 Cookie 与密码保护 Cookie 的命名与校验
+3. 内容公开可访问性判定（发布状态、私密、密码）
 """
 
 from __future__ import annotations
 
+import hashlib
 import re
+import secrets
 from typing import Optional
 
+from .config import settings
 from .content_utils import render_markdown_html
+from .time_utils import utc_now_naive
 
 
 HIDE_BLOCK_RE = re.compile(r"\[hide\](.*?)\[/hide\]", re.IGNORECASE | re.DOTALL)
@@ -19,6 +24,53 @@ HIDE_BLOCK_RE = re.compile(r"\[hide\](.*?)\[/hide\]", re.IGNORECASE | re.DOTALL)
 
 def get_comment_unlock_cookie_name(post_id: int) -> str:
     return f"commented_post_{post_id}"
+
+
+def get_post_access_cookie_name(post_id: int) -> str:
+    return f"post_access_{post_id}"
+
+
+def build_post_access_cookie_value(post_id: int, hashed_password: str) -> str:
+    payload = f"{post_id}:{hashed_password}:{settings.SECRET_KEY}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def has_valid_password_cookie(request, post_obj) -> bool:
+    """校验访客是否已通过密码保护内容的访问密码。"""
+    if post_obj is None or not getattr(post_obj, "password", None):
+        return False
+
+    cookie_value = request.cookies.get(get_post_access_cookie_name(post_obj.id))
+    if not cookie_value:
+        return False
+
+    expected = build_post_access_cookie_value(post_obj.id, post_obj.password)
+    return secrets.compare_digest(cookie_value, expected)
+
+
+def is_publicly_accessible(request, post_obj, *, is_admin: bool = False) -> bool:
+    """
+    判断当前访客能否访问该内容的公开部分。
+
+    私密内容仅管理员可访问；密码内容需已通过密码校验；未发布内容一律不可访问。
+    """
+    if post_obj is None:
+        return False
+    if is_admin:
+        return True
+    if str(getattr(post_obj, "status", "") or "") != "published":
+        return False
+    published_at = getattr(post_obj, "published_at", None)
+    if not published_at or published_at > utc_now_naive():
+        # 发布时间为空或位于未来时视为尚未上线（未来时间即定时发布）
+        return False
+
+    visibility = str(getattr(post_obj, "visibility", "public") or "public").strip().lower()
+    if visibility == "private":
+        return False
+    if visibility == "password":
+        return has_valid_password_cookie(request, post_obj)
+    return True
 
 
 def has_hide_blocks(content_markdown: Optional[str]) -> bool:

@@ -1,7 +1,7 @@
 {% if posts %}
     {% set posts_by_year = {} %}
     {% for post in posts %}
-        {% set year = post.published_at.strftime('%Y') %}
+        {% set year = post.published_at | localtime('%Y') %}
         {% if year not in posts_by_year %}
             {% set _ = posts_by_year.update({year: []}) %}
         {% endif %}
@@ -36,7 +36,7 @@
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-4 flex-1">
                         <div class="text-sm text-gray-500 dark:text-gray-400 font-mono min-w-[5rem]">
-                            {{ post.published_at.strftime('%m-%d') }}
+                            {{ post.published_at | localtime('%m-%d') }}
                         </div>
 
                         {% if post.formats %}

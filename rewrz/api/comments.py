@@ -13,7 +13,13 @@ from ..crud import post as crud_post
 from ..crud import setting as crud_setting
 from ..crud import user as crud_user
 from ..schemas import CommentCreate, Comment, User
-from ..core.security import get_current_user, verify_csrf_token, decode_access_token, should_use_secure_cookie
+from ..core.security import (
+    decode_access_token,
+    get_current_user,
+    is_user_token_payload_valid,
+    should_use_secure_cookie,
+    verify_csrf_token,
+)
 from pydantic import BaseModel
 from typing import List, Optional
 from markdown import markdown
@@ -24,7 +30,7 @@ from ..core.comment_security import (
     sanitize_comment_content,
 )
 from ..core.template_filters import get_templates # 导入模板函数
-from ..core.content_access import extract_hide_block, get_comment_unlock_cookie_name
+from ..core.content_access import extract_hide_block, get_comment_unlock_cookie_name, is_publicly_accessible
 from ..core.admin_security import check_comment_rate_limit, get_admin_email, get_client_ip
 from ..core.notification_email import send_new_comment_notification
 from ..core.ip_geo import lookup_ip_locations
@@ -58,7 +64,13 @@ def _resolve_optional_user(request: Request, db: Session):
     except (TypeError, ValueError):
         return None
 
-    return crud_user.get_user(db, user_id=user_id)
+    db_user = crud_user.get_user(db, user_id=user_id)
+    return db_user if is_user_token_payload_valid(db_user, payload) else None
+
+
+def _is_admin_request(request: Request, db: Session) -> bool:
+    db_user = _resolve_optional_user(request, db)
+    return str(getattr(db_user, "role", "") or "").strip().lower() in {"admin", "super_admin"}
 
 
 def _resolve_public_display_name(user_obj) -> str:
@@ -287,6 +299,10 @@ async def reveal_hidden_content(
     if db_post is None:
         raise HTTPException(status_code=404, detail="文章不存在")
 
+    # 未发布、私密或密码未解锁的内容，不允许绕过详情页直接揭示隐藏块
+    if not is_publicly_accessible(request, db_post, is_admin=_is_admin_request(request, db)):
+        raise HTTPException(status_code=404, detail="文章不存在")
+
     unlock_cookie_name = get_comment_unlock_cookie_name(post_id)
     if request.cookies.get(unlock_cookie_name) != "true":
         return HTMLResponse(
@@ -399,6 +415,10 @@ async def get_inline_comment_embed(request: Request, post_id: int, db: Session =
         raise HTTPException(status_code=404, detail="文章不存在")
 
     if db_post.status != "published" or db_post.published_at is None:
+        raise HTTPException(status_code=404, detail="文章不存在")
+
+    # 私密或密码未解锁内容不对外展示评论区
+    if not is_publicly_accessible(request, db_post, is_admin=_is_admin_request(request, db)):
         raise HTTPException(status_code=404, detail="文章不存在")
 
     anti_spam = get_anti_spam_engine(db)

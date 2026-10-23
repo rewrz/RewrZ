@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, JSON, Table
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from ..core.time_utils import utc_now_naive
 from .base import Base
 from .category import Category
 from .tag import Tag
@@ -49,9 +49,9 @@ class Post(Base):
     allow_comments = Column(Boolean, default=True)
     license_type = Column(String, default="cc_by_nc_sa_4") # 版权协议类型
     version_snapshots = Column(JSON, default=[])
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime, default=utc_now_naive)
     published_at = Column(DateTime, nullable=True)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
     author_id = Column(Integer, ForeignKey("users.id"))
 
     author = relationship("User")

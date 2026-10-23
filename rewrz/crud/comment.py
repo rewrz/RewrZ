@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func, delete, update
 from ..models import Comment
 from ..schemas import CommentCreate
-from datetime import datetime
+from ..core.time_utils import utc_now_naive
 from typing import Iterable, List
 
 
@@ -93,7 +93,7 @@ def create_comment(db: Session, comment: CommentCreate, ip_address: str = "", us
         ip_address=resolved_ip,
         user_agent=resolved_user_agent,
         status=comment.status,  # 使用传入的状态
-        created_at=datetime.now()
+        created_at=utc_now_naive()
     )
     db.add(db_comment)
     db.commit()

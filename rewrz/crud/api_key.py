@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..models import ApiKey
 from ..schemas import ApiKeyCreate, ApiKeyUpdate
+from ..core.time_utils import utc_now_naive
 
 
 def get_api_key(db: Session, api_key_id: int) -> Optional[ApiKey]:
@@ -103,7 +104,7 @@ def touch_api_key_usage(db: Session, api_key_id: int, *, used_ip: str) -> Option
     db_api_key = get_api_key(db, api_key_id)
     if db_api_key is None:
         return None
-    db_api_key.last_used_at = datetime.now()
+    db_api_key.last_used_at = utc_now_naive()
     db_api_key.last_used_ip = (used_ip or "").strip()[:128] or None
     db.commit()
     db.refresh(db_api_key)

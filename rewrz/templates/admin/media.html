@@ -339,7 +339,7 @@
                  data-title="{{ media.title or media.filename }}"
                  data-filename="{{ media.filename }}"
                  data-file-type="{{ media.file_type }}"
-                 data-upload-date="{{ media.uploaded_at.strftime('%Y-%m-%d') }}"
+                 data-upload-date="{{ media.uploaded_at | localtime('%Y-%m-%d') }}"
                  data-folder="{{ media.folder or '' }}"
                  data-file-size="{{ media.file_size or 0 }}">
                 <div class="media-checkbox-wrap absolute top-2 left-2 z-10">
@@ -368,7 +368,7 @@
                     <p class="media-filename-line" title="{{ media.filename }}">{{ media.filename }}</p>
                     <p class="media-folder-chip text-xs text-gray-500 dark:text-gray-400 truncate">{{ media.folder or '根目录' }}</p>
                     <div class="media-detail-line">
-                        <span class="media-date-line text-xs text-gray-500 dark:text-gray-400">{{ media.uploaded_at.strftime('%Y-%m-%d') }}</span>
+                        <span class="media-date-line text-xs text-gray-500 dark:text-gray-400">{{ media.uploaded_at | localtime('%Y-%m-%d') }}</span>
                         <span class="media-size-line text-xs text-gray-500 dark:text-gray-400">{{ media.file_size or 0 }} B</span>
                     </div>
                 </div>

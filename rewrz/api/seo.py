@@ -24,6 +24,8 @@ from ..crud import setting as crud_setting
 from ..schemas import User
 from ..core.template_context import DEFAULT_BASE_SETTINGS
 from ..core.content_intents import choose_primary_intent_slug, to_public_post_segment
+from ..core.content_access import strip_hide_blocks
+from ..core.time_utils import format_site_time, utc_iso, utc_now_naive
 from ..core.public_alias import resolve_public_display_name
 
 router = APIRouter()
@@ -61,7 +63,7 @@ async def generate_sitemap(request: Request, db: Session = Depends(get_db)):
         format_slugs = [fmt.slug for fmt in post.formats if getattr(fmt, "slug", None)] if post.formats else []
         primary_intent = choose_primary_intent_slug(format_slugs)
         post_url = urljoin(base_url, f"/{to_public_post_segment(primary_intent)}/{post.slug}")
-        last_mod = post.updated_at.strftime("%Y-%m-%d") if post.updated_at else None
+        last_mod = format_site_time(post.updated_at, "%Y-%m-%d") if post.updated_at else None
         _add_url_to_sitemap(urlset, post_url, lastmod=last_mod, changefreq="weekly", priority="0.8")
     
     # 添加分类页面
@@ -155,7 +157,14 @@ async def get_post_meta_tags(post_slug: str, request: Request, db: Session = Dep
     """
     # 获取文章信息
     db_post = crud_post.get_post_by_slug(db, slug=post_slug)
-    if db_post is None or db_post.status != "published":
+    # 私密/密码/定时未到内容不对外输出 SEO 元数据，避免标题、摘要、封面等字段通过公开接口泄漏
+    if (
+        db_post is None
+        or db_post.status != "published"
+        or db_post.published_at is None
+        or db_post.published_at > utc_now_naive()
+        or str(db_post.visibility or "public") != "public"
+    ):
         raise HTTPException(status_code=404, detail="Post not found")
     
     return _generate_post_seo_data(db_post, request, db)
@@ -376,14 +385,17 @@ def _generate_post_seo_data(db_post, request, db: Session) -> Dict:
     post_url = urljoin(base_url, f"/{to_public_post_segment(primary_intent)}/{db_post.slug}")
     
     # 生成SEO元数据
+    # 评论后可见块不能进入 meta description，否则搜索引擎摘要会泄漏隐藏内容
+    public_markdown = strip_hide_blocks(db_post.content_markdown or "")
+    public_excerpt = strip_hide_blocks(db_post.excerpt or "")
     meta_data = {
         "title": f"{db_post.title} - {site_title}",
-        "description": db_post.excerpt or _extract_description_from_content(db_post.content_markdown),
+        "description": public_excerpt or _extract_description_from_content(public_markdown),
         "url": post_url,
         "image": db_post.featured_image_url,
         "type": "article",
-        "published_time": db_post.published_at.isoformat() if db_post.published_at else None,
-        "modified_time": db_post.updated_at.isoformat() if db_post.updated_at else None,
+        "published_time": utc_iso(db_post.published_at),
+        "modified_time": utc_iso(db_post.updated_at),
         "author": (
             resolve_public_display_name(
                 getattr(db_post.author, "display_name", None),

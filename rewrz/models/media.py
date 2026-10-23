@@ -1,6 +1,6 @@
 from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from ..core.time_utils import utc_now_naive
 from .base import Base
 
 class Media(Base):
@@ -29,7 +29,7 @@ class Media(Base):
     title = Column(String, nullable=True)
     alt_text = Column(String, nullable=True)
     description = Column(Text, nullable=True)
-    uploaded_at = Column(DateTime, default=func.now())
+    uploaded_at = Column(DateTime, default=utc_now_naive)
     uploaded_by_id = Column(Integer, ForeignKey("users.id"))
 
     uploaded_by = relationship("User")

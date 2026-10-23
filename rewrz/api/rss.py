@@ -19,7 +19,9 @@ from ..crud import post as crud_post
 from ..crud import category as crud_category
 from ..crud import tag as crud_tag
 from ..crud import format as crud_format
+from ..core.content_access import strip_hide_blocks
 from ..core.content_utils import get_effective_content_html, get_effective_plain_text
+from ..core.time_utils import as_utc, utc_iso
 from ..crud import setting as crud_setting
 from ..models import Post
 from ..core.template_context import DEFAULT_BASE_SETTINGS
@@ -240,27 +242,53 @@ def get_filtered_posts(
     limit: int = 20
 ) -> List[Post]:
     """获取筛选后的文章列表"""
-    # 获取已发布的文章
-    posts = crud_post.get_posts(
+    # 筛选条件必须下沉到查询，否则最新 N 篇之外的分类/标签/格式会得到空订阅源
+    if category:
+        return crud_post.get_posts_by_category(db, category_id=category.id, limit=limit)
+    if tag:
+        return crud_post.get_posts_by_tag(db, tag_id=tag.id, limit=limit)
+    if format_obj:
+        return crud_post.get_posts_by_format(db, format_id=format_obj.id, limit=limit)
+    return crud_post.get_posts(
         db,
         skip=0,
         limit=limit,
         status="published",
         post_type="post",
     )
-    
-    # 应用筛选条件
-    filtered_posts = []
-    for post in posts:
-        if category and category not in post.categories:
-            continue
-        if tag and tag not in post.tags:
-            continue
-        if format_obj and format_obj not in post.formats:
-            continue
-        filtered_posts.append(post)
-    
-    return filtered_posts[:limit]
+
+def _resolve_public_excerpt(post: Post, fallback_text: str) -> str:
+    """RSS 摘要：剔除手写摘要中的评论后可见块，再回退到公开正文。"""
+    excerpt = strip_hide_blocks(post.excerpt or "").strip()
+    return excerpt or fallback_text
+
+
+def _build_entry_title(post: Post, fallback_text: str) -> str:
+    """RSS 条目标题：无标题内容用摘要兜底，避免订阅器出现空白标题。"""
+    title = (post.title or "").strip()
+    if title:
+        return title
+    candidate = _resolve_public_excerpt(post, fallback_text)
+    candidate = " ".join(candidate.split())
+    return candidate[:100] if candidate else "无标题"
+
+
+def _resolve_public_content(post: Post) -> tuple[str, str]:
+    """返回可公开分发的正文 HTML 与纯文本，剔除评论后可见块。"""
+    raw_markdown = post.content_markdown or ""
+    raw_html = post.content_html or ""
+    public_markdown = strip_hide_blocks(raw_markdown)
+    if public_markdown != raw_markdown:
+        # 存在 [hide] 块时只使用清洗后的 Markdown，避免回退到含隐藏内容的 HTML
+        return (
+            get_effective_content_html(public_markdown, ""),
+            get_effective_plain_text(public_markdown, ""),
+        )
+    return (
+        get_effective_content_html(raw_markdown, raw_html),
+        get_effective_plain_text(raw_markdown, raw_html),
+    )
+
 
 def generate_rss_xml(title: str, description: str, link: str, posts: List[Post], site_info: dict) -> str:
     """生成RSS 2.0 XML"""
@@ -287,15 +315,17 @@ def generate_rss_xml(title: str, description: str, link: str, posts: List[Post],
         primary_intent = choose_primary_intent_slug(format_slugs)
         post_url = f'{site_info["base_url"]}/{to_public_post_segment(primary_intent)}/{post.slug}'
         pub_date = post.published_at or post.created_at
-        fallback_excerpt = get_effective_plain_text(post.content_markdown, post.content_html)[:500]
+        _, public_text = _resolve_public_content(post)
+        fallback_excerpt = public_text[:500]
+        entry_title = _build_entry_title(post, fallback_excerpt)
         
         xml_lines.extend([
             '<item>',
-            f'<title>{html.escape(post.title)}</title>',
+            f'<title>{html.escape(entry_title)}</title>',
             f'<link>{html.escape(post_url)}</link>',
-            f'<description>{html.escape(post.excerpt or fallback_excerpt)}</description>',
+            f'<description>{html.escape(_resolve_public_excerpt(post, fallback_excerpt))}</description>',
             f'<guid isPermaLink="true">{html.escape(post_url)}</guid>',
-            f'<pubDate>{pub_date.strftime("%a, %d %b %Y %H:%M:%S %z")}</pubDate>',
+            f'<pubDate>{as_utc(pub_date).strftime("%a, %d %b %Y %H:%M:%S %z")}</pubDate>',
         ])
         
         # 添加分类信息
@@ -322,7 +352,7 @@ def generate_atom_xml(title: str, subtitle: str, link: str, posts: List[Post], s
         f'<subtitle>{html.escape(subtitle)}</subtitle>',
         f'<link href="{html.escape(link)}" />',
         f'<link href="{site_info["base_url"]}/atom.xml" rel="self" />',
-        f'<updated>{now.isoformat()}</updated>',
+        f'<updated>{utc_iso(now)}</updated>',
         f'<id>{site_info["base_url"]}/</id>',
         '<author>',
         f'<name>{html.escape(title)}</name>',
@@ -337,17 +367,18 @@ def generate_atom_xml(title: str, subtitle: str, link: str, posts: List[Post], s
         primary_intent = choose_primary_intent_slug(format_slugs)
         post_url = f'{site_info["base_url"]}/{to_public_post_segment(primary_intent)}/{post.slug}'
         pub_date = post.published_at or post.created_at
-        rendered_html = get_effective_content_html(post.content_markdown, post.content_html)
-        fallback_excerpt = get_effective_plain_text(post.content_markdown, post.content_html)[:500]
+        public_html, public_text = _resolve_public_content(post)
+        fallback_excerpt = public_text[:500]
+        entry_title = _build_entry_title(post, fallback_excerpt)
         
         xml_lines.extend([
             '<entry>',
-            f'<title>{html.escape(post.title)}</title>',
+            f'<title>{html.escape(entry_title)}</title>',
             f'<link href="{html.escape(post_url)}" />',
             f'<id>{html.escape(post_url)}</id>',
-            f'<updated>{pub_date.isoformat()}</updated>',
-            f'<summary>{html.escape(post.excerpt or fallback_excerpt)}</summary>',
-            f'<content type="html">{html.escape(rendered_html)}</content>',
+            f'<updated>{utc_iso(pub_date)}</updated>',
+            f'<summary>{html.escape(_resolve_public_excerpt(post, fallback_excerpt))}</summary>',
+            f'<content type="html">{html.escape(public_html)}</content>',
         ])
         
         # 添加分类信息

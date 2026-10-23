@@ -16,6 +16,7 @@ import difflib
 from ..core.database import get_db
 from ..core.security import get_current_user
 from ..core.template_filters import get_templates
+from ..core.time_utils import as_utc, format_site_time, utc_now, utc_now_naive
 from ..crud import post as crud_post
 from ..schemas import User, Post
 from fastapi.templating import Jinja2Templates
@@ -187,7 +188,7 @@ async def restore_snapshot(
     # 保存当前内容作为新快照（在恢复之前）
     current_content = db_post.content_markdown
     current_snapshot = {
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": utc_now_naive().isoformat(),
         "content": current_content,
         "restore_point": True  # 标记这是恢复操作前的保存点
     }
@@ -366,7 +367,7 @@ def _format_timestamp(timestamp_str: str) -> str:
     try:
         # 解析ISO格式时间戳
         dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-        return dt.strftime('%Y年%m月%d日 %H:%M:%S')
+        return format_site_time(dt, '%Y年%m月%d日 %H:%M:%S')
     except (ValueError, AttributeError):
         return timestamp_str
 
@@ -377,16 +378,8 @@ def _get_relative_time(timestamp_str: str) -> str:
     
     try:
         dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-        now = datetime.now()
-        
-        # 计算时间差
-        if dt.tzinfo:
-            # 如果时间戳带时区信息，需要转换为本地时间
-            import pytz
-            local_tz = pytz.timezone('Asia/Shanghai')  # 或使用系统时区
-            dt = dt.astimezone(local_tz).replace(tzinfo=None)
-        
-        diff = now - dt
+        # 数据库时间戳统一按 UTC 解释，差值计算也用 UTC，避免服务器本地时区干扰
+        diff = utc_now() - as_utc(dt)
         
         if diff.days > 0:
             return f"{diff.days}天前"

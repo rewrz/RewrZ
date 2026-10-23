@@ -20,6 +20,7 @@ from ..models.tag import Tag
 from ..models.category import Category
 from .database import get_db
 from ..crud import setting as setting_crud
+from ..crud.post import get_public_post_conditions
 
 
 class BlogEnhancementEngine:
@@ -242,8 +243,7 @@ class BlogEnhancementEngine:
                     related_posts = db.execute(
                         select(Post)
                         .filter(Post.id.in_(post_ids))
-                        .filter(Post.status == "published")
-                        .filter(Post.post_type == "post")
+                        .filter(*get_public_post_conditions())
                     ).scalars().all()
                     # 按缓存中的顺序排序
                     post_map = {post.id: post for post in related_posts}
@@ -259,12 +259,9 @@ class BlogEnhancementEngine:
                 select(Post)
                 .join(Post.tags)
                 .filter(
-                    and_(
-                        Tag.id.in_(tag_ids),
-                        Post.id != current_post.id,
-                        Post.status == "published",
-                        Post.post_type == "post",
-                    )
+                    Tag.id.in_(tag_ids),
+                    Post.id != current_post.id,
+                    *get_public_post_conditions(),
                 )
                 .limit(max(limit * strategy_multiplier, limit))
             ).scalars().all()
@@ -277,12 +274,9 @@ class BlogEnhancementEngine:
                 select(Post)
                 .join(Post.categories)
                 .filter(
-                    and_(
-                        Category.id.in_(category_ids),
-                        Post.id != current_post.id,
-                        Post.status == "published",
-                        Post.post_type == "post",
-                    )
+                    Category.id.in_(category_ids),
+                    Post.id != current_post.id,
+                    *get_public_post_conditions(),
                 )
                 .limit(max(limit * strategy_multiplier, limit))
             ).scalars().all()
@@ -301,12 +295,9 @@ class BlogEnhancementEngine:
                 select(Post)
                 .join(Post.formats)
                 .filter(
-                    and_(
-                        Format.id.in_(format_ids),
-                        Post.id != current_post.id,
-                        Post.status == "published",
-                        Post.post_type == "post",
-                    )
+                    Format.id.in_(format_ids),
+                    Post.id != current_post.id,
+                    *get_public_post_conditions(),
                 )
                 .limit(max(limit * strategy_multiplier, limit))
             ).scalars().all()
@@ -321,11 +312,8 @@ class BlogEnhancementEngine:
             recent_posts = db.execute(
                 select(Post)
                 .filter(
-                    and_(
-                        Post.id != current_post.id,
-                        Post.status == "published",
-                        Post.post_type == "post",
-                    )
+                    Post.id != current_post.id,
+                    *get_public_post_conditions(),
                 )
                 .order_by(Post.published_at.desc())
                 .limit(max(limit * strategy_multiplier, limit))

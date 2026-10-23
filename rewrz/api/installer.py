@@ -12,7 +12,6 @@
 import os
 import re
 import secrets
-from datetime import datetime
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -38,6 +37,7 @@ from ..schemas import (
     PostCreate,
 )
 from ..core.config import get_env_file_path, settings
+from ..core.time_utils import utc_now_naive
 from ..core.default_content import (
     DEFAULT_CATEGORIES,
     DEFAULT_TAGS,
@@ -725,6 +725,9 @@ ADMIN_PATH="{admin_path}"
 # 媒体上传目录
 MEDIA_UPLOAD_DIR="media_uploads"
 
+# 站点展示时区（IANA 名称，数据库统一存储 UTC）
+SITE_TIMEZONE="Asia/Shanghai"
+
 # 会话过期时间（分钟，默认 1 天）
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
@@ -770,7 +773,7 @@ INSTALLATION_COMPLETE="true"
             # 记录安装时间
             install_time_setting = SettingCreate(
                 key="installation_time",
-                value={"value": str(datetime.now())},
+                value={"value": utc_now_naive().isoformat()},
                 description="安装完成时间",
                 category="system",
                 type="datetime"
@@ -838,6 +841,8 @@ SECRET_KEY="{secret_key}"
 DATABASE_URL="sqlite:///{database_path}"
 ADMIN_PATH="{admin_path}"
 MEDIA_UPLOAD_DIR="media_uploads"
+# 站点展示时区（IANA 名称，数据库统一存储 UTC）
+SITE_TIMEZONE="Asia/Shanghai"
 '''
         env_path = Path(get_env_file_path())
         _write_private_env_file(env_path, env_content.strip())

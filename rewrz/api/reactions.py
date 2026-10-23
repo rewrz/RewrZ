@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..core.security import should_use_secure_cookie
+from ..core.time_utils import utc_now_naive
 from ..crud import reaction as crud_reaction
 from ..models import Comment, Post
 
@@ -56,6 +57,8 @@ def _validate_target_exists(db: Session, target_type: str, target_id: int) -> No
                 Post.id == int(target_id),
                 Post.status == "published",
                 Post.published_at.isnot(None),
+                Post.published_at <= utc_now_naive(),
+                Post.visibility == "public",
             )
         ).scalar_one_or_none()
         if exists is None:

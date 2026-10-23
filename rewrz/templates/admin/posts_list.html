@@ -248,7 +248,7 @@
                         {{ post.comment_count if post.comment_count is defined else 0 }}
                     </td>
                     <td class="px-4 py-4 align-top text-sm text-[var(--color-text-light)]">
-                        {{ (post.published_at or post.created_at).strftime('%Y-%m-%d %H:%M') if (post.published_at or post.created_at) else '-' }}
+                        {{ (post.published_at or post.created_at) | localtime('%Y-%m-%d %H:%M') if (post.published_at or post.created_at) else '-' }}
                     </td>
                     <td class="px-4 py-4 align-top text-sm text-[var(--color-text-light)]">
                         {{ post.views if post.views else 0 }}

@@ -189,7 +189,7 @@
                         {{ page.comment_count if page.comment_count is defined else 0 }}
                     </td>
                     <td class="px-4 py-4 align-top text-sm text-[var(--color-text-light)]">
-                        {{ (page.updated_at or page.created_at).strftime('%Y-%m-%d %H:%M') if (page.updated_at or page.created_at) else '-' }}
+                        {{ (page.updated_at or page.created_at) | localtime('%Y-%m-%d %H:%M') if (page.updated_at or page.created_at) else '-' }}
                     </td>
                     <td class="px-4 py-4 align-top text-sm text-[var(--color-text-light)]">
                         {{ page.views if page.views else 0 }}

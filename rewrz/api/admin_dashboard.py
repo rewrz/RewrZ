@@ -13,6 +13,7 @@ from ..core.config import settings
 from ..core.database import get_db
 from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
+from ..core.time_utils import site_now
 from ..crud import category as crud_category
 from ..crud import comment as crud_comment
 from ..crud import post as crud_post
@@ -212,7 +213,7 @@ async def create_quick_draft(
 ):
     verify_csrf_token(request, csrf_token)
 
-    normalized_title = (title or "").strip() or f"快速草稿 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    normalized_title = (title or "").strip() or f"快速草稿 {site_now().strftime('%Y-%m-%d %H:%M')}"
     normalized_content = (content or "").strip() or "快速草稿内容..."
 
     post_create = PostCreate(

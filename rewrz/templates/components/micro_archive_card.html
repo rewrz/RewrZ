@@ -1,5 +1,5 @@
 {% set template_db = db if db is defined and db else request.state.db %}
-{% set rendered_html = post | post_content_html(template_db) %}
+{% set rendered_html = post | post_public_content_html(template_db) %}
 {% set rendered_text_html = rendered_html | strip_media_nodes %}
 {% set media_assets = (rendered_html | extract_media_assets(post.featured_image_url)) if rendered_html else {'images': [], 'videos': [], 'audio': []} %}
 {% set content_images = media_assets.images if media_assets.images is defined else [] %}

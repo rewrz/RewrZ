@@ -16,6 +16,7 @@ from ..schemas import Post, PostCreate, PostUpdate, User, PostBatchUpdate, Forma
 from ..core.content_intents import INTENT_SLUGS, INTENT_NAME_MAP, to_public_post_segment
 from ..core.content_utils import render_markdown_html
 from ..core.micro_text import enhance_micro_html, extract_micro_tags, strip_micro_tags
+from ..core.time_utils import site_local_to_utc_naive, utc_iso
 from . import media as media_api
 
 router = APIRouter()
@@ -30,6 +31,18 @@ def _get_content_primary_mode(db: Session) -> str:
         if mode in {"markdown", "html"}:
             return mode
     return "markdown"
+
+
+def _parse_published_at_input(raw_value: Optional[str]) -> Optional[datetime]:
+    """解析后台发布时间输入（站点本地时间），转换为数据库使用的 UTC。"""
+    text = str(raw_value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="发布时间格式不正确")
+    return site_local_to_utc_naive(parsed)
 
 
 def _get_or_create_intent_formats(db: Session):
@@ -297,7 +310,7 @@ async def create_public_quick_micro_post(
         "success": True,
         "id": created.id,
         "post_url": f"/{to_public_post_segment('micro')}/{created.slug}",
-        "published_at": created_time.isoformat() if created_time else "",
+        "published_at": utc_iso(created_time),
         "media_count": len(parsed_media_items),
     }
 
@@ -341,6 +354,7 @@ async def new_post_page(request: Request, db: Session = Depends(get_db), current
         "categories": categories,
         "formats": formats,
         "content_primary_mode": content_primary_mode,
+        "site_timezone": settings.SITE_TIMEZONE,
         "post": None, # 新建文章时没有post对象
         "post_type": "post", # 明确指定为文章类型
         "media_upload_dir_name": settings.MEDIA_UPLOAD_DIR # 传递媒体上传目录名称
@@ -367,6 +381,7 @@ async def edit_post_page(post_id: int, request: Request, db: Session = Depends(g
         "categories": categories,
         "formats": formats,
         "content_primary_mode": content_primary_mode,
+        "site_timezone": settings.SITE_TIMEZONE,
         "post_type": "post", # 明确指定为文章类型
         "media_upload_dir_name": settings.MEDIA_UPLOAD_DIR # 传递媒体上传目录名称
     })
@@ -389,6 +404,7 @@ async def create_post_api(
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
     format_id: Optional[int] = Form(None),
     license_type: str = Form("cc_by_nc_sa_4"),
+    published_at: Optional[str] = Form(None),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -404,22 +420,26 @@ async def create_post_api(
     selected_intent_slug = _resolve_selected_intent_slug(db, format_id, fallback_slug="article")
     normalized_category_ids = _normalize_category_ids_for_intent(category_ids, selected_intent_slug)
 
-    post_create_data = PostCreate(
-        title=title,
-        content_markdown=content,
-        content_html=content_html,
-        editor_mode=editor_mode or _get_content_primary_mode(db),
-        slug=slug,
-        excerpt=excerpt,
-        featured_image_url=featured_image_url,
-        status=status,
-        visibility=visibility,
-        password=normalized_password,
-        allow_comments=allow_comments,
-        category_ids=normalized_category_ids,
-        license_type=license_type,
-        post_type="post" # 确保文章类型为 'post'
-    )
+    create_payload = {
+        "title": title,
+        "content_markdown": content,
+        "content_html": content_html,
+        "editor_mode": editor_mode or _get_content_primary_mode(db),
+        "slug": slug,
+        "excerpt": excerpt,
+        "featured_image_url": featured_image_url,
+        "status": status,
+        "visibility": visibility,
+        "password": normalized_password,
+        "allow_comments": allow_comments,
+        "category_ids": normalized_category_ids,
+        "license_type": license_type,
+        "post_type": "post",  # 确保文章类型为 'post'
+    }
+    resolved_published_at = _parse_published_at_input(published_at) if status == "published" else None
+    if resolved_published_at is not None:
+        create_payload["published_at"] = resolved_published_at
+    post_create_data = PostCreate(**create_payload)
     
     # 处理标签
     tag_names = [name.strip() for name in tags.split(',') if name.strip()] if tags else []
@@ -459,6 +479,7 @@ async def update_post_api(
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
     format_id: Optional[int] = Form(None),
     license_type: str = Form("cc_by_nc_sa_4"),
+    published_at: Optional[str] = Form(None),
     method_override: Optional[str] = Form(None, alias="_method"),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
@@ -488,22 +509,26 @@ async def update_post_api(
     selected_intent_slug = _resolve_selected_intent_slug(db, format_id, fallback_slug=fallback_intent_slug)
     normalized_category_ids = _normalize_category_ids_for_intent(category_ids, selected_intent_slug)
 
-    post_update_data = PostUpdate(
-        title=title,
-        content_markdown=content,
-        content_html=content_html,
-        editor_mode=editor_mode or _get_content_primary_mode(db),
-        slug=slug,
-        excerpt=excerpt,
-        featured_image_url=featured_image_url,
-        status=status,
-        visibility=visibility,
-        password=normalized_password,
-        allow_comments=allow_comments,
-        category_ids=normalized_category_ids,
-        license_type=license_type,
-        post_type="post" # 确保文章类型不被修改
-    )
+    update_payload = {
+        "title": title,
+        "content_markdown": content,
+        "content_html": content_html,
+        "editor_mode": editor_mode or _get_content_primary_mode(db),
+        "slug": slug,
+        "excerpt": excerpt,
+        "featured_image_url": featured_image_url,
+        "status": status,
+        "visibility": visibility,
+        "password": normalized_password,
+        "allow_comments": allow_comments,
+        "category_ids": normalized_category_ids,
+        "license_type": license_type,
+        "post_type": "post",  # 确保文章类型不被修改
+    }
+    # 已发布状态总是显式提交发布时间：留空表示按保存时刻发布，避免旧时间残留
+    if status == "published":
+        update_payload["published_at"] = _parse_published_at_input(published_at)
+    post_update_data = PostUpdate(**update_payload)
     
     # 处理标签
     tag_names = [name.strip() for name in tags.split(',') if name.strip()] if tags else []
@@ -661,10 +686,12 @@ async def new_page_page(request: Request, db: Session = Depends(get_db), current
         "post": None,  # 新建页面时没有post对象
         "page_template_options": get_page_template_options(),
         "content_primary_mode": content_primary_mode,
+        "site_timezone": settings.SITE_TIMEZONE,
         "license_options": get_license_options_filter
     })
 
-@router.get(f"{ADMIN_PATH}/pages/{{page_id}}/edit", response_class=HTMLResponse)
+
+@router.get(f"{ADMIN_PATH}/pages/{{ page_id }}/edit", response_class=HTMLResponse)
 async def edit_page_page(page_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     显示编辑页面页面
@@ -682,6 +709,7 @@ async def edit_page_page(page_id: int, request: Request, db: Session = Depends(g
         "post": page,
         "page_template_options": get_page_template_options(),
         "content_primary_mode": content_primary_mode,
+        "site_timezone": settings.SITE_TIMEZONE,
         "license_options": get_license_options_filter
     })
 
@@ -701,6 +729,7 @@ async def create_page_api(
     password: Optional[str] = Form(None),
     allow_comments: bool = Form(True),
     license_type: str = Form("cc_by_nc_sa_4"),
+    published_at: Optional[str] = Form(None),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -713,22 +742,26 @@ async def create_page_api(
     if visibility == "password" and not normalized_password:
         raise HTTPException(status_code=400, detail="密码保护内容必须设置访问密码")
     
-    page_create_data = PostCreate(
-        title=title,
-        content_markdown=content,
-        content_html=content_html,
-        editor_mode=editor_mode or _get_content_primary_mode(db),
-        slug=slug,
-        excerpt=excerpt,
-        featured_image_url=featured_image_url,
-        page_template=normalize_page_template(page_template),
-        status=status,
-        visibility=visibility,
-        password=normalized_password,
-        allow_comments=allow_comments,
-        license_type=license_type,
-        post_type="page" # 确保文章类型为 'page'
-    )
+    page_create_payload = {
+        "title": title,
+        "content_markdown": content,
+        "content_html": content_html,
+        "editor_mode": editor_mode or _get_content_primary_mode(db),
+        "slug": slug,
+        "excerpt": excerpt,
+        "featured_image_url": featured_image_url,
+        "page_template": normalize_page_template(page_template),
+        "status": status,
+        "visibility": visibility,
+        "password": normalized_password,
+        "allow_comments": allow_comments,
+        "license_type": license_type,
+        "post_type": "page",  # 确保文章类型为 'page'
+    }
+    resolved_published_at = _parse_published_at_input(published_at) if status == "published" else None
+    if resolved_published_at is not None:
+        page_create_payload["published_at"] = resolved_published_at
+    page_create_data = PostCreate(**page_create_payload)
     
     db_page = crud_post.create_post(
         db=db, 
@@ -759,6 +792,7 @@ async def update_page_api(
     password: Optional[str] = Form(None),
     allow_comments: bool = Form(True),
     license_type: str = Form("cc_by_nc_sa_4"),
+    published_at: Optional[str] = Form(None),
     method_override: Optional[str] = Form(None, alias="_method"),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
@@ -784,22 +818,26 @@ async def update_page_api(
     if visibility == "password" and not normalized_password and not db_page.password:
         raise HTTPException(status_code=400, detail="密码保护内容必须设置访问密码")
 
-    page_update_data = PostUpdate(
-        title=title,
-        content_markdown=content,
-        content_html=content_html,
-        editor_mode=editor_mode or _get_content_primary_mode(db),
-        slug=slug,
-        excerpt=excerpt,
-        featured_image_url=featured_image_url,
-        page_template=normalize_page_template(page_template),
-        status=status,
-        visibility=visibility,
-        password=normalized_password,
-        allow_comments=allow_comments,
-        license_type=license_type,
-        post_type="page" # 确保文章类型不被修改
-    )
+    page_update_payload = {
+        "title": title,
+        "content_markdown": content,
+        "content_html": content_html,
+        "editor_mode": editor_mode or _get_content_primary_mode(db),
+        "slug": slug,
+        "excerpt": excerpt,
+        "featured_image_url": featured_image_url,
+        "page_template": normalize_page_template(page_template),
+        "status": status,
+        "visibility": visibility,
+        "password": normalized_password,
+        "allow_comments": allow_comments,
+        "license_type": license_type,
+        "post_type": "page",  # 确保文章类型不被修改
+    }
+    # 已发布状态总是显式提交发布时间：留空表示按保存时刻发布，避免旧时间残留
+    if status == "published":
+        page_update_payload["published_at"] = _parse_published_at_input(published_at)
+    page_update_data = PostUpdate(**page_update_payload)
     
     updated_page = crud_post.update_post(
         db=db, 
