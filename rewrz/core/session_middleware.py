@@ -64,6 +64,12 @@ class RequestAwareSessionMiddleware(SessionMiddleware):
             await self.app(scope, receive, send)
             return
 
+        # 静态资源与媒体文件不参与会话：避免响应被追加 Set-Cookie 与 Vary: Cookie。
+        # 这两个头会让浏览器无法按 URL 维度复用长缓存，导致每次导航都重新下载 CSS/JS/字体/图片。
+        if scope["type"] == "http" and str(scope.get("path") or "").startswith(("/static/", "/media/")):
+            await self.app(scope, receive, send)
+            return
+
         connection = HTTPConnection(scope)
         initial_session_was_empty = True
 

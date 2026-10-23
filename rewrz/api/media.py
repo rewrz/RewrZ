@@ -1,20 +1,26 @@
 from __future__ import annotations
 
 import hashlib
+import mimetypes
 import os
+import re
 import shutil
+import threading
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
+from urllib.error import HTTPError, URLError
+from urllib.request import Request as UrlRequest, urlopen
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Header, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session, joinedload
 
 from ..core.admin_path import get_admin_path
+from ..core.avatar import get_avatar_service
 from ..core.config import settings
 from ..core.database import get_db
 from ..core.media_processor import get_media_processor
@@ -37,6 +43,116 @@ from ..schemas import Media, MediaCreate, MediaUpdate, User
 router = APIRouter()
 templates = get_templates()
 ADMIN_PATH = get_admin_path()
+
+# 头像中转缓存：外链头像在本机拉取并落盘，浏览器只访问同源地址，避免外链挂起阻塞页面加载
+_AVATAR_HASH_PATTERN = re.compile(r"^[0-9a-f]{32}$")
+_AVATAR_CACHE_DIR = Path(settings.MEDIA_UPLOAD_DIR) / "avatar-cache"
+_AVATAR_DEFAULT_FILE = Path("rewrz/static/images/default-avatar.png")
+_AVATAR_FETCH_TIMEOUT_SECONDS = 2.5
+_AVATAR_MAX_BYTES = 1024 * 1024
+_AVATAR_NEGATIVE_TTL_SECONDS = 600
+_AVATAR_CACHE_MAX_AGE_SECONDS = 604800
+_AVATAR_NEGATIVE_CACHE: Dict[str, float] = {}
+_AVATAR_FETCH_LOCKS: Dict[str, threading.Lock] = {}
+_AVATAR_FETCH_LOCKS_GUARD = threading.Lock()
+
+
+def _avatar_cache_prefix(email_hash: str, size: int) -> str:
+    return f"{email_hash}-{int(size)}"
+
+
+def _find_cached_avatar(email_hash: str, size: int) -> Optional[Path]:
+    if not _AVATAR_CACHE_DIR.exists():
+        return None
+    for candidate in _AVATAR_CACHE_DIR.glob(f"{_avatar_cache_prefix(email_hash, size)}.*"):
+        if candidate.is_file() and candidate.stat().st_size > 0:
+            return candidate
+    return None
+
+
+def _get_avatar_fetch_lock(key: str) -> threading.Lock:
+    with _AVATAR_FETCH_LOCKS_GUARD:
+        lock = _AVATAR_FETCH_LOCKS.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _AVATAR_FETCH_LOCKS[key] = lock
+        return lock
+
+
+def _serve_default_avatar() -> FileResponse:
+    return FileResponse(
+        _AVATAR_DEFAULT_FILE,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=60"},
+    )
+
+
+def _fetch_avatar_to_cache(email_hash: str, remote_url: str, size: int) -> None:
+    """后台拉取外链头像并落盘；失败时写入短期负缓存，避免反复等待外链超时。"""
+    if not remote_url:
+        return
+
+    cache_key = _avatar_cache_prefix(email_hash, size)
+    lock = _get_avatar_fetch_lock(cache_key)
+    if not lock.acquire(blocking=False):
+        return
+
+    try:
+        if _find_cached_avatar(email_hash, size):
+            return
+
+        request_obj = UrlRequest(remote_url, headers={"User-Agent": "RewrZ-Avatar-Cache/1.0"})
+        with urlopen(request_obj, timeout=_AVATAR_FETCH_TIMEOUT_SECONDS) as response:
+            content_type = str(response.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+            if not content_type.startswith("image/"):
+                raise ValueError("头像响应不是图片")
+            payload = response.read(_AVATAR_MAX_BYTES + 1)
+
+        if not payload or len(payload) > _AVATAR_MAX_BYTES:
+            raise ValueError("头像文件大小异常")
+
+        extension = mimetypes.guess_extension(content_type) or ".png"
+        _AVATAR_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        target_file = _AVATAR_CACHE_DIR / f"{cache_key}{extension}"
+        temp_file = target_file.with_name(target_file.name + ".tmp")
+        temp_file.write_bytes(payload)
+        temp_file.replace(target_file)
+        _AVATAR_NEGATIVE_CACHE.pop(cache_key, None)
+    except (HTTPError, URLError, TimeoutError, ValueError, OSError):
+        _AVATAR_NEGATIVE_CACHE[cache_key] = time.time() + _AVATAR_NEGATIVE_TTL_SECONDS
+    finally:
+        lock.release()
+
+
+@router.get("/media/avatar/{email_hash}")
+def get_cached_avatar_file(
+    email_hash: str,
+    background_tasks: BackgroundTasks,
+    s: int = Query(128),
+    db: Session = Depends(get_db),
+):
+    """同源头像中转：命中本地缓存直接返回，未命中先回退默认头像并在后台补拉。"""
+    normalized_size = max(32, min(int(s or 128), 256))
+    if not _AVATAR_HASH_PATTERN.match(email_hash):
+        return _serve_default_avatar()
+
+    cached_file = _find_cached_avatar(email_hash, normalized_size)
+    if cached_file:
+        media_type = mimetypes.guess_type(str(cached_file))[0] or "image/png"
+        return FileResponse(
+            cached_file,
+            media_type=media_type,
+            headers={"Cache-Control": f"public, max-age={_AVATAR_CACHE_MAX_AGE_SECONDS}, immutable"},
+        )
+
+    cache_key = _avatar_cache_prefix(email_hash, normalized_size)
+    if _AVATAR_NEGATIVE_CACHE.get(cache_key, 0) > time.time():
+        return _serve_default_avatar()
+
+    remote_url = get_avatar_service(db).build_remote_gravatar_url(email_hash, normalized_size)
+    if remote_url:
+        background_tasks.add_task(_fetch_avatar_to_cache, email_hash, remote_url, normalized_size)
+    return _serve_default_avatar()
 
 
 class MediaBulkDeleteRequest(BaseModel):

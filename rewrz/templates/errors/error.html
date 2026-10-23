@@ -12,7 +12,7 @@
     {% set icon_class = 'fas fa-exclamation-triangle' %}
     {% set icon_tone = 'danger' %}
     {% if variant == 'friendly' %}
-        {% set icon_class = 'fas fa-face-smile-beam' %}
+        {% set icon_class = 'fas fa-smile-beam' %}
         {% set icon_tone = 'warning' %}
     {% elif status_code == 404 %}
         {% set icon_class = 'fas fa-question-circle' %}
@@ -21,7 +21,7 @@
         {% set icon_class = 'fas fa-ban' %}
         {% set icon_tone = 'warning' %}
     {% elif status_code == 400 %}
-        {% set icon_class = 'fas fa-circle-exclamation' %}
+        {% set icon_class = 'fas fa-exclamation-circle' %}
         {% set icon_tone = 'warning' %}
     {% elif status_code == 500 %}
         {% set icon_class = 'fas fa-server' %}
@@ -31,7 +31,7 @@
         <div class="error-card">
             <div class="error-content">
                 <div class="error-badge">
-                    <i class="fas fa-shield-halved"></i>
+                    <i class="fas fa-shield-alt"></i>
                     <span>RewrZ 错误页</span>
                 </div>
 

@@ -339,6 +339,21 @@ body.micro-immersive-open {
     text-shadow: none;
 }
 
+/* 大面积阅读容器与关联内容不再做背景模糊：
+   整张长文卡片做 backdrop blur 会覆盖上千万像素，滚动与悬停时持续重算模糊，是详情页卡顿的主因 */
+.detail-cover-shell .article-detail-card,
+.detail-cover-shell .micro-detail-card,
+.related-posts-shell,
+.related-post-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.detail-cover-shell .article-detail-card,
+.detail-cover-shell .micro-detail-card {
+    background: color-mix(in srgb, var(--color-card-bg) 94%, transparent) !important;
+}
+
 .detail-layout {
     display: block;
 }
@@ -920,10 +935,6 @@ body.micro-immersive-open {
         gap: var(--spacing-3);
     }
     
-    .post-content p:first-of-type::first-letter {
-        font-size: 3em;
-    }
-    
     .post-content h2::before {
         left: -var(--spacing-3);
     }
@@ -1411,7 +1422,8 @@ body.site-shell[data-current-theme="galaxy"] .donation-theme-elegant {
 }
 
 .article-detail-card .article-content > * {
-    max-width: 108ch;
+    /* 中文正文控制在约 40-45 字/行，避免超宽行导致阅读疲劳 */
+    max-width: 52rem;
     margin-left: auto;
     margin-right: auto;
 }
@@ -1422,7 +1434,7 @@ body.site-shell[data-current-theme="galaxy"] .donation-theme-elegant {
 .article-detail-card .article-content h4,
 .article-detail-card .article-content h5,
 .article-detail-card .article-content h6 {
-    text-align: center;
+    text-align: left;
     font-weight: 700;
     letter-spacing: 0.015em;
     margin-top: 2.2em;
@@ -2508,6 +2520,13 @@ body.site-shell[data-current-theme="galaxy"] .poetry-section .poetry-format-badg
     color: var(--color-text);
 }
 
+/* 诗词正文卡片用高不透明度底色替代大面积 18px 背景模糊，滚动更稳且文字对比更清晰 */
+.poetry-section .poetry-article {
+    background: color-mix(in srgb, var(--color-card-bg) 92%, transparent) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
 .poetry-related-summary {
     color: var(--color-text-light);
 }
@@ -2517,6 +2536,9 @@ body.site-shell[data-current-theme="galaxy"] .poetry-section .poetry-format-badg
     background:
         linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 14%),
         color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+    /* 评论区覆盖整块正文宽度，去掉背景模糊以避免大幅重绘 */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
 }
 
 .detail-comments-shell-micro {

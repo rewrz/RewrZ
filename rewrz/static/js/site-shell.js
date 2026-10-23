@@ -1,4 +1,6 @@
 const AVAILABLE_THEMES = ['light', 'dark', 'nature', 'ocean', 'sunset', 'sakura', 'galaxy', 'mint'];
+// 游客主题偏好也写入本地 Cookie：服务端渲染时读取，刷新/跳页不再回退默认主题
+const THEME_PREFERENCE_COOKIE = 'rewrz_theme';
 const THEME_UI_META = {
   light: { name: '浅色', icon: 'fa-sun' },
   dark: { name: '深色', icon: 'fa-moon' },
@@ -27,7 +29,7 @@ const THEME_VARIABLE_PRESETS = {
     '--color-card-shadow': 'rgba(99, 102, 241, 0.1)',
     '--color-nav-bg': 'rgba(255, 255, 255, 0.85)',
     '--color-footer-bg': '#f8fafc',
-    '--font-family-base': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+    '--font-family-base': "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
     '--font-family-heading': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--font-family-decorative': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--backdrop-blur': 'blur(12px)',
@@ -47,7 +49,7 @@ const THEME_VARIABLE_PRESETS = {
     '--color-card-shadow': 'rgba(129, 140, 248, 0.15)',
     '--color-nav-bg': 'rgba(15, 23, 42, 0.85)',
     '--color-footer-bg': '#1e293b',
-    '--font-family-base': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+    '--font-family-base': "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
     '--font-family-heading': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--font-family-decorative': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--backdrop-blur': 'blur(12px)',
@@ -67,7 +69,7 @@ const THEME_VARIABLE_PRESETS = {
     '--color-card-shadow': 'rgba(16, 185, 129, 0.1)',
     '--color-nav-bg': 'rgba(240, 253, 244, 0.9)',
     '--color-footer-bg': '#dcfce7',
-    '--font-family-base': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+    '--font-family-base': "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
     '--font-family-heading': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--font-family-decorative': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--backdrop-blur': 'blur(12px)',
@@ -87,7 +89,7 @@ const THEME_VARIABLE_PRESETS = {
     '--color-card-shadow': 'rgba(14, 165, 233, 0.1)',
     '--color-nav-bg': 'rgba(240, 249, 255, 0.9)',
     '--color-footer-bg': '#e0f2fe',
-    '--font-family-base': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+    '--font-family-base': "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
     '--font-family-heading': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--font-family-decorative': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--backdrop-blur': 'blur(12px)',
@@ -107,7 +109,7 @@ const THEME_VARIABLE_PRESETS = {
     '--color-card-shadow': 'rgba(234, 138, 18, 0.14)',
     '--color-nav-bg': 'rgba(255, 247, 230, 0.92)',
     '--color-footer-bg': '#fde7bd',
-    '--font-family-base': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+    '--font-family-base': "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
     '--font-family-heading': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--font-family-decorative': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--backdrop-blur': 'blur(12px)',
@@ -127,7 +129,7 @@ const THEME_VARIABLE_PRESETS = {
     '--color-card-shadow': 'rgba(227, 79, 150, 0.14)',
     '--color-nav-bg': 'rgba(255, 244, 248, 0.93)',
     '--color-footer-bg': '#f9dde9',
-    '--font-family-base': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+    '--font-family-base': "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
     '--font-family-heading': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--font-family-decorative': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--backdrop-blur': 'blur(12px)',
@@ -147,7 +149,7 @@ const THEME_VARIABLE_PRESETS = {
     '--color-card-shadow': 'rgba(178, 107, 255, 0.2)',
     '--color-nav-bg': 'rgba(10, 10, 24, 0.94)',
     '--color-footer-bg': '#17162d',
-    '--font-family-base': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+    '--font-family-base': "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
     '--font-family-heading': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--font-family-decorative': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--backdrop-blur': 'blur(14px)',
@@ -167,7 +169,7 @@ const THEME_VARIABLE_PRESETS = {
     '--color-card-shadow': 'rgba(18, 165, 148, 0.13)',
     '--color-nav-bg': 'rgba(239, 252, 248, 0.93)',
     '--color-footer-bg': '#d8f5ed',
-    '--font-family-base': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+    '--font-family-base': "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
     '--font-family-heading': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--font-family-decorative': "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
     '--backdrop-blur': 'blur(12px)',
@@ -337,8 +339,13 @@ class SiteShellController {
   }
 
   refreshThemeStylesheet() {
+    // 首屏主题变量已由服务端内联；只有切换主题时才按需创建/更新这个样式表链接，
+    // 避免首屏多一个 no-cache 的阻塞请求
     if (!this.themeLink) {
-      return;
+      this.themeLink = document.createElement('link');
+      this.themeLink.id = 'theme-variables-link';
+      this.themeLink.rel = 'stylesheet';
+      document.head.appendChild(this.themeLink);
     }
     this.themeLink.href = `/api/v1/theme/variables.css?theme=${encodeURIComponent(this.theme)}&v=${Date.now()}`;
   }
@@ -412,6 +419,9 @@ class SiteShellController {
     this.refreshHighlightTheme(normalizedTheme);
     this.updateThemeToggleUI(normalizedTheme);
 
+    if (options.persist) {
+      this.persistThemeToBrowser(normalizedTheme);
+    }
     if (options.sync) {
       this.persistThemeToBackend(normalizedTheme);
     }
@@ -428,6 +438,12 @@ class SiteShellController {
   toggleTheme() {
     const nextTheme = this.getNextTheme(this.theme);
     this.applyTheme(nextTheme, { persist: true, sync: true, announce: true });
+  }
+
+  persistThemeToBrowser(theme) {
+    // 游客没有服务端账号偏好，必须依赖本地 Cookie；已登录用户同样保留一份，
+    // 退出登录后仍能延续上次选择。
+    document.cookie = `${THEME_PREFERENCE_COOKIE}=${encodeURIComponent(theme)}; path=/; max-age=31536000; SameSite=Lax`;
   }
 
   async persistThemeToBackend(theme) {
@@ -638,6 +654,9 @@ class SiteShellController {
       const response = await fetch('/api/v1/theme/sync', {
         credentials: 'include',
         cache: 'no-store',
+        // 页面跳转或刷新会中止在途请求，浏览器会在控制台留下 ERR_ABORTED；
+        // keepalive 让请求在页面卸载后仍可完成，消除这类无意义报错。
+        keepalive: true,
       });
       if (!response.ok) return;
       const payload = await response.json();

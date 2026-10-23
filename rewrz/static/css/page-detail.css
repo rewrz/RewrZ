@@ -11,7 +11,8 @@
 }
 
 .page-detail-card {
-    backdrop-filter: blur(4px);
+    /* 正文卡片面积大，背景模糊会让长页面滚动时持续重绘，这里改用实色卡片底 */
+    backdrop-filter: none;
 }
 
 .page-hero {
@@ -303,7 +304,8 @@
 }
 
 .page-comments-panel {
-    backdrop-filter: blur(4px);
+    /* 评论区同样是大面积容器，去掉背景模糊避免滚动与悬停时反复重绘 */
+    backdrop-filter: none;
 }
 
 .page-comments-icon {

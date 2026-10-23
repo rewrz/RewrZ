@@ -20,7 +20,7 @@
     <div class="container mx-auto max-w-7xl px-4">
         {% if is_draft %}
         <div class="page-status-banner mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-200">
-            <i class="fas fa-triangle-exclamation mr-2"></i>
+            <i class="fas fa-exclamation-triangle mr-2"></i>
             这是一个草稿页面，仅管理员可见。
         </div>
         {% endif %}
@@ -28,7 +28,7 @@
         {% if toc_items %}
         <aside class="page-toc-panel is-collapsed" data-floating-toc data-toc-title="页面目录">
             <button type="button" class="floating-toc-toggle" data-floating-toc-toggle aria-expanded="false" aria-label="展开页面目录">
-                <i class="fas fa-angles-right" aria-hidden="true"></i>
+                <i class="fas fa-angle-double-right" aria-hidden="true"></i>
                 <span>目录</span>
             </button>
             <h2 class="page-toc-title">页面目录</h2>
@@ -51,7 +51,8 @@
                          sizes="100vw"
                          alt="{{ page_title }}"
                          class="page-hero-image"
-                         loading="lazy"
+                         loading="eager"
+                         fetchpriority="high"
                          decoding="async">
                 </div>
                 {% else %}
@@ -61,7 +62,7 @@
                 <div class="page-hero-overlay"></div>
                 <div class="page-hero-content">
                     <span class="page-type-badge inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold">
-                        {% if is_draft %}<i class="fas fa-pen-to-square mr-1"></i>草稿页面{% else %}<i class="fas fa-file-lines mr-1"></i>页面{% endif %}
+                        {% if is_draft %}<i class="fas fa-edit mr-1"></i>草稿页面{% else %}<i class="fas fa-file-alt mr-1"></i>页面{% endif %}
                     </span>
                     <h1 class="page-title mt-4">{{ page_title }}</h1>
                     {% if post and post.excerpt %}
@@ -80,7 +81,7 @@
                         </span>
                         {% if post.updated_at and post.created_at and post.updated_at != post.created_at %}
                         <span class="page-meta-item">
-                            <i class="fas fa-rotate"></i>
+                            <i class="fas fa-sync"></i>
                             {{ post.updated_at.strftime('%Y年%m月%d日') }}
                         </span>
                         {% endif %}
@@ -93,7 +94,7 @@
                 <div class="page-layout-grid {% if toc_items %}has-toc{% endif %}">
                     <div class="page-content-wrap">
                         <div class="post-content page-content prose prose-lg max-w-none dark:prose-invert">
-                            {{ page_content | safe }}
+                            {{ page_content | content_lazy_images | safe }}
                         </div>
                     </div>
                 </div>

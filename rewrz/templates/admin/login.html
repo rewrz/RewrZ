@@ -12,8 +12,13 @@
     <link rel="stylesheet" href="{{ static_asset(request, 'css/site-tailwind.css') }}">
     <script src="{{ static_asset(request, 'vendor/htmx/htmx.min.js') }}" defer></script>
     <link rel="stylesheet" href="{{ static_asset(request, 'vendor/font-awesome/css/all.min.css') }}">
-    <link id="admin-theme-variables" rel="stylesheet" href="/api/v1/theme/variables.css">
     <link rel="stylesheet" href="{{ static_asset(request, 'css/unified-theme.css') }}">
+    <!-- 动态主题变量：服务端内联，避免登录页首屏多一次阻塞样式请求 -->
+    <style id="admin-theme-variables-inline">
+        :root {
+            {% for var_name, var_value in (request.state.theme_variables or {}).items() %}{{ var_name | safe }}:{{ var_value | safe }};{% endfor %}
+        }
+    </style>
     {% set login_background_url = request.state.admin_login_background_image_url if request.state.admin_login_background_image_url else '/static/images/covers/home-default.jpg' %}
     {% set login_background_video_url = request.state.admin_login_background_video_url if request.state.admin_login_background_video_url else '' %}
     {% set has_login_video = login_background_video_url and login_background_video_url.strip() %}
@@ -36,7 +41,7 @@
         {% if request.query_params.get('reset') == 'success' %}
         <div class="mb-5 rounded-2xl border px-4 py-3 text-sm"
              style="border-color: rgba(34, 197, 94, 0.28); background: rgba(34, 197, 94, 0.1); color: #dcfce7;">
-            <i class="fas fa-circle-check mr-2"></i>
+            <i class="fas fa-check-circle mr-2"></i>
             密码已重置成功，请使用新密码登录。
         </div>
         {% endif %}
@@ -89,7 +94,7 @@
         <div class="mt-4 flex items-center justify-between gap-3 text-sm">
             <a href="{{ admin_path }}/forgot-password" class="inline-flex items-center gap-2 transition hover:opacity-90"
                style="color: var(--color-primary);">
-                <i class="fas fa-unlock-keyhole"></i>
+                <i class="fas fa-unlock-alt"></i>
                 <span>忘记密码</span>
             </a>
             <span style="color: var(--color-text-muted);">支持通过邮箱自助找回</span>

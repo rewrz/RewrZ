@@ -13,7 +13,7 @@
 {% set summary_text = post | post_summary_text(200) %}
 
 {% if is_micro %}
-<div class="archive-card-equal timeline-card timeline-card-micro rounded-lg shadow-sm border p-4 hover:shadow-md transition-all duration-300">
+<div class="archive-card-equal timeline-card timeline-card-micro rounded-lg shadow-sm border p-4 hover:shadow-md transition-transform duration-200">
     <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2">
             <span class="timeline-card-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
@@ -87,7 +87,7 @@
 </div>
 
 {% elif is_poem %}
-<div class="archive-card-equal archive-card-poem rounded-lg shadow-sm border p-4 hover:shadow-md transition-all duration-300">
+<div class="archive-card-equal archive-card-poem rounded-lg shadow-sm border p-4 hover:shadow-md transition-transform duration-200">
     <div class="flex items-center justify-between mb-3">
         <span class="archive-card-poem-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
             <i class="fas fa-feather-alt mr-1"></i>诗词歌赋
@@ -141,7 +141,7 @@
 </div>
 
 {% else %}
-<div class="archive-card-equal timeline-card timeline-card-article rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-all duration-300">
+<div class="archive-card-equal timeline-card timeline-card-article rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-transform duration-200">
     {% if has_featured_image %}
     <a href="{{ post | post_url }}" class="archive-card-cover-motion block overflow-hidden" data-profile-motion>
         <img src="{{ post.featured_image_url | thumb_url('related_card', template_db) }}"
@@ -206,37 +206,3 @@
     </div>
 </div>
 {% endif %}
-
-<style>
-.line-clamp-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.line-clamp-4 {
-    display: -webkit-box;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.archive-card-cover-motion {
-    --motion-shift-x: 0px;
-    --motion-shift-y: 0px;
-    --motion-scale: 1.02;
-}
-
-.archive-card-cover-image {
-    transform: translate3d(var(--motion-shift-x, 0px), var(--motion-shift-y, 0px), 0) scale(var(--motion-scale, 1.02));
-    transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform;
-}
-
-.archive-card-cover-motion:hover {
-    --motion-scale: 1.05;
-}
-</style>

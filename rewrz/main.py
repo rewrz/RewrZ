@@ -9,13 +9,16 @@ import hashlib
 import secrets
 import threading
 import time
+from io import BytesIO
 from math import ceil
+from PIL import Image
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse, quote, urlsplit
 from urllib.request import Request as UrlRequest, urlopen
 from urllib.error import URLError, HTTPError
 from pathlib import Path
 from fastapi import FastAPI, Depends, HTTPException, Request, Response, Form, UploadFile, File, BackgroundTasks, Header, Body
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse, PlainTextResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.exceptions import RequestValidationError
@@ -176,8 +179,39 @@ app = FastAPI(
     lifespan=lifespan,
     )
 
-# 挂载静态文件目录
-app.mount("/static", StaticFiles(directory="rewrz/static"), name="static")
+class CacheControlStaticFiles(StaticFiles):
+    """给静态文件补上 Cache-Control。
+
+    模板里的静态资源链接都带 `?v=<文件时间戳>`，URL 变化即代表内容变化，
+    因此可以放心长期缓存；否则浏览器每次导航都要重新下载全部 CSS/JS/字体，
+    首屏会一直被这些重复请求拖住。
+    """
+
+    def __init__(self, *args, cache_control: str, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cache_control = cache_control
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        query = (scope.get("query_string") or b"").decode("latin-1")
+        if "v=" in query:
+            # 模板输出的静态资源都带 ?v=<文件时间戳>，URL 变了内容才变，可以长期强缓存
+            response.headers.setdefault("Cache-Control", self.cache_control)
+        else:
+            # 用户可能替换的图片等没有版本参数的资源只缓存 1 小时，避免换图后长期看不到更新
+            response.headers.setdefault("Cache-Control", "public, max-age=3600")
+        return response
+
+
+# 挂载静态文件目录（URL 带版本号，可长期强缓存）
+app.mount(
+    "/static",
+    CacheControlStaticFiles(
+        directory="rewrz/static",
+        cache_control="public, max-age=31536000, immutable",
+    ),
+    name="static",
+)
 
 # 配置Jinja2模板引擎（带自定义过滤器）
 templates = get_templates()
@@ -192,6 +226,8 @@ _ARTICLE_API_CACHE_ENABLED_DEFAULT = True
 _ARTICLE_API_CACHE_TTL_MINUTES_DEFAULT = 360
 _ARTICLE_API_CACHE_CLEANUP_MINUTES_DEFAULT = 120
 _ARTICLE_API_CACHE_MAX_BYTES = 8 * 1024 * 1024
+_ARTICLE_API_CACHE_MAX_WIDTH = 1280
+_ARTICLE_API_CACHE_WEBP_QUALITY = 78
 _ARTICLE_API_CACHE_HTTP_TIMEOUT_SECONDS = 8
 _ARTICLE_API_CACHE_PUBLIC_PREFIX = f"/media/{_ARTICLE_API_CACHE_DIR_NAME}/"
 _ARTICLE_API_CACHE_PREFETCH_INFLIGHT: set[str] = set()
@@ -535,6 +571,7 @@ def _populate_global_request_state(request: Request) -> None:
     request.state.effects_source = "none"
     request.state.current_theme = "light"
     request.state.current_theme_source = "site_default"
+    request.state.theme_variables = {}
     request.state.glass_intensity = "medium"
     request.state.background_image_settings = {"type": "none", "custom_url": None}
     request.state.site_title = DEFAULT_BASE_SETTINGS["site_title"]
@@ -571,6 +608,8 @@ def _populate_global_request_state(request: Request) -> None:
         resolved_effects = themes_api.resolve_active_effects(db)
         request.state.current_theme = resolved_theme["theme_id"]
         request.state.current_theme_source = resolved_theme["theme_source"]
+        # 后台与认证页模板直接内联该变量表，避免首屏再发一次阻塞请求
+        request.state.theme_variables = resolved_theme["variables"]
         request.state.glass_intensity = resolved_theme["glass_intensity"]
         request.state.background_image_settings = resolved_theme["background"]
         request.state.current_effect_scene = resolved_effects["scene"]
@@ -648,6 +687,12 @@ async def add_global_context(request: Request, call_next):
 
     if not _is_allowed_request_host(request):
         return attach_request_id(PlainTextResponse("非法的主机头", status_code=400))
+
+    # 文件类请求（静态资源、媒体文件）不需要数据库会话、CSRF 与全局设置。
+    # 跳过可以避免每个文件请求都查一遍数据库，也避免响应被追加 Set-Cookie / Vary: Cookie
+    # 而破坏浏览器与 CDN 的缓存。
+    if request.url.path.startswith(("/static/", "/media/")):
+        return await call_next(request)
 
     # 动态注册后台路由（如果需要）
     # 在安装完成后，通过首次请求动态加载后台路由，避免重启服务器
@@ -1018,6 +1063,23 @@ def _download_remote_image(remote_url: str) -> Optional[Tuple[bytes, str, str]]:
         return None
 
 
+def _compress_article_cache_image(payload: bytes) -> Optional[bytes]:
+    """把远程封面压到列表卡片够用的尺寸，避免 4K 原图进入列表页拖慢加载与解码。"""
+    try:
+        with Image.open(BytesIO(payload)) as image:
+            image = image.convert("RGB")
+            image.thumbnail(
+                (_ARTICLE_API_CACHE_MAX_WIDTH, _ARTICLE_API_CACHE_MAX_WIDTH),
+                Image.Resampling.LANCZOS,
+            )
+            buffer = BytesIO()
+            image.save(buffer, "WEBP", quality=_ARTICLE_API_CACHE_WEBP_QUALITY, method=4)
+            compressed = buffer.getvalue()
+    except Exception:
+        return None
+    return compressed if compressed else None
+
+
 def _resolve_cached_remote_article_image(
     *,
     seed_value: str,
@@ -1050,7 +1112,12 @@ def _resolve_cached_remote_article_image(
         return remote_url, False
 
     image_bytes, content_type, final_url = downloaded
-    file_ext = _guess_image_extension(content_type, final_url)
+    compressed_bytes = _compress_article_cache_image(image_bytes)
+    if compressed_bytes:
+        image_bytes = compressed_bytes
+        file_ext = ".webp"
+    else:
+        file_ext = _guess_image_extension(content_type, final_url)
     file_name = f"{cache_key}{file_ext}"
     file_path = (cache_dir / file_name).resolve()
     if file_path.parent != cache_dir:
@@ -1398,6 +1465,10 @@ def _attach_article_cover_urls(
                 fallback_api_url=fallback_api_url,
                 cache_ttl_minutes=api_cache_ttl_minutes,
             )
+            # 缓存未命中时不再把第三方图片地址交给浏览器：
+            # 浏览器会一直等外部接口返回，列表卡片长时间空白，load 事件也被拖住。
+            # 这里先返回空，让模板走本地占位样式，同时在后台把图片抓取进本地缓存。
+            return ""
         return resolved_url
 
     for post in posts:
@@ -1565,7 +1636,14 @@ async def favicon():
 
 # 挂载媒体上传目录
 # 放在业务路由之后，确保 /media/variant/... 先命中动态缩略图路由。
-app.mount("/media", StaticFiles(directory=settings.MEDIA_UPLOAD_DIR), name="media")
+app.mount(
+    "/media",
+    CacheControlStaticFiles(
+        directory=settings.MEDIA_UPLOAD_DIR,
+        cache_control="public, max-age=3600",
+    ),
+    name="media",
+)
 
 # 统一注册全局异常处理器（集中管理，降低重复与维护成本）
 error_handler.register_error_handlers(app)
@@ -1579,4 +1657,31 @@ app.add_middleware(
 
 # 添加设置加载中间件（在会话中间件之后）
 app.add_middleware(SettingsMiddleware)
+
+class SelectiveGZipMiddleware(GZipMiddleware):
+    """只对文本类资源做 gzip。
+
+    图片、字体、视频、压缩包本身已是二进制压缩格式，再压一遍只会白耗 CPU，
+    因此这些路径/后缀直接跳过压缩。
+    """
+
+    _BINARY_SUFFIXES = (
+        ".woff2", ".woff", ".ttf", ".otf", ".eot",
+        ".webp", ".jpg", ".jpeg", ".png", ".gif", ".ico", ".avif", ".bmp",
+        ".mp4", ".webm", ".mov", ".mp3", ".ogg", ".wav", ".flac",
+        ".zip", ".gz", ".tar", ".7z", ".rar", ".pdf", ".svgz",
+    )
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            path = str(scope.get("path") or "").lower()
+            if path.startswith("/media/") or path.endswith(self._BINARY_SUFFIXES):
+                await self.app(scope, receive, send)
+                return
+        await super().__call__(scope, receive, send)
+
+
+# 文本资源压缩：CSS/JS/HTML/JSON 默认完全没有压缩，
+# 首屏 5 个阻塞样式表合计约 470KB，压缩后传输量可降到约 1/6
+app.add_middleware(SelectiveGZipMiddleware, minimum_size=1024, compresslevel=6)
 

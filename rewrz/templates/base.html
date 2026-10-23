@@ -38,6 +38,9 @@
 
     <script src="{{ static_asset(request, 'vendor/htmx/htmx.min.js') }}" defer></script>
     <link rel="stylesheet" href="{{ static_asset(request, 'vendor/font-awesome/css/all.min.css') }}">
+    {# 图标字体提前预加载：否则要等 CSS 解析完才发现字体，字体晚到会让整页文字重新布局一次 #}
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/static/vendor/font-awesome/webfonts/fa-solid-900.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/static/vendor/font-awesome/webfonts/fa-regular-400.woff2">
     
     <!-- SEO Meta Tags -->
     <meta name="description" content="{% block meta_description %}{{ site_description if site_description else (tagline if tagline else site_title) }}{% endblock %}">
@@ -54,21 +57,28 @@
     
     {% block head %}{% endblock %}
     
-    <!-- Code highlighting -->
+    <!-- Code highlighting：按当前主题直接给出正确的 href，避免先请求亮色再切暗色造成反复阻塞 -->
+    {% set _hljs_light = static_asset(request, 'vendor/highlightjs/styles/github-light.min.css') %}
+    {% set _hljs_dark = static_asset(request, 'vendor/highlightjs/styles/github-dark.min.css') %}
+    {% set _hljs_is_dark = (current_theme or 'light') in ['dark', 'galaxy'] %}
     <link
         id="hljs-theme-link"
         rel="stylesheet"
-        data-theme-light="{{ static_asset(request, 'vendor/highlightjs/styles/github-light.min.css') }}"
-        data-theme-dark="{{ static_asset(request, 'vendor/highlightjs/styles/github-dark.min.css') }}"
-        href="{{ static_asset(request, 'vendor/highlightjs/styles/github-light.min.css') }}">
+        data-theme-light="{{ _hljs_light }}"
+        data-theme-dark="{{ _hljs_dark }}"
+        href="{{ _hljs_dark if _hljs_is_dark else _hljs_light }}">
     <script src="{{ static_asset(request, 'vendor/highlightjs/highlight.min.js') }}" defer></script>
     
     <!-- 本地 Tailwind 与补充样式系统 -->
     <link rel="stylesheet" href="{{ static_asset(request, 'css/site-tailwind.css') }}">
     <link rel="stylesheet" href="{{ static_asset(request, 'css/tailwind-optimized.css') }}">
     <link rel="stylesheet" href="{{ static_asset(request, 'css/unified-theme.css') }}">
-    <!-- 动态主题CSS变量：放在静态样式之后，确保真正覆盖默认变量 -->
-    <link id="theme-variables-link" rel="stylesheet" href="/api/v1/theme/variables.css">
+    <!-- 动态主题CSS变量：服务端直接内联，省掉首屏一次阻塞样式请求 -->
+    <style id="theme-variables-inline">
+        :root {
+            {% for var_name, var_value in (resolved_theme.variables if resolved_theme and resolved_theme.variables else {}).items() %}{{ var_name | safe }}:{{ var_value | safe }};{% endfor %}
+        }
+    </style>
     <style id="hljs-theme-bridge">
         /* 普通代码块兜底（当 hljs 未就绪时） */
         .post-content pre > code:not(.hljs),
@@ -105,30 +115,28 @@
     </style>
     
     <style>
-        /* 标题字体使用仓库内 GB2312 子集化 woff2（约 1.1MB），正文回退系统字体不再触发下载 */
-        @font-face {
-            font-family: 'SourceHanSansCN';
-            src: url('/static/fonts/SourceHanSansCN-Medium.woff2') format('woff2');
-            font-weight: 500;
-            font-style: normal;
-            font-display: swap;
+        /* 标题字体（仓库内 1.1MB 子集 woff2）不在首屏关键路径上：
+           由页面底部脚本在 load 之后注入 @font-face，避免它与 CSS/首图抢带宽并推迟 load；
+           font-display: optional 保证字体没就绪时也不会二次重排文字。 */
+
+        /* 移动端导航条目较多，限制高度并允许内部滚动，避免搜索与主题切换被挤出视口 */
+        @media (max-width: 767.98px) {
+            #mobile-nav-menu {
+                max-height: calc(100svh - 5.25rem);
+                overflow-y: auto;
+                overscroll-behavior: contain;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* 预留底部安全空间，避免页面末尾内容被固定定位的返回顶部按钮遮挡 */
+            main {
+                padding-bottom: 4.5rem;
+            }
         }
     </style>
     <script>
-        (function() {
-            // 尽早挂载 js-ready：首帧不带颜色过渡，之后主题切换恢复平滑动画
-            document.documentElement.classList.add('js-ready');
-            var link = document.getElementById('hljs-theme-link');
-            if (!link) {
-                return;
-            }
-            var darkThemes = ['dark', 'galaxy'];
-            var theme = document.documentElement.dataset.currentTheme || {{ current_theme | tojson }} || 'light';
-            var nextHref = darkThemes.indexOf(theme) >= 0 ? link.dataset.themeDark : link.dataset.themeLight;
-            if (nextHref) {
-                link.href = nextHref;
-            }
-        })();
+        // 尽早挂载 js-ready：首帧不带颜色过渡，之后主题切换恢复平滑动画
+        document.documentElement.classList.add('js-ready');
     </script>
 </head>
 <body class="site-shell min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 {{ effect_body_class if effect_body_class else '' }}"
@@ -139,11 +147,11 @@
       data-effect-body-class="{{ effect_body_class if effect_body_class is not none else '' }}"
       data-active-effects='{{ resolved_effects.effects | tojson if resolved_effects else "[]" }}'
       data-theme-csrf-token="{{ theme_csrf_token }}"
-      data-theme-persist-allowed="{{ 'true' if is_logged_in else 'false' }}"
+      data-theme-persist-allowed="{{ 'true' if theme_persist_allowed else 'false' }}"
       data-background-type="{{ background_image_settings.type if background_image_settings else 'none' }}"
       data-background-url="{{ background_image_settings.custom_url if background_image_settings and background_image_settings.custom_url else '' }}"
       data-homepage-mode="{{ homepage_mode if homepage_mode else 'default' }}">
-    <header class="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
+    <header class="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 border-b border-gray-200 dark:border-gray-700">
         <div class="container mx-auto px-3 md:px-6 py-3 md:py-4">
             <div class="flex justify-between items-center">
                 <!-- 品牌Logo -->
@@ -505,11 +513,11 @@
             );
             --footer-panel-bg:
                 linear-gradient(135deg, color-mix(in srgb, var(--color-text) 8%, transparent), transparent 26%),
-                linear-gradient(135deg, color-mix(in srgb, var(--color-card-bg) 34%, transparent), color-mix(in srgb, var(--color-card-bg) 18%, transparent)),
-                linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 44%);
+                linear-gradient(135deg, color-mix(in srgb, var(--color-card-bg) 46%, transparent), color-mix(in srgb, var(--color-card-bg) 32%, transparent)),
+                linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 44%);
             --footer-panel-border: color-mix(in srgb, var(--color-primary) 16%, color-mix(in srgb, var(--color-border) 54%, transparent) 84%);
             --footer-panel-shadow: 0 24px 52px -34px color-mix(in srgb, var(--color-primary) 26%, rgba(15, 23, 42, 0.26));
-            --footer-soft-bg: color-mix(in srgb, var(--color-card-bg) 18%, transparent);
+            --footer-soft-bg: color-mix(in srgb, var(--color-card-bg) 24%, transparent);
             --footer-soft-border: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
             --footer-text: color-mix(in srgb, var(--color-text) 96%, var(--color-primary) 4%);
             --footer-muted: color-mix(in srgb, var(--color-text-light) 90%, var(--color-text) 10%);
@@ -525,9 +533,10 @@
         .site-footer-shell .site-footer-panel {
             border-color: var(--footer-panel-border);
             background: var(--footer-panel-bg);
+            /* 页脚只在滚到底部时可见，恢复磨砂玻璃不影响常态滚动的响应速度 */
+            backdrop-filter: blur(12px) saturate(135%);
+            -webkit-backdrop-filter: blur(12px) saturate(135%);
             box-shadow: var(--footer-panel-shadow);
-            backdrop-filter: blur(22px) saturate(145%);
-            -webkit-backdrop-filter: blur(22px) saturate(145%);
         }
         .site-footer-primary,
         .site-footer-meta,
@@ -543,8 +552,8 @@
         .site-footer-note {
             border: 1px solid var(--footer-soft-border);
             background: var(--footer-soft-bg);
-            backdrop-filter: blur(16px) saturate(138%);
-            -webkit-backdrop-filter: blur(16px) saturate(138%);
+            backdrop-filter: blur(8px) saturate(125%);
+            -webkit-backdrop-filter: blur(8px) saturate(125%);
             box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-text) 8%, transparent);
         }
         .site-footer-badge {
@@ -615,6 +624,18 @@
             if (html.indexOf('©') >= 0) {
                 copyrightLine.innerHTML = html.replace('©', '© ' + year + ' ');
             }
+        });
+    </script>
+    <script>
+        // 标题字体在 load 之后再注入：1.17MB 的字体不参与首屏带宽竞争，也不推迟 load 事件。
+        // font-display: optional 表示本次没就绪就用系统字体，不再二次重排。
+        window.addEventListener('load', function () {
+            var fontStyle = document.createElement('style');
+            fontStyle.textContent = "@font-face{"
+                + "font-family:'SourceHanSansCN';"
+                + "src:url('{{ static_asset(request, 'fonts/SourceHanSansCN-Medium.woff2') }}') format('woff2');"
+                + "font-weight:500;font-style:normal;font-display:optional;}";
+            document.head.appendChild(fontStyle);
         });
     </script>
     <script src="{{ static_asset(request, 'js/site-shell.js') }}" defer></script>

@@ -84,7 +84,8 @@ body {
   width: 4.5rem;
   height: 4.5rem;
   border-radius: 1.4rem;
-  display: inline-flex;
+  /* 使用块级 flex，避免图标与上方状态徽标挤在同一行互相遮挡 */
+  display: flex;
   align-items: center;
   justify-content: center;
   margin: 1.2rem 0 0.9rem;

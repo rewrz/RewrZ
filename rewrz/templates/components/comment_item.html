@@ -25,7 +25,7 @@
             {% set gravatar_hash = comment.author_email | md5 %}
             <img
                 class="h-10 w-10 rounded-full object-cover ring-2 ring-white shadow-sm dark:ring-gray-700"
-                src="https://www.gravatar.com/avatar/{{ gravatar_hash }}?s=48&d=identicon&r=g"
+                src="/media/avatar/{{ gravatar_hash }}?s=48"
                 alt="{{ comment.author_name }} 的头像"
                 loading="lazy"
                 onerror="this.src='/static/images/default-avatar.png'"

@@ -67,7 +67,7 @@
 
 .format-archive-glass .format-hero-card {
     border-radius: 1.6rem;
-    transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 420ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .format-archive-glass .format-hero-card .format-hero-summary {
@@ -218,8 +218,9 @@
     box-shadow:
         inset 0 1px 0 color-mix(in srgb, var(--article-hero-ink) 10%, transparent),
         0 -10px 24px -20px color-mix(in srgb, var(--article-hero-shadow-strong) 54%, transparent);
-    backdrop-filter: blur(18px) saturate(145%);
-    -webkit-backdrop-filter: blur(18px) saturate(145%);
+    /* 头图底部信息条：面积小、只在首屏出现，恢复较重的磨砂玻璃 */
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
 }
 
 .format-archive-glass .format-hero-ribbon-article .format-hero-chip-article {
@@ -245,8 +246,8 @@
     border: 1px solid var(--article-hero-border-soft);
     background: color-mix(in srgb, var(--article-hero-tone) 18%, transparent);
     box-shadow: inset 0 1px 0 color-mix(in srgb, var(--article-hero-ink) 8%, transparent);
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(12px) saturate(135%);
+    -webkit-backdrop-filter: blur(12px) saturate(135%);
 }
 
 .format-archive-glass .format-hero-meta-stack-article {
@@ -269,8 +270,8 @@
     border: 1px solid var(--article-hero-border-soft);
     background: var(--article-hero-surface-weak);
     color: var(--article-hero-ink-soft);
-    backdrop-filter: blur(8px) saturate(118%);
-    -webkit-backdrop-filter: blur(8px) saturate(118%);
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
 }
 
 .format-archive-glass .format-hero-inline-stat-article strong {
@@ -344,8 +345,8 @@
     box-shadow:
         inset 0 1px 0 color-mix(in srgb, var(--article-hero-ink) 8%, transparent),
         0 18px 32px -30px color-mix(in srgb, var(--article-hero-shadow-strong) 72%, transparent);
-    backdrop-filter: blur(10px) saturate(122%);
-    -webkit-backdrop-filter: blur(10px) saturate(122%);
+    backdrop-filter: blur(10px) saturate(125%);
+    -webkit-backdrop-filter: blur(10px) saturate(125%);
 }
 
 .format-archive-glass .format-hero-tags-panel-article {
@@ -373,8 +374,8 @@
     border-radius: 999px;
     background: var(--article-hero-surface);
     box-shadow: inset 0 1px 0 color-mix(in srgb, var(--article-hero-ink) 8%, transparent);
-    backdrop-filter: blur(10px) saturate(122%);
-    -webkit-backdrop-filter: blur(10px) saturate(122%);
+    backdrop-filter: blur(10px) saturate(125%);
+    -webkit-backdrop-filter: blur(10px) saturate(125%);
     color: var(--article-hero-ink-soft);
     letter-spacing: 0.08em;
     text-shadow: 0 2px 12px color-mix(in srgb, var(--article-hero-shadow-strong) 68%, transparent);
@@ -405,16 +406,16 @@
 .format-archive-glass .format-hero-chip-article {
     background: var(--article-hero-chip-surface) !important;
     color: var(--article-hero-chip-ink) !important;
-    backdrop-filter: blur(12px) saturate(130%);
-    -webkit-backdrop-filter: blur(12px) saturate(130%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 .format-archive-glass .format-hero-stat-article {
     border: 1px solid var(--article-hero-box-border);
     background: var(--article-hero-box-surface) !important;
     box-shadow: none;
-    backdrop-filter: blur(8px) saturate(120%);
-    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 .format-archive-glass .format-hero-stat-article-compact {
@@ -426,8 +427,8 @@
     background: var(--article-hero-surface-weak);
     color: var(--article-hero-ink);
     border-color: var(--article-hero-border-soft);
-    backdrop-filter: blur(8px) saturate(120%);
-    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 .format-archive-glass .format-hero-link-pill-article:hover {
@@ -564,23 +565,23 @@
 .dark .format-archive-glass .format-hero-chip-article {
     background: var(--article-hero-chip-surface) !important;
     color: var(--article-hero-chip-ink) !important;
-    backdrop-filter: blur(12px) saturate(132%);
-    -webkit-backdrop-filter: blur(12px) saturate(132%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 .dark .format-archive-glass .format-hero-stat-article {
     border-color: var(--article-hero-box-border);
     background: var(--article-hero-box-surface) !important;
     box-shadow: none;
-    backdrop-filter: blur(8px) saturate(122%);
-    -webkit-backdrop-filter: blur(8px) saturate(122%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 .dark .format-archive-glass .format-hero-link-pill-article {
     background: var(--article-hero-surface-weak);
     color: var(--article-hero-ink);
-    backdrop-filter: blur(8px) saturate(122%);
-    -webkit-backdrop-filter: blur(8px) saturate(122%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 .dark .format-archive-glass .format-hero-link-pill-article:hover {
@@ -1165,8 +1166,8 @@
     background: color-mix(in srgb, var(--color-card-bg) 82%, transparent);
     padding: 0.34rem 0.72rem;
     color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(10px) saturate(125%);
+    -webkit-backdrop-filter: blur(10px) saturate(125%);
 }
 
 .format-archive-glass .micro-composer-badge-action {
@@ -1377,8 +1378,8 @@
     border: 1px solid transparent;
     background: color-mix(in srgb, var(--color-card-bg) 78%, transparent);
     color: color-mix(in srgb, var(--color-text) 72%, var(--color-primary) 28%) !important;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px) saturate(125%);
+    -webkit-backdrop-filter: blur(10px) saturate(125%);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
@@ -1470,6 +1471,7 @@
 }
 
 .format-archive-glass .micro-emoji-panel {
+    /* 表情面板是点击后才出现的浮层，恢复重玻璃不影响常态滚动 */
     backdrop-filter: blur(16px) saturate(140%);
     -webkit-backdrop-filter: blur(16px) saturate(140%);
 }
@@ -1534,9 +1536,10 @@
 .format-archive-glass #format-posts-panel .archive-card-equal,
 .format-archive-glass #format-posts-panel article[data-micro-card] {
     border-color: var(--archive-glass-border) !important;
-    background: var(--archive-glass-medium-bg) !important;
-    backdrop-filter: var(--archive-glass-blur);
-    -webkit-backdrop-filter: var(--archive-glass-blur);
+    /* 卡片数量多，用 6px 轻模糊 + 较低不透明度：保留磨砂观感，同时把滚动时的重算开销压在可控范围 */
+    background: color-mix(in srgb, var(--color-card-bg) 78%, transparent) !important;
+    backdrop-filter: blur(6px) saturate(120%) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(120%) !important;
     box-shadow: 0 16px 34px rgba(15, 23, 42, 0.14);
 }
 
@@ -1563,8 +1566,9 @@
 .format-archive-glass #format-posts-panel article[data-micro-card] a.rounded-full,
 .format-archive-glass #format-posts-panel article[data-micro-card] span.rounded-full,
 .format-archive-glass #format-posts-panel article[data-micro-card] button.rounded-full {
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    /* 卡片内部胶囊已叠在实色卡片上，再做模糊看不到差异，却会为每张卡片额外增加多个合成层 */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 /* 不适合高透玻璃：长文本内容层保持纯净可读 */

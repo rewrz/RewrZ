@@ -1508,8 +1508,8 @@ class MultiFormatInteractions {
 
                 const icon = toggle.querySelector('i');
                 if (icon) {
-                    icon.classList.toggle('fa-angles-right', collapsed);
-                    icon.classList.toggle('fa-angles-left', !collapsed);
+                    icon.classList.toggle('fa-angle-double-right', collapsed);
+                    icon.classList.toggle('fa-angle-double-left', !collapsed);
                 }
 
                 const label = toggle.querySelector('span');

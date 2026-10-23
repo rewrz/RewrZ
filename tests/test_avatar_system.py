@@ -48,29 +48,33 @@ class TestAvatarService:
         assert hash1 == hash2
     
     def test_gravatar_url_generation(self):
-        """测试Gravatar URL生成"""
+        """测试Gravatar URL生成（站内中转地址）"""
         email = "test@example.com"
         size = 80
-        
+
         url = self.avatar_service.get_gravatar_url(email, size)
-        
-        assert "gravatar.com/avatar/" in url
+        email_hash = self.avatar_service.get_gravatar_hash(email)
+
+        # 外链头像走站内中转，避免 Gravatar 挂起阻塞页面加载
+        assert url.startswith(f"/media/avatar/{email_hash}")
         assert f"s={size}" in url
-        assert "d=identicon" in url
-        assert "r=g" in url
-    
+
     def test_gravatar_url_with_custom_params(self):
-        """测试自定义参数的Gravatar URL生成"""
+        """测试外链 Gravatar 地址仍携带服务端配置参数"""
         email = "test@example.com"
         size = 120
-        default = "monsterid"
-        rating = "pg"
-        
-        url = self.avatar_service.get_gravatar_url(email, size, default, rating)
-        
-        assert f"s={size}" in url
-        assert f"d={default}" in url
-        assert f"r={rating}" in url
+
+        local_url = self.avatar_service.get_gravatar_url(email, size)
+        remote_url = self.avatar_service.build_remote_gravatar_url(
+            self.avatar_service.get_gravatar_hash(email),
+            size,
+        )
+
+        assert f"s={size}" in local_url
+        assert "gravatar.com/avatar/" in remote_url
+        assert f"s={size}" in remote_url
+        assert "d=identicon" in remote_url
+        assert "r=g" in remote_url
     
     def test_empty_email_gravatar(self):
         """测试空邮箱的Gravatar处理"""
@@ -131,18 +135,18 @@ class TestAvatarService:
         """测试匿名评论者头像URL"""
         email = "anonymous@example.com"
         url = self.avatar_service.get_comment_avatar_url(email)
-        
-        # 应该返回Gravatar URL
-        assert "gravatar.com" in url
-    
+
+        # 外链头像统一走站内中转
+        assert url.startswith("/media/avatar/")
+
     def test_comment_avatar_url_with_user_id(self):
         """测试注册用户评论头像URL"""
         email = "user@example.com"
         user_id = 1
-        
-        # 由于没有自定义头像，应该返回Gravatar
+
+        # 没有自定义头像时走站内中转地址
         url = self.avatar_service.get_comment_avatar_url(email, user_id)
-        assert "gravatar.com" in url or self.avatar_service.default_avatar_url in url
+        assert url.startswith("/media/avatar/") or self.avatar_service.default_avatar_url in url
     
     def test_settings_loading(self, test_db: Session):
         """测试设置加载"""
@@ -212,13 +216,13 @@ class TestAvatarIntegration:
         
         email = "test@example.com"
         
-        # 没有用户ID时，应该使用Gravatar
+        # 没有用户ID时，应该使用站内中转的外链头像
         url1 = avatar_service.get_avatar_url(email)
-        assert "gravatar.com" in url1 or avatar_service.default_avatar_url in url1
-        
-        # 有用户ID但没有自定义头像时，仍使用Gravatar
+        assert url1.startswith("/media/avatar/") or avatar_service.default_avatar_url in url1
+
+        # 有用户ID但没有自定义头像时，仍使用站内中转地址
         url2 = avatar_service.get_avatar_url(email, user_id=999)
-        assert "gravatar.com" in url2 or avatar_service.default_avatar_url in url2
+        assert url2.startswith("/media/avatar/") or avatar_service.default_avatar_url in url2
     
     def test_avatar_settings_integration(self, test_db: Session):
         """测试头像设置集成"""

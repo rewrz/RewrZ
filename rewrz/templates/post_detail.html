@@ -123,7 +123,7 @@
                 {% endif %}
 
                 <div class="post-content prose dark:prose-invert max-w-none micro-content">
-                    {{ rendered_content | safe }}
+                    {{ rendered_content | content_lazy_images | safe }}
                 </div>
 
                 {% if post.tags %}
@@ -222,7 +222,7 @@
         {% if toc_items %}
         <aside class="detail-toc-panel detail-toc-panel-micro is-collapsed" data-floating-toc data-toc-title="内容目录" aria-label="文章目录">
             <button type="button" class="floating-toc-toggle" data-floating-toc-toggle aria-expanded="false" aria-label="展开内容目录">
-                <i class="fas fa-angles-right" aria-hidden="true"></i>
+                <i class="fas fa-angle-double-right" aria-hidden="true"></i>
                 <span>目录</span>
             </button>
             <h2 class="detail-toc-title">内容目录</h2>
@@ -330,7 +330,7 @@
             <!-- 内容区域 -->
             <div class="poetry-body p-6 md:p-10 space-y-5">
                 <div id="poetry-lyrics-content" class="post-content poetry-content prose dark:prose-invert max-w-none text-center leading-loose overflow-y-auto pr-2 text-lg md:text-xl transition-all duration-300" data-font="sans">
-                    {{ rendered_content | safe }}
+                    {{ rendered_content | content_lazy_images | safe }}
                 </div>
                 {% set license_box_class = "rounded-xl bg-white/70 dark:bg-gray-900/60 border border-white/40 dark:border-gray-700/60 p-4 md:p-5" %}
                 {% include "components/post_license_inline.html" %}
@@ -352,7 +352,7 @@
         {% if toc_items %}
         <aside class="detail-toc-panel detail-toc-panel-poetry is-collapsed" data-floating-toc data-toc-title="内容目录" aria-label="文章目录">
             <button type="button" class="floating-toc-toggle" data-floating-toc-toggle aria-expanded="false" aria-label="展开内容目录">
-                <i class="fas fa-angles-right" aria-hidden="true"></i>
+                <i class="fas fa-angle-double-right" aria-hidden="true"></i>
                 <span>目录</span>
             </button>
             <h2 class="detail-toc-title">内容目录</h2>
@@ -411,7 +411,7 @@
 
             <div class="p-6 md:p-8 space-y-5">
                 <div class="post-content article-content prose prose-lg dark:prose-invert max-w-none">
-                    {{ rendered_content | safe }}
+                    {{ rendered_content | content_lazy_images | safe }}
                 </div>
                 {% set license_box_class = "rounded-xl bg-gray-50 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-700 p-4 md:p-5" %}
                 {% include "components/post_license_inline.html" %}
@@ -420,7 +420,7 @@
         {% if toc_items %}
         <aside class="detail-toc-panel detail-toc-panel-article is-collapsed" data-floating-toc data-toc-title="文章目录" aria-label="文章目录">
             <button type="button" class="floating-toc-toggle" data-floating-toc-toggle aria-expanded="false" aria-label="展开文章目录">
-                <i class="fas fa-angles-right" aria-hidden="true"></i>
+                <i class="fas fa-angle-double-right" aria-hidden="true"></i>
                 <span>目录</span>
             </button>
             <h2 class="detail-toc-title">文章目录</h2>

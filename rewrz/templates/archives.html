@@ -3,7 +3,7 @@
 {% block title %}内容归档{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 lg:px-6 py-8 max-w-4xl">
+<div class="container mx-auto px-4 lg:px-6 py-8 max-w-5xl">
     <!-- 页面标题 -->
     <div class="text-center mb-8">
         <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
@@ -79,11 +79,11 @@
                 <div class="ml-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-8">
                     <div class="divide-y divide-gray-100 dark:divide-gray-700" data-archive-items-list>
                         {% for post in year_posts | sort(attribute='published_at', reverse=True) %}
-                        <div class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
+                        <div class="archive-item-row px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
                             <div class="flex items-center justify-between">
-                                <div class="flex items-center space-x-4 flex-1">
+                                <div class="archive-item-main flex items-center space-x-4 flex-1">
                                     <!-- 日期 -->
-                                    <div class="text-sm text-gray-500 dark:text-gray-400 font-mono min-w-[5rem]">
+                                    <div class="archive-item-date text-sm text-gray-500 dark:text-gray-400 font-mono min-w-[5rem]">
                                         {{ post.published_at.strftime('%m-%d') }}
                                     </div>
                                     
@@ -119,7 +119,7 @@
                                 </div>
                                 
                                 <!-- 统计信息 -->
-                                <div class="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                                <div class="archive-item-stats flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
                                     <span class="flex items-center">
                                         <i class="fas fa-clock mr-1"></i>
                                         {{ (post.content_markdown or post.content_html) | reading_time }}
@@ -196,11 +196,11 @@
                 <div class="ml-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
                     <div class="divide-y divide-gray-100 dark:divide-gray-700" data-archive-items-list>
                         {% for post in month_posts | sort(attribute='published_at', reverse=True) %}
-                        <div class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
+                        <div class="archive-item-row px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
                             <div class="flex items-center justify-between">
-                                <div class="flex items-center space-x-4 flex-1">
+                                <div class="archive-item-main flex items-center space-x-4 flex-1">
                                     <!-- 日期 -->
-                                    <div class="text-sm text-gray-500 dark:text-gray-400 font-mono min-w-[3rem]">
+                                    <div class="archive-item-date text-sm text-gray-500 dark:text-gray-400 font-mono min-w-[3rem]">
                                         {{ post.published_at.strftime('%d日') }}
                                     </div>
                                     
@@ -236,7 +236,7 @@
                                 </div>
                                 
                                 <!-- 统计信息 -->
-                                <div class="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                                <div class="archive-item-stats flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
                                     <span class="flex items-center">
                                         <i class="fas fa-clock mr-1"></i>
                                         {{ (post.content_markdown or post.content_html) | reading_time }}

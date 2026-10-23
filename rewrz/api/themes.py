@@ -27,6 +27,9 @@ from ..schemas import Setting, SettingCreate, SettingUpdate, User
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# 游客主题偏好存放在浏览器 Cookie 中，服务端渲染时直接读取，避免刷新后回退默认主题
+GUEST_THEME_COOKIE = "rewrz_theme"
+
 # 预定义主题配置（8种预设主题，含二次元风格）
 DEFAULT_THEMES = {
     "light": {
@@ -46,7 +49,7 @@ DEFAULT_THEMES = {
             "--color-card-shadow": "rgba(99, 102, 241, 0.1)",
             "--color-nav-bg": "rgba(255, 255, 255, 0.85)",
             "--color-footer-bg": "#f8fafc",
-            "--font-family-base": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+            "--font-family-base": "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
             "--font-family-heading": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--font-family-decorative": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--backdrop-blur": "blur(12px)"
@@ -69,7 +72,7 @@ DEFAULT_THEMES = {
             "--color-card-shadow": "rgba(129, 140, 248, 0.15)",
             "--color-nav-bg": "rgba(15, 23, 42, 0.85)",
             "--color-footer-bg": "#1e293b",
-            "--font-family-base": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+            "--font-family-base": "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
             "--font-family-heading": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--font-family-decorative": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--backdrop-blur": "blur(12px)"
@@ -92,7 +95,7 @@ DEFAULT_THEMES = {
             "--color-card-shadow": "rgba(16, 185, 129, 0.1)",
             "--color-nav-bg": "rgba(240, 253, 244, 0.9)",
             "--color-footer-bg": "#dcfce7",
-            "--font-family-base": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+            "--font-family-base": "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
             "--font-family-heading": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--font-family-decorative": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--backdrop-blur": "blur(12px)"
@@ -115,7 +118,7 @@ DEFAULT_THEMES = {
             "--color-card-shadow": "rgba(14, 165, 233, 0.1)",
             "--color-nav-bg": "rgba(240, 249, 255, 0.9)",
             "--color-footer-bg": "#e0f2fe",
-            "--font-family-base": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+            "--font-family-base": "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
             "--font-family-heading": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--font-family-decorative": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--backdrop-blur": "blur(12px)"
@@ -138,7 +141,7 @@ DEFAULT_THEMES = {
             "--color-card-shadow": "rgba(234, 138, 18, 0.14)",
             "--color-nav-bg": "rgba(255, 247, 230, 0.92)",
             "--color-footer-bg": "#fde7bd",
-            "--font-family-base": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+            "--font-family-base": "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
             "--font-family-heading": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--font-family-decorative": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--backdrop-blur": "blur(12px)"
@@ -161,7 +164,7 @@ DEFAULT_THEMES = {
             "--color-card-shadow": "rgba(227, 79, 150, 0.14)",
             "--color-nav-bg": "rgba(255, 244, 248, 0.93)",
             "--color-footer-bg": "#f9dde9",
-            "--font-family-base": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+            "--font-family-base": "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
             "--font-family-heading": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--font-family-decorative": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--backdrop-blur": "blur(12px)"
@@ -184,7 +187,7 @@ DEFAULT_THEMES = {
             "--color-card-shadow": "rgba(178, 107, 255, 0.2)",
             "--color-nav-bg": "rgba(10, 10, 24, 0.94)",
             "--color-footer-bg": "#17162d",
-            "--font-family-base": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+            "--font-family-base": "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
             "--font-family-heading": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--font-family-decorative": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--backdrop-blur": "blur(14px)"
@@ -207,7 +210,7 @@ DEFAULT_THEMES = {
             "--color-card-shadow": "rgba(18, 165, 148, 0.13)",
             "--color-nav-bg": "rgba(239, 252, 248, 0.93)",
             "--color-footer-bg": "#d8f5ed",
-            "--font-family-base": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
+            "--font-family-base": "'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, 'Segoe UI', sans-serif",
             "--font-family-heading": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--font-family-decorative": "'SourceHanSansCN', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif",
             "--backdrop-blur": "blur(12px)"
@@ -594,6 +597,18 @@ def get_site_default_theme(db: Session, custom_themes: Dict[str, Any]) -> str:
     return resolve_theme_name(_extract_setting_value(theme_setting, "light"), custom_themes)
 
 
+def is_known_theme(theme_name: Optional[str], custom_themes: Optional[Dict[str, Any]] = None) -> bool:
+    """判断主题名是否属于站点可用主题（内置或自定义）。"""
+    raw_name = str(theme_name or "").strip()
+    if not raw_name:
+        return False
+    if raw_name.lower() in DEFAULT_THEMES:
+        return True
+    if custom_themes:
+        return raw_name in custom_themes or raw_name.lower() in custom_themes
+    return False
+
+
 def resolve_active_theme(
     db: Session,
     request: Optional[Request] = None,
@@ -608,10 +623,19 @@ def resolve_active_theme(
         theme_source = "request_override"
     else:
         request_user = getattr(request.state, "authenticated_user", None) if request is not None else None
-        user_theme = resolve_theme_name(getattr(request_user, "theme_preference", None), custom_themes) if request_user else "light"
-        if request_user and getattr(request_user, "theme_preference", None) and user_theme != "light":
-            resolved_theme = user_theme
+        user_theme_preference = str(getattr(request_user, "theme_preference", "") or "").strip() if request_user else ""
+        # 游客与无服务端偏好的用户：读取浏览器本地主题 Cookie，
+        # 保证切换主题后刷新或跳页仍保持选择，而不是回到站点默认主题。
+        guest_theme_preference = ""
+        if request is not None:
+            request_cookies = getattr(request, "cookies", {}) or {}
+            guest_theme_preference = str(request_cookies.get(GUEST_THEME_COOKIE) or "").strip()
+        if request_user and user_theme_preference:
+            resolved_theme = resolve_theme_name(user_theme_preference, custom_themes)
             theme_source = "user_preference"
+        elif is_known_theme(guest_theme_preference, custom_themes):
+            resolved_theme = resolve_theme_name(guest_theme_preference, custom_themes)
+            theme_source = "guest_preference"
         else:
             site_theme = get_site_default_theme(db, custom_themes)
             if site_theme:

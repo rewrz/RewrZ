@@ -32,6 +32,10 @@ class SettingsMiddleware(BaseHTTPMiddleware):
         """
         中间件主要逻辑：加载设置数据到 request.state
         """
+        # 静态资源与媒体文件不需要任何站点设置；跳过可以避免每个文件请求都查一遍数据库
+        if request.url.path.startswith(("/static/", "/media/")):
+            return await call_next(request)
+
         db_gen = None
         try:
             # 优先复用 request 级数据库会话

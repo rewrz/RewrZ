@@ -841,6 +841,42 @@ def static_asset(request, path: str) -> str:
     return f"{asset_url}{separator}v={version}"
 
 
+_IMG_TAG_RE = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
+_IMG_LOADING_ATTR_RE = re.compile(r"\bloading\s*=", re.IGNORECASE)
+_IMG_DECODING_ATTR_RE = re.compile(r"\bdecoding\s*=", re.IGNORECASE)
+_IMG_SRC_ATTR_RE = re.compile(r"\bsrc\s*=", re.IGNORECASE)
+
+
+def content_lazy_images_filter(html: str) -> str:
+    """
+    给正文图片补上懒加载与异步解码。
+
+    正文里的外链大图（例如从旧站迁移过来的图片）会在打开页面时同时发起请求，
+    既把 load 事件拖到几秒之后，也让首屏之外的图片白占带宽与解码开销。
+    """
+    if not html:
+        return ""
+
+    def _replace_img_tag(match: "re.Match[str]") -> str:
+        tag = match.group(0)
+        if not _IMG_SRC_ATTR_RE.search(tag):
+            return tag
+
+        additions = []
+        if not _IMG_LOADING_ATTR_RE.search(tag):
+            additions.append('loading="lazy"')
+        if not _IMG_DECODING_ATTR_RE.search(tag):
+            additions.append('decoding="async"')
+        if not additions:
+            return tag
+
+        closing = "/>" if tag.endswith("/>") else ">"
+        body = tag[: -len(closing)].rstrip()
+        return f"{body} {' '.join(additions)}{closing}"
+
+    return _IMG_TAG_RE.sub(_replace_img_tag, html)
+
+
 def safe_comment_html_filter(raw_html) -> str:
     """评论内容输出前的白名单过滤，兜底历史脏数据。"""
     return sanitize_comment_html(raw_html)
@@ -890,6 +926,7 @@ def register_template_filters(app):
     templates.env.filters['strip_media_nodes'] = strip_media_nodes_filter
     templates.env.filters['safe_comment_html'] = safe_comment_html_filter
     templates.env.filters['safe_comment_url'] = safe_comment_url_filter
+    templates.env.filters['content_lazy_images'] = content_lazy_images_filter
     templates.env.globals['static_asset'] = static_asset
     
     return templates
@@ -938,6 +975,7 @@ def get_templates():
         _templates.env.filters['strip_media_nodes'] = strip_media_nodes_filter
         _templates.env.filters['safe_comment_html'] = safe_comment_html_filter
         _templates.env.filters['safe_comment_url'] = safe_comment_url_filter
+        _templates.env.filters['content_lazy_images'] = content_lazy_images_filter
         _templates.env.globals['static_asset'] = static_asset
 
     return _templates

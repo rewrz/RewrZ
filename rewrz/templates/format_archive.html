@@ -26,7 +26,7 @@
 <section class="py-8 format-archive-glass">
     <div class="container mx-auto max-w-6xl px-4">
         {% if is_article %}
-        <header class="format-hero-card format-hero-card-article profile-motion-shell mb-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800" style="--format-hero-cover: url('{{ profile_cover }}');" data-profile-motion>
+        <header class="format-hero-card format-hero-card-article profile-motion-shell mb-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800" style="--format-hero-cover: url('{{ profile_cover }}');">
             <div class="format-hero-media format-hero-media-article">
                 <img src="{{ profile_cover }}" alt="文章聚合封面" class="format-hero-image format-hero-image-article">
                 <div class="format-hero-overlay format-hero-overlay-article"></div>
@@ -44,7 +44,7 @@
                                 {% endif %}
                                 {% if profile_location %}
                                 <span class="format-hero-chip format-hero-chip-article inline-flex items-center rounded-full px-2.5 py-1">
-                                    <i class="fas fa-location-dot mr-1"></i>{{ profile_location }}
+                                    <i class="fas fa-map-marker-alt mr-1"></i>{{ profile_location }}
                                 </span>
                                 {% endif %}
                             </div>
@@ -117,7 +117,7 @@
             {% endif %}
         </header>
         {% elif is_micro %}
-        <header class="format-hero-card profile-motion-shell mb-8 overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-indigo-50 shadow-sm dark:border-sky-700/50 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30" data-profile-motion>
+        <header class="format-hero-card profile-motion-shell mb-8 overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-indigo-50 shadow-sm dark:border-sky-700/50 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30">
             <div class="relative p-5 md:p-7">
                 <img src="{{ profile_cover }}" alt="微博聚合封面" class="format-hero-image format-hero-image-micro absolute inset-0 h-full w-full object-cover opacity-40">
                 <div class="format-hero-overlay format-hero-overlay-micro"></div>
@@ -184,7 +184,7 @@
             </div>
         </header>
         {% else %}
-        <header class="format-hero-card format-hero-card-poem profile-motion-shell mb-8 overflow-hidden rounded-3xl border shadow-sm" data-profile-motion>
+        <header class="format-hero-card format-hero-card-poem profile-motion-shell mb-8 overflow-hidden rounded-3xl border shadow-sm">
             <div class="relative p-6 md:p-8">
                 <img src="{{ profile_cover }}" alt="诗词聚合封面" class="format-hero-image format-hero-image-poem absolute inset-0 h-full w-full object-cover opacity-40">
                 <div class="format-hero-overlay format-hero-overlay-poem"></div>
@@ -214,7 +214,7 @@
                         </span>
                         {% if profile_location %}
                         <span class="format-hero-chip format-hero-chip-poem inline-flex items-center rounded-full px-3 py-1">
-                            <i class="fas fa-location-dot mr-1"></i>{{ profile_location }}
+                            <i class="fas fa-map-marker-alt mr-1"></i>{{ profile_location }}
                         </span>
                         {% endif %}
                         {% if profile_public_email %}
@@ -371,7 +371,7 @@
                                 </button>
                                 <div class="relative">
                                     <button id="micro-quick-emoji-toggle" type="button" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100" aria-expanded="false">
-                                        <i class="fas fa-face-smile micro-tool-emoji" aria-hidden="true"></i>表情
+                                        <i class="fas fa-smile micro-tool-emoji" aria-hidden="true"></i>表情
                                     </button>
                                     <div id="micro-quick-emoji-panel" class="micro-emoji-panel fixed z-[140] hidden w-80 max-w-[92vw] rounded-2xl border p-2 shadow-2xl">
                                         <div class="mb-2 flex flex-wrap items-center gap-1.5">

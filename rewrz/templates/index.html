@@ -13,17 +13,16 @@ body.site-shell[data-homepage-mode="fullscreen_video"] main {
     padding-top: 0 !important;
 }
 
-body.site-shell[data-homepage-mode="fullscreen_gallery"],
-body.site-shell[data-homepage-mode="fullscreen_video"] {
-    --homepage-header-height: 5rem;
-    --homepage-hero-progress: 0;
-}
+/* 滚动进度与头部高度由脚本写在 :root 上，body 不能再声明同名变量，否则会覆盖根变量导致进度恒为 0 */
 
 body.site-shell[data-homepage-mode="fullscreen_gallery"]:not(.homepage-immersive-collapsed) > header,
 body.site-shell[data-homepage-mode="fullscreen_video"]:not(.homepage-immersive-collapsed) > header {
-    background: color-mix(in srgb, var(--color-nav-bg) 72%, transparent) !important;
+    background: color-mix(in srgb, var(--color-nav-bg) 84%, transparent) !important;
     border-color: color-mix(in srgb, var(--color-border) 36%, transparent) !important;
     box-shadow: none;
+    /* 首屏图在背后淡出时若持续做背景模糊，会把每帧的合成压力压到主线程，导致滚动与悬停响应滞后 */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
 }
 
 .homepage-immersive-layout {
@@ -39,13 +38,27 @@ body.site-shell[data-homepage-mode="fullscreen_video"]:not(.homepage-immersive-c
     min-height: 100vh;
     min-height: 100svh;
     overflow: hidden;
-    transform:
-        translate3d(0, calc(var(--homepage-hero-progress, 0) * -14vh), 0)
-        scale(calc(1 - var(--homepage-hero-progress, 0) * 0.06));
-    transform-origin: center top;
-    opacity: calc(1 - var(--homepage-hero-progress, 0) * 0.38);
-    transition: transform 540ms cubic-bezier(0.22, 1, 0.36, 1), opacity 540ms cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform, opacity;
+    /* 首屏图始终保持全屏铺满，仅随滚动淡出：缩放或上移都会露出页面底色，且让全屏图层逐帧重栅格化，滚动会明显发涩 */
+    /* 全屏图层不再常驻 will-change：滚动驱动动画运行期间浏览器会自动提升，避免长期占用大块显存 */
+    opacity: calc(1 - var(--homepage-hero-progress, 0));
+}
+
+/* 支持滚动驱动动画的浏览器交由合成器直接联动滚动位置，快速滑动时不会再出现“滚动结束后才补动画”的滞后 */
+@supports (animation-timeline: scroll()) and (animation-range: 0 100svh) {
+    .homepage-immersive-hero {
+        animation: homepage-hero-fade linear both;
+        animation-timeline: scroll(root block);
+        animation-range: 0 100svh;
+    }
+}
+
+@keyframes homepage-hero-fade {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
 }
 
 .homepage-immersive-media,
@@ -61,13 +74,12 @@ body.site-shell[data-homepage-mode="fullscreen_video"]:not(.homepage-immersive-c
     background-size: cover;
     background-position: center;
     opacity: 0;
-    transform: scale(1.08);
-    transition: opacity 1.15s ease, transform 6s cubic-bezier(0.22, 1, 0.36, 1);
+    /* 轮播只做淡入淡出：全屏大图层长期执行 6 秒缩放动画会持续占用合成器，导致滚动与悬停响应变慢 */
+    transition: opacity 1.15s ease;
 }
 
 .hero-gallery-slide.is-active {
     opacity: 1;
-    transform: scale(1);
 }
 
 .homepage-immersive-media video {
@@ -97,7 +109,7 @@ body.site-shell[data-homepage-mode="fullscreen_video"]:not(.homepage-immersive-c
     background:
         radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.18) 0%, transparent 26%),
         radial-gradient(circle at 82% 26%, color-mix(in srgb, var(--color-primary) 16%, rgba(255, 255, 255, 0.12)) 0%, transparent 28%);
-    mix-blend-mode: screen;
+    /* 不使用 mix-blend-mode：混合模式会让首屏大图层在透明度动画期间无法走纯合成路径 */
     opacity: 0.72;
 }
 
@@ -120,6 +132,9 @@ body.site-shell[data-homepage-mode="fullscreen_video"]:not(.homepage-immersive-c
     text-align: center;
     color: #fffdf7;
     text-shadow: 0 12px 40px rgba(0, 0, 0, 0.34);
+    /* 首屏文案在开始滚动的很短时间内淡出，避免与下方内容卡片叠加形成重影 */
+    opacity: calc(1 - var(--homepage-hero-progress, 0) * 5.5);
+    transform: translate3d(0, calc(var(--homepage-hero-progress, 0) * -1.2rem), 0);
 }
 
 .homepage-immersive-kicker {
@@ -129,13 +144,15 @@ body.site-shell[data-homepage-mode="fullscreen_video"]:not(.homepage-immersive-c
     margin-bottom: 1rem;
     border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 999px;
-    background: rgba(12, 18, 32, 0.22);
+    background: rgba(12, 18, 32, 0.36);
+    /* 首屏小面积徽标：恢复磨砂玻璃，面积小不会成为滚动瓶颈 */
+    backdrop-filter: blur(14px) saturate(120%);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
     padding: 0.55rem 1rem;
     font-size: 0.78rem;
     font-weight: 700;
     letter-spacing: 0.22em;
     text-transform: uppercase;
-    backdrop-filter: blur(14px) saturate(120%);
 }
 
 .homepage-immersive-title {
@@ -174,7 +191,9 @@ body.site-shell[data-homepage-mode="fullscreen_video"]:not(.homepage-immersive-c
     background: none;
     color: rgba(255, 249, 240, 0.96);
     transform: translateX(-50%);
-    transition: transform 220ms ease, opacity 220ms ease;
+    opacity: calc(1 - var(--homepage-hero-progress, 0) * 6);
+    /* 透明度由滚动进度逐帧控制，不能对 opacity 加过渡，否则会落后于滚动 */
+    transition: transform 220ms ease;
 }
 
 .homepage-immersive-dismiss:hover {
@@ -189,9 +208,10 @@ body.site-shell[data-homepage-mode="fullscreen_video"]:not(.homepage-immersive-c
     height: 3.3rem;
     border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(12, 18, 32, 0.22);
-    box-shadow: 0 20px 40px -28px rgba(0, 0, 0, 0.55);
+    background: rgba(12, 18, 32, 0.36);
     backdrop-filter: blur(16px) saturate(118%);
+    -webkit-backdrop-filter: blur(16px) saturate(118%);
+    box-shadow: 0 20px 40px -28px rgba(0, 0, 0, 0.55);
 }
 
 .homepage-immersive-dismiss-ring i {
@@ -227,7 +247,8 @@ body.site-shell[data-homepage-mode="fullscreen_video"]:not(.homepage-immersive-c
         var(--ui-shadow-card);
 }
 
-body.homepage-immersive-collapsed .homepage-immersive-dismiss {
+body.homepage-immersive-collapsed .homepage-immersive-dismiss,
+body.homepage-immersive-collapsed .homepage-immersive-copy {
     opacity: 0;
     pointer-events: none;
 }
@@ -242,11 +263,6 @@ body.homepage-immersive-collapsed .homepage-immersive-dismiss {
 }
 
 @media (max-width: 768px) {
-    body.site-shell[data-homepage-mode="fullscreen_gallery"],
-    body.site-shell[data-homepage-mode="fullscreen_video"] {
-        --homepage-header-height: 4.6rem;
-    }
-
     .homepage-immersive-inner {
         padding-inline: 1rem;
         padding-bottom: 4.6rem;
@@ -339,7 +355,7 @@ body.homepage-immersive-collapsed .homepage-immersive-dismiss {
 {% endif %}
 <section class="px-3 pb-8 pt-6 md:px-6 md:pt-10{% if immersive_homepage %} homepage-main-panel-immersive{% endif %}">
     <div class="container mx-auto max-w-6xl space-y-6">
-        <div class="hero-surface hero-surface-cover-card profile-motion-shell overflow-hidden p-0" data-profile-motion>
+        <div class="hero-surface hero-surface-cover-card profile-motion-shell overflow-hidden p-0">
             <div class="hero-cover-media hero-cover-media-card">
                 <img src="{{ profile_cover }}" alt="站点封面" class="hero-cover-image">
                 <div class="hero-cover-overlay"></div>
@@ -472,30 +488,16 @@ body.homepage-immersive-collapsed .homepage-immersive-dismiss {
     window.setTimeout(applyHomepageModeClass, 0);
     window.setTimeout(applyHomepageModeClass, 180);
 
-    const timelineItems = document.querySelectorAll('.timeline-reveal');
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.style.opacity = '1';
-                entry.target.style.transform = 'translateY(0)';
-            }
-        });
-    }, {
-        threshold: 0.12,
-        rootMargin: '0px 0px -65px 0px'
-    });
-
-    timelineItems.forEach(item => {
-        item.style.opacity = '0';
-        item.style.transform = 'translateY(22px)';
-        item.style.transition = 'opacity 0.55s ease, transform 0.55s ease';
-        observer.observe(item);
-    });
-
+    // 文章卡片直接随页面渲染，不再用脚本把列表整体设为透明等待 IntersectionObserver：
+    // 那样会在图片解码或主线程繁忙时留下整片空白，用户视觉上就是“白屏很久才出现文章”
     const gallerySlides = document.querySelectorAll('.hero-gallery-slide');
     if (gallerySlides.length > 1) {
         let current = 0;
         setInterval(() => {
+            // 离开首屏后停止轮播：全屏图层每次交叉淡入都会触发整屏混合，滚动到文章列表时容易造成卡顿
+            if (window.scrollY > window.innerHeight) {
+                return;
+            }
             gallerySlides[current].classList.remove('is-active');
             current = (current + 1) % gallerySlides.length;
             gallerySlides[current].classList.add('is-active');
@@ -510,8 +512,6 @@ body.homepage-immersive-collapsed .homepage-immersive-dismiss {
         const root = document.documentElement;
         const header = document.querySelector('body.site-shell > header');
         const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        let snapLockUntil = 0;
-        let touchStartY = null;
         let heroSyncFrame = 0;
 
         const updateHeaderHeight = () => {
@@ -546,7 +546,6 @@ body.homepage-immersive-collapsed .homepage-immersive-dismiss {
             if (Math.abs(window.scrollY - nextTop) < 8) {
                 return;
             }
-            snapLockUntil = performance.now() + (prefersReducedMotion ? 120 : 720);
             window.scrollTo({
                 top: nextTop,
                 behavior: prefersReducedMotion ? 'auto' : 'smooth',
@@ -554,23 +553,6 @@ body.homepage-immersive-collapsed .homepage-immersive-dismiss {
             requestHeroStateSync();
             window.setTimeout(requestHeroStateSync, prefersReducedMotion ? 40 : 180);
             window.setTimeout(requestHeroStateSync, prefersReducedMotion ? 90 : 420);
-        };
-
-        const maybeSnap = (direction) => {
-            if (performance.now() < snapLockUntil) {
-                return false;
-            }
-            const contentTop = getContentTop();
-            const currentTop = window.scrollY;
-            if (direction > 0 && currentTop <= 18) {
-                scrollToHomepageState(contentTop);
-                return true;
-            }
-            if (direction < 0 && currentTop >= Math.max(24, contentTop - 56) && currentTop <= contentTop + 120) {
-                scrollToHomepageState(0);
-                return true;
-            }
-            return false;
         };
 
         updateHeaderHeight();
@@ -582,30 +564,6 @@ body.homepage-immersive-collapsed .homepage-immersive-dismiss {
         });
 
         window.addEventListener('scroll', requestHeroStateSync, { passive: true });
-
-        window.addEventListener('wheel', (event) => {
-            if (event.ctrlKey || Math.abs(event.deltaY) < 40) {
-                return;
-            }
-            maybeSnap(event.deltaY > 0 ? 1 : -1);
-        }, { passive: true });
-
-        window.addEventListener('touchstart', (event) => {
-            touchStartY = event.touches && event.touches[0] ? event.touches[0].clientY : null;
-        }, { passive: true });
-
-        window.addEventListener('touchend', (event) => {
-            if (touchStartY === null) {
-                return;
-            }
-            const endY = event.changedTouches && event.changedTouches[0] ? event.changedTouches[0].clientY : touchStartY;
-            const delta = touchStartY - endY;
-            touchStartY = null;
-            if (Math.abs(delta) < 48) {
-                return;
-            }
-            maybeSnap(delta > 0 ? 1 : -1);
-        }, { passive: true });
 
         immersiveDismiss?.addEventListener('click', () => {
             const contentTop = getContentTop();

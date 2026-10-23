@@ -19,7 +19,12 @@
     <link rel="stylesheet" href="{{ static_asset(request, 'vendor/font-awesome/css/all.min.css') }}">
 
     <link rel="stylesheet" href="{{ static_asset(request, 'css/unified-theme.css') }}">
-    <link id="admin-theme-variables" rel="stylesheet" href="/api/v1/theme/variables.css">
+    <!-- 动态主题变量：服务端内联，避免后台首屏多一次阻塞样式请求 -->
+    <style id="admin-theme-variables-inline">
+        :root {
+            {% for var_name, var_value in (request.state.theme_variables or {}).items() %}{{ var_name | safe }}:{{ var_value | safe }};{% endfor %}
+        }
+    </style>
     <style>
         .admin-toast-stack {
             position: fixed;
@@ -208,7 +213,7 @@
     </style>
     {% block head %}{% endblock %}
 </head>
-<body class="admin-app {{ effect_body_class if effect_body_class else '' }}">
+<body class="admin-app {{ effect_body_class if effect_body_class else '' }}" data-current-theme="{{ request.state.current_theme }}">
     <script>
         window.ADMIN_PATH = {{ request.state.admin_path | tojson }};
     </script>
@@ -219,13 +224,13 @@
             <div class="admin-page-shell">
                 <header class="admin-topbar flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <button type="button" id="admin-sidebar-toggle" class="admin-sidebar-toggle" aria-label="收起侧边栏">
-                        <i class="fas fa-angles-left"></i>
+                        <i class="fas fa-angle-double-left"></i>
                         <span class="admin-sidebar-toggle-label">收起侧栏</span>
                     </button>
                     <h1 class="admin-page-title text-2xl md:text-3xl font-semibold">{% block page_title %}{% endblock %}</h1>
                     <div class="flex flex-wrap items-center gap-3 md:gap-4 text-sm">
                         {% set admin_user_name = user.display_name if user.display_name else user.username %}
-                        {% set admin_avatar_url = user.avatar_url if user.avatar_url else ('https://www.gravatar.com/avatar/' ~ (user.email | md5) ~ '?s=48&d=identicon&r=g' if user.email else '/static/images/default-avatar.png') %}
+                        {% set admin_avatar_url = user.avatar_url if user.avatar_url else ('/media/avatar/' ~ (user.email | md5) ~ '?s=48' if user.email else '/static/images/default-avatar.png') %}
                         <span class="admin-chip">
                             <img src="{{ admin_avatar_url }}" alt="{{ admin_user_name }}" class="h-6 w-6 rounded-full object-cover" onerror="this.src='/static/images/default-avatar.png'">
                             {{ admin_user_name }}
@@ -440,11 +445,17 @@
                     body.classList.add(atmosphereClass);
                 }
 
-                if (forceReloadCss) {
-                    const cssLink = document.getElementById('admin-theme-variables');
-                    if (cssLink) {
-                        cssLink.href = `/api/v1/theme/variables.css?v=${Date.now()}`;
+                if (forceReloadCss && themeName !== (body.dataset.currentTheme || '')) {
+                    // 仅当服务端内联的主题与最新配置不一致时才补拉样式表
+                    let cssLink = document.getElementById('admin-theme-variables');
+                    if (!cssLink) {
+                        cssLink = document.createElement('link');
+                        cssLink.id = 'admin-theme-variables';
+                        cssLink.rel = 'stylesheet';
+                        document.head.appendChild(cssLink);
                     }
+                    cssLink.href = `/api/v1/theme/variables.css?v=${Date.now()}`;
+                    body.dataset.currentTheme = themeName;
                 }
             } catch (error) {
                 console.warn('admin theme sync failed:', error);
@@ -485,7 +496,7 @@
                 if (isDesktop) {
                     openSidebarBtn.setAttribute('aria-label', isCollapsed ? '展开侧边栏' : '收起侧边栏');
                     openSidebarBtn.innerHTML = `
-                        <i class="fas ${isCollapsed ? 'fa-angles-right' : 'fa-angles-left'}"></i>
+                        <i class="fas ${isCollapsed ? 'fa-angle-double-right' : 'fa-angle-double-left'}"></i>
                         <span class="admin-sidebar-toggle-label">${isCollapsed ? '展开侧栏' : '收起侧栏'}</span>
                     `;
                     return;

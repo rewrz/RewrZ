@@ -91,39 +91,40 @@ class AvatarService:
         # 生成MD5哈希
         return hashlib.md5(email.encode('utf-8')).hexdigest()
     
-    def get_gravatar_url(self, email: str, size: Optional[int] = None, 
-                        default: Optional[str] = None, rating: Optional[str] = None) -> str:
+    def get_gravatar_url(self, email: str, size: Optional[int] = None) -> str:
         """
-        生成Gravatar头像URL
-        
+        生成站内中转的 Gravatar 头像地址
+
         Args:
             email: 用户邮箱地址
             size: 头像尺寸（像素），默认使用系统设置
-            default: 默认头像类型，默认使用系统设置
-            rating: 内容评级，默认使用系统设置
-            
+
         Returns:
-            Gravatar头像URL
+            站内中转头像地址；Gravatar 关闭或邮箱为空时返回空字符串
         """
         if not self.gravatar_enabled or not email:
             return ""
-        
+
         # 使用传入参数或系统默认值
         size = size or self.gravatar_size
-        default = default or self.gravatar_default
-        rating = rating or self.gravatar_rating
-        
+
         # 生成哈希
         email_hash = self.get_gravatar_hash(email)
-        
-        # 构建查询参数
+
+        # 站内中转：由服务端带超时拉取并缓存，避免 Gravatar 外链挂起浏览器加载
+        return f"/media/avatar/{email_hash}?s={int(size)}"
+
+    def build_remote_gravatar_url(self, email_hash: str, size: Optional[int] = None) -> str:
+        """构建真正指向 Gravatar 服务的地址，仅供站内头像中转路由拉取使用。"""
+        if not self.gravatar_enabled or not email_hash:
+            return ""
+
+        size = size or self.gravatar_size
         params = {
             's': str(size),
-            'd': default,
-            'r': rating
+            'd': self.gravatar_default,
+            'r': self.gravatar_rating
         }
-        
-        # 生成完整URL
         return f"{self.gravatar_base_url}{email_hash}?{urlencode(params)}"
     
     def get_user_custom_avatar_url(self, user_id: int) -> Optional[str]:

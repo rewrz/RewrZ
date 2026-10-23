@@ -19,11 +19,18 @@
 {% endif %}
 {% set cover_url = featured_cover_url or first_content_image or archive_cover_fallback %}
 {% set summary_text = post | post_summary_text(200) %}
+{# 列表卡片只输出缩略图变体：直接输出原图会让列表页一次加载十几 MB，滚动时解码卡住主线程 #}
+{% set cover_thumb_url = cover_url | thumb_url('related_card', template_db) if cover_url else '' %}
+{% set cover_thumb_srcset = cover_url | thumb_srcset('related_card', template_db) if cover_url else '' %}
 
-<article class="archive-card-equal group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
+<article class="archive-card-equal group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
     <a href="{{ post | post_url }}" class="archive-card-cover-motion block overflow-hidden" data-profile-motion>
-        {% if cover_url %}
-        <img src="{{ cover_url }}" alt="{{ post.title or '文章封面' }}" class="archive-card-cover-image h-52 w-full object-cover" loading="lazy">
+        {% if cover_thumb_url %}
+        <img src="{{ cover_thumb_url }}"
+             {% if cover_thumb_srcset %}srcset="{{ cover_thumb_srcset }}" sizes="(min-width: 768px) 46vw, 92vw"{% endif %}
+             alt="{{ post.title or '文章封面' }}"
+             class="archive-card-cover-image h-52 w-full object-cover"
+             loading="lazy" decoding="async">
         {% else %}
         <div class="h-52 w-full bg-gradient-to-br from-sky-100 via-indigo-100 to-pink-100 dark:from-slate-700 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center text-slate-500 dark:text-slate-300">
             <i class="fas fa-image text-3xl"></i>
@@ -79,21 +86,3 @@
         </div>
     </div>
 </article>
-
-<style>
-.archive-card-cover-motion {
-    --motion-shift-x: 0px;
-    --motion-shift-y: 0px;
-    --motion-scale: 1.02;
-}
-
-.archive-card-cover-image {
-    transform: translate3d(var(--motion-shift-x, 0px), var(--motion-shift-y, 0px), 0) scale(var(--motion-scale, 1.02));
-    transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform;
-}
-
-.archive-card-cover-motion:hover {
-    --motion-scale: 1.05;
-}
-</style>

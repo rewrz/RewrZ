@@ -157,6 +157,8 @@ def build_base_template_context(request: Request) -> dict:
         "theme_source": getattr(request.state, "current_theme_source", "site_default"),
         "glass_intensity": glass_intensity,
         "background": background_settings,
+        # 主题变量由服务端直接内联进 HTML，避免首屏再发一个阻塞请求去取 variables.css
+        "variables": themes_api.resolve_theme_variables(current_theme, custom_themes),
     }
     resolved_effects = {
         "scene": current_effect_scene,

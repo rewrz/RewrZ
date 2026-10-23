@@ -2,6 +2,9 @@
 {% set info_on_left = sequence_index % 2 == 0 %}
 {% set format_slugs = post.formats | map(attribute='slug') | list if post.formats else [] %}
 {% set cover_url = post.homepage_cover_url if post.homepage_cover_url is defined and post.homepage_cover_url else '' %}
+{# 时间线卡片统一走缩略图变体，避免首页按原图加载多 MB 封面 #}
+{% set cover_thumb_url = cover_url | thumb_url('related_card', request.state.db) if cover_url else '' %}
+{% set cover_thumb_srcset = cover_url | thumb_srcset('related_card', request.state.db) if cover_url else '' %}
 {% set summary_text = post | post_summary_text(200) %}
 {% set post_url_value = post | post_url %}
 {% set publish_dt = post.published_at or post.created_at %}
@@ -70,10 +73,14 @@
             {% else %}
             <div class="timeline-bridge timeline-bridge-media timeline-bridge-left">
                 <span aria-hidden="true" class="timeline-bridge-stroke"></span>
-                <a href="{{ post_url_value }}" class="timeline-bridge-card block overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                <a href="{{ post_url_value }}" class="timeline-bridge-card block overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
                     <div class="aspect-[4/3] w-full overflow-hidden">
-                        {% if cover_url %}
-                        <img src="{{ cover_url }}" alt="{{ post.title or '内容配图' }}" class="h-full w-full object-cover transition-transform duration-500 hover:scale-105" loading="lazy">
+                        {% if cover_thumb_url %}
+                        <img src="{{ cover_thumb_url }}"
+                             {% if cover_thumb_srcset %}srcset="{{ cover_thumb_srcset }}" sizes="(min-width: 768px) 26vw, 92vw"{% endif %}
+                             alt="{{ post.title or '内容配图' }}"
+                             class="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                             loading="lazy" decoding="async">
                         {% else %}
                         <div class="h-full w-full timeline-fallback-cover flex items-center justify-center text-slate-500 dark:text-slate-300">
                             <i class="fas fa-image text-4xl"></i>
@@ -87,7 +94,7 @@
 
         <div class="relative flex w-2/12 items-start justify-center pt-1">
             <div class="relative h-12 w-12">
-                <span class="timeline-marker-pulse absolute inset-0 rounded-full animate-ping"></span>
+                <span class="timeline-marker-pulse absolute inset-0 rounded-full"></span>
                 <span class="timeline-marker-ring absolute inset-[4px] rounded-full"></span>
                 <div class="timeline-marker-core relative z-10 flex h-12 w-12 items-center justify-center rounded-full border-2 text-[11px] font-extrabold text-white shadow-md">
                     {{ publish_marker }}
@@ -99,10 +106,14 @@
             {% if info_on_left %}
             <div class="timeline-bridge timeline-bridge-media timeline-bridge-right">
                 <span aria-hidden="true" class="timeline-bridge-stroke"></span>
-                <a href="{{ post_url_value }}" class="timeline-bridge-card block overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                <a href="{{ post_url_value }}" class="timeline-bridge-card block overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
                     <div class="aspect-[4/3] w-full overflow-hidden">
-                        {% if cover_url %}
-                        <img src="{{ cover_url }}" alt="{{ post.title or '内容配图' }}" class="h-full w-full object-cover transition-transform duration-500 hover:scale-105" loading="lazy">
+                        {% if cover_thumb_url %}
+                        <img src="{{ cover_thumb_url }}"
+                             {% if cover_thumb_srcset %}srcset="{{ cover_thumb_srcset }}" sizes="(min-width: 768px) 26vw, 92vw"{% endif %}
+                             alt="{{ post.title or '内容配图' }}"
+                             class="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                             loading="lazy" decoding="async">
                         {% else %}
                         <div class="h-full w-full timeline-fallback-cover flex items-center justify-center text-slate-500 dark:text-slate-300">
                             <i class="fas fa-image text-4xl"></i>
@@ -162,7 +173,7 @@
     <div class="md:hidden flex items-start">
         <div class="absolute left-4 mt-2.5 -translate-x-1/2">
             <div class="relative h-9 w-9">
-                <span class="timeline-marker-pulse absolute inset-0 rounded-full animate-ping"></span>
+                <span class="timeline-marker-pulse absolute inset-0 rounded-full"></span>
                 <div class="timeline-marker-core relative z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 text-[10px] font-extrabold text-white">
                     {{ publish_marker }}
                 </div>
@@ -172,8 +183,12 @@
             <div class="timeline-card-shell overflow-hidden p-0">
                 <a href="{{ post_url_value }}" class="block">
                     <div class="aspect-[4/3] w-full overflow-hidden">
-                        {% if cover_url %}
-                        <img src="{{ cover_url }}" alt="{{ post.title or '内容配图' }}" class="h-full w-full object-cover" loading="lazy">
+                        {% if cover_thumb_url %}
+                        <img src="{{ cover_thumb_url }}"
+                             {% if cover_thumb_srcset %}srcset="{{ cover_thumb_srcset }}" sizes="92vw"{% endif %}
+                             alt="{{ post.title or '内容配图' }}"
+                             class="h-full w-full object-cover"
+                             loading="lazy" decoding="async">
                         {% else %}
                         <div class="h-full w-full timeline-fallback-cover flex items-center justify-center text-slate-500 dark:text-slate-300">
                             <i class="fas fa-image text-3xl"></i>

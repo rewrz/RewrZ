@@ -108,8 +108,10 @@ body.site-shell.bg-page-cover {
 
 body.site-shell > header {
     border-color: var(--ui-border) !important;
-    background: color-mix(in srgb, var(--color-nav-bg) 86%, transparent) !important;
-    backdrop-filter: blur(14px);
+    /* 半透明主题底色 + 磨砂玻璃：固定导航面积小，用较轻的 12px 模糊兼顾观感与滚动开销 */
+    background: color-mix(in srgb, var(--color-nav-bg) 82%, transparent) !important;
+    backdrop-filter: blur(12px) saturate(145%);
+    -webkit-backdrop-filter: blur(12px) saturate(145%);
     z-index: 85;
     isolation: isolate;
 }
@@ -316,9 +318,14 @@ body.site-shell footer {
 .timeline-card-shell {
     border: 1px solid var(--ui-border);
     border-radius: var(--ui-radius-lg);
-    background: color-mix(in srgb, var(--color-card-bg) 94%, transparent);
+    /* 卡片保留轻微磨砂（4px）：模糊半径小，滚动时开销可控；更重的玻璃效果只给首屏头图 */
+    background: color-mix(in srgb, var(--color-card-bg) 88%, transparent);
     box-shadow: var(--ui-shadow-soft);
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px) saturate(118%);
+    -webkit-backdrop-filter: blur(4px) saturate(118%);
+    transition:
+        transform var(--anime-normal) var(--anime-smooth),
+        box-shadow var(--anime-normal) var(--anime-smooth);
 }
 
 .timeline-desktop-row {
@@ -416,6 +423,42 @@ body.site-shell footer {
     margin-top: auto;
 }
 
+/* 归档条目在窄屏改为上下排列，避免标题列被日期与统计信息挤成窄条 */
+@media (max-width: 639.98px) {
+    .archive-item-row > .flex.items-center.justify-between {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.35rem;
+    }
+
+    .archive-item-main {
+        min-width: 0;
+    }
+
+    .archive-item-main.space-x-4 > :not([hidden]) ~ :not([hidden]) {
+        margin-left: 0.55rem;
+    }
+
+    .archive-item-date {
+        min-width: 3.25rem !important;
+        flex-shrink: 0;
+    }
+
+    .archive-item-main > .flex-1 {
+        min-width: 0;
+    }
+
+    .archive-item-stats {
+        flex-wrap: wrap;
+        gap: 0.25rem 0.9rem;
+        padding-left: 5.2rem;
+    }
+
+    .archive-item-stats.space-x-4 > :not([hidden]) ~ :not([hidden]) {
+        margin-left: 0;
+    }
+}
+
 .u-line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -430,6 +473,38 @@ body.site-shell footer {
     line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+
+/* 列表卡片组件共用的排版与封面动效，统一收口在全局样式里，避免每个卡片重复输出 <style> */
+.line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.line-clamp-4 {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.archive-card-cover-motion {
+    --motion-shift-x: 0px;
+    --motion-shift-y: 0px;
+    --motion-scale: 1.02;
+}
+
+.archive-card-cover-image {
+    transform: translate3d(var(--motion-shift-x, 0px), var(--motion-shift-y, 0px), 0) scale(var(--motion-scale, 1.02));
+    transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.archive-card-cover-motion:hover {
+    --motion-scale: 1.05;
 }
 
 .anime-chip {
@@ -527,7 +602,6 @@ body.site-shell select:focus {
     object-position: center 34%;
     transform: translate3d(var(--motion-shift-x, 0px), var(--motion-shift-y, 0px), 0) scale(var(--motion-scale, 1.02));
     transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform;
 }
 
 .hero-surface-cover-card .hero-cover-image {
@@ -637,14 +711,17 @@ body.site-shell select:focus {
     justify-content: center;
     border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%) !important;
     background: color-mix(in srgb, var(--color-card-bg) 54%, transparent) !important;
-    backdrop-filter: none;
+    backdrop-filter: blur(12px) saturate(125%);
+    -webkit-backdrop-filter: blur(12px) saturate(125%);
 }
 
 .hero-surface-cover-card .hero-stats-grid > div {
-    background: color-mix(in srgb, rgba(15, 23, 42, 0.26) 42%, transparent) !important;
+    /* 封面图纹理复杂，统计块用压暗底色 + 轻磨砂保证可读性与玻璃质感 */
+    background: rgba(15, 23, 42, 0.58) !important;
+    backdrop-filter: blur(12px) saturate(125%);
+    -webkit-backdrop-filter: blur(12px) saturate(125%);
     box-shadow: 0 14px 28px -24px rgba(15, 23, 42, 0.38);
     border-color: rgba(255, 255, 255, 0.24) !important;
-    backdrop-filter: none;
 }
 
 .hero-surface-cover-card .hero-profile-copy-overlay h1,
@@ -708,7 +785,7 @@ body.site-shell select:focus {
 
 .dark .hero-surface-cover-card .hero-stats-grid > div {
     border-color: var(--hero-gold-border) !important;
-    background: rgba(20, 25, 44, 0.38) !important;
+    background: rgba(20, 25, 44, 0.68) !important;
 }
 
 .format-switch-pill {
@@ -769,7 +846,6 @@ body.site-shell select:focus {
     object-position: center 34%;
     transform: translate3d(var(--motion-shift-x, 0px), var(--motion-shift-y, 0px), 0) scale(var(--motion-scale, 1.02));
     transition: transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform;
 }
 
 .format-hero-media > .format-hero-image {
@@ -1072,8 +1148,7 @@ body.admin-app {
 /* 时间线卡片悬浮发光效果 */
 .timeline-card-shell:hover {
     box-shadow: var(--ui-shadow-hover);
-    transform: translateY(-3px);
-    transition: transform var(--anime-normal) var(--anime-smooth), box-shadow var(--anime-normal) var(--anime-smooth);
+    transform: translate3d(0, -3px, 0);
 }
 
 /* 标签胶囊美化 */
@@ -1105,15 +1180,9 @@ body.admin-app {
     left: -50%;
     width: 200%;
     height: 200%;
+    /* 保留静态光晕即可；200% 尺寸图层长期做无限位移动画会持续占用合成器 */
     background: radial-gradient(circle, color-mix(in srgb, var(--color-primary) 8%, transparent) 0%, transparent 70%);
-    animation: heroFloat 28s ease-in-out infinite;
     pointer-events: none;
-}
-
-@keyframes heroFloat {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    33% { transform: translate(3%, 3%) rotate(2deg); }
-    66% { transform: translate(-2%, 2%) rotate(-1deg); }
 }
 
 /* Hero缩略图悬浮效果 */
@@ -1148,20 +1217,10 @@ body.admin-app {
     50% { transform: scale(1.5); opacity: 0.3; }
 }
 
-/* 文章卡片渐入动画 */
+/* 文章卡片随首次渲染直接出现：
+   卡片列表位于首屏之下，进入视口时若仍在执行渐入动画，用户看到的就是一段空白列表 */
 .timeline-reveal {
-    animation: cardFadeIn 0.6s var(--anime-smooth) forwards;
-}
-
-@keyframes cardFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    animation: none;
 }
 
 /* 装饰性几何图形 */
@@ -1199,7 +1258,11 @@ body.admin-app {
 
 /* 导航栏增强 */
 body.site-shell > header {
-    transition: all var(--anime-normal) var(--anime-smooth);
+    /* 仅过渡实际会变化的属性，避免 all 把无关属性一起纳入重绘 */
+    transition:
+        background-color 160ms var(--anime-smooth),
+        border-color 160ms var(--anime-smooth),
+        box-shadow 160ms var(--anime-smooth);
 }
 
 body.site-shell > header:hover {
@@ -1220,7 +1283,7 @@ body.site-shell > header nav a::after {
     width: 0;
     height: 2px;
     background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
-    transition: all var(--anime-normal) var(--anime-smooth);
+    transition: width 220ms var(--anime-smooth);
     transform: translateX(-50%);
 }
 
@@ -1265,7 +1328,7 @@ body.site-shell > footer {
 
 /* 社交链接悬浮效果 */
 body.site-shell > footer a {
-    transition: all var(--anime-fast) var(--anime-bounce);
+    transition: transform var(--anime-fast) var(--anime-bounce);
 }
 
 body.site-shell > footer a:hover {
@@ -1296,6 +1359,22 @@ body.site-shell > footer a:hover {
 .back-to-top:hover {
     transform: translateY(-4px) scale(1.1);
     box-shadow: 0 8px 30px -4px color-mix(in srgb, var(--color-primary) 60%, transparent);
+}
+
+/* 移动端缩小返回顶部按钮并贴近安全区，减少对卡片底部信息的遮挡 */
+@media (max-width: 767.98px) {
+    .back-to-top {
+        width: 2.75rem !important;
+        height: 2.75rem !important;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+        right: 1rem;
+        bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .back-to-top:hover {
+        transform: none;
+    }
 }
 
 /* 加载动画 */
@@ -1332,7 +1411,7 @@ body.site-shell > footer a:hover {
 /* 主题切换按钮动画 */
 #desktop-theme-toggle,
 #mobile-theme-toggle {
-    transition: all var(--anime-normal) var(--anime-bounce);
+    transition: transform var(--anime-normal) var(--anime-bounce);
 }
 
 #desktop-theme-toggle:hover,
@@ -2394,13 +2473,17 @@ body.site-shell > header nav button:hover {
 body.site-shell > header .absolute.top-full {
     border-radius: var(--ui-radius-lg) !important;
     border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border)) !important;
-    background: color-mix(in srgb, var(--color-card-bg) 97%, transparent) !important;
+    /* 下拉面板是瞬时出现的浮层，恢复磨砂玻璃不会拖慢常态滚动 */
+    background: color-mix(in srgb, var(--color-card-bg) 84%, transparent) !important;
     box-shadow: var(--ui-shadow-card) !important;
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
     z-index: 90;
 }
 
 body.site-shell > header .desktop-nav-dropdown {
+    /* 只过渡真正变化的属性，保证悬停展开立即响应 */
+    transition: opacity 140ms var(--anime-smooth), visibility 140ms var(--anime-smooth);
     max-height: min(26rem, calc(100vh - 7.5rem));
     overflow-y: auto;
     overscroll-behavior: contain;
