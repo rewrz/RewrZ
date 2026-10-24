@@ -60,6 +60,7 @@ DEFAULT_PRESETS: Dict[str, ThumbnailPreset] = {
     "post_inline": ThumbnailPreset("post_inline", "contain", 1280, 1280, 82, False, "#FFFFFF", "v1"),
     "avatar": ThumbnailPreset("avatar", "cover", 160, 160, 80, False, "#FFFFFF", "v1"),
     "related_card": ThumbnailPreset("related_card", "cover", 480, 300, 80, False, "#FFFFFF", "v1"),
+    "archive_card": ThumbnailPreset("archive_card", "cover", 640, 400, 80, False, "#FFFFFF", "v1"),
     "og_cover": ThumbnailPreset("og_cover", "cover", 1200, 630, 86, False, "#FFFFFF", "v1"),
 }
 
@@ -68,6 +69,11 @@ _LOCKS: Dict[str, threading.Lock] = {}
 _LOCKS_GUARD = threading.Lock()
 _NEGATIVE_CACHE: Dict[str, float] = {}
 _NEGATIVE_CACHE_GUARD = threading.Lock()
+# 列表页会反复解析同一批封面 URL，缓存正向结果可消除每张卡片的重复查询。
+# 只缓存命中项：未入库的 URL 可能稍后才出现，不能做长期负缓存。
+_MEDIA_ID_CACHE: Dict[Tuple[int, str], int] = {}
+_MEDIA_ID_CACHE_GUARD = threading.Lock()
+_MEDIA_ID_CACHE_MAX_ENTRIES = 4096
 _SETTINGS_CACHE: Dict[str, Tuple[float, Any]] = {}
 _SETTINGS_CACHE_GUARD = threading.Lock()
 _SETTINGS_CACHE_TTL_SECONDS = 10
@@ -135,6 +141,16 @@ def resolve_media_id_from_url(db: Session, image_url: str) -> Optional[int]:
     if not relative_path:
         return None
 
+    try:
+        bind_key = id(db.get_bind())
+    except Exception:
+        bind_key = 0
+    cache_key = (bind_key, path)
+    with _MEDIA_ID_CACHE_GUARD:
+        cached_media_id = _MEDIA_ID_CACHE.get(cache_key)
+    if cached_media_id is not None:
+        return cached_media_id
+
     source_path = (Path(settings.MEDIA_UPLOAD_DIR) / relative_path).resolve()
     media_id = db.execute(
         select(MediaModel.id).where(MediaModel.filepath == str(source_path))
@@ -142,9 +158,14 @@ def resolve_media_id_from_url(db: Session, image_url: str) -> Optional[int]:
     if media_id is None:
         return None
     try:
-        return int(media_id)
+        media_id_value = int(media_id)
     except (TypeError, ValueError):
         return None
+    with _MEDIA_ID_CACHE_GUARD:
+        if len(_MEDIA_ID_CACHE) >= _MEDIA_ID_CACHE_MAX_ENTRIES:
+            _MEDIA_ID_CACHE.pop(next(iter(_MEDIA_ID_CACHE)))
+        _MEDIA_ID_CACHE[cache_key] = media_id_value
+    return media_id_value
 
 
 def generate_media_variant(
@@ -233,7 +254,7 @@ def generate_media_variant(
                 preset=preset,
                 dpr=dpr_value,
                 output_fmt=negotiated_fmt,
-                megapixel_limit=_get_setting_int(db, "thumbnail_source_max_megapixels", 40),
+                megapixel_limit=_get_setting_int(db, "thumbnail_source_max_megapixels", 25),
             )
         except ThumbnailServiceError:
             _set_negative_cache(cache_key, negative_ttl)
@@ -409,20 +430,30 @@ def _generate_variant_file(
     resample = Image.Resampling.BILINEAR if preset.fast_mode else Image.Resampling.LANCZOS
 
     with Image.open(source_path) as image_obj:
-        image_obj = ImageOps.exif_transpose(image_obj)
-        pixel_count = int(image_obj.width * image_obj.height)
-        max_pixels = max(1, int(megapixel_limit)) * 1_000_000
-        if pixel_count > max_pixels:
-            raise ThumbnailServiceError(422, "source_too_large", "原图像素超出处理上限")
+        source_width, source_height = image_obj.size
 
         target_width = max(1, int(preset.width * dpr))
         target_height = max(1, int(preset.height * dpr))
 
         if not preset.allow_upscale:
-            target_width = min(target_width, image_obj.width)
-            target_height = min(target_height, image_obj.height)
+            target_width = min(target_width, source_width)
+            target_height = min(target_height, source_height)
             target_width = max(1, target_width)
             target_height = max(1, target_height)
+
+        max_pixels = max(1, int(megapixel_limit)) * 1_000_000
+        if image_obj.format == "JPEG":
+            # JPEG 先按目标尺寸降采样解码，再做 EXIF 方向校正，避免原图全尺寸进入内存
+            image_obj.draft("RGB", (target_width, target_height))
+            pixel_count = int(image_obj.width * image_obj.height)
+        else:
+            # 非 JPEG 无法在解码前缩图，只能靠文件头尺寸提前拒绝
+            pixel_count = int(source_width * source_height)
+
+        if pixel_count > max_pixels:
+            raise ThumbnailServiceError(422, "source_too_large", "原图像素超出处理上限")
+
+        image_obj = ImageOps.exif_transpose(image_obj)
 
         if preset.mode == "cover":
             rendered = ImageOps.fit(

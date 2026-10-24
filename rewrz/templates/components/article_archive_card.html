@@ -20,8 +20,8 @@
 {% set cover_url = featured_cover_url or first_content_image or archive_cover_fallback %}
 {% set summary_text = post | post_summary_text(200) %}
 {# 列表卡片只输出缩略图变体：直接输出原图会让列表页一次加载十几 MB，滚动时解码卡住主线程 #}
-{% set cover_thumb_url = cover_url | thumb_url('related_card', template_db) if cover_url else '' %}
-{% set cover_thumb_srcset = cover_url | thumb_srcset('related_card', template_db) if cover_url else '' %}
+{% set cover_thumb_url = cover_url | thumb_url('archive_card', template_db) if cover_url else '' %}
+{% set cover_thumb_srcset = cover_url | thumb_srcset('archive_card', template_db) if cover_url else '' %}
 
 <article class="archive-card-equal group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
     <a href="{{ post | post_url }}" class="archive-card-cover-motion block overflow-hidden" data-profile-motion>

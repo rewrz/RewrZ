@@ -13,6 +13,7 @@
 | API 约定与安全要求 | [`architecture/API_CONVENTIONS.md`](architecture/API_CONVENTIONS.md) |
 | API 到 APP 的实现路径 | [`architecture/API_APP.md`](architecture/API_APP.md) |
 | 生产部署手册 | [`operations/DEPLOYMENT.md`](operations/DEPLOYMENT.md) |
+| Cloudflare 回源安全部署 | [`operations/CLOUDFLARE_ORIGIN.md`](operations/CLOUDFLARE_ORIGIN.md) |
 | 生产更新手册 | [`operations/UPDATE.md`](operations/UPDATE.md) |
 | 发布包生成 | [`operations/RELEASE.md`](operations/RELEASE.md) |
 | 故障排查与运维检查 | [`operations/TROUBLESHOOTING.md`](operations/TROUBLESHOOTING.md) |
@@ -34,6 +35,7 @@
 | `references/` | 高频命令与速查表 | 设计决策与背景说明 |
 
 `operations/RELEASE.md` 专门描述 GitHub Release 干净发布包生成流程。
+`operations/CLOUDFLARE_ORIGIN.md` 专门描述 Cloudflare 回源安全部署（UFW 白名单、网段同步、真实 IP 还原）。
 
 文档去重规则：
 - `README.md` 只保留项目定位、亮点和文档入口，不承载细节手册。

@@ -74,8 +74,25 @@ class DynamicSettings:
         else:
             self.SECRET_KEY = env_secret_key
         self.DATABASE_URL: str = str(get_value("DATABASE_URL", "")).strip()
-        self.DB_POOL_SIZE: int = _parse_int_value(get_value("DB_POOL_SIZE", 10), 10, minimum=1, maximum=100)
-        self.DB_MAX_OVERFLOW: int = _parse_int_value(get_value("DB_MAX_OVERFLOW", 20), 20, minimum=0, maximum=200)
+        # SQLite 在 WAL 下读可并发、写串行：池大小主要决定同时能有多少个读查询，
+        # 默认 10+10 以保障突发并发；每连接页缓存由 SQLITE_CACHE_SIZE_KIB 限死，
+        # 内存占用只在高并发时才增长，不会因空闲连接长期膨胀。
+        # 网络数据库仍保留 10+20 的默认并发能力。
+        is_sqlite_database = self.DATABASE_URL.lower().startswith("sqlite")
+        default_pool_size = 10
+        default_max_overflow = 10 if is_sqlite_database else 20
+        self.DB_POOL_SIZE: int = _parse_int_value(
+            get_value("DB_POOL_SIZE", default_pool_size),
+            default_pool_size,
+            minimum=1,
+            maximum=100,
+        )
+        self.DB_MAX_OVERFLOW: int = _parse_int_value(
+            get_value("DB_MAX_OVERFLOW", default_max_overflow),
+            default_max_overflow,
+            minimum=0,
+            maximum=200,
+        )
         self.DB_POOL_TIMEOUT: int = _parse_int_value(get_value("DB_POOL_TIMEOUT", 10), 10, minimum=1, maximum=300)
         self.DB_POOL_RECYCLE: int = _parse_int_value(get_value("DB_POOL_RECYCLE", 1800), 1800, minimum=0, maximum=86400)
         self.DB_POOL_PRE_PING: bool = _parse_bool_value(get_value("DB_POOL_PRE_PING"), True)
@@ -83,6 +100,14 @@ class DynamicSettings:
             get_value("SQLITE_BUSY_TIMEOUT_MS", 30000), 30000, minimum=1000, maximum=300000
         )
         self.SQLITE_JOURNAL_MODE: str = str(get_value("SQLITE_JOURNAL_MODE", "WAL")).strip().upper() or "WAL"
+        # 每个 SQLite 连接的页缓存上限（KiB）。默认 1MB，20 个连接最坏约 20MB；
+        # 比 SQLite 默认的 2MB/连接更省内存，同时保留读并发。
+        self.SQLITE_CACHE_SIZE_KIB: int = _parse_int_value(
+            get_value("SQLITE_CACHE_SIZE_KIB", 1024), 1024, minimum=256, maximum=8192
+        )
+        # WAL 下 synchronous=NORMAL 可大幅减少每次提交的 fsync，
+        # 断电时可能丢失最后少量事务，对博客场景可接受。
+        self.SQLITE_SYNCHRONOUS: str = str(get_value("SQLITE_SYNCHRONOUS", "NORMAL")).strip().upper() or "NORMAL"
         # 站点对外地址，用于生成邮件链接等，避免依赖请求 Host 头
         self.SITE_URL: str = str(get_value("SITE_URL", "")).strip().rstrip("/")
         # 允许的 Host 头白名单（逗号分隔，为空表示不启用校验）

@@ -55,10 +55,11 @@ npm run build:css
 
 ## 3. 线上部署与更新
 
-生产上线请直接看以下两份主文档：
+生产上线请直接看以下主文档：
 - 首次部署：[`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md)
 - 日常更新：[`../operations/UPDATE.md`](../operations/UPDATE.md)
 - 发布包生成：[`../operations/RELEASE.md`](../operations/RELEASE.md)
+- Cloudflare 回源加固：[`../operations/CLOUDFLARE_ORIGIN.md`](../operations/CLOUDFLARE_ORIGIN.md)
 
 这里仅保留三条不会变的原则：
 - 新站点首次上线时，不要预先手工创建 `.env`
@@ -148,7 +149,7 @@ MEDIA_UPLOAD_DIR=media_uploads
 ### Q5：宝塔下出现 502 Bad Gateway？
 通常是 Python 项目进程没起来或端口不一致，按顺序检查：
 1. 宝塔 Python 项目是否正在运行（先重启一次项目）
-2. 启动命令是否正确：`.venv/bin/uvicorn rewrz.main:app --host 127.0.0.1 --port 8000 --workers 2`
+2. 启动命令是否正确：`.venv/bin/uvicorn rewrz.main:app --host 127.0.0.1 --port 8000 --workers 1`（小内存服务器必须单 worker）
 3. Nginx 反代端口是否和 Python 项目一致（例如都为 `8000`）
 4. 项目日志是否报错（缺依赖、权限不足、`.env` 配置错误）
 
@@ -179,7 +180,7 @@ MEDIA_UPLOAD_DIR=media_uploads
 1. 先确认没有多个重复实例在同时写同一个 SQLite 文件
 2. 减少并发写入压力（尤其导入/批量操作时）
 3. 保持数据库文件在本地磁盘，不要放在高延迟网络存储
-4. 若长期高并发写入，建议迁移到 PostgreSQL
+4. 若长期高并发写入，按 [`DEPLOYMENT.md`](../operations/DEPLOYMENT.md) 的 5.4 节迁移到 PostgreSQL
 
 ## 9. 文档入口
 - 文档中心：[`docs/INDEX.md`](../INDEX.md)

@@ -203,6 +203,16 @@ if [ "$IN_GIT_REPO" = true ] && [ "$CHANGED" = true ] && [ -n "$OLD_REV" ]; then
     fi
 fi
 
+# 8.1 小内存部署提示（仅检测，不修改 systemd 配置）
+SERVICE_UNIT="/etc/systemd/system/$SERVICE_NAME"
+if [ -f "$SERVICE_UNIT" ]; then
+    WORKER_COUNT="$(grep -oE -- '--workers[= ][0-9]+' "$SERVICE_UNIT" | head -n1 | grep -oE '[0-9]+' || true)"
+    TOTAL_MEM_MB="$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo 0)"
+    if [ -n "${WORKER_COUNT:-}" ] && [ "$WORKER_COUNT" -gt 1 ] && [ "${TOTAL_MEM_MB:-0}" -gt 0 ] && [ "$TOTAL_MEM_MB" -le 1536 ]; then
+        warn "检测到 systemd 使用 ${WORKER_COUNT} 个 worker，本机内存 ${TOTAL_MEM_MB}MB；建议改为 --workers 1 并设置 MALLOC_ARENA_MAX=2，避免整机 OOM"
+    fi
+fi
+
 # 9. 重启服务
 echo ""
 echo ">>> 重启服务..."

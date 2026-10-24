@@ -142,9 +142,9 @@
                     <div>
                         <label for="thumbnail_source_max_megapixels" class="block text-sm font-medium text-gray-700">原图像素上限（MP）</label>
                         <input type="number" id="thumbnail_source_max_megapixels" name="thumbnail_source_max_megapixels" min="1" max="200"
-                               value="{{ media_settings.get('thumbnail_source_max_megapixels', 40) }}"
+                               value="{{ media_settings.get('thumbnail_source_max_megapixels', 25) }}"
                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        <p class="mt-1 text-xs text-gray-500">推荐 `40`。过高可能触发内存峰值，过低会拒绝部分高分辨率素材。</p>
+                        <p class="mt-1 text-xs text-gray-500">推荐 `25`；512MB 内存的小内存站点建议保持 `20-25`，过高可能触发内存峰值。</p>
                     </div>
                     <div>
                         <label for="thumbnail_cleanup_interval_hours" class="block text-sm font-medium text-gray-700">缓存清理周期（小时）</label>

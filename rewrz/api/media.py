@@ -53,6 +53,8 @@ _AVATAR_FETCH_TIMEOUT_SECONDS = 2.5
 _AVATAR_MAX_BYTES = 1024 * 1024
 _AVATAR_NEGATIVE_TTL_SECONDS = 600
 _AVATAR_CACHE_MAX_AGE_SECONDS = 604800
+# 负缓存按外部邮箱哈希增长，必须有上限，避免长期运行后无界占用内存
+_AVATAR_NEGATIVE_CACHE_MAX_ENTRIES = 512
 _AVATAR_NEGATIVE_CACHE: Dict[str, float] = {}
 _AVATAR_FETCH_LOCKS: Dict[str, threading.Lock] = {}
 _AVATAR_FETCH_LOCKS_GUARD = threading.Lock()
@@ -120,6 +122,14 @@ def _fetch_avatar_to_cache(email_hash: str, remote_url: str, size: int) -> None:
         temp_file.replace(target_file)
         _AVATAR_NEGATIVE_CACHE.pop(cache_key, None)
     except (HTTPError, URLError, TimeoutError, ValueError, OSError):
+        if len(_AVATAR_NEGATIVE_CACHE) >= _AVATAR_NEGATIVE_CACHE_MAX_ENTRIES:
+            now_ts = time.time()
+            for key, expire_at in list(_AVATAR_NEGATIVE_CACHE.items()):
+                if expire_at <= now_ts:
+                    _AVATAR_NEGATIVE_CACHE.pop(key, None)
+            # 仍然满则整体清空，失败标记可以重新建立
+            if len(_AVATAR_NEGATIVE_CACHE) >= _AVATAR_NEGATIVE_CACHE_MAX_ENTRIES:
+                _AVATAR_NEGATIVE_CACHE.clear()
         _AVATAR_NEGATIVE_CACHE[cache_key] = time.time() + _AVATAR_NEGATIVE_TTL_SECONDS
     finally:
         lock.release()
@@ -183,6 +193,8 @@ os.makedirs(UPLOAD_ROOT, exist_ok=True)
 
 DEFAULT_MEDIA_FOLDERS = ("covers", "avatars", "backgrounds", "articles", "misc")
 FILE_HASH_CACHE: Dict[str, Tuple[int, float, str]] = {}
+# 文件哈希缓存按上传路径增长，达到上限后整体清空，避免长期运行无界膨胀
+FILE_HASH_CACHE_MAX_ENTRIES = 1024
 FOLDER_CACHE_TTL_SECONDS = 300
 MEDIA_FOLDER_CACHE: Dict[str, Any] = {"expires_at": 0.0, "items": None}
 MEDIA_LIBRARY_PAGE_SIZE = 12
@@ -545,6 +557,8 @@ def _compute_sha256_from_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     file_hash = digest.hexdigest()
+    if len(FILE_HASH_CACHE) >= FILE_HASH_CACHE_MAX_ENTRIES:
+        FILE_HASH_CACHE.clear()
     FILE_HASH_CACHE[cache_key] = (stat.st_size, stat.st_mtime, file_hash)
     return file_hash
 

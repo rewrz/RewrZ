@@ -503,10 +503,10 @@
                                 </label>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div>
-                                        <label for="article_card_api_cache_ttl_minutes" class="block text-sm font-medium text-gray-700">缓存有效期（分钟）</label>
+                                        <label for="article_card_api_cache_ttl_minutes" class="block text-sm font-medium text-gray-700">缓存有效期（分钟，0 表示永不过期）</label>
                                         <input type="number" id="article_card_api_cache_ttl_minutes" name="article_card_api_cache_ttl_minutes"
-                                               value="{{ settings.article_card_api_cache_ttl_minutes if settings.article_card_api_cache_ttl_minutes else 360 }}"
-                                               min="5" max="10080"
+                                               value="{{ settings.article_card_api_cache_ttl_minutes if settings.article_card_api_cache_ttl_minutes is not none else 0 }}"
+                                               min="0" max="525600"
                                                class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm">
                                     </div>
                                     <div>
@@ -517,7 +517,7 @@
                                                class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm">
                                     </div>
                                 </div>
-                                <p class="text-xs text-gray-500">渲染页面时不会等待下载：缓存未命中时先使用原始 API 地址展示，并在后台异步预热本地缓存；到达清理间隔后会自动清理过期文件。</p>
+                                <p class="text-xs text-gray-500">渲染页面时不会等待下载：缓存未命中时先使用原始 API 地址展示，并在后台异步预热本地缓存。有效期填 0 表示永不过期，封面首次抓取后会一直复用本地文件；文章保存或后台列表手动刷新时会重建该文章的封面缓存。</p>
                             </div>
                         </div>
                         <div id="article-card-fallback-local-wrap" class="md:col-span-2">

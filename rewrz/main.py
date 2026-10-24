@@ -59,7 +59,8 @@ from .crud import setting as crud_setting # Import crud_setting
 from .crud import format as crud_format # 导入格式CRUD模块以修复未定义变量错误
 from .models import Post, Setting
 from .core import error_handler  # 导入错误处理模块
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from .core import public_list_cache  # 公共列表页缓存：匿名列表页跳过 CSRF 会话创建
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 from sqlalchemy import select, func, text
 from sqlalchemy.exc import IntegrityError, TimeoutError as SQLAlchemyTimeoutError
 from datetime import date, datetime, timedelta, timezone # 导入date和datetime用于纪念日检查和主题调度
@@ -227,15 +228,23 @@ _ARTICLE_API_CACHE_DIR_NAME = "article-fallback-cache"
 _ARTICLE_API_CACHE_INDEX_KEY = "article_card_api_cache_index"
 _ARTICLE_API_CACHE_LAST_CLEANUP_KEY = "article_card_api_cache_last_cleanup_at"
 _ARTICLE_API_CACHE_ENABLED_DEFAULT = True
-_ARTICLE_API_CACHE_TTL_MINUTES_DEFAULT = 360
+# 0 表示永不过期：封面首次抓取后会一直复用本地文件，只有编辑文章或手动刷新才重建
+_ARTICLE_API_CACHE_TTL_MINUTES_DEFAULT = 0
+_ARTICLE_API_CACHE_TTL_MINUTES_MAX = 525600
 _ARTICLE_API_CACHE_CLEANUP_MINUTES_DEFAULT = 120
 _ARTICLE_API_CACHE_MAX_BYTES = 8 * 1024 * 1024
 _ARTICLE_API_CACHE_MAX_WIDTH = 1280
+_ARTICLE_API_CACHE_MAX_PIXELS = 12_000_000
 _ARTICLE_API_CACHE_WEBP_QUALITY = 78
 _ARTICLE_API_CACHE_HTTP_TIMEOUT_SECONDS = 8
 _ARTICLE_API_CACHE_PUBLIC_PREFIX = f"/media/{_ARTICLE_API_CACHE_DIR_NAME}/"
 _ARTICLE_API_CACHE_PREFETCH_INFLIGHT: set[str] = set()
 _ARTICLE_API_CACHE_PREFETCH_LOCK = threading.Lock()
+# 后台封面预取同时只处理少量图片，避免列表页一次性下载 + 解码大量封面把内存打满
+_ARTICLE_API_CACHE_PREFETCH_MAX_CONCURRENCY = 2
+_ARTICLE_API_CACHE_PREFETCH_SEMAPHORE = threading.BoundedSemaphore(
+    _ARTICLE_API_CACHE_PREFETCH_MAX_CONCURRENCY
+)
 _ARTICLE_FALLBACK_LOCAL_CACHE_TTL_SECONDS = 300
 _ARTICLE_FALLBACK_LOCAL_CACHE: dict[str, tuple[float, tuple[str, ...]]] = {}
 _ARTICLE_FALLBACK_LOCAL_CACHE_LOCK = threading.Lock()
@@ -723,9 +732,18 @@ async def add_global_context(request: Request, call_next):
         request.state.authenticated_user = auth_api._resolve_optional_authenticated_user(request, request.state.db) if request.state.db is not None else None
         # 构建全局上下文并确保 CSRF 令牌
         _populate_global_request_state(request)
-        _ensure_csrf_token(request)
+        if public_list_cache.should_skip_csrf_token(request):
+            # 匿名列表页不写会话：响应因此不带 Set-Cookie 与 Vary: Cookie，
+            # 才能被 CDN / 反向代理整页缓存。列表页不含需要令牌的表单。
+            request.state.csrf_token = ""
+        else:
+            _ensure_csrf_token(request)
 
         response = await call_next(request)
+        # 列表页统一由中间件写入缓存策略：匿名 200 允许 CDN 缓存 20 秒，
+        # 登录态、HTMX 分页片段与错误页一律禁止共享缓存。
+        if public_list_cache.is_public_list_page_path(request.url.path):
+            public_list_cache.apply_public_list_cache_headers(request, response)
         return attach_request_id(response)
     except SQLAlchemyTimeoutError:
         db_manager.record_pool_timeout()
@@ -787,8 +805,8 @@ def _increment_post_views_metric(db: Session, post_id: int, step: int = 1) -> in
                         'value',
                         COALESCE((value ->> 'value')::int, 0) + :step
                     )
-                ),
-                updated_at = CURRENT_TIMESTAMP
+                )::json,
+                updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
             WHERE key = :key
             """
         )
@@ -959,6 +977,8 @@ def _cleanup_article_api_cache(
     *,
     cache_dir: Path,
     now_utc: datetime,
+    cache_ttl_minutes: int,
+    current_api_url: str,
 ) -> Tuple[Dict[str, Dict[str, Any]], bool]:
     cleaned_cache: Dict[str, Dict[str, Any]] = {}
     changed = False
@@ -973,22 +993,35 @@ def _cleanup_article_api_cache(
             changed = True
             continue
 
-        file_path = (cache_dir / file_name).resolve()
-        if file_path.parent != cache_dir:
+        # API 地址变更后旧缓存不再对应同一图源，直接清掉避免长期占用磁盘
+        if str(entry.get("api_url", "") or "").strip() != current_api_url:
             changed = True
-            continue
-
-        expire_at = _parse_utc_datetime(entry.get("expire_at"))
-        is_expired = expire_at is None or expire_at <= now_utc
-
-        if is_expired or not file_path.exists():
-            changed = True
-            if file_path.exists():
+            file_path = (cache_dir / file_name).resolve()
+            if file_path.parent == cache_dir and file_path.exists():
                 try:
                     file_path.unlink()
                 except OSError:
                     pass
             continue
+
+        file_path = (cache_dir / file_name).resolve()
+        if file_path.parent != cache_dir:
+            changed = True
+            continue
+
+        if not file_path.exists():
+            changed = True
+            continue
+
+        if cache_ttl_minutes > 0:
+            expire_at = _parse_utc_datetime(entry.get("expire_at"))
+            if expire_at is None or expire_at <= now_utc:
+                changed = True
+                try:
+                    file_path.unlink()
+                except OSError:
+                    pass
+                continue
 
         cleaned_cache[cache_key] = entry
 
@@ -1038,6 +1071,22 @@ def _is_article_api_cached_url(image_url: str) -> bool:
     return str(image_url or "").startswith(_ARTICLE_API_CACHE_PUBLIC_PREFIX)
 
 
+def _build_cached_article_image_url(file_name: str, entry: Any) -> str:
+    """生成带版本参数的本地封面 URL。
+
+    缓存文件按 `sha256(api_url|seed)` 命名，刷新后文件名不变；只有把
+    `cached_at` 作为 `?v=` 参数拼进 URL，浏览器与 CDN 才能立即拿到新图，
+    同时旧 URL 可以长期强缓存而不影响后续刷新。
+    """
+    base_url = f"{_ARTICLE_API_CACHE_PUBLIC_PREFIX}{file_name}"
+    if not isinstance(entry, dict):
+        return base_url
+    cached_at = _parse_utc_datetime(entry.get("cached_at"))
+    if cached_at is None:
+        return base_url
+    return f"{base_url}?v={int(cached_at.timestamp())}"
+
+
 def _download_remote_image(remote_url: str) -> Optional[Tuple[bytes, str, str]]:
     try:
         request = UrlRequest(
@@ -1066,11 +1115,20 @@ def _compress_article_cache_image(payload: bytes) -> Optional[bytes]:
     """把远程封面压到列表卡片够用的尺寸，避免 4K 原图进入列表页拖慢加载与解码。"""
     try:
         with Image.open(BytesIO(payload)) as image:
-            image = image.convert("RGB")
+            # JPEG 支持在解码阶段按目标尺寸降采样，先 draft 再解码可避开全尺寸内存峰值
+            if image.format == "JPEG":
+                image.draft("RGB", (_ARTICLE_API_CACHE_MAX_WIDTH, _ARTICLE_API_CACHE_MAX_WIDTH))
+
+            # 非 JPEG 无法在解码前缩图，超出像素上限时直接放弃压缩，交给调用方回退原始字节
+            if image.width * image.height > _ARTICLE_API_CACHE_MAX_PIXELS:
+                return None
+
             image.thumbnail(
                 (_ARTICLE_API_CACHE_MAX_WIDTH, _ARTICLE_API_CACHE_MAX_WIDTH),
                 Image.Resampling.LANCZOS,
             )
+            if image.mode != "RGB":
+                image = image.convert("RGB")
             buffer = BytesIO()
             image.save(buffer, "WEBP", quality=_ARTICLE_API_CACHE_WEBP_QUALITY, method=4)
             compressed = buffer.getvalue()
@@ -1098,10 +1156,14 @@ def _resolve_cached_remote_article_image(
     if isinstance(existing_entry, dict):
         existing_file_name = str(existing_entry.get("file_name", "") or "").strip()
         existing_expire_at = _parse_utc_datetime(existing_entry.get("expire_at"))
-        if existing_file_name and existing_expire_at and existing_expire_at > now_utc:
+        # 有效期为 0 时永不过期，只要文件还在就直接复用
+        cache_still_valid = cache_ttl_minutes <= 0 or (
+            existing_expire_at is not None and existing_expire_at > now_utc
+        )
+        if existing_file_name and cache_still_valid:
             existing_file_path = (cache_dir / existing_file_name).resolve()
             if existing_file_path.exists() and existing_file_path.parent == cache_dir:
-                return f"{_ARTICLE_API_CACHE_PUBLIC_PREFIX}{existing_file_name}", False
+                return _build_cached_article_image_url(existing_file_name, existing_entry), False
 
     if not download_if_missing:
         return remote_url, False
@@ -1144,15 +1206,15 @@ def _resolve_cached_remote_article_image(
             pass
         return remote_url, False
 
-    expire_at = now_utc + timedelta(minutes=cache_ttl_minutes)
+    expire_at = now_utc + timedelta(minutes=cache_ttl_minutes) if cache_ttl_minutes > 0 else None
     cache_index[cache_key] = {
         "file_name": file_name,
         "api_url": fallback_api_url,
         "seed": seed_value,
         "cached_at": now_utc.isoformat(),
-        "expire_at": expire_at.isoformat(),
+        "expire_at": expire_at.isoformat() if expire_at is not None else None,
     }
-    return f"{_ARTICLE_API_CACHE_PUBLIC_PREFIX}{file_name}", True
+    return _build_cached_article_image_url(file_name, cache_index[cache_key]), True
 
 
 def _schedule_article_api_cache_prefetch(
@@ -1160,11 +1222,14 @@ def _schedule_article_api_cache_prefetch(
     seed_value: str,
     fallback_api_url: str,
     cache_ttl_minutes: int,
-) -> None:
+) -> bool:
     cache_key = _build_article_api_cache_key(fallback_api_url, seed_value)
     with _ARTICLE_API_CACHE_PREFETCH_LOCK:
         if cache_key in _ARTICLE_API_CACHE_PREFETCH_INFLIGHT:
-            return
+            return False
+        # 并发名额拿不到时本次直接放弃，下次访问再补缓存，避免线程与解码任务堆积
+        if not _ARTICLE_API_CACHE_PREFETCH_SEMAPHORE.acquire(blocking=False):
+            return False
         _ARTICLE_API_CACHE_PREFETCH_INFLIGHT.add(cache_key)
 
     def _worker() -> None:
@@ -1203,13 +1268,122 @@ def _schedule_article_api_cache_prefetch(
         finally:
             with _ARTICLE_API_CACHE_PREFETCH_LOCK:
                 _ARTICLE_API_CACHE_PREFETCH_INFLIGHT.discard(cache_key)
+            _ARTICLE_API_CACHE_PREFETCH_SEMAPHORE.release()
 
     thread = threading.Thread(
         target=_worker,
         name=f"article-api-cache-{cache_key[:8]}",
         daemon=True,
     )
-    thread.start()
+    try:
+        thread.start()
+    except RuntimeError:
+        # 线程创建失败时归还名额，避免预取能力被永久占用
+        with _ARTICLE_API_CACHE_PREFETCH_LOCK:
+            _ARTICLE_API_CACHE_PREFETCH_INFLIGHT.discard(cache_key)
+        _ARTICLE_API_CACHE_PREFETCH_SEMAPHORE.release()
+        return False
+    return True
+
+
+def _post_uses_api_fallback_cover(post: Any) -> bool:
+    """判断文章是否会用到在线 API 兜底封面，已有特色图或正文图时不需要预热。"""
+    if str(getattr(post, "featured_image_url", "") or "").strip():
+        return False
+    if "<img" in str(getattr(post, "content_html", "") or "").lower():
+        return False
+    return "![" not in str(getattr(post, "content_markdown", "") or "")
+
+
+def _drop_article_api_cache_entries(
+    cache_index: Dict[str, Dict[str, Any]],
+    *,
+    seeds: Set[str],
+    cache_dir: Path,
+) -> int:
+    """按 seed 删除缓存条目与本地文件，兼容文章改 slug 后新旧两个 seed。"""
+    removed = 0
+    for cache_key, entry in list(cache_index.items()):
+        if not isinstance(entry, dict) or str(entry.get("seed", "") or "") not in seeds:
+            continue
+        file_name = str(entry.get("file_name", "") or "").strip()
+        if file_name:
+            file_path = (cache_dir / file_name).resolve()
+            if file_path.parent == cache_dir and file_path.exists():
+                try:
+                    file_path.unlink()
+                except OSError:
+                    pass
+        cache_index.pop(cache_key, None)
+        removed += 1
+    return removed
+
+
+def refresh_article_cover_cache(
+    db: Session,
+    post: Any,
+    *,
+    previous_slug: Optional[str] = None,
+) -> Dict[str, Any]:
+    """清理单篇文章的封面缓存并尝试重新预热，供保存文章与后台手动刷新共用。"""
+    post_id = int(getattr(post, "id", 0) or 0)
+    current_slug = str(getattr(post, "slug", "") or "").strip()
+    result: Dict[str, Any] = {"removed": 0, "scheduled": False, "reason": ""}
+    if post_id <= 0 or not current_slug:
+        result["reason"] = "文章尚未生成有效标识"
+        return result
+
+    seeds = {f"{post_id}-{current_slug}"}
+    old_slug = str(previous_slug or "").strip()
+    if old_slug and old_slug != current_slug:
+        seeds.add(f"{post_id}-{old_slug}")
+
+    cache_dir = _ensure_article_api_cache_dir()
+    cache_index = _load_article_api_cache_index(db)
+    removed = _drop_article_api_cache_entries(cache_index, seeds=seeds, cache_dir=cache_dir)
+    if removed:
+        _upsert_runtime_setting(
+            db,
+            _ARTICLE_API_CACHE_INDEX_KEY,
+            cache_index,
+            "Article fallback API cache index",
+        )
+    result["removed"] = removed
+
+    fallback_source = _normalize_article_fallback_source(
+        get_page_config(db, "article_card_fallback_source", "local")
+    )
+    if fallback_source != "api":
+        result["reason"] = "当前随机图来源不是在线 API"
+        return result
+    if not _parse_bool(
+        get_page_config(db, "article_card_api_cache_enabled", _ARTICLE_API_CACHE_ENABLED_DEFAULT),
+        _ARTICLE_API_CACHE_ENABLED_DEFAULT,
+    ):
+        result["reason"] = "在线 API 图片缓存未启用"
+        return result
+    if not _post_uses_api_fallback_cover(post):
+        result["reason"] = "文章已有封面图或正文图片，无需预热"
+        return result
+
+    fallback_api_url = str(
+        get_page_config(db, "article_card_fallback_api_url", _ARTICLE_FALLBACK_API_URL_DEFAULT)
+        or _ARTICLE_FALLBACK_API_URL_DEFAULT
+    ).strip()
+    cache_ttl_minutes = _parse_bounded_int(
+        get_page_config(db, "article_card_api_cache_ttl_minutes", _ARTICLE_API_CACHE_TTL_MINUTES_DEFAULT),
+        _ARTICLE_API_CACHE_TTL_MINUTES_DEFAULT,
+        0,
+        _ARTICLE_API_CACHE_TTL_MINUTES_MAX,
+    )
+    result["scheduled"] = _schedule_article_api_cache_prefetch(
+        seed_value=f"{post_id}-{current_slug}",
+        fallback_api_url=fallback_api_url,
+        cache_ttl_minutes=cache_ttl_minutes,
+    )
+    if not result["scheduled"]:
+        result["reason"] = "已有预热任务在进行，稍后会自动完成"
+    return result
 
 
 def _resolve_posts_per_page(raw_value: Any, default_value: int, *, minimum: int = 1, maximum: int = 100) -> int:
@@ -1405,8 +1579,8 @@ def _attach_article_cover_urls(
     api_cache_ttl_minutes = _parse_bounded_int(
         get_page_config(db, "article_card_api_cache_ttl_minutes", _ARTICLE_API_CACHE_TTL_MINUTES_DEFAULT),
         _ARTICLE_API_CACHE_TTL_MINUTES_DEFAULT,
-        5,
-        10080,
+        0,
+        _ARTICLE_API_CACHE_TTL_MINUTES_MAX,
     )
     api_cache_cleanup_minutes = _parse_bounded_int(
         get_page_config(db, "article_card_api_cache_cleanup_minutes", _ARTICLE_API_CACHE_CLEANUP_MINUTES_DEFAULT),
@@ -1436,6 +1610,8 @@ def _attach_article_cover_urls(
                 api_cache_index,
                 cache_dir=api_cache_dir,
                 now_utc=now_utc,
+                cache_ttl_minutes=api_cache_ttl_minutes,
+                current_api_url=fallback_api_url,
             )
             api_cache_changed = api_cache_changed or cleanup_changed
             _upsert_runtime_setting(
@@ -1501,21 +1677,33 @@ def _attach_post_author_profiles(db: Session, posts: List[Post], *, fallback_nam
         return
     profile_resolver = get_public_profile_resolver()
     fallback_display_name = str(fallback_name or "博主").strip() or "博主"
+    # 列表页通常同一作者，按 author_id 复用结果，避免每张卡片重复查用户表。
+    profile_cache: Dict[int, Dict[str, str]] = {}
 
     for post in posts:
-        author = getattr(post, "author", None)
-        author_id = getattr(author, "id", None) if author is not None else getattr(post, "author_id", None)
+        # 只读取已加载的 author 关系，避免每篇文章触发一次懒加载查询。
+        loaded_author = post.__dict__.get("author")
+        author_id = (
+            getattr(loaded_author, "id", None)
+            if loaded_author is not None
+            else getattr(post, "author_id", None)
+        )
         resolved_author_id: Optional[int] = None
         if author_id is not None:
             try:
                 resolved_author_id = int(author_id)
             except (TypeError, ValueError):
                 resolved_author_id = None
-        author_profile = profile_resolver.resolve_author_profile(
-            db,
-            resolved_author_id,
-            fallback_name=fallback_display_name,
-        )
+        if resolved_author_id is not None and resolved_author_id in profile_cache:
+            author_profile = profile_cache[resolved_author_id]
+        else:
+            author_profile = profile_resolver.resolve_author_profile(
+                db,
+                resolved_author_id,
+                fallback_name=fallback_display_name,
+            )
+            if resolved_author_id is not None:
+                profile_cache[resolved_author_id] = author_profile
         setattr(post, "author_display_name", author_profile.get("display_name", fallback_display_name))
         setattr(post, "author_avatar_url", author_profile.get("avatar_url", "/static/images/default-avatar.png"))
 
@@ -1636,6 +1824,17 @@ async def unlock_password_protected_post(
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return FileResponse("rewrz/static/favicon.ico")
+
+# 兜底封面缓存单独挂载为长缓存：URL 带 ?v=<cached_at>，刷新封面后 URL 变化，
+# 浏览器与 CDN 可以放心缓存一年，再次访问封面不再回源。
+app.mount(
+    f"/media/{_ARTICLE_API_CACHE_DIR_NAME}",
+    CacheControlStaticFiles(
+        directory=str(_ensure_article_api_cache_dir()),
+        cache_control="public, max-age=31536000, immutable",
+    ),
+    name="article-api-cache",
+)
 
 # 挂载媒体上传目录
 # 放在业务路由之后，确保 /media/variant/... 先命中动态缩略图路由。

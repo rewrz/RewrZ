@@ -835,7 +835,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         }).join("");
     };
 
-    const previewFromServer = async (content) => {
+    const previewFromServer = async (content, signal) => {
         const csrfInput = form.querySelector("input[name='csrf_token']");
         const csrfToken = csrfInput ? csrfInput.value : "";
         if (!csrfToken) {
@@ -847,33 +847,39 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         const response = await fetch("/api/v1/posts/quick/preview", {
             method: "POST",
             body: payload,
+            signal,
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !data.success) {
-            throw new Error(data.detail || data.error || "预览渲染失败");
+            const errorPayload = data.error && typeof data.error === "object" ? data.error.message : data.error;
+            throw new Error(data.detail || errorPayload || "预览渲染失败");
         }
         return String(data.html || "");
     };
 
+    const previewDebounceDelay = 400;
     let previewRenderTicket = 0;
-    const renderPreview = async (content) => {
-        if (!previewPanel || !previewBody) {
-            return;
-        }
-        if (!previewEnabled) {
-            previewPanel.classList.add("hidden");
-            return;
-        }
+    let previewDebounceTimer = null;
+    let previewAbortController = null;
 
-        const trimmed = (content || "").trim();
-        if (!trimmed) {
-            previewBody.innerHTML = "<span class='micro-status-label micro-status-muted'>输入内容后将显示预览</span>";
-            previewPanel.classList.remove("hidden");
-            return;
+    const cancelPendingPreview = () => {
+        if (previewDebounceTimer) {
+            window.clearTimeout(previewDebounceTimer);
+            previewDebounceTimer = null;
         }
+        if (previewAbortController) {
+            // 取消仍在途的旧预览请求，避免其继续占用服务端数据库连接
+            previewAbortController.abort();
+            previewAbortController = null;
+        }
+    };
+
+    const requestPreview = async (trimmed) => {
         const ticket = ++previewRenderTicket;
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
+        previewAbortController = controller;
         try {
-            const html = await previewFromServer(trimmed);
+            const html = await previewFromServer(trimmed, controller ? controller.signal : undefined);
             if (ticket !== previewRenderTicket) {
                 return;
             }
@@ -881,13 +887,42 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
                 ? `<div class="micro-status-text micro-status-muted mt-2">已附加 ${attachedMedia.length} 个媒体文件</div>`
                 : "";
             previewBody.innerHTML = html + mediaHint;
+            previewPanel.classList.remove("hidden");
         } catch (error) {
-            if (ticket !== previewRenderTicket) {
+            if ((error && error.name === "AbortError") || ticket !== previewRenderTicket) {
                 return;
             }
             previewBody.innerHTML = `<span class='micro-status-text micro-status-error'>${escapeHtml(getErrorMessage(error, "预览渲染失败"))}</span>`;
+            previewPanel.classList.remove("hidden");
+        } finally {
+            if (previewAbortController === controller) {
+                previewAbortController = null;
+            }
         }
-        previewPanel.classList.remove("hidden");
+    };
+
+    const renderPreview = (content) => {
+        if (!previewPanel || !previewBody) {
+            return;
+        }
+        cancelPendingPreview();
+        if (!previewEnabled) {
+            previewPanel.classList.add("hidden");
+            return;
+        }
+
+        const trimmed = (content || "").trim();
+        if (!trimmed) {
+            previewRenderTicket += 1;
+            previewBody.innerHTML = "<span class='micro-status-label micro-status-muted'>输入内容后将显示预览</span>";
+            previewPanel.classList.remove("hidden");
+            return;
+        }
+        // 输入过程中只保留最后一次请求，防止连续按键把预览接口打爆
+        previewDebounceTimer = window.setTimeout(() => {
+            previewDebounceTimer = null;
+            requestPreview(trimmed);
+        }, previewDebounceDelay);
     };
 
     const scheduleDraftSave = (content) => {

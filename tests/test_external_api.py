@@ -1,4 +1,5 @@
 import re
+import threading
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
@@ -8,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
 from rewrz import main as main_module
+from rewrz.api import posts as posts_api
 from rewrz.api import media as media_runtime_api
 from rewrz.crud import post as crud_post
 from rewrz.core.api_keys import build_api_key_plaintext, hash_api_key_secret
@@ -726,6 +728,70 @@ def test_frontend_quick_post_preview_prefers_external_mention_mapping(monkeypatc
         assert 'href="https://weibo.example.com/u/rewrz"' in payload["html"]
         assert 'href="/authors/admin"' not in payload["html"]
     finally:
+        main_module.app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_frontend_quick_post_preview_rate_limit(monkeypatch, tmp_path):
+    client, session_factory, engine = _build_client(monkeypatch, tmp_path)
+    with session_factory() as db:
+        _seed_external_api_basics(db)
+    monkeypatch.setattr(posts_api, "_PREVIEW_RATE_LIMIT_PER_MINUTE", 1)
+    with posts_api._PREVIEW_RATE_LOCK:
+        posts_api._PREVIEW_RATE_BUCKETS.clear()
+
+    try:
+        access_token = create_access_token({"sub": "1"})
+        client.cookies.set("access_token", access_token)
+        page_response = client.get("/formats/micro")
+        assert page_response.status_code == 200
+        csrf_token = _extract_csrf_token(page_response.text)
+
+        first = client.post(
+            "/api/v1/posts/quick/preview",
+            data={"content": "第一次预览", "csrf_token": csrf_token},
+        )
+        assert first.status_code == 200
+
+        second = client.post(
+            "/api/v1/posts/quick/preview",
+            data={"content": "第二次预览", "csrf_token": csrf_token},
+        )
+        assert second.status_code == 429
+        assert second.headers.get("Retry-After")
+        assert second.json()["error"]["message"] == "预览请求过于频繁，请稍后再试"
+    finally:
+        with posts_api._PREVIEW_RATE_LOCK:
+            posts_api._PREVIEW_RATE_BUCKETS.clear()
+        main_module.app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_frontend_quick_post_preview_rejects_when_concurrency_full(monkeypatch, tmp_path):
+    client, session_factory, engine = _build_client(monkeypatch, tmp_path)
+    with session_factory() as db:
+        _seed_external_api_basics(db)
+    monkeypatch.setattr(posts_api, "_PREVIEW_SEMAPHORE", threading.Semaphore(0))
+    with posts_api._PREVIEW_RATE_LOCK:
+        posts_api._PREVIEW_RATE_BUCKETS.clear()
+
+    try:
+        access_token = create_access_token({"sub": "1"})
+        client.cookies.set("access_token", access_token)
+        page_response = client.get("/formats/micro")
+        assert page_response.status_code == 200
+        csrf_token = _extract_csrf_token(page_response.text)
+
+        response = client.post(
+            "/api/v1/posts/quick/preview",
+            data={"content": "并发受限预览", "csrf_token": csrf_token},
+        )
+        assert response.status_code == 429
+        assert response.headers.get("Retry-After") == "2"
+        assert response.json()["error"]["message"] == "预览请求过于集中，请稍后再试"
+    finally:
+        with posts_api._PREVIEW_RATE_LOCK:
+            posts_api._PREVIEW_RATE_BUCKETS.clear()
         main_module.app.dependency_overrides.clear()
         engine.dispose()
 

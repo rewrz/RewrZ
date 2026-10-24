@@ -4,7 +4,7 @@
 支持多重身份内容系统和版本快照功能。
 """
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, cast, Integer
 from ..models import Post, Format, Category, Tag, Setting, Comment
 from ..schemas import PostCreate, PostUpdate, FormatCreate
 from slugify import slugify
@@ -21,6 +21,7 @@ from ..core.content_utils import (
 from ..core.content_intents import choose_primary_intent_slug, normalize_intent_slug, INTENT_NAME_MAP
 from ..core.media_attachments import detect_media_flags, summarize_media_attachments
 from ..core.page_templates import normalize_page_template
+from ..core import public_list_cache
 
 from typing import Optional, List
 
@@ -103,6 +104,26 @@ def _get_media_summary_flag_filter(media_slug: str):
     if normalized not in {"images", "gallery", "videos", "link", "audio"}:
         raise ValueError("不支持的媒体类型")
     return f'$.flags.{normalized}'
+
+
+def _json_extract_media_summary_int(db: Session, path: str):
+    """按数据库方言生成媒体摘要的整数字段提取表达式。"""
+    try:
+        dialect_name = str(db.get_bind().dialect.name or "").lower()
+    except Exception:
+        dialect_name = ""
+
+    if dialect_name == "postgresql":
+        # PostgreSQL 没有 json_extract，需要用 -> / ->> 逐层取键并显式转整数。
+        parts = [part for part in str(path or "").removeprefix("$.").split(".") if part]
+        if not parts:
+            return cast(Post.media_attachment_summary, Integer)
+        expression = Post.media_attachment_summary
+        for part in parts[:-1]:
+            expression = expression.op("->")(part)
+        return cast(expression.op("->>")(parts[-1]), Integer)
+
+    return func.json_extract(Post.media_attachment_summary, path)
 
 
 def _extract_setting_int_value(raw) -> int:
@@ -474,6 +495,8 @@ def create_post(
     if auto_commit:
         db.commit()
         db.refresh(db_post)
+    # 文章集合变化后，公开列表页缓存必须立即失效。
+    public_list_cache.invalidate_public_list_cache()
     return db_post
 
 def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional[List[str]] = None, format_ids: Optional[List[int]] = None):
@@ -626,6 +649,8 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
         db_post.updated_at = utc_now_naive()
         db.commit()
         db.refresh(db_post)
+        # 标题、摘要、可见性或发布时间都可能改变列表页展示，统一失效缓存。
+        public_list_cache.invalidate_public_list_cache()
     return db_post
 
 
@@ -689,11 +714,11 @@ def count_posts_by_media_attachment(db: Session, media_slug: str) -> int:
     query = select(func.count(Post.id)).where(*get_public_post_conditions())
 
     if media_key == "images":
-        query = query.where(func.json_extract(Post.media_attachment_summary, "$.image_count") == 1)
+        query = query.where(_json_extract_media_summary_int(db, "$.image_count") == 1)
     elif media_key == "gallery":
-        query = query.where(func.json_extract(Post.media_attachment_summary, "$.image_count") >= 2)
+        query = query.where(_json_extract_media_summary_int(db, "$.image_count") >= 2)
     else:
-        query = query.where(func.json_extract(Post.media_attachment_summary, _get_media_summary_flag_filter(media_key)) == 1)
+        query = query.where(_json_extract_media_summary_int(db, _get_media_summary_flag_filter(media_key)) == 1)
 
     return int(db.execute(query).scalar_one() or 0)
 
@@ -713,11 +738,11 @@ def get_posts_by_media_attachment(
     )
 
     if media_key == "images":
-        query = query.where(func.json_extract(Post.media_attachment_summary, "$.image_count") == 1)
+        query = query.where(_json_extract_media_summary_int(db, "$.image_count") == 1)
     elif media_key == "gallery":
-        query = query.where(func.json_extract(Post.media_attachment_summary, "$.image_count") >= 2)
+        query = query.where(_json_extract_media_summary_int(db, "$.image_count") >= 2)
     else:
-        query = query.where(func.json_extract(Post.media_attachment_summary, _get_media_summary_flag_filter(media_key)) == 1)
+        query = query.where(_json_extract_media_summary_int(db, _get_media_summary_flag_filter(media_key)) == 1)
 
     posts = db.execute(
         query
@@ -747,6 +772,8 @@ def delete_post(db: Session, post_id: int, *, auto_commit: bool = True):
         db.delete(db_post)
         if auto_commit:
             db.commit()
+        # 删除后列表页数量与分页都会变化，立即失效缓存。
+        public_list_cache.invalidate_public_list_cache()
     return db_post
 
 
@@ -772,6 +799,7 @@ def delete_posts_by_ids(db: Session, post_ids: List[int], author_id: Optional[in
     for db_post in db_posts:
         db.delete(db_post)
     db.commit()
+    public_list_cache.invalidate_public_list_cache()
     return len(db_posts)
 
 
@@ -808,6 +836,7 @@ def bulk_update_posts_status_by_ids(
         db_post.updated_at = now
 
     db.commit()
+    public_list_cache.invalidate_public_list_cache()
     return len(db_posts)
 
 

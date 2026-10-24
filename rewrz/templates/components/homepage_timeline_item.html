@@ -3,8 +3,8 @@
 {% set format_slugs = post.formats | map(attribute='slug') | list if post.formats else [] %}
 {% set cover_url = post.homepage_cover_url if post.homepage_cover_url is defined and post.homepage_cover_url else '' %}
 {# 时间线卡片统一走缩略图变体，避免首页按原图加载多 MB 封面 #}
-{% set cover_thumb_url = cover_url | thumb_url('related_card', request.state.db) if cover_url else '' %}
-{% set cover_thumb_srcset = cover_url | thumb_srcset('related_card', request.state.db) if cover_url else '' %}
+{% set cover_thumb_url = cover_url | thumb_url('archive_card', request.state.db) if cover_url else '' %}
+{% set cover_thumb_srcset = cover_url | thumb_srcset('archive_card', request.state.db) if cover_url else '' %}
 {% set summary_text = post | post_summary_text(200) %}
 {% set post_url_value = post | post_url %}
 {% set publish_dt = post.published_at or post.created_at %}

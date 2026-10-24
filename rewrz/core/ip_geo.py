@@ -9,6 +9,8 @@ from urllib import error, parse, request
 _CACHE_LOCK = threading.Lock()
 _IP_GEO_CACHE: Dict[str, tuple[float, str]] = {}
 _CACHE_TTL_SECONDS = 24 * 60 * 60
+# 访问 IP 不可控，缓存必须有上限，避免长期运行后按 IP 数量无界增长
+_IP_GEO_CACHE_MAX_ENTRIES = 2048
 
 _ZH_TOKEN_MAP = {
     "China": "中国",
@@ -175,6 +177,16 @@ def lookup_ip_location(raw_ip: str) -> str:
     # 优先使用支持中文的来源
     location = _lookup_ip_api(ip_text) or _lookup_ipwhois(ip_text) or "位置未知"
     with _CACHE_LOCK:
+        if len(_IP_GEO_CACHE) >= _IP_GEO_CACHE_MAX_ENTRIES:
+            expired_keys = [
+                key for key, (cached_at, _) in _IP_GEO_CACHE.items()
+                if now - cached_at >= _CACHE_TTL_SECONDS
+            ]
+            for key in expired_keys:
+                _IP_GEO_CACHE.pop(key, None)
+            # 仍然满则整体清空，地理信息缓存可随时重建
+            if len(_IP_GEO_CACHE) >= _IP_GEO_CACHE_MAX_ENTRIES:
+                _IP_GEO_CACHE.clear()
         _IP_GEO_CACHE[ip_text] = (now, location)
     return location
 

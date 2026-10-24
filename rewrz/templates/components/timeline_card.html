@@ -38,8 +38,8 @@
     <div class="mb-3 space-y-2">
         {% if has_featured_image %}
         <a href="{{ post | post_url }}" class="archive-card-cover-motion block overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" data-profile-motion>
-            <img src="{{ post.featured_image_url | thumb_url('related_card', template_db) }}"
-                 srcset="{{ post.featured_image_url | thumb_srcset('related_card', template_db) }}"
+            <img src="{{ post.featured_image_url | thumb_url('archive_card', template_db) }}"
+                 srcset="{{ post.featured_image_url | thumb_srcset('archive_card', template_db) }}"
                  sizes="(max-width: 768px) 100vw, 480px"
                  alt="{{ post.title or '微博配图' }}"
                  class="archive-card-cover-image w-full h-48 object-cover"
@@ -97,8 +97,8 @@
 
     {% if has_featured_image %}
     <a href="{{ post | post_url }}" class="archive-card-poem-cover archive-card-cover-motion block overflow-hidden rounded-lg mb-3 border" data-profile-motion>
-        <img src="{{ post.featured_image_url | thumb_url('related_card', template_db) }}"
-             srcset="{{ post.featured_image_url | thumb_srcset('related_card', template_db) }}"
+        <img src="{{ post.featured_image_url | thumb_url('archive_card', template_db) }}"
+             srcset="{{ post.featured_image_url | thumb_srcset('archive_card', template_db) }}"
              sizes="(max-width: 768px) 100vw, 480px"
              alt="{{ post.title or '诗词封面' }}"
              class="archive-card-cover-image w-full h-44 object-cover"
@@ -144,8 +144,8 @@
 <div class="archive-card-equal timeline-card timeline-card-article rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-transform duration-200">
     {% if has_featured_image %}
     <a href="{{ post | post_url }}" class="archive-card-cover-motion block overflow-hidden" data-profile-motion>
-        <img src="{{ post.featured_image_url | thumb_url('related_card', template_db) }}"
-             srcset="{{ post.featured_image_url | thumb_srcset('related_card', template_db) }}"
+        <img src="{{ post.featured_image_url | thumb_url('archive_card', template_db) }}"
+             srcset="{{ post.featured_image_url | thumb_srcset('archive_card', template_db) }}"
              sizes="(max-width: 768px) 100vw, 480px"
              alt="{{ post.title or '文章配图' }}"
              class="archive-card-cover-image w-full h-48 object-cover"
@@ -154,8 +154,8 @@
     </a>
     {% elif content_images %}
     <a href="{{ post | post_url }}" class="archive-card-cover-motion block overflow-hidden" data-profile-motion>
-        <img src="{{ content_images[0] | thumb_url('related_card', template_db) }}"
-             srcset="{{ content_images[0] | thumb_srcset('related_card', template_db) }}"
+        <img src="{{ content_images[0] | thumb_url('archive_card', template_db) }}"
+             srcset="{{ content_images[0] | thumb_srcset('archive_card', template_db) }}"
              sizes="(max-width: 768px) 100vw, 480px"
              alt="{{ post.title or '文章图片' }}"
              class="archive-card-cover-image w-full h-48 object-cover"

@@ -19,6 +19,7 @@ from ..core.public_metrics_cache import (
     get_format_archive_stats_snapshot,
     get_homepage_stats_snapshot,
 )
+from ..core import public_list_cache
 from ..core.media_attachments import (
     get_default_media_navigation,
     list_registered_media_attachment_keys,
@@ -145,6 +146,12 @@ def _ensure_registered() -> None:
 @router.get("/", response_class=HTMLResponse)
 async def homepage(request: Request, page: int = 1, append: int = 0, db: Session = Depends(get_db)):
     _ensure_registered()
+    # 先取缓存版本再查库：渲染期间若有文章写入，版本变化会让本次结果不落缓存。
+    cache_version = public_list_cache.get_public_list_cache_version()
+    cached_html = public_list_cache.get_cached_public_list_html(request, version=cache_version)
+    if cached_html is not None:
+        return HTMLResponse(content=cached_html)
+
     page = max(1, int(page or 1))
     homepage_posts_limit = _resolve_homepage_posts_per_page(_get_page_config(db, "homepage_posts_limit", 10), 10)
     list_navigation_mode = _normalize_list_navigation_mode(_get_page_config(db, "list_navigation_mode", "pagination"))
@@ -196,7 +203,13 @@ async def homepage(request: Request, page: int = 1, append: int = 0, db: Session
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
         return _templates.TemplateResponse(request, "fragments/homepage_append.html", context)
 
-    return _templates.TemplateResponse(request, "index.html", context)
+    response = _templates.TemplateResponse(request, "index.html", context)
+    public_list_cache.store_public_list_html(
+        request,
+        response.body.decode("utf-8"),
+        version=cache_version,
+    )
+    return response
 
 
 @router.get("/archives/media/{media_slug}", response_class=HTMLResponse)
@@ -423,6 +436,12 @@ async def posts_by_category(
     category = crud_category.get_category_by_slug(db, slug=category_slug)
     if category is None:
         raise HTTPException(status_code=404, detail="Category not found")
+
+    cache_version = public_list_cache.get_public_list_cache_version()
+    cached_html = public_list_cache.get_cached_public_list_html(request, version=cache_version)
+    if cached_html is not None:
+        return HTMLResponse(content=cached_html)
+
     page = max(1, int(page or 1))
     archive_posts_limit = _resolve_archive_posts_per_page(_get_page_config(db, "archive_posts_limit", 20), 20)
     list_navigation_mode = _normalize_list_navigation_mode(_get_page_config(db, "list_navigation_mode", "pagination"))
@@ -465,7 +484,13 @@ async def posts_by_category(
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
         return _templates.TemplateResponse(request, "fragments/category_archive_append.html", context)
 
-    return _templates.TemplateResponse(request, "category_archive.html", context)
+    response = _templates.TemplateResponse(request, "category_archive.html", context)
+    public_list_cache.store_public_list_html(
+        request,
+        response.body.decode("utf-8"),
+        version=cache_version,
+    )
+    return response
 
 
 @router.get("/archives/by-tag/{tag_slug}", response_class=HTMLResponse)
@@ -480,6 +505,12 @@ async def posts_by_tag(
     tag = crud_tag.get_tag_by_slug(db, slug=tag_slug)
     if tag is None:
         raise HTTPException(status_code=404, detail="Tag not found")
+
+    cache_version = public_list_cache.get_public_list_cache_version()
+    cached_html = public_list_cache.get_cached_public_list_html(request, version=cache_version)
+    if cached_html is not None:
+        return HTMLResponse(content=cached_html)
+
     page = max(1, int(page or 1))
     archive_posts_limit = _resolve_archive_posts_per_page(_get_page_config(db, "archive_posts_limit", 20), 20)
     list_navigation_mode = _normalize_list_navigation_mode(_get_page_config(db, "list_navigation_mode", "pagination"))
@@ -522,7 +553,13 @@ async def posts_by_tag(
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
         return _templates.TemplateResponse(request, "fragments/tag_archive_append.html", context)
 
-    return _templates.TemplateResponse(request, "tag_archive.html", context)
+    response = _templates.TemplateResponse(request, "tag_archive.html", context)
+    public_list_cache.store_public_list_html(
+        request,
+        response.body.decode("utf-8"),
+        version=cache_version,
+    )
+    return response
 
 
 @router.get("/archives/{year}/{month}", response_class=HTMLResponse)

@@ -24,6 +24,9 @@ import os
 router = APIRouter()
 templates = get_templates()
 
+# 封面缓存有效期上限（分钟）；0 表示永不过期
+_ARTICLE_API_CACHE_TTL_MINUTES_MAX = 525600
+
 
 def _form_text(form, key: str, default: str = "") -> str:
     return str(form.get(key, default) or "").strip()
@@ -116,7 +119,7 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "article_card_fallback_api_url": get_setting_value("article_card_fallback_api_url", "https://www.loliapi.com/acg/"),
         "article_card_fallback_local_dir": get_setting_value("article_card_fallback_local_dir", "rewrz/static/images/anime/random"),
         "article_card_api_cache_enabled": get_setting_value("article_card_api_cache_enabled", True),
-        "article_card_api_cache_ttl_minutes": get_setting_value("article_card_api_cache_ttl_minutes", 360),
+        "article_card_api_cache_ttl_minutes": get_setting_value("article_card_api_cache_ttl_minutes", 0),
         "article_card_api_cache_cleanup_minutes": get_setting_value("article_card_api_cache_cleanup_minutes", 120),
         "content_primary_mode": get_setting_value("content_primary_mode", "markdown"),
         "donation_enabled": get_setting_value("donation_enabled", False),
@@ -196,7 +199,7 @@ async def update_admin_settings(
     article_card_fallback_api_url = _form_text(form, "article_card_fallback_api_url", "")
     article_card_fallback_local_dir = _form_text(form, "article_card_fallback_local_dir", "")
     article_card_api_cache_enabled = _form_bool(form, "article_card_api_cache_enabled", True)
-    article_card_api_cache_ttl_minutes = _form_int(form, "article_card_api_cache_ttl_minutes", 360)
+    article_card_api_cache_ttl_minutes = _form_int(form, "article_card_api_cache_ttl_minutes", 0)
     article_card_api_cache_cleanup_minutes = _form_int(form, "article_card_api_cache_cleanup_minutes", 120)
     donation_enabled = _form_bool(form, "donation_enabled", False)
     donation_title = _form_text(form, "donation_title", '如果这篇文章对您有帮助，请考虑支持作者')
@@ -269,8 +272,11 @@ async def update_admin_settings(
     try:
         normalized_article_card_api_cache_ttl_minutes = int(article_card_api_cache_ttl_minutes)
     except (TypeError, ValueError):
-        normalized_article_card_api_cache_ttl_minutes = 360
-    normalized_article_card_api_cache_ttl_minutes = max(5, min(10080, normalized_article_card_api_cache_ttl_minutes))
+        normalized_article_card_api_cache_ttl_minutes = 0
+    normalized_article_card_api_cache_ttl_minutes = max(
+        0,
+        min(_ARTICLE_API_CACHE_TTL_MINUTES_MAX, normalized_article_card_api_cache_ttl_minutes),
+    )
 
     try:
         normalized_article_card_api_cache_cleanup_minutes = int(article_card_api_cache_cleanup_minutes)

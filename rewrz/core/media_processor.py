@@ -21,6 +21,10 @@ from sqlalchemy.orm import Session
 from ..crud import setting as crud_setting
 
 
+# 单张图片解码后的像素上限，超过时直接拒绝处理，避免超大图解码耗尽内存
+_DEFAULT_MAX_IMAGE_PIXELS = 25_000_000
+
+
 class MediaProcessor:
     """媒体处理服务类"""
     
@@ -249,13 +253,21 @@ class MediaProcessor:
         try:
             with Image.open(input_path) as img:
                 original_size = img.size
-                processed_img = img.copy()
-                
-                # 自动旋转（根据EXIF信息）
-                processed_img = ImageOps.exif_transpose(processed_img)
-                
+                # JPEG 支持解码阶段降采样，先 draft 再加载可显著降低大图内存峰值
+                if max_size:
+                    img.draft("RGB", max_size)
+                if img.width * img.height > _DEFAULT_MAX_IMAGE_PIXELS:
+                    return {
+                        'success': False,
+                        'error': '图像像素超出处理上限'
+                    }
+
+                # 原地校正 EXIF 方向，避免整图 copy 造成双份内存占用
+                processed_img = img
+                ImageOps.exif_transpose(processed_img, in_place=True)
+
                 # 调整尺寸
-                if max_size and (img.width > max_size[0] or img.height > max_size[1]):
+                if max_size and (processed_img.width > max_size[0] or processed_img.height > max_size[1]):
                     processed_img.thumbnail(max_size, Image.Resampling.LANCZOS)
                 
                 # 处理透明度

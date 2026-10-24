@@ -149,23 +149,189 @@ SMTP_FROM=notify@example.com
 - `MEDIA_UPLOAD_DIR` 是否与实际媒体目录一致
 - `SITE_TIMEZONE` 是否为站点所在时区（IANA 名称，例如 `Asia/Shanghai`、`Asia/Tokyo`、`America/Toronto`）
 
-数据库连接池与 SQLite 并发参数均有安全默认值，不配置也可直接运行：
+数据库连接池与 SQLite 并发参数均有安全默认值，不配置也可直接运行。
+SQLite 站点默认 10 + 10 个溢出连接，PostgreSQL 等网络数据库默认 10 + 20。
+连接按需创建：空闲时不会占满，只有高并发时才扩展；SQLite 每个连接的页缓存
+由 `SQLITE_CACHE_SIZE_KIB` 限死，因此放大连接池不会带来无界内存增长：
 
 ```env
-# 每个 worker 进程独立的连接池，默认值适合 1-2 核小站
+# 每个 worker 进程独立的连接池；SQLite 默认 10+10
 DB_POOL_SIZE=10
-DB_MAX_OVERFLOW=20
+DB_MAX_OVERFLOW=10
 DB_POOL_TIMEOUT=10
+# 以下两项仅对网络数据库生效；本地 SQLite 默认关闭预检查与连接回收
 DB_POOL_RECYCLE=1800
 DB_POOL_PRE_PING=true
 # SQLite 默认启用 WAL，并将写锁等待上限提高到 30 秒
 SQLITE_BUSY_TIMEOUT_MS=30000
 SQLITE_JOURNAL_MODE=WAL
+# 每连接页缓存上限（KiB），默认 1MB；20 个连接最坏约 20MB
+SQLITE_CACHE_SIZE_KIB=1024
+# WAL 下 synchronous=NORMAL 可减少每次提交的 fsync，提升写吞吐；
+# 断电时可能丢失最后少量事务，博客场景可接受
+SQLITE_SYNCHRONOUS=NORMAL
 ```
 
-注意：`--workers 2` 时连接池上限按进程分别计算，生产库为 PostgreSQL 时
+注意：多 worker 时连接池上限按进程分别计算，生产库为 PostgreSQL 时
 总连接数约为 `workers * (DB_POOL_SIZE + DB_MAX_OVERFLOW)`，请确保不超过
-数据库实例的连接上限。SQLite 站点不要为了追求并发盲目调大 worker 数。
+数据库实例的连接上限。SQLite 站点不要为了追求并发盲目调大 worker 数；
+突发大并发应优先靠页面与图片缓存卸载到边缘，而不是继续堆 worker。
+
+如果服务器内存特别紧张（低于 512MB），可显式写成 `DB_POOL_SIZE=8`、
+`DB_MAX_OVERFLOW=8`；512MB 及以上保持默认 10+10 即可。
+
+首页、分类归档与标签归档由两层缓存承载：
+
+- 进程内缓存：保存渲染后的整页 HTML，默认保留 20 秒，匿名 GET 命中后不再查询
+  数据库与渲染模板；新建、编辑、删除文章会立即清空缓存。总预算约 8MB。
+- 边缘缓存：匿名列表页响应带 `Cache-Control: public, max-age=0, s-maxage=20`，
+  且不创建会话，因此没有 `Set-Cookie` 与 `Vary: Cookie`，Cloudflare 等 CDN
+  可以直接缓存整页 HTML。浏览器侧始终为 `max-age=0`，不会拿到过期的页面。
+  已登录用户、HTMX 分页片段与错误页的响应为 `private, no-store`，即使 CDN
+  启用了 Cache Everything 也不会误缓存。带游客主题 Cookie 的请求同样返回
+  `private, no-store`：CDN 缓存键只有 URL，无法区分主题，缓存后会串主题。
+
+匿名列表页不含评论等受保护表单，游客主题偏好由浏览器本地 Cookie 维护，所以不写
+CSRF 会话。多 worker 部署时各进程缓存互相独立，发布后的最长可见延迟仍为 20 秒。
+
+### 5.3 SQLite 的并发边界
+
+SQLite 适合单实例博客，不适合作为横向扩容的共享数据库：
+
+- 同一份 SQLite 文件只允许一个应用实例写入。不要在多台机器、多个容器或多个
+  worker 之间共享同一数据库文件，也不要把数据库放到 NFS、SMB 等网络盘上。
+- WAL 模式下读可以并发，写仍然串行；写事务会排队，`SQLITE_BUSY_TIMEOUT_MS`
+  只是等待上限，不会提升写入吞吐。
+- 每个 worker 进程都会独立创建连接池、整页缓存和封面预取线程。SQLite 站点
+  增加 worker 只会放大内存占用与写锁竞争，不能提升写入能力。
+- 需要多 worker、多实例读写或持续高并发写入时，先迁移到 PostgreSQL，见 5.4。
+
+### 5.4 迁移到 PostgreSQL
+
+适用场景：需要多 worker、多实例读写同一数据库，或写入量已经明显受 SQLite
+单写者限制。
+
+这是第 4 节安装向导流程的唯一例外：安装向导只支持 SQLite，PostgreSQL 站点
+需要手工准备数据库和 `.env`，不能再走 `/installer`。
+
+#### 1. 安装驱动
+
+`requirements.txt` 不包含 PostgreSQL 驱动，需要在虚拟环境中单独安装：
+
+```bash
+cd /srv/rewrz
+source .venv/bin/activate
+pip install "psycopg[binary]"
+```
+
+#### 2. 创建数据库与账号
+
+```bash
+sudo -u postgres psql
+```
+
+```sql
+CREATE ROLE rewrz LOGIN PASSWORD '替换为强密码';
+CREATE DATABASE rewrz OWNER rewrz ENCODING 'UTF8';
+-- PostgreSQL 15 及以上还需要授权 public schema
+\c rewrz
+GRANT ALL ON SCHEMA public TO rewrz;
+\q
+```
+
+#### 3. 写入 `.env`
+
+先备份现有 `.env`，再按下面的键完整写入，保证每个键只出现一次：
+
+```env
+DATABASE_URL=postgresql+psycopg://rewrz:密码@127.0.0.1:5432/rewrz
+SECRET_KEY=...
+ADMIN_PATH=...
+MEDIA_UPLOAD_DIR=media_uploads
+SITE_URL=https://example.com
+ALLOWED_HOSTS=example.com,127.0.0.1
+SITE_TIMEZONE=Asia/Shanghai
+DB_POOL_SIZE=10
+DB_MAX_OVERFLOW=20
+DB_POOL_TIMEOUT=10
+DB_POOL_RECYCLE=1800
+DB_POOL_PRE_PING=true
+```
+
+- 密码包含 `@`、`/`、`:` 等字符时必须做 URL 编码。
+- `DATABASE_URL` 必须带 `+psycopg`，否则 SQLAlchemy 会去寻找未安装的 `psycopg2`。
+- SQLite 专属参数（`SQLITE_*`）在 PostgreSQL 下不生效，可以直接删除。
+- `SECRET_KEY` 可用 `openssl rand -hex 32` 重新生成；更换后所有旧登录会话失效。
+
+#### 4. 首次启动建表
+
+```bash
+sudo systemctl restart rewrz
+sudo journalctl -u rewrz -n 50 --no-pager
+```
+
+空库首次启动时，应用会通过 `create_all_tables()` 创建当前模型对应的表。
+不要执行 `alembic upgrade head`：生产库没有迁移基线，会重复建表并报错。
+
+#### 5. 创建管理员并导入数据
+
+完整备份包不包含用户表，新库需要先创建管理员，再导入内容：
+
+```bash
+cd /srv/rewrz
+source .venv/bin/activate
+python - <<'PY'
+import getpass
+from rewrz.core.database import db_manager
+from rewrz.crud import user as crud_user
+
+session = db_manager.get_session()
+if session is None:
+    raise SystemExit("数据库未初始化，请先确认 .env 中的 DATABASE_URL 并成功启动一次服务")
+try:
+    username = input("管理员用户名: ").strip()
+    email = input("管理员邮箱: ").strip()
+    password = getpass.getpass("管理员密码: ")
+    crud_user.create_admin_user(session, username=username, email=email, password=password)
+    print("管理员已创建")
+finally:
+    session.close()
+PY
+```
+
+先在旧站（SQLite）后台导出完整备份 ZIP：后台 → 数据管理 → 导出备份包。
+备份包包含内容 JSON 与 `media` 文件，不包含管理员账号、SMTP 密码等敏感配置。
+
+然后在新站登录后台导入该 ZIP。导入会写回文章、分类、标签、评论、媒体记录与
+站点设置，并恢复媒体文件。
+
+如果媒体目录超过导入接口 100MB 上限，先用 `rsync` 同步 `media_uploads/`，
+再在数据管理中只导入 JSON 文件。
+
+#### 6. 迁移后验收
+
+```bash
+curl -I https://example.com/
+curl -I https://example.com/<你的ADMIN_PATH>/login
+```
+
+- 首页、分类/标签归档与分页正常
+- 文章详情、评论与隐藏内容解锁正常
+- 媒体图片经 `/media/variant/...` 正常返回
+- 后台可登录，设置、媒体库与备份导出可用
+
+#### 7. 回滚
+
+迁移前保留旧 SQLite 库、旧 `.env` 与媒体目录。需要回滚时：
+
+```bash
+sudo systemctl stop rewrz
+cp .env.sqlite.backup .env
+# 如需恢复数据，再用 SQLite 备份覆盖 data/rewrz.db
+sudo systemctl start rewrz
+```
+
+PostgreSQL 运行期间产生的新内容不会自动回到 SQLite，回滚前应先导出备份包。
 
 ## 6. 配置 systemd
 
@@ -185,7 +351,8 @@ User=www-data
 Group=www-data
 WorkingDirectory=/srv/rewrz
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/srv/rewrz/.venv/bin/uvicorn rewrz.main:app --host 127.0.0.1 --port 8000 --workers 2 --timeout-graceful-shutdown 10
+Environment=MALLOC_ARENA_MAX=2
+ExecStart=/srv/rewrz/.venv/bin/uvicorn rewrz.main:app --host 127.0.0.1 --port 8000 --workers 1 --timeout-graceful-shutdown 10
 Restart=always
 RestartSec=3
 TimeoutStopSec=30
@@ -198,6 +365,36 @@ WantedBy=multi-user.target
 存量请求；`TimeoutStopSec=30` 给 systemd 留出应用退出和进程回收时间。
 两者需同时保留，避免更新时直接强杀进程。
 
+`MALLOC_ARENA_MAX=2` 限制 glibc 线程内存池数量，避免图片处理等
+瞬时峰值过后 RSS 长期停留在高位。
+
+### 6.1 512MB 小内存服务器
+
+项目以 512MB 内存 VPS 可运行为目标，小内存机器请使用 `--workers 1`。
+SQLite 站点也只能单实例写入；需要多 worker 时先按 5.4 迁移到 PostgreSQL，
+再按 6.2 控制进程数与连接数，不要直接堆 worker。
+
+在 `[Service]` 段落中额外加入 cgroup 限制，让超限时只重启应用进程，
+而不是让内核把整机拖入 OOM：
+
+```ini
+MemoryHigh=350M
+MemoryMax=450M
+```
+
+同时建议至少配置 1GB swap：
+
+```bash
+sudo fallocate -l 1G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+如果站点有较高访问量，或需要同时运行数据库、缓存等其它服务，
+建议把内存升到 1GB 以上；1GB 内存也建议保持 `--workers 1`。
+
 然后执行：
 
 ```bash
@@ -207,6 +404,35 @@ sudo systemctl enable rewrz
 sudo systemctl start rewrz
 sudo systemctl status rewrz
 ```
+
+### 6.2 多 worker 部署（仅 PostgreSQL）
+
+SQLite 站点固定 `--workers 1`。数据库切换为 PostgreSQL 后，才考虑增加 worker：
+
+```ini
+ExecStart=/srv/rewrz/.venv/bin/uvicorn rewrz.main:app --host 127.0.0.1 --port 8000 --workers 4 --timeout-graceful-shutdown 10
+```
+
+内存预算：
+
+- 每个 worker 都是独立 Python 进程，空闲内存约 120–200MB，图片处理峰值更高
+- 512MB 机器不要多 worker；1GB 建议最多 2 个；2GB 及以上再考虑 4 个
+- 每个 worker 建议预留 250MB 以上，并保留 `MemoryHigh` / `MemoryMax` 与 swap
+
+数据库连接预算：
+
+- 每个 worker 各自持有连接池，总连接数约为
+  `workers * (DB_POOL_SIZE + DB_MAX_OVERFLOW)`
+- 总连接数建议不超过 PostgreSQL `max_connections` 的 70%，给迁移、备份与运维留余量
+- 例如 `max_connections=100`、4 个 worker 时，设置 `DB_POOL_SIZE=10`、
+  `DB_MAX_OVERFLOW=5`，总量为 60
+
+多 worker 后仍然按进程隔离的行为：
+
+- 匿名列表页整页缓存各自独立，发布后的最长可见延迟仍为 20 秒
+- 封面预取并发上限按进程计算，`N` 个 worker 最坏同时有 `2N` 个预取线程
+- 定时任务调度器在每个 worker 中各跑一份，默认任务均为幂等清理；
+  不要新增依赖“只执行一次”的重写入定时任务
 
 ## 7. 配置 Nginx
 
@@ -274,27 +500,32 @@ server {
 - 建议在 `.env` 中同时配置 `ALLOWED_HOSTS=example.com,127.0.0.1`，应用层会拒绝不匹配的 Host 头；
   其中 `127.0.0.1` 用于保留 `update.sh` 的本机健康检查
 
-### 7.3 Cloudflare 场景
+### 7.3 Cloudflare 回源场景
 
-如果站点经 Cloudflare 回源，源站看到的直连地址是 Cloudflare 节点，
-需让 Nginx 信任 Cloudflare 网段并改写真实客户端 IP（网段以 Cloudflare 官方列表为准）：
+如果站点经 Cloudflare 代理（橙云）回源，源站看到的直连地址是 Cloudflare 节点。
+完整方案（UFW 仅放行 Cloudflare 官方网段、每 15 分钟自动同步、Nginx 还原真实 IP）
+见 [`CLOUDFLARE_ORIGIN.md`](CLOUDFLARE_ORIGIN.md)。
 
-```nginx
-# 放在 http 块或 server 块内，网段需要定期同步
-set_real_ip_from 173.245.48.0/20;
-set_real_ip_from 103.21.244.0/22;
-set_real_ip_from 104.16.0.0/13;
-set_real_ip_from 172.64.0.0/13;
-real_ip_header CF-Connecting-IP;
+只做 Nginx 侧时，至少满足三点：
 
-# 改写后由 Nginx 覆盖写入，避免客户端伪造的 X-Forwarded-For 透传
-proxy_set_header X-Real-IP $remote_addr;
-proxy_set_header X-Forwarded-For $remote_addr;
-```
+- `set_real_ip_from` 覆盖 Cloudflare 官方全部网段并定期同步，不要长期手写固定几段
+- `real_ip_header CF-Connecting-IP;`
+- 站点配置中 `X-Forwarded-For` 改为 `$remote_addr`（覆盖而不是追加），
+  避免客户端伪造链进入应用审计
 
-同时把 `.env` 中的 `TRUSTED_PROXIES` 设置为实际回源代理地址
-（默认 `127.0.0.1,::1` 只信任本机 Nginx）。应用只会在直连方属于可信代理时
-才采纳 `X-Forwarded-For`，并从右向左解析，客户端伪造的左侧条目不会生效。
+`.env` 中的 `TRUSTED_PROXIES` 保持默认 `127.0.0.1,::1`：Nginx 已完成真实 IP 还原，
+应用只信任本机 Nginx，不要把 Cloudflare 网段加进去。
+
+应用已为匿名列表页输出 `Cache-Control: public, max-age=0, s-maxage=20`。
+要让 Cloudflare 真正缓存整页 HTML，还需在控制台添加一条 Cache Rule：
+
+- 匹配路径：`/`、`/archives/by-category/*`、`/archives/by-tag/*`
+- 当 Cookie 包含 `access_token` 或 `rewrz_theme` 时执行 `Bypass cache`
+  （登录态与游客主题变体不能共用同一份缓存）
+- 其余请求执行 `Cache Everything`，边缘 TTL 以源站 `s-maxage` 为准
+
+没有这条规则时，Cloudflare 默认只缓存带静态扩展名的资源，HTML 仍每次回源：
+功能正常，但拿不到边缘缓存收益。
 
 ### 7.4 启用配置
 

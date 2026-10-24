@@ -37,7 +37,7 @@ DEFAULT_MEDIA_SETTINGS = [
     {"key": "thumbnail_lock_timeout_ms", "value": {"value": 15000}, "description": "同变体互斥锁超时", "category": "media", "type": "integer"},
     {"key": "thumbnail_negative_cache_ttl_seconds", "value": {"value": 30}, "description": "失败负缓存时长（秒）", "category": "media", "type": "integer"},
     {"key": "thumbnail_generate_timeout_ms", "value": {"value": 4000}, "description": "单次生成超时（毫秒）", "category": "media", "type": "integer"},
-    {"key": "thumbnail_source_max_megapixels", "value": {"value": 40}, "description": "原图像素上限（MP）", "category": "media", "type": "integer"},
+    {"key": "thumbnail_source_max_megapixels", "value": {"value": 25}, "description": "原图像素上限（MP）", "category": "media", "type": "integer"},
     {"key": "thumbnail_cleanup_interval_hours", "value": {"value": 168}, "description": "缓存清理周期（小时）", "category": "media", "type": "integer"},
     {"key": "external_image_policy", "value": {"value": "passthrough"}, "description": "外链图片策略", "category": "media", "type": "string"},
     {"key": "external_image_allowlist", "value": {"value": ""}, "description": "外链域名白名单", "category": "media", "type": "string"},

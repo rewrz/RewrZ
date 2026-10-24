@@ -19,6 +19,9 @@ from ..schemas import User, UserAvatarUpdate
 
 router = APIRouter()
 
+# 头像解码像素上限，避免超大头像文件在缩图前耗尽内存
+_AVATAR_MAX_PIXELS = 16_000_000
+
 
 def _ensure_avatar_permission(target_user_id: int, current_user: User) -> None:
     if current_user.id != target_user_id:
@@ -58,6 +61,11 @@ async def upload_user_avatar(
 
     try:
         image = Image.open(BytesIO(file_content))
+        # 头像最终只需 300px，JPEG 先在解码阶段降采样，避免大图全尺寸解码
+        if image.format == "JPEG":
+            image.draft("RGB", (300, 300))
+        if image.width * image.height > _AVATAR_MAX_PIXELS:
+            raise HTTPException(status_code=400, detail="图片像素超出处理上限")
         image.thumbnail((300, 300), Image.Resampling.LANCZOS)
 
         os.makedirs(avatar_service.avatar_upload_path, exist_ok=True)

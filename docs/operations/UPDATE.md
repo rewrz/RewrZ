@@ -34,6 +34,8 @@ chmod +x update.sh
 - 脚本会检测 `.env` 中重复的配置项并提示，但不会自动修复
 - 重启后会等待 systemd 服务进入 active，再对健康检查入口做重试探测；
   应用冷启动约 30 秒，默认最多等待 60 秒，避免把启动过程误报为健康检查失败
+- 重启前会检测 systemd 的 `--workers` 数量：本机内存 ≤1.5GB 且 worker 数大于 1 时，
+  仅提示改为 `--workers 1` 并设置 `MALLOC_ARENA_MAX=2`，不会自动改写服务配置
 - 数据库表结构由应用启动时的 `create_all` 自动维护（只建不存在的表），
   不需要也不应当执行 `alembic upgrade head`
 - 手工执行流程见下文，二者保持一致；修改脚本时必须同步本文
@@ -68,7 +70,21 @@ tar -czf "media_uploads.backup.$STAMP.tar.gz" media_uploads
 `data/rewrz.db-wal`、`data/rewrz.db-shm` 三个文件；只复制主库文件会丢失
 WAL 中尚未合并的事务。
 
-如果你已启用 PostgreSQL，请改为数据库原生备份命令。
+如果你已启用 PostgreSQL，`update.sh` 的自动备份只会提示“未定位到数据库文件”
+并跳过数据库部分。更新前必须手工执行原生备份：
+
+```bash
+cd /srv/rewrz
+mkdir -p backups
+pg_dump --format=custom \
+  --file="backups/rewrz-$(date +%F-%H%M%S).dump" \
+  -d "postgresql://rewrz:密码@127.0.0.1:5432/rewrz"
+```
+
+建议把密码写入权限为 `600` 的 `~/.pgpass`，避免出现在 shell 历史与进程列表。
+执行 `./update.sh` 时仍应保留自动备份（它还会备份 `.env` 与媒体目录），
+不要因为数据库备份已手工完成就加 `--no-backup`。
+
 备份目录与 `.env` 副本应保持私有权限（目录 `700`、文件 `600`），
 避免同机其他用户读取数据库或密钥。
 
@@ -168,8 +184,13 @@ sudo journalctl -u rewrz -n 100 --no-pager
   - 再重启服务
   - 数据库池参数 `DB_POOL_SIZE`、`DB_MAX_OVERFLOW`、`DB_POOL_TIMEOUT`、
     `DB_POOL_RECYCLE`、`DB_POOL_PRE_PING` 与 SQLite 参数
-    `SQLITE_BUSY_TIMEOUT_MS`、`SQLITE_JOURNAL_MODE` 均可选，不写时使用默认值；
+    `SQLITE_BUSY_TIMEOUT_MS`、`SQLITE_JOURNAL_MODE`、`SQLITE_CACHE_SIZE_KIB`、
+    `SQLITE_SYNCHRONOUS` 均可选，不写时使用默认值；
     `update.sh` 只检测 `.env`，不会自动写入这些配置
+- PostgreSQL 站点重建虚拟环境后：
+  - `requirements.txt` 不包含 PostgreSQL 驱动，需要重新执行
+    `pip install "psycopg[binary]"`
+  - 否则应用启动时会因缺少驱动无法连接数据库
 
 ## 6. 回滚流程
 

@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import create_engine, func, select
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -616,4 +617,24 @@ def test_create_post_auto_create_default_format_without_sawarning(db: Session, t
     sa_warnings = [item for item in caught if issubclass(item.category, SAWarning)]
     assert sa_warnings == []
     assert any(fmt.slug == "article" for fmt in created_post.formats)
+
+
+def test_media_summary_json_filter_compiles_for_postgresql():
+    class _Dialect:
+        name = "postgresql"
+
+    class _Bind:
+        dialect = _Dialect()
+
+    class _Session:
+        def get_bind(self):
+            return _Bind()
+
+    statement = select(Post.id).where(
+        crud_post._json_extract_media_summary_int(_Session(), "$.flags.images") == 1
+    )
+    compiled = str(statement.compile(dialect=postgresql.dialect()))
+
+    assert "->>" in compiled
+    assert "json_extract" not in compiled
 

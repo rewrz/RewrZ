@@ -139,7 +139,7 @@ async def update_media_settings(
         "thumbnail_lock_timeout_ms": _form_int(form, "thumbnail_lock_timeout_ms", 15000),
         "thumbnail_negative_cache_ttl_seconds": _form_int(form, "thumbnail_negative_cache_ttl_seconds", 30),
         "thumbnail_generate_timeout_ms": _form_int(form, "thumbnail_generate_timeout_ms", 4000),
-        "thumbnail_source_max_megapixels": _form_int(form, "thumbnail_source_max_megapixels", 40),
+        "thumbnail_source_max_megapixels": _form_int(form, "thumbnail_source_max_megapixels", 25),
         "thumbnail_cleanup_interval_hours": _form_int(form, "thumbnail_cleanup_interval_hours", 168),
         "external_image_policy": _form_text(form, "external_image_policy", "passthrough").lower(),
         "external_image_allowlist": _normalize_csv_text(_form_text(form, "external_image_allowlist", "")),

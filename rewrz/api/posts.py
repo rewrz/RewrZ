@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Form, Header, File, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Deque, Tuple
 from datetime import datetime
 import json
+import threading
+import time
+from collections import defaultdict, deque
 
 from ..core.admin_path import get_admin_path
 from ..core.database import get_db
@@ -22,6 +25,44 @@ from . import media as media_api
 router = APIRouter()
 templates = get_templates()
 ADMIN_PATH = get_admin_path()
+
+
+def _refresh_post_cover_cache_safely(db: Session, post, *, previous_slug: Optional[str] = None) -> None:
+    """保存文章后自动重建兜底封面缓存；任何异常都不影响文章保存结果。"""
+    try:
+        from ..main import refresh_article_cover_cache
+
+        refresh_article_cover_cache(db, post, previous_slug=previous_slug)
+    except Exception:
+        pass
+
+# 微动态预览接口保护：单用户每分钟上限 + 进程内并发上限。
+# 预览请求会占用请求级数据库会话，输入风暴下若不加限制会耗尽连接池。
+_PREVIEW_RATE_LIMIT_PER_MINUTE = 120
+_PREVIEW_MAX_CONCURRENT = 4
+_PREVIEW_RATE_BUCKETS: Dict[str, Deque[float]] = defaultdict(deque)
+_PREVIEW_RATE_LOCK = threading.Lock()
+_PREVIEW_SEMAPHORE = threading.BoundedSemaphore(_PREVIEW_MAX_CONCURRENT)
+
+
+def _check_preview_rate_limit(user_key: str, limit: Optional[int] = None) -> Tuple[bool, int]:
+    """按用户限制预览请求频率，返回是否放行及建议的重试秒数。"""
+    effective_limit = _PREVIEW_RATE_LIMIT_PER_MINUTE if limit is None else int(limit)
+    if effective_limit <= 0:
+        return True, 0
+
+    now_ts = time.monotonic()
+    with _PREVIEW_RATE_LOCK:
+        bucket = _PREVIEW_RATE_BUCKETS[user_key]
+        while bucket and now_ts - bucket[0] >= 60:
+            bucket.popleft()
+
+        if len(bucket) >= effective_limit:
+            retry_after = max(int(60 - (now_ts - bucket[0])), 1)
+            return False, retry_after
+
+        bucket.append(now_ts)
+        return True, 0
 
 
 def _get_content_primary_mode(db: Session) -> str:
@@ -328,16 +369,36 @@ async def preview_public_quick_micro_post(
     前台快捷发布预览接口（仅渲染，不入库）。
     """
     verify_csrf_token(request, csrf_token)
-    normalized_content = str(content or "").strip()
-    if not normalized_content:
-        return {"success": True, "html": ""}
-    if len(normalized_content) > 2000:
-        raise HTTPException(status_code=400, detail="动态内容最多 2000 字")
-    preview_source = strip_micro_tags(normalized_content)
-    return {
-        "success": True,
-        "html": enhance_micro_html(render_markdown_html(preview_source), db),
-    }
+
+    rate_allowed, retry_after = _check_preview_rate_limit(f"user:{current_user.id}")
+    if not rate_allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="预览请求过于频繁，请稍后再试",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    preview_slot_acquired = _PREVIEW_SEMAPHORE.acquire(blocking=False)
+    if not preview_slot_acquired:
+        raise HTTPException(
+            status_code=429,
+            detail="预览请求过于集中，请稍后再试",
+            headers={"Retry-After": "2"},
+        )
+
+    try:
+        normalized_content = str(content or "").strip()
+        if not normalized_content:
+            return {"success": True, "html": ""}
+        if len(normalized_content) > 2000:
+            raise HTTPException(status_code=400, detail="动态内容最多 2000 字")
+        preview_source = strip_micro_tags(normalized_content)
+        return {
+            "success": True,
+            "html": enhance_micro_html(render_markdown_html(preview_source), db),
+        }
+    finally:
+        _PREVIEW_SEMAPHORE.release()
 
 @router.get(f"{ADMIN_PATH}/posts/new", response_class=HTMLResponse)
 async def new_post_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -453,6 +514,7 @@ async def create_post_api(
         tag_names=tag_names, # 传递标签名称列表
         format_ids=resolved_format_ids # 仅传递单个主类型ID
     )
+    _refresh_post_cover_cache_safely(db, db_post)
     
     # 返回HTMX响应，重定向到文章列表或编辑页面
     response = Response(status_code=200)
@@ -497,6 +559,7 @@ async def update_post_api(
     db_post = crud_post.get_post(db, post_id=post_id)
     if not db_post:
         raise HTTPException(status_code=404, detail="Post not found")
+    previous_slug = str(db_post.slug or "")
     
     # 确保文章类型不被修改
     if db_post.post_type != "post":
@@ -542,6 +605,8 @@ async def update_post_api(
         format_ids=resolved_format_ids,
         tag_names=tag_names
     )
+    if updated_post is not None:
+        _refresh_post_cover_cache_safely(db, updated_post, previous_slug=previous_slug)
     
     # 返回HTMX响应，重定向到文章列表或编辑页面
     response = Response(status_code=200)
@@ -669,6 +734,31 @@ async def batch_delete_posts(
         return JSONResponse(status_code=e.status_code, content={"success": False, "error": e.detail})
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "error": f"批量删除失败: {str(e)}"})
+
+@router.post(f"{ADMIN_PATH}/api/v1/posts/{{post_id}}/cover-cache/refresh", response_model=dict)
+async def refresh_post_cover_cache_api(
+    request: Request,
+    post_id: int,
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """手动清理并重建单篇文章的兜底封面缓存。"""
+    verify_csrf_token(request, csrf_token)
+    db_post = crud_post.get_post(db, post_id=post_id)
+    if not db_post or db_post.post_type != "post":
+        raise HTTPException(status_code=404, detail="文章不存在")
+
+    from ..main import refresh_article_cover_cache
+
+    result = refresh_article_cover_cache(db, db_post)
+    if result.get("scheduled"):
+        message = "封面缓存已刷新，稍后访问即可看到新封面"
+    elif result.get("removed"):
+        message = f"已清理 {result['removed']} 份旧封面缓存，将在下次访问时自动重建"
+    else:
+        message = str(result.get("reason") or "当前无需刷新封面缓存")
+    return {"success": True, "message": message, **result}
 
 # --- 页面管理路由 ---
 

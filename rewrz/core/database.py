@@ -39,10 +39,15 @@ class DatabaseManager:
             
             database_url = settings.DATABASE_URL
             is_sqlite = _is_sqlite_url(database_url)
-            engine_kwargs = {
-                "pool_pre_ping": bool(getattr(settings, "DB_POOL_PRE_PING", True)),
-                "pool_recycle": int(getattr(settings, "DB_POOL_RECYCLE", 1800)),
-            }
+            if is_sqlite:
+                # 本地 SQLite 文件不存在网络断连，预检查与连接回收只会白耗查询；
+                # 页缓存由 SQLITE_CACHE_SIZE_KIB 控制，避免池大后内存失控。
+                engine_kwargs = {"pool_pre_ping": False}
+            else:
+                engine_kwargs = {
+                    "pool_pre_ping": bool(getattr(settings, "DB_POOL_PRE_PING", True)),
+                    "pool_recycle": int(getattr(settings, "DB_POOL_RECYCLE", 1800)),
+                }
             if not (is_sqlite and _is_memory_sqlite_url(database_url)):
                 engine_kwargs.update({
                     "pool_size": int(getattr(settings, "DB_POOL_SIZE", 10)),
@@ -73,6 +78,10 @@ class DatabaseManager:
         if journal_mode not in VALID_SQLITE_JOURNAL_MODES:
             journal_mode = "WAL"
         busy_timeout_ms = max(1000, int(getattr(settings, "SQLITE_BUSY_TIMEOUT_MS", 30000) or 30000))
+        cache_size_kib = max(256, int(getattr(settings, "SQLITE_CACHE_SIZE_KIB", 1024) or 1024))
+        synchronous = str(getattr(settings, "SQLITE_SYNCHRONOUS", "NORMAL") or "NORMAL").strip().upper()
+        if synchronous not in {"OFF", "NORMAL", "FULL", "EXTRA"}:
+            synchronous = "NORMAL"
 
         @event.listens_for(engine, "connect")
         def _set_sqlite_pragmas(dbapi_connection, connection_record):
@@ -80,6 +89,9 @@ class DatabaseManager:
             try:
                 cursor.execute(f"PRAGMA busy_timeout={busy_timeout_ms}")
                 cursor.execute(f"PRAGMA journal_mode={journal_mode}")
+                # 负值表示 KiB：限制每个连接的页缓存，连接池放大后内存仍可控
+                cursor.execute(f"PRAGMA cache_size=-{cache_size_kib}")
+                cursor.execute(f"PRAGMA synchronous={synchronous}")
             finally:
                 cursor.close()
 

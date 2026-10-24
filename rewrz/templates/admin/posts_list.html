@@ -213,6 +213,9 @@
                             <a href="{{ post | post_url }}" target="_blank" class="admin-action-link" title="查看">
                                 <i class="fas fa-eye"></i>
                             </a>
+                            <button onclick="refreshCoverCache({{ post.id }})" class="admin-action-link" title="刷新封面缓存">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
                             <button onclick="deletePost({{ post.id }})" class="admin-action-link" title="删除">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -479,6 +482,23 @@ async function deletePost(postId) {
     } catch (error) {
         setBatchOperationState(false);
         window.adminNotify(`删除失败：${error.message}`, 'error', { duration: 4200 });
+    }
+}
+
+async function refreshCoverCache(postId) {
+    if (batchActionInProgress) return;
+    try {
+        const response = await fetch(`{{ request.state.admin_path }}/api/v1/posts/${postId}/cover-cache/refresh`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '{{ request.state.csrf_token }}'
+            }
+        });
+        const result = await parseApiResponse(response);
+        window.adminNotify(result.message || '封面缓存已刷新', 'success');
+    } catch (error) {
+        window.adminNotify(`刷新封面缓存失败：${error.message}`, 'error', { duration: 4200 });
     }
 }
 
