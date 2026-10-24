@@ -33,6 +33,7 @@ flowchart LR
 
 关键流程：
 - `lifespan` 启动阶段执行建表，不再承载历史数据运行时归一化。
+- `lifespan` 同时启动访问统计的 15 秒刷写循环，关闭时先做最后一次刷写再停止调度器。
 - 全局关闭自动 API 文档端点（`docs_url/redoc_url/openapi_url = None`）。
 - 安装状态由 `settings.installation_complete` 判定，未安装走 `/installer`。
 - 安装完成后，`/installer` 对外重定向，避免后台入口暴露。

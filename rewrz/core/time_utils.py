@@ -88,3 +88,17 @@ def site_month_range_utc(year: int, month: int) -> tuple[datetime, datetime]:
     start_utc = start_local.astimezone(timezone.utc).replace(tzinfo=None)
     end_utc = end_local.astimezone(timezone.utc).replace(tzinfo=None)
     return start_utc, end_utc
+
+
+def site_day_start_utc(dt: datetime | None = None) -> datetime:
+    """返回站点自然日 00:00 对应的无时区 UTC 时间，作为统计日键。
+
+    例如 Asia/Shanghai 的 2026-10-24 返回 2026-10-23 16:00:00。
+    统计表统一存这个值，查询时再按站点时区还原为自然日。
+    """
+    if dt is None:
+        site_dt = site_now()
+    else:
+        site_dt = to_site_time(dt) or site_now()
+    local_midnight = site_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    return local_midnight.astimezone(timezone.utc).replace(tzinfo=None)

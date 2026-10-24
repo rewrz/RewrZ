@@ -1,0 +1,59 @@
+{% set totals = traffic.totals %}
+{% set burst = traffic.burst or {} %}
+{% set capacity = traffic.capacity or {} %}
+{% if not traffic.enabled %}
+<div class="text-sm" style="color: var(--color-text-light);">
+    <p>访问统计当前已关闭，未写入任何统计数据。</p>
+    <p class="mt-2">可在 <a href="{{ analytics_url }}" class="admin-accent-link">访问统计</a> 页面重新开启。</p>
+</div>
+{% else %}
+<div class="space-y-4">
+    <div class="grid grid-cols-2 gap-3">
+        <div class="rounded-lg p-3" style="background: var(--color-background-alt); border: 1px solid var(--color-border);">
+            <p class="text-xs" style="color: var(--color-text-light);">今日有效访问</p>
+            <p class="text-xl font-bold mt-1" style="color: var(--color-text);">{{ totals.effective_page_views }}</p>
+            <p class="mt-1 text-[11px]" style="color: var(--color-text-light);">回源 {{ totals.page_views }} / 上报 {{ totals.beacon_page_views }}</p>
+        </div>
+        <div class="rounded-lg p-3" style="background: var(--color-background-alt); border: 1px solid var(--color-border);">
+            <p class="text-xs" style="color: var(--color-text-light);">今日独立访客</p>
+            <p class="text-xl font-bold mt-1" style="color: var(--color-text);">{{ totals.uv }}</p>
+        </div>
+        <div class="rounded-lg p-3" style="background: var(--color-background-alt); border: 1px solid var(--color-border);">
+            <p class="text-xs" style="color: var(--color-text-light);">今日总请求</p>
+            <p class="text-xl font-bold mt-1" style="color: var(--color-text);">{{ totals.requests }}</p>
+        </div>
+        <div class="rounded-lg p-3" style="background: var(--color-background-alt); border: 1px solid var(--color-border);">
+            <p class="text-xs" style="color: var(--color-text-light);">爬虫 / 可疑占比</p>
+            <p class="text-xl font-bold mt-1" style="color: var(--color-text);">{{ totals.bot_ratio }}% / {{ totals.suspicious_ratio }}%</p>
+        </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2 text-xs">
+        <span class="admin-status-badge rounded-full px-2.5 py-1">
+            <i class="fas {{ 'fa-bolt' if burst.burst else 'fa-wave-square' }} mr-1"></i>{{ burst.burst_label or '流量平稳' }}
+        </span>
+        <span class="admin-status-badge rounded-full px-2.5 py-1">
+            <i class="fas fa-database mr-1"></i>{{ capacity.verdict_label or '容量状态未知' }}
+        </span>
+        {% if traffic.anomaly_total %}
+        <span class="admin-status-badge rounded-full px-2.5 py-1">
+            <i class="fas fa-shield-alt mr-1"></i>异常来源 {{ traffic.anomaly_total }} 个
+        </span>
+        {% endif %}
+    </div>
+
+    <div class="text-xs flex flex-wrap gap-x-4 gap-y-1" style="color: var(--color-text-light);">
+        <span>当前分钟 {{ burst.current_rpm or 0 }} 次</span>
+        <span>峰值并发 {{ burst.peak_concurrency or 0 }}</span>
+        <span>5xx {{ totals.status_5xx }} 次</span>
+        {% if burst.last_flush_at %}<span>最近刷写 {{ burst.last_flush_at }}</span>{% endif %}
+    </div>
+
+    {% if not traffic.has_data %}
+    <p class="text-xs" style="color: var(--color-text-light);">暂无可展示的统计数据，站点产生访问后约 15–45 秒会出现在这里。</p>
+    {% endif %}
+    <p class="text-xs">
+        <a href="{{ analytics_url }}" class="admin-accent-link">查看完整访问统计</a>
+    </p>
+</div>
+{% endif %}

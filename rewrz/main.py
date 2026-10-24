@@ -8,6 +8,7 @@ import os
 import hashlib
 import threading
 import time
+import asyncio
 from io import BytesIO
 from math import ceil
 from PIL import Image
@@ -51,6 +52,7 @@ from .api import captcha as captcha_api # 导入验证码API路由
 from .api import admin_routes as admin_routes_api
 from .api import external as external_api
 from .api import public_pages as public_pages_api
+from .api import traffic_beacon as traffic_beacon_api
 from .core.public_profile import get_public_profile_resolver
 from .core.admin_security import should_run_login_audit_auto_cleanup, run_login_audit_auto_cleanup
 from .crud import post as crud_post
@@ -70,6 +72,7 @@ from .core.settings_middleware import SettingsMiddleware # 导入设置中间件
 from .core.admin_path import get_admin_path
 from .core.request_context import REQUEST_ID_HEADER, ensure_request_id, install_access_log_redaction_filter, redact_url_for_log
 from .core.task_scheduler import default_task_scheduler
+from .core import traffic_analytics
 from .core.content_access import (
     build_post_access_cookie_value,
     get_comment_unlock_cookie_name,
@@ -146,6 +149,22 @@ def register_default_scheduled_tasks() -> None:
             description="按安全中心配置自动清理过期登录审计记录",
         )
 
+    if "traffic_analytics_cleanup" not in registered:
+        default_task_scheduler.register_daily_task(
+            name="traffic_analytics_cleanup",
+            hour=0,
+            minute=20,
+            second=0,
+            handler=run_traffic_analytics_cleanup_task,
+            description="每日清理过期访问统计聚合数据",
+        )
+
+
+async def run_traffic_analytics_cleanup_task() -> int:
+    """异步清理包装：数据库操作放到线程，避免阻塞事件循环。"""
+    result = await asyncio.to_thread(traffic_analytics.cleanup_traffic_data)
+    return sum(int(value or 0) for value in (result or {}).values())
+
 
 def run_login_audit_auto_cleanup_task() -> int:
     session = db_manager.get_session()
@@ -169,8 +188,10 @@ async def lifespan(app: FastAPI):
     create_all_tables()
     register_default_scheduled_tasks()
     await default_task_scheduler.start()
+    await traffic_analytics.start_flush_loop()
     yield
-    # 关闭时的清理工作（如果需要）
+    # 关闭时先做最后一次统计刷写，再停止任务调度器
+    await traffic_analytics.stop_flush_loop()
     await default_task_scheduler.stop()
 
 # 只保留一个FastAPI实例定义，包含lifespan参数，完全关闭api接口防止滥用
@@ -570,6 +591,8 @@ app.include_router(media_settings_api.router)
 app.include_router(external_api.router)
 # 包含验证码API路由
 app.include_router(captcha_api.router)
+# 包含公开页面访问上报路由
+app.include_router(traffic_beacon_api.router)
 # 抽取：构建全局请求上下文（初始化默认值、读取设置、主题调度/纪念日、后台路径）
 def _populate_global_request_state(request: Request) -> None:
     # 初始化全局上下文变量
@@ -719,6 +742,24 @@ async def add_global_context(request: Request, call_next):
        not request.url.path.startswith("/api"):
         return attach_request_id(RedirectResponse(url="/installer"))
 
+    # 访问统计：这里只统计回源动态请求（静态资源已提前返回），用于容量与恶意识别。
+    # 页面浏览（PV）另由公开页内联 sendBeacon 上报，可覆盖 CDN 缓存命中的访问；
+    # beacon 请求本身跳过此处统计，避免重复计入请求数。整体由标记位保护，失败不影响响应。
+    traffic_tracking = False
+    traffic_started = None
+    is_beacon_request = request.url.path == traffic_analytics.BEACON_PATH
+    if (
+        settings.installation_complete
+        and not is_beacon_request
+        and traffic_analytics.is_enabled()
+    ):
+        try:
+            traffic_analytics.begin_request()
+            traffic_tracking = True
+            traffic_started = time.perf_counter()
+        except Exception:
+            traffic_tracking = False
+
     # 复用一个 request 级数据库会话给模板层（如响应式图片、相关文章过滤器）
     request_db_gen = None
     try:
@@ -740,6 +781,11 @@ async def add_global_context(request: Request, call_next):
             _ensure_csrf_token(request)
 
         response = await call_next(request)
+        if traffic_tracking:
+            try:
+                traffic_analytics.record_http_request(request, response, traffic_started)
+            except Exception:
+                pass
         # 列表页统一由中间件写入缓存策略：匿名 200 允许 CDN 缓存 20 秒，
         # 登录态、HTMX 分页片段与错误页一律禁止共享缓存。
         if public_list_cache.is_public_list_page_path(request.url.path):
@@ -753,8 +799,18 @@ async def add_global_context(request: Request, call_next):
             redact_url_for_log(str(request.url), get_admin_path()),
             db_manager.get_pool_status(),
         )
+        if traffic_tracking:
+            try:
+                traffic_analytics.record_http_request(request, None, traffic_started, forced_status=503)
+            except Exception:
+                pass
         return error_handler.build_database_unavailable_response(request)
     finally:
+        if traffic_tracking:
+            try:
+                traffic_analytics.end_request()
+            except Exception:
+                pass
         if request_db_gen is not None:
             try:
                 request_db_gen.close()

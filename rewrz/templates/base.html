@@ -638,6 +638,28 @@
             document.head.appendChild(fontStyle);
         });
     </script>
+    <script>
+        // 页面浏览上报：sendBeacon 走 POST，不会被 CDN 缓存，可补全缓存命中的访问。
+        // 仅在公开页面渲染；后台页面不加载此模板。DNT 用户不上报。
+        (function () {
+            if (typeof navigator.sendBeacon !== 'function') return;
+            if (navigator.doNotTrack === '1' || window.doNotTrack === '1') return;
+            if (document.visibilityState === 'prerender') return;
+            var payload = JSON.stringify({
+                path: window.location.pathname,
+                referrer: document.referrer || '',
+                query: window.location.search || ''
+            });
+            try {
+                navigator.sendBeacon(
+                    '/api/v1/traffic/pageview',
+                    new Blob([payload], { type: 'application/json' })
+                );
+            } catch (error) {
+                // 上报失败不影响页面
+            }
+        })();
+    </script>
     <script src="{{ static_asset(request, 'js/site-shell.js') }}" defer></script>
     <script src="{{ static_asset(request, 'js/effects/effect-manager.js') }}" defer></script>
     <script type="module" src="{{ static_asset(request, 'js/multi-format-interactions.js') }}"></script>

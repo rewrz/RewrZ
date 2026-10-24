@@ -527,7 +527,34 @@ server {
 没有这条规则时，Cloudflare 默认只缓存带静态扩展名的资源，HTML 仍每次回源：
 功能正常，但拿不到边缘缓存收益。
 
-### 7.4 启用配置
+### 7.4 访问统计与 CDN / 反向代理
+
+后台“访问统计”采用双口径：
+
+- 回源请求：只统计到达源站的动态请求，用于数据库容量、爬虫、可疑来源与状态码判断
+- 页面浏览上报：公开页通过 `navigator.sendBeacon` 向 `POST /api/v1/traffic/pageview` 上报，
+  用于补全 CDN / 反向代理命中缓存、未回源的浏览；有效访问取两者较大值
+
+要让统计完整，需保证：
+
+- `POST /api/v1/traffic/pageview` 能正常回源，不被 WAF、防火墙或“缓存全部”规则拦截；
+  该端点固定返回 `204` + `Cache-Control: no-store`，本身不会被缓存
+- 若 CDN 上配置了自定义 Cache Rule / Page Rule，请对 `/api/*` 选择 `Bypass cache`，
+  不要把 API 请求纳入整页缓存或改写规则
+- 真实 IP 决定 UV 去重与上报限流（单 IP 每分钟最多 120 条）；真实 IP 丢失会导致 UV 偏低，
+  多用户被合并到同一边缘 IP 而提前触发限流
+
+`TRUSTED_PROXIES` 按实际拓扑二选一：
+
+- 本文 Nginx + Cloudflare 方案：Nginx 已用 `real_ip` 还原真实 IP，
+  保持默认 `127.0.0.1,::1`，不要把 Cloudflare 网段加进去
+- CDN / 反向代理直接回源到应用（应用前面没有 Nginx 做真实 IP 还原）：
+  必须把回源 IP 或网段写入 `TRUSTED_PROXIES`，否则应用只能看到边缘节点地址
+
+DNT 用户、禁用 JS 的用户与爬虫不会执行上报，这部分由回源 PV 兜底；
+既命中 CDN 缓存、又未执行 JS 的访问无法统计。
+
+### 7.5 启用配置
 
 ```bash
 sudo rm -f /etc/nginx/sites-enabled/default

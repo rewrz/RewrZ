@@ -17,3 +17,10 @@ from .login_attempt import LoginAttempt
 from .reaction import ContentReaction
 from .api_key import ApiKey
 from .import_job import ImportJob
+from .traffic import (
+    TrafficAnomalySource,
+    TrafficDimensionDaily,
+    TrafficHourStat,
+    TrafficMinuteStat,
+    TrafficVisitorDaily,
+)

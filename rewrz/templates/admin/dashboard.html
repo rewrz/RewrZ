@@ -50,6 +50,21 @@
             </div>
         </section>
 
+        <section class="dashboard-widget admin-panel p-5" data-widget-id="traffic" draggable="true">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">访问统计</h2>
+                <a href="{{ request.state.admin_path }}/analytics" class="admin-secondary-btn rounded-md px-3 py-1.5 text-sm">查看详情</a>
+            </div>
+            <div
+                id="traffic-summary-container"
+                hx-get="{{ request.state.admin_path }}/api/v1/dashboard/traffic-summary"
+                hx-trigger="load, every 60s"
+                hx-swap="innerHTML"
+            >
+                <div class="bg-gray-100 p-4 rounded animate-pulse h-36"></div>
+            </div>
+        </section>
+
         <section class="dashboard-widget admin-panel p-5" data-widget-id="site-health" draggable="true">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-semibold text-gray-800">站点健康</h2>

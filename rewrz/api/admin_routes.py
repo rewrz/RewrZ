@@ -5,7 +5,7 @@ from math import ceil
 from typing import Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Form, Header, Request, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -24,6 +24,7 @@ from ..crud import post as crud_post
 from ..schemas import User
 from . import (
     admin_dashboard as admin_dashboard_api,
+    analytics as analytics_api,
     api_keys as api_keys_api,
     auth as auth_api,
     categories as categories_api,
@@ -1392,3 +1393,4 @@ def register_admin_primary_routes(
     app.include_router(tags_api.router, prefix=admin_path)
     app.include_router(comment_settings_api.router)
     app.include_router(admin_dashboard_api.router)
+    app.include_router(analytics_api.router)

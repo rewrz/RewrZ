@@ -10,7 +10,7 @@
 .\.venv\Scripts\python.exe -m pytest --collect-only -q
 ```
 
-- `291 tests collected in 4.26s`
+- `403 tests collected in 1.24s`
 
 ## 2. 当前已验证的专项回归
 
@@ -66,6 +66,29 @@
 - 后台用户分页、角色文案、最近活动摘要与管理动作
 - 评论可见隐藏块中的媒体不进入公开摘要
 - 公开媒体归档不暴露私密、密码保护与未公开内容
+
+### 2.5 访问统计与页面浏览上报
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests\test_traffic_classifier.py tests\test_traffic_analytics_buffer.py tests\test_analytics_api.py -q
+```
+
+- `36 passed`
+
+覆盖点：
+
+- 请求分类互斥、来源/UTM 解析、爬虫与可疑来源识别
+- 缓冲刷写、失败回填、保留期清理与清空令牌
+- 统计页、摘要、实时片段、仪表盘摘要与设置/清空的登录与 CSRF 边界
+- beacon 同源校验、2KB 限长、单 IP 限频、后台路径与爬虫拒绝，且不重复计入回源请求
+
+### 2.6 全量回归
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+- `403 passed in 410.21s`
 
 ## 3. 使用规则
 

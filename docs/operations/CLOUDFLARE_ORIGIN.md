@@ -437,6 +437,9 @@ TRUSTED_PROXIES=127.0.0.1,::1
   Nginx 已经完成真实 IP 还原，应用看到的直连方始终是本机 Nginx
 - 应用按 `TRUSTED_PROXIES` 判断直连方是否可信，再从右向左解析 `X-Forwarded-For`，
   客户端伪造的左侧条目不会生效
+- 后台访问统计的 UV 去重与页面浏览上报限流（单 IP 每分钟 120 条）依赖真实 IP；
+  Nginx 已还原真实 IP 时保持 `TRUSTED_PROXIES=127.0.0.1,::1` 即可，
+  只有在 CDN / 反代直接回源、应用前没有 Nginx 还原时才需要写入回源网段
 - 修改 `.env` 后需要重启应用服务：`systemctl restart rewrz`
 
 systemd 的 `ExecStart` 不需要为 Cloudflare 增加 `--proxy-headers`。
@@ -506,6 +509,28 @@ set_real_ip_from 0.0.0.0/0;
 ```
 
 否则任何能直连源站的人都可以伪造 `CF-Connecting-IP`。只允许 Cloudflare 官方网段。
+
+### 9.6 访问统计上报
+
+公开页会向 `POST /api/v1/traffic/pageview` 发送页面浏览上报（sendBeacon），
+用于补全命中 Cloudflare 缓存、未回源的访问。确认该端点可直接回源：
+
+```bash
+curl -i -X POST https://example.com/api/v1/traffic/pageview \
+  -H 'Content-Type: application/json' \
+  -H 'Origin: https://example.com' \
+  -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36' \
+  -d '{"path":"/","referrer":"","query":""}'
+```
+
+`URL` 与 `Origin` 要替换为实际站点域名；`curl` 默认 UA 会被当作机器人而忽略，
+因此必须带一个正常浏览器 UA 才能验证计数增长。
+
+应返回 `204 No Content`，并带 `Cache-Control: no-store`。
+若返回 403/404/5xx 或空响应，检查 WAF 规则、缓存规则与应用路由；
+后台“访问统计”页的“上报”计数会在 15–45 秒内增加。
+
+DNT 用户、禁用 JS 的用户与爬虫不会执行上报，这部分由回源 PV 兜底。
 
 ## 10. 日常维护
 

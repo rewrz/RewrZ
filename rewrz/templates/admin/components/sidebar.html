@@ -26,6 +26,9 @@
             <a href="{{ admin_root }}/dashboard" class="admin-nav-link {% if current_path.startswith(admin_root + '/dashboard') %}active{% endif %}" title="仪表盘">
                 <i class="fas fa-chart-line w-5 text-center"></i><span class="admin-nav-label">仪表盘</span>
             </a>
+            <a href="{{ admin_root }}/analytics" class="admin-nav-link {% if current_path.startswith(admin_root + '/analytics') %}active{% endif %}" title="访问统计">
+                <i class="fas fa-chart-area w-5 text-center"></i><span class="admin-nav-label">访问统计</span>
+            </a>
 
             <div class="admin-nav-group-title">内容管理</div>
             <a href="{{ admin_root }}/posts/new" class="admin-nav-link {% if current_path == admin_root + '/posts/new' %}active{% endif %}" title="新建文章">

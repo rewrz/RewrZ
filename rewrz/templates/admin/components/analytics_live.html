@@ -1,0 +1,91 @@
+{% set burst = live.burst or {} %}
+{% set capacity = live.capacity or {} %}
+{% set anomalies = live.anomalies or {'items': [], 'total': 0} %}
+{% if not live.enabled %}
+<p class="text-sm" style="color: var(--color-text-light);">访问统计已关闭，实时数据暂停采集。</p>
+{% else %}
+<div class="space-y-4">
+    <div class="flex flex-wrap items-center justify-between gap-2 text-xs" style="color: var(--color-text-light);">
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="admin-status-badge rounded-full px-2.5 py-1">
+                <i class="fas {{ 'fa-bolt' if burst.burst else 'fa-wave-square' }} mr-1"></i>{{ burst.burst_label or '流量平稳' }}
+            </span>
+            <span>当前分钟 <strong style="color: var(--color-text);">{{ burst.current_rpm or 0 }}</strong> 次</span>
+            <span>近 59 分钟均值 {{ burst.baseline_rpm or 0 }} 次/分钟</span>
+            <span>倍率 {{ burst.ratio or 0 }}</span>
+            <span>峰值并发 {{ burst.peak_concurrency or 0 }}</span>
+            <span>进行中 {{ burst.active_concurrency or 0 }}</span>
+        </div>
+        <span>更新于 {{ live.updated_at }}</span>
+    </div>
+
+    <svg viewBox="0 0 600 120" preserveAspectRatio="none" class="w-full" style="height: 110px;" role="img" aria-label="最近 60 分钟请求量">
+        <line x1="0" y1="119" x2="600" y2="119" stroke="var(--color-border)" stroke-width="1"></line>
+        {% for point in burst.minutes or [] %}
+        <rect
+            x="{{ loop.index0 * 10 }}"
+            y="{{ (119 - point.pct * 1.1) | round(1) }}"
+            width="8"
+            height="{{ (point.pct * 1.1 + 1) | round(1) }}"
+            rx="1.5"
+            fill="var(--color-primary)"
+            fill-opacity="{{ 1 if loop.last else 0.55 }}"
+        ><title>{{ point.label }}：{{ point.requests }} 次</title></rect>
+        {% endfor %}
+    </svg>
+
+    <div class="rounded-lg p-3 text-sm" style="background: var(--color-background-alt); border: 1px solid var(--color-border);">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <span style="color: var(--color-text);">
+                <i class="fas fa-database mr-1"></i>{{ capacity.verdict_label or '容量状态未知' }}
+            </span>
+            <span class="text-xs" style="color: var(--color-text-light);">
+                峰值 {{ capacity.metrics.peak_rpm or 0 }} 次/分钟 ·
+                并发 {{ capacity.metrics.peak_concurrency or 0 }} ·
+                5xx {{ capacity.metrics.status_5xx_ratio or 0 }}% ·
+                连接池超时 {{ capacity.metrics.pool_timeout_count or 0 }} 次
+            </span>
+        </div>
+        <p class="mt-1 text-xs" style="color: var(--color-text-light);">{{ capacity.summary or '暂无容量结论' }}</p>
+    </div>
+
+    {% if burst.last_flush_error %}
+    <p class="text-xs" style="color: var(--color-text-light);">最近一次刷写失败：{{ burst.last_flush_error }}</p>
+    {% endif %}
+    {% if burst.dropped_events %}
+    <p class="text-xs" style="color: var(--color-text-light);">内存缓冲溢出丢弃事件：{{ burst.dropped_events }} 条（仅影响瞬时精度）。</p>
+    {% endif %}
+
+    <div>
+        <p class="text-sm font-medium mb-2" style="color: var(--color-text);">最近 15 分钟异常来源（共 {{ anomalies.total }} 个）</p>
+        {% if anomalies["items"] %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr style="color: var(--color-text-light); text-align: left;">
+                        <th class="py-1 pr-3">IP</th>
+                        <th class="py-1 pr-3">原因</th>
+                        <th class="py-1 pr-3">命中</th>
+                        <th class="py-1 pr-3">最近出现</th>
+                        <th class="py-1">样例路径</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in anomalies["items"][:5] %}
+                    <tr style="border-top: 1px solid var(--color-border); color: var(--color-text);">
+                        <td class="py-1.5 pr-3"><code>{{ item.ip }}</code></td>
+                        <td class="py-1.5 pr-3">{{ item.reason }}</td>
+                        <td class="py-1.5 pr-3">{{ item.hits }}</td>
+                        <td class="py-1.5 pr-3">{{ item.last_seen }}</td>
+                        <td class="py-1.5 break-all">{{ item.sample_path }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-xs" style="color: var(--color-text-light);">最近 15 分钟未发现明显异常来源。</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

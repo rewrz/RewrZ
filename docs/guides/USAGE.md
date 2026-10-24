@@ -115,7 +115,16 @@ MEDIA_UPLOAD_DIR=media_uploads
 - 支持导出 JSON、备份包。
 - 支持导入 RewrZ JSON、WordPress WXR、备份 ZIP。
 
-### 5.6 外部系统接入
+### 5.6 访问统计
+
+- 后台“访问统计”页支持今日 / 本周 / 本月 / 今年 / 近三年 / 自定义范围查看访问量趋势
+- 区分有效访问、爬虫、可疑请求、后台与 API 流量，并列出异常来源 IP
+- 提供突发流量检测与数据库容量结论，用于判断是否需要迁移 PostgreSQL
+- 套 CDN / 反向代理时，公开页通过 `sendBeacon` 补全缓存命中的浏览；
+  需保证 `POST /api/v1/traffic/pageview` 可回源且不被缓存，具体见
+  [DEPLOYMENT.md](../operations/DEPLOYMENT.md) 的“访问统计与 CDN / 反向代理”一节
+
+### 5.7 外部系统接入
 
 - 外部系统统一使用 `/api/external/v1/...`
 - 认证方式为 `Authorization: Bearer <api_key>`

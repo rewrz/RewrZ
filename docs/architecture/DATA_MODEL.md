@@ -17,6 +17,11 @@
 | `content_reactions` | 点赞/表态 | `id`, `target_type`, `target_id`, `visitor_token` |
 | `login_attempts` | 登录审计 | `id`, `username`, `ip_address`, `success`, `reason` |
 | `api_keys` | 外部 API 密钥 | `id`, `name`, `key_prefix`, `key_level`, `is_active`, `expires_at` |
+| `traffic_minute_stats` | 分钟访问聚合（保留 48 小时） | `bucket_start`, `requests`, `page_views`, `beacon_page_views`, `peak_concurrency` |
+| `traffic_hour_stats` | 小时访问聚合（保留 3 年） | `bucket_start`, `requests`, `page_views`, `beacon_page_views` |
+| `traffic_dimensions_daily` | 每日 Top N 维度 | `day_start_utc`, `kind`, `value`, `hits` |
+| `traffic_visitors_daily` | 每日访客哈希（UV 去重） | `day_start_utc`, `visitor_hash`, `hits` |
+| `traffic_anomaly_sources` | 异常来源 IP（保留 7 天） | `ip`, `hits`, `reason`, `sample_path`, `last_seen` |
 
 ## 2. 关系结构
 
@@ -66,6 +71,15 @@ erDiagram
   - `password_reset_sent_at`
   - `password_reset_expires_at`
 - 密码重置成功后必须递增 `token_version`
+
+### 3.5 访问统计约束
+- `traffic_*` 只保存聚合结果，不保存逐条请求日志；正常访客仅存 HMAC 访客哈希，
+  只有判定为可疑/异常的来源才保留原始 IP（最多 7 天）
+- 每日维度与 UV 的 `day_start_utc` 存“站点自然日 00:00 对应的 UTC 时间”，
+  查询时再按 `SITE_TIMEZONE` 还原，不能直接用 UTC 日期截断
+- 回源维度（`path`/`referer`/`source_type`/`utm_source`）与前端上报维度（`beacon_*`）
+  分开存放，查询时按主导来源二选一，不能相加
+- 统计表由应用启动时的 `create_all` 自动创建，不需要单独执行 Alembic 迁移
 
 ## 4. 数据演进建议
 

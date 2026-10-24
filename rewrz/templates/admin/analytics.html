@@ -1,0 +1,441 @@
+{% extends "admin/base.html" %}
+
+{% block title_text %}访问统计{% endblock %}
+{% block page_title %}<i class="fas fa-chart-area admin-accent-text mr-3"></i>访问统计{% endblock %}
+
+{% block content %}
+{% macro change_badge(value) -%}
+{% if value is none %}
+<span style="color: var(--color-text-light);">—</span>
+{% else %}
+<span style="color: var(--color-text-light);"><i class="fas {{ 'fa-arrow-up' if value > 0 else ('fa-arrow-down' if value < 0 else 'fa-minus') }} mr-1"></i>{{ '%+.1f' | format(value) }}%</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro bar_row(label, count, pct, opacity=0.78) %}
+<div class="flex items-center gap-3 text-sm">
+    <span class="w-36 md:w-44 truncate" title="{{ label }}" style="color: var(--color-text);">{{ label }}</span>
+    <div class="flex-1 h-2 rounded-full overflow-hidden" style="background: var(--color-background-alt);">
+        <div class="h-full rounded-full" style="width: {{ pct }}%; background: var(--color-primary); opacity: {{ opacity }};"></div>
+    </div>
+    <span class="w-16 text-right" style="color: var(--color-text-light);">{{ count }}</span>
+</div>
+{% endmacro %}
+
+{% set totals = summary.totals %}
+{% set compare = summary.compare %}
+{% set burst = summary.burst or {} %}
+{% set capacity = summary.capacity or {} %}
+{% set anomalies = summary.anomalies or {'items': [], 'total': 0} %}
+
+<div class="space-y-6">
+    {% if saved %}
+    <div class="admin-result-box px-4 py-3 rounded">统计设置已保存。</div>
+    {% endif %}
+    {% if cleared %}
+    <div class="admin-result-box px-4 py-3 rounded">统计数据已清空。</div>
+    {% endif %}
+
+    <div class="admin-section-card p-5 rounded-lg">
+        <div class="flex flex-col gap-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h2 class="text-xl font-semibold" style="color: var(--color-text);">{{ summary.range.label }}访问概况</h2>
+                    <p class="mt-1 text-sm" style="color: var(--color-text-light);">
+                        {{ summary.range.start }} 至 {{ summary.range.end }} · 较上一周期（相同已过时长）
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    {% for key, label in [('today', '今日'), ('week', '本周'), ('month', '本月'), ('year', '今年'), ('recent_years', '近三年')] %}
+                    <a
+                        href="{{ admin_path }}/analytics?range={{ key }}"
+                        class="{{ 'admin-primary-btn' if summary.range.key == key else 'admin-secondary-btn' }} px-3 py-1.5 rounded-md text-sm"
+                    >{{ label }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <form method="get" action="{{ admin_path }}/analytics" class="flex flex-wrap items-end gap-3">
+                <input type="hidden" name="range" value="custom">
+                <div>
+                    <label for="analytics-start" class="block text-xs mb-1" style="color: var(--color-text-light);">开始日期</label>
+                    <input
+                        id="analytics-start"
+                        type="date"
+                        name="start"
+                        required
+                        value="{{ summary.range.custom_start or today_label }}"
+                        class="admin-form-field px-3 py-2 rounded-md"
+                    >
+                </div>
+                <div>
+                    <label for="analytics-end" class="block text-xs mb-1" style="color: var(--color-text-light);">结束日期</label>
+                    <input
+                        id="analytics-end"
+                        type="date"
+                        name="end"
+                        required
+                        value="{{ summary.range.custom_end or today_label }}"
+                        class="admin-form-field px-3 py-2 rounded-md"
+                    >
+                </div>
+                <button type="submit" class="admin-secondary-btn px-4 py-2 rounded-md text-sm">按自定义区间查看</button>
+                {% if summary.range.key == 'custom' %}
+                <span class="admin-status-badge rounded-full px-2.5 py-1 text-xs">当前：自定义区间</span>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div class="admin-panel p-4">
+            <p class="text-xs" style="color: var(--color-text-light);">总请求</p>
+            <p class="text-2xl font-bold mt-1" style="color: var(--color-text);">{{ totals.requests }}</p>
+            <p class="mt-1 text-xs">{{ change_badge(compare.requests) }}</p>
+        </div>
+        <div class="admin-panel p-4">
+            <p class="text-xs" style="color: var(--color-text-light);">有效访问（PV）</p>
+            <p class="text-2xl font-bold mt-1" style="color: var(--color-text);">{{ totals.effective_page_views }}</p>
+            <p class="mt-1 text-xs">{{ change_badge(compare.page_views) }} <span style="color: var(--color-text-light);">· 回源 {{ totals.page_views }} / 上报 {{ totals.beacon_page_views }}</span></p>
+        </div>
+        <div class="admin-panel p-4">
+            <p class="text-xs" style="color: var(--color-text-light);">独立访客（UV）</p>
+            <p class="text-2xl font-bold mt-1" style="color: var(--color-text);">{{ totals.uv }}</p>
+            <p class="mt-1 text-xs">{{ change_badge(compare.uv) }} <span style="color: var(--color-text-light);">· 覆盖 {{ summary.uv_coverage_days }} 天</span></p>
+        </div>
+        <div class="admin-panel p-4">
+            <p class="text-xs" style="color: var(--color-text-light);">爬虫请求</p>
+            <p class="text-2xl font-bold mt-1" style="color: var(--color-text);">{{ totals.bot_requests }}</p>
+            <p class="mt-1 text-xs">{{ change_badge(compare.bot_ratio) }} <span style="color: var(--color-text-light);">· 占 {{ totals.bot_ratio }}%</span></p>
+        </div>
+        <div class="admin-panel p-4">
+            <p class="text-xs" style="color: var(--color-text-light);">可疑请求</p>
+            <p class="text-2xl font-bold mt-1" style="color: var(--color-text);">{{ totals.suspicious_requests }}</p>
+            <p class="mt-1 text-xs" style="color: var(--color-text-light);">占 {{ totals.suspicious_ratio }}%</p>
+        </div>
+        <div class="admin-panel p-4">
+            <p class="text-xs" style="color: var(--color-text-light);">4xx / 5xx</p>
+            <p class="text-2xl font-bold mt-1" style="color: var(--color-text);">{{ totals.status_4xx }} / {{ totals.status_5xx }}</p>
+            <p class="mt-1 text-xs" style="color: var(--color-text-light);">{{ totals.status_4xx_ratio }}% / {{ totals.status_5xx_ratio }}%</p>
+        </div>
+    </div>
+
+    <div class="admin-section-card p-6 rounded-lg">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <h2 class="text-lg font-semibold" style="color: var(--color-text);">访问趋势</h2>
+            <div class="flex flex-wrap items-center gap-4 text-xs" style="color: var(--color-text-light);">
+                <span><i class="fas fa-minus mr-1" style="color: var(--color-primary);"></i>总请求（回源）</span>
+                <span><i class="fas fa-minus mr-1" style="color: var(--color-text-light);"></i>有效访问（回源与上报取较大值）</span>
+                <span>两条曲线分别以各自峰值为 100%</span>
+            </div>
+        </div>
+        {% if summary.trend %}
+        {% set chart = namespace(req_points='', pv_points='', peak_requests=0, peak_page_views=0) %}
+        {% for point in summary.trend %}
+            {% set x = (point.x_pct * 9.4 + 30) | round(1) %}
+            {% set chart.req_points = chart.req_points ~ x ~ ',' ~ ((296 - point.requests_pct * 2.76) | round(1)) ~ ' ' %}
+            {% set chart.pv_points = chart.pv_points ~ x ~ ',' ~ ((296 - point.page_views_pct * 2.76) | round(1)) ~ ' ' %}
+            {% if point.requests > chart.peak_requests %}{% set chart.peak_requests = point.requests %}{% endif %}
+            {% if point.effective_page_views > chart.peak_page_views %}{% set chart.peak_page_views = point.effective_page_views %}{% endif %}
+        {% endfor %}
+        <svg viewBox="0 0 1000 320" preserveAspectRatio="none" class="w-full" style="height: 240px;" role="img" aria-label="访问趋势图">
+            <line x1="30" y1="296" x2="970" y2="296" stroke="var(--color-border)" stroke-width="1" vector-effect="non-scaling-stroke"></line>
+            <polyline
+                fill="none"
+                stroke="var(--color-primary)"
+                stroke-width="2"
+                stroke-linejoin="round"
+                stroke-linecap="round"
+                vector-effect="non-scaling-stroke"
+                points="{{ chart.req_points }}"
+            ></polyline>
+            <polyline
+                fill="none"
+                stroke="var(--color-text-light)"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                stroke-linecap="round"
+                vector-effect="non-scaling-stroke"
+                stroke-dasharray="4 3"
+                points="{{ chart.pv_points }}"
+            ></polyline>
+            {% for point in summary.trend %}
+            <circle
+                cx="{{ (point.x_pct * 9.4 + 30) | round(1) }}"
+                cy="{{ (296 - point.requests_pct * 2.76) | round(1) }}"
+                r="3"
+                fill="var(--color-primary)"
+            ><title>{{ point.label }}：请求 {{ point.requests }} 次，有效访问 {{ point.effective_page_views }} 次（回源 {{ point.page_views }} / 上报 {{ point.beacon_page_views }}）</title></circle>
+            {% endfor %}
+        </svg>
+        {% set label_step = ((summary.trend | length) // 8) + 1 %}
+        <div class="relative h-5 mt-1 text-[11px]" style="color: var(--color-text-light);">
+            {% for point in summary.trend %}
+                {% if loop.index0 % label_step == 0 or loop.last %}
+                <span class="absolute -translate-x-1/2" style="left: calc(3% + {{ point.x_pct }}% * 0.94);">{{ point.label }}</span>
+                {% endif %}
+            {% endfor %}
+        </div>
+        <p class="mt-2 text-xs" style="color: var(--color-text-light);">
+            请求峰值 {{ chart.peak_requests }} 次 · 有效访问峰值 {{ chart.peak_page_views }} 次（回源与上报取较大值）
+        </p>
+        {% else %}
+        <p class="text-sm" style="color: var(--color-text-light);">该区间暂无可展示的趋势数据。</p>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div class="admin-section-card p-6 rounded-lg">
+            <h2 class="text-lg font-semibold mb-1" style="color: var(--color-text);">请求构成</h2>
+            <p class="text-xs mb-4" style="color: var(--color-text-light);">分类互斥，七项之和等于总请求。</p>
+            <div class="space-y-3">
+                {% for item in summary.composition %}
+                {{ bar_row(item.label, item.count, item.pct, 0.9 if loop.first else 0.55) }}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="admin-section-card p-6 rounded-lg">
+            <h2 class="text-lg font-semibold mb-1" style="color: var(--color-text);">访问来源</h2>
+            <p class="text-xs mb-4" style="color: var(--color-text-light);">仅记录来源站点主机名，不保存完整 URL。</p>
+            {% set source_total = namespace(hits=0) %}
+            {% for item in summary.source_types %}{% set source_total.hits = source_total.hits + item.hits %}{% endfor %}
+            {% if summary.source_types %}
+            <div class="space-y-3">
+                {% for item in summary.source_types %}
+                {{ bar_row(item.label, item.hits, (item.hits * 100 / source_total.hits) if source_total.hits else 0, 0.85 if loop.first else 0.55) }}
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm" style="color: var(--color-text-light);">暂无来源数据。</p>
+            {% endif %}
+
+            {% if summary.utm_sources %}
+            <p class="mt-5 mb-2 text-sm font-medium" style="color: var(--color-text);">UTM 来源</p>
+            <div class="flex flex-wrap gap-2 text-xs">
+                {% for item in summary.utm_sources %}
+                <span class="admin-status-badge rounded-full px-2.5 py-1">{{ item.value }} · {{ item.hits }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div class="admin-section-card p-6 rounded-lg">
+            <h2 class="text-lg font-semibold mb-1" style="color: var(--color-text);">热门路径</h2>
+            <p class="text-xs mb-4" style="color: var(--color-text-light);">按命中次数排序，最多展示前 15 条。</p>
+            {% if summary.paths %}
+            <div class="space-y-3">
+                {% for item in summary.paths %}
+                {{ bar_row(item.value, item.hits, (item.hits * 100 / summary.paths[0].hits) if summary.paths[0].hits else 0, 0.85 if loop.first else 0.5) }}
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm" style="color: var(--color-text-light);">暂无路径数据。</p>
+            {% endif %}
+        </div>
+
+        <div class="admin-section-card p-6 rounded-lg">
+            <h2 class="text-lg font-semibold mb-1" style="color: var(--color-text);">来源站点</h2>
+            <p class="text-xs mb-4" style="color: var(--color-text-light);">按来源主机聚合，最多展示前 15 条。</p>
+            {% if summary.referers %}
+            <div class="space-y-3">
+                {% for item in summary.referers %}
+                {{ bar_row(item.value, item.hits, (item.hits * 100 / summary.referers[0].hits) if summary.referers[0].hits else 0, 0.85 if loop.first else 0.5) }}
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm" style="color: var(--color-text-light);">暂无外部来源数据。</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div class="admin-section-card p-6 rounded-lg">
+            <h2 class="text-lg font-semibold mb-1" style="color: var(--color-text);">爬虫识别</h2>
+            <p class="text-xs mb-4" style="color: var(--color-text-light);">基于 UA 启发式识别，仅用于观察，不会自动封禁。</p>
+            {% if summary.bots %}
+            <div class="space-y-3">
+                {% for item in summary.bots %}
+                {{ bar_row(item.value, item.hits, (item.hits * 100 / summary.bots[0].hits) if summary.bots[0].hits else 0, 0.85 if loop.first else 0.5) }}
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm" style="color: var(--color-text-light);">该区间未识别到爬虫流量。</p>
+            {% endif %}
+        </div>
+
+        <div class="admin-section-card p-6 rounded-lg">
+            <h2 class="text-lg font-semibold mb-1" style="color: var(--color-text);">状态码分布</h2>
+            <p class="text-xs mb-4" style="color: var(--color-text-light);">4xx/5xx 过高通常意味着扫描、失效链接或服务异常。</p>
+            {% if summary.statuses %}
+            <div class="space-y-3">
+                {% for item in summary.statuses %}
+                {{ bar_row('状态码 ' ~ item.value, item.hits, (item.hits * 100 / summary.statuses[0].hits) if summary.statuses[0].hits else 0, 0.85 if loop.first else 0.5) }}
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm" style="color: var(--color-text-light);">暂无状态码数据。</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="admin-section-card p-6 rounded-lg">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div>
+                <h2 class="text-lg font-semibold" style="color: var(--color-text);">实时流量与突发监控</h2>
+                <p class="text-xs mt-1" style="color: var(--color-text-light);">最近 60 分钟按分钟聚合，每 30 秒自动刷新。</p>
+            </div>
+            <span class="admin-status-badge rounded-full px-2.5 py-1 text-xs">{{ burst.burst_label or '流量平稳' }}</span>
+        </div>
+        <div
+            id="analytics-live-container"
+            hx-get="{{ admin_path }}/api/v1/analytics/live"
+            hx-trigger="load, every 30s"
+            hx-swap="innerHTML"
+        >
+            <div class="rounded animate-pulse h-40" style="background: var(--color-background-alt);"></div>
+        </div>
+    </div>
+
+    <div class="admin-section-card p-6 rounded-lg">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <h2 class="text-lg font-semibold" style="color: var(--color-text);">异常来源（近 24 小时）</h2>
+            <span class="text-xs" style="color: var(--color-text-light);">共 {{ anomalies.total }} 个 · 原始 IP 最多保留 7 天</span>
+        </div>
+        {% if anomalies["items"] %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr style="color: var(--color-text-light); text-align: left;">
+                        <th class="py-1 pr-3">IP</th>
+                        <th class="py-1 pr-3">原因</th>
+                        <th class="py-1 pr-3">命中</th>
+                        <th class="py-1 pr-3">首次出现</th>
+                        <th class="py-1 pr-3">最近出现</th>
+                        <th class="py-1 pr-3">样例路径</th>
+                        <th class="py-1">样例 UA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in anomalies["items"] %}
+                    <tr style="border-top: 1px solid var(--color-border); color: var(--color-text);">
+                        <td class="py-1.5 pr-3"><code>{{ item.ip }}</code></td>
+                        <td class="py-1.5 pr-3">{{ item.reason }}</td>
+                        <td class="py-1.5 pr-3">{{ item.hits }}</td>
+                        <td class="py-1.5 pr-3">{{ item.first_seen }}</td>
+                        <td class="py-1.5 pr-3">{{ item.last_seen }}</td>
+                        <td class="py-1.5 pr-3 break-all">{{ item.sample_path }}</td>
+                        <td class="py-1.5 break-all">{{ item.sample_user_agent | truncate(80) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-sm" style="color: var(--color-text-light);">近 24 小时未发现明显异常来源。</p>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div class="admin-section-card p-6 rounded-lg">
+            <h2 class="text-lg font-semibold mb-1" style="color: var(--color-text);">容量结论</h2>
+            <p class="text-xs mb-4" style="color: var(--color-text-light);">依据近 48 小时的峰值请求、峰值并发、5xx 与连接池超时判断。</p>
+            <p class="text-sm font-medium mb-2" style="color: var(--color-text);">{{ capacity.verdict_label or '容量状态未知' }}</p>
+            <p class="text-sm mb-4" style="color: var(--color-text-light);">{{ capacity.summary or '暂无容量结论' }}</p>
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <div class="rounded-lg p-3" style="background: var(--color-background-alt);">
+                    <p style="color: var(--color-text-light);">峰值请求 / 分钟</p>
+                    <p class="text-base font-semibold mt-1" style="color: var(--color-text);">{{ capacity.metrics.peak_rpm or 0 }}</p>
+                </div>
+                <div class="rounded-lg p-3" style="background: var(--color-background-alt);">
+                    <p style="color: var(--color-text-light);">峰值并发</p>
+                    <p class="text-base font-semibold mt-1" style="color: var(--color-text);">{{ capacity.metrics.peak_concurrency or 0 }}</p>
+                </div>
+                <div class="rounded-lg p-3" style="background: var(--color-background-alt);">
+                    <p style="color: var(--color-text-light);">平均耗时</p>
+                    <p class="text-base font-semibold mt-1" style="color: var(--color-text);">{{ capacity.metrics.avg_duration_ms or 0 }} ms</p>
+                </div>
+                <div class="rounded-lg p-3" style="background: var(--color-background-alt);">
+                    <p style="color: var(--color-text-light);">连接池超时</p>
+                    <p class="text-base font-semibold mt-1" style="color: var(--color-text);">{{ capacity.metrics.pool_timeout_count or 0 }}</p>
+                </div>
+                <div class="rounded-lg p-3" style="background: var(--color-background-alt);">
+                    <p style="color: var(--color-text-light);">4xx / 5xx 比例</p>
+                    <p class="text-base font-semibold mt-1" style="color: var(--color-text);">{{ capacity.metrics.status_4xx_ratio or 0 }}% / {{ capacity.metrics.status_5xx_ratio or 0 }}%</p>
+                </div>
+                <div class="rounded-lg p-3" style="background: var(--color-background-alt);">
+                    <p style="color: var(--color-text-light);">数据库方言 / 连接池</p>
+                    <p class="text-base font-semibold mt-1" style="color: var(--color-text);">{{ capacity.metrics.dialect or '-' }} · {{ capacity.metrics.pool_checked_out or 0 }}/{{ capacity.metrics.pool_size or 0 }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-section-card p-6 rounded-lg">
+            <h2 class="text-lg font-semibold mb-4" style="color: var(--color-text);">统计设置</h2>
+            <form method="post" action="{{ admin_path }}/analytics/settings" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <input type="hidden" name="range" value="{{ summary.range.key }}">
+                <input type="hidden" name="start" value="{{ summary.range.custom_start }}">
+                <input type="hidden" name="end" value="{{ summary.range.custom_end }}">
+                <label class="inline-flex items-center text-sm" style="color: var(--color-text);">
+                    <input type="checkbox" name="enabled" value="1" class="admin-form-check form-checkbox" {% if analytics_settings.enabled %}checked{% endif %}>
+                    <span class="ml-2">启用访问统计（关闭后停止写入，已存数据保留）</span>
+                </label>
+                <div>
+                    <label for="analytics-retention" class="block text-sm mb-1" style="color: var(--color-text);">维度与 UV 保留天数</label>
+                    <input
+                        id="analytics-retention"
+                        type="number"
+                        name="retention_days"
+                        min="30"
+                        max="730"
+                        value="{{ analytics_settings.retention_days }}"
+                        class="admin-form-field px-3 py-2 rounded-md w-full md:w-48"
+                    >
+                    <p class="mt-1 text-xs" style="color: var(--color-text-light);">分钟级数据固定保留 48 小时，小时级数据保留 3 年，不受此设置影响。</p>
+                </div>
+                <p class="text-xs" style="color: var(--color-text-light);">
+                    最近清理时间：{{ analytics_settings.last_cleaned_at or '尚未清理' }}
+                </p>
+                <button type="submit" class="admin-primary-btn px-4 py-2 rounded-md text-sm">保存统计设置</button>
+            </form>
+
+            <div class="mt-6 pt-4" style="border-top: 1px solid var(--color-border);">
+                <p class="text-sm font-medium mb-1" style="color: var(--color-text);">清空统计数据</p>
+                <p class="text-xs mb-3" style="color: var(--color-text-light);">会删除全部统计表并广播到其他进程，操作不可恢复。</p>
+                <form id="analytics-clear-form" method="post" action="{{ admin_path }}/analytics/clear">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                    <input type="hidden" name="range" value="{{ summary.range.key }}">
+                    <input type="hidden" name="start" value="{{ summary.range.custom_start }}">
+                    <input type="hidden" name="end" value="{{ summary.range.custom_end }}">
+                    <button type="button" class="admin-soft-btn admin-soft-btn-danger px-4 py-2 rounded-md text-sm" onclick="confirmClearAnalytics()">清空统计数据</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-section-card p-6 rounded-lg">
+        <h2 class="text-lg font-semibold mb-3" style="color: var(--color-text);">统计口径与限制</h2>
+        <ul class="space-y-2 text-sm" style="color: var(--color-text-light);">
+            {% for note in summary.notes %}
+            <li class="flex gap-2"><i class="fas fa-info-circle mt-1" style="color: var(--color-primary);"></i><span>{{ note }}</span></li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function confirmClearAnalytics() {
+    const confirmed = await window.adminConfirm(
+        "确认清空全部访问统计数据？此操作不可恢复。",
+        { tone: "danger", confirmText: "清空统计" }
+    );
+    if (!confirmed) return;
+    document.getElementById("analytics-clear-form").submit();
+}
+</script>
+{% endblock %}

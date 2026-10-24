@@ -48,11 +48,17 @@ def clear_setting_cache_between_tests():
     """清理全局设置缓存，避免不同测试数据库之间串值。"""
     from rewrz.core.public_list_cache import clear_public_list_cache
     from rewrz.core.public_metrics_cache import clear_public_metrics_memory_cache
+    from rewrz.core import traffic_analytics
+    from rewrz.api import analytics as analytics_api
 
+    traffic_analytics.reset_for_tests()
+    analytics_api.clear_caches()
     clear_cache()
     clear_public_metrics_memory_cache()
     clear_public_list_cache()
     yield
+    traffic_analytics.reset_for_tests()
+    analytics_api.clear_caches()
     clear_cache()
     clear_public_metrics_memory_cache()
     clear_public_list_cache()
