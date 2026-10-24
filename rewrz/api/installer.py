@@ -194,12 +194,12 @@ async def check_environment(request: Request):
     errors = []
     warnings = []
     
-    # 检查Python版本 (需要3.10+)
+    # 检查Python版本 (需要3.12+)
     import sys
-    if sys.version_info >= (3, 10):
+    if sys.version_info >= (3, 12):
         checks["python_version"] = True
     else:
-        errors.append(f"Python版本过低: 当前版本 {sys.version_info.major}.{sys.version_info.minor}，需要 3.10+")
+        errors.append(f"Python版本过低: 当前版本 {sys.version_info.major}.{sys.version_info.minor}，需要 3.12+")
     
     # 检查写权限
     try:

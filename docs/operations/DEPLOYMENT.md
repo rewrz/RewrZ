@@ -18,6 +18,11 @@ sudo apt update
 sudo apt install -y python3 python3-venv python3-pip nginx certbot python3-certbot-nginx git
 ```
 
+RewrZ 需要 Python 3.12+。Ubuntu 24.04 的 `python3` 默认即 3.12；
+Ubuntu 22.04 需先安装 3.12（发行版提供的 `python3.12` 包或 deadsnakes PPA），
+再用 `python3.12 -m venv .venv` 创建虚拟环境。低版本解释器会被安装向导与
+`update.sh` 直接拦截。
+
 建议同时确认：
 - 域名已解析到目标服务器
 - 计划使用的运行用户已确定（例如 `www-data`）
@@ -45,7 +50,7 @@ sudo git clone https://github.com/RewrZ/RewrZ.git rewrz
 sudo chown -R $USER:$USER /srv/rewrz
 cd /srv/rewrz
 
-python3 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```

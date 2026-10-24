@@ -30,6 +30,8 @@ chmod +x update.sh
 
 说明：
 - 备份写入 `backups/<时间戳>/`，脚本不会改写 `.env`
+- 自 v3.1 起最低运行环境为 Python 3.12；`update.sh` 会在安装依赖前校验解释器版本，
+  低于 3.12 直接报错退出，避免在旧解释器上装出半更新状态
 - 备份成功后按 `REWRZ_BACKUP_KEEP` 只保留最近 N 份（默认 10，`0` 表示不清理）；
   清理只匹配脚本自身创建的 `backups/YYYY-MM-DD-HHMMSS/` 目录，
   `backups/` 下由 `pg_dump` 等手工生成的文件不会被删除，最新一份始终保留

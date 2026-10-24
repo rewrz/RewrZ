@@ -218,6 +218,10 @@ fi
 # 6. 安装/更新依赖
 echo ""
 echo ">>> 检查 Python 依赖..."
+PY_VERSION="$(.venv/bin/python -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo unknown)"
+if ! .venv/bin/python -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 12) else 1)' >/dev/null 2>&1; then
+    fail "Python 版本过低（当前 ${PY_VERSION}），RewrZ 最低需要 Python 3.12"
+fi
 .venv/bin/pip install -q -r requirements.txt
 if ! .venv/bin/python -c "import bcrypt" >/dev/null 2>&1; then
     fail "bcrypt 依赖不可用，请检查 requirements.txt 安装结果"

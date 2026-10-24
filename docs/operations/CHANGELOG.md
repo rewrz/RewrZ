@@ -19,6 +19,13 @@
 - 清理只匹配脚本创建的 `backups/YYYY-MM-DD-HHMMSS/` 目录，`pg_dump` 等手工备份文件不受影响，最新一份始终保留
 - `docs/operations/UPDATE.md` 同步补充环境变量与保留行为说明
 
+### 依赖与运行环境升级
+
+- 最低 Python 版本提升到 3.12，依赖统一升级到当前最新稳定版：FastAPI 0.162、Starlette 1.9、Pydantic 2.14、SQLAlchemy 2.1、Pillow 13、uvicorn 0.54、bcrypt 5、python-slugify 9 等
+- Pillow 13 修复多项图片解析安全问题；项目不对 PIL 旧属性做兼容分支
+- bcrypt 5 对超过 72 字节的密码改为抛错，项目仍按既有 72 字节截断逻辑调用，行为不变
+- 安装向导、部署文档与 `update.sh` 同步改为检测 Python 3.12+，低版本解释器直接中文报错
+
 ## 2026-10-22
 
 ### 生产稳定性与首页性能修复
