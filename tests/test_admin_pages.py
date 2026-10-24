@@ -1,14 +1,22 @@
 from __future__ import annotations
 
+import asyncio
 import re
+from pathlib import Path
 from types import SimpleNamespace
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from rewrz import main as main_module
+from rewrz.api import system_info as system_info_api
 from rewrz.core.config import settings as app_settings
+from rewrz.core.database import Base
 from rewrz.core.database import get_db
 from rewrz.core.security import get_current_user
+from rewrz.models.media import Media
 from rewrz.models.post import Post
 from rewrz.models.setting import Setting
 from rewrz.models.user import User as DbUser
@@ -690,3 +698,87 @@ def test_public_article_detail_uses_fallback_title_when_post_title_is_empty(test
         assert "<h1 class=\"text-3xl md:text-4xl font-bold mb-4 leading-tight\"></h1>" not in response.text
     finally:
         main_module.app.dependency_overrides.clear()
+
+
+def _build_system_info_session(tmp_path):
+    db_path = tmp_path / f"system-info-{uuid4().hex}.db"
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+    )
+    Base.metadata.create_all(bind=engine)
+    testing_session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    return engine, testing_session_local()
+
+
+def test_system_info_database_uses_actual_engine_url(tmp_path, monkeypatch):
+    # 模拟生产：进程环境里没有 DATABASE_URL，配置只存在于 .env。
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    engine, db = _build_system_info_session(tmp_path)
+    try:
+        info = asyncio.run(system_info_api.get_database_info(db))
+
+        assert info["type"] == "SQLite"
+        assert info["driver"].startswith("sqlite")
+        assert Path(info["path"]).resolve() == Path(engine.url.database).resolve()
+        assert "rewrz.db" not in info["url"]
+        assert info["table_count"] > 0
+        assert info["version"]
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_system_info_media_stats_cover_all_records(tmp_path, monkeypatch):
+    engine, db = _build_system_info_session(tmp_path)
+    media_dir = tmp_path / "media_uploads"
+    media_dir.mkdir()
+    (media_dir / "only-file.jpg").write_bytes(b"x" * 10)
+    monkeypatch.setattr(app_settings, "MEDIA_UPLOAD_DIR", str(media_dir))
+    try:
+        rows = []
+        for index in range(120):
+            rows.append(Media(
+                filename=f"image-{index}.jpg",
+                filepath=f"img/{index}.jpg",
+                folder="img",
+                file_type="image",
+                mime_type="image/jpeg",
+                file_size=1000,
+            ))
+        for index in range(5):
+            rows.append(Media(
+                filename=f"video-{index}.mp4",
+                filepath=f"video/{index}.mp4",
+                folder="video",
+                file_type="video",
+                mime_type="video/mp4",
+                file_size=5000,
+            ))
+        rows.append(Media(
+            filename="doc.pdf",
+            filepath="doc/doc.pdf",
+            folder="doc",
+            file_type="document",
+            mime_type="application/pdf",
+            file_size=100,
+        ))
+        db.add_all(rows)
+        db.commit()
+
+        info = asyncio.run(system_info_api.get_media_info(db))
+
+        # 超过 100 条时不能只统计第一页
+        assert info["total_files"] == 126
+        assert info["total_size_bytes"] == 120 * 1000 + 5 * 5000 + 100
+        assert info["image_count"] == 120
+        assert info["video_count"] == 5
+        assert info["audio_count"] == 0
+        assert info["document_count"] == 1
+        assert Path(info["directory"]) == media_dir
+        assert info["directory_exists"] is True
+        assert info["directory_file_count"] == 1
+        assert info["directory_size_bytes"] == 10
+    finally:
+        db.close()
+        engine.dispose()

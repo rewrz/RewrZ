@@ -6,11 +6,13 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, func, delete, cast, Integer
 from ..models import Post, Format, Category, Tag, Setting, Comment
+from ..models.post import post_tags
 from ..schemas import PostCreate, PostUpdate, FormatCreate
 from slugify import slugify
 from ..core.time_utils import site_month_range_utc, utc_now_naive
 from ..core.security import get_password_hash, verify_password
 from ..crud import format as crud_format
+from ..crud import tag as crud_tag
 from ..core.content_utils import (
     infer_editor_mode,
     normalize_editor_mode,
@@ -387,6 +389,7 @@ def create_post(
     author_id: int,
     tag_names: Optional[List[str]] = None,
     format_ids: Optional[List[int]] = None,
+    tag_limit: Optional[int] = None,
     *,
     auto_commit: bool = True
 ):
@@ -474,13 +477,7 @@ def create_post(
         db_post.tags.extend(tags)
     # 兼容旧调用：通过标签名关联
     elif tag_names:
-        for tag_name in tag_names:
-            tag = db.execute(select(Tag).filter(Tag.name == tag_name)).scalar_one_or_none()
-            if not tag:
-                tag = Tag(name=tag_name, slug=slugify(tag_name))
-                db.add(tag)
-                db.flush() # 确保tag有ID
-            db_post.tags.append(tag)
+        db_post.tags.extend(crud_tag.resolve_or_create_tags(db, tag_names, limit=tag_limit))
     
     resolved_format_ids = format_ids if format_ids is not None else post.format_ids
     normalized_format_ids = _normalize_intent_format_ids(db, resolved_format_ids)
@@ -499,7 +496,7 @@ def create_post(
     public_list_cache.invalidate_public_list_cache()
     return db_post
 
-def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional[List[str]] = None, format_ids: Optional[List[int]] = None):
+def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional[List[str]] = None, format_ids: Optional[List[int]] = None, tag_limit: Optional[int] = None):
     """更新文章信息
     
     自动处理：
@@ -624,13 +621,7 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
                 db_post.tags.extend(tags)
         elif tag_names is not None:
             db_post.tags.clear()
-            for tag_name in tag_names:
-                tag = db.execute(select(Tag).filter(Tag.name == tag_name)).scalar_one_or_none()
-                if not tag:
-                    tag = Tag(name=tag_name, slug=slugify(tag_name))
-                    db.add(tag)
-                    db.flush()
-                db_post.tags.append(tag)
+            db_post.tags.extend(crud_tag.resolve_or_create_tags(db, tag_names, limit=tag_limit))
 
         # 更新内容类型（仅保留一个主类型）
         resolved_format_ids = format_ids if format_ids is not None else post.format_ids
@@ -753,6 +744,19 @@ def get_posts_by_media_attachment(
     _attach_views_metrics(db, posts)
     return posts
 
+def _delete_orphan_tags(db: Session, tag_ids: List[int]) -> None:
+    """删除文章后清理不再被任何文章引用的标签，避免后台堆积幽灵标签。"""
+    normalized_ids = sorted({int(tag_id) for tag_id in tag_ids if isinstance(tag_id, int) and tag_id > 0})
+    if not normalized_ids:
+        return
+    db.execute(
+        delete(Tag).where(
+            Tag.id.in_(normalized_ids),
+            ~select(post_tags.c.tag_id).where(post_tags.c.tag_id == Tag.id).exists(),
+        )
+    )
+
+
 def delete_post(db: Session, post_id: int, *, auto_commit: bool = True):
     """删除文章
     
@@ -766,10 +770,13 @@ def delete_post(db: Session, post_id: int, *, auto_commit: bool = True):
     """
     db_post = db.execute(select(Post).filter(Post.id == post_id)).scalar_one_or_none()
     if db_post:
+        deleted_tag_ids = [tag.id for tag in db_post.tags]
         # 先清理评论，避免遗留孤儿评论或外键约束问题。
         db.execute(delete(Comment).where(Comment.post_id == post_id))
         _delete_post_views_metrics_by_ids(db, [post_id])
         db.delete(db_post)
+        db.flush()
+        _delete_orphan_tags(db, deleted_tag_ids)
         if auto_commit:
             db.commit()
         # 删除后列表页数量与分页都会变化，立即失效缓存。
@@ -792,12 +799,17 @@ def delete_posts_by_ids(db: Session, post_ids: List[int], author_id: Optional[in
         return 0
 
     deletable_post_ids = [post.id for post in db_posts if getattr(post, "id", None) is not None]
+    deleted_tag_ids: List[int] = []
+    for db_post in db_posts:
+        deleted_tag_ids.extend(tag.id for tag in db_post.tags)
     if deletable_post_ids:
         db.execute(delete(Comment).where(Comment.post_id.in_(deletable_post_ids)))
         _delete_post_views_metrics_by_ids(db, deletable_post_ids)
 
     for db_post in db_posts:
         db.delete(db_post)
+    db.flush()
+    _delete_orphan_tags(db, deleted_tag_ids)
     db.commit()
     public_list_cache.invalidate_public_list_cache()
     return len(db_posts)

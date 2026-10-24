@@ -10,6 +10,7 @@
 6. 系统性能信息
 """
 
+import math
 import os
 import sys
 import platform
@@ -18,14 +19,15 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from typing import Dict, Any
 from ..core.admin_path import get_request_admin_path
+from ..core.config import settings
 from ..core.database import get_db
 from ..core.security import get_current_user
 from ..core.template_filters import get_templates
+from ..models import Media
 from ..schemas import User
-from ..crud import media as crud_media
 
 router = APIRouter()
 templates = get_templates()
@@ -105,12 +107,23 @@ async def get_system_info(db: Session) -> Dict[str, Any]:
     }
     
     # Python信息
+    # 说明：sys.executable 是当前进程真正使用的解释器，生产环境应为虚拟环境内的 Python；
+    # 项目根目录按本文件位置推导，避免依赖启动目录。
+    project_root = Path(__file__).resolve().parents[2]
+    is_venv = sys.prefix != sys.base_prefix
     info['python'] = {
         'version': platform.python_version(),
         'implementation': platform.python_implementation(),
         'compiler': platform.python_compiler(),
         'executable': sys.executable,
-        'path': sys.path[0]
+        'prefix': sys.prefix,
+        'base_prefix': sys.base_prefix,
+        'is_venv': is_venv,
+        # 虚拟环境路径，未启用时显示系统环境说明
+        'virtualenv': sys.prefix if is_venv else "未使用虚拟环境",
+        'project_root': str(project_root),
+        'working_directory': os.getcwd(),
+        'path': str(project_root),
     }
     
     # 框架版本信息
@@ -189,132 +202,166 @@ def get_framework_versions() -> Dict[str, str]:
     return versions
 
 
-async def get_database_info(db: Session) -> Dict[str, Any]:
-    """获取数据库信息"""
-    db_info = {}
-    
+def _describe_database_type(driver_name: str) -> str:
+    driver = str(driver_name or "").split("+", 1)[0].strip().lower()
+    type_names = {
+        "sqlite": "SQLite",
+        "postgresql": "PostgreSQL",
+        "mysql": "MySQL/MariaDB",
+        "mariadb": "MySQL/MariaDB",
+    }
+    if driver in type_names:
+        return type_names[driver]
+    return driver.upper() if driver else "未知"
+
+
+def _get_database_version(db: Session, dialect_name: str) -> str:
     try:
-        # 获取数据库URL
-        db_url = os.getenv('DATABASE_URL', 'sqlite:///./rewrz.db')
-        db_info['url'] = db_url
-        
-        # 解析数据库类型
-        if db_url.startswith('sqlite'):
-            db_info['type'] = 'SQLite'
-            db_path = db_url.replace('sqlite:///', '')
-            db_info['path'] = os.path.abspath(db_path)
-            
-            # 获取数据库文件大小
-            if os.path.exists(db_info['path']):
-                size_bytes = os.path.getsize(db_info['path'])
-                db_info['size'] = format_file_size(size_bytes)
-                db_info['size_bytes'] = size_bytes
-            else:
-                db_info['size'] = "文件不存在"
-                db_info['size_bytes'] = 0
-        
-        elif db_url.startswith('postgresql'):
-            db_info['type'] = 'PostgreSQL'
-        elif db_url.startswith('mysql'):
-            db_info['type'] = 'MySQL'
+        if dialect_name == "sqlite":
+            value = db.execute(text("SELECT sqlite_version()")).scalar()
         else:
-            db_info['type'] = 'Unknown'
-        
-        # 获取数据库版本
+            value = db.execute(text("SELECT version()")).scalar()
+        return str(value) if value else "未知"
+    except Exception as exc:
+        return f"无法获取：{exc}"
+
+
+def _get_database_table_count(db: Session, dialect_name: str):
+    try:
+        if dialect_name == "sqlite":
+            # 排除 SQLite 内部表（sqlite_sequence 等），只统计业务表。
+            sql = text("SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+        elif dialect_name == "postgresql":
+            sql = text(
+                "SELECT count(*) FROM information_schema.tables "
+                "WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'"
+            )
+        elif dialect_name in {"mysql", "mariadb"}:
+            sql = text(
+                "SELECT count(*) FROM information_schema.tables "
+                "WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'"
+            )
+        else:
+            return "未知"
+        return int(db.execute(sql).scalar() or 0)
+    except Exception as exc:
+        return f"无法获取：{exc}"
+
+
+async def get_database_info(db: Session) -> Dict[str, Any]:
+    """获取数据库信息。
+
+    以当前会话实际绑定的引擎为准，而不是读取进程环境变量：
+    生产环境的配置来自 .env 文件，进程环境里通常没有 DATABASE_URL，
+    直接读环境变量会错误地显示成默认 SQLite 路径。
+    """
+    db_info = {}
+
+    try:
+        bind = db.get_bind()
+        url = getattr(bind, "url", None)
+        if url is None and hasattr(bind, "engine"):
+            url = getattr(bind.engine, "url", None)
+
+        dialect = getattr(bind, "dialect", None)
+        dialect_name = str(getattr(dialect, "name", "") or "").lower()
+        driver_name = str(getattr(url, "drivername", "") or "")
+        if not dialect_name:
+            dialect_name = driver_name.split("+", 1)[0].lower()
+
+        db_info["type"] = _describe_database_type(driver_name or dialect_name)
+        db_info["driver"] = driver_name or dialect_name or "未知"
+
+        # 展示连接地址前必须隐藏密码，避免系统信息页泄露数据库凭据。
         try:
-            result = db.execute(text("SELECT version() as version"))
-            version_row = result.fetchone()
-            if version_row:
-                db_info['version'] = str(version_row[0])
+            db_info["url"] = url.render_as_string(hide_password=True)
+        except Exception:
+            db_info["url"] = "无法解析连接地址"
+
+        if dialect_name == "sqlite":
+            raw_path = str(getattr(url, "database", "") or "")
+            if not raw_path or raw_path == ":memory:":
+                db_info["path"] = ":memory:（内存数据库）"
+                db_info["size"] = "不适用"
+                db_info["size_bytes"] = 0
             else:
-                db_info['version'] = "Unknown"
-        except:
-            db_info['version'] = "Unable to retrieve"
-        
-        # 统计表数量
-        try:
-            if db_info['type'] == 'SQLite':
-                result = db.execute(text("SELECT count(*) FROM sqlite_master WHERE type='table'"))
-            else:
-                result = db.execute(text("SELECT count(*) FROM information_schema.tables WHERE table_schema = current_schema()"))
-            
-            count_row = result.fetchone()
-            db_info['table_count'] = count_row[0] if count_row else 0
-        except:
-            db_info['table_count'] = "Unknown"
-        
+                db_path = Path(raw_path).expanduser()
+                if not db_path.is_absolute():
+                    # 与 SQLite 引擎一致：相对路径基于进程当前工作目录解析。
+                    db_path = Path.cwd() / db_path
+                db_info["path"] = str(db_path)
+                if db_path.is_file():
+                    size_bytes = db_path.stat().st_size
+                    db_info["size"] = format_file_size(size_bytes)
+                    db_info["size_bytes"] = size_bytes
+                else:
+                    db_info["size"] = "文件不存在"
+                    db_info["size_bytes"] = 0
+
+        db_info["version"] = _get_database_version(db, dialect_name)
+        db_info["table_count"] = _get_database_table_count(db, dialect_name)
     except Exception as e:
-        db_info['error'] = str(e)
-    
+        db_info["error"] = str(e)
+
     return db_info
 
 
 async def get_media_info(db: Session) -> Dict[str, Any]:
-    """获取媒体库信息"""
+    """获取媒体库信息。
+
+    统计口径以数据库记录为准，并使用聚合查询：
+    旧的 get_all_media(db) 默认只返回最新 100 条，媒体超过 100 个后
+    总数与总大小都会偏小，在正式部署环境中显示明显不正确。
+    """
     media_info = {}
-    
+
     try:
-        # 获取媒体文件数量
-        media_items = crud_media.get_all_media(db)
-        media_info['total_files'] = len(media_items)
-        
-        # 计算总大小
-        total_size = 0
-        image_count = 0
-        video_count = 0
-        audio_count = 0
-        document_count = 0
-        
-        # 获取媒体目录路径
-        media_dir = os.getenv('MEDIA_UPLOAD_DIR', 'media_uploads')
-        
-        for item in media_items:
-            # 获取实际文件大小
-            file_path = item.filepath
-            full_path = os.path.join(media_dir, file_path) if not os.path.isabs(file_path) else file_path
-            if os.path.exists(file_path):
-                file_size = os.path.getsize(file_path)
-            elif os.path.exists(full_path):
-                file_size = os.path.getsize(full_path)
-            else:
-                file_size = 0
-                
-            total_size += file_size
-            
-            # 按文件扩展名分类
-            file_extension = os.path.splitext(item.filename)[1].lower()
-            if file_extension in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg']:
-                image_count += 1
-            elif file_extension in ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv']:
-                video_count += 1
-            elif file_extension in ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a']:
-                audio_count += 1
-            else:
-                document_count += 1
-        
-        media_info['total_size'] = format_file_size(total_size)
-        media_info['total_size_bytes'] = total_size
-        media_info['image_count'] = image_count
-        media_info['video_count'] = video_count
-        media_info['audio_count'] = audio_count
-        media_info['document_count'] = document_count
-        
-        # 获取媒体目录路径
-        media_dir = os.getenv('MEDIA_UPLOAD_DIR', 'media_uploads')
-        media_info['directory'] = os.path.abspath(media_dir)
-        
-        # 检查目录是否存在
-        media_info['directory_exists'] = os.path.exists(media_info['directory'])
-        
-        if media_info['directory_exists']:
-            # 获取目录实际大小
-            dir_size = get_directory_size(media_info['directory'])
-            media_info['directory_size'] = format_file_size(dir_size)
-            media_info['directory_size_bytes'] = dir_size
-        
+        total_files, total_size = db.execute(
+            select(
+                func.count(Media.id),
+                func.coalesce(func.sum(Media.file_size), 0),
+            )
+        ).one()
+        total_files = int(total_files or 0)
+        total_size = int(total_size or 0)
+
+        type_counts: Dict[str, int] = {}
+        for file_type, count in db.execute(
+            select(Media.file_type, func.count(Media.id)).group_by(Media.file_type)
+        ).all():
+            key = str(file_type or "").strip().lower()
+            type_counts[key] = type_counts.get(key, 0) + int(count or 0)
+
+        def count_by_prefix(prefix: str) -> int:
+            return sum(value for key, value in type_counts.items() if key.startswith(prefix))
+
+        image_count = count_by_prefix("image")
+        video_count = count_by_prefix("video")
+        audio_count = count_by_prefix("audio")
+
+        media_info["total_files"] = total_files
+        media_info["total_size"] = format_file_size(total_size)
+        media_info["total_size_bytes"] = total_size
+        media_info["image_count"] = image_count
+        media_info["video_count"] = video_count
+        media_info["audio_count"] = audio_count
+        # 其余类型（文档、压缩包等）统一计入“其他文件”
+        media_info["document_count"] = max(0, total_files - image_count - video_count - audio_count)
+
+        # 使用应用真实配置的媒体目录，而不是进程环境变量里的默认值。
+        media_dir_setting = str(getattr(settings, "MEDIA_UPLOAD_DIR", "") or "media_uploads").strip() or "media_uploads"
+        media_dir = Path(os.path.abspath(os.path.expanduser(media_dir_setting)))
+        media_info["directory"] = str(media_dir)
+        media_info["directory_exists"] = media_dir.is_dir()
+
+        if media_info["directory_exists"]:
+            dir_size, dir_file_count = get_directory_stats(media_dir)
+            media_info["directory_size"] = format_file_size(dir_size)
+            media_info["directory_size_bytes"] = dir_size
+            media_info["directory_file_count"] = dir_file_count
     except Exception as e:
-        media_info['error'] = str(e)
-    
+        media_info["error"] = str(e)
+
     return media_info
 
 
@@ -323,12 +370,18 @@ def get_system_resources() -> Dict[str, Any]:
     resources = {}
     
     try:
+        # 部分虚拟化环境不支持读取频率，单独兜底，避免影响内存、交换分区信息展示。
+        try:
+            cpu_frequency = psutil.cpu_freq()
+        except Exception:
+            cpu_frequency = None
+
         # CPU信息
         resources['cpu'] = {
-            'count': psutil.cpu_count(),
-            'count_logical': psutil.cpu_count(logical=True),
-            'usage_percent': psutil.cpu_percent(interval=1),
-            'frequency': psutil.cpu_freq()._asdict() if psutil.cpu_freq() else None
+            'count': psutil.cpu_count() or 0,
+            'count_logical': psutil.cpu_count(logical=True) or 0,
+            'usage_percent': psutil.cpu_percent(interval=0.1),
+            'frequency': cpu_frequency._asdict() if cpu_frequency else None
         }
         
         # 内存信息
@@ -371,7 +424,7 @@ def get_disk_info() -> Dict[str, Any]:
             'total': format_file_size(disk_usage.total),
             'used': format_file_size(disk_usage.used),
             'free': format_file_size(disk_usage.free),
-            'usage_percent': (disk_usage.used / disk_usage.total) * 100,
+            'usage_percent': (disk_usage.used / disk_usage.total) * 100 if disk_usage.total else 0,
             'total_bytes': disk_usage.total,
             'used_bytes': disk_usage.used,
             'free_bytes': disk_usage.free
@@ -391,15 +444,15 @@ def get_disk_info() -> Dict[str, Any]:
                     'total': format_file_size(partition_usage.total),
                     'used': format_file_size(partition_usage.used),
                     'free': format_file_size(partition_usage.free),
-                    'usage_percent': (partition_usage.used / partition_usage.total) * 100
+                    'usage_percent': (partition_usage.used / partition_usage.total) * 100 if partition_usage.total else 0
                 })
-            except PermissionError:
-                # 无权限访问的分区
+            except OSError as exc:
+                # Linux 上部分伪文件系统会直接抛出 OSError，不能只处理 PermissionError。
                 disk_info['partitions'].append({
                     'device': partition.device,
                     'mountpoint': partition.mountpoint,
                     'fstype': partition.fstype,
-                    'error': '无权限访问'
+                    'error': '无权限访问' if isinstance(exc, PermissionError) else f'无法访问：{exc}'
                 })
                 
     except Exception as e:
@@ -452,28 +505,30 @@ def get_network_info() -> Dict[str, Any]:
 
 def format_file_size(size_bytes: int) -> str:
     """格式化文件大小显示"""
-    if size_bytes == 0:
+    if size_bytes <= 0:
         return "0 B"
-    
-    size_names = ["B", "KB", "MB", "GB", "TB"]
-    import math
+
+    size_names = ["B", "KB", "MB", "GB", "TB", "PB"]
     i = int(math.floor(math.log(size_bytes, 1024)))
+    i = min(i, len(size_names) - 1)
     p = math.pow(1024, i)
     s = round(size_bytes / p, 2)
     return f"{s} {size_names[i]}"
 
 
-def get_directory_size(directory: str) -> int:
-    """获取目录总大小（字节）"""
+def get_directory_stats(directory: str) -> tuple[int, int]:
+    """获取目录总大小（字节）与文件数量"""
     total_size = 0
+    file_count = 0
     try:
         for dirpath, dirnames, filenames in os.walk(directory):
             for filename in filenames:
                 filepath = os.path.join(dirpath, filename)
                 try:
                     total_size += os.path.getsize(filepath)
+                    file_count += 1
                 except (OSError, FileNotFoundError):
                     pass
     except (OSError, FileNotFoundError):
         pass
-    return total_size
+    return total_size, file_count

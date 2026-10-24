@@ -603,6 +603,46 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
 
     const isMicroTokenChar = (char) => /[0-9A-Za-z_\u4e00-\u9fff-]/.test(char || "");
 
+    const isMicroMarker = (char, marker) => char === marker || (marker === "#" && char === "＃");
+
+    const buildMicroCodeRanges = (source) => {
+        const ranges = [];
+        const pattern = /```[\s\S]*?```|`[^`\n]*`/g;
+        let match;
+        while ((match = pattern.exec(source)) !== null) {
+            ranges.push([match.index, match.index + match[0].length]);
+        }
+        return ranges;
+    };
+
+    const isInsideMicroRanges = (ranges, index) => ranges.some(([start, end]) => index >= start && index < end);
+
+    const looksLikeMicroUrlFragment = (source, markerIndex) => {
+        let start = markerIndex;
+        while (start > 0 && !/\s/.test(source.charAt(start - 1))) {
+            start -= 1;
+        }
+        const prefix = source.slice(start, markerIndex);
+        if (!prefix) {
+            return false;
+        }
+        // Markdown 链接与 HTML 属性里的锚点（如 [文本](#章节)、href="#top"）不是标签。
+        if (prefix.includes("](") || prefix.endsWith("=\"") || prefix.endsWith("='")) {
+            return true;
+        }
+        if (prefix.includes("://") || prefix.startsWith("/") || prefix.startsWith("./") || prefix.startsWith("../")) {
+            return true;
+        }
+        // 相对路径（如 docs/guide#install）只要前缀是纯 ASCII 就按 URL 处理，避免误伤中文标签。
+        if (/^[\x00-\x7F]*$/.test(prefix) && prefix.includes("/")) {
+            return true;
+        }
+        if (/^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(prefix)) {
+            return true;
+        }
+        return /\.[A-Za-z0-9-]{2,}\//.test(prefix);
+    };
+
     const isMicroEmailLocalChar = (char) => /[0-9A-Za-z._%+-]/.test(char || "");
 
     const looksLikeEmailContext = (source, markerIndex, tokenEnd) => {
@@ -629,18 +669,42 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         const source = String(content || "");
         const allowClosingMarker = Boolean(options.allowClosingMarker);
         const emailGuard = Boolean(options.emailGuard);
+        const tagGuard = Boolean(options.tagGuard);
         const maxLength = Number(options.maxLength || 0);
+        const codeRanges = tagGuard ? buildMicroCodeRanges(source) : [];
         const tokens = [];
         let index = 0;
 
         while (index < source.length) {
-            if (source.charAt(index) !== marker) {
+            if (!isMicroMarker(source.charAt(index), marker)) {
                 index += 1;
                 continue;
             }
-            if (index > 0 && source.charAt(index - 1) === marker) {
+            if (index > 0 && isMicroMarker(source.charAt(index - 1), marker)) {
                 index += 1;
                 continue;
+            }
+
+            if (tagGuard) {
+                if (isInsideMicroRanges(codeRanges, index)) {
+                    index += 1;
+                    continue;
+                }
+                if (looksLikeMicroUrlFragment(source, index)) {
+                    index += 1;
+                    continue;
+                }
+                if (index > 0) {
+                    const previousChar = source.charAt(index - 1);
+                    if (previousChar.charCodeAt(0) < 128 && isMicroTokenChar(previousChar)) {
+                        index += 1;
+                        continue;
+                    }
+                    if (previousChar === "\\") {
+                        index += 1;
+                        continue;
+                    }
+                }
             }
 
             let cursor = index + 1;
@@ -655,7 +719,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
                 continue;
             }
 
-            const spanEnd = allowClosingMarker && source.charAt(cursor) === marker ? cursor + 1 : cursor;
+            const spanEnd = allowClosingMarker && isMicroMarker(source.charAt(cursor), marker) ? cursor + 1 : cursor;
             if (tokenText.length <= maxLength) {
                 if (!(emailGuard && looksLikeEmailContext(source, index, cursor))) {
                     tokens.push(tokenText);
@@ -746,9 +810,11 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         const detectedTags = collectMicroTokens(content, "#", {
             maxLength: microTagMaxLength,
             allowClosingMarker: true,
+            tagGuard: true,
         });
         for (const rawTopic of detectedTags) {
-            const topic = String(rawTopic || "").trim();
+            // 与后端一致：去掉首尾的 - 和 _，避免识别结果与实际创建标签不一致。
+            const topic = String(rawTopic || "").trim().replace(/^[-_]+|[-_]+$/g, "");
             if (!topic || tags.includes(topic)) {
                 continue;
             }
@@ -1173,8 +1239,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || !payload.success) {
-                const detail = payload.detail || payload.error || "媒体上传失败";
-                throw new Error(detail);
+                throw new Error(getErrorMessage(payload.error, payload.detail || "媒体上传失败"));
             }
 
             const uploadedItems = Array.isArray(payload.items) ? payload.items : [];
@@ -1531,8 +1596,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || !payload.success) {
-                const detail = payload.detail || payload.error || "发布失败，请稍后重试。";
-                throw new Error(detail);
+                throw new Error(getErrorMessage(payload.error, payload.detail || "发布失败，请稍后重试。"));
             }
 
             textarea.value = "";

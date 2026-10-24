@@ -1,3 +1,4 @@
+import unicodedata
 from uuid import uuid4
 
 import pytest
@@ -90,3 +91,62 @@ def test_bulk_delete_tags(db: Session):
     assert result["missing_ids"] == [99999]
     assert crud_tag.get_tag(db, tag_id=delete_me_id) is None
     assert crud_tag.get_tag(db, tag_id=used_by_post_id) is not None
+
+
+def test_resolve_or_create_tag_reuses_existing_tag_by_name_and_slug(db: Session):
+    existing = crud_tag.create_tag(db, TagCreate(name="网站", slug="web"))
+
+    assert crud_tag.resolve_or_create_tag(db, "网站").id == existing.id
+    assert crud_tag.resolve_or_create_tag(db, "  网站  ").id == existing.id
+    assert crud_tag.resolve_or_create_tag(db, "web").id == existing.id
+    assert crud_tag.resolve_or_create_tag(db, "WEB").id == existing.id
+    assert crud_tag.count_tags(db) == 1
+
+
+def test_resolve_or_create_tag_normalizes_unicode_nfc(db: Session):
+    composed_name = unicodedata.normalize("NFC", "Café")
+    decomposed_name = unicodedata.normalize("NFD", composed_name)
+    existing = crud_tag.create_tag(db, TagCreate(name=composed_name, slug="cafe"))
+
+    assert decomposed_name != composed_name
+    assert crud_tag.resolve_or_create_tag(db, decomposed_name).id == existing.id
+    assert crud_tag.count_tags(db) == 1
+
+
+def test_resolve_or_create_tag_reuses_existing_when_generated_slug_conflicts(db: Session):
+    # “測試”与“测试”名称不同，但都会生成同一个 slug，必须复用已有标签。
+    existing = crud_tag.create_tag(db, TagCreate(name="測試", slug="ce-shi"))
+
+    resolved = crud_tag.resolve_or_create_tag(db, "测试")
+
+    assert resolved.id == existing.id
+    assert crud_tag.count_tags(db) == 1
+
+
+def test_resolve_or_create_tags_dedupes_by_resolved_tag_id(db: Session):
+    existing = crud_tag.create_tag(db, TagCreate(name="网站", slug="web"))
+
+    resolved = crud_tag.resolve_or_create_tags(db, ["网站", "web", "WEB", " 网站 ", "网站"])
+
+    assert [tag.id for tag in resolved] == [existing.id]
+
+
+def test_resolve_or_create_tags_respects_limit(db: Session):
+    resolved = crud_tag.resolve_or_create_tags(db, ["标签一", "标签二", "标签三"], limit=2)
+
+    assert [tag.name for tag in resolved] == ["标签一", "标签二"]
+    assert crud_tag.count_tags(db) == 2
+
+
+def test_find_conflicting_tag_matches_name_or_slug_across_fields(db: Session):
+    existing = crud_tag.create_tag(db, TagCreate(name="网站", slug="web"))
+
+    assert crud_tag.find_conflicting_tag(db, name="web").id == existing.id
+    assert crud_tag.find_conflicting_tag(db, slug="网站").id == existing.id
+    assert crud_tag.find_conflicting_tag(
+        db,
+        name="网站",
+        slug="web",
+        exclude_tag_id=existing.id,
+    ) is None
+    assert crud_tag.find_conflicting_tag(db, name="全新名称", slug="brand-new") is None

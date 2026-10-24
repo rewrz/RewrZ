@@ -18,7 +18,7 @@ from ..crud import post as crud_post, category as crud_category, format as crud_
 from ..schemas import Post, PostCreate, PostUpdate, User, PostBatchUpdate, FormatCreate
 from ..core.content_intents import INTENT_SLUGS, INTENT_NAME_MAP, to_public_post_segment
 from ..core.content_utils import render_markdown_html
-from ..core.micro_text import enhance_micro_html, extract_micro_tags, strip_micro_tags
+from ..core.micro_text import MICRO_TAG_LIMIT, enhance_micro_html, extract_micro_tags, strip_micro_tags
 from ..core.time_utils import site_local_to_utc_naive, utc_iso
 from . import media as media_api
 
@@ -315,6 +315,8 @@ async def create_public_quick_micro_post(
     if normalized_visibility != "password":
         normalized_password = None
     body_content = strip_micro_tags(normalized_content)
+    if not body_content and not parsed_media_items:
+        raise HTTPException(status_code=400, detail="动态正文不能只包含标签")
     merged_content, featured_image_url = _merge_micro_content_with_media(body_content, parsed_media_items)
 
     intent_formats = {fmt.slug: fmt for fmt in _get_or_create_intent_formats(db)}
@@ -343,6 +345,7 @@ async def create_public_quick_micro_post(
         post=post_create_data,
         author_id=current_user.id,
         tag_names=parsed_tags,
+        tag_limit=MICRO_TAG_LIMIT,
         format_ids=[micro_format.id],
     )
 

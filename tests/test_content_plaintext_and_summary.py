@@ -87,3 +87,63 @@ def test_enhance_micro_html_merges_markdown_style_external_mentions() -> None:
     assert '@特朗普</a>' in enhanced_html
     assert 'class="micro-mention-link"' in enhanced_html
     assert '>特朗普</a>' not in enhanced_html
+
+
+def test_micro_tags_ignore_url_fragments_and_keep_links_intact() -> None:
+    content = "参考 https://example.com/page#section 与 docs/guide#install 两处"
+
+    assert extract_micro_tags(content) == []
+    assert strip_micro_tags(content) == content
+
+
+def test_micro_tags_ignore_markdown_anchor_links() -> None:
+    content = "见 [目录](#section) 与 <a href=\"#top\">顶部</a>"
+
+    assert extract_micro_tags(content) == []
+    assert strip_micro_tags(content) == content
+
+
+def test_micro_tags_ignore_code_spans() -> None:
+    content = "运行 `#npm# install`，再看 ```\n#代码块\n``` 最后 #真标签"
+
+    tags = extract_micro_tags(content)
+    stripped = strip_micro_tags(content)
+
+    assert tags == ["真标签"]
+    assert "#npm" in stripped
+    assert "#代码块" in stripped
+    assert "#真标签" not in stripped
+
+
+def test_micro_tags_ignore_ascii_adjacent_hash() -> None:
+    # C#、F# 这类英文紧跟的井号不应被识别为标签。
+    assert extract_micro_tags("用 C# 写代码，F# 也可以") == []
+
+
+def test_micro_tags_support_fullwidth_marker() -> None:
+    content = "＃全角标签 正文内容"
+
+    assert extract_micro_tags(content) == ["全角标签"]
+    assert strip_micro_tags(content) == "正文内容"
+
+
+def test_micro_tags_require_terminator_boundary() -> None:
+    # 结束符（空白、标点、闭合井号）都能正确截断标签。
+    assert extract_micro_tags("#网站# 和 #网站，以及 #网站 ") == ["网站"]
+
+
+def test_micro_tag_without_separator_consumes_adjacent_chinese() -> None:
+    # 中文没有分隔符时，#网站的时候 会整体成为一个标签；补上结束符才会只取“网站”。
+    assert extract_micro_tags("#网站的时候") == ["网站的时候"]
+    assert extract_micro_tags("#网站，的时候") == ["网站"]
+
+
+def test_strip_micro_tags_keeps_tags_beyond_limit() -> None:
+    content = " ".join(f"#标签{index}" for index in range(1, 11))
+
+    tags = extract_micro_tags(content)
+    stripped = strip_micro_tags(content)
+
+    assert tags == [f"标签{index}" for index in range(1, 9)]
+    # 超出上限的标签不应被创建，正文里也要原样保留，避免内容被静默吞掉。
+    assert stripped == "#标签9 #标签10"

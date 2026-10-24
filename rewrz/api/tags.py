@@ -32,10 +32,21 @@ def create_tag(
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
-    if not slug:
-        slug = slugify(name)
+    normalized_name = crud.tag.normalize_tag_text(name)
+    if not normalized_name:
+        raise HTTPException(status_code=400, detail="标签名称不能为空")
 
-    tag = schemas.TagCreate(name=name, slug=slug)
+    normalized_slug = crud.tag.normalize_tag_text(slug)
+    if not normalized_slug:
+        normalized_slug = slugify(normalized_name)
+    if not normalized_slug:
+        raise HTTPException(status_code=400, detail="标签别名不能为空")
+
+    conflict = crud.tag.find_conflicting_tag(db, name=normalized_name, slug=normalized_slug)
+    if conflict is not None:
+        raise HTTPException(status_code=400, detail="标签名称或别名已存在")
+
+    tag = schemas.TagCreate(name=normalized_name, slug=normalized_slug)
     db_tag = crud.tag.create_tag(db=db, tag=tag)
     return {"success": True, "data": db_tag}
 
@@ -129,14 +140,28 @@ def update_tag(
     verify_csrf_token(request, csrf_token)
     update_data = {}
     if name is not None:
-        update_data["name"] = name
+        normalized_name = crud.tag.normalize_tag_text(name)
+        if not normalized_name:
+            raise HTTPException(status_code=400, detail="标签名称不能为空")
+        update_data["name"] = normalized_name
     if slug is not None:
-        update_data["slug"] = slug
+        update_data["slug"] = crud.tag.normalize_tag_text(slug)
 
     if "slug" not in update_data and "name" in update_data:
         update_data["slug"] = slugify(update_data["name"])
     elif "slug" in update_data and not update_data["slug"] and "name" in update_data:
         update_data["slug"] = slugify(update_data["name"])
+    if "slug" in update_data and not update_data["slug"]:
+        raise HTTPException(status_code=400, detail="标签别名不能为空")
+
+    conflict = crud.tag.find_conflicting_tag(
+        db,
+        name=update_data.get("name"),
+        slug=update_data.get("slug"),
+        exclude_tag_id=tag_id,
+    )
+    if conflict is not None:
+        raise HTTPException(status_code=400, detail="标签名称或别名已存在")
 
     tag_update = schemas.TagUpdate(**update_data)
     db_tag = crud.tag.update_tag(db, tag_id=tag_id, tag_update=tag_update)

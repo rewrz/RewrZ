@@ -619,6 +619,163 @@ def test_create_post_auto_create_default_format_without_sawarning(db: Session, t
     assert any(fmt.slug == "article" for fmt in created_post.formats)
 
 
+def test_delete_post_removes_orphan_tags_introduced_by_itself(db: Session, test_user: User):
+    created_post = crud_post.create_post(
+        db,
+        PostCreate(
+            title="带新标签的微博",
+            slug="micro-with-new-tag",
+            content_markdown="内容",
+            post_type="post",
+            status="draft",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+        tag_names=["一次性标签"],
+    )
+    tag_id = created_post.tags[0].id
+
+    crud_post.delete_post(db, post_id=created_post.id)
+
+    assert crud_tag.get_tag(db, tag_id=tag_id) is None
+
+
+def test_delete_post_keeps_tags_still_used_by_other_posts(db: Session, test_user: User):
+    first_post = crud_post.create_post(
+        db,
+        PostCreate(
+            title="共享标签微博一",
+            slug="shared-tag-micro-1",
+            content_markdown="内容",
+            post_type="post",
+            status="draft",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+        tag_names=["共享标签"],
+    )
+    second_post = crud_post.create_post(
+        db,
+        PostCreate(
+            title="共享标签微博二",
+            slug="shared-tag-micro-2",
+            content_markdown="内容",
+            post_type="post",
+            status="draft",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+        tag_names=["共享标签"],
+    )
+    tag_id = first_post.tags[0].id
+    assert second_post.tags[0].id == tag_id
+
+    crud_post.delete_post(db, post_id=first_post.id)
+    assert crud_tag.get_tag(db, tag_id=tag_id) is not None
+
+    crud_post.delete_post(db, post_id=second_post.id)
+    assert crud_tag.get_tag(db, tag_id=tag_id) is None
+
+
+def test_delete_post_keeps_unrelated_empty_tags(db: Session, test_user: User):
+    manual_tag = crud_tag.create_tag(db, TagCreate(name="手动创建标签", slug="manual-created-tag"))
+    manual_tag_id = manual_tag.id
+    created_post = crud_post.create_post(
+        db,
+        PostCreate(
+            title="自动标签微博",
+            slug="auto-tag-micro",
+            content_markdown="内容",
+            post_type="post",
+            status="draft",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+        tag_names=["自动创建标签"],
+    )
+    auto_tag_id = created_post.tags[0].id
+
+    crud_post.delete_post(db, post_id=created_post.id)
+
+    assert crud_tag.get_tag(db, tag_id=manual_tag_id) is not None
+    assert crud_tag.get_tag(db, tag_id=auto_tag_id) is None
+
+
+def test_delete_posts_by_ids_removes_orphan_tags(db: Session, test_user: User):
+    first_post = crud_post.create_post(
+        db,
+        PostCreate(
+            title="批量删除微博一",
+            slug="batch-delete-micro-1",
+            content_markdown="内容",
+            post_type="post",
+            status="draft",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+        tag_names=["批量孤儿标签一"],
+    )
+    second_post = crud_post.create_post(
+        db,
+        PostCreate(
+            title="批量删除微博二",
+            slug="batch-delete-micro-2",
+            content_markdown="内容",
+            post_type="post",
+            status="draft",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+        tag_names=["批量孤儿标签二"],
+    )
+    tag_ids = [first_post.tags[0].id, second_post.tags[0].id]
+
+    deleted_count = crud_post.delete_posts_by_ids(
+        db,
+        post_ids=[first_post.id, second_post.id],
+        author_id=test_user.id,
+    )
+
+    assert deleted_count == 2
+    for tag_id in tag_ids:
+        assert crud_tag.get_tag(db, tag_id=tag_id) is None
+
+
+def test_update_post_tag_names_reuses_existing_and_dedupes(db: Session, test_user: User):
+    existing_tag = crud_tag.create_tag(db, TagCreate(name="网站", slug="web"))
+    existing_tag_id = existing_tag.id
+    created_post = crud_post.create_post(
+        db,
+        PostCreate(
+            title="编辑标签微博",
+            slug="update-tag-micro",
+            content_markdown="内容",
+            post_type="post",
+            status="draft",
+            visibility="public",
+            author_id=test_user.id,
+        ),
+        author_id=test_user.id,
+    )
+
+    updated_post = crud_post.update_post(
+        db,
+        post_id=created_post.id,
+        post=PostUpdate(),
+        tag_names=["网站", "web", "新标签"],
+    )
+
+    assert len(updated_post.tags) == 2
+    assert {tag.name for tag in updated_post.tags} == {"网站", "新标签"}
+    assert existing_tag_id in {tag.id for tag in updated_post.tags}
+
+
 def test_media_summary_json_filter_compiles_for_postgresql():
     class _Dialect:
         name = "postgresql"

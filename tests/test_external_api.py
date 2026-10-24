@@ -589,6 +589,100 @@ def test_frontend_quick_post_public_path_still_works_with_login_and_csrf(monkeyp
         engine.dispose()
 
 
+def test_frontend_quick_post_reuses_existing_tag_by_name_and_slug(monkeypatch, tmp_path):
+    client, session_factory, engine = _build_client(monkeypatch, tmp_path)
+    with session_factory() as db:
+        _seed_external_api_basics(db)
+        db.add(Tag(name="网站", slug="web"))
+        db.commit()
+
+    try:
+        access_token = create_access_token({"sub": "1"})
+        client.cookies.set("access_token", access_token)
+        page_response = client.get("/formats/micro")
+        assert page_response.status_code == 200
+        csrf_token = _extract_csrf_token(page_response.text)
+
+        response = client.post(
+            "/api/v1/posts/quick",
+            data={
+                "content": "#网站 #web 同一条标签",
+                "media_items": "[]",
+                "csrf_token": csrf_token,
+            },
+        )
+        assert response.status_code == 200
+        created_slug = response.json()["post_url"].rsplit("/", 1)[-1]
+
+        with session_factory() as db:
+            created_post = db.query(Post).filter(Post.slug == created_slug).first()
+            assert created_post is not None
+            assert [tag.name for tag in created_post.tags] == ["网站"]
+            assert db.query(Tag).filter(Tag.name == "网站").count() == 1
+            assert db.query(Tag).filter(Tag.slug == "web").count() == 1
+            assert (created_post.content_markdown or "").strip() == "同一条标签"
+    finally:
+        main_module.app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_frontend_quick_post_rejects_tag_only_content(monkeypatch, tmp_path):
+    client, session_factory, engine = _build_client(monkeypatch, tmp_path)
+    with session_factory() as db:
+        _seed_external_api_basics(db)
+
+    try:
+        access_token = create_access_token({"sub": "1"})
+        client.cookies.set("access_token", access_token)
+        page_response = client.get("/formats/micro")
+        assert page_response.status_code == 200
+        csrf_token = _extract_csrf_token(page_response.text)
+
+        response = client.post(
+            "/api/v1/posts/quick",
+            data={
+                "content": "#只有标签",
+                "media_items": "[]",
+                "csrf_token": csrf_token,
+            },
+        )
+        assert response.status_code == 400
+        assert response.json()["error"]["message"] == "动态正文不能只包含标签"
+
+        with session_factory() as db:
+            # 被拒绝的发布不应留下任何标签。
+            assert db.query(Tag).filter(Tag.name == "只有标签").first() is None
+    finally:
+        main_module.app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_frontend_quick_post_preview_does_not_create_tags(monkeypatch, tmp_path):
+    client, session_factory, engine = _build_client(monkeypatch, tmp_path)
+    with session_factory() as db:
+        _seed_external_api_basics(db)
+
+    try:
+        access_token = create_access_token({"sub": "1"})
+        client.cookies.set("access_token", access_token)
+        page_response = client.get("/formats/micro")
+        assert page_response.status_code == 200
+        csrf_token = _extract_csrf_token(page_response.text)
+
+        response = client.post(
+            "/api/v1/posts/quick/preview",
+            data={"content": "#预览标签 预览正文", "csrf_token": csrf_token},
+        )
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+
+        with session_factory() as db:
+            assert db.query(Tag).filter(Tag.name == "预览标签").first() is None
+    finally:
+        main_module.app.dependency_overrides.clear()
+        engine.dispose()
+
+
 def test_frontend_quick_post_supports_password_visibility_and_hide_block(monkeypatch, tmp_path):
     client, session_factory, engine = _build_client(monkeypatch, tmp_path)
     with session_factory() as db:

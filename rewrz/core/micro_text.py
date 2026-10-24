@@ -14,10 +14,14 @@ from ..models import User
 
 
 MICRO_TAG_MAX_LENGTH = 64
+MICRO_TAG_LIMIT = 8
 MICRO_MENTION_MAX_LENGTH = 32
 _MICRO_TOKEN_CHAR_PATTERN = re.compile(r"[0-9A-Za-z_\u4e00-\u9fff-]")
 _MICRO_EMAIL_LOCAL_CHAR_PATTERN = re.compile(r"[0-9A-Za-z._%+-]")
 _MICRO_EMAIL_DOMAIN_CHAR_PATTERN = re.compile(r"[0-9A-Za-z-]")
+_MICRO_CODE_SPAN_PATTERN = re.compile(r"```[\s\S]*?```|`[^`\n]*`")
+_MICRO_URL_TLD_SEGMENT_PATTERN = re.compile(r"\.[A-Za-z0-9-]{2,}/")
+_MICRO_URL_HOST_PATTERN = re.compile(r"[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
 _MICRO_ENHANCE_SKIP_PARENTS = {"a", "code", "pre", "script", "style", "textarea"}
 
 
@@ -27,6 +31,42 @@ def _is_micro_token_char(char: str) -> bool:
 
 def _is_micro_email_local_char(char: str) -> bool:
     return bool(char) and bool(_MICRO_EMAIL_LOCAL_CHAR_PATTERN.fullmatch(char))
+
+
+def _is_micro_marker(char: str, marker: str) -> bool:
+    """判断字符是否为指定标记；标签同时兼容中文全角井号。"""
+    if char == marker:
+        return True
+    return marker == "#" and char == "＃"
+
+
+def _build_code_span_ranges(source: str) -> List[Tuple[int, int]]:
+    return [(match.start(), match.end()) for match in _MICRO_CODE_SPAN_PATTERN.finditer(source)]
+
+
+def _is_inside_ranges(ranges: List[Tuple[int, int]], index: int) -> bool:
+    return any(start <= index < end for start, end in ranges)
+
+
+def _looks_like_url_fragment(source: str, marker_index: int) -> bool:
+    """标签井号如果紧跟在 URL 路径后面，应视为 URL 片段而不是标签。"""
+    cursor = marker_index
+    while cursor > 0 and not source[cursor - 1].isspace():
+        cursor -= 1
+    prefix = source[cursor:marker_index]
+    if not prefix:
+        return False
+    # Markdown 链接与 HTML 属性里的锚点（如 [文本](#章节)、href="#top"）不是标签。
+    if "](" in prefix or prefix.endswith(("=\"", "='")):
+        return True
+    if "://" in prefix or prefix.startswith(("/", "./", "../")):
+        return True
+    # 相对路径（如 docs/guide#install）只要前缀是纯 ASCII 就按 URL 处理，避免误伤中文标签。
+    if prefix.isascii() and "/" in prefix:
+        return True
+    if _MICRO_URL_HOST_PATTERN.fullmatch(prefix):
+        return True
+    return bool(_MICRO_URL_TLD_SEGMENT_PATTERN.search(prefix))
 
 
 def _looks_like_email_context(source: str, marker_index: int, token_end: int) -> bool:
@@ -55,21 +95,40 @@ def _iter_micro_token_spans(
     max_length: int,
     allow_closing_marker: bool = False,
     email_guard: bool = False,
+    tag_guard: bool = False,
 ) -> Iterator[Tuple[int, int, str]]:
     source = str(content or "")
     if not source:
         return
 
-    index = 0
     source_length = len(source)
+    code_span_ranges = _build_code_span_ranges(source) if tag_guard else []
+    index = 0
     while index < source_length:
-        if source[index] != marker:
+        if not _is_micro_marker(source[index], marker):
             index += 1
             continue
 
-        if index > 0 and source[index - 1] == marker:
+        if index > 0 and _is_micro_marker(source[index - 1], marker):
             index += 1
             continue
+
+        if tag_guard:
+            # 跳过代码片段、URL 片段，以及紧跟在英文/数字后面的井号（例如 C#）。
+            if _is_inside_ranges(code_span_ranges, index):
+                index += 1
+                continue
+            if _looks_like_url_fragment(source, index):
+                index += 1
+                continue
+            if index > 0:
+                previous_char = source[index - 1]
+                if previous_char.isascii() and _is_micro_token_char(previous_char):
+                    index += 1
+                    continue
+                if previous_char == "\\":
+                    index += 1
+                    continue
 
         cursor = index + 1
         token_chars: List[str] = []
@@ -83,7 +142,7 @@ def _iter_micro_token_spans(
 
         token_text = "".join(token_chars)
         span_end = cursor
-        if allow_closing_marker and cursor < source_length and source[cursor] == marker:
+        if allow_closing_marker and cursor < source_length and _is_micro_marker(source[cursor], marker):
             span_end = cursor + 1
 
         if len(token_text) <= max_length:
@@ -95,13 +154,14 @@ def _iter_micro_token_spans(
         index = span_end
 
 
-def extract_micro_tags(content: str, limit: int = 8) -> List[str]:
+def extract_micro_tags(content: str, limit: int = MICRO_TAG_LIMIT) -> List[str]:
     tags: List[str] = []
     for _, _, token_text in _iter_micro_token_spans(
         content,
         marker="#",
         max_length=MICRO_TAG_MAX_LENGTH,
         allow_closing_marker=True,
+        tag_guard=True,
     ):
         raw = token_text.strip().strip("-_")
         if not raw or raw in tags:
@@ -112,25 +172,39 @@ def extract_micro_tags(content: str, limit: int = 8) -> List[str]:
     return tags
 
 
-def strip_micro_tags(content: str) -> str:
+def strip_micro_tags(content: str, limit: int = MICRO_TAG_LIMIT) -> str:
     if not content:
         return ""
 
+    source = str(content)
+    # 与 extract_micro_tags 保持同一套识别规则：只有真正会被创建的前 N 个标签才从正文移除，
+    # 超出上限或不符合规则的 # 文本继续保留，避免内容被静默吞掉。
+    tags_to_strip = set(extract_micro_tags(source, limit=limit))
+    if not tags_to_strip:
+        return _cleanup_micro_stripped_content(source)
+
+    parts: List[str] = []
+    cursor = 0
+    for start, end, token_text in _iter_micro_token_spans(
+        source,
+        marker="#",
+        max_length=MICRO_TAG_MAX_LENGTH,
+        allow_closing_marker=True,
+        tag_guard=True,
+    ):
+        raw = token_text.strip().strip("-_")
+        if raw not in tags_to_strip:
+            continue
+        parts.append(source[cursor:start])
+        cursor = end
+    parts.append(source[cursor:])
+    return _cleanup_micro_stripped_content("".join(parts))
+
+
+def _cleanup_micro_stripped_content(content: str) -> str:
     stripped_lines: List[str] = []
-    for raw_line in str(content).splitlines():
-        cleaned_parts: List[str] = []
-        cursor = 0
-        for start, end, _ in _iter_micro_token_spans(
-            raw_line,
-            marker="#",
-            max_length=MICRO_TAG_MAX_LENGTH,
-            allow_closing_marker=True,
-        ):
-            cleaned_parts.append(raw_line[cursor:start])
-            cursor = end
-        cleaned_parts.append(raw_line[cursor:])
-        cleaned_line = "".join(cleaned_parts)
-        cleaned_line = re.sub(r"[ \t]{2,}", " ", cleaned_line).strip()
+    for raw_line in str(content or "").splitlines():
+        cleaned_line = re.sub(r"[ \t]{2,}", " ", raw_line).strip()
         stripped_lines.append(cleaned_line)
 
     stripped_content = "\n".join(stripped_lines)
