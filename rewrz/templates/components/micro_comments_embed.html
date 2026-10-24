@@ -1,34 +1,34 @@
-<div class="mt-3 rounded-2xl border border-sky-200/70 bg-sky-50/40 p-4 dark:border-sky-700/50 dark:bg-slate-900/70" data-inline-comment-root="{{ post.id }}">
-    <div class="mb-3 flex items-center justify-between gap-2">
-        <h4 class="text-sm font-semibold text-sky-900 dark:text-sky-200">
-            评论互动
+<div class="comments-party comments-party--inline" data-inline-comment-root="{{ post.id }}">
+    <div class="comments-party__inline-head">
+        <h4 class="comments-party__inline-title">
+            <i class="far fa-comment-dots" aria-hidden="true"></i>
+            评论区茶话会
         </h4>
-        <span class="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-sky-700 dark:bg-slate-800 dark:text-sky-300">
+        <span class="comments-party__count">
+            <i class="far fa-comment-dots" aria-hidden="true"></i>
             <span data-micro-inline-count="{{ post.id }}" data-count="{{ total_comments }}">{{ total_comments | compact_number_cn }}</span>
-            <span class="ml-1">条</span>
+            <span>条</span>
         </span>
     </div>
 
-    <div class="mb-3" data-inline-comment-feedback="{{ post.id }}"></div>
+    <div class="comments-party__feedback" data-inline-comment-feedback="{{ post.id }}" aria-live="polite"></div>
 
-    <div id="micro-comments-list-{{ post.id }}" class="space-y-3">
+    <div id="micro-comments-list-{{ post.id }}" class="comments-party__list">
         {% if root_comments %}
             {% for comment in root_comments %}
                 {% include "components/comment_item.html" %}
             {% endfor %}
         {% else %}
-        <div
-            id="micro-comments-empty-{{ post.id }}"
-            class="rounded-xl border border-dashed border-sky-200 bg-white/70 px-3 py-5 text-center text-xs text-sky-700 dark:border-sky-800 dark:bg-slate-900/70 dark:text-sky-300"
-        >
-            还没有评论，欢迎抢沙发。
+        <div id="micro-comments-empty-{{ post.id }}" class="comments-party__empty comments-party__empty--inline">
+            <p class="comments-party__empty-title">还没有人落座，这一楼留给你。</p>
+            <p class="comments-party__empty-copy">一句「已阅」也能让作者开心很久。</p>
         </div>
         {% endif %}
     </div>
 
     {% if post.allow_comments %}
     <form
-        class="mt-4 space-y-3 rounded-xl border border-sky-200/70 bg-white/80 p-3 dark:border-sky-700/50 dark:bg-slate-900/75"
+        class="rewrz-comment-form comment-composer comment-composer--compact mt-3"
         data-inline-comment-form="1"
         data-post-id="{{ post.id }}"
         hx-post="/api/v1/comments/{{ post.id }}"
@@ -48,83 +48,113 @@
 
         {% if logged_in_user %}
         {% set logged_name = logged_in_public_name if logged_in_public_name else '已登录用户' %}
-        <div class="rounded-lg border border-emerald-200 bg-emerald-50/80 px-3 py-2 dark:border-emerald-800/50 dark:bg-emerald-900/20">
-            <div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-                <img
-                    class="h-8 w-8 rounded-full border border-emerald-200 object-cover dark:border-emerald-700"
-                    src="{{ logged_in_user | avatar_url(40) }}"
-                    alt="{{ logged_name }}"
-                    loading="lazy"
-                >
-                <p class="text-xs">当前登录：<span class="font-semibold">{{ logged_name }}</span>，可直接评论。</p>
+        <div class="comment-identity-chip comment-identity-chip--compact">
+            <img src="{{ logged_in_user | avatar_url(40) }}" alt="{{ logged_name }}" loading="lazy">
+            <div>
+                <p class="comment-identity-chip__title">当前登录：{{ logged_name }}</p>
+                <p class="comment-identity-chip__hint">身份已自动填充，直接开聊就好。</p>
             </div>
         </div>
         {% else %}
-        <div class="grid gap-3 md:grid-cols-2">
-            <div>
-                <label for="micro-author-name-{{ post.id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">昵称</label>
-                <input
-                    id="micro-author-name-{{ post.id }}"
-                    name="author_name"
-                    required
-                    maxlength="80"
-                    class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
-                    placeholder="昵称"
-                >
+        <div class="comment-identity comment-identity--compact">
+            <div class="comment-identity__grid">
+                <div>
+                    <label class="comment-field__label" for="micro-author-name-{{ post.id }}">昵称 <span class="comment-field__required">*</span></label>
+                    <input
+                        id="micro-author-name-{{ post.id }}"
+                        name="author_name"
+                        type="text"
+                        required
+                        maxlength="80"
+                        class="comment-field"
+                        placeholder="怎么称呼你？"
+                        autocomplete="nickname"
+                    >
+                </div>
+                <div>
+                    <label class="comment-field__label" for="micro-author-email-{{ post.id }}">邮箱 <span class="comment-field__required">*</span></label>
+                    <input
+                        id="micro-author-email-{{ post.id }}"
+                        name="author_email"
+                        type="email"
+                        required
+                        class="comment-field"
+                        placeholder="name@example.com"
+                        autocomplete="email"
+                    >
+                </div>
             </div>
-            <div>
-                <label for="micro-author-email-{{ post.id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">邮箱</label>
-                <input
-                    id="micro-author-email-{{ post.id }}"
-                    name="author_email"
-                    type="email"
-                    required
-                    class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
-                    placeholder="name@example.com"
-                >
+            <div class="comment-identity__grid">
+                <div>
+                    <label class="comment-field__label" for="micro-author-url-{{ post.id }}">个人网站（可选）</label>
+                    <input
+                        id="micro-author-url-{{ post.id }}"
+                        name="author_url"
+                        type="url"
+                        class="comment-field"
+                        placeholder="https://example.com"
+                        autocomplete="url"
+                    >
+                </div>
             </div>
         </div>
         {% endif %}
 
-        <div>
-            <label for="micro-content-{{ post.id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">内容</label>
+        <div class="comment-editor comment-editor--compact">
+            <div class="comment-editor__toolbar" role="toolbar" aria-label="评论格式工具">
+                <div class="comment-editor__tools">
+                    <button type="button" data-md="bold" title="加粗" aria-label="加粗"><i class="fas fa-bold" aria-hidden="true"></i></button>
+                    <button type="button" data-md="italic" title="斜体" aria-label="斜体"><i class="fas fa-italic" aria-hidden="true"></i></button>
+                    <button type="button" data-md="code" title="行内代码" aria-label="行内代码"><i class="fas fa-code" aria-hidden="true"></i></button>
+                </div>
+                <span class="comment-editor__divider" aria-hidden="true"></span>
+                <div class="comment-editor__kaomoji" aria-label="快捷颜文字">
+                    <button type="button" data-kaomoji="(≧▽≦)">(≧▽≦)</button>
+                    <button type="button" data-kaomoji="(¬‿¬)">(¬‿¬)</button>
+                </div>
+                <span class="comment-editor__count" data-comment-count>0 字</span>
+            </div>
             <textarea
                 id="micro-content-{{ post.id }}"
                 name="content"
                 rows="3"
                 required
-                maxlength="2000"
-                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
-                placeholder="说点什么..."
+                maxlength="3000"
+                class="comment-editor__input"
+                placeholder="想对这条动态说点什么？"
             ></textarea>
         </div>
 
         {% if captcha_enabled %}
-        <div>
-            <label for="micro-captcha-{{ post.id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">验证码</label>
-            <div class="flex items-center gap-2">
+        <div class="comment-captcha" data-captcha-block hidden>
+            <div class="comment-captcha__head">
+                <span class="comment-captcha__title"><i class="fas fa-shield-halved" aria-hidden="true"></i> 一点点人机验证</span>
+                <span class="comment-captcha__hint">偶尔需要证明你是可爱的真人。</span>
+            </div>
+            <div class="comment-captcha__row">
                 <input
+                    type="text"
                     id="micro-captcha-{{ post.id }}"
                     name="captcha"
-                    class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
-                    placeholder="输入验证码"
+                    class="comment-field"
+                    placeholder="请输入验证码"
+                    autocomplete="off"
                 >
                 <img
-                    class="h-9 rounded border border-gray-200 dark:border-gray-600"
-                    src="/api/v1/captcha"
+                    data-captcha-image
+                    data-src="/api/v1/captcha"
                     alt="验证码"
-                    onclick="this.src='/api/v1/captcha?t=' + Date.now()"
+                    title="点击刷新"
                 >
             </div>
         </div>
         {% endif %}
 
-        <div class="flex items-center justify-end">
-            <button
-                type="submit"
-                class="inline-flex items-center rounded-lg bg-sky-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-700"
-            >
-                <i class="far fa-paper-plane mr-1"></i>发布评论
+        <div class="comment-submit-row comment-submit-row--compact">
+            <span class="comment-submit-row__hint">昵称和邮箱会记住，下次直接开聊。</span>
+            <button type="submit" class="comment-submit comment-submit--compact">
+                <i class="fas fa-paper-plane" aria-hidden="true"></i>
+                <span>发布评论</span>
             </button>
         </div>
     </form>

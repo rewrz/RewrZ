@@ -1,14 +1,22 @@
-<div id="comment-form-{{ parent_id }}" class="reply-form rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 dark:border-indigo-700/50 dark:bg-indigo-900/20">
-    <h4 class="mb-3 text-sm font-semibold text-indigo-800 dark:text-indigo-300">回复 @{{ parent_author_name }}</h4>
+<div class="reply-form" data-reply-form>
+    <div class="reply-form__head">
+        <span class="reply-form__title"><i class="fas fa-reply" aria-hidden="true"></i> 回复 @{{ parent_author_name }}</span>
+        <button
+            type="button"
+            class="reply-form__close"
+            aria-label="收起回复框"
+            onclick="document.getElementById('comment-form-{{ parent_id }}').innerHTML = ''"
+        ><i class="fas fa-xmark" aria-hidden="true"></i></button>
+    </div>
 
     <form
-        class="rewrz-comment-form space-y-4"
+        class="rewrz-comment-form comment-composer comment-composer--compact"
         data-form-kind="reply"
         hx-post="/api/v1/comments/{{ post_id }}"
         hx-target="#comment-{{ parent_id }}-children"
         hx-swap="beforeend"
         hx-on::before-request="window.rewrzCommentUI && window.rewrzCommentUI.beforeRequest(this)"
-        hx-on::after-request="window.rewrzCommentUI && window.rewrzCommentUI.afterRequest(event, this); if (event.detail.successful) { this.reset(); if (window.multiFormatInteractions && typeof window.multiFormatInteractions.updateInlineCommentCount === 'function') { window.multiFormatInteractions.updateInlineCommentCount('{{ post_id }}', 1); } const childBox = document.getElementById('comment-{{ parent_id }}-children'); if (childBox) childBox.classList.remove('hidden'); const wrap = document.getElementById('comment-form-{{ parent_id }}'); if (wrap) wrap.innerHTML = ''; }"
+        hx-on::after-request="window.rewrzCommentUI && window.rewrzCommentUI.afterRequest(event, this); if (event.detail.successful) { if (window.multiFormatInteractions && typeof window.multiFormatInteractions.updateInlineCommentCount === 'function') { window.multiFormatInteractions.updateInlineCommentCount('{{ post_id }}', 1); } const childBox = document.getElementById('comment-{{ parent_id }}-children'); if (childBox) childBox.classList.remove('hidden'); const wrap = document.getElementById('comment-form-{{ parent_id }}'); if (wrap) wrap.innerHTML = ''; }"
         hx-on::response-error="window.rewrzCommentUI && window.rewrzCommentUI.onError(event, this)"
     >
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
@@ -22,101 +30,118 @@
 
         {% if logged_in_user %}
         {% set logged_name = logged_in_public_name if logged_in_public_name else '已登录用户' %}
-        <div class="rounded-lg border border-emerald-200 bg-emerald-50/80 px-3 py-2 dark:border-emerald-800/50 dark:bg-emerald-900/20">
-            <div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-                <img
-                    class="h-8 w-8 rounded-full border border-emerald-200 object-cover dark:border-emerald-700"
-                    src="{{ logged_in_user | avatar_url(40) }}"
-                    alt="{{ logged_name }}"
-                    loading="lazy"
-                >
-                <p class="text-xs">以 <span class="font-semibold">{{ logged_name }}</span> 身份回复</p>
-            </div>
+        <div class="comment-identity-chip comment-identity-chip--compact">
+            <img src="{{ logged_in_user | avatar_url(40) }}" alt="{{ logged_name }}" loading="lazy">
+            <p>以 <strong>{{ logged_name }}</strong> 的身份回复</p>
         </div>
         {% else %}
-        <div class="grid gap-3 md:grid-cols-2">
-            <div>
-                <label for="reply_author_name_{{ parent_id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">昵称 <span class="text-rose-500">*</span></label>
-                <input
-                    type="text"
-                    id="reply_author_name_{{ parent_id }}"
-                    name="author_name"
-                    required
-                    maxlength="80"
-                    class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
-                >
+        <div class="comment-identity__summary comment-identity__summary--compact" data-identity-summary hidden>
+            <div class="comment-identity__summary-copy">
+                <p>以 <strong data-identity-name>你</strong> 的身份回复</p>
             </div>
-            <div>
-                <label for="reply_author_email_{{ parent_id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">邮箱 <span class="text-rose-500">*</span></label>
-                <input
-                    type="email"
-                    id="reply_author_email_{{ parent_id }}"
-                    name="author_email"
-                    required
-                    class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
-                >
-            </div>
+            <button type="button" class="comment-identity__edit" data-identity-edit>
+                <i class="fas fa-user-pen" aria-hidden="true"></i> 换个马甲
+            </button>
         </div>
 
-        <div>
-            <label for="reply_author_url_{{ parent_id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">个人网站（可选）</label>
-            <input
-                type="url"
-                id="reply_author_url_{{ parent_id }}"
-                name="author_url"
-                placeholder="https://example.com"
-                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
-            >
+        <div class="comment-identity comment-identity--compact" data-identity-panel>
+            <div class="comment-identity__grid">
+                <div>
+                    <label class="comment-field__label" for="reply_author_name_{{ parent_id }}">昵称 <span class="comment-field__required">*</span></label>
+                    <input
+                        type="text"
+                        id="reply_author_name_{{ parent_id }}"
+                        name="author_name"
+                        required
+                        maxlength="80"
+                        class="comment-field"
+                        placeholder="怎么称呼你？"
+                        autocomplete="nickname"
+                    >
+                </div>
+                <div>
+                    <label class="comment-field__label" for="reply_author_email_{{ parent_id }}">邮箱 <span class="comment-field__required">*</span></label>
+                    <input
+                        type="email"
+                        id="reply_author_email_{{ parent_id }}"
+                        name="author_email"
+                        required
+                        class="comment-field"
+                        placeholder="name@example.com"
+                        autocomplete="email"
+                    >
+                </div>
+            </div>
+            <div class="comment-identity__grid">
+                <div>
+                    <label class="comment-field__label" for="reply_author_url_{{ parent_id }}">个人网站（可选）</label>
+                    <input
+                        type="url"
+                        id="reply_author_url_{{ parent_id }}"
+                        name="author_url"
+                        placeholder="https://example.com"
+                        class="comment-field"
+                        autocomplete="url"
+                    >
+                </div>
+            </div>
         </div>
         {% endif %}
 
-        <div>
-            <label for="reply_content_{{ parent_id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">回复内容 <span class="text-rose-500">*</span></label>
+        <div class="comment-editor comment-editor--compact">
             <textarea
                 id="reply_content_{{ parent_id }}"
                 name="content"
                 rows="3"
                 required
                 maxlength="2000"
-                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
+                class="comment-editor__input"
+                placeholder="想对 @{{ parent_author_name }} 说点什么？"
             ></textarea>
+            <div class="comment-editor__foot">
+                <div class="comment-editor__kaomoji" aria-label="快捷颜文字">
+                    <button type="button" data-kaomoji="(≧▽≦)">(≧▽≦)</button>
+                    <button type="button" data-kaomoji="(๑•̀ㅂ•́)و✧">(๑•̀ㅂ•́)و✧</button>
+                    <button type="button" data-kaomoji="(¬‿¬)">(¬‿¬)</button>
+                </div>
+                <span class="comment-editor__count" data-comment-count>0 字</span>
+            </div>
         </div>
 
         {% if captcha_enabled %}
-        <div>
-            <label for="reply_captcha_{{ parent_id }}" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">验证码</label>
-            <div class="flex items-center gap-3">
+        <div class="comment-captcha" data-captcha-block hidden>
+            <div class="comment-captcha__head">
+                <span class="comment-captcha__title"><i class="fas fa-shield-halved" aria-hidden="true"></i> 一点点人机验证</span>
+                <span class="comment-captcha__hint">偶尔需要证明你是可爱的真人。</span>
+            </div>
+            <div class="comment-captcha__row">
                 <input
                     type="text"
                     id="reply_captcha_{{ parent_id }}"
                     name="captcha"
-                    class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-indigo-900/40"
+                    class="comment-field"
                     placeholder="请输入验证码"
+                    autocomplete="off"
                 >
                 <img
-                    class="h-9 rounded border border-gray-200 dark:border-gray-600"
-                    src="/api/v1/captcha"
+                    data-captcha-image
+                    data-src="/api/v1/captcha"
                     alt="验证码"
-                    onclick="this.src='/api/v1/captcha?t=' + Date.now()"
+                    title="点击刷新"
                 >
             </div>
         </div>
         {% endif %}
 
-        <div class="flex items-center justify-end gap-2">
-            <button
-                type="button"
-                class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                onclick="document.getElementById('comment-form-{{ parent_id }}').innerHTML = ''"
-            >
-                取消
-            </button>
-            <button
-                type="submit"
-                class="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-700"
-            >
-                提交回复
-            </button>
+        <div class="comment-submit-row comment-submit-row--compact">
+            <span class="comment-submit-row__hint">Ctrl / ⌘ + Enter 快速发送</span>
+            <div class="comment-submit-row__actions">
+                <button type="button" class="comment-cancel" onclick="document.getElementById('comment-form-{{ parent_id }}').innerHTML = ''">取消</button>
+                <button type="submit" class="comment-submit comment-submit--compact">
+                    <i class="fas fa-paper-plane" data-role="submit-icon" aria-hidden="true"></i>
+                    <span>发送回复</span>
+                </button>
+            </div>
         </div>
     </form>
 </div>

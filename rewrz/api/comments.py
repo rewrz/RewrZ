@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..crud import comment as crud_comment
 from ..crud import post as crud_post
+from ..crud import reaction as crud_reaction
 from ..crud import setting as crud_setting
 from ..crud import user as crud_user
 from ..schemas import CommentCreate, Comment, User
@@ -32,11 +33,56 @@ from ..core.comment_security import (
 from ..core.template_filters import get_templates # 导入模板函数
 from ..core.content_access import extract_hide_block, get_comment_unlock_cookie_name, is_publicly_accessible
 from ..core.admin_security import check_comment_rate_limit, get_admin_email, get_client_ip
-from ..core.notification_email import send_new_comment_notification
+from ..core.notification_email import (
+    send_comment_reply_notification,
+    send_new_comment_notification,
+)
 from ..core.ip_geo import lookup_ip_locations
 from ..core.public_alias import resolve_public_display_name
+from ..core.content_intents import (
+    choose_primary_intent_slug,
+    normalize_intent_slug,
+    to_public_post_segment,
+)
 
 router = APIRouter()
+
+
+def _build_comment_page_url(request: Request, post_obj) -> str:
+    """生成带评论锚点的公开页面地址，用于回复提醒邮件。"""
+    if str(getattr(post_obj, "post_type", "post") or "post") == "page":
+        path = f"/{post_obj.slug}"
+    else:
+        raw_slugs = [
+            fmt.slug for fmt in (getattr(post_obj, "formats", None) or [])
+            if getattr(fmt, "slug", None)
+        ]
+        normalized_intents = {
+            intent for intent in (normalize_intent_slug(slug) for slug in raw_slugs) if intent
+        }
+        primary_intent = choose_primary_intent_slug(normalized_intents) if normalized_intents else "article"
+        path = f"/{to_public_post_segment(primary_intent)}/{post_obj.slug}"
+    return f"{request.url.scheme}://{request.url.netloc}{path}#comments-list"
+
+
+def _resolve_new_comment_depth(db: Session, parent_comment) -> int:
+    """计算新评论的层级，供评论区模板决定是否继续缩进。"""
+    if parent_comment is None:
+        return 0
+
+    depth = 0
+    current = parent_comment
+    seen_ids = set()
+    while getattr(current, "parent_id", None) and depth < 50:
+        current_id = getattr(current, "id", None)
+        if current_id in seen_ids:
+            break
+        seen_ids.add(current_id)
+        current = crud_comment.get_comment(db, comment_id=current.parent_id)
+        if current is None:
+            break
+        depth += 1
+    return depth + 1
 
 
 def _set_comment_unlock_cookie(request: Request, response: HTMLResponse, post_id: int) -> None:
@@ -127,6 +173,17 @@ async def create_comment_api(
     if not db_post.allow_comments:
         raise HTTPException(status_code=403, detail="当前内容未开启评论")
 
+    # 回复目标必须是同一内容下已通过审核的评论
+    parent_comment = None
+    if parent_id:
+        parent_comment = crud_comment.get_comment(db, comment_id=parent_id)
+        if (
+            parent_comment is None
+            or parent_comment.post_id != post_id
+            or parent_comment.status != "approved"
+        ):
+            raise HTTPException(status_code=400, detail="回复的评论不存在或尚未通过审核")
+
     logged_in_user = _resolve_optional_user(request, db)
     logged_in_public_name = _resolve_public_display_name(logged_in_user) if logged_in_user else ""
     resolved_author_name = (author_name or "").strip()
@@ -197,9 +254,11 @@ async def create_comment_api(
     elif spam_result.action == "captcha":
         # 需要验证码确认
         if not captcha_response or captcha_response != request.session.get('captcha'):
+            # 通过响应头告知前端“本条需要验证码”，前端据此按需揭示验证码区域
             raise HTTPException(
-                status_code=400, 
-                detail="验证码错误，请重新输入"
+                status_code=400,
+                detail="验证码错误，请重新输入",
+                headers={"X-RewrZ-Captcha-Required": "1"},
             )
         
     # 决定评论状态
@@ -240,6 +299,26 @@ async def create_comment_api(
             review_url,
             db=db,
         )
+
+    # 已通过的回复异步通知被回复者（作者本人无需重复提醒）
+    parent_email = (getattr(parent_comment, "author_email", "") or "").strip()
+    if (
+        comment_status == "approved"
+        and parent_comment is not None
+        and not parent_comment.is_admin_reply
+        and parent_email
+        and parent_email.lower() != resolved_author_email.lower()
+    ):
+        reply_preview = " ".join((content or "").strip().split())[:160]
+        background_tasks.add_task(
+            send_comment_reply_notification,
+            parent_email,
+            post_title=db_post.title or "无标题",
+            replier_name=resolved_author_name,
+            reply_preview=reply_preview,
+            comment_url=_build_comment_page_url(request, db_post),
+            db=db,
+        )
     
     # 记录反垃圾检测日志
     print(f"评论创建成功 - ID: {db_comment.id}, 状态: {comment_status}, "
@@ -268,7 +347,7 @@ async def create_comment_api(
         _set_comment_unlock_cookie(request, pending_response, post_id)
         return pending_response
     
-    # 返回评论组件，包含头像信息
+    # 返回评论组件，包含头像信息与所在层级
     approved_response = templates.TemplateResponse(
         request,
         "components/comment_item.html", 
@@ -276,7 +355,8 @@ async def create_comment_api(
             "request": request, 
             "comment": db_comment, 
             "post": db_post,
-            "avatar_url": comment_avatar_url
+            "avatar_url": comment_avatar_url,
+            "comment_depth": _resolve_new_comment_depth(db, parent_comment)
         }
     )
     _set_comment_unlock_cookie(request, approved_response, post_id)
@@ -425,6 +505,13 @@ async def get_inline_comment_embed(request: Request, post_id: int, db: Session =
     form_timestamp_token = anti_spam.generate_form_timestamp_token()
     approved_comments = list(db_post.comments or [])
     root_comments = [item for item in approved_comments if item.parent_id is None]
+    visitor_token = (request.cookies.get("rewrz_visitor_token") or "").strip()
+    comment_reaction_summaries = crud_reaction.get_reaction_summaries_bulk(
+        db,
+        target_type="comment",
+        target_ids=[item.id for item in approved_comments],
+        visitor_token=visitor_token,
+    )
     logged_in_user = _resolve_optional_user(request, db)
     logged_in_public_name = _resolve_public_display_name(logged_in_user) if logged_in_user else ""
 
@@ -436,6 +523,7 @@ async def get_inline_comment_embed(request: Request, post_id: int, db: Session =
             "post": db_post,
             "total_comments": len(approved_comments),
             "root_comments": root_comments,
+            "comment_reaction_summaries": comment_reaction_summaries,
             "form_timestamp_token": form_timestamp_token,
             "captcha_enabled": anti_spam.captcha_enabled,
             "logged_in_user": logged_in_user,

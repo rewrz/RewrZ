@@ -57,6 +57,7 @@ from .core.public_profile import get_public_profile_resolver
 from .core.admin_security import should_run_login_audit_auto_cleanup, run_login_audit_auto_cleanup
 from .crud import post as crud_post
 from .crud import comment as crud_comment
+from .crud import reaction as crud_reaction
 from .crud import setting as crud_setting # Import crud_setting
 from .crud import format as crud_format # 导入格式CRUD模块以修复未定义变量错误
 from .models import Post, Setting
@@ -75,6 +76,7 @@ from .core.task_scheduler import default_task_scheduler
 from .core import traffic_analytics
 from .core.content_access import (
     build_post_access_cookie_value,
+    count_hide_blocks,
     get_comment_unlock_cookie_name,
     get_post_access_cookie_name,
     has_hide_blocks,
@@ -451,6 +453,7 @@ def register_admin_routes():
             "related_articles": related_articles,
             "page_background_image_url": getattr(db_post, "detail_cover_url", "") or "",
         })
+        context.update(_build_comment_view_context(db, db_post, request))
         
         return templates.TemplateResponse(request, "post_detail.html", context)
 
@@ -557,6 +560,7 @@ def register_admin_routes():
             "selected_page_template": selected_page_template,
             "page_background_image_url": getattr(db_page, "detail_cover_url", "") or "",
         })
+        context.update(_build_comment_view_context(db, db_page, request))
 
         return templates.TemplateResponse(request, resolve_page_template_file(selected_page_template), context)
 
@@ -915,6 +919,30 @@ def _increment_post_views_metric(db: Session, post_id: int, step: int = 1) -> in
         select(Setting.value).where(Setting.key == metric_key)
     ).scalar_one_or_none()
     return _extract_metric_int(current_value, default=increment)
+
+
+def _build_comment_view_context(db: Session, post_obj, request: Request) -> Dict[str, Any]:
+    """构建评论区首屏上下文：批量互动摘要、隐藏内容提示、解锁状态。"""
+    comments = list(getattr(post_obj, "comments", None) or [])
+    comment_ids = [comment.id for comment in comments if getattr(comment, "id", None) is not None]
+    visitor_token = (request.cookies.get("rewrz_visitor_token") or "").strip()
+
+    try:
+        reaction_summaries = crud_reaction.get_reaction_summaries_bulk(
+            db,
+            target_type="comment",
+            target_ids=comment_ids,
+            visitor_token=visitor_token,
+        )
+    except Exception:
+        reaction_summaries = {}
+
+    unlock_cookie_name = get_comment_unlock_cookie_name(getattr(post_obj, "id", 0))
+    return {
+        "comment_reaction_summaries": reaction_summaries,
+        "comment_hide_block_count": count_hide_blocks(getattr(post_obj, "content_markdown", None)),
+        "comment_unlocked": request.cookies.get(unlock_cookie_name) == "true",
+    }
 
 
 def _sum_post_views_metrics(db: Session) -> int:

@@ -170,10 +170,7 @@ def _attach_views_metrics(db: Session, posts: List[Post]) -> None:
     try:
         settings = db.execute(select(Setting).where(Setting.key.in_(metric_keys))).scalars().all()
     except Exception:
-        for post in posts:
-            setattr(post, "views_count", 0)
-            setattr(post, "views", 0)
-        return
+        settings = []
     views_map = {}
     for setting in settings:
         if not setting.key.startswith("post_views_count_"):
@@ -185,10 +182,27 @@ def _attach_views_metrics(db: Session, posts: List[Post]) -> None:
             continue
         views_map[post_id] = _extract_setting_int_value(setting.value)
 
+    # 列表卡片一次性带出已通过评论数，避免逐条查询
+    comment_count_map: dict[int, int] = {}
+    try:
+        comment_rows = db.execute(
+            select(Comment.post_id, func.count(Comment.id))
+            .where(Comment.post_id.in_(post_ids), Comment.status == "approved")
+            .group_by(Comment.post_id)
+        ).all()
+        comment_count_map = {
+            int(post_id): int(count or 0)
+            for post_id, count in comment_rows
+            if post_id is not None
+        }
+    except Exception:
+        comment_count_map = {}
+
     for post in posts:
         views = views_map.get(post.id, 0)
         setattr(post, "views_count", views)
         setattr(post, "views", views)
+        setattr(post, "comment_count", comment_count_map.get(post.id, 0))
 
 
 def _delete_post_views_metrics_by_ids(db: Session, post_ids: List[int]) -> None:

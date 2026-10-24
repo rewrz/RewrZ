@@ -158,6 +158,107 @@ def get_reaction_summary(
     }
 
 
+_BULK_TARGET_CHUNK_SIZE = 400
+
+
+def _build_empty_summary(target_type: str, target_id: int) -> Dict:
+    return {
+        "target_type": target_type,
+        "target_id": target_id,
+        "like_count": 0,
+        "reactions": {reaction_type: 0 for reaction_type in VALID_REACTION_TYPES},
+        "total_reaction_count": 0,
+        "viewer": {"liked": False, "reaction_type": None},
+    }
+
+
+def get_reaction_summaries_bulk(
+    db: Session,
+    *,
+    target_type: str,
+    target_ids,
+    visitor_token: Optional[str] = None,
+) -> Dict[int, Dict]:
+    """批量获取互动摘要，结构与 get_reaction_summary 一致。
+
+    评论区首屏一次性取回所有评论的点赞/表情计数，避免逐条请求造成 N+1。
+    """
+    target_type = _normalize_target_type(target_type)
+
+    normalized_ids = []
+    for raw_id in target_ids or []:
+        try:
+            normalized_ids.append(_normalize_target_id(raw_id))
+        except ValueError:
+            continue
+    normalized_ids = sorted(set(normalized_ids))
+    if not normalized_ids:
+        return {}
+
+    summaries = {
+        target_id: _build_empty_summary(target_type, target_id)
+        for target_id in normalized_ids
+    }
+
+    for start in range(0, len(normalized_ids), _BULK_TARGET_CHUNK_SIZE):
+        chunk = normalized_ids[start:start + _BULK_TARGET_CHUNK_SIZE]
+        rows = db.execute(
+            select(
+                ContentReaction.target_id,
+                func.sum(case((ContentReaction.like_active.is_(True), 1), else_=0)).label("like_count"),
+                func.sum(case((ContentReaction.reaction_type == "funny", 1), else_=0)).label("funny"),
+                func.sum(case((ContentReaction.reaction_type == "wow", 1), else_=0)).label("wow"),
+                func.sum(case((ContentReaction.reaction_type == "moved", 1), else_=0)).label("moved"),
+                func.sum(case((ContentReaction.reaction_type == "angry", 1), else_=0)).label("angry"),
+                func.sum(case((ContentReaction.reaction_type == "thinking", 1), else_=0)).label("thinking"),
+                func.sum(case((ContentReaction.reaction_type == "salute", 1), else_=0)).label("salute"),
+            )
+            .where(
+                ContentReaction.target_type == target_type,
+                ContentReaction.target_id.in_(chunk),
+            )
+            .group_by(ContentReaction.target_id)
+        ).all()
+
+        for row in rows:
+            summary = summaries.get(row.target_id)
+            if summary is None:
+                continue
+            reactions = {
+                "funny": int(row.funny or 0),
+                "wow": int(row.wow or 0),
+                "moved": int(row.moved or 0),
+                "angry": int(row.angry or 0),
+                "thinking": int(row.thinking or 0),
+                "salute": int(row.salute or 0),
+            }
+            summary["like_count"] = int(row.like_count or 0)
+            summary["reactions"] = reactions
+            summary["total_reaction_count"] = sum(reactions.values())
+
+    token = (visitor_token or "").strip()
+    if token:
+        for start in range(0, len(normalized_ids), _BULK_TARGET_CHUNK_SIZE):
+            chunk = normalized_ids[start:start + _BULK_TARGET_CHUNK_SIZE]
+            viewer_records = db.execute(
+                select(ContentReaction).where(
+                    ContentReaction.target_type == target_type,
+                    ContentReaction.target_id.in_(chunk),
+                    ContentReaction.visitor_token == token,
+                )
+            ).scalars().all()
+            for record in viewer_records:
+                summary = summaries.get(record.target_id)
+                if summary is None:
+                    continue
+                summary["viewer"] = {
+                    "liked": bool(record.like_active),
+                    "reaction_type": record.reaction_type or None,
+                }
+
+    return summaries
+
+
 def set_like_state(
     db: Session,
     *,

@@ -473,25 +473,7 @@
                 detail-comments-shell-article
             {% endif %}"
         >
-            <div class="detail-comments-header border-b px-5 py-4 md:px-6">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div class="flex items-center gap-3">
-                        <span class="detail-comments-icon inline-flex h-10 w-10 items-center justify-center rounded-full">
-                            <i class="far fa-comments"></i>
-                        </span>
-                        <div>
-                            <h2 class="detail-comments-title text-xl font-bold">评论互动</h2>
-                            <p class="detail-comments-subtitle text-xs">分享观点、补充想法，和读者一起完善内容。</p>
-                        </div>
-                    </div>
-                    <span id="comment-count-badge" data-count="{{ comment_count }}" class="detail-comments-badge inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold shadow-sm">
-                        {{ comment_count | compact_number_cn }} 条
-                    </span>
-                </div>
-            </div>
-
             <div class="p-5 md:p-6">
-                {% set show_comments_panel_header = false %}
                 {% include "components/comments.html" %}
             </div>
         </div>

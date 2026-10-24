@@ -79,6 +79,13 @@ def has_hide_blocks(content_markdown: Optional[str]) -> bool:
     return HIDE_BLOCK_RE.search(content_markdown) is not None
 
 
+def count_hide_blocks(content_markdown: Optional[str]) -> int:
+    """统计 [hide] 块数量，用于评论区提示“评论后可解锁隐藏内容”。"""
+    if not content_markdown:
+        return 0
+    return len(HIDE_BLOCK_RE.findall(content_markdown))
+
+
 def extract_hide_block(content_markdown: Optional[str], index: int) -> Optional[str]:
     if not content_markdown or index < 0:
         return None

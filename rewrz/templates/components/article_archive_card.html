@@ -77,8 +77,9 @@
             {% endif %}
         </div>
 
-        <div class="archive-card-meta mt-4 grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 sm:grid-cols-4">
+        <div class="archive-card-meta mt-4 grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 sm:grid-cols-5">
             <span class="inline-flex items-center"><i class="far fa-eye mr-1.5"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
+            <span class="inline-flex items-center"><i class="far fa-comment-dots mr-1.5"></i>{{ (post.comment_count or 0) | compact_number_cn }}</span>
             <span class="inline-flex items-center"><i class="fas fa-clock mr-1.5"></i>{{ (post.content_markdown or post.content_html) | reading_time }}</span>
             {% set stats = (post.content_markdown or post.content_html) | reading_stats(post) %}
             <span class="inline-flex items-center"><i class="fas fa-file-alt mr-1.5"></i>{{ stats.word_count or 0 }}字</span>

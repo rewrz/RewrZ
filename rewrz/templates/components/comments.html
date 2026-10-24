@@ -1,88 +1,151 @@
 {% if post.allow_comments %}
 {% set total_comments = post.comments | length %}
 {% set root_comments = post.comments | selectattr('parent_id', 'none') | list %}
+{% set hide_block_count = comment_hide_block_count if comment_hide_block_count is defined else 0 %}
+{% set comment_unlocked_flag = comment_unlocked if comment_unlocked is defined else false %}
 
-<div class="comments-section mt-8" data-post-id="{{ post.id }}">
-    {% set show_comments_panel_header = show_comments_panel_header if show_comments_panel_header is defined else true %}
-    {% if show_comments_panel_header %}
-    <div class="mb-5 rounded-2xl border border-gray-200 bg-gradient-to-r from-slate-50 to-blue-50 p-4 shadow-sm dark:border-gray-700 dark:from-gray-900 dark:to-slate-900">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-                <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300">
-                    <i class="far fa-comments"></i>
-                </span>
-                <div>
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">评论区</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">欢迎理性交流，系统已启用反垃圾与审核机制。</p>
-                </div>
-            </div>
-            <span id="comment-count-badge" data-count="{{ total_comments }}" class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700 shadow-sm dark:bg-gray-800 dark:text-indigo-300">
-                {{ total_comments | compact_number_cn }} 条评论
+<section class="comments-section comments-party mt-8" data-comments-party data-post-id="{{ post.id }}">
+    <header class="comments-party__header">
+        <div class="comments-party__heading">
+            <span class="comments-party__mascot" aria-hidden="true">
+                <svg viewBox="0 0 64 64" fill="none">
+                    <path d="M10 30C10 18.4 19.4 9 31 9h6c11.6 0 21 9.4 21 21s-9.4 21-21 21H25l-11 8 2-12.4A20.9 20.9 0 0 1 10 30Z" fill="currentColor" opacity="0.16"/>
+                    <path d="M19 27.5c0-1.4 1.1-2.5 2.5-2.5S24 26.1 24 27.5 22.9 30 21.5 30 19 28.9 19 27.5Zm11 0c0-1.4 1.1-2.5 2.5-2.5S35 26.1 35 27.5 33.9 30 32.5 30 30 28.9 30 27.5Zm11 0c0-1.4 1.1-2.5 2.5-2.5S46 26.1 46 27.5 44.9 30 43.5 30 41 28.9 41 27.5Z" fill="currentColor"/>
+                    <path d="M23 38c4.2 4.6 13.8 4.6 18 0" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M52 6.5 54 12l5.5 2L54 16l-2 5.5L50 16l-5.5-2L50 12l2-5.5Z" fill="currentColor" opacity="0.8"/>
+                </svg>
             </span>
+            <div>
+                <p class="comments-party__eyebrow">COMMENTS PARTY</p>
+                <h3 class="comments-party__title">评论区茶话会 <span aria-hidden="true">✨</span></h3>
+                <p class="comments-party__subtitle">留下一句足迹吧，下一层楼就是你的专属座位。</p>
+            </div>
         </div>
-    </div>
+        <span id="comment-count-badge" data-count="{{ total_comments }}" class="comments-party__count">
+            <i class="far fa-comment-dots" aria-hidden="true"></i>
+            <span data-comment-count-text>{{ total_comments | compact_number_cn }} 条</span>
+        </span>
+    </header>
+
+    {% if hide_block_count > 0 and not comment_unlocked_flag %}
+    <a href="#comment-form-area" class="comments-party__treasure">
+        <span class="comments-party__treasure-icon" aria-hidden="true">🎁</span>
+        <span class="comments-party__treasure-copy">
+            <strong>本文藏着 {{ hide_block_count }} 处评论彩蛋</strong>
+            <span>发一条评论就能解锁隐藏内容，不试试吗？</span>
+        </span>
+        <span class="comments-party__treasure-action">去解锁 <i class="fas fa-arrow-down" aria-hidden="true"></i></span>
+    </a>
     {% endif %}
 
-    <div id="comment-feedback" class="mb-4" aria-live="polite"></div>
+    <div id="comment-feedback" class="comments-party__feedback" aria-live="polite"></div>
 
-    <div id="comments-list" class="space-y-4">
+    <div id="comments-list" class="comments-party__list space-y-4">
         {% if root_comments %}
             {% for comment in root_comments %}
                 {% include "components/comment_item.html" %}
             {% endfor %}
         {% else %}
-        <div id="comment-empty-state" class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-600 dark:border-gray-600 dark:bg-gray-900/40 dark:text-gray-300">
-            还没有评论，欢迎发表第一条看法。
+        <div id="comment-empty-state" class="comments-party__empty">
+            <div class="comments-party__empty-illustration" aria-hidden="true">
+                <svg viewBox="0 0 120 96" fill="none">
+                    <path d="M18 40c0-13.3 10.7-24 24-24h20c13.3 0 24 10.7 24 24S75.3 64 62 64H43L27 76l3-14a23.9 23.9 0 0 1-12-22Z" fill="currentColor" opacity="0.14"/>
+                    <path d="M85 24h12c8.8 0 16 7.2 16 16s-7.2 16-16 16h-4l-8 7 1.4-9.6A15.9 15.9 0 0 1 85 24Z" fill="currentColor" opacity="0.22"/>
+                    <circle cx="36" cy="39" r="2.6" fill="currentColor"/>
+                    <circle cx="48" cy="39" r="2.6" fill="currentColor"/>
+                    <circle cx="60" cy="39" r="2.6" fill="currentColor"/>
+                    <path d="M38 49c5.5 5 14.5 5 20 0" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                    <path d="M100 8l1.6 4.4L106 14l-4.4 1.6L100 20l-1.6-4.4L94 14l4.4-1.6L100 8Z" fill="currentColor" opacity="0.7"/>
+                    <path d="M14 18l1.2 3.3 3.3 1.2-3.3 1.2L14 27l-1.2-3.3L9.5 22.5l3.3-1.2L14 18Z" fill="currentColor" opacity="0.55"/>
+                </svg>
+            </div>
+            <p class="comments-party__empty-title">这里还很安静，来开第一局茶话会吧。</p>
+            <p class="comments-party__empty-copy">不用写得完美，一句「已阅」也能让作者开心很久。</p>
+            <div class="comments-party__prompts">
+                <button type="button" data-comment-prompt="这篇让我想到：">这篇让我想到…</button>
+                <button type="button" data-comment-prompt="有个小问题想问：">有个小问题…</button>
+                <button type="button" data-comment-prompt="已阅，打卡！">已阅，打卡！</button>
+                <button type="button" data-comment-prompt="蹲一个后续更新！">蹲后续更新！</button>
+            </div>
         </div>
         {% endif %}
     </div>
 
-    <div id="comment-form-area" class="mt-8 rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/70 md:p-6">
-        <div class="mb-4 flex items-center justify-between gap-3">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">发表评论</h3>
-            <span class="text-xs text-gray-500 dark:text-gray-400">支持 Markdown 与基础链接</span>
+    <div id="comment-form-area" class="comments-party__composer mt-8">
+        <div class="comments-party__composer-head">
+            <div>
+                <h3><i class="fas fa-mug-hot" aria-hidden="true"></i> 轮到你啦</h3>
+                <p>昵称和邮箱会记住，下次直接开聊。</p>
+            </div>
+            <span class="comments-party__composer-tip">Ctrl / ⌘ + Enter 发送</span>
         </div>
-        <div hx-get="/api/v1/comments/form/{{ post.id }}" hx-trigger="load"></div>
+        <div hx-get="/api/v1/comments/form/{{ post.id }}" hx-trigger="load" hx-swap="innerHTML" class="comments-party__form-slot"></div>
     </div>
-</div>
+</section>
+
+<button type="button" class="comments-party__float" data-comment-float hidden>
+    <i class="far fa-comment-dots" aria-hidden="true"></i>
+    <span>写评论</span>
+</button>
 
 <script>
 (function initCommentUi() {
     if (window.rewrzCommentUI) return;
 
+    const IDENTITY_KEY = 'rewrz_comment_identity_v1';
     const FEEDBACK_LEVEL_CLASS = {
-        success: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300',
-        info: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800/60 dark:bg-sky-900/20 dark:text-sky-300',
-        warning: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300',
-        error: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/60 dark:bg-rose-900/20 dark:text-rose-300',
+        success: 'comments-party__feedback--success',
+        info: 'comments-party__feedback--info',
+        warning: 'comments-party__feedback--warning',
+        error: 'comments-party__feedback--error',
+    };
+
+    const readIdentity = () => {
+        try {
+            const raw = window.localStorage.getItem(IDENTITY_KEY);
+            const parsed = raw ? JSON.parse(raw) : null;
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (_) {
+            return {};
+        }
+    };
+
+    const saveIdentity = (identity) => {
+        try {
+            window.localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
+        } catch (_) {
+            // 隐私模式下写入失败时静默忽略
+        }
     };
 
     const showFeedback = (message, level = 'info') => {
         const box = document.getElementById('comment-feedback');
         if (!box) return;
         const classes = FEEDBACK_LEVEL_CLASS[level] || FEEDBACK_LEVEL_CLASS.info;
-        box.innerHTML = `<div class="rounded-xl border px-3 py-2 text-sm ${classes}">${message}</div>`;
+        box.innerHTML = `<div class="comments-party__feedback-item ${classes}"><span>${message}</span></div>`;
 
         if (window.multiFormatInteractions && typeof window.multiFormatInteractions.showToast === 'function') {
-            window.multiFormatInteractions.showToast(message, level === 'error' ? 'error' : (level === 'success' ? 'success' : 'info'), 1600);
+            window.multiFormatInteractions.showToast(message, level === 'error' ? 'error' : (level === 'success' ? 'success' : 'info'), 1800);
         }
+    };
+
+    const formatCompactCn = (value) => {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return '0';
+        const absNum = Math.abs(num);
+        if (absNum < 10000) return `${Math.floor(absNum)}`;
+        if (absNum < 100000000) return `${(absNum / 10000).toFixed(1).replace(/\.0$/, '')}万`;
+        return `${(absNum / 100000000).toFixed(1).replace(/\.0$/, '')}亿`;
     };
 
     const updateCount = (delta = 0) => {
         const badge = document.getElementById('comment-count-badge');
         if (!badge) return;
-        const formatCompactCn = (value) => {
-            const num = Number(value);
-            if (!Number.isFinite(num)) return '0';
-            const absNum = Math.abs(num);
-            if (absNum < 10000) return `${Math.floor(absNum)}`;
-            if (absNum < 100000000) return `${(absNum / 10000).toFixed(1).replace(/\.0$/, '')}万`;
-            return `${(absNum / 100000000).toFixed(1).replace(/\.0$/, '')}亿`;
-        };
         const current = parseInt(badge.dataset.count || '0', 10) || 0;
         const next = Math.max(0, current + delta);
         badge.dataset.count = String(next);
-        badge.textContent = `${formatCompactCn(next)} 条评论`;
+        const textNode = badge.querySelector('[data-comment-count-text]') || badge;
+        textNode.textContent = `${formatCompactCn(next)} 条`;
     };
 
     const extractErrorMessage = (xhr) => {
@@ -103,8 +166,278 @@
         const submitBtn = form.querySelector('button[type="submit"]');
         if (!submitBtn) return;
         submitBtn.disabled = !!pending;
-        submitBtn.classList.toggle('opacity-70', !!pending);
-        submitBtn.classList.toggle('cursor-not-allowed', !!pending);
+        submitBtn.classList.toggle('is-pending', !!pending);
+        const spinner = submitBtn.querySelector('[data-role="submit-spinner"]');
+        const icon = submitBtn.querySelector('[data-role="submit-icon"]');
+        if (spinner) spinner.classList.toggle('hidden', !pending);
+        if (icon) icon.classList.toggle('hidden', !!pending);
+    };
+
+    const updateAvatarPreviews = (form, email) => {
+        const nodes = form.querySelectorAll('[data-avatar-preview]');
+        if (!nodes.length) return;
+        const fallback = '/static/images/default-avatar.png';
+        const cleanEmail = (email || '').trim();
+        if (!cleanEmail) {
+            nodes.forEach((node) => { node.src = fallback; });
+            return;
+        }
+        fetch(`/api/v1/avatar/preview?email=${encodeURIComponent(cleanEmail)}&size=48`)
+            .then((response) => {
+                if (!response.ok) throw new Error('avatar preview failed');
+                return response.json();
+            })
+            .then((data) => {
+                nodes.forEach((node) => { node.src = data.gravatar_url || fallback; });
+            })
+            .catch(() => {
+                nodes.forEach((node) => { node.src = fallback; });
+            });
+    };
+
+    const refreshIdentitySummary = (form) => {
+        const panel = form.querySelector('[data-identity-panel]');
+        const summary = form.querySelector('[data-identity-summary]');
+        if (!panel || !summary) return;
+
+        const nameInput = form.querySelector('input[name="author_name"]');
+        const emailInput = form.querySelector('input[name="author_email"]');
+        const hasIdentity = !!(nameInput && nameInput.value.trim() && emailInput && emailInput.value.trim());
+
+        panel.hidden = hasIdentity;
+        summary.hidden = !hasIdentity;
+        if (!hasIdentity) {
+            panel.hidden = false;
+            summary.hidden = true;
+            return;
+        }
+
+        const nameNode = summary.querySelector('[data-identity-name]');
+        if (nameNode) nameNode.textContent = nameInput.value.trim();
+        updateAvatarPreviews(form, emailInput.value);
+    };
+
+    const applyIdentity = (form) => {
+        const nameInput = form.querySelector('input[name="author_name"]');
+        const emailInput = form.querySelector('input[name="author_email"]');
+        const urlInput = form.querySelector('input[name="author_url"]');
+        if (!nameInput || !emailInput) return;
+
+        const identity = readIdentity();
+        if (!nameInput.value && identity.name) nameInput.value = identity.name;
+        if (!emailInput.value && identity.email) emailInput.value = identity.email;
+        if (urlInput && !urlInput.value && identity.url) urlInput.value = identity.url;
+
+        refreshIdentitySummary(form);
+    };
+
+    const persistIdentity = (form) => {
+        const nameInput = form.querySelector('input[name="author_name"]');
+        const emailInput = form.querySelector('input[name="author_email"]');
+        if (!nameInput || !emailInput) return;
+
+        const name = (nameInput.value || '').trim();
+        const email = (emailInput.value || '').trim();
+        if (!name || !email) return;
+
+        const urlInput = form.querySelector('input[name="author_url"]');
+        saveIdentity({
+            name: name.slice(0, 80),
+            email: email,
+            url: urlInput ? (urlInput.value || '').trim() : '',
+        });
+        refreshIdentitySummary(form);
+    };
+
+    const revealCaptcha = (form) => {
+        const block = form.querySelector('[data-captcha-block]');
+        if (!block) return;
+        block.hidden = false;
+
+        const image = block.querySelector('[data-captcha-image]');
+        if (image && image.dataset.src && !image.getAttribute('src')) {
+            image.src = `${image.dataset.src}?t=${Date.now()}`;
+        }
+        const input = block.querySelector('input[name="captcha"]');
+        if (input) {
+            input.focus({ preventScroll: true });
+            block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    };
+
+    const resetCaptcha = (form) => {
+        const block = form.querySelector('[data-captcha-block]');
+        if (!block) return;
+        block.hidden = true;
+        const input = block.querySelector('input[name="captcha"]');
+        if (input) input.value = '';
+        const image = block.querySelector('[data-captcha-image]');
+        if (image) image.removeAttribute('src');
+    };
+
+    const updateWordCount = (form) => {
+        const content = form.querySelector('textarea[name="content"]');
+        const countNode = form.querySelector('[data-comment-count]');
+        if (!content || !countNode) return;
+        const count = (content.value || '').trim().length;
+        countNode.textContent = `${count} 字`;
+        countNode.classList.toggle('is-warning', count > 2500);
+    };
+
+    const insertAtCursor = (textarea, before, after = '', placeholder = '') => {
+        if (!textarea) return;
+        const start = textarea.selectionStart || 0;
+        const end = textarea.selectionEnd || 0;
+        const selected = textarea.value.slice(start, end) || placeholder;
+        const nextValue = `${textarea.value.slice(0, start)}${before}${selected}${after}${textarea.value.slice(end)}`;
+        textarea.value = nextValue;
+        const cursor = start + before.length + selected.length + after.length;
+        textarea.focus();
+        textarea.setSelectionRange(cursor, cursor);
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    const insertMarkdown = (textarea, type) => {
+        const templates = {
+            bold: ['**', '**', '加粗文字'],
+            italic: ['*', '*', '斜体文字'],
+            code: ['`', '`', '代码'],
+            quote: ['> ', '', '引用内容'],
+            link: ['[', '](https://example.com)', '链接文字'],
+        };
+        const config = templates[type];
+        if (!config) return;
+        insertAtCursor(textarea, config[0], config[1], config[2]);
+    };
+
+    const resetComposer = (form) => {
+        const content = form.querySelector('textarea[name="content"]');
+        if (content) content.value = '';
+        updateWordCount(form);
+        resetCaptcha(form);
+        refreshIdentitySummary(form);
+    };
+
+    const enhanceForm = (form) => {
+        if (!form || form.dataset.commentEnhanced === '1') return;
+        form.dataset.commentEnhanced = '1';
+
+        applyIdentity(form);
+
+        const content = form.querySelector('textarea[name="content"]');
+        if (content) {
+            content.addEventListener('input', () => updateWordCount(form));
+        }
+        updateWordCount(form);
+
+        form.querySelectorAll('[data-md]').forEach((btn) => {
+            btn.addEventListener('click', () => insertMarkdown(content, btn.dataset.md));
+        });
+
+        form.querySelectorAll('[data-kaomoji]').forEach((btn) => {
+            btn.addEventListener('click', () => insertAtCursor(content, btn.dataset.kaomoji || ''));
+        });
+
+        const editBtn = form.querySelector('[data-identity-edit]');
+        if (editBtn) {
+            editBtn.addEventListener('click', () => {
+                const panel = form.querySelector('[data-identity-panel]');
+                const summary = form.querySelector('[data-identity-summary]');
+                if (panel) panel.hidden = false;
+                if (summary) summary.hidden = true;
+                const nameInput = form.querySelector('input[name="author_name"]');
+                if (nameInput) nameInput.focus({ preventScroll: true });
+            });
+        }
+
+        const emailInput = form.querySelector('input[name="author_email"]');
+        if (emailInput) {
+            let avatarTimer = null;
+            emailInput.addEventListener('input', () => {
+                clearTimeout(avatarTimer);
+                avatarTimer = setTimeout(() => updateAvatarPreviews(form, emailInput.value), 320);
+            });
+        }
+
+        form.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+            }
+        });
+    };
+
+    const enhanceForms = (root = document) => {
+        const scope = root && root.querySelectorAll ? root : document;
+        scope.querySelectorAll('.rewrz-comment-form').forEach(enhanceForm);
+        if (root && root.classList && root.classList.contains('rewrz-comment-form')) {
+            enhanceForm(root);
+        }
+    };
+
+    const formatRelativeTime = (isoText) => {
+        const timestamp = Date.parse(isoText || '');
+        if (!Number.isFinite(timestamp)) return null;
+        const diff = Date.now() - timestamp;
+        if (diff < 0) return '刚刚';
+        const minutes = Math.floor(diff / 60000);
+        if (minutes < 1) return '刚刚';
+        if (minutes < 60) return `${minutes} 分钟前`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours} 小时前`;
+        const days = Math.floor(hours / 24);
+        if (days < 7) return `${days} 天前`;
+        return null;
+    };
+
+    const initRelativeTimes = (root = document) => {
+        const scope = root && root.querySelectorAll ? root : document;
+        scope.querySelectorAll('time[data-relative-time]').forEach((node) => {
+            if (node.dataset.relativeDone === '1') return;
+            node.dataset.relativeDone = '1';
+            const relative = formatRelativeTime(node.getAttribute('datetime'));
+            if (relative) node.textContent = relative;
+        });
+    };
+
+    const copyText = async (text) => {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            return true;
+        }
+        const helper = document.createElement('textarea');
+        helper.value = text;
+        helper.setAttribute('readonly', 'readonly');
+        helper.style.position = 'fixed';
+        helper.style.opacity = '0';
+        document.body.appendChild(helper);
+        helper.select();
+        const ok = document.execCommand('copy');
+        helper.remove();
+        return ok;
+    };
+
+    const fillPrompt = (promptText) => {
+        const composer = document.getElementById('comment-form-area');
+        if (composer) composer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        const tryFocus = (attempt = 0) => {
+            const textarea = document.querySelector('#comment-form-area textarea[name="content"]');
+            if (!textarea && attempt < 12) {
+                window.setTimeout(() => tryFocus(attempt + 1), 120);
+                return;
+            }
+            if (!textarea) return;
+            textarea.value = `${promptText}${textarea.value || ''}`;
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            textarea.focus({ preventScroll: true });
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        };
+        tryFocus();
     };
 
     window.rewrzCommentUI = {
@@ -117,17 +450,28 @@
             const xhr = event && event.detail ? event.detail.xhr : null;
             const responseText = xhr && typeof xhr.responseText === 'string' ? xhr.responseText : '';
             const success = !!xhr && xhr.status >= 200 && xhr.status < 300;
-            if (!success) return;
+
+            if (!success) {
+                if (xhr && typeof xhr.getResponseHeader === 'function' && xhr.getResponseHeader('X-RewrZ-Captcha-Required') === '1') {
+                    revealCaptcha(form);
+                }
+                return;
+            }
+
+            persistIdentity(form);
 
             if (responseText.includes('id="comment-')) {
                 const empty = document.getElementById('comment-empty-state');
                 if (empty) empty.remove();
                 updateCount(1);
-                showFeedback('评论发布成功。', 'success');
+                showFeedback('评论发布成功，感谢你的留言 ✨', 'success');
+                resetComposer(form);
             } else if (responseText.includes('等待审核')) {
-                showFeedback('评论已提交，待审核后展示。', 'warning');
+                showFeedback('评论已提交，审核通过后就会出现在这里。', 'warning');
+                resetComposer(form);
             } else if (responseText.includes('评论提交成功')) {
                 showFeedback('评论已提交成功。', 'success');
+                resetComposer(form);
             } else {
                 showFeedback('操作已完成。', 'info');
             }
@@ -135,9 +479,87 @@
         onError(event, form) {
             toggleSubmitState(form, false);
             const xhr = event && event.detail ? event.detail.xhr : null;
+            if (xhr && typeof xhr.getResponseHeader === 'function' && xhr.getResponseHeader('X-RewrZ-Captcha-Required') === '1') {
+                revealCaptcha(form);
+            }
             showFeedback(extractErrorMessage(xhr), 'error');
         },
+        enhanceForms,
     };
+
+    document.body.addEventListener('htmx:afterSwap', (event) => {
+        const rawTarget = (event && event.detail && event.detail.target) ? event.detail.target : null;
+        const scope = rawTarget && rawTarget.isConnected ? rawTarget : document;
+        enhanceForms(scope);
+        initRelativeTimes(scope);
+    });
+
+    document.body.addEventListener('htmx:afterSettle', (event) => {
+        const target = event && event.detail ? event.detail.target : null;
+        if (!target || !target.closest || !target.closest('[data-comments-party]')) return;
+        if (!(target.id === 'comments-list' || /-children$/.test(target.id || ''))) return;
+
+        const node = target.lastElementChild;
+        if (!node || !node.classList || !node.classList.contains('comment-item')) return;
+
+        node.classList.add('comment-item--new');
+        window.setTimeout(() => node.classList.remove('comment-item--new'), 2400);
+        initRelativeTimes(node);
+
+        const rect = node.getBoundingClientRect();
+        if (rect.top < 0 || rect.bottom > window.innerHeight) {
+            node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
+
+    document.body.addEventListener('click', (event) => {
+        const promptBtn = event.target.closest && event.target.closest('[data-comment-prompt]');
+        if (promptBtn) {
+            event.preventDefault();
+            fillPrompt(promptBtn.dataset.commentPrompt || '');
+            return;
+        }
+
+        const copyBtn = event.target.closest && event.target.closest('[data-copy-comment-link]');
+        if (!copyBtn) return;
+        event.preventDefault();
+        const commentId = copyBtn.dataset.copyCommentLink;
+        if (!commentId) return;
+        const url = `${window.location.origin}${window.location.pathname}#comment-${commentId}`;
+        copyText(url)
+            .then((ok) => {
+                showFeedback(ok ? '链接已复制，可以分享这一楼啦。' : '复制失败，请手动复制地址栏链接。', ok ? 'success' : 'warning');
+            })
+            .catch(() => showFeedback('复制失败，请手动复制地址栏链接。', 'warning'));
+    });
+
+    const floatBtn = document.querySelector('[data-comment-float]');
+    const composer = document.getElementById('comment-form-area');
+    if (floatBtn && composer && 'IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+            const entry = entries[0];
+            if (!entry) return;
+            const scrolledPast = entry.boundingClientRect.top < 0;
+            floatBtn.hidden = entry.isIntersecting || !scrolledPast;
+        }, { threshold: 0.12 });
+        observer.observe(composer);
+
+        floatBtn.addEventListener('click', () => {
+            composer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const focusInput = (attempt = 0) => {
+                const textarea = composer.querySelector('textarea[name="content"]');
+                if (!textarea && attempt < 12) {
+                    window.setTimeout(() => focusInput(attempt + 1), 120);
+                    return;
+                }
+                if (textarea) textarea.focus({ preventScroll: true });
+            };
+            focusInput();
+        });
+    }
+
+    enhanceForms(document);
+    initRelativeTimes(document);
 })();
 </script>
 {% endif %}

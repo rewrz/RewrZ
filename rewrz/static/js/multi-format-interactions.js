@@ -240,6 +240,7 @@ class MultiFormatInteractions {
                         window.htmx.process(panel);
                     }
                     this.initReactionWidgets(panel);
+                    this.initInlineCommentForms(panel);
                 } catch (error) {
                     panel.innerHTML = `
                         <div class="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
@@ -674,8 +675,6 @@ class MultiFormatInteractions {
             likeCountNode.dataset.count = String(likeCount);
         }
         if (likeBtn) {
-            likeBtn.classList.toggle('text-rose-600', viewerLiked);
-            likeBtn.classList.toggle('dark:text-rose-300', viewerLiked);
             likeBtn.dataset.active = viewerLiked ? '1' : '0';
         }
         if (likeIcon) {
@@ -707,10 +706,6 @@ class MultiFormatInteractions {
         widget.querySelectorAll('[data-reaction-option]').forEach((btn) => {
             const selected = btn.dataset.reactionOption === viewerReaction;
             btn.dataset.active = selected ? '1' : '0';
-            btn.classList.toggle('bg-indigo-50', selected);
-            btn.classList.toggle('text-indigo-700', selected);
-            btn.classList.toggle('dark:bg-indigo-900/40', selected);
-            btn.classList.toggle('dark:text-indigo-300', selected);
         });
 
         const summaryNode = widget.querySelector('[data-reaction-summary]');
@@ -726,6 +721,19 @@ class MultiFormatInteractions {
         if (!force && this.reactionSummaryCache.has(cacheKey)) {
             this.renderReactionWidget(widget, this.reactionSummaryCache.get(cacheKey));
             return;
+        }
+        // 服务端已预渲染摘要时直接使用，避免评论区首屏逐条请求
+        if (!force && widget.dataset.summary) {
+            try {
+                const preset = JSON.parse(widget.dataset.summary);
+                if (preset) {
+                    this.reactionSummaryCache.set(cacheKey, preset);
+                    this.renderReactionWidget(widget, preset);
+                    return;
+                }
+            } catch (_) {
+                // 摘要解析失败时回退到接口请求
+            }
         }
         const url = `/api/v1/reactions/summary?target_type=${encodeURIComponent(target.targetType)}&target_id=${target.targetId}`;
         try {
@@ -814,6 +822,149 @@ class MultiFormatInteractions {
         });
     }
 
+    readCommentIdentity() {
+        try {
+            const raw = window.localStorage.getItem('rewrz_comment_identity_v1');
+            const parsed = raw ? JSON.parse(raw) : null;
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (_) {
+            return {};
+        }
+    }
+
+    saveCommentIdentity(identity) {
+        try {
+            window.localStorage.setItem('rewrz_comment_identity_v1', JSON.stringify(identity));
+        } catch (_) {
+            // 隐私模式下写入失败时静默忽略
+        }
+    }
+
+    insertInlineCommentText(textarea, before, after = '', placeholder = '') {
+        if (!textarea) return;
+        const start = textarea.selectionStart || 0;
+        const end = textarea.selectionEnd || 0;
+        const selected = textarea.value.slice(start, end) || placeholder;
+        textarea.value = `${textarea.value.slice(0, start)}${before}${selected}${after}${textarea.value.slice(end)}`;
+        const cursor = start + before.length + selected.length + after.length;
+        textarea.focus();
+        textarea.setSelectionRange(cursor, cursor);
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    initInlineCommentForms(root = document) {
+        const scope = root && root.querySelectorAll ? root : document;
+        scope.querySelectorAll('[data-inline-comment-form]').forEach((form) => {
+            if (form.dataset.inlineEnhanced === '1') return;
+            form.dataset.inlineEnhanced = '1';
+
+            const identity = this.readCommentIdentity();
+            const nameInput = form.querySelector('input[name="author_name"]');
+            const emailInput = form.querySelector('input[name="author_email"]');
+            const urlInput = form.querySelector('input[name="author_url"]');
+            if (nameInput && !nameInput.value && identity.name) nameInput.value = identity.name;
+            if (emailInput && !emailInput.value && identity.email) emailInput.value = identity.email;
+            if (urlInput && !urlInput.value && identity.url) urlInput.value = identity.url;
+
+            const textarea = form.querySelector('textarea[name="content"]');
+            const countNode = form.querySelector('[data-comment-count]');
+            const updateCount = () => {
+                if (!countNode || !textarea) return;
+                countNode.textContent = `${(textarea.value || '').trim().length} 字`;
+            };
+            if (textarea) {
+                textarea.addEventListener('input', updateCount);
+                updateCount();
+            }
+
+            const markdownTemplates = {
+                bold: ['**', '**', '加粗文字'],
+                italic: ['*', '*', '斜体文字'],
+                code: ['`', '`', '代码'],
+                quote: ['> ', '', '引用内容'],
+                link: ['[', '](https://example.com)', '链接文字'],
+            };
+            form.querySelectorAll('[data-md]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const config = markdownTemplates[btn.dataset.md];
+                    if (!config) return;
+                    this.insertInlineCommentText(textarea, config[0], config[1], config[2]);
+                });
+            });
+
+            form.querySelectorAll('[data-kaomoji]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    this.insertInlineCommentText(textarea, btn.dataset.kaomoji || '');
+                });
+            });
+
+            const captchaImage = form.querySelector('[data-captcha-image]');
+            if (captchaImage) {
+                captchaImage.addEventListener('click', () => {
+                    if (captchaImage.dataset.src) {
+                        captchaImage.src = `${captchaImage.dataset.src}?t=${Date.now()}`;
+                    }
+                });
+            }
+
+            form.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                    event.preventDefault();
+                    if (typeof form.requestSubmit === 'function') {
+                        form.requestSubmit();
+                    }
+                }
+            });
+        });
+    }
+
+    persistInlineCommentIdentity(form) {
+        if (!form) return;
+        const nameInput = form.querySelector('input[name="author_name"]');
+        const emailInput = form.querySelector('input[name="author_email"]');
+        if (!nameInput || !emailInput) return;
+        const name = (nameInput.value || '').trim();
+        const email = (emailInput.value || '').trim();
+        if (!name || !email) return;
+        const urlInput = form.querySelector('input[name="author_url"]');
+        this.saveCommentIdentity({
+            name: name.slice(0, 80),
+            email: email,
+            url: urlInput ? (urlInput.value || '').trim() : '',
+        });
+    }
+
+    resetInlineCommentForm(form) {
+        if (!form) return;
+        const content = form.querySelector('textarea[name="content"]');
+        if (content) content.value = '';
+        const countNode = form.querySelector('[data-comment-count]');
+        if (countNode) countNode.textContent = '0 字';
+
+        const captchaBlock = form.querySelector('[data-captcha-block]');
+        if (captchaBlock) {
+            captchaBlock.hidden = true;
+            const input = captchaBlock.querySelector('input[name="captcha"]');
+            if (input) input.value = '';
+            const image = captchaBlock.querySelector('[data-captcha-image]');
+            if (image) image.removeAttribute('src');
+        }
+    }
+
+    revealInlineCommentCaptcha(form) {
+        if (!form) return;
+        const block = form.querySelector('[data-captcha-block]');
+        if (!block) return;
+        block.hidden = false;
+        const image = block.querySelector('[data-captcha-image]');
+        if (image && image.dataset.src && !image.getAttribute('src')) {
+            image.src = `${image.dataset.src}?t=${Date.now()}`;
+        }
+        const input = block.querySelector('input[name="captcha"]');
+        if (input) input.focus({ preventScroll: true });
+        block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
     updateInlineCommentCount(postId, delta = 0) {
         if (!postId) return;
         const nodes = document.querySelectorAll(
@@ -834,13 +985,13 @@ class MultiFormatInteractions {
         if (!feedback) return;
 
         const clsMap = {
-            success: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300',
-            warning: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300',
-            error: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/60 dark:bg-rose-900/20 dark:text-rose-300',
-            info: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800/60 dark:bg-sky-900/20 dark:text-sky-300',
+            success: 'comments-party__feedback--success',
+            warning: 'comments-party__feedback--warning',
+            error: 'comments-party__feedback--error',
+            info: 'comments-party__feedback--info',
         };
         const cls = clsMap[level] || clsMap.info;
-        feedback.innerHTML = `<div class="rounded-xl border px-3 py-2 text-xs ${cls}">${message}</div>`;
+        feedback.innerHTML = `<div class="comments-party__feedback-item ${cls}">${message}</div>`;
     }
 
     handleInlineCommentBeforeRequest(form) {
@@ -848,7 +999,7 @@ class MultiFormatInteractions {
         const btn = form.querySelector('button[type="submit"]');
         if (btn) {
             btn.disabled = true;
-            btn.classList.add('opacity-70', 'cursor-not-allowed');
+            btn.classList.add('is-pending');
         }
     }
 
@@ -856,7 +1007,7 @@ class MultiFormatInteractions {
         const btn = form ? form.querySelector('button[type="submit"]') : null;
         if (btn) {
             btn.disabled = false;
-            btn.classList.remove('opacity-70', 'cursor-not-allowed');
+            btn.classList.remove('is-pending');
         }
         if (!event || !event.detail || !event.detail.xhr || !form) return;
 
@@ -869,16 +1020,19 @@ class MultiFormatInteractions {
             this.updateInlineCommentCount(postId, 1);
             const empty = document.getElementById(`micro-comments-empty-${postId}`);
             if (empty) empty.remove();
-            this.showInlineCommentFeedback(form, '评论发布成功。', 'success');
-            form.reset();
+            this.showInlineCommentFeedback(form, '评论发布成功，感谢你的留言 ✨', 'success');
+            this.persistInlineCommentIdentity(form);
+            this.resetInlineCommentForm(form);
             const panel = document.getElementById(`micro-comments-panel-${postId}`);
             if (panel) this.initReactionWidgets(panel);
         } else if (text.includes('等待审核')) {
-            this.showInlineCommentFeedback(form, '评论已提交，待审核后展示。', 'warning');
-            form.reset();
+            this.showInlineCommentFeedback(form, '评论已提交，审核通过后就会出现在这里。', 'warning');
+            this.persistInlineCommentIdentity(form);
+            this.resetInlineCommentForm(form);
         } else if (text.includes('评论提交成功')) {
             this.showInlineCommentFeedback(form, '评论已提交成功。', 'success');
-            form.reset();
+            this.persistInlineCommentIdentity(form);
+            this.resetInlineCommentForm(form);
         } else {
             this.showInlineCommentFeedback(form, '操作已完成。', 'info');
         }
@@ -888,11 +1042,14 @@ class MultiFormatInteractions {
         const btn = form ? form.querySelector('button[type="submit"]') : null;
         if (btn) {
             btn.disabled = false;
-            btn.classList.remove('opacity-70', 'cursor-not-allowed');
+            btn.classList.remove('is-pending');
+        }
+        const xhr = event && event.detail ? event.detail.xhr : null;
+        if (xhr && typeof xhr.getResponseHeader === 'function' && xhr.getResponseHeader('X-RewrZ-Captcha-Required') === '1') {
+            this.revealInlineCommentCaptcha(form);
         }
         let message = '评论提交失败，请稍后重试。';
         try {
-            const xhr = event && event.detail ? event.detail.xhr : null;
             if (xhr && xhr.responseText) {
                 const payload = JSON.parse(xhr.responseText);
                 if (payload && payload.detail) message = String(payload.detail);

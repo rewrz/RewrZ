@@ -223,3 +223,24 @@ def send_new_comment_notification(
         f"Review link: {review_url}\n"
     )
     return send_email(to_email, subject, body, db=db)
+
+
+def send_comment_reply_notification(
+    to_email: str,
+    *,
+    post_title: str,
+    replier_name: str,
+    reply_preview: str,
+    comment_url: str,
+    db: Session | None = None,
+) -> bool:
+    """通知被回复的访客：有人在评论区回复了你。"""
+    subject = "[RewrZ] 你收到了一条新回复"
+    body = (
+        "有人在评论区回复了你。\n\n"
+        f"内容：{post_title}\n"
+        f"回复者：{replier_name}\n"
+        f"回复内容：{reply_preview}\n\n"
+        f"查看链接：{comment_url}\n"
+    )
+    return send_email(to_email, subject, body, db=db)
