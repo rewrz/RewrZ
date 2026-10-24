@@ -23,12 +23,16 @@ chmod +x update.sh
 - `REWRZ_SERVICE`：systemd 服务名，默认 `rewrz.service`
 - `REWRZ_HEALTH_URL`：健康检查入口，默认 `http://127.0.0.1:8000/`
 - `REWRZ_HEALTH_TIMEOUT`：健康检查最长等待秒数，默认 `60`（应用冷启动约 30 秒）
+- `REWRZ_BACKUP_KEEP`：备份保留份数，默认 `10`，设为 `0` 表示不自动清理
 
 生产依赖保持在 `requirements.txt`；`pytest`、`httpx2` 等测试依赖已移入
 `requirements-dev.txt`，本地跑测试时执行 `pip install -r requirements-dev.txt`。
 
 说明：
 - 备份写入 `backups/<时间戳>/`，脚本不会改写 `.env`
+- 备份成功后按 `REWRZ_BACKUP_KEEP` 只保留最近 N 份（默认 10，`0` 表示不清理）；
+  清理只匹配脚本自身创建的 `backups/YYYY-MM-DD-HHMMSS/` 目录，
+  `backups/` 下由 `pg_dump` 等手工生成的文件不会被删除，最新一份始终保留
 - 数据库优先使用 `sqlite3 .backup` 在线备份并执行 `PRAGMA integrity_check`；
   无 `sqlite3` 时会先停服务再复制主库与 WAL/SHM
 - 脚本会检测 `.env` 中重复的配置项并提示，但不会自动修复

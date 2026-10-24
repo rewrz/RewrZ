@@ -5,6 +5,7 @@
 #   ./update.sh                 更新到当前分支最新
 #   ./update.sh v0.9.2          更新到指定标签或提交
 #   ./update.sh --no-backup     跳过更新前自动备份
+#   REWRZ_BACKUP_KEEP=5 ./update.sh  备份只保留最近 5 份（默认 10，0 表示不清理）
 #
 # 维护约定:
 #   本脚本是生产更新手册 docs/operations/UPDATE.md 的可执行版本。
@@ -21,6 +22,7 @@ HEALTH_URL="${REWRZ_HEALTH_URL:-http://127.0.0.1:8000/}"
 HEALTH_TIMEOUT="${REWRZ_HEALTH_TIMEOUT:-60}"
 TARGET_REF=""
 DO_BACKUP=true
+BACKUP_KEEP="${REWRZ_BACKUP_KEEP:-10}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -32,8 +34,45 @@ warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 info() { echo -e "$1"; }
 fail() { echo -e "${RED}[FAIL]${NC} $1"; exit 1; }
 
+# 清理过期备份：只处理脚本自身创建的 backups/<YYYY-MM-DD-HHMMSS>/ 目录，
+# backups/ 下由 pg_dump 等手工生成的文件不会被删除；最新一份始终保留。
+prune_old_backups() {
+    local keep="$1" dir removed=0 i
+    local -a dirs=() sorted=()
+
+    for dir in "$SCRIPT_DIR"/backups/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9]; do
+        [ -d "$dir" ] || continue
+        dirs+=("$dir")
+    done
+
+    if [ "${#dirs[@]}" -le "$keep" ]; then
+        ok "备份保留策略: 现有 ${#dirs[@]} 份，未超过上限 ${keep} 份"
+        return 0
+    fi
+
+    # 目录名即时间戳，按名称升序排序后清理最早的部分
+    while IFS= read -r dir; do
+        sorted+=("$dir")
+    done < <(printf '%s\n' "${dirs[@]}" | sort)
+
+    for ((i = 0; i < ${#dirs[@]} - keep; i++)); do
+        if ! rm -rf -- "${sorted[$i]}"; then
+            warn "清理旧备份失败: $(basename "${sorted[$i]}")，请手工检查 backups/ 权限"
+            return 1
+        fi
+        info "已清理旧备份: $(basename "${sorted[$i]}")"
+        removed=$((removed + 1))
+    done
+
+    ok "备份保留策略: 保留最近 ${keep} 份，本次清理 ${removed} 份"
+}
+
 if ! [[ "$HEALTH_TIMEOUT" =~ ^[0-9]+$ ]] || [ "$HEALTH_TIMEOUT" -le 0 ]; then
     fail "REWRZ_HEALTH_TIMEOUT 必须是正整数秒（当前: $HEALTH_TIMEOUT）"
+fi
+
+if ! [[ "$BACKUP_KEEP" =~ ^[0-9]+$ ]]; then
+    fail "REWRZ_BACKUP_KEEP 必须是非负整数（当前: $BACKUP_KEEP）"
 fi
 
 for arg in "$@"; do
@@ -42,7 +81,7 @@ for arg in "$@"; do
             DO_BACKUP=false
             ;;
         -h|--help)
-            sed -n '2,12p' "$0"
+            sed -n '2,13p' "$0"
             exit 0
             ;;
         *)
@@ -138,6 +177,14 @@ if [ "$DO_BACKUP" = true ]; then
     fi
 
     ok "备份目录: $BACKUP_DIR"
+
+    echo ""
+    if [ "$BACKUP_KEEP" -gt 0 ]; then
+        echo ">>> 清理过期备份（保留最近 ${BACKUP_KEEP} 份）..."
+        prune_old_backups "$BACKUP_KEEP" || warn "旧备份清理未完成，本次更新继续"
+    else
+        info "备份保留策略: REWRZ_BACKUP_KEEP=0，跳过旧备份清理"
+    fi
 else
     warn "已按参数跳过备份（--no-backup）"
 fi
