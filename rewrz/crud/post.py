@@ -669,6 +669,63 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
     return db_post
 
 
+def update_post_metadata(
+    db: Session,
+    post_id: int,
+    changes: dict,
+) -> Optional[Post]:
+    """列表页内联编辑：只更新轻量元数据。
+
+    与整篇保存刻意区分：
+    - 修改标题不改动 slug，避免旧链接失效
+    - 转草稿保留原发布时间，避免误操作丢数据
+    - 不写版本快照、不触发封面缓存重建
+    """
+    db_post = db.execute(select(Post).filter(Post.id == post_id)).scalar_one_or_none()
+    if db_post is None or db_post.post_type != "post":
+        return None
+
+    if "title" in changes:
+        db_post.title = str(changes.get("title") or "").strip()
+
+    if "excerpt" in changes:
+        db_post.excerpt = _normalize_excerpt_value(changes.get("excerpt"))
+
+    if "status" in changes:
+        db_post.status = str(changes.get("status") or "").strip().lower()
+        if db_post.status == "published" and db_post.published_at is None:
+            db_post.published_at = utc_now_naive()
+
+    if "published_at" in changes:
+        db_post.published_at = changes.get("published_at")
+
+    if "category_ids" in changes:
+        db_post.categories.clear()
+        normalized_ids = [
+            int(category_id)
+            for category_id in (changes.get("category_ids") or [])
+            if isinstance(category_id, int) and category_id > 0
+        ]
+        if normalized_ids:
+            categories = db.execute(
+                select(Category).filter(Category.id.in_(normalized_ids))
+            ).scalars().all()
+            db_post.categories.extend(categories)
+
+    if "tag_names" in changes:
+        db_post.tags.clear()
+        db_post.tags.extend(
+            crud_tag.resolve_or_create_tags(db, changes.get("tag_names") or [])
+        )
+
+    db_post.updated_at = utc_now_naive()
+    db.commit()
+    db.refresh(db_post)
+    # 标题、摘要、分类、标签、状态或发布时间变化都会影响前台展示。
+    _invalidate_public_caches()
+    return db_post
+
+
 def get_posts_by_year_month(
     db: Session,
     year: int,

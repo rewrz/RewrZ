@@ -194,6 +194,7 @@ class SiteShellController {
     this.isReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.themeToastTimer = null;
     this.themeSyncInFlight = null;
+    this.themeSyncPending = null;
   }
 
   init() {
@@ -228,7 +229,13 @@ class SiteShellController {
   }
 
   normalizeTheme(theme) {
-    return AVAILABLE_THEMES.includes(theme) ? theme : 'light';
+    const normalized = String(theme || '').trim();
+    if (!normalized) {
+      return 'light';
+    }
+    // 自定义主题不在内置列表里也必须保留原名，否则服务端下发的自定义主题
+    // 会被强制回退成 light，导致换设备同步后主题看起来“丢失”。
+    return normalized;
   }
 
   parseBodyEffects() {
@@ -332,6 +339,11 @@ class SiteShellController {
   }
 
   applyThemeVariables(theme) {
+    // 自定义主题没有本地预设；它的变量由服务端 variables.css 提供，
+    // 不能用 light 预设兜底，否则会把自定义配色覆盖掉。
+    if (!THEME_VARIABLE_PRESETS[theme]) {
+      return;
+    }
     const variables = this.getThemeVariables(theme);
     Object.entries(variables).forEach(([name, value]) => {
       this.root.style.setProperty(name, value);
@@ -392,6 +404,7 @@ class SiteShellController {
   }
 
   applyTheme(theme, options = {}) {
+    const previousTheme = this.theme;
     const normalizedTheme = this.normalizeTheme(theme);
     this.theme = normalizedTheme;
     this.root.dataset.currentTheme = normalizedTheme;
@@ -401,6 +414,12 @@ class SiteShellController {
       this.body.dataset.activeTheme = normalizedTheme;
     }
 
+    // 自定义主题名同样作为 class 使用，切换时必须把上一个主题 class 一并移除，
+    // 否则内置主题与自定义主题的样式会叠加。
+    if (previousTheme && previousTheme !== normalizedTheme) {
+      this.root.classList.remove(previousTheme);
+      this.body?.classList.remove(previousTheme);
+    }
     this.root.classList.remove(...AVAILABLE_THEMES);
     this.root.classList.add(normalizedTheme);
     this.root.classList.toggle('dark', DARK_MODE_THEMES.has(normalizedTheme));
@@ -450,28 +469,56 @@ class SiteShellController {
     if (!this.canPersistTheme || !this.themeCsrfToken) {
       return;
     }
+    // 连续点击切换时，后一次选择必须覆盖前一次：这里只记录“最新目标主题”，
+    // 由同一个在途队列串行写回，避免快速切换只有第一次真正落库。
+    this.themeSyncPending = theme;
     if (this.themeSyncInFlight) {
       return this.themeSyncInFlight;
     }
 
+    this.themeSyncInFlight = (async () => {
+      let lastSavedTheme = null;
+      try {
+        while (this.themeSyncPending) {
+          const targetTheme = this.themeSyncPending;
+          this.themeSyncPending = null;
+          const saved = await this.sendThemeUpdate(targetTheme);
+          if (!saved) {
+            break;
+          }
+          lastSavedTheme = targetTheme;
+        }
+      } finally {
+        this.themeSyncPending = null;
+        this.themeSyncInFlight = null;
+      }
+      return lastSavedTheme;
+    })();
+
+    return this.themeSyncInFlight;
+  }
+
+  async sendThemeUpdate(theme) {
     const formData = new FormData();
     formData.append('theme', theme);
     formData.append('csrf_token', this.themeCsrfToken);
 
-    this.themeSyncInFlight = fetch('/api/v1/theme/update', {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-    }).then((response) => {
-      if (response && (response.status === 401 || response.status === 403)) {
+    try {
+      const response = await fetch('/api/v1/theme/update', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+        // 切完主题立刻跳页时，浏览器会中止普通请求；keepalive 让写回请求继续完成。
+        keepalive: true,
+      });
+      if (response.status === 401 || response.status === 403) {
         this.canPersistTheme = false;
+        return false;
       }
-      return response;
-    }).catch(() => null).finally(() => {
-      this.themeSyncInFlight = null;
-    });
-
-    return this.themeSyncInFlight;
+      return Boolean(response.ok);
+    } catch (_) {
+      return false;
+    }
   }
 
   applyEffectBodyClass(className) {
@@ -650,6 +697,11 @@ class SiteShellController {
   }
 
   async syncThemeFromServer(forceCssReload) {
+    // 本地刚切换的主题还在写回服务端时，服务端返回的仍是旧偏好；
+    // 此时拉取会把手动选择覆盖回去，必须等写回完成后再同步。
+    if (this.themeSyncInFlight || this.themeSyncPending) {
+      return;
+    }
     try {
       const response = await fetch('/api/v1/theme/sync', {
         credentials: 'include',
@@ -662,7 +714,15 @@ class SiteShellController {
       const payload = await response.json();
 
       if (payload.theme && payload.theme !== this.theme) {
-        this.applyTheme(payload.theme, { persist: true, sync: false, announce: false, source: 'theme-sync' });
+        // 主题变量由服务端 variables.css 提供，这里不覆盖本地预设，
+        // 否则自定义主题会被内置预设的配色打掉。
+        this.applyTheme(payload.theme, {
+          persist: true,
+          sync: false,
+          announce: false,
+          source: 'theme-sync',
+          applyVariables: false,
+        });
       }
       const nextEffectBodyClass = Array.isArray(payload.resolved_effects?.body_classes) && payload.resolved_effects.body_classes.length > 0
         ? payload.resolved_effects.body_classes[0]

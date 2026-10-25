@@ -496,6 +496,40 @@ async def login_for_access_token_impl(
         samesite="lax",
         secure=should_use_secure_cookie(request),
     )
+
+    # 登录成功后把账号主题偏好写回本机 Cookie：
+    # 1. 已有偏好时直接同步，保证当前设备首屏与服务端解析结果一致；
+    # 2. 账号还没有偏好时，继承当前设备的游客主题并落库，
+    #    这样第一次登录的设备选择也能同步到其他设备。
+    from . import themes as themes_api
+
+    custom_themes = themes_api.load_custom_themes(db)
+    user_theme_preference = str(getattr(user, "theme_preference", "") or "").strip()
+    if user_theme_preference:
+        theme_cookie_value = themes_api.resolve_theme_name(user_theme_preference, custom_themes)
+    else:
+        guest_theme_preference = str(request.cookies.get(themes_api.GUEST_THEME_COOKIE) or "").strip()
+        theme_cookie_value = (
+            themes_api.resolve_theme_name(guest_theme_preference, custom_themes)
+            if themes_api.is_known_theme(guest_theme_preference, custom_themes)
+            else ""
+        )
+        if theme_cookie_value:
+            crud_user.set_user_theme_preference(
+                db,
+                int(user.id),
+                theme_preference=theme_cookie_value,
+            )
+    if theme_cookie_value:
+        response.set_cookie(
+            key=themes_api.GUEST_THEME_COOKIE,
+            value=theme_cookie_value,
+            max_age=365 * 24 * 60 * 60,
+            path="/",
+            samesite="lax",
+            secure=should_use_secure_cookie(request),
+        )
+
     admin_path = get_admin_path()
     response.headers["HX-Redirect"] = f"{admin_path}/dashboard"
     # 返回空内容，只设置头部信息

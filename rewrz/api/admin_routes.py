@@ -699,6 +699,15 @@ def register_admin_primary_routes(
         for post in posts:
             setattr(post, "comment_count", int(comment_count_map.get(post.id, 0)))
 
+        # 列表直接展示文章实际使用的兜底封面，管理员刷新前能先看到当前封面。
+        from ..main import _attach_article_cover_urls
+
+        try:
+            _attach_article_cover_urls(db, posts, attr_name="admin_cover_url")
+        except Exception:
+            for post in posts:
+                setattr(post, "admin_cover_url", "")
+
         def _build_page_url(target_page: int) -> str:
             params = {}
             if search:
@@ -733,7 +742,8 @@ def register_admin_primary_routes(
             "page_links": [{"page": p, "url": _build_page_url(p), "is_current": p == page} for p in page_numbers],
         }
 
-        categories = crud_category.get_categories(db)
+        # 分类筛选下拉同时作为内联编辑器数据源，必须完整返回，避免超过 100 个分类时漏项
+        categories = crud_category.get_all_categories(db)
         formats = [
             item for item in crud_format.get_formats(db)
             if getattr(item, "slug", None) in {"article", "micro", "poem"}

@@ -165,45 +165,93 @@
                 {% set plain_text = post | post_plain_text %}
                 {% set fallback_summary = post | post_summary_text(120) %}
                 {% set has_inline_micro_copy = is_micro and (not post_title) and plain_text %}
-                <tr class="transition-colors">
+                <tr class="transition-colors" data-post-row="{{ post.id }}">
                     <td class="px-3 py-4 align-top">
                         <input type="checkbox" class="post-checkbox admin-form-check rounded border-gray-300" value="{{ post.id }}">
                     </td>
                     <td class="px-4 py-4 align-top">
-                        <div class="admin-post-title-row text-[15px] font-semibold tracking-tight leading-6 text-[var(--color-text)]">
-                            <span class="admin-post-format-icon {{ format_tone }}" title="{{ format_label }}">
-                                <i class="{{ format_icon }}"></i>
-                            </span>
-                            {% if post.visibility == 'password' %}
-                            <span class="admin-post-lock-icon" title="密码保护文章" aria-label="密码保护文章">
-                                <i class="fas fa-lock"></i>
-                            </span>
-                            {% endif %}
-                            <a href="{{ post | post_url }}" target="_blank" class="admin-accent-link admin-post-title-link {% if has_inline_micro_copy %}admin-post-title-link-micro{% endif %}">
-                                {% if has_inline_micro_copy %}
-                                    {{ plain_text }}
-                                {% else %}
-                                    {{ post_title or "(无标题)" }}
+                        <div class="admin-post-main">
+                            <div class="admin-post-cover" data-post-cover="{{ post.id }}">
+                                <span class="admin-post-cover-placeholder" data-cover-placeholder title="暂无可用封面，可点击刷新按钮重新生成"{% if post.admin_cover_url %} hidden{% endif %}>
+                                    <i class="fas fa-image"></i>
+                                </span>
+                                {% if post.admin_cover_url %}
+                                <img src="{{ post.admin_cover_url | thumb_url('media_lib_card', request.state.db) }}"
+                                     alt="{{ post_title or '文章封面' }}缩略图"
+                                     loading="lazy"
+                                     onerror="window.handlePostCoverError && window.handlePostCoverError(this)"
+                                     data-cover-img>
                                 {% endif %}
-                            </a>
+                                <span class="admin-post-cover-loading" data-cover-loading aria-hidden="true">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                </span>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="admin-inline-region"
+                                     data-inline-field="title"
+                                     data-post-id="{{ post.id }}"
+                                     data-inline-value="{{ post_title }}"
+                                     {% if has_inline_micro_copy %}data-inline-empty-text="{{ plain_text }}"{% endif %}>
+                                    <div class="admin-inline-view admin-post-title-row text-[15px] font-semibold tracking-tight leading-6 text-[var(--color-text)]" data-inline-view>
+                                        <span class="admin-post-format-icon {{ format_tone }}" title="{{ format_label }}">
+                                            <i class="{{ format_icon }}"></i>
+                                        </span>
+                                        {% if post.visibility == 'password' %}
+                                        <span class="admin-post-lock-icon" title="密码保护文章" aria-label="密码保护文章">
+                                            <i class="fas fa-lock"></i>
+                                        </span>
+                                        {% endif %}
+                                        <a href="{{ post | post_url }}" target="_blank" class="admin-accent-link admin-post-title-link {% if has_inline_micro_copy %}admin-post-title-link-micro{% endif %}">
+                                            {% if has_inline_micro_copy %}
+                                                {{ plain_text }}
+                                            {% else %}
+                                                {{ post_title or "(无标题)" }}
+                                            {% endif %}
+                                        </a>
+                                        <button type="button" class="admin-inline-trigger" data-inline-trigger title="编辑标题（不会改变文章链接）" aria-label="编辑标题">
+                                            <i class="fas fa-pen"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% if not has_inline_micro_copy %}
+                                <div class="admin-inline-region mt-2"
+                                     data-inline-field="excerpt"
+                                     data-post-id="{{ post.id }}"
+                                     data-inline-value="{{ post.excerpt or '' }}">
+                                    <div class="admin-list-meta-card rounded-xl px-3 py-2 text-xs leading-5" data-inline-view>
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="inline-block text-[11px] uppercase tracking-wide text-[var(--color-text-light)]">摘要</span>
+                                            <button type="button" class="admin-inline-trigger" data-inline-trigger title="编辑摘要" aria-label="编辑摘要">
+                                                <i class="fas fa-pen"></i>
+                                            </button>
+                                        </div>
+                                        <p class="mt-1 line-clamp-2 italic text-[var(--color-text-light)]" data-inline-summary>
+                                            {{ fallback_summary or '暂无摘要' }}
+                                        </p>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
-                        {% if not has_inline_micro_copy %}
-                        <div class="admin-list-meta-card mt-2 rounded-xl px-3 py-2 text-xs leading-5">
-                            <span class="inline-block text-[11px] uppercase tracking-wide text-[var(--color-text-light)]">摘要</span>
-                            <p class="mt-1 line-clamp-2 italic text-[var(--color-text-light)]">
-                                {{ fallback_summary or '暂无摘要' }}
-                            </p>
-                        </div>
-                        {% endif %}
                     </td>
                     <td class="px-4 py-4 align-top">
-                        {% if post.status == 'published' %}
-                        <span class="admin-badge admin-badge-success px-2 py-0.5 text-xs font-semibold">已发布</span>
-                        {% elif post.status == 'draft' %}
-                        <span class="admin-badge admin-badge-warning px-2 py-0.5 text-xs font-semibold">草稿</span>
-                        {% else %}
-                        <span class="admin-badge admin-badge-neutral px-2 py-0.5 text-xs font-semibold">{{ post.status }}</span>
-                        {% endif %}
+                        <div class="admin-inline-region"
+                             data-inline-field="status"
+                             data-post-id="{{ post.id }}"
+                             data-inline-value="{{ post.status }}">
+                            <div class="admin-inline-cell" data-inline-view>
+                                {% if post.status == 'published' %}
+                                <span class="admin-badge admin-badge-success px-2 py-0.5 text-xs font-semibold">已发布</span>
+                                {% elif post.status == 'draft' %}
+                                <span class="admin-badge admin-badge-warning px-2 py-0.5 text-xs font-semibold">草稿</span>
+                                {% else %}
+                                <span class="admin-badge admin-badge-neutral px-2 py-0.5 text-xs font-semibold">{{ post.status }}</span>
+                                {% endif %}
+                                <button type="button" class="admin-inline-trigger" data-inline-trigger title="修改状态" aria-label="修改状态">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                            </div>
+                        </div>
                     </td>
                     <td class="px-4 py-4 align-top">
                         <div class="admin-action-links flex items-center gap-3 text-sm">
@@ -213,7 +261,7 @@
                             <a href="{{ post | post_url }}" target="_blank" class="admin-action-link" title="查看">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <button onclick="refreshCoverCache({{ post.id }})" class="admin-action-link" title="刷新封面缓存">
+                            <button type="button" onclick="refreshCoverCache(this, {{ post.id }})" class="admin-action-link" title="按当前封面重新生成缓存">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
                             <button onclick="deletePost({{ post.id }})" class="admin-action-link" title="删除">
@@ -222,36 +270,68 @@
                         </div>
                     </td>
                     <td class="px-4 py-4 align-top">
-                        <div class="flex flex-wrap gap-1 max-w-[10rem] whitespace-normal break-words leading-5">
-                            {% if post.categories %}
-                                {% for category in post.categories %}
-                                <span class="admin-badge admin-badge-neutral px-2 py-0.5 text-xs font-semibold">
-                                    {{ category.name }}
-                                </span>
-                                {% endfor %}
-                            {% else %}
-                                <span class="text-xs text-[var(--color-text-light)]">未分类</span>
-                            {% endif %}
+                        <div class="admin-inline-region"
+                             data-inline-field="categories"
+                             data-post-id="{{ post.id }}"
+                             data-inline-value="{{ post.categories | map(attribute='id') | join(',') }}">
+                            <div class="admin-inline-cell" data-inline-view>
+                                <div class="admin-inline-badge-list" data-inline-badge-list>
+                                    {% if post.categories %}
+                                        {% for category in post.categories %}
+                                        <span class="admin-badge admin-badge-neutral px-2 py-0.5 text-xs font-semibold">
+                                            {{ category.name }}
+                                        </span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="admin-inline-placeholder">未分类</span>
+                                    {% endif %}
+                                </div>
+                                <button type="button" class="admin-inline-trigger" data-inline-trigger title="修改分类" aria-label="修改分类">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                            </div>
                         </div>
                     </td>
                     <td class="px-4 py-4 align-top">
-                        <div class="flex flex-wrap gap-1 max-w-[9rem] whitespace-normal break-words leading-5">
-                            {% if post.tags %}
-                                {% for tag in post.tags %}
-                                <span class="admin-badge admin-badge-info px-2 py-0.5 text-xs font-semibold">
-                                    {{ tag.name }}
-                                </span>
-                                {% endfor %}
-                            {% else %}
-                                <span class="text-xs text-[var(--color-text-light)]">无标签</span>
-                            {% endif %}
+                        <div class="admin-inline-region"
+                             data-inline-field="tags"
+                             data-post-id="{{ post.id }}"
+                             data-inline-value="{{ post.tags | map(attribute='name') | join(', ') }}">
+                            <div class="admin-inline-cell" data-inline-view>
+                                <div class="admin-inline-badge-list" data-inline-badge-list>
+                                    {% if post.tags %}
+                                        {% for tag in post.tags %}
+                                        <span class="admin-badge admin-badge-info px-2 py-0.5 text-xs font-semibold">
+                                            {{ tag.name }}
+                                        </span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="admin-inline-placeholder">无标签</span>
+                                    {% endif %}
+                                </div>
+                                <button type="button" class="admin-inline-trigger" data-inline-trigger title="修改标签" aria-label="修改标签">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                            </div>
                         </div>
                     </td>
                     <td class="px-4 py-4 align-top text-sm text-[var(--color-text-light)]">
                         {{ post.comment_count if post.comment_count is defined else 0 }}
                     </td>
                     <td class="px-4 py-4 align-top text-sm text-[var(--color-text-light)]">
-                        {{ (post.published_at or post.created_at) | localtime('%Y-%m-%d %H:%M') if (post.published_at or post.created_at) else '-' }}
+                        <div class="admin-inline-region"
+                             data-inline-field="published_at"
+                             data-post-id="{{ post.id }}"
+                             data-inline-value="{{ post.published_at | localtime('%Y-%m-%dT%H:%M') if post.published_at else '' }}">
+                            <div class="admin-inline-cell" data-inline-view>
+                                <span class="whitespace-nowrap" data-inline-time-text>
+                                    {{ (post.published_at or post.created_at) | localtime('%Y-%m-%d %H:%M') if (post.published_at or post.created_at) else '-' }}
+                                </span>
+                                <button type="button" class="admin-inline-trigger" data-inline-trigger title="修改发布时间" aria-label="修改发布时间">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                            </div>
+                        </div>
                     </td>
                     <td class="px-4 py-4 align-top text-sm text-[var(--color-text-light)]">
                         {{ post.views if post.views else 0 }}
@@ -303,6 +383,67 @@
 </div>
 
 <style>
+    .admin-posts-shell .admin-post-main {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.85rem;
+        min-width: 0;
+    }
+
+    .admin-posts-shell .admin-post-cover {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 4.4rem;
+        height: 3.1rem;
+        flex-shrink: 0;
+        overflow: hidden;
+        border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+        border-radius: 0.65rem;
+        background: color-mix(in srgb, var(--color-background-alt) 78%, transparent);
+    }
+
+    .admin-posts-shell .admin-post-cover img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .admin-posts-shell .admin-post-cover-placeholder {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        font-size: 1.05rem;
+        color: color-mix(in srgb, var(--color-text-light) 82%, transparent);
+        background:
+            linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 7%, transparent), transparent 70%),
+            color-mix(in srgb, var(--color-background-alt) 82%, var(--color-card-bg) 18%);
+    }
+
+    .admin-posts-shell .admin-post-cover-placeholder[hidden] {
+        display: none;
+    }
+
+    .admin-posts-shell .admin-post-cover-loading {
+        position: absolute;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        color: color-mix(in srgb, var(--color-primary) 82%, var(--color-text) 18%);
+        background: color-mix(in srgb, var(--color-card-bg) 78%, transparent);
+        backdrop-filter: blur(2px);
+    }
+
+    .admin-posts-shell .admin-post-cover.is-refreshing .admin-post-cover-loading {
+        display: flex;
+    }
+
     .admin-posts-shell .admin-post-title-row {
         display: flex;
         align-items: flex-start;
@@ -393,13 +534,180 @@
     .admin-posts-shell table {
         table-layout: fixed;
     }
+
+    .admin-posts-shell .admin-inline-region {
+        position: relative;
+        min-width: 0;
+    }
+
+    .admin-posts-shell .admin-inline-view[hidden] {
+        display: none !important;
+    }
+
+    .admin-posts-shell .admin-inline-cell {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.35rem;
+        min-width: 0;
+    }
+
+    .admin-posts-shell .admin-inline-badge-list {
+        display: flex;
+        flex: 1 1 auto;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        min-width: 0;
+        line-height: 1.25rem;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .admin-posts-shell .admin-inline-placeholder {
+        font-size: 0.75rem;
+        color: var(--color-text-light);
+    }
+
+    .admin-posts-shell .admin-inline-trigger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.5rem;
+        height: 1.5rem;
+        flex: 0 0 auto;
+        margin-top: 0.1rem;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: transparent;
+        color: color-mix(in srgb, var(--color-text-light) 80%, transparent);
+        font-size: 0.7rem;
+        line-height: 1;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .admin-posts-shell .admin-inline-region:hover .admin-inline-trigger,
+        .admin-posts-shell .admin-inline-region:focus-within .admin-inline-trigger {
+            opacity: 1;
+        }
+    }
+
+    @media (hover: none), (pointer: coarse) {
+        .admin-posts-shell .admin-inline-trigger {
+            opacity: 1;
+            color: color-mix(in srgb, var(--color-primary) 68%, var(--color-text-light) 32%);
+            border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
+            background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+        }
+    }
+
+    .admin-posts-shell .admin-inline-trigger:hover,
+    .admin-posts-shell .admin-inline-trigger:focus-visible {
+        opacity: 1;
+        color: var(--color-primary);
+        border-color: color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
+        background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+        outline: none;
+    }
+
+    .admin-posts-shell .admin-inline-region.is-saving {
+        opacity: 0.72;
+    }
+
+    .admin-posts-shell .admin-inline-region.is-editing > .admin-inline-view {
+        border-radius: 0.55rem;
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 22%, transparent);
+    }
+
+    .admin-inline-editor {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        min-width: 0;
+    }
+
+    .admin-inline-editor-float {
+        position: fixed;
+        z-index: 80;
+        width: 19rem;
+        max-width: calc(100vw - 1.5rem);
+        padding: 0.75rem;
+        border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
+        border-radius: 0.9rem;
+        background: color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+        box-shadow: 0 26px 60px -32px color-mix(in srgb, var(--color-text) 32%, transparent);
+    }
+
+    .admin-inline-editor-heading {
+        font-size: 0.7rem;
+        letter-spacing: 0.04em;
+        color: var(--color-text-light);
+    }
+
+    .admin-inline-control {
+        width: 100%;
+        min-width: 0;
+        border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
+        border-radius: 0.55rem;
+        background: var(--color-card-bg);
+        color: var(--color-text);
+        padding: 0.45rem 0.6rem;
+        font-size: 0.875rem;
+    }
+
+    textarea.admin-inline-control {
+        min-height: 4.6rem;
+        resize: vertical;
+    }
+
+    .admin-inline-control:focus {
+        outline: none;
+        border-color: color-mix(in srgb, var(--color-primary) 58%, var(--color-border));
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent);
+    }
+
+    .admin-inline-hint {
+        font-size: 0.68rem;
+        color: var(--color-text-light);
+    }
+
+    .admin-inline-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+
+    .admin-inline-options {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        max-height: 12rem;
+        overflow-y: auto;
+        padding-right: 0.15rem;
+    }
+
+    .admin-inline-option {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.3rem 0.35rem;
+        border-radius: 0.45rem;
+        font-size: 0.82rem;
+        cursor: pointer;
+    }
+
+    .admin-inline-option:hover {
+        background: color-mix(in srgb, var(--color-primary) 9%, transparent);
+    }
 </style>
 
 <script>
 let batchActionInProgress = false;
 
 function refreshPostsList() {
-    window.location.href = '{{ request.state.admin_path }}/posts';
+    // 直接重载当前地址，保留搜索、筛选与分页状态
+    window.location.reload();
 }
 
 function getSelectedPosts() {
@@ -446,7 +754,11 @@ async function parseApiResponse(response) {
         data = {};
     }
     if (!response.ok || data.success === false) {
-        const message = data.error || data.detail || `请求失败（HTTP ${response.status}）`;
+        // 统一错误处理器返回 {"error": {"message": ...}}，这里同时兼容纯字符串 error 与 detail
+        const errorPayload = data.error;
+        const message = (errorPayload && typeof errorPayload === 'object' ? errorPayload.message : errorPayload)
+            || data.detail
+            || `请求失败（HTTP ${response.status}）`;
         throw new Error(message);
     }
     return data;
@@ -485,8 +797,89 @@ async function deletePost(postId) {
     }
 }
 
-async function refreshCoverCache(postId) {
+function setPostCoverRefreshing(postId, isRefreshing) {
+    const cover = document.querySelector(`[data-post-cover="${postId}"]`);
+    if (!cover) return;
+    cover.classList.toggle('is-refreshing', Boolean(isRefreshing));
+}
+
+function updatePostCoverPreview(postId, coverUrl) {
+    const cover = document.querySelector(`[data-post-cover="${postId}"]`);
+    if (!cover) return;
+
+    let placeholder = cover.querySelector('[data-cover-placeholder]');
+    if (!placeholder) {
+        placeholder = document.createElement('span');
+        placeholder.className = 'admin-post-cover-placeholder';
+        placeholder.dataset.coverPlaceholder = '';
+        placeholder.title = '暂无可用封面，可点击刷新按钮重新生成';
+        placeholder.innerHTML = '<i class="fas fa-image"></i>';
+        cover.appendChild(placeholder);
+    }
+
+    let image = cover.querySelector('[data-cover-img]');
+    if (!coverUrl) {
+        image?.remove();
+        placeholder.hidden = false;
+        return;
+    }
+
+    placeholder.hidden = true;
+    if (!image) {
+        image = document.createElement('img');
+        image.dataset.coverImg = '';
+        image.loading = 'lazy';
+        image.alt = '文章封面缩略图';
+        image.addEventListener('error', () => handlePostCoverError(image));
+        cover.insertBefore(image, cover.firstChild);
+    }
+    // 封面 URL 带版本参数，赋值即可绕过浏览器旧图缓存
+    image.src = coverUrl;
+}
+
+function handlePostCoverError(image) {
+    const cover = image?.closest('[data-post-cover]');
+    if (!cover) return;
+    image.remove();
+    const placeholder = cover.querySelector('[data-cover-placeholder]');
+    if (placeholder) {
+        placeholder.hidden = false;
+    }
+}
+
+window.handlePostCoverError = handlePostCoverError;
+
+async function pollPostCover(postId, attempts = 5) {
+    for (let index = 0; index < attempts; index += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+        try {
+            const response = await fetch(`{{ request.state.admin_path }}/api/v1/posts/${postId}/cover`, {
+                cache: 'no-store'
+            });
+            const result = await parseApiResponse(response);
+            if (result.cover_url) {
+                updatePostCoverPreview(postId, result.cover_url);
+                return true;
+            }
+        } catch (_) {
+            // 轮询失败不打断页面，下一次重试即可
+        }
+    }
+    return false;
+}
+
+async function refreshCoverCache(button, postId) {
     if (batchActionInProgress) return;
+    if (button?.dataset.loading === 'true') return;
+
+    const icon = button?.querySelector('i');
+    if (button) {
+        button.dataset.loading = 'true';
+        button.disabled = true;
+        if (icon) icon.className = 'fas fa-spinner fa-spin';
+    }
+    setPostCoverRefreshing(postId, true);
+
     try {
         const response = await fetch(`{{ request.state.admin_path }}/api/v1/posts/${postId}/cover-cache/refresh`, {
             method: 'POST',
@@ -496,9 +889,29 @@ async function refreshCoverCache(postId) {
             }
         });
         const result = await parseApiResponse(response);
+
+        if (result.cover_url) {
+            updatePostCoverPreview(postId, result.cover_url);
+            setPostCoverRefreshing(postId, false);
+        } else if (result.scheduled) {
+            const ready = await pollPostCover(postId);
+            setPostCoverRefreshing(postId, false);
+            if (!ready) {
+                window.adminNotify('新封面仍在生成中，稍后刷新页面即可查看', 'info', { duration: 3600 });
+            }
+        } else {
+            setPostCoverRefreshing(postId, false);
+        }
         window.adminNotify(result.message || '封面缓存已刷新', 'success');
     } catch (error) {
+        setPostCoverRefreshing(postId, false);
         window.adminNotify(`刷新封面缓存失败：${error.message}`, 'error', { duration: 4200 });
+    } finally {
+        if (button) {
+            button.dataset.loading = 'false';
+            button.disabled = false;
+            if (icon) icon.className = 'fas fa-sync-alt';
+        }
     }
 }
 
@@ -563,6 +976,652 @@ async function batchDelete() {
         '批量删除失败'
     );
 }
+
+const inlineEditState = {
+    current: null,
+    navTimer: 0,
+    floatingFields: new Set(['status', 'published_at', 'categories', 'tags'])
+};
+
+function supportsInlineDoubleClick() {
+    return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+}
+
+function closestFromEvent(event, selector) {
+    const target = event.target;
+    return target instanceof Element ? target.closest(selector) : null;
+}
+
+function splitTagNames(rawValue) {
+    return String(rawValue || '')
+        .split(/[,，]/)
+        .map((name) => name.trim())
+        .filter(Boolean);
+}
+
+function getCategoryOptions() {
+    const select = document.getElementById('category-filter');
+    if (!select) return [];
+    return Array.from(select.options)
+        .filter((option) => option.value)
+        .map((option) => ({ id: Number(option.value), name: (option.textContent || '').trim() }))
+        .filter((option) => Number.isInteger(option.id) && option.id > 0);
+}
+
+function positionInlineEditor(editor, region) {
+    if (!editor || !region) return;
+    const margin = 12;
+    const rect = region.getBoundingClientRect();
+    const width = editor.offsetWidth || 260;
+    const height = editor.offsetHeight || 140;
+    let left = Math.min(rect.left, window.innerWidth - width - margin);
+    if (left < margin) left = margin;
+    let top = rect.bottom + 6;
+    if (top + height > window.innerHeight - margin) {
+        top = Math.max(margin, rect.top - height - 6);
+    }
+    editor.style.left = `${Math.round(left)}px`;
+    editor.style.top = `${Math.round(top)}px`;
+}
+
+function repositionInlineEditor() {
+    const state = inlineEditState.current;
+    if (!state || !state.floating || !state.editor || state.closed) return;
+    positionInlineEditor(state.editor, state.region);
+}
+
+function teardownInlineEditor(state) {
+    if (!state || state.closed) return;
+    state.closed = true;
+    state.region.classList.remove('is-saving', 'is-editing');
+    if (state.view) {
+        state.view.hidden = false;
+    }
+    if (state.editor) {
+        state.editor.remove();
+    }
+    if (inlineEditState.current === state) {
+        inlineEditState.current = null;
+    }
+}
+
+function buildInlineTitleEditor(state) {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'admin-inline-control';
+    input.value = state.originalValue;
+    input.placeholder = '输入标题';
+    input.maxLength = 200;
+    input.setAttribute('aria-label', '文章标题');
+    input.dataset.inlineAutofocus = '';
+
+    input.addEventListener('keydown', (event) => {
+        if (event.isComposing) return;
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const value = input.value.trim();
+            if (!value) {
+                window.adminNotify('标题不能为空', 'warning');
+                teardownInlineEditor(state);
+                return;
+            }
+            if (value === state.originalValue.trim()) {
+                teardownInlineEditor(state);
+                return;
+            }
+            submitInlineUpdate(state, { title: value });
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            teardownInlineEditor(state);
+        }
+    });
+
+    input.addEventListener('blur', () => {
+        if (state.closed || state.saving) return;
+        const value = input.value.trim();
+        if (value === state.originalValue.trim()) {
+            teardownInlineEditor(state);
+            return;
+        }
+        if (!value) {
+            window.adminNotify('标题不能为空', 'warning');
+            teardownInlineEditor(state);
+            return;
+        }
+        submitInlineUpdate(state, { title: value });
+    });
+
+    return input;
+}
+
+function buildInlineExcerptEditor(state) {
+    const textarea = document.createElement('textarea');
+    textarea.className = 'admin-inline-control';
+    textarea.rows = 3;
+    textarea.value = state.originalValue;
+    textarea.placeholder = '留空则自动从正文提取摘要';
+    textarea.setAttribute('aria-label', '文章摘要');
+    textarea.dataset.inlineAutofocus = '';
+
+    const hint = document.createElement('div');
+    hint.className = 'admin-inline-hint';
+    hint.textContent = 'Ctrl / ⌘ + Enter 保存，Esc 取消';
+
+    const submit = () => {
+        if (state.closed || state.saving) return;
+        if (textarea.value.trim() === state.originalValue.trim()) {
+            teardownInlineEditor(state);
+            return;
+        }
+        submitInlineUpdate(state, { excerpt: textarea.value });
+    };
+
+    textarea.addEventListener('keydown', (event) => {
+        if (event.isComposing) return;
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            teardownInlineEditor(state);
+            return;
+        }
+        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            submit();
+        }
+    });
+    textarea.addEventListener('blur', submit);
+
+    return [textarea, hint];
+}
+
+function buildInlineTagsEditor(state) {
+    const heading = document.createElement('div');
+    heading.className = 'admin-inline-editor-heading';
+    heading.textContent = '编辑标签';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'admin-inline-control';
+    input.value = state.originalValue;
+    input.placeholder = '多个标签用逗号分隔，留空则清除';
+    input.setAttribute('aria-label', '文章标签');
+    input.dataset.inlineAutofocus = '';
+
+    const hint = document.createElement('div');
+    hint.className = 'admin-inline-hint';
+    hint.textContent = '回车或点击别处保存，Esc 取消';
+
+    const submit = () => {
+        if (state.closed || state.saving) return;
+        const names = splitTagNames(input.value);
+        if (names.join(', ') === splitTagNames(state.originalValue).join(', ')) {
+            teardownInlineEditor(state);
+            return;
+        }
+        submitInlineUpdate(state, { tag_names: names });
+    };
+
+    input.addEventListener('keydown', (event) => {
+        if (event.isComposing) return;
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            submit();
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            teardownInlineEditor(state);
+        }
+    });
+    input.addEventListener('blur', submit);
+
+    return [heading, input, hint];
+}
+
+function buildInlineStatusEditor(state) {
+    const heading = document.createElement('div');
+    heading.className = 'admin-inline-editor-heading';
+    heading.textContent = '编辑状态';
+
+    const select = document.createElement('select');
+    select.className = 'admin-inline-control';
+    select.setAttribute('aria-label', '文章状态');
+    select.dataset.inlineAutofocus = '';
+    [
+        ['published', '已发布'],
+        ['draft', '草稿']
+    ].forEach(([value, label]) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        select.appendChild(option);
+    });
+    if (!Array.from(select.options).some((option) => option.value === state.originalValue)) {
+        const fallbackOption = document.createElement('option');
+        fallbackOption.value = state.originalValue;
+        fallbackOption.textContent = state.originalValue || '未知状态';
+        select.appendChild(fallbackOption);
+    }
+    select.value = state.originalValue;
+
+    const hint = document.createElement('div');
+    hint.className = 'admin-inline-hint';
+    hint.textContent = '选择后立即保存，Esc 取消';
+
+    let submitted = false;
+    const submit = () => {
+        if (state.closed || state.saving) return;
+        if (select.value === state.originalValue) {
+            teardownInlineEditor(state);
+            return;
+        }
+        submitted = true;
+        submitInlineUpdate(state, { status: select.value });
+    };
+
+    select.addEventListener('change', submit);
+    select.addEventListener('keydown', (event) => {
+        if (event.isComposing) return;
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            teardownInlineEditor(state);
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            submit();
+        }
+    });
+    select.addEventListener('blur', () => {
+        if (state.closed || state.saving || submitted) return;
+        submit();
+    });
+
+    return [heading, select, hint];
+}
+
+function buildInlinePublishedAtEditor(state) {
+    const heading = document.createElement('div');
+    heading.className = 'admin-inline-editor-heading';
+    heading.textContent = '编辑发布时间';
+
+    const input = document.createElement('input');
+    input.type = 'datetime-local';
+    input.className = 'admin-inline-control';
+    input.value = state.originalValue;
+    input.setAttribute('aria-label', '文章发布时间');
+    input.dataset.inlineAutofocus = '';
+
+    const hint = document.createElement('div');
+    hint.className = 'admin-inline-hint';
+    hint.textContent = '选择后立即保存，Esc 取消';
+
+    let submitted = false;
+    const submit = () => {
+        if (state.closed || state.saving || submitted) return;
+        if (input.value === state.originalValue) {
+            teardownInlineEditor(state);
+            return;
+        }
+        submitted = true;
+        submitInlineUpdate(state, { published_at: input.value });
+    };
+
+    input.addEventListener('change', submit);
+    input.addEventListener('keydown', (event) => {
+        if (event.isComposing) return;
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            teardownInlineEditor(state);
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            submit();
+        }
+    });
+    input.addEventListener('blur', submit);
+
+    return [heading, input, hint];
+}
+
+function buildInlineCategoriesEditor(state) {
+    const heading = document.createElement('div');
+    heading.className = 'admin-inline-editor-heading';
+    heading.textContent = '编辑分类';
+
+    const options = getCategoryOptions();
+    const originalIds = String(state.originalValue || '')
+        .split(',')
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0)
+        .sort((a, b) => a - b);
+    const selectedIds = new Set(originalIds);
+
+    const list = document.createElement('div');
+    list.className = 'admin-inline-options';
+    if (!options.length) {
+        const empty = document.createElement('div');
+        empty.className = 'admin-inline-placeholder';
+        empty.textContent = '暂无可选分类，请先在分类管理中创建';
+        list.appendChild(empty);
+    }
+    options.forEach(({ id, name }) => {
+        const label = document.createElement('label');
+        label.className = 'admin-inline-option';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'admin-form-check rounded border-gray-300';
+        checkbox.value = String(id);
+        checkbox.checked = selectedIds.has(id);
+        const text = document.createElement('span');
+        text.textContent = name;
+        label.appendChild(checkbox);
+        label.appendChild(text);
+        list.appendChild(label);
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'admin-inline-actions';
+    const cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'admin-secondary-btn rounded-md px-3 py-1.5 text-sm';
+    cancelButton.textContent = '取消';
+    cancelButton.addEventListener('click', () => teardownInlineEditor(state));
+    const saveButton = document.createElement('button');
+    saveButton.type = 'button';
+    saveButton.className = 'admin-primary-btn rounded-md px-3 py-1.5 text-sm';
+    saveButton.textContent = '保存';
+    saveButton.disabled = !options.length;
+    actions.appendChild(cancelButton);
+    actions.appendChild(saveButton);
+
+    const submit = () => {
+        if (state.closed || state.saving) return;
+        const nextIds = Array.from(list.querySelectorAll('input[type="checkbox"]'))
+            .filter((input) => input.checked)
+            .map((input) => Number(input.value))
+            .filter((value) => Number.isInteger(value) && value > 0)
+            .sort((a, b) => a - b);
+        if (nextIds.join(',') === originalIds.join(',')) {
+            teardownInlineEditor(state);
+            return;
+        }
+        submitInlineUpdate(state, { category_ids: nextIds });
+    };
+    saveButton.addEventListener('click', submit);
+
+    const hint = document.createElement('div');
+    hint.className = 'admin-inline-hint';
+    hint.textContent = 'Enter 保存，Esc 取消';
+
+    const container = [heading, list, hint, actions];
+    container.forEach((node) => {
+        node.addEventListener('keydown', (event) => {
+            if (event.isComposing) return;
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                teardownInlineEditor(state);
+            } else if (event.key === 'Enter' && event.target.tagName !== 'BUTTON') {
+                event.preventDefault();
+                submit();
+            }
+        });
+    });
+
+    return container;
+}
+
+function buildInlineEditor(state) {
+    const wrapper = document.createElement('div');
+    const nodes = [];
+    if (state.field === 'title') {
+        nodes.push(buildInlineTitleEditor(state));
+    } else if (state.field === 'excerpt') {
+        nodes.push(...buildInlineExcerptEditor(state));
+    } else if (state.field === 'tags') {
+        nodes.push(...buildInlineTagsEditor(state));
+    } else if (state.field === 'status') {
+        nodes.push(...buildInlineStatusEditor(state));
+    } else if (state.field === 'published_at') {
+        nodes.push(...buildInlinePublishedAtEditor(state));
+    } else if (state.field === 'categories') {
+        nodes.push(...buildInlineCategoriesEditor(state));
+    } else {
+        return null;
+    }
+    nodes.forEach((node) => wrapper.appendChild(node));
+    return wrapper;
+}
+
+function openInlineEditor(region) {
+    if (batchActionInProgress || !region) return;
+    const field = region.dataset.inlineField;
+    const postId = Number(region.dataset.postId);
+    if (!field || !postId) return;
+    if (inlineEditState.current) {
+        if (inlineEditState.current.region === region) return;
+        teardownInlineEditor(inlineEditState.current);
+    }
+
+    window.clearTimeout(inlineEditState.navTimer);
+    inlineEditState.navTimer = 0;
+
+    const view = region.querySelector('[data-inline-view]');
+    if (!view) return;
+
+    const state = {
+        region,
+        view,
+        field,
+        postId,
+        originalValue: region.dataset.inlineValue || '',
+        floating: inlineEditState.floatingFields.has(field),
+        editor: null,
+        saving: false,
+        closed: false
+    };
+    const editor = buildInlineEditor(state);
+    if (!editor) return;
+
+    inlineEditState.current = state;
+    state.editor = editor;
+    editor.classList.add('admin-inline-editor');
+    region.classList.add('is-editing');
+
+    if (state.floating) {
+        editor.classList.add('admin-inline-editor-float');
+        document.body.appendChild(editor);
+        positionInlineEditor(editor, region);
+        window.requestAnimationFrame(() => positionInlineEditor(editor, region));
+    } else {
+        view.hidden = true;
+        region.appendChild(editor);
+    }
+
+    const focusTarget = editor.querySelector('[data-inline-autofocus]') || editor.querySelector('input, textarea, select, button');
+    if (focusTarget) {
+        window.requestAnimationFrame(() => {
+            focusTarget.focus();
+            if (focusTarget instanceof HTMLInputElement && focusTarget.type === 'text') {
+                try {
+                    focusTarget.setSelectionRange(focusTarget.value.length, focusTarget.value.length);
+                } catch (_) {
+                    // 部分浏览器不支持对某些输入类型设置光标位置，忽略即可
+                }
+            }
+        });
+    }
+}
+
+function renderInlineBadges(region, names, badgeClass, emptyText) {
+    const list = region.querySelector('[data-inline-badge-list]');
+    if (!list) return;
+    list.textContent = '';
+    if (!names.length) {
+        const empty = document.createElement('span');
+        empty.className = 'admin-inline-placeholder';
+        empty.textContent = emptyText;
+        list.appendChild(empty);
+        return;
+    }
+    names.forEach((name) => {
+        const badge = document.createElement('span');
+        badge.className = `admin-badge ${badgeClass} px-2 py-0.5 text-xs font-semibold`;
+        badge.textContent = name;
+        list.appendChild(badge);
+    });
+}
+
+function maybeReloadAfterInlineUpdate(post) {
+    const params = new URLSearchParams(window.location.search);
+    const statusFilter = params.get('status');
+    const categoryFilter = params.get('category');
+    const categoryIds = (post.category_ids || []).map((id) => String(id));
+    const statusMismatch = Boolean(statusFilter) && post.status !== statusFilter;
+    const categoryMismatch = Boolean(categoryFilter) && !categoryIds.includes(String(categoryFilter));
+    if (!statusMismatch && !categoryMismatch) return;
+    window.adminSetFlash('该文章已不符合当前筛选条件，列表已刷新', 'info');
+    window.setTimeout(() => window.location.reload(), 700);
+}
+
+function applyInlinePostUpdate(post) {
+    if (!post || !post.id) return;
+    const row = document.querySelector(`[data-post-row="${post.id}"]`);
+    if (!row) return;
+
+    const titleRegion = row.querySelector('[data-inline-field="title"]');
+    if (titleRegion) {
+        titleRegion.dataset.inlineValue = post.title || '';
+        const link = titleRegion.querySelector('.admin-post-title-link');
+        if (link) {
+            const emptyText = titleRegion.dataset.inlineEmptyText || '';
+            link.textContent = post.title
+                ? (post.title_display || post.title)
+                : (emptyText || post.title_display || '(无标题)');
+        }
+    }
+
+    const excerptRegion = row.querySelector('[data-inline-field="excerpt"]');
+    if (excerptRegion) {
+        excerptRegion.dataset.inlineValue = post.excerpt || '';
+        const summary = excerptRegion.querySelector('[data-inline-summary]');
+        if (summary) {
+            summary.textContent = post.summary || '暂无摘要';
+        }
+    }
+
+    const statusRegion = row.querySelector('[data-inline-field="status"]');
+    if (statusRegion) {
+        statusRegion.dataset.inlineValue = post.status || '';
+        const badge = statusRegion.querySelector('.admin-badge');
+        if (badge) {
+            badge.textContent = post.status_label || post.status || '';
+            badge.classList.remove('admin-badge-success', 'admin-badge-warning', 'admin-badge-neutral');
+            badge.classList.add(
+                post.status === 'published'
+                    ? 'admin-badge-success'
+                    : post.status === 'draft'
+                        ? 'admin-badge-warning'
+                        : 'admin-badge-neutral'
+            );
+        }
+    }
+
+    const publishedAtRegion = row.querySelector('[data-inline-field="published_at"]');
+    if (publishedAtRegion) {
+        publishedAtRegion.dataset.inlineValue = post.published_at_input || '';
+        const timeText = publishedAtRegion.querySelector('[data-inline-time-text]');
+        if (timeText) {
+            timeText.textContent = post.published_at_display || '-';
+        }
+    }
+
+    const categoriesRegion = row.querySelector('[data-inline-field="categories"]');
+    if (categoriesRegion) {
+        categoriesRegion.dataset.inlineValue = (post.category_ids || []).join(',');
+        renderInlineBadges(categoriesRegion, post.category_names || [], 'admin-badge-neutral', '未分类');
+    }
+
+    const tagsRegion = row.querySelector('[data-inline-field="tags"]');
+    if (tagsRegion) {
+        tagsRegion.dataset.inlineValue = (post.tag_names || []).join(', ');
+        renderInlineBadges(tagsRegion, post.tag_names || [], 'admin-badge-info', '无标签');
+    }
+
+    maybeReloadAfterInlineUpdate(post);
+}
+
+async function submitInlineUpdate(state, payload) {
+    if (!state || state.saving || state.closed) return;
+    state.saving = true;
+    state.region.classList.add('is-saving');
+    if (state.editor) {
+        state.editor.querySelectorAll('input, textarea, select, button').forEach((control) => {
+            control.disabled = true;
+        });
+    }
+    try {
+        const response = await fetch(`{{ request.state.admin_path }}/api/v1/posts/${state.postId}/inline`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '{{ request.state.csrf_token }}'
+            },
+            body: JSON.stringify(payload)
+        });
+        const result = await parseApiResponse(response);
+        applyInlinePostUpdate(result.post);
+        teardownInlineEditor(state);
+        window.adminNotify(result.message || '已更新', 'success');
+    } catch (error) {
+        teardownInlineEditor(state);
+        window.adminNotify(`保存失败：${error.message}`, 'error', { duration: 4200 });
+    } finally {
+        state.saving = false;
+    }
+}
+
+document.addEventListener('click', (event) => {
+    const trigger = closestFromEvent(event, '[data-inline-trigger]');
+    if (!trigger) return;
+    event.preventDefault();
+    const region = trigger.closest('[data-inline-field]');
+    if (region) {
+        openInlineEditor(region);
+    }
+});
+
+document.addEventListener('click', (event) => {
+    const link = closestFromEvent(event, '[data-inline-field="title"] .admin-post-title-link');
+    if (!link) return;
+    if (event.defaultPrevented) return;
+    if (!supportsInlineDoubleClick()) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.detail === 0) return;
+    // 桌面端单击延迟打开，留出双击进入编辑的判定窗口
+    event.preventDefault();
+    window.clearTimeout(inlineEditState.navTimer);
+    inlineEditState.navTimer = window.setTimeout(() => {
+        inlineEditState.navTimer = 0;
+        window.open(link.href, '_blank', 'noopener');
+    }, 300);
+});
+
+document.addEventListener('dblclick', (event) => {
+    if (!supportsInlineDoubleClick()) return;
+    const region = closestFromEvent(event, '[data-inline-field]');
+    if (!region) return;
+    if (closestFromEvent(event, '.admin-inline-editor')) return;
+    window.clearTimeout(inlineEditState.navTimer);
+    inlineEditState.navTimer = 0;
+    if (inlineEditState.current && inlineEditState.current.region === region) return;
+    event.preventDefault();
+    openInlineEditor(region);
+});
+
+document.addEventListener('click', (event) => {
+    const state = inlineEditState.current;
+    if (!state || state.field !== 'categories' || state.closed || state.saving) return;
+    if (state.editor && state.editor.contains(event.target)) return;
+    if (state.region.contains(event.target)) return;
+    teardownInlineEditor(state);
+});
+
+window.addEventListener('resize', repositionInlineEditor);
+window.addEventListener('scroll', repositionInlineEditor, true);
 
 document.addEventListener('DOMContentLoaded', () => {
     const selectAll = document.getElementById('select-all');

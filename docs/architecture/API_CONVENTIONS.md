@@ -38,6 +38,7 @@ RewrZ 当前 API 分为四层：
 - 后台管理接口保持在 `ADMIN_PATH` 下，例如：
   - `{ADMIN_PATH}/api/v1/media`
   - `{ADMIN_PATH}/api/v1/posts/{id}`
+  - `{ADMIN_PATH}/api/v1/posts/{id}/inline`（列表页内联编辑，只接受白名单元数据字段）
   - `{ADMIN_PATH}/api/v1/api-keys`
 
 ### 2.3 外部 API 路径

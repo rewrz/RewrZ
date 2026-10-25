@@ -428,7 +428,13 @@
                 const themeName = config.theme || 'light';
                 const root = document.documentElement;
                 const body = document.body;
+                const previousTheme = body.dataset.currentTheme || '';
 
+                // 自定义主题名也要从旧节点上移除，避免新旧主题 class 叠加
+                if (previousTheme && previousTheme !== themeName) {
+                    root.classList.remove(previousTheme);
+                    body.classList.remove(previousTheme);
+                }
                 root.classList.remove(...ADMIN_THEME_NAMES);
                 body.classList.remove(...ADMIN_THEME_NAMES);
                 root.classList.add(themeName);
@@ -445,8 +451,8 @@
                     body.classList.add(atmosphereClass);
                 }
 
-                if (forceReloadCss && themeName !== (body.dataset.currentTheme || '')) {
-                    // 仅当服务端内联的主题与最新配置不一致时才补拉样式表
+                if (themeName !== previousTheme) {
+                    // 主题确实变化时必须补拉变量样式表，否则只有 class 变了、颜色仍是旧的
                     let cssLink = document.getElementById('admin-theme-variables');
                     if (!cssLink) {
                         cssLink = document.createElement('link');
@@ -454,7 +460,7 @@
                         cssLink.rel = 'stylesheet';
                         document.head.appendChild(cssLink);
                     }
-                    cssLink.href = `/api/v1/theme/variables.css?v=${Date.now()}`;
+                    cssLink.href = `/api/v1/theme/variables.css?theme=${encodeURIComponent(themeName)}&v=${Date.now()}`;
                     body.dataset.currentTheme = themeName;
                 }
             } catch (error) {

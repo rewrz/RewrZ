@@ -67,3 +67,15 @@ class Post(PostBase):
 
 class PostBatchUpdate(BaseModel):
     post_ids: List[int]
+
+
+class PostInlineUpdate(BaseModel):
+    """列表页内联编辑：只允许修改轻量元数据，不允许触碰正文与可见性。"""
+
+    title: Optional[str] = None
+    excerpt: Optional[str] = None
+    status: Optional[str] = None
+    # 站点本地时间字符串，由接口转换为数据库使用的 UTC
+    published_at: Optional[str] = None
+    category_ids: Optional[List[int]] = None
+    tag_names: Optional[List[str]] = None

@@ -10,7 +10,7 @@
 .\.venv\Scripts\python.exe -m pytest --collect-only -q
 ```
 
-- `403 tests collected in 1.24s`
+- `438 tests collected in 1.15s`
 
 ## 2. 当前已验证的专项回归
 
@@ -82,13 +82,28 @@
 - 统计页、摘要、实时片段、仪表盘摘要与设置/清空的登录与 CSRF 边界
 - beacon 同源校验、2KB 限长、单 IP 限频、后台路径与爬虫拒绝，且不重复计入回源请求
 
-### 2.6 全量回归
+### 2.6 文章列表内联编辑
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests\test_post_inline_update.py -q
+```
+
+- `11 passed`
+
+覆盖点：
+
+- 标题、摘要、状态、分类、标签、发布时间的内联更新与清空
+- 改标题不改 slug、转草稿保留发布时间、不写版本快照、显式失效前台缓存
+- 发布时间按站点时区转换为 UTC
+- 空标题、非法状态、已发布清空时间、无效分类、空 payload、页面类型等 400 校验与 CSRF 边界
+
+### 2.7 全量回归
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-- `403 passed in 410.21s`
+- `438 passed in 358.68s`
 
 ## 3. 使用规则
 

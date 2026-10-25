@@ -113,9 +113,9 @@ def build_base_template_context(request: Request) -> dict:
             if user_id > 0:
                 current_user = crud_user.get_user(db, user_id=user_id)
                 is_logged_in = is_user_token_payload_valid(current_user, payload)
-                if is_logged_in and current_user is not None:
-                    user_role = str(getattr(current_user, "role", "") or "").strip().lower()
-                    theme_persist_allowed = user_role in {"admin", "super_admin"}
+                # 主题偏好属于账号级设置：任何有效登录用户都应能写回自己的偏好，
+                # 否则换设备/浏览器登录后无法同步主题。
+                theme_persist_allowed = bool(is_logged_in and current_user is not None)
 
     # 仅保留三种内容类型，避免旧格式继续出现在导航中
     all_formats = crud_format.get_formats(db)

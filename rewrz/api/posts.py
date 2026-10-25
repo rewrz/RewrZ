@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Form, Header, File, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any, Deque, Tuple
 from datetime import datetime
@@ -11,15 +12,16 @@ from collections import defaultdict, deque
 from ..core.admin_path import get_admin_path
 from ..core.database import get_db
 from ..core.security import get_current_user, verify_csrf_token
-from ..core.template_filters import get_templates
+from ..core.template_filters import get_templates, post_summary_text_filter
 from ..core.config import settings
 from ..core.page_templates import DEFAULT_PAGE_TEMPLATE, get_page_template_options, normalize_page_template
-from ..crud import post as crud_post, category as crud_category, format as crud_format, setting as crud_setting
-from ..schemas import Post, PostCreate, PostUpdate, User, PostBatchUpdate, FormatCreate
+from ..crud import post as crud_post, category as crud_category, format as crud_format, setting as crud_setting, tag as crud_tag
+from ..models.category import Category
+from ..schemas import Post, PostCreate, PostUpdate, PostInlineUpdate, User, PostBatchUpdate, FormatCreate
 from ..core.content_intents import INTENT_SLUGS, INTENT_NAME_MAP, to_public_post_segment
 from ..core.content_utils import render_markdown_html
 from ..core.micro_text import MICRO_TAG_LIMIT, enhance_micro_html, extract_micro_tags, strip_micro_tags
-from ..core.time_utils import site_local_to_utc_naive, utc_iso
+from ..core.time_utils import site_local_to_utc_naive, utc_iso, format_site_time
 from . import media as media_api
 
 router = APIRouter()
@@ -616,6 +618,112 @@ async def update_post_api(
     response.headers["HX-Redirect"] = f"{ADMIN_PATH}/posts"
     return response
 
+
+@router.patch(f"{ADMIN_PATH}/api/v1/posts/{{post_id}}/inline", response_model=dict)
+async def inline_update_post_api(
+    request: Request,
+    post_id: int,
+    payload: PostInlineUpdate,
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """列表页内联编辑：只更新轻量元数据，不触碰正文、slug 与封面缓存。"""
+    verify_csrf_token(request, csrf_token)
+
+    db_post = crud_post.get_post(db, post_id=post_id)
+    if not db_post:
+        raise HTTPException(status_code=404, detail="文章不存在")
+    if db_post.post_type != "post":
+        raise HTTPException(status_code=400, detail="该接口仅用于文章")
+
+    provided_fields = payload.model_fields_set
+    if not provided_fields:
+        raise HTTPException(status_code=400, detail="没有需要更新的字段")
+
+    changes: Dict[str, Any] = {}
+    updated_labels: List[str] = []
+
+    if "title" in provided_fields:
+        normalized_title = str(payload.title or "").strip()
+        if not normalized_title:
+            raise HTTPException(status_code=400, detail="标题不能为空")
+        changes["title"] = normalized_title
+        updated_labels.append("标题")
+
+    if "excerpt" in provided_fields:
+        changes["excerpt"] = payload.excerpt or ""
+        updated_labels.append("摘要")
+
+    if "status" in provided_fields:
+        normalized_status = str(payload.status or "").strip().lower()
+        if normalized_status not in {"published", "draft"}:
+            raise HTTPException(status_code=400, detail="状态仅支持已发布或草稿")
+        changes["status"] = normalized_status
+        updated_labels.append("状态")
+
+    if "published_at" in provided_fields:
+        parsed_published_at = _parse_published_at_input(payload.published_at)
+        target_status = changes.get("status", db_post.status)
+        if parsed_published_at is None and target_status == "published":
+            raise HTTPException(status_code=400, detail="已发布文章必须保留发布时间")
+        changes["published_at"] = parsed_published_at
+        updated_labels.append("发布时间")
+
+    if "category_ids" in provided_fields:
+        requested_ids = sorted({
+            int(category_id)
+            for category_id in (payload.category_ids or [])
+            if isinstance(category_id, int) and category_id > 0
+        })
+        if requested_ids:
+            existing_ids = set(
+                db.execute(select(Category.id).filter(Category.id.in_(requested_ids))).scalars().all()
+            )
+            missing_ids = [category_id for category_id in requested_ids if category_id not in existing_ids]
+            if missing_ids:
+                raise HTTPException(status_code=400, detail="部分分类不存在，请刷新页面后重试")
+        changes["category_ids"] = requested_ids
+        updated_labels.append("分类")
+
+    if "tag_names" in provided_fields:
+        normalized_tag_names: List[str] = []
+        seen_tag_keys = set()
+        for raw_name in payload.tag_names or []:
+            tag_name = crud_tag.normalize_tag_text(raw_name)
+            tag_key = tag_name.casefold()
+            if not tag_name or tag_key in seen_tag_keys:
+                continue
+            seen_tag_keys.add(tag_key)
+            normalized_tag_names.append(tag_name)
+        changes["tag_names"] = normalized_tag_names
+        updated_labels.append("标签")
+
+    updated_metadata_post = crud_post.update_post_metadata(db, post_id, changes)
+    if updated_metadata_post is None:
+        raise HTTPException(status_code=404, detail="文章不存在")
+
+    published_source = updated_metadata_post.published_at or updated_metadata_post.created_at
+    status_label_map = {"published": "已发布", "draft": "草稿"}
+    return {
+        "success": True,
+        "message": f"{'、'.join(updated_labels)}已更新",
+        "post": {
+            "id": updated_metadata_post.id,
+            "title": updated_metadata_post.title or "",
+            "title_display": (updated_metadata_post.title or "").strip() or "(无标题)",
+            "excerpt": updated_metadata_post.excerpt or "",
+            "summary": post_summary_text_filter(updated_metadata_post, 120),
+            "status": updated_metadata_post.status,
+            "status_label": status_label_map.get(updated_metadata_post.status, updated_metadata_post.status),
+            "published_at_display": format_site_time(published_source, "%Y-%m-%d %H:%M") if published_source else "-",
+            "published_at_input": format_site_time(updated_metadata_post.published_at, "%Y-%m-%dT%H:%M"),
+            "category_ids": [category.id for category in updated_metadata_post.categories],
+            "category_names": [category.name for category in updated_metadata_post.categories],
+            "tag_names": [tag.name for tag in updated_metadata_post.tags],
+        },
+    }
+
 @router.delete(f"{ADMIN_PATH}/api/v1/posts/{{post_id}}")
 async def delete_post_api(post_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
@@ -738,6 +846,26 @@ async def batch_delete_posts(
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "error": f"批量删除失败: {str(e)}"})
 
+@router.get(f"{ADMIN_PATH}/api/v1/posts/{{post_id}}/cover", response_model=dict)
+async def get_post_cover_api(
+    post_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """返回文章当前实际使用的封面 URL，供后台刷新后更新缩略图。"""
+    db_post = crud_post.get_post(db, post_id=post_id)
+    if not db_post or db_post.post_type != "post":
+        raise HTTPException(status_code=404, detail="文章不存在")
+
+    from ..main import _attach_article_cover_urls
+
+    _attach_article_cover_urls(db, [db_post], attr_name="admin_cover_url")
+    return {
+        "success": True,
+        "cover_url": str(getattr(db_post, "admin_cover_url", "") or ""),
+    }
+
+
 @router.post(f"{ADMIN_PATH}/api/v1/posts/{{post_id}}/cover-cache/refresh", response_model=dict)
 async def refresh_post_cover_cache_api(
     request: Request,
@@ -752,16 +880,20 @@ async def refresh_post_cover_cache_api(
     if not db_post or db_post.post_type != "post":
         raise HTTPException(status_code=404, detail="文章不存在")
 
-    from ..main import refresh_article_cover_cache
+    from ..main import _attach_article_cover_urls, refresh_article_cover_cache
 
     result = refresh_article_cover_cache(db, db_post)
+    # 刷新后立即解析一次当前封面：文章本身有特色图/正文图时这里能直接返回，
+    # 需要重新抓取 API 兜底图时由前端轮询封面接口等待生成完成。
+    _attach_article_cover_urls(db, [db_post], attr_name="admin_cover_url")
+    cover_url = str(getattr(db_post, "admin_cover_url", "") or "")
     if result.get("scheduled"):
         message = "封面缓存已刷新，稍后访问即可看到新封面"
     elif result.get("removed"):
         message = f"已清理 {result['removed']} 份旧封面缓存，将在下次访问时自动重建"
     else:
         message = str(result.get("reason") or "当前无需刷新封面缓存")
-    return {"success": True, "message": message, **result}
+    return {"success": True, "message": message, "cover_url": cover_url, **result}
 
 # --- 页面管理路由 ---
 

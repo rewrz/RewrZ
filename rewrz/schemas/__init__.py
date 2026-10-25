@@ -9,7 +9,7 @@ from .user import (
     UserPasswordReset,
     UserForceLogoutResult,
 )
-from .post import Post, PostCreate, PostUpdate, PostBatchUpdate
+from .post import Post, PostCreate, PostUpdate, PostBatchUpdate, PostInlineUpdate
 from .category import Category, CategoryCreate, CategoryUpdate
 from .tag import Tag, TagCreate, TagUpdate
 from .comment import Comment, CommentCreate

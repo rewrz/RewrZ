@@ -176,6 +176,29 @@
         gap: 0.75rem;
         margin-bottom: 0.6rem;
     }
+    .editor-meta-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.9rem 1.1rem;
+    }
+    .editor-meta-field {
+        min-width: 0;
+    }
+    .editor-meta-hint {
+        margin-top: 0.35rem;
+        font-size: 0.74rem;
+        line-height: 1.55;
+        color: var(--color-text-light);
+    }
+    #post-excerpt {
+        resize: vertical;
+        min-height: 6.1rem;
+    }
+    @media (min-width: 860px) {
+        .editor-meta-grid {
+            grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+        }
+    }
     .editor-inline-trigger {
         display: inline-flex;
         align-items: center;
@@ -227,6 +250,10 @@
         #editor-side-panel > .admin-panel {
             position: sticky;
             top: 6rem;
+            /* 侧栏内容比视口长时允许内部滚动，避免底部设置项被粘性定位永久裁掉 */
+            max-height: calc(100vh - 7.5rem);
+            overflow-y: auto;
+            overscroll-behavior: contain;
         }
     }
     .editor-actionbar {
@@ -311,6 +338,23 @@
                             <label for="title" class="block text-sm font-medium text-[var(--color-text)]">标题</label>
                             <input type="text" id="title" name="title" value="{% if post %}{{ post.title }}{% endif %}" class="editor-input" placeholder="输入文章标题（可留空，适合短内容）">
                             <p class="mt-2 text-xs text-[var(--color-text-light)]">标题会影响 SEO 与分享卡片展示。</p>
+                        </div>
+                        <div class="editor-meta-grid mb-4">
+                            <div class="editor-meta-field">
+                                <label for="tag-input" class="block text-sm font-medium text-[var(--color-text)]">标签</label>
+                                <input type="text" id="tag-input" class="editor-input mt-2" placeholder="添加标签后按回车...">
+                                <div id="tag-container" class="mt-2 flex flex-wrap gap-2"></div>
+                                <p class="editor-meta-hint">支持回车、英文逗号、中文逗号快速添加；保存时不存在的标签会自动创建。</p>
+                                <input type="hidden" name="tags" id="tags-hidden-input" value="{% if post %}{{ post.tags|map(attribute='name')|join(',') }}{% endif %}">
+                            </div>
+                            <div class="editor-meta-field">
+                                <div class="flex items-center justify-between gap-2">
+                                    <label for="post-excerpt" class="block text-sm font-medium text-[var(--color-text)]">摘要</label>
+                                    <span class="text-xs text-[var(--color-text-light)]">选填</span>
+                                </div>
+                                <textarea id="post-excerpt" name="excerpt" rows="3" class="editor-input mt-2" placeholder="仅在需要时手动填写摘要，不会自动生成">{% if post %}{{ post.excerpt }}{% endif %}</textarea>
+                                <p class="editor-meta-hint">仅手动填写时才会展示；留空时前台聚合页会自动截取正文。</p>
+                            </div>
                         </div>
                         <div class="editor-toolbar mb-3 flex flex-wrap items-center justify-between gap-2">
                             <div class="text-sm text-[var(--color-text-light)]">
@@ -490,18 +534,6 @@
                                 {% endfor %}
                             </div>
                             <p id="category-panel-hint" class="mt-2 text-xs text-[var(--color-text-light)]">标准文章建议设置分类；微博与诗词歌赋默认不需要分类。</p>
-                        </div>
-                        <div>
-                            <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">标签</h3>
-                            <input type="text" id="tag-input" placeholder="添加标签后按回车..." class="editor-input">
-                            <div id="tag-container" class="mt-2 flex flex-wrap gap-2"></div>
-                            <p class="mt-1 text-xs text-[var(--color-text-light)]">支持回车、英文逗号、中文逗号快速添加；保存时不存在的标签会自动创建。</p>
-                            <input type="hidden" name="tags" id="tags-hidden-input" value="{% if post %}{{ post.tags|map(attribute='name')|join(',') }}{% endif %}">
-                        </div>
-                        <div>
-                            <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">摘要</h3>
-                            <textarea name="excerpt" rows="4" class="editor-input" placeholder="选填：仅在需要时手动填写摘要，不会自动生成">{% if post %}{{ post.excerpt }}{% endif %}</textarea>
-                            <p class="mt-1 text-xs text-[var(--color-text-light)]">仅手动填写时才会展示；留空时前台聚合页会自动截取正文。</p>
                         </div>
                         {% if post %}
                         <div>
@@ -968,6 +1000,9 @@
             const submitMode = shouldForceMarkdown ? 'markdown' : mode;
             setEditorMode(submitMode, false);
             event.detail.parameters.editor_mode = submitMode;
+            // 保存时把标签输入框里尚未回车的标签一起提交
+            flushPendingTags();
+            event.detail.parameters.tags = tagsHiddenInput ? tagsHiddenInput.value : '';
             if (submitMode === 'html') {
                 event.detail.parameters.content = '';
                 event.detail.parameters.content_html = editor.getHTML();
@@ -1046,8 +1081,22 @@
             return label.querySelector('input[name="category_ids"]');
         }
 
+        function flushPendingTags() {
+            if (!tagInput) return;
+            const pendingValue = tagInput.value.trim();
+            if (!pendingValue) return;
+            pendingValue
+                .split(/[,，]/)
+                .map((name) => name.trim())
+                .filter(Boolean)
+                .forEach((name) => addTag(name));
+            tagInput.value = '';
+        }
+
         if (tagInput) {
             tagInput.addEventListener('keydown', function(event) {
+                // 中文输入法选词确认也会触发 Enter，组合态下不能当作“添加标签”
+                if (event.isComposing || event.keyCode === 229) return;
                 if (event.key === 'Enter' || event.key === ',' || event.key === '，') {
                     event.preventDefault();
                     const tagName = tagInput.value.trim().replace(/,$|，$/g, '');
@@ -1057,6 +1106,8 @@
                     }
                 }
             });
+            // 输入框里还没回车的标签，失焦或保存时一并写入，避免输完直接保存丢失
+            tagInput.addEventListener('blur', flushPendingTags);
         }
         renderTags(getTags());
 
@@ -1438,6 +1489,47 @@
         });
         postForm.addEventListener('htmx:beforeSwap', () => {
             document.body.classList.remove('editor-fullscreen-active');
+        });
+
+        function restoreSaveButtonAfterFailure() {
+            isSubmitting = false;
+            // 提交前已把状态标记为“无改动”，失败后要恢复为未保存，避免关闭页面时丢失内容
+            isDirty = true;
+            updateDirtyUI();
+            if (!savePostButton) return;
+            savePostButton.disabled = false;
+            savePostButton.classList.remove('opacity-70', 'cursor-not-allowed');
+            savePostButton.innerHTML = '<i class="fas fa-save mr-2"></i>保存';
+        }
+
+        function extractSubmitErrorMessage(xhr) {
+            try {
+                const payload = JSON.parse(xhr.responseText || '{}');
+                if (Array.isArray(payload.detail)) {
+                    const messages = payload.detail
+                        .map((item) => item?.msg || item?.message || '')
+                        .filter(Boolean);
+                    if (messages.length) return messages.join('；');
+                }
+                if (payload.detail) return String(payload.detail);
+                if (payload.error && typeof payload.error === 'object') {
+                    return String(payload.error.message || '');
+                }
+                if (payload.error) return String(payload.error);
+                if (payload.message) return String(payload.message);
+            } catch (_) {
+                // 非 JSON 响应时回退到状态码提示
+            }
+            return xhr.status ? `请求失败（HTTP ${xhr.status}）` : '网络请求失败，请稍后重试';
+        }
+
+        postForm.addEventListener('htmx:responseError', (event) => {
+            restoreSaveButtonAfterFailure();
+            window.adminNotify?.(`保存失败：${extractSubmitErrorMessage(event.detail.xhr)}`, 'error', { duration: 4200 });
+        });
+        postForm.addEventListener('htmx:sendError', () => {
+            restoreSaveButtonAfterFailure();
+            window.adminNotify?.('保存失败：无法连接服务器，请检查网络后重试。', 'error', { duration: 4200 });
         });
 
         {% if post %}

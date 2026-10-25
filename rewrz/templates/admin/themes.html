@@ -42,7 +42,7 @@
                     <div class="space-y-3">
                         <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                             <label class="block text-sm font-medium text-gray-700">当前默认主题</label>
-                            <p class="text-xs text-gray-500">登录用户若设置了个人主题偏好，会在前台覆盖这里的默认值。</p>
+                            <p class="text-xs text-gray-500">保存后会作为全站默认主题，并同步更新你的账号偏好；其他登录用户仍优先使用各自的个人偏好。</p>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3">
                             {% for theme_id, theme_config in default_themes.items() %}

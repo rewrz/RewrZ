@@ -839,6 +839,7 @@ async def update_theme_settings(
 
     # 更新当前主题
     theme_setting = crud_setting.get_setting(db, key="current_theme")
+    previous_theme = resolve_theme_name(_extract_setting_value(theme_setting, "light"), custom_themes)
     if theme_setting:
         crud_setting.update_setting(db, key="current_theme", setting_update=SettingUpdate(value={"value": normalized_current_theme}))
     else:
@@ -848,6 +849,14 @@ async def update_theme_settings(
             description="当前使用的主题",
             category="theme"
         ))
+    if normalized_current_theme != previous_theme:
+        # 管理员在这个页面选择的是“全站默认主题”，但账号个人偏好优先级更高；
+        # 若不一起更新，管理者自己前后台仍显示旧主题，看起来像没保存/没同步。
+        crud_user.set_user_theme_preference(
+            db,
+            int(current_user.id),
+            theme_preference=normalized_current_theme,
+        )
     
     # 更新毛玻璃强度档位
     glass_intensity_setting = crud_setting.get_setting(db, key="glass_intensity")

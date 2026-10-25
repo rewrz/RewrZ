@@ -6,6 +6,7 @@ RewrZ 博客系统主应用模块
 """
 import os
 import hashlib
+import mimetypes
 import threading
 import time
 import asyncio
@@ -235,6 +236,11 @@ class CacheControlStaticFiles(StaticFiles):
             response.headers.setdefault("Cache-Control", "public, max-age=3600")
         return response
 
+
+# Windows 注册表经常缺少 webp/avif 的 MIME 登记，若不显式补登记，
+# 封面缓存会以 application/octet-stream 返回，部分浏览器会拒绝渲染缩略图。
+mimetypes.add_type("image/webp", ".webp")
+mimetypes.add_type("image/avif", ".avif")
 
 # 挂载静态文件目录（URL 带版本号，可长期强缓存）
 app.mount(
