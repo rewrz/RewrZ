@@ -36,61 +36,65 @@ class SettingsMiddleware(BaseHTTPMiddleware):
         if request.url.path.startswith(("/static/", "/media/")):
             return await call_next(request)
 
+        # 定义需要加载的所有设置键（提到 try 外，缓存未命中时才需要数据库会话）
+        all_setting_keys = [
+            # 基础站点设置
+            "site_title", "tagline", "site_url", "admin_email",
+            "site_description", "site_announcement",
+            "public_contact_email",
+            "site_logo_light", "site_logo_dark", "favicon",
+            "site_cover_url",
+            "copyright_info", "custom_footer_text", "icp_beian", "gongan_beian",
+
+            # SEO设置
+            "noindex_site", "block_ai_crawlers",
+
+            # 社交和其他设置
+            "social_links_json",
+
+            # RSS设置
+            "rss_enabled", "rss_items_limit", "rss_cache_duration", "rss_description",
+
+            # 站点地图设置
+            "sitemap_enabled",
+
+            # 分页设置
+            "homepage_posts_limit", "archive_posts_limit", "search_results_limit", "related_posts_limit", "list_navigation_mode",
+            # 展示设置
+            "code_highlight_theme",
+            "current_theme",
+            "glass_intensity",
+            "background_image_settings",
+            # /formats/article 图文卡片兜底图设置
+            "article_card_fallback_source", "article_card_fallback_api_url", "article_card_fallback_local_dir",
+            "article_card_api_cache_enabled", "article_card_api_cache_ttl_minutes", "article_card_api_cache_cleanup_minutes",
+
+            # 打赏功能设置
+            "donation_enabled", "donation_title", "donation_description",
+            "donation_qr_code_url", "donation_link_text", "donation_link_url",
+            "donation_style_theme", "donation_show_position",
+        ]
+
+        # 添加主页个性化设置键
+        all_setting_keys.extend(HOMEPAGE_SETTING_KEYS)
+
         db_gen = None
         try:
-            # 优先复用 request 级数据库会话
-            db: Session = getattr(request.state, "db", None)
-            if db is None:
-                db_gen = get_db()
-                db = next(db_gen)
+            # 先查批量设置缓存：命中时完全不需要创建数据库会话，
+            # 匿名访客的绝大多数请求都能走这条路径。
+            all_settings = crud_setting.get_cached_settings_by_keys(all_setting_keys)
+            if all_settings is None:
+                # 优先复用 request 级数据库会话
+                db: Session = getattr(request.state, "db", None)
+                if db is None:
+                    db_gen = get_db()
+                    db = next(db_gen)
 
-            if db is None:
-                raise RuntimeError("Database session is unavailable")
-            
-            # 定义需要加载的所有设置键
-            all_setting_keys = [
-                # 基础站点设置
-                "site_title", "tagline", "site_url", "admin_email",
-                "site_description", "site_announcement",
-                "public_contact_email",
-                "site_logo_light", "site_logo_dark", "favicon",
-                "site_cover_url",
-                "copyright_info", "custom_footer_text", "icp_beian", "gongan_beian",
-                
-                # SEO设置
-                "noindex_site", "block_ai_crawlers",
-                
-                # 社交和其他设置
-                "social_links_json",
-                
-                # RSS设置
-                "rss_enabled", "rss_items_limit", "rss_cache_duration", "rss_description",
-                
-                # 站点地图设置
-                "sitemap_enabled",
-                
-                # 分页设置
-                "homepage_posts_limit", "archive_posts_limit", "search_results_limit", "related_posts_limit", "list_navigation_mode",
-                # 展示设置
-                "code_highlight_theme",
-                "current_theme",
-                "glass_intensity",
-                "background_image_settings",
-                # /formats/article 图文卡片兜底图设置
-                "article_card_fallback_source", "article_card_fallback_api_url", "article_card_fallback_local_dir",
-                "article_card_api_cache_enabled", "article_card_api_cache_ttl_minutes", "article_card_api_cache_cleanup_minutes",
-                
-                # 打赏功能设置
-                "donation_enabled", "donation_title", "donation_description",
-                "donation_qr_code_url", "donation_link_text", "donation_link_url",
-                "donation_style_theme", "donation_show_position",
-            ]
-            
-            # 添加主页个性化设置键
-            all_setting_keys.extend(HOMEPAGE_SETTING_KEYS)
-            
-            # 批量加载所有设置
-            all_settings = crud_setting.get_settings_by_keys(db, all_setting_keys)
+                if db is None:
+                    raise RuntimeError("Database session is unavailable")
+
+                # 批量加载所有设置
+                all_settings = crud_setting.get_settings_by_keys(db, all_setting_keys)
             raw_code_highlight_theme = all_settings.get(
                 "code_highlight_theme",
                 DEFAULT_BASE_SETTINGS["code_highlight_theme"],

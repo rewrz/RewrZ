@@ -1,9 +1,40 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Optional, Dict, Any, List, Union
+from cachetools import TTLCache
+import threading
 from ..models import Setting
 from ..schemas import SettingCreate, SettingUpdate
 from ..core.cache import cache_settings, clear_cache, cache_key_for_setting, cache # Import cache functions
+
+# 批量设置缓存：每次请求都要读取几十个设置项，缓存 5 秒即可吸收同一波并发，
+# 又不至于让后台修改长时间不生效。所有写入路径都会立即清空该缓存。
+_BATCH_CACHE: TTLCache = TTLCache(maxsize=8, ttl=5)
+_BATCH_CACHE_LOCK = threading.Lock()
+
+
+def _batch_cache_key(keys: List[str]) -> tuple:
+    """缓存键按排序后的键集合生成，调用方键顺序不同也能命中同一份结果。"""
+    return tuple(sorted({str(key) for key in keys}))
+
+
+def invalidate_settings_batch_cache() -> None:
+    """设置写入后调用：让所有批量查询缓存立即失效。"""
+    with _BATCH_CACHE_LOCK:
+        _BATCH_CACHE.clear()
+
+
+def get_cached_settings_by_keys(keys: List[str]) -> Optional[Dict[str, Any]]:
+    """只读缓存查询：命中返回设置字典副本，未命中返回 None。
+
+    用于中间件在命中缓存时完全跳过数据库会话创建。
+    """
+    with _BATCH_CACHE_LOCK:
+        cached = _BATCH_CACHE.get(_batch_cache_key(keys))
+    if cached is None:
+        return None
+    return dict(cached)
+
 
 def get_setting(db: Session, key: str) -> Optional[Setting]:
     cache_key = cache_key_for_setting(key)
@@ -35,10 +66,19 @@ def get_settings_by_keys(db: Session, keys: List[str]) -> Dict[str, Any]:
     Returns:
         一个字典，键为设置名，值为从value字段中提取的实际值.
     """
-    # Bypassing cache for simplicity in this batch operation for now.
+    cache_key = _batch_cache_key(keys)
+    with _BATCH_CACHE_LOCK:
+        cached = _BATCH_CACHE.get(cache_key)
+    if cached is not None:
+        # 每 5 秒才真正落一次库，命中时返回副本避免调用方修改共享数据
+        return dict(cached)
+
     results = db.execute(select(Setting).where(Setting.key.in_(keys))).scalars().all()
     # 直接返回提取后的值，供中间件使用
-    return {setting.key: setting.value.get("value") for setting in results if setting.value}
+    data = {setting.key: setting.value.get("value") for setting in results if setting.value}
+    with _BATCH_CACHE_LOCK:
+        _BATCH_CACHE[cache_key] = dict(data)
+    return data
 
 def create_setting(db: Session, setting: SettingCreate, *, auto_commit: bool = True) -> Setting:
     db_setting = Setting(
@@ -57,6 +97,7 @@ def create_setting(db: Session, setting: SettingCreate, *, auto_commit: bool = T
     # 仅在已提交时清理缓存；未提交事务避免提前失效导致短暂脏读。
     if auto_commit:
         clear_cache(cache_key_for_setting(setting.key))
+        invalidate_settings_batch_cache()
     return db_setting
 
 def update_setting(
@@ -78,6 +119,7 @@ def update_setting(
             db.commit()
             db.refresh(db_setting)
             clear_cache(cache_key_for_setting(db_setting.key))
+            invalidate_settings_batch_cache()
         else:
             db.flush()
     return db_setting
@@ -92,6 +134,7 @@ def delete_setting(db: Session, key: str) -> Optional[Setting]:
         if cache_key in cache:
             del cache[cache_key]
         clear_cache(cache_key_for_setting(key))
+        invalidate_settings_batch_cache()
     return db_setting
 
 

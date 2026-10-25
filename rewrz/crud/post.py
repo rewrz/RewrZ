@@ -24,8 +24,16 @@ from ..core.content_intents import choose_primary_intent_slug, normalize_intent_
 from ..core.media_attachments import detect_media_flags, summarize_media_attachments
 from ..core.page_templates import normalize_page_template
 from ..core import public_list_cache
+from ..core import public_detail_cache
+from ..core import post_views
 
 from typing import Optional, List
+
+
+def _invalidate_public_caches() -> None:
+    """内容写入后同时失效列表页与详情页缓存。"""
+    public_list_cache.invalidate_public_list_cache()
+    public_detail_cache.invalidate_public_detail_cache()
 
 
 def _normalize_post_type_value(post_type: Optional[str], *, allow_none: bool = False) -> Optional[str]:
@@ -479,6 +487,8 @@ def create_post(
     db.add(db_post)
     db.flush()
     _delete_post_views_metrics_by_ids(db, [int(db_post.id)])
+    # 新建内容可能与已删除内容复用同一 ID，同步丢弃旧的内存增量
+    post_views.discard_post_views(db_post.id)
 
     # 如果指定了分类ID，则关联对应的分类
     if post.category_ids:
@@ -507,7 +517,7 @@ def create_post(
         db.commit()
         db.refresh(db_post)
     # 文章集合变化后，公开列表页缓存必须立即失效。
-    public_list_cache.invalidate_public_list_cache()
+    _invalidate_public_caches()
     return db_post
 
 def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional[List[str]] = None, format_ids: Optional[List[int]] = None, tag_limit: Optional[int] = None):
@@ -655,7 +665,7 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
         db.commit()
         db.refresh(db_post)
         # 标题、摘要、可见性或发布时间都可能改变列表页展示，统一失效缓存。
-        public_list_cache.invalidate_public_list_cache()
+        _invalidate_public_caches()
     return db_post
 
 
@@ -788,13 +798,15 @@ def delete_post(db: Session, post_id: int, *, auto_commit: bool = True):
         # 先清理评论，避免遗留孤儿评论或外键约束问题。
         db.execute(delete(Comment).where(Comment.post_id == post_id))
         _delete_post_views_metrics_by_ids(db, [post_id])
+        # 同步丢弃尚未落库的内存增量，避免后台刷新把已删除内容的指标行写回来
+        post_views.discard_post_views(post_id)
         db.delete(db_post)
         db.flush()
         _delete_orphan_tags(db, deleted_tag_ids)
         if auto_commit:
             db.commit()
         # 删除后列表页数量与分页都会变化，立即失效缓存。
-        public_list_cache.invalidate_public_list_cache()
+        _invalidate_public_caches()
     return db_post
 
 
@@ -819,13 +831,15 @@ def delete_posts_by_ids(db: Session, post_ids: List[int], author_id: Optional[in
     if deletable_post_ids:
         db.execute(delete(Comment).where(Comment.post_id.in_(deletable_post_ids)))
         _delete_post_views_metrics_by_ids(db, deletable_post_ids)
+        for post_id in deletable_post_ids:
+            post_views.discard_post_views(post_id)
 
     for db_post in db_posts:
         db.delete(db_post)
     db.flush()
     _delete_orphan_tags(db, deleted_tag_ids)
     db.commit()
-    public_list_cache.invalidate_public_list_cache()
+    _invalidate_public_caches()
     return len(db_posts)
 
 
@@ -862,7 +876,7 @@ def bulk_update_posts_status_by_ids(
         db_post.updated_at = now
 
     db.commit()
-    public_list_cache.invalidate_public_list_cache()
+    _invalidate_public_caches()
     return len(db_posts)
 
 

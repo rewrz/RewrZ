@@ -63,9 +63,10 @@ from .crud import format as crud_format # 导入格式CRUD模块以修复未定�
 from .models import Post, Setting
 from .core import error_handler  # 导入错误处理模块
 from .core import public_list_cache  # 公共列表页缓存：匿名列表页跳过 CSRF 会话创建
+from .core import public_detail_cache  # 公开详情页整页缓存（CSRF 占位符替换）
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
-from sqlalchemy import select, func, text
-from sqlalchemy.exc import IntegrityError, TimeoutError as SQLAlchemyTimeoutError
+from sqlalchemy import select, func
+from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from datetime import date, datetime, timedelta, timezone # 导入date和datetime用于纪念日检查和主题调度
 from .core.session_middleware import RequestAwareSessionMiddleware # 导入按请求判定的会话中间件
 from .core.security import generate_csrf_token # 导入CSRF令牌生成函数
@@ -74,6 +75,8 @@ from .core.admin_path import get_admin_path
 from .core.request_context import REQUEST_ID_HEADER, ensure_request_id, install_access_log_redaction_filter, redact_url_for_log
 from .core.task_scheduler import default_task_scheduler
 from .core import traffic_analytics
+from .core import request_guard  # 垃圾爬虫与扫描路径拦截（最外层，先于会话与数据库）
+from .core import post_views  # 浏览量内存计数，后台批量落库
 from .core.content_access import (
     build_post_access_cookie_value,
     count_hide_blocks,
@@ -191,8 +194,10 @@ async def lifespan(app: FastAPI):
     register_default_scheduled_tasks()
     await default_task_scheduler.start()
     await traffic_analytics.start_flush_loop()
+    post_views.start_post_views_flusher()
     yield
     # 关闭时先做最后一次统计刷写，再停止任务调度器
+    post_views.stop_post_views_flusher()
     await traffic_analytics.stop_flush_loop()
     await default_task_scheduler.stop()
 
@@ -321,7 +326,7 @@ def register_admin_routes():
     )
 
     @app.get("/authors/{username}")
-    async def read_author_profile_entry(username: str, db: Session = Depends(get_db)):
+    def read_author_profile_entry(username: str, db: Session = Depends(get_db)):
         """
         站内作者入口（最小实现）。
         仅校验用户存在后跳转微博聚合页，作为 @提及 的稳定站内链接。
@@ -337,12 +342,19 @@ def register_admin_routes():
         return RedirectResponse(url="/formats/micro", status_code=302)
 
     @app.get("/{format_slug}/{post_slug}", response_class=HTMLResponse)
-    async def read_post(request: Request, format_slug: str, post_slug: str, db: Session = Depends(get_db)):
+    def read_post(request: Request, format_slug: str, post_slug: str, db: Session = Depends(get_db)):
         """
         文章详情页路由
         
         根据文章别名显示单篇文章的详细内容，包含动态SEO元数据
         """
+        # 扫描器的随机路径不必进入数据库查询
+        if not request_guard.is_reasonable_slug(post_slug) or not request_guard.is_reasonable_slug(format_slug):
+            raise HTTPException(status_code=404, detail="Post not found")
+
+        # 渲染前记录缓存版本：渲染期间发生写操作时，本次结果不会写入缓存
+        detail_cache_version = public_detail_cache.get_public_detail_cache_version()
+
         db_post = crud_post.get_post_by_slug(db, slug=post_slug)
         is_admin = _is_admin_authenticated(request, db)
 
@@ -389,13 +401,8 @@ def register_admin_routes():
 
         active_format_slug = requested_intent or "article"
 
-        # 访问即计数：文章详情页浏览量 +1
-        try:
-            latest_views = _increment_post_views_metric(db, db_post.id)
-            setattr(db_post, "views_count", latest_views)
-            setattr(db_post, "views", latest_views)
-        except Exception:
-            db.rollback()
+        # 访问即计数：只累加内存，后台线程每 15 秒批量落库，避免每个 PV 都写库
+        post_views.increment_post_views(db_post.id)
         
         # 获取SEO元数据
         from .api.seo import _generate_post_seo_data
@@ -455,16 +462,28 @@ def register_admin_routes():
         })
         context.update(_build_comment_view_context(db, db_post, request))
         
-        return templates.TemplateResponse(request, "post_detail.html", context)
+        response = templates.TemplateResponse(request, "post_detail.html", context)
+        public_detail_cache.store_public_detail_response(
+            request, response, version=detail_cache_version, content_id=db_post.id
+        )
+        public_detail_cache.apply_public_detail_cache_headers(response)
+        return response
 
     # 动态页面路由处理器
     @app.get("/{page_slug}", response_class=HTMLResponse)
-    async def read_page(request: Request, page_slug: str, db: Session = Depends(get_db)):
+    def read_page(request: Request, page_slug: str, db: Session = Depends(get_db)):
         """
         页面详情页路由
         
         根据页面别名显示单个页面的详细内容
         """
+        # 扫描器的随机路径不必进入保留字判断与数据库查询
+        if not request_guard.is_reasonable_slug(page_slug):
+            raise HTTPException(status_code=404, detail="Page not found")
+
+        # 渲染前记录缓存版本：渲染期间发生写操作时，本次结果不会写入缓存
+        detail_cache_version = public_detail_cache.get_public_detail_cache_version()
+
         # 屏蔽框架保留入口和后台保留 slug，避免误落到普通页面查询。
         reserved_page_slugs = {
             "installer",
@@ -523,13 +542,8 @@ def register_admin_routes():
             })
             return templates.TemplateResponse(request, "password_protected.html", context, status_code=401)
 
-        # 访问即计数：页面详情浏览量 +1
-        try:
-            latest_views = _increment_post_views_metric(db, db_page.id)
-            setattr(db_page, "views_count", latest_views)
-            setattr(db_page, "views", latest_views)
-        except Exception:
-            db.rollback()
+        # 访问即计数：只累加内存，后台线程每 15 秒批量落库，避免每个 PV 都写库
+        post_views.increment_post_views(db_page.id)
         
         # 获取SEO元数据
         from .api.seo import _generate_post_seo_data
@@ -562,7 +576,12 @@ def register_admin_routes():
         })
         context.update(_build_comment_view_context(db, db_page, request))
 
-        return templates.TemplateResponse(request, resolve_page_template_file(selected_page_template), context)
+        response = templates.TemplateResponse(request, resolve_page_template_file(selected_page_template), context)
+        public_detail_cache.store_public_detail_response(
+            request, response, version=detail_cache_version, content_id=db_page.id
+        )
+        public_detail_cache.apply_public_detail_cache_headers(response)
+        return response
 
 # 包含安装向导路由
 app.include_router(installer_api.router)
@@ -764,6 +783,36 @@ async def add_global_context(request: Request, call_next):
         except Exception:
             traffic_tracking = False
 
+    # 公开详情页整页缓存命中：跳过设置查询、文章查询、评论装配与模板渲染。
+    # 必须放在会话中间件之内，命中时才能为当前访客签发并使用自己的 CSRF 令牌。
+    detail_cache_version = public_detail_cache.get_public_detail_cache_version()
+    cached_detail = public_detail_cache.get_cached_public_detail_entry(
+        request, version=detail_cache_version
+    )
+    if cached_detail is not None:
+        cached_detail_html, cached_content_id = cached_detail
+        # 命中缓存同样是一次真实浏览：浏览量只累加内存，不产生数据库写
+        if cached_content_id > 0:
+            post_views.increment_post_views(cached_content_id)
+        _ensure_csrf_token(request)
+        cached_response = HTMLResponse(
+            content=public_detail_cache.render_cached_public_detail_html(
+                cached_detail_html, request.state.csrf_token
+            ),
+            headers={"Cache-Control": "private, no-store"},
+        )
+        # 缓存命中同样是真实 HTTP 请求，必须计入请求数与并发统计
+        if traffic_tracking:
+            try:
+                traffic_analytics.record_http_request(request, cached_response, traffic_started)
+            except Exception:
+                pass
+            try:
+                traffic_analytics.end_request()
+            except Exception:
+                pass
+        return attach_request_id(cached_response)
+
     # 复用一个 request 级数据库会话给模板层（如响应式图片、相关文章过滤器）
     request_db_gen = None
     try:
@@ -844,81 +893,6 @@ def _extract_metric_int(raw_value: Any, default: int = 0) -> int:
         return int(raw_value)
     except (TypeError, ValueError):
         return default
-
-
-def _increment_post_views_metric(db: Session, post_id: int, step: int = 1) -> int:
-    """原子递增浏览量，避免并发读取-写回丢计数。"""
-    metric_key = f"post_views_count_{post_id}"
-    increment = max(1, int(step or 1))
-    try:
-        dialect_name = str(db.get_bind().dialect.name or "").lower()
-    except Exception:
-        dialect_name = "sqlite"
-
-    if dialect_name == "postgresql":
-        statement = text(
-            """
-            UPDATE settings
-            SET value = (
-                    COALESCE(value::jsonb, '{}'::jsonb)
-                    || jsonb_build_object(
-                        'value',
-                        COALESCE((value ->> 'value')::int, 0) + :step
-                    )
-                )::json,
-                updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
-            WHERE key = :key
-            """
-        )
-    else:
-        statement = text(
-            """
-            UPDATE settings
-            SET value = json_set(
-                    CASE
-                        WHEN json_valid(value) THEN value
-                        ELSE json_object('value', 0)
-                    END,
-                    '$.value',
-                    COALESCE(
-                        json_extract(
-                            CASE
-                                WHEN json_valid(value) THEN value
-                                ELSE json_object('value', 0)
-                            END,
-                            '$.value'
-                        ),
-                        0
-                    ) + :step
-                ),
-                updated_at = CURRENT_TIMESTAMP
-            WHERE key = :key
-            """
-        )
-
-    parameters = {"step": increment, "key": metric_key}
-    result = db.execute(statement, parameters)
-    if int(result.rowcount or 0) == 0:
-        try:
-            db.add(Setting(
-                key=metric_key,
-                value={"value": increment},
-                description="Post views metric",
-                category="post_metrics",
-                type="integer",
-            ))
-            db.commit()
-            return increment
-        except IntegrityError:
-            # 并发下另一个请求已创建同一 key，回退到原子更新
-            db.rollback()
-            db.execute(statement, parameters)
-
-    db.commit()
-    current_value = db.execute(
-        select(Setting.value).where(Setting.key == metric_key)
-    ).scalar_one_or_none()
-    return _extract_metric_int(current_value, default=increment)
 
 
 def _build_comment_view_context(db: Session, post_obj, request: Request) -> Dict[str, Any]:
@@ -1970,4 +1944,8 @@ class SelectiveGZipMiddleware(GZipMiddleware):
 # 文本资源压缩：CSS/JS/HTML/JSON 默认完全没有压缩，
 # 首屏 5 个阻塞样式表合计约 470KB，压缩后传输量可降到约 1/6
 app.add_middleware(SelectiveGZipMiddleware, minimum_size=1024, compresslevel=6)
+
+# 垃圾爬虫与扫描路径拦截必须放在最外层：命中后不建会话、不查设置、不写统计，
+# 把无效请求挡在会话、模板与数据库之前。
+app.add_middleware(request_guard.BotBlockMiddleware)
 

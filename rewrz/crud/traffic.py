@@ -74,10 +74,10 @@ _COUNTER_FIELDS = (
 
 _CAPACITY_THRESHOLDS = {
     "peak_rpm_migrate": 300,
-    "peak_concurrency_migrate": 20,
+    "peak_concurrency_migrate": 40,
+    "peak_concurrency_watch": 20,
     "five_xx_ratio_migrate": 0.01,
     "peak_rpm_watch": 150,
-    "peak_concurrency_watch": 10,
     "four_xx_ratio_watch": 0.10,
 }
 
@@ -630,9 +630,11 @@ def _build_capacity(db: Session, now_utc: datetime) -> dict[str, Any]:
 
     reasons: list[str] = []
     if peak_rpm >= _CAPACITY_THRESHOLDS["peak_rpm_migrate"]:
-        reasons.append(f"峰值请求达到 {peak_rpm} 次/分钟（阈值 300）")
+        reasons.append(f"峰值请求达到 {peak_rpm} 次/分钟（阈值 {_CAPACITY_THRESHOLDS['peak_rpm_migrate']}）")
     if peak_concurrency >= _CAPACITY_THRESHOLDS["peak_concurrency_migrate"]:
-        reasons.append(f"峰值并发达到 {peak_concurrency}（阈值 20）")
+        reasons.append(
+            f"峰值并发达到 {peak_concurrency}（阈值 {_CAPACITY_THRESHOLDS['peak_concurrency_migrate']}）"
+        )
     if timeout_count > 0:
         reasons.append(f"数据库连接池等待超时 {timeout_count} 次")
     if total_requests >= 20 and five_xx_ratio > _CAPACITY_THRESHOLDS["five_xx_ratio_migrate"]:
@@ -640,9 +642,13 @@ def _build_capacity(db: Session, now_utc: datetime) -> dict[str, Any]:
 
     watch_reasons: list[str] = []
     if peak_rpm >= _CAPACITY_THRESHOLDS["peak_rpm_watch"]:
-        watch_reasons.append(f"峰值请求 {peak_rpm} 次/分钟（关注阈值 150）")
+        watch_reasons.append(
+            f"峰值请求 {peak_rpm} 次/分钟（关注阈值 {_CAPACITY_THRESHOLDS['peak_rpm_watch']}）"
+        )
     if peak_concurrency >= _CAPACITY_THRESHOLDS["peak_concurrency_watch"]:
-        watch_reasons.append(f"峰值并发 {peak_concurrency}（关注阈值 10）")
+        watch_reasons.append(
+            f"峰值并发 {peak_concurrency}（关注阈值 {_CAPACITY_THRESHOLDS['peak_concurrency_watch']}）"
+        )
     if total_requests >= 20 and four_xx_ratio > _CAPACITY_THRESHOLDS["four_xx_ratio_watch"]:
         watch_reasons.append(f"4xx 比例 {four_xx_ratio * 100:.2f}%（关注阈值 10%）")
 

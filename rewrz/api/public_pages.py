@@ -144,7 +144,7 @@ def _ensure_registered() -> None:
 
 
 @router.get("/", response_class=HTMLResponse)
-async def homepage(request: Request, page: int = 1, append: int = 0, db: Session = Depends(get_db)):
+def homepage(request: Request, page: int = 1, append: int = 0, db: Session = Depends(get_db)):
     _ensure_registered()
     # 先取缓存版本再查库：渲染期间若有文章写入，版本变化会让本次结果不落缓存。
     cache_version = public_list_cache.get_public_list_cache_version()
@@ -213,7 +213,7 @@ async def homepage(request: Request, page: int = 1, append: int = 0, db: Session
 
 
 @router.get("/archives/media/{media_slug}", response_class=HTMLResponse)
-async def posts_by_media_attachment(
+def posts_by_media_attachment(
     request: Request,
     media_slug: str,
     page: int = 1,
@@ -298,7 +298,7 @@ async def posts_by_media_attachment(
 
 
 @router.get("/formats/{format_slug}", response_class=HTMLResponse)
-async def format_page(
+def format_page(
     request: Request,
     format_slug: str,
     page: int = 1,
@@ -425,7 +425,7 @@ async def format_page(
 
 
 @router.get("/archives/by-category/{category_slug}", response_class=HTMLResponse)
-async def posts_by_category(
+def posts_by_category(
     request: Request,
     category_slug: str,
     page: int = 1,
@@ -494,7 +494,7 @@ async def posts_by_category(
 
 
 @router.get("/archives/by-tag/{tag_slug}", response_class=HTMLResponse)
-async def posts_by_tag(
+def posts_by_tag(
     request: Request,
     tag_slug: str,
     page: int = 1,
@@ -563,7 +563,7 @@ async def posts_by_tag(
 
 
 @router.get("/archives/{year}/{month}", response_class=HTMLResponse)
-async def posts_by_month(
+def posts_by_month(
     request: Request,
     year: int,
     month: int,
@@ -609,7 +609,7 @@ async def posts_by_month(
 
 
 @router.get("/archives", response_class=HTMLResponse)
-async def archives_page(
+def archives_page(
     request: Request,
     page: int = 1,
     append: int = 0,

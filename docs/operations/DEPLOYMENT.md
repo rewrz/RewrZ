@@ -199,6 +199,16 @@ SQLITE_SYNCHRONOUS=NORMAL
 匿名列表页不含评论等受保护表单，游客主题偏好由浏览器本地 Cookie 维护，所以不写
 CSRF 会话。多 worker 部署时各进程缓存互相独立，发布后的最长可见延迟仍为 20 秒。
 
+文章详情与独立页面另有整页缓存，命中后跳过设置、文章、评论查询与模板渲染：
+
+- 仅缓存匿名 GET 的完整页面；带查询串、HTMX 片段、登录态、访客互动令牌、
+  评论解锁或密码访问 Cookie 的请求一律跳过。
+- 页面含访客专属 CSRF 令牌，响应固定为 `Cache-Control: private, no-store`，
+  CDN 与浏览器都不会共享缓存；缓存内部用占位符替换令牌，命中时换成当前访客的令牌。
+- 命中缓存仍会累加文章浏览量：只写进程内存，由后台线程每 15 秒批量落库一次。
+- 新建、编辑、删除文章会立即失效详情缓存；其余内容变化（评论、分类改名等）
+  最长 20 秒后生效。
+
 ### 5.3 SQLite 的并发边界
 
 SQLite 适合单实例博客，不适合作为横向扩容的共享数据库：
@@ -559,7 +569,189 @@ server {
 DNT 用户、禁用 JS 的用户与爬虫不会执行上报，这部分由回源 PV 兜底；
 既命中 CDN 缓存、又未执行 JS 的访问无法统计。
 
-### 7.5 启用配置
+### 7.5 垃圾爬虫与扫描请求拦截
+
+应用层默认开启拦截（需要关闭时在 `.env` 写 `BOT_BLOCK_ENABLED=false`）：
+已知垃圾爬虫、任何自称 `bot/crawler/spider/scraper` 的 UA 与空 UA 返回 `403`，
+扫描路径返回 `404`，这些请求不会进入会话、设置与数据库。
+
+在 Nginx 再加一层可以更进一步：请求连 uvicorn 都不会到达，直接由 Nginx 拒绝，
+节省带宽与进程调度。在站点配置文件**顶层**（`server {}` 之外）加入：
+
+```nginx
+# 先白名单后黑名单：正则按书写顺序匹配，命中即停止
+map $http_user_agent $rewrz_bad_bot {
+    default 0;
+
+    # 正规搜索引擎 / 社交预览 / 可用性监控
+    "~*googlebot" 0;
+    "~*google-inspectiontool" 0;
+    "~*googleother" 0;
+    "~*google-read-aloud" 0;
+    "~*adsbot-google" 0;
+    "~*mediapartners-google" 0;
+    "~*apis-google" 0;
+    "~*feedfetcher-google" 0;
+    "~*bingbot" 0;
+    "~*msnbot" 0;
+    "~*adidxbot" 0;
+    "~*bingpreview" 0;
+    "~*baiduspider" 0;
+    "~*sogou" 0;
+    "~*360spider" 0;
+    "~*haosouspider" 0;
+    "~*yisouspider" 0;
+    "~*yandexbot" 0;
+    "~*duckduckbot" 0;
+    "~*duckduckgo" 0;
+    "~*slurp" 0;
+    "~*seznambot" 0;
+    "~*qwantify" 0;
+    "~*applebot" 0;
+    "~*facebookexternalhit" 0;
+    "~*facebookbot" 0;
+    "~*twitterbot" 0;
+    "~*linkedinbot" 0;
+    "~*telegrambot" 0;
+    "~*whatsapp" 0;
+    "~*slackbot" 0;
+    "~*discordbot" 0;
+    "~*pinterest" 0;
+    "~*redditbot" 0;
+    "~*mastodon" 0;
+    "~*uptimerobot" 0;
+    "~*pingdom" 0;
+    "~*statuscake" 0;
+    "~*site24x7" 0;
+    "~*freshping" 0;
+    "~*betteruptime" 0;
+    "~*better uptime" 0;
+    "~*hetrixtools" 0;
+    "~*nodeping" 0;
+    "~*checkly" 0;
+    # 健康检查与自建订阅器
+    "~*python-requests" 0;
+    "~*python-httpx" 0;
+    "~*curl/" 0;
+    "~*wget" 0;
+    "~*go-http-client" 0;
+
+    # 商业 SEO / 反链工具
+    "~*semrush" 1;
+    "~*ahrefs" 1;
+    "~*mj12bot" 1;
+    "~*dotbot" 1;
+    "~*blexbot" 1;
+    "~*dataforseo" 1;
+    "~*serpstat" 1;
+    "~*megaindex" 1;
+    "~*rogerbot" 1;
+    "~*screaming frog" 1;
+    "~*siteaudit" 1;
+    "~*zoominfo" 1;
+    "~*leiki" 1;
+    "~*nimbusbot" 1;
+    "~*barkrowler" 1;
+    "~*linkdexbot" 1;
+    "~*seokicks" 1;
+    "~*babbar" 1;
+    "~*grapeshot" 1;
+    "~*magpie-crawler" 1;
+    "~*exabot" 1;
+    "~*ccbot" 1;
+    "~*petalbot" 1;
+    "~*bytespider" 1;
+    "~*timpibot" 1;
+    "~*omgili" 1;
+    "~*youbot" 1;
+
+    # AI 训练 / 数据采集
+    "~*gptbot" 1;
+    "~*oai-searchbot" 1;
+    "~*chatgpt-user" 1;
+    "~*claudebot" 1;
+    "~*claude-web" 1;
+    "~*claude-user" 1;
+    "~*anthropic-ai" 1;
+    "~*perplexitybot" 1;
+    "~*amazonbot" 1;
+    "~*meta-externalagent" 1;
+    "~*imagesiftbot" 1;
+    "~*cohere-ai" 1;
+    "~*difybot" 1;
+    "~*ai2bot" 1;
+    "~*awariobot" 1;
+    "~*factset_spyderbot" 1;
+    "~*isscyberriskcrawler" 1;
+
+    # 安全扫描器与无头浏览器
+    "~*sqlmap" 1;
+    "~*nikto" 1;
+    "~*nmap" 1;
+    "~*masscan" 1;
+    "~*zgrab" 1;
+    "~*dirbuster" 1;
+    "~*gobuster" 1;
+    "~*nuclei" 1;
+    "~*wpscan" 1;
+    "~*acunetix" 1;
+    "~*nessus" 1;
+    "~*hydra" 1;
+    "~*censys" 1;
+    "~*scrapy" 1;
+    "~*headlesschrome" 1;
+    "~*phantomjs" 1;
+    "~*puppeteer" 1;
+    "~*playwright" 1;
+
+    # 整站镜像 / 离线抓取工具
+    "~*httrack" 1;
+    "~*nutch" 1;
+    "~*libwww-perl" 1;
+    "~*lwp-trivial" 1;
+    "~*webcopier" 1;
+    "~*sitesucker" 1;
+    "~*webzip" 1;
+
+    # 空 UA 与通用爬虫兜底
+    "" 1;
+    "~*bot" 1;
+    "~*crawler" 1;
+    "~*spider" 1;
+    "~*scraper" 1;
+}
+```
+
+在 `server {}` 内、`location` 之前加入 UA 判定与扫描路径规则：
+
+```nginx
+    if ($rewrz_bad_bot) {
+        return 403;
+    }
+
+    # 扫描器探测路径直接拒绝，不再转发给应用
+    location ~* \.(php|php3|php4|php5|phtml|asp|aspx|ashx|asmx|jsp|jspx|cgi|cfm|action)$ {
+        return 404;
+    }
+    location ~* ^/\.(env|git|svn|hg|aws|ssh|htaccess|htpasswd|ds_store) {
+        return 404;
+    }
+    location ~* ^/(wp-admin|wp-login|wp-content|wp-includes|wp-json|xmlrpc\.php|phpmyadmin|adminer|cgi-bin|vendor/phpunit|actuator|server-status|server-info|backup) {
+        return 404;
+    }
+```
+
+说明：
+
+- 监控与健康检查通常使用 `curl` / `wget`，上面的 `map` 已显式放行；
+  若你的探活使用其他 UA，请同步加入白名单，否则会被通用规则误杀
+- `/robots.txt`、`/sitemap.xml`、`/feed`、`/static/`、`/media/`、`/api/`
+  属于合法入口，不要对它们套用扫描路径规则
+- 正则 location 的优先级高于普通前缀 location，但低于 `^~` 前缀；
+  现有 `/static/` 配的是普通前缀，不受影响
+- 改完执行 `sudo nginx -t && sudo systemctl reload nginx` 验证
+
+### 7.6 启用配置
 
 ```bash
 sudo rm -f /etc/nginx/sites-enabled/default

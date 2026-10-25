@@ -136,6 +136,8 @@ class DynamicSettings:
             maximum=10080,
         )
         self.MEDIA_UPLOAD_DIR: str = str(get_value("MEDIA_UPLOAD_DIR", "media_uploads")).strip() or "media_uploads"
+        # 垃圾爬虫与扫描路径拦截开关：默认开启，正规搜索引擎与监控 UA 不受影响
+        self.BOT_BLOCK_ENABLED: bool = _parse_bool_value(get_value("BOT_BLOCK_ENABLED", "true"), True)
         # 可选强制开关：默认不写，Cookie Secure 标志由 should_use_secure_cookie 按请求自动判定
         self.COOKIE_SECURE: bool = _parse_bool_value(get_value("COOKIE_SECURE"), False)
     
