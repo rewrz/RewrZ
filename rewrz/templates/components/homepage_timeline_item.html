@@ -12,15 +12,15 @@
 
 {% set format_label = '文章' %}
 {% set format_icon = 'fas fa-file-alt' %}
-{% set format_badge_class = 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100' %}
+{% set format_badge_class = 'home-format-chip home-format-chip-article' %}
 {% if 'micro' in format_slugs %}
     {% set format_label = '微博' %}
     {% set format_icon = 'fas fa-comment-dots' %}
-    {% set format_badge_class = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' %}
+    {% set format_badge_class = 'home-format-chip home-format-chip-micro' %}
 {% elif 'poem' in format_slugs %}
     {% set format_label = '诗词歌赋' %}
     {% set format_icon = 'fas fa-feather-alt' %}
-    {% set format_badge_class = 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' %}
+    {% set format_badge_class = 'home-format-chip home-format-chip-poem' %}
 {% endif %}
 
 <article class="timeline-reveal relative mb-6 md:mb-8">

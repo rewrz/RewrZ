@@ -123,7 +123,7 @@
     --article-hero-ink-source: var(--color-card-bg);
     --article-hero-surface-weak: color-mix(in srgb, var(--article-hero-tone) 14%, transparent);
     --article-hero-surface: color-mix(in srgb, var(--article-hero-tone) 20%, transparent);
-    --article-hero-surface-strong: color-mix(in srgb, var(--article-hero-tone) 34%, transparent);
+    --article-hero-surface-strong: color-mix(in srgb, var(--article-hero-tone) 24%, transparent);
     --article-hero-surface-chip: color-mix(in srgb, var(--article-hero-tone) 18%, transparent);
     --article-hero-border-soft: color-mix(in srgb, var(--article-hero-tone-soft) 24%, transparent);
     --article-hero-border: color-mix(in srgb, var(--article-hero-ink-source) 22%, var(--article-hero-tone-soft) 78%);
@@ -134,8 +134,8 @@
     --article-hero-shadow-strong: color-mix(in srgb, var(--article-hero-tone) 58%, transparent);
     --article-hero-ribbon-top: color-mix(in srgb, var(--article-hero-ink-source) 26%, transparent);
     --article-hero-ribbon-bottom: color-mix(in srgb, var(--article-hero-tone) 18%, transparent);
-    --article-hero-lower-fade-mid: color-mix(in srgb, var(--article-hero-tone) 8%, transparent);
-    --article-hero-lower-fade-end: color-mix(in srgb, var(--article-hero-tone) 26%, transparent);
+    --article-hero-lower-fade-mid: color-mix(in srgb, var(--article-hero-tone) 4%, transparent);
+    --article-hero-lower-fade-end: color-mix(in srgb, var(--article-hero-tone) 16%, transparent);
     --article-hero-chip-surface: color-mix(in srgb, var(--article-hero-tone) 12%, transparent);
     --article-hero-chip-ink: color-mix(in srgb, var(--article-hero-ink-source) 20%, var(--color-text) 80%);
     --article-hero-box-surface: color-mix(in srgb, var(--article-hero-tone) 12%, transparent);
@@ -754,52 +754,52 @@
 }
 
 .dark .format-archive-glass .format-hero-kicker-poem {
-    color: #f3d59a;
-    text-shadow: 0 8px 24px rgba(2, 6, 23, 0.34);
+    color: color-mix(in srgb, var(--color-primary) 62%, var(--color-text) 38%);
+    text-shadow: 0 8px 24px color-mix(in srgb, var(--color-text) 26%, transparent);
 }
 
 .dark .format-archive-glass .format-hero-title-poem {
-    color: #fff2d6;
-    text-shadow: 0 2px 16px rgba(2, 6, 23, 0.2);
+    color: color-mix(in srgb, var(--color-text) 92%, var(--color-primary) 8%);
+    text-shadow: 0 2px 16px color-mix(in srgb, var(--color-text) 18%, transparent);
 }
 
 .dark .format-archive-glass .format-hero-headline-poem {
-    color: rgba(243, 225, 191, 0.9);
+    color: color-mix(in srgb, var(--color-text) 78%, var(--color-text-light) 22%);
     text-shadow: none;
 }
 
 .dark .format-archive-glass .format-hero-copy-panel-poem {
-    border-color: rgba(242, 205, 132, 0.24);
-    background: linear-gradient(180deg, rgba(20, 25, 44, 0.44), rgba(20, 25, 44, 0.32));
+    border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    background: color-mix(in srgb, var(--color-card-bg) 86%, transparent);
 }
 
 .dark .format-archive-glass .format-hero-copy-poem {
-    color: rgba(248, 236, 214, 0.94);
+    color: var(--color-text);
     text-shadow: none;
 }
 
 .dark .format-archive-glass .format-hero-motto-poem {
-    border-color: rgba(242, 205, 132, 0.26);
-    background: rgba(20, 25, 44, 0.34);
-    color: #f2d49a;
+    border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    background: color-mix(in srgb, var(--color-card-bg) 84%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%);
 }
 
 .dark .format-archive-glass .format-hero-chip-poem {
-    border-color: rgba(242, 205, 132, 0.22) !important;
-    background: rgba(20, 25, 44, 0.42) !important;
-    color: #f5dfb4 !important;
+    border-color: color-mix(in srgb, var(--color-primary) 20%, transparent) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 82%, transparent) !important;
+    color: var(--color-text) !important;
 }
 
 .dark .format-archive-glass .format-hero-link-pill-poem {
-    border-color: rgba(242, 205, 132, 0.24);
-    background: rgba(20, 25, 44, 0.4);
-    color: #f5dfb4;
+    border-color: color-mix(in srgb, var(--color-primary) 22%, transparent);
+    background: color-mix(in srgb, var(--color-card-bg) 80%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%);
 }
 
 .dark .format-archive-glass .format-hero-link-pill-poem:hover {
-    background: rgba(88, 61, 23, 0.38);
-    border-color: rgba(247, 213, 141, 0.34);
-    color: #fff2d6;
+    background: color-mix(in srgb, var(--color-primary) 16%, var(--color-card-bg) 84%);
+    border-color: color-mix(in srgb, var(--color-primary) 34%, transparent);
+    color: var(--color-text);
 }
 
 .dark .format-archive-glass .format-hero-title-poem,
@@ -811,28 +811,6 @@
     position: relative;
     z-index: 1;
     opacity: 1;
-}
-
-.dark .format-archive-glass .format-hero-title-poem {
-    color: #fff2d6;
-    text-shadow:
-        0 1px 0 rgba(255, 255, 255, 0.04),
-        0 10px 30px rgba(2, 6, 23, 0.44);
-}
-
-.dark .format-archive-glass .format-hero-headline-poem {
-    color: rgba(243, 225, 191, 0.9);
-    text-shadow: 0 8px 24px rgba(2, 6, 23, 0.34);
-}
-
-.dark .format-archive-glass .format-hero-chip-poem {
-    background: rgba(20, 25, 44, 0.48) !important;
-    color: #f5dfb4 !important;
-}
-
-.dark .format-archive-glass .format-hero-link-pill-poem {
-    background: rgba(20, 25, 44, 0.46);
-    color: #f5dfb4;
 }
 
 .format-archive-glass .archive-card-poem {
@@ -886,67 +864,71 @@
 }
 
 .dark .format-archive-glass .archive-card-poem {
-    border-color: rgba(242, 205, 132, 0.18) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%) !important;
     background:
-        linear-gradient(145deg, rgba(245, 158, 11, 0.08), transparent 58%),
-        color-mix(in srgb, var(--color-card-bg) 26%, transparent) !important;
-    box-shadow: 0 20px 34px -30px rgba(2, 6, 23, 0.4);
+        linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 9%, transparent), transparent 58%),
+        color-mix(in srgb, var(--color-card-bg) 92%, transparent) !important;
+    box-shadow: 0 20px 34px -30px color-mix(in srgb, var(--color-text) 34%, transparent);
 }
 
 .dark .format-archive-glass .archive-card-poem h3 {
-    color: #f7dfb2 !important;
+    color: var(--color-text) !important;
 }
 
 .dark .format-archive-glass .archive-card-poem .result-excerpt {
-    color: rgba(238, 229, 214, 0.88) !important;
+    color: var(--color-text-light) !important;
 }
 
 .dark .format-archive-glass .archive-card-poem .archive-card-meta {
-    border-top-color: rgba(242, 205, 132, 0.14) !important;
+    border-top-color: color-mix(in srgb, var(--color-primary) 16%, transparent) !important;
 }
 
 .dark .format-archive-glass .archive-card-poem a[href^="/archives/by-tag/"] {
-    background: rgba(20, 25, 44, 0.44) !important;
-    border-color: rgba(242, 205, 132, 0.18);
-    color: #f2d49a !important;
+    background: color-mix(in srgb, var(--color-card-bg) 88%, transparent) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%) !important;
 }
 
 .dark .format-archive-glass .archive-card-poem-badge,
 .dark .format-archive-glass .archive-card-poem-chip {
-    border-color: rgba(242, 205, 132, 0.18) !important;
-    background: rgba(20, 25, 44, 0.44) !important;
-    color: #f2d49a !important;
+    border-color: color-mix(in srgb, var(--color-primary) 20%, transparent) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 86%, transparent) !important;
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%) !important;
 }
 
 .dark .format-archive-glass .archive-card-poem-date,
 .dark .format-archive-glass .archive-card-poem-meta-text {
-    color: rgba(236, 224, 205, 0.78);
+    color: var(--color-text-light);
 }
 
 .dark .format-archive-glass .archive-card-poem-link {
-    color: #f2d49a;
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%);
 }
 
 .dark .format-archive-glass .archive-card-poem-link:hover {
-    color: #fff0cf;
+    color: color-mix(in srgb, var(--color-primary) 92%, var(--color-text) 8%);
 }
 
 .dark .format-archive-glass .format-switch-pill-poem.is-active {
-    background: linear-gradient(135deg, #f0c673, #b88634) !important;
-    color: #24160a !important;
-    border-color: rgba(255, 232, 183, 0.34) !important;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-primary) 92%, white 8%),
+        color-mix(in srgb, var(--color-primary) 72%, black 10%)
+    ) !important;
+    color: var(--color-text-inverse) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 34%, transparent) !important;
 }
 
 .dark .format-archive-glass .format-switch-pill-poem:not(.is-active) {
-    border-color: rgba(242, 205, 132, 0.18) !important;
-    background: rgba(20, 25, 44, 0.42) !important;
-    color: #f2d49a !important;
+    border-color: color-mix(in srgb, var(--color-primary) 20%, transparent) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 88%, transparent) !important;
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%) !important;
 }
 
 .dark .format-archive-glass .format-switch-pill-poem:not(.is-active):hover {
-    background: rgba(88, 61, 23, 0.34) !important;
-    border-color: rgba(247, 213, 141, 0.28) !important;
-    color: #fff0cf !important;
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 34%, transparent) !important;
+    color: var(--color-text) !important;
 }
 
 .format-archive-glass #format-posts-panel .archive-card-poem {

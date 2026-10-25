@@ -87,7 +87,7 @@
 </div>
 
 {% elif is_poem %}
-<div class="archive-card-equal archive-card-poem rounded-lg shadow-sm border p-4 hover:shadow-md transition-transform duration-200">
+<div class="poem-scroll-card archive-card-equal archive-card-poem rounded-lg shadow-sm border p-4 hover:shadow-md transition-transform duration-200">
     <div class="flex items-center justify-between mb-3">
         <span class="archive-card-poem-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
             <i class="fas fa-feather-alt mr-1"></i>诗词歌赋
@@ -106,6 +106,8 @@
              decoding="async">
     </a>
     {% endif %}
+
+    <span class="poem-scroll-seal" aria-hidden="true">诗</span>
 
     {% if post.title and post.title.strip() %}
     <h3 class="archive-card-poem-title text-xl font-semibold mb-2 leading-tight text-center">

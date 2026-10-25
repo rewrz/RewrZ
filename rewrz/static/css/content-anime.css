@@ -1,0 +1,520 @@
+/*
+ * 首页与内容聚合页的二次元视觉层
+ * 仅在首页、/formats/article、/formats/poem 加载，不参与微博页
+ * 所有颜色由动态主题变量派生，禁止写死色值
+ */
+
+/* ===== 首页：角色档案卡 ===== */
+
+body.site-shell .home-profile-card {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 24%, transparent) !important;
+    border-radius: 2rem !important;
+    box-shadow:
+        0 32px 68px -42px color-mix(in srgb, var(--color-text) 46%, transparent),
+        var(--ui-shadow-card);
+}
+
+/* 头像做成带主题双环的角色徽章 */
+body.site-shell .home-profile-card .hero-avatar-shell {
+    border-color: color-mix(in srgb, var(--color-primary) 48%, var(--color-card-bg) 52%) !important;
+    border-radius: 1.4rem;
+    box-shadow:
+        0 0 0 4px color-mix(in srgb, var(--color-primary) 16%, transparent),
+        0 0 0 9px color-mix(in srgb, var(--color-primary) 7%, transparent),
+        0 18px 38px -24px color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
+body.site-shell .home-profile-card .hero-profile-copy-overlay h1 {
+    letter-spacing: 0.02em;
+}
+
+/* 统计卡：属性面板感，保留插画透出的薄磨砂，避免整块压住头图 */
+body.site-shell .home-profile-card .hero-stats-grid > .home-stat-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border) 70%) !important;
+    border-radius: 1rem !important;
+    background:
+        linear-gradient(150deg, color-mix(in srgb, var(--color-primary) 16%, transparent), transparent 70%),
+        color-mix(in srgb, var(--color-card-bg) 64%, transparent) !important;
+    backdrop-filter: blur(10px) saturate(122%);
+    -webkit-backdrop-filter: blur(10px) saturate(122%);
+    box-shadow:
+        inset 0 1px 0 color-mix(in srgb, var(--color-card-bg) 40%, transparent),
+        0 14px 26px -24px color-mix(in srgb, var(--color-text) 34%, transparent);
+    text-shadow: none !important;
+}
+
+body.site-shell .home-profile-card .home-stat-card::after {
+    content: "";
+    position: absolute;
+    left: 0.85rem;
+    right: 0.85rem;
+    top: 0.55rem;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--color-primary) 55%, transparent),
+        transparent
+    );
+    opacity: 0.7;
+}
+
+body.site-shell .home-profile-card .home-stat-card .text-xl {
+    color: var(--color-text) !important;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+    text-shadow: none !important;
+}
+
+body.site-shell .home-profile-card .home-stat-card .mt-1 {
+    color: var(--color-text-light) !important;
+    letter-spacing: 0.12em;
+    text-shadow: none !important;
+}
+
+/* ===== 首页：时间线收口 ===== */
+
+body.site-shell #homepage-posts-panel .timeline-shell {
+    border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border) 80%);
+    border-radius: 1.75rem;
+    background-color: color-mix(in srgb, var(--color-card-bg) 88%, transparent);
+    background-image: radial-gradient(
+        color-mix(in srgb, var(--color-primary) 9%, transparent) 1px,
+        transparent 1.5px
+    );
+    background-size: 22px 22px;
+    box-shadow: 0 22px 52px -34px color-mix(in srgb, var(--color-text) 30%, transparent);
+}
+
+body.site-shell #homepage-posts-panel .timeline-card-shell {
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 95%, var(--color-background-alt) 5%) !important;
+    box-shadow:
+        inset 0 2px 0 color-mix(in srgb, var(--color-primary) 48%, transparent),
+        0 12px 28px -22px color-mix(in srgb, var(--color-text) 26%, transparent);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition:
+        transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 220ms ease;
+}
+
+body.site-shell #homepage-posts-panel .timeline-card-shell:hover {
+    transform: translate3d(0, -3px, 0);
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%) !important;
+    box-shadow:
+        inset 0 2px 0 color-mix(in srgb, var(--color-primary) 62%, transparent),
+        0 22px 44px -26px color-mix(in srgb, var(--color-primary) 34%, transparent);
+}
+
+/* 格式徽章统一为主题色，不再使用灰/蓝/紫硬编码 */
+body.site-shell #homepage-posts-panel .home-format-chip {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 26%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 11%, transparent) !important;
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%) !important;
+    letter-spacing: 0.04em;
+}
+
+body.site-shell #homepage-posts-panel .home-format-chip-micro {
+    border-color: color-mix(in srgb, var(--color-secondary) 32%, transparent);
+    background: color-mix(in srgb, var(--color-secondary) 14%, transparent) !important;
+    color: color-mix(in srgb, var(--color-secondary) 70%, var(--color-text) 30%) !important;
+}
+
+body.site-shell #homepage-posts-panel .home-format-chip-poem {
+    border-color: color-mix(in srgb, var(--color-primary) 32%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 7%, transparent) !important;
+    color: color-mix(in srgb, var(--color-primary) 66%, var(--color-text) 34%) !important;
+}
+
+/* 分类与标签胶囊统一为主题色 */
+body.site-shell #homepage-posts-panel .timeline-card-shell a[href^="/archives/by-category/"],
+body.site-shell #homepage-posts-panel .timeline-card-shell a[href^="/archives/by-tag/"] {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent) !important;
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%) !important;
+}
+
+body.site-shell #homepage-posts-panel .timeline-card-shell a[href^="/archives/by-tag/"] {
+    background: color-mix(in srgb, var(--color-secondary) 9%, transparent) !important;
+    color: color-mix(in srgb, var(--color-secondary) 66%, var(--color-text) 34%) !important;
+}
+
+/* ===== 文章聚合：档案卡 ===== */
+
+body.site-shell .format-archive-glass #format-posts-panel .article-anime-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
+    border-radius: 1.15rem !important;
+    background:
+        radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 52%),
+        color-mix(in srgb, var(--color-card-bg) 96%, var(--color-background-alt) 4%) !important;
+    box-shadow: 0 14px 32px -26px color-mix(in srgb, var(--color-text) 28%, transparent);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition:
+        transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 220ms ease;
+}
+
+body.site-shell .format-archive-glass #format-posts-panel .article-anime-card:hover {
+    transform: translate3d(0, -4px, 0);
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%) !important;
+    box-shadow: 0 26px 46px -26px color-mix(in srgb, var(--color-primary) 34%, transparent);
+}
+
+/* 封面贴纸角标 */
+body.site-shell .article-anime-card .article-anime-cover {
+    position: relative;
+}
+
+body.site-shell .article-anime-card .article-anime-cover::before {
+    content: "ARTICLE";
+    position: absolute;
+    top: 0.7rem;
+    left: 0.7rem;
+    z-index: 2;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid color-mix(in srgb, var(--color-card-bg) 34%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-text) 62%, transparent);
+    color: var(--color-card-bg);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    pointer-events: none;
+}
+
+body.site-shell .article-anime-card .article-anime-cover::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 38%;
+    background: linear-gradient(
+        180deg,
+        transparent,
+        color-mix(in srgb, var(--color-text) 22%, transparent)
+    );
+    pointer-events: none;
+}
+
+body.site-shell .article-anime-card .archive-card-cover-image {
+    transition: transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.site-shell .article-anime-card:hover .archive-card-cover-image {
+    transform: scale(1.055);
+}
+
+body.site-shell .article-anime-card h3 {
+    color: var(--color-text) !important;
+    font-weight: 700;
+    letter-spacing: 0.005em;
+}
+
+body.site-shell .article-anime-card h3 a:hover {
+    color: var(--color-primary) !important;
+}
+
+body.site-shell .article-anime-card .archive-card-body > p {
+    color: var(--color-text-light) !important;
+    line-height: 1.85;
+}
+
+body.site-shell .article-anime-card a[href^="/archives/by-category/"],
+body.site-shell .article-anime-card a[href^="/archives/by-tag/"] {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, transparent) !important;
+    background: color-mix(in srgb, var(--color-primary) 9%, transparent) !important;
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%) !important;
+}
+
+body.site-shell .article-anime-card span.rounded-full {
+    border-color: color-mix(in srgb, var(--color-primary) 16%, transparent) !important;
+    background: color-mix(in srgb, var(--color-primary) 7%, transparent) !important;
+    color: color-mix(in srgb, var(--color-primary) 68%, var(--color-text) 32%) !important;
+}
+
+body.site-shell .article-anime-card .archive-card-meta {
+    border-top: 1px dashed color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%) !important;
+    color: var(--color-text-light) !important;
+    letter-spacing: 0.01em;
+}
+
+body.site-shell .article-anime-card .archive-card-meta i {
+    color: color-mix(in srgb, var(--color-primary) 68%, var(--color-text-light) 32%);
+}
+
+/* ===== 诗词聚合：和风诗笺 ===== */
+
+body.site-shell .format-archive-glass #format-posts-panel .poem-scroll-card {
+    position: relative;
+    overflow: hidden;
+    padding: 1.35rem 1.3rem 1.1rem !important;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%) !important;
+    border-radius: 1.35rem !important;
+    background:
+        radial-gradient(120% 74% at 50% -12%, color-mix(in srgb, var(--color-primary) 9%, transparent), transparent 56%),
+        repeating-linear-gradient(
+            0deg,
+            color-mix(in srgb, var(--color-text) 3%, transparent) 0 1px,
+            transparent 1px 8px
+        ),
+        color-mix(in srgb, var(--color-card-bg) 97%, var(--color-background-alt) 3%) !important;
+    box-shadow:
+        inset 0 0 0 4px color-mix(in srgb, var(--color-card-bg) 52%, transparent),
+        0 16px 34px -26px color-mix(in srgb, var(--color-primary) 30%, transparent);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition:
+        transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 240ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 240ms ease;
+}
+
+body.site-shell .format-archive-glass #format-posts-panel .poem-scroll-card:hover {
+    transform: translate3d(0, -4px, 0);
+    border-color: color-mix(in srgb, var(--color-primary) 36%, var(--color-border) 64%) !important;
+    box-shadow:
+        inset 0 0 0 4px color-mix(in srgb, var(--color-card-bg) 52%, transparent),
+        0 26px 46px -26px color-mix(in srgb, var(--color-primary) 36%, transparent);
+}
+
+/* 印章式装饰：每张诗笺顶部一枚主题色印章 */
+body.site-shell .poem-scroll-card .poem-scroll-seal {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    margin: 0.45rem auto 0.35rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 54%, transparent);
+    border-radius: 0.45rem;
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 82%, var(--color-text) 18%);
+    font-family: "Noto Serif SC", "Songti SC", "STSong", serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1;
+    transform: rotate(-6deg);
+    opacity: 0.9;
+    user-select: none;
+}
+
+body.site-shell .poem-scroll-card .archive-card-poem-title {
+    position: relative;
+    margin-bottom: 0.7rem !important;
+    color: var(--color-text) !important;
+    font-size: clamp(1.3rem, 2vw, 1.6rem) !important;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+body.site-shell .poem-scroll-card .archive-card-poem-title::after {
+    content: "";
+    display: block;
+    width: 2.8rem;
+    height: 2px;
+    margin: 0.6rem auto 0;
+    border-radius: 999px;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        color-mix(in srgb, var(--color-primary) 58%, transparent),
+        transparent
+    );
+}
+
+body.site-shell .poem-scroll-card .archive-card-poem-title a {
+    color: inherit;
+}
+
+body.site-shell .poem-scroll-card .archive-card-poem-title a:hover {
+    color: var(--color-primary) !important;
+}
+
+body.site-shell .poem-scroll-card .archive-card-poem-excerpt {
+    color: color-mix(in srgb, var(--color-text) 80%, var(--color-text-light) 20%) !important;
+    font-style: normal !important;
+    line-height: 2.05;
+    letter-spacing: 0.03em;
+}
+
+body.site-shell .poem-scroll-card .archive-card-poem-badge,
+body.site-shell .poem-scroll-card .archive-card-poem-chip {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, transparent) !important;
+    background: color-mix(in srgb, var(--color-primary) 9%, transparent) !important;
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%) !important;
+    letter-spacing: 0.04em;
+}
+
+body.site-shell .poem-scroll-card .archive-card-poem-date,
+body.site-shell .poem-scroll-card .archive-card-poem-meta-text {
+    color: var(--color-text-light) !important;
+}
+
+body.site-shell .poem-scroll-card .archive-card-poem-meta {
+    border-top: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%) !important;
+    margin-top: 0.9rem;
+    padding-top: 0.65rem !important;
+}
+
+body.site-shell .poem-scroll-card .archive-card-poem-link {
+    color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%) !important;
+}
+
+body.site-shell .poem-scroll-card .archive-card-poem-link:hover {
+    color: color-mix(in srgb, var(--color-primary) 92%, var(--color-text) 8%) !important;
+}
+
+body.site-shell .poem-scroll-card .archive-card-poem-chip-audio,
+body.site-shell .poem-scroll-card .archive-card-poem-chip-image {
+    background: color-mix(in srgb, var(--color-secondary) 10%, transparent) !important;
+    color: color-mix(in srgb, var(--color-secondary) 70%, var(--color-text) 30%) !important;
+}
+
+body.site-shell .poem-scroll-card .archive-card-poem-cover {
+    border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%) !important;
+    border-radius: 0.9rem !important;
+}
+
+body.site-shell .poem-scroll-card a[href^="/archives/by-tag/"] {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, transparent) !important;
+    background: color-mix(in srgb, var(--color-secondary) 9%, transparent) !important;
+    color: color-mix(in srgb, var(--color-secondary) 68%, var(--color-text) 32%) !important;
+}
+
+/* ===== 聚合页 Hero 收口 ===== */
+
+/* 文章头图：降低绿色覆盖，让插画保持原色 */
+body.site-shell .format-archive-glass > .container > .format-hero-card-article {
+    border-color: color-mix(in srgb, var(--color-primary) 24%, transparent) !important;
+    border-radius: 1.75rem !important;
+    box-shadow:
+        0 30px 62px -38px color-mix(in srgb, var(--color-text) 44%, transparent),
+        var(--ui-shadow-card);
+}
+
+body.site-shell .format-archive-glass .format-hero-ribbon-article {
+    background: color-mix(in srgb, var(--color-text) 20%, transparent) !important;
+    border-top-color: color-mix(in srgb, var(--color-card-bg) 24%, transparent) !important;
+    border-bottom-color: color-mix(in srgb, var(--color-primary) 20%, transparent) !important;
+    backdrop-filter: blur(9px) saturate(122%) !important;
+    -webkit-backdrop-filter: blur(9px) saturate(122%) !important;
+}
+
+/* 诗词头图：让插画重新可见，文字落在纸面上 */
+body.site-shell .format-archive-glass .format-hero-image-poem {
+    opacity: 0.62 !important;
+}
+
+body.site-shell .format-archive-glass .format-hero-card-poem {
+    border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%) !important;
+    border-radius: 1.9rem !important;
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--color-card-bg) 74%, transparent),
+            color-mix(in srgb, var(--color-card-bg) 88%, transparent)
+        ) !important;
+}
+
+body.site-shell .format-archive-glass .format-hero-overlay-poem {
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--color-background) 16%, transparent) 0%,
+            color-mix(in srgb, var(--color-background) 26%, transparent) 46%,
+            color-mix(in srgb, var(--color-background) 52%, transparent) 100%
+        ),
+        radial-gradient(
+            circle at 50% 10%,
+            color-mix(in srgb, var(--color-primary) 14%, transparent),
+            transparent 58%
+        ) !important;
+}
+
+body.site-shell .format-archive-glass .format-hero-copy-panel-poem {
+    border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border) 80%) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 88%, transparent) !important;
+}
+
+body.site-shell .format-archive-glass .format-hero-motto-poem {
+    border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border) 80%) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 82%, transparent) !important;
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%) !important;
+}
+
+/* ===== 桌面端：统计面板收窄，让头图主视觉露出 ===== */
+
+@media (min-width: 900px) {
+    body.site-shell .home-profile-card .hero-profile-stats {
+        width: min(100%, 26rem);
+    }
+}
+
+/* ===== 移动端 ===== */
+
+@media (max-width: 639.98px) {
+    /* 移动端统计卡压成一行四格，把档案卡头图还给插画 */
+    body.site-shell .home-profile-card .hero-stats-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 0.4rem !important;
+    }
+
+    body.site-shell .home-profile-card .hero-stats-grid > .home-stat-card {
+        min-height: 0 !important;
+        padding: 0.5rem 0.2rem !important;
+        border-radius: 0.7rem !important;
+    }
+
+    body.site-shell .home-profile-card .hero-stats-grid > .home-stat-card .text-xl {
+        font-size: 0.95rem;
+        line-height: 1.3;
+    }
+
+    body.site-shell .home-profile-card .hero-stats-grid > .home-stat-card .mt-1 {
+        font-size: 0.6rem;
+        letter-spacing: 0.04em;
+    }
+
+    body.site-shell #homepage-posts-panel .timeline-shell {
+        border-radius: 1.4rem;
+    }
+
+    body.site-shell .format-archive-glass #format-posts-panel .article-anime-card {
+        border-radius: 1rem !important;
+    }
+
+    body.site-shell .format-archive-glass #format-posts-panel .poem-scroll-card {
+        padding: 1.15rem 1.05rem 0.95rem !important;
+        border-radius: 1.2rem !important;
+    }
+
+    body.site-shell .poem-scroll-card .archive-card-poem-title {
+        font-size: 1.32rem !important;
+        letter-spacing: 0.06em;
+    }
+
+    body.site-shell .poem-scroll-card .archive-card-poem-excerpt {
+        line-height: 1.95;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.site-shell #homepage-posts-panel .timeline-card-shell:hover,
+    body.site-shell .format-archive-glass #format-posts-panel .article-anime-card:hover,
+    body.site-shell .format-archive-glass #format-posts-panel .poem-scroll-card:hover {
+        transform: none;
+    }
+
+    body.site-shell .article-anime-card:hover .archive-card-cover-image {
+        transform: none;
+    }
+}

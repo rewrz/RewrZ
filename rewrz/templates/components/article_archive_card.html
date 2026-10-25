@@ -23,8 +23,8 @@
 {% set cover_thumb_url = cover_url | thumb_url('archive_card', template_db) if cover_url else '' %}
 {% set cover_thumb_srcset = cover_url | thumb_srcset('archive_card', template_db) if cover_url else '' %}
 
-<article class="archive-card-equal group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
-    <a href="{{ post | post_url }}" class="archive-card-cover-motion block overflow-hidden" data-profile-motion>
+<article class="article-anime-card archive-card-equal group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
+    <a href="{{ post | post_url }}" class="article-anime-cover archive-card-cover-motion block overflow-hidden" data-profile-motion>
         {% if cover_thumb_url %}
         <img src="{{ cover_thumb_url }}"
              {% if cover_thumb_srcset %}srcset="{{ cover_thumb_srcset }}" sizes="(min-width: 768px) 46vw, 92vw"{% endif %}
