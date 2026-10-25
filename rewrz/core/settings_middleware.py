@@ -17,6 +17,7 @@ from ..core.template_context import (
     DEFAULT_HOMEPAGE_SETTINGS, 
     DEFAULT_BASE_SETTINGS,
     CODE_HIGHLIGHT_THEME_OPTIONS,
+    normalize_rss_content_mode,
 )
 
 
@@ -53,7 +54,7 @@ class SettingsMiddleware(BaseHTTPMiddleware):
             "social_links_json",
 
             # RSS设置
-            "rss_enabled", "rss_items_limit", "rss_cache_duration", "rss_description",
+            "rss_enabled", "rss_items_limit", "rss_cache_duration", "rss_description", "rss_content_mode",
 
             # 站点地图设置
             "sitemap_enabled",
@@ -137,6 +138,12 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                     "items_limit": all_settings.get("rss_items_limit", 20),
                     "cache_duration": all_settings.get("rss_cache_duration", 60),
                     "description": all_settings.get("rss_description", ""),
+                    "content_mode": normalize_rss_content_mode(
+                        all_settings.get(
+                            "rss_content_mode",
+                            DEFAULT_BASE_SETTINGS["rss_content_mode"],
+                        )
+                    ),
                 },
                 "pagination": {
                     "homepage_posts_limit": all_settings.get("homepage_posts_limit", 10),

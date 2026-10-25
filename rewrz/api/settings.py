@@ -14,6 +14,7 @@ from ..core.template_context import (
     DEFAULT_HOMEPAGE_SETTINGS,
     DEFAULT_BASE_SETTINGS,
     CODE_HIGHLIGHT_THEME_OPTIONS,
+    normalize_rss_content_mode,
 )
 from ..core.url_normalizer import normalize_local_asset_url, normalize_local_asset_url_lines
 from ..core.config import get_env_file_path
@@ -107,6 +108,9 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "rss_items_limit": get_setting_value("rss_items_limit", 20),
         "rss_cache_duration": get_setting_value("rss_cache_duration", 60),
         "rss_description": get_setting_value("rss_description", ""),
+        "rss_content_mode": normalize_rss_content_mode(
+            get_setting_value("rss_content_mode", DEFAULT_BASE_SETTINGS["rss_content_mode"])
+        ),
         "homepage_posts_limit": get_setting_value("homepage_posts_limit", 10),
         "archive_posts_limit": get_setting_value("archive_posts_limit", 20),
         "search_results_limit": get_setting_value("search_results_limit", 15),
@@ -188,6 +192,7 @@ async def update_admin_settings(
     rss_items_limit = _form_int(form, "rss_items_limit", 20)
     rss_cache_duration = _form_int(form, "rss_cache_duration", 60)
     rss_description = str(form.get("rss_description", "") or "")
+    rss_content_mode = _form_text(form, "rss_content_mode", DEFAULT_BASE_SETTINGS["rss_content_mode"])
     homepage_posts_limit = _form_int(form, "homepage_posts_limit", 10)
     archive_posts_limit = _form_int(form, "archive_posts_limit", 20)
     search_results_limit = _form_int(form, "search_results_limit", 15)
@@ -250,6 +255,7 @@ async def update_admin_settings(
     normalized_list_navigation_mode = (
         list_navigation_mode if list_navigation_mode in {"pagination", "infinite_scroll"} else "pagination"
     )
+    normalized_rss_content_mode = normalize_rss_content_mode(rss_content_mode)
     try:
         normalized_smtp_port = int(smtp_port)
     except (TypeError, ValueError):
@@ -317,6 +323,7 @@ async def update_admin_settings(
         "rss_items_limit": rss_items_limit,
         "rss_cache_duration": rss_cache_duration,
         "rss_description": rss_description,
+        "rss_content_mode": normalized_rss_content_mode,
         "homepage_posts_limit": homepage_posts_limit,
         "archive_posts_limit": archive_posts_limit,
         "search_results_limit": search_results_limit,

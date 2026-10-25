@@ -48,10 +48,20 @@ DEFAULT_BASE_SETTINGS = {
     "icp_beian": "",
     "gongan_beian": "",
     "rss_enabled": True,
+    "rss_content_mode": "summary",
     "copyright_info": "",
     "list_navigation_mode": "pagination",
     "code_highlight_theme": "github-dark",
 }
+
+# 订阅源输出口径：full=全文，summary=仅摘要
+RSS_CONTENT_MODES = ("full", "summary")
+
+
+def normalize_rss_content_mode(raw_value) -> str:
+    """规范化订阅输出口径，非法值回落到默认值。"""
+    return raw_value if raw_value in RSS_CONTENT_MODES else DEFAULT_BASE_SETTINGS["rss_content_mode"]
+
 
 # highlight.js 可选主题（需与本地样式文件名一致）
 CODE_HIGHLIGHT_THEME_OPTIONS = (

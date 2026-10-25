@@ -384,6 +384,15 @@
                 </div>
             </div>
             <div>
+                <label for="rss_content_mode" class="block text-sm font-medium text-gray-700">订阅输出内容</label>
+                <select id="rss_content_mode" name="rss_content_mode"
+                        class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm">
+                    <option value="summary" {% if settings.rss_content_mode == 'summary' or not settings.rss_content_mode %}selected{% endif %}>仅摘要（默认，读者点击跳转原文）</option>
+                    <option value="full" {% if settings.rss_content_mode == 'full' %}selected{% endif %}>全文（RSS 与 Atom 一致输出正文）</option>
+                </select>
+                <p class="text-sm text-gray-500 mt-1">RSS 与 Atom 同步生效；全文模式会增加订阅流量</p>
+            </div>
+            <div>
                 <label for="rss_description" class="block text-sm font-medium text-gray-700">RSS 源描述</label>
                 <textarea id="rss_description" name="rss_description" rows="3"
                           class="admin-form-field mt-1 block w-full px-3 py-2 rounded-md shadow-sm"

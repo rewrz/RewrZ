@@ -24,7 +24,7 @@ from ..core.content_utils import get_effective_content_html, get_effective_plain
 from ..core.time_utils import as_utc, utc_iso
 from ..crud import setting as crud_setting
 from ..models import Post
-from ..core.template_context import DEFAULT_BASE_SETTINGS
+from ..core.template_context import DEFAULT_BASE_SETTINGS, normalize_rss_content_mode
 from ..core.content_intents import choose_primary_intent_slug, to_public_post_segment
 
 router = APIRouter()
@@ -39,11 +39,17 @@ def get_rss_config(db: Session) -> dict:
     rss_items_limit_setting = crud_setting.get_setting(db, key="rss_items_limit")
     rss_cache_duration_setting = crud_setting.get_setting(db, key="rss_cache_duration")
     rss_description_setting = crud_setting.get_setting(db, key="rss_description")
+    rss_content_mode_setting = crud_setting.get_setting(db, key="rss_content_mode")
     
     return {
         "items_limit": rss_items_limit_setting.value.get("value", 20) if rss_items_limit_setting and rss_items_limit_setting.value else 20,
         "cache_duration": rss_cache_duration_setting.value.get("value", 60) if rss_cache_duration_setting and rss_cache_duration_setting.value else 60,
-        "description": rss_description_setting.value.get("value", "") if rss_description_setting and rss_description_setting.value else ""
+        "description": rss_description_setting.value.get("value", "") if rss_description_setting and rss_description_setting.value else "",
+        "content_mode": normalize_rss_content_mode(
+            rss_content_mode_setting.value.get("value")
+            if rss_content_mode_setting and rss_content_mode_setting.value
+            else DEFAULT_BASE_SETTINGS["rss_content_mode"]
+        )
     }
 
 @router.get("/feed.xml")
@@ -57,7 +63,7 @@ async def rss_feed(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="RSS订阅功能已禁用")
     
     rss_config = get_rss_config(db)
-    return generate_rss_feed(request, db, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"])
+    return generate_rss_feed(request, db, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"], content_mode=rss_config["content_mode"])
 
 @router.get("/rss.xml") 
 async def rss_feed_alt(request: Request, db: Session = Depends(get_db)):
@@ -66,7 +72,7 @@ async def rss_feed_alt(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="RSS订阅功能已禁用")
     
     rss_config = get_rss_config(db)
-    return generate_rss_feed(request, db, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"])
+    return generate_rss_feed(request, db, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"], content_mode=rss_config["content_mode"])
 
 @router.get("/atom.xml")
 async def atom_feed(request: Request, db: Session = Depends(get_db)):
@@ -79,7 +85,7 @@ async def atom_feed(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="RSS订阅功能已禁用")
     
     rss_config = get_rss_config(db)
-    return generate_atom_feed(request, db, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"])
+    return generate_atom_feed(request, db, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"], content_mode=rss_config["content_mode"])
 
 @router.get("/feed/category/{category_slug}")
 async def category_rss_feed(category_slug: str, request: Request, db: Session = Depends(get_db)):
@@ -96,7 +102,7 @@ async def category_rss_feed(category_slug: str, request: Request, db: Session = 
         raise HTTPException(status_code=404, detail="分类不存在")
     
     rss_config = get_rss_config(db)
-    return generate_rss_feed(request, db, category=category, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"])
+    return generate_rss_feed(request, db, category=category, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"], content_mode=rss_config["content_mode"])
 
 @router.get("/feed/tag/{tag_slug}")
 async def tag_rss_feed(tag_slug: str, request: Request, db: Session = Depends(get_db)):
@@ -113,7 +119,7 @@ async def tag_rss_feed(tag_slug: str, request: Request, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="标签不存在")
     
     rss_config = get_rss_config(db)
-    return generate_rss_feed(request, db, tag=tag, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"])
+    return generate_rss_feed(request, db, tag=tag, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"], content_mode=rss_config["content_mode"])
 
 @router.get("/feed/format/{format_slug}")
 async def format_rss_feed(format_slug: str, request: Request, db: Session = Depends(get_db)):
@@ -130,7 +136,7 @@ async def format_rss_feed(format_slug: str, request: Request, db: Session = Depe
         raise HTTPException(status_code=404, detail="格式不存在")
     
     rss_config = get_rss_config(db)
-    return generate_rss_feed(request, db, format_obj=format_obj, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"])
+    return generate_rss_feed(request, db, format_obj=format_obj, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"], content_mode=rss_config["content_mode"])
 
 def generate_rss_feed(
     request: Request,
@@ -139,7 +145,8 @@ def generate_rss_feed(
     tag=None,
     format_obj=None,
     limit: int = 20,
-    cache_duration: int = 60
+    cache_duration: int = 60,
+    content_mode: str = DEFAULT_BASE_SETTINGS["rss_content_mode"]
 ):
     """
     生成RSS 2.0格式的订阅源
@@ -183,7 +190,8 @@ def generate_rss_feed(
         description=feed_description,
         link=feed_link,
         posts=posts,
-        site_info=site_info
+        site_info=site_info,
+        content_mode=normalize_rss_content_mode(content_mode)
     )
     
     return Response(
@@ -192,7 +200,13 @@ def generate_rss_feed(
         headers={"Cache-Control": f"max-age={cache_duration * 60}"}  # 使用配置的缓存时间
     )
 
-def generate_atom_feed(request: Request, db: Session, limit: int = 20, cache_duration: int = 60):
+def generate_atom_feed(
+    request: Request,
+    db: Session,
+    limit: int = 20,
+    cache_duration: int = 60,
+    content_mode: str = DEFAULT_BASE_SETTINGS["rss_content_mode"]
+):
     """生成Atom 1.0格式的订阅源"""
     site_info = get_site_info(db, request)
     posts = get_filtered_posts(db, limit=limit)
@@ -202,7 +216,8 @@ def generate_atom_feed(request: Request, db: Session, limit: int = 20, cache_dur
         subtitle=site_info['description'],
         link=site_info['base_url'],
         posts=posts,
-        site_info=site_info
+        site_info=site_info,
+        content_mode=normalize_rss_content_mode(content_mode)
     )
     
     return Response(
@@ -290,7 +305,14 @@ def _resolve_public_content(post: Post) -> tuple[str, str]:
     )
 
 
-def generate_rss_xml(title: str, description: str, link: str, posts: List[Post], site_info: dict) -> str:
+def generate_rss_xml(
+    title: str,
+    description: str,
+    link: str,
+    posts: List[Post],
+    site_info: dict,
+    content_mode: str = DEFAULT_BASE_SETTINGS["rss_content_mode"]
+) -> str:
     """生成RSS 2.0 XML"""
     now = datetime.now(timezone.utc)
     
@@ -315,15 +337,17 @@ def generate_rss_xml(title: str, description: str, link: str, posts: List[Post],
         primary_intent = choose_primary_intent_slug(format_slugs)
         post_url = f'{site_info["base_url"]}/{to_public_post_segment(primary_intent)}/{post.slug}'
         pub_date = post.published_at or post.created_at
-        _, public_text = _resolve_public_content(post)
+        public_html, public_text = _resolve_public_content(post)
         fallback_excerpt = public_text[:500]
         entry_title = _build_entry_title(post, fallback_excerpt)
+        # 全文模式与 Atom 对齐，正文为空时回退到摘要
+        item_description = public_html if content_mode == "full" and public_html else _resolve_public_excerpt(post, fallback_excerpt)
         
         xml_lines.extend([
             '<item>',
             f'<title>{html.escape(entry_title)}</title>',
             f'<link>{html.escape(post_url)}</link>',
-            f'<description>{html.escape(_resolve_public_excerpt(post, fallback_excerpt))}</description>',
+            f'<description>{html.escape(item_description)}</description>',
             f'<guid isPermaLink="true">{html.escape(post_url)}</guid>',
             f'<pubDate>{as_utc(pub_date).strftime("%a, %d %b %Y %H:%M:%S %z")}</pubDate>',
         ])
@@ -341,7 +365,14 @@ def generate_rss_xml(title: str, description: str, link: str, posts: List[Post],
     
     return '\n'.join(xml_lines)
 
-def generate_atom_xml(title: str, subtitle: str, link: str, posts: List[Post], site_info: dict) -> str:
+def generate_atom_xml(
+    title: str,
+    subtitle: str,
+    link: str,
+    posts: List[Post],
+    site_info: dict,
+    content_mode: str = DEFAULT_BASE_SETTINGS["rss_content_mode"]
+) -> str:
     """生成Atom 1.0 XML"""
     now = datetime.now(timezone.utc)
     
@@ -371,21 +402,24 @@ def generate_atom_xml(title: str, subtitle: str, link: str, posts: List[Post], s
         fallback_excerpt = public_text[:500]
         entry_title = _build_entry_title(post, fallback_excerpt)
         
-        xml_lines.extend([
+        entry_lines = [
             '<entry>',
             f'<title>{html.escape(entry_title)}</title>',
             f'<link href="{html.escape(post_url)}" />',
             f'<id>{html.escape(post_url)}</id>',
             f'<updated>{utc_iso(pub_date)}</updated>',
             f'<summary>{html.escape(_resolve_public_excerpt(post, fallback_excerpt))}</summary>',
-            f'<content type="html">{html.escape(public_html)}</content>',
-        ])
+        ]
+        # 摘要模式不再输出全文 content；正文为空时同样退回摘要，与 RSS 保持一致
+        if content_mode == "full" and public_html:
+            entry_lines.append(f'<content type="html">{html.escape(public_html)}</content>')
         
         # 添加分类信息
         for category in post.categories:
-            xml_lines.append(f'<category term="{html.escape(category.slug)}" label="{html.escape(category.name)}" />')
+            entry_lines.append(f'<category term="{html.escape(category.slug)}" label="{html.escape(category.name)}" />')
         
-        xml_lines.append('</entry>')
+        entry_lines.append('</entry>')
+        xml_lines.extend(entry_lines)
     
     xml_lines.extend([
         '</feed>'
