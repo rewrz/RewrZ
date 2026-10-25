@@ -137,7 +137,7 @@
                 {% endif %}
 
                 {% if content_images %}
-                <div class="space-y-3 micro-gallery">
+                <div class="space-y-3 micro-gallery micro-gallery-frame">
                     {% set grid_cols = 2 if content_images|length in [2, 4] else 3 %}
                     <div class="micro-image-grid grid grid-cols-{{ grid_cols }} gap-2" data-image-count="{{ content_images|length }}">
                         {% for image_url in content_images[:9] %}
@@ -188,15 +188,39 @@
                             </button>
                             <div
                                 data-reaction-menu
-                                class="reaction-float-menu micro-reaction-menu fixed z-[120] hidden max-w-[92vw] rounded-2xl border p-2 shadow-2xl backdrop-blur-md"
+                                class="reaction-float-menu micro-reaction-menu fixed z-[120] hidden max-w-[92vw] rounded-2xl border p-2 shadow-2xl"
                             >
                                 <div class="reaction-float-grid flex flex-wrap items-stretch gap-1.5">
-                                    <button type="button" data-reaction-option="funny" class="reaction-chip micro-reaction-option group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition duration-200 hover:-translate-y-0.5"><span class="reaction-emoji text-2xl leading-none">😂</span><span class="leading-none">有趣</span><span class="micro-reaction-count text-[10px] leading-none" data-reaction-count="funny">0</span></button>
-                                    <button type="button" data-reaction-option="wow" class="reaction-chip micro-reaction-option group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition duration-200 hover:-translate-y-0.5"><span class="reaction-emoji text-2xl leading-none">😮</span><span class="leading-none">惊讶</span><span class="micro-reaction-count text-[10px] leading-none" data-reaction-count="wow">0</span></button>
-                                    <button type="button" data-reaction-option="moved" class="reaction-chip micro-reaction-option group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition duration-200 hover:-translate-y-0.5"><span class="reaction-emoji text-2xl leading-none">😢</span><span class="leading-none">感动</span><span class="micro-reaction-count text-[10px] leading-none" data-reaction-count="moved">0</span></button>
-                                    <button type="button" data-reaction-option="angry" class="reaction-chip micro-reaction-option group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition duration-200 hover:-translate-y-0.5"><span class="reaction-emoji text-2xl leading-none">😡</span><span class="leading-none">生气</span><span class="micro-reaction-count text-[10px] leading-none" data-reaction-count="angry">0</span></button>
-                                    <button type="button" data-reaction-option="thinking" class="reaction-chip micro-reaction-option group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition duration-200 hover:-translate-y-0.5"><span class="reaction-emoji text-2xl leading-none">🤔</span><span class="leading-none">思考</span><span class="micro-reaction-count text-[10px] leading-none" data-reaction-count="thinking">0</span></button>
-                                    <button type="button" data-reaction-option="salute" class="reaction-chip micro-reaction-option group inline-flex min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition duration-200 hover:-translate-y-0.5"><span class="reaction-emoji text-2xl leading-none">🫡</span><span class="leading-none">致敬</span><span class="micro-reaction-count text-[10px] leading-none" data-reaction-count="salute">0</span></button>
+                                    <button type="button" data-reaction-option="funny" class="micro-reaction-option">
+                                        <svg class="micro-reaction-icon" viewBox="0 0 32 32" aria-hidden="true"><use href="#rzn-funny"></use></svg>
+                                        <span class="micro-reaction-label">有趣</span>
+                                        <span class="micro-reaction-count" data-reaction-count="funny">0</span>
+                                    </button>
+                                    <button type="button" data-reaction-option="wow" class="micro-reaction-option">
+                                        <svg class="micro-reaction-icon" viewBox="0 0 32 32" aria-hidden="true"><use href="#rzn-wow"></use></svg>
+                                        <span class="micro-reaction-label">惊讶</span>
+                                        <span class="micro-reaction-count" data-reaction-count="wow">0</span>
+                                    </button>
+                                    <button type="button" data-reaction-option="moved" class="micro-reaction-option">
+                                        <svg class="micro-reaction-icon" viewBox="0 0 32 32" aria-hidden="true"><use href="#rzn-moved"></use></svg>
+                                        <span class="micro-reaction-label">感动</span>
+                                        <span class="micro-reaction-count" data-reaction-count="moved">0</span>
+                                    </button>
+                                    <button type="button" data-reaction-option="angry" class="micro-reaction-option">
+                                        <svg class="micro-reaction-icon" viewBox="0 0 32 32" aria-hidden="true"><use href="#rzn-angry"></use></svg>
+                                        <span class="micro-reaction-label">生气</span>
+                                        <span class="micro-reaction-count" data-reaction-count="angry">0</span>
+                                    </button>
+                                    <button type="button" data-reaction-option="thinking" class="micro-reaction-option">
+                                        <svg class="micro-reaction-icon" viewBox="0 0 32 32" aria-hidden="true"><use href="#rzn-thinking"></use></svg>
+                                        <span class="micro-reaction-label">思考</span>
+                                        <span class="micro-reaction-count" data-reaction-count="thinking">0</span>
+                                    </button>
+                                    <button type="button" data-reaction-option="salute" class="micro-reaction-option">
+                                        <svg class="micro-reaction-icon" viewBox="0 0 32 32" aria-hidden="true"><use href="#rzn-salute"></use></svg>
+                                        <span class="micro-reaction-label">致敬</span>
+                                        <span class="micro-reaction-count" data-reaction-count="salute">0</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -239,6 +263,7 @@
         {% endif %}
         </div>
     </div>
+    {% include "components/micro_reaction_sprite.html" %}
 </section>
 
 {% elif is_poetry_song %}

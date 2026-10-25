@@ -249,6 +249,8 @@ body.site-shell[data-current-theme="galaxy"] .detail-cover-micro {
 }
 
 .micro-detail-action-chip {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--micro-surface-border) 84%);
+    background: color-mix(in srgb, var(--color-primary) 7%, var(--micro-surface-solid-bg) 93%);
     color: var(--micro-surface-muted);
 }
 
@@ -2434,24 +2436,191 @@ body.site-shell[data-current-theme="galaxy"] .poetry-section .poetry-format-badg
     color: color-mix(in srgb, var(--micro-surface-text) 32%, transparent);
 }
 
+/* 表态菜单会被挂载到 body，样式必须只依赖全局主题变量 */
 .micro-reaction-menu {
-    border-color: color-mix(in srgb, var(--color-primary) 22%, var(--micro-surface-border) 78%) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%) !important;
     background:
         linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 58%),
-        color-mix(in srgb, var(--micro-surface-solid-bg) 95%, transparent) !important;
+        color-mix(in srgb, var(--color-card-bg) 95%, transparent) !important;
 }
 
 .micro-reaction-option {
-    color: var(--micro-surface-muted);
+    color: var(--color-text-light);
 }
 
 .micro-reaction-option:hover {
-    background: color-mix(in srgb, var(--color-primary) 10%, var(--micro-surface-solid-bg) 90%) !important;
-    color: color-mix(in srgb, var(--color-primary) 74%, var(--micro-surface-text) 26%) !important;
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%) !important;
+    color: color-mix(in srgb, var(--color-primary) 74%, var(--color-text) 26%) !important;
 }
 
 .micro-reaction-count {
-    color: color-mix(in srgb, var(--micro-surface-muted) 88%, var(--micro-surface-text) 12%);
+    color: var(--color-text-light);
+}
+
+/* 手绘态表态图标：统一详情页与列表页的视觉语言 */
+.micro-reaction-sprite {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+.micro-reaction-menu {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.micro-reaction-menu .micro-reaction-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.16rem;
+    min-width: 3.2rem;
+    padding: 0.45rem 0.3rem;
+    border: 1px solid transparent;
+    border-radius: 0.9rem;
+    background: transparent;
+    transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.micro-reaction-menu .micro-reaction-option:hover {
+    transform: translateY(-2px);
+}
+
+.micro-reaction-option[data-active="1"] {
+    border-color: color-mix(in srgb, var(--color-primary) 30%, transparent) !important;
+    background: color-mix(in srgb, var(--color-primary) 16%, transparent) !important;
+    color: var(--color-primary) !important;
+}
+
+.micro-reaction-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.micro-reaction-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.micro-reaction-count {
+    font-size: 0.6rem;
+    line-height: 1;
+}
+
+/* 点赞激活态跟随主题色 */
+.micro-detail-action-chip[data-active="1"] {
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--micro-surface-solid-bg) 86%);
+    color: color-mix(in srgb, var(--color-primary) 78%, var(--micro-surface-text) 22%);
+}
+
+/* 图片区加一层拍立得式内衬外框 */
+.micro-gallery-frame {
+    padding: 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--color-border) 74%, var(--color-primary) 10%);
+    border-radius: 1.2rem;
+    background: color-mix(in srgb, var(--micro-surface-solid-bg) 86%, var(--color-background-alt) 14%);
+    box-shadow: 0 10px 22px color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+
+.micro-gallery-frame .micro-image-grid {
+    padding: 0;
+}
+
+/* 底部操作按钮统一为胶囊，和上方点赞/表态保持一致 */
+.micro-detail-footer .micro-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.42rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1;
+    transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.micro-detail-footer .micro-action-btn:hover {
+    transform: translateY(-1px);
+}
+
+.micro-detail-footer .micro-action-btn i {
+    margin-right: 0;
+    font-size: 0.8rem;
+}
+
+/* 点赞与表态的即时反馈 */
+@keyframes micro-heart-pop {
+    0% {
+        transform: scale(1);
+    }
+    30% {
+        transform: scale(1.32) rotate(-6deg);
+    }
+    55% {
+        transform: scale(0.9) rotate(3deg);
+    }
+    80% {
+        transform: scale(1.12);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.is-pop {
+    display: inline-block;
+    animation: micro-heart-pop 0.46s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.micro-burst {
+    position: fixed;
+    z-index: 200;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.micro-burst-particle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 6px;
+    height: 6px;
+    margin: -3px 0 0 -3px;
+    border-radius: 999px;
+    background: var(--color-primary);
+    opacity: 0.9;
+    animation: micro-burst-fly 0.6s ease-out forwards;
+}
+
+@keyframes micro-burst-fly {
+    from {
+        transform: rotate(var(--burst-angle, 0deg)) translateY(0) scale(1);
+        opacity: 0.95;
+    }
+    to {
+        transform: rotate(var(--burst-angle, 0deg)) translateY(-26px) scale(0.3);
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .micro-reaction-menu .micro-reaction-option {
+        transition: none;
+    }
+
+    .is-pop,
+    .micro-burst-particle {
+        animation: none;
+    }
 }
 
 .related-posts-shell {

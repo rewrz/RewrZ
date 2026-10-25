@@ -1,0 +1,696 @@
+/*
+ * 微博聚合页：时间线动态流样式
+ * 全部颜色由动态主题变量派生，避免硬编码色值把主题系统打穿
+ */
+
+.micro-timeline {
+    --micro-gutter: 2.35rem;
+    --micro-line-left: 0.65rem;
+    --micro-surface: color-mix(in srgb, var(--color-card-bg) 94%, var(--color-background-alt) 6%);
+    --micro-surface-raised: color-mix(in srgb, var(--color-card-bg) 86%, var(--color-background-alt) 14%);
+    --micro-border: color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+    --micro-border-strong: color-mix(in srgb, var(--color-primary) 32%, var(--color-border) 68%);
+    --micro-muted: var(--color-text-light);
+    --micro-accent: var(--color-primary);
+    --micro-shadow: 0 10px 26px color-mix(in srgb, var(--color-text) 7%, transparent);
+    --micro-shadow-hover: 0 18px 40px color-mix(in srgb, var(--color-primary) 16%, transparent);
+    position: relative;
+    padding-left: var(--micro-gutter);
+}
+
+/* 纵向时间轴主线 */
+.micro-timeline::before {
+    content: "";
+    position: absolute;
+    left: var(--micro-line-left);
+    top: 0.5rem;
+    bottom: 0.5rem;
+    width: 2px;
+    border-radius: 999px;
+    background: linear-gradient(
+        180deg,
+        transparent 0%,
+        color-mix(in srgb, var(--color-primary) 42%, transparent) 6%,
+        color-mix(in srgb, var(--color-primary) 42%, transparent) 94%,
+        transparent 100%
+    );
+    pointer-events: none;
+}
+
+/* 日期分组节点 */
+.micro-timeline-day {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin: 1.5rem 0 0.7rem;
+}
+
+.micro-timeline-day:first-child {
+    margin-top: 0.2rem;
+}
+
+.micro-timeline-day span {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.28rem 0.72rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    background: color-mix(in srgb, var(--color-primary) 9%, var(--color-card-bg) 91%);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+}
+
+.micro-timeline-day::before {
+    content: "";
+    position: absolute;
+    left: calc(var(--micro-line-left) - var(--micro-gutter) - 6px);
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    margin-top: -6px;
+    border-radius: 3px;
+    background: var(--color-primary);
+    box-shadow:
+        0 0 0 3px color-mix(in srgb, var(--color-card-bg) 88%, transparent),
+        0 0 0 6px color-mix(in srgb, var(--color-primary) 12%, transparent);
+    transform: rotate(45deg);
+}
+
+/* 单条动态节点 */
+.micro-timeline-item {
+    position: relative;
+}
+
+.micro-timeline-item::before {
+    content: "";
+    position: absolute;
+    left: calc(var(--micro-line-left) - var(--micro-gutter) - 5px);
+    top: 1.55rem;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--color-primary);
+    box-shadow:
+        0 0 0 3px color-mix(in srgb, var(--color-card-bg) 90%, transparent),
+        0 0 0 5px color-mix(in srgb, var(--color-primary) 10%, transparent);
+    z-index: 1;
+}
+
+/* 卡片本体：覆盖归档页原有的毛玻璃卡片，改为实底 + 主题光晕 */
+.format-archive-glass #format-posts-panel article.micro-card[data-micro-card] {
+    background:
+        radial-gradient(
+            120% 90% at 100% 0%,
+            color-mix(in srgb, var(--color-primary) 9%, transparent),
+            transparent 48%
+        ),
+        var(--micro-surface) !important;
+    border: 1px solid var(--micro-border) !important;
+    border-radius: 1.3rem;
+    box-shadow: var(--micro-shadow);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.format-archive-glass #format-posts-panel article.micro-card[data-micro-card]:hover {
+    transform: translateY(-2px);
+    border-color: var(--micro-border-strong) !important;
+    box-shadow: var(--micro-shadow-hover);
+}
+
+.micro-card {
+    margin-bottom: 0.9rem;
+    overflow: visible;
+}
+
+.micro-card-body {
+    padding: 1.1rem 1.15rem;
+}
+
+@media (min-width: 768px) {
+    .micro-card-body {
+        padding: 1.3rem 1.5rem;
+    }
+}
+
+/* 头部：头像、作者、时间、详情入口 */
+.micro-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+}
+
+.micro-card-avatar-link {
+    flex: 0 0 auto;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 2px;
+    border-radius: 999px;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-primary) 55%, transparent),
+        color-mix(in srgb, var(--color-primary) 6%, transparent)
+    );
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 18%, transparent);
+    transition: transform 0.22s ease;
+}
+
+.micro-card:hover .micro-card-avatar-link {
+    transform: rotate(-4deg) scale(1.04);
+}
+
+.micro-card-avatar {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 999px;
+    object-fit: cover;
+    background: var(--color-background-alt);
+}
+
+.micro-card-identity {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.micro-card-author {
+    color: var(--color-text);
+    font-size: 0.92rem;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.micro-card-author:hover {
+    color: var(--micro-accent);
+}
+
+.micro-card-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--micro-muted);
+    font-size: 0.72rem;
+}
+
+.micro-card-detail-link {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.3rem;
+    margin-left: auto;
+    color: var(--micro-accent);
+    font-size: 0.72rem;
+    font-weight: 600;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.micro-card:hover .micro-card-detail-link,
+.micro-card:focus-within .micro-card-detail-link {
+    opacity: 1;
+    transform: none;
+}
+
+@media (hover: none) {
+    .micro-card-detail-link {
+        opacity: 0.72;
+        transform: none;
+    }
+}
+
+/* 标题与正文 */
+.micro-card-title {
+    margin-top: 0.8rem;
+    color: var(--color-text);
+    font-size: 1.2rem;
+    font-weight: 800;
+    line-height: 1.5;
+}
+
+.micro-card-title a {
+    color: inherit;
+}
+
+.micro-card-title a:hover {
+    color: var(--micro-accent);
+}
+
+.micro-card-text {
+    margin-top: 0.7rem;
+    color: color-mix(in srgb, var(--color-text) 92%, var(--color-text-light) 8%);
+    font-size: 0.94rem;
+    line-height: 1.9;
+}
+
+.micro-card-text p {
+    margin: 0.35rem 0;
+}
+
+.micro-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.7rem;
+}
+
+/* 图片：拍立得式内衬边框 */
+.micro-media-frame {
+    margin-top: 0.85rem;
+    padding: 0.4rem;
+    border-radius: 1.15rem;
+    border: 1px solid color-mix(in srgb, var(--color-border) 74%, var(--color-primary) 10%);
+    background: var(--micro-surface-raised);
+    box-shadow:
+        inset 0 1px 0 color-mix(in srgb, var(--color-card-bg) 62%, transparent),
+        0 8px 18px color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+
+.micro-media-single {
+    display: block;
+    width: 100%;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0.85rem;
+    background: var(--color-background-alt);
+    cursor: zoom-in;
+}
+
+.micro-media-single img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border-radius: 0.85rem;
+    transition: transform 0.45s ease;
+}
+
+.micro-media-single:hover img {
+    transform: scale(1.02);
+}
+
+.micro-media-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px;
+    overflow: hidden;
+    border-radius: 0.85rem;
+}
+
+.micro-media-cell {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    background: var(--color-background-alt);
+    cursor: zoom-in;
+}
+
+.micro-media-cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.45s ease;
+}
+
+.micro-media-cell:hover img {
+    transform: scale(1.03);
+}
+
+.micro-media-more {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--color-text) 46%, transparent);
+    color: var(--color-card-bg);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+/* 视频与音频 */
+.micro-media-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+}
+
+.micro-media-video {
+    padding: 0.35rem;
+    background: color-mix(in srgb, var(--color-text) 72%, var(--color-background-alt) 28%);
+}
+
+.micro-media-video video {
+    display: block;
+    width: 100%;
+    max-height: 26rem;
+    border-radius: 0.8rem;
+    background: var(--color-background-alt);
+}
+
+.micro-media-audio audio {
+    display: block;
+    width: 100%;
+}
+
+.micro-media-hint {
+    margin-top: 0.4rem;
+    color: var(--micro-muted);
+    font-size: 0.72rem;
+}
+
+/* 互动栏：从附属信息提升为可点击的彩色胶囊 */
+.micro-action-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.95rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+}
+
+.micro-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.7rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-text) 4%, transparent);
+    color: var(--micro-muted);
+    font-size: 0.74rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.micro-action:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--color-primary) 24%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--micro-surface) 90%);
+    color: var(--micro-accent);
+}
+
+.micro-action i {
+    font-size: 0.8rem;
+}
+
+.micro-action-count {
+    display: inline-flex;
+    justify-content: center;
+    min-width: 1.15rem;
+    padding: 0.08rem 0.3rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-text) 9%, transparent);
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.micro-action-comment {
+    background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+}
+
+.micro-action-like,
+.micro-action-react {
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.micro-action-like[data-active="1"] {
+    border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--micro-surface) 86%);
+    color: var(--micro-accent);
+}
+
+/* 评论展开时 JS 会附加 sky 色类，统一收敛到主题色 */
+.micro-action-comment.text-sky-600,
+.micro-action-comment.text-sky-600 i {
+    color: var(--micro-accent);
+}
+
+.micro-action-views {
+    margin-left: auto;
+    background: transparent;
+    cursor: default;
+}
+
+.micro-action-views:hover {
+    transform: none;
+    border-color: transparent;
+    background: transparent;
+    color: var(--micro-muted);
+}
+
+.micro-reaction-widget {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+/* 菜单打开后会被挂载到 body，提高选择器权重覆盖通用浮层样式 */
+.micro-reaction-menu.reaction-float-menu {
+    position: fixed;
+    z-index: 120;
+    padding: 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    border-radius: 1.1rem;
+    background: color-mix(in srgb, var(--color-card-bg) 96%, var(--color-background-alt) 4%);
+    box-shadow: 0 18px 40px color-mix(in srgb, var(--color-text) 16%, transparent);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    animation: micro-reaction-menu-in 0.18s ease-out;
+}
+
+.micro-reaction-menu.hidden {
+    display: none;
+}
+
+.micro-reaction-grid {
+    display: flex;
+    align-items: stretch;
+    gap: 0.2rem;
+}
+
+.micro-reaction-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.16rem;
+    min-width: 3.2rem;
+    padding: 0.45rem 0.3rem;
+    border: 1px solid transparent;
+    border-radius: 0.9rem;
+    background: transparent;
+    color: var(--color-text-light);
+    cursor: pointer;
+    transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.micro-reaction-option:hover {
+    transform: translateY(-2px);
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: var(--color-primary);
+}
+
+.micro-reaction-option[data-active="1"] {
+    border-color: color-mix(in srgb, var(--color-primary) 28%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+    color: var(--color-primary);
+}
+
+.micro-reaction-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.micro-reaction-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.micro-reaction-count {
+    color: var(--color-text-light);
+    font-size: 0.6rem;
+    line-height: 1;
+}
+
+/* 动画反馈 */
+@keyframes micro-reaction-menu-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes micro-heart-pop {
+    0% {
+        transform: scale(1);
+    }
+    30% {
+        transform: scale(1.32) rotate(-6deg);
+    }
+    55% {
+        transform: scale(0.9) rotate(3deg);
+    }
+    80% {
+        transform: scale(1.12);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.is-pop {
+    display: inline-block;
+    animation: micro-heart-pop 0.46s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.micro-burst {
+    position: fixed;
+    z-index: 200;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.micro-burst-particle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 6px;
+    height: 6px;
+    margin: -3px 0 0 -3px;
+    border-radius: 999px;
+    background: var(--color-primary);
+    opacity: 0.9;
+    animation: micro-burst-fly 0.6s ease-out forwards;
+}
+
+@keyframes micro-burst-fly {
+    from {
+        transform: rotate(var(--burst-angle, 0deg)) translateY(0) scale(1);
+        opacity: 0.95;
+    }
+    to {
+        transform: rotate(var(--burst-angle, 0deg)) translateY(-26px) scale(0.3);
+        opacity: 0;
+    }
+}
+
+/* 列表页立绘封面：提高通透度，避免被蒙层压灰 */
+.format-archive-glass .format-hero-image-micro {
+    opacity: 0.62 !important;
+    filter: saturate(1.08) contrast(1.03);
+}
+
+.format-archive-glass .format-hero-overlay-micro {
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--color-card-bg) 4%, transparent) 0%,
+            color-mix(in srgb, var(--color-card-bg) 16%, transparent) 55%,
+            color-mix(in srgb, var(--color-card-bg) 32%, transparent) 100%
+        ),
+        linear-gradient(
+            120deg,
+            color-mix(in srgb, var(--color-primary) 10%, transparent),
+            transparent 62%
+        );
+}
+
+/* 移动端收窄时间轴，给正文留出更多宽度 */
+@media (max-width: 640px) {
+    .micro-timeline {
+        --micro-gutter: 1.65rem;
+        --micro-line-left: 0.42rem;
+    }
+
+    .micro-card-body {
+        padding: 0.9rem 0.85rem;
+    }
+
+    .micro-card-title {
+        font-size: 1.1rem;
+    }
+
+    .micro-reaction-option {
+        min-width: 2.9rem;
+    }
+
+    .micro-action {
+        gap: 0.28rem;
+        padding: 0.32rem 0.5rem;
+        font-size: 0.7rem;
+    }
+
+    .micro-action i {
+        font-size: 0.76rem;
+    }
+
+    .micro-action-count {
+        min-width: 1rem;
+        padding: 0.06rem 0.22rem;
+        font-size: 0.64rem;
+    }
+}
+
+/* 窄屏收起文字标签，让评论/点赞/表态/分享/浏览保持单行 */
+@media (max-width: 480px) {
+    .micro-action {
+        gap: 0.3rem;
+        padding: 0.42rem 0.55rem;
+    }
+
+    .micro-action-label {
+        display: none;
+    }
+
+    .micro-action i {
+        font-size: 0.85rem;
+    }
+
+    .micro-action-views {
+        margin-left: auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .micro-card,
+    .micro-card-avatar-link,
+    .micro-action,
+    .micro-media-single img,
+    .micro-media-cell img {
+        transition: none;
+    }
+
+    .micro-reaction-menu,
+    .micro-burst-particle,
+    .is-pop {
+        animation: none;
+    }
+}

@@ -87,6 +87,7 @@ class MultiFormatInteractions {
         document.body.addEventListener('htmx:afterSwap', (event) => {
             const rawTarget = (event && event.detail && event.detail.target) ? event.detail.target : null;
             const scope = rawTarget && rawTarget.isConnected ? rawTarget : document;
+            this.mergeMicroTimelineDays(scope);
             this.initMicroArchiveActions(scope);
             this.initReactionWidgets(scope);
             this.initLightboxFromDataset(scope);
@@ -443,6 +444,29 @@ class MultiFormatInteractions {
     }
 
     /**
+     * 合并无刷新追加时跨批次的重复日期分组。
+     * 分页边界可能把同一天的动态拆到两批，追加后要避免出现两个相同日期节点。
+     */
+    mergeMicroTimelineDays(scope) {
+        const root = scope && typeof scope.querySelector === 'function' ? scope : document;
+        const panel = (root.closest && root.closest('#format-posts-panel'))
+            || (root.id === 'format-posts-panel' ? root : null)
+            || document.querySelector('#format-posts-panel')
+            || document;
+        const days = Array.from(panel.querySelectorAll('.micro-timeline-day'));
+        days.forEach((day, index) => {
+            if (index === 0 || !day.isConnected) return;
+            if (!day.closest('[data-micro-append-batch]')) return;
+            const prev = days[index - 1];
+            if (!prev || !prev.isConnected) return;
+            const text = (day.textContent || '').trim();
+            if (text && text === (prev.textContent || '').trim()) {
+                day.remove();
+            }
+        });
+    }
+
+    /**
      * 初始化无限滚动
      */
     initInfiniteScroll() {
@@ -491,6 +515,7 @@ class MultiFormatInteractions {
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const html = await response.text();
                 loader.outerHTML = html;
+                this.mergeMicroTimelineDays(document);
                 this.initMicroArchiveActions(document);
                 this.initReactionWidgets(document);
                 this.initLightboxFromDataset(document);
@@ -656,9 +681,35 @@ class MultiFormatInteractions {
 
     reactionSummaryText(summary) {
         const total = Number(summary && summary.total_reaction_count ? summary.total_reaction_count : 0);
-        if (total <= 0) return '匿名互动已开启，欢迎点赞或表态。';
-        if (total < 5) return `${total} 人已表态`;
-        return `🔥 ${total} 人已表态`;
+        if (total <= 0) return '轻轻点一下，让作者知道你来过。';
+        if (total < 5) return `已有 ${total} 人留下心意`;
+        return `已有 ${total} 人留下心意 ✦`;
+    }
+
+    playReactionFeedback(el) {
+        if (!el || typeof el.getBoundingClientRect !== 'function') return;
+        const icon = el.querySelector('i, svg');
+        if (icon) {
+            icon.classList.remove('is-pop');
+            // 强制重排，保证连续点击也能重新播放心跳动画
+            void icon.offsetWidth;
+            icon.classList.add('is-pop');
+            window.setTimeout(() => icon.classList.remove('is-pop'), 480);
+        }
+        const rect = el.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const burst = document.createElement('span');
+        burst.className = 'micro-burst';
+        burst.style.left = `${rect.left + rect.width / 2}px`;
+        burst.style.top = `${rect.top + rect.height / 2}px`;
+        for (let index = 0; index < 6; index += 1) {
+            const particle = document.createElement('span');
+            particle.className = 'micro-burst-particle';
+            particle.style.setProperty('--burst-angle', `${index * 60}deg`);
+            burst.appendChild(particle);
+        }
+        document.body.appendChild(burst);
+        window.setTimeout(() => burst.remove(), 700);
     }
 
     renderReactionWidget(widget, summary) {
@@ -785,6 +836,9 @@ class MultiFormatInteractions {
                             const cacheKey = `${target.targetType}:${target.targetId}`;
                             this.reactionSummaryCache.set(cacheKey, payload.summary);
                             this.renderReactionWidget(widget, payload.summary);
+                            if (payload.summary.viewer && payload.summary.viewer.liked) {
+                                this.playReactionFeedback(likeBtn);
+                            }
                         }
                     } catch (error) {
                         this.showToast(error.message || '点赞失败', 'error', 1300);
@@ -810,6 +864,7 @@ class MultiFormatInteractions {
                             const cacheKey = `${target.targetType}:${target.targetId}`;
                             this.reactionSummaryCache.set(cacheKey, payload.summary);
                             this.renderReactionWidget(widget, payload.summary);
+                            this.playReactionFeedback(btn);
                         }
                         if (menu) this.closeReactionMenu(menu);
                     } catch (error) {

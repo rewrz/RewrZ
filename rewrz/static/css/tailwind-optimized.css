@@ -2361,11 +2361,6 @@ body {
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
-/* 微博格式卡片 */
-.micro-card {
-  max-width: 28rem;
-}
-
 .card-content {
   padding: 1rem;
 }

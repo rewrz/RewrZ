@@ -5,6 +5,9 @@
 {% block head %}
 {{ super() }}
 <link rel="stylesheet" href="{{ static_asset(request, 'css/format-archive-glass.css') }}">
+{% if format_slug == 'micro' %}
+<link rel="stylesheet" href="{{ static_asset(request, 'css/micro-timeline.css') }}">
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -425,10 +428,10 @@
         <div id="{{ pagination_target_id }}">
             {% if posts %}
                 {% if is_micro %}
-                <div class="mx-auto max-w-3xl space-y-5">
-                    {% for post in posts %}
-                    {% include "components/micro_archive_card.html" %}
-                    {% endfor %}
+                <div class="micro-timeline mx-auto max-w-3xl">
+                    {% include "components/micro_timeline_posts.html" %}
+                </div>
+                <div class="mx-auto max-w-3xl">
                     {% include "components/list_pagination.html" %}
                 </div>
                 {% elif is_article %}
@@ -463,6 +466,9 @@
             {% endif %}
         </div>
     </div>
+    {% if is_micro %}
+    {% include "components/micro_reaction_sprite.html" %}
+    {% endif %}
 </section>
 {% endblock %}
 

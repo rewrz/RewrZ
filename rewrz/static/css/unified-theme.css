@@ -87,10 +87,33 @@ h6,
 /* ===== Frontend ===== */
 body.site-shell {
     color: var(--color-text);
+    background: var(--color-background);
+}
+
+/* 全站通用氛围背景：固定铺底的主题色光斑，滚动时持续填补宽屏两侧留白 */
+body.site-shell::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
     background:
-        radial-gradient(circle at 85% -10%, color-mix(in srgb, var(--color-primary) 22%, transparent) 0%, transparent 38%),
-        radial-gradient(circle at -10% 20%, color-mix(in srgb, var(--color-primary) 12%, white) 0%, transparent 42%),
-        var(--color-background);
+        radial-gradient(46vmax 46vmax at 4% -6%, color-mix(in srgb, var(--color-primary) 20%, transparent) 0%, transparent 64%),
+        radial-gradient(40vmax 40vmax at 104% 8%, color-mix(in srgb, var(--color-primary) 14%, transparent) 0%, transparent 66%),
+        radial-gradient(52vmax 52vmax at 92% 106%, color-mix(in srgb, var(--color-secondary) 12%, transparent) 0%, transparent 68%);
+}
+
+/* 已设置整页背景图时不再叠加光斑，避免两层装饰互相干扰 */
+body.site-shell.bg-page-cover::before {
+    display: none;
+}
+
+@media (max-width: 767.98px) {
+    body.site-shell::before {
+        background:
+            radial-gradient(32vmax 32vmax at 0% -4%, color-mix(in srgb, var(--color-primary) 16%, transparent) 0%, transparent 66%),
+            radial-gradient(36vmax 36vmax at 100% 104%, color-mix(in srgb, var(--color-secondary) 10%, transparent) 0%, transparent 70%);
+    }
 }
 
 body.site-shell.bg-page-cover {

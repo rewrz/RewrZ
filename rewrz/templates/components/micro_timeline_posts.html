@@ -1,0 +1,12 @@
+{# 微博时间线列表：按发布时间分组渲染日期节点与卡片，首屏与无刷新追加共用 #}
+{% set timeline_ns = namespace(prev_day='') %}
+{% for post in posts %}
+{% set _published_dt = post.published_at if post.published_at else post.created_at %}
+{% set _day_text = _published_dt | micro_datetime_cn %}
+{% set _day_label = _day_text.split(' ')[0] if _day_text else '未记录时间' %}
+{% if loop.first or _day_label != timeline_ns.prev_day %}
+<div class="micro-timeline-day"><span>{{ _day_label }}</span></div>
+{% endif %}
+{% set timeline_ns.prev_day = _day_label %}
+{% include "components/micro_archive_card.html" %}
+{% endfor %}

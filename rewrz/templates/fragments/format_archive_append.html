@@ -4,10 +4,10 @@
 
 {% if posts %}
     {% if is_micro %}
-    <div class="mx-auto w-full max-w-3xl space-y-5" data-micro-append-batch="1">
-        {% for post in posts %}
-        {% include "components/micro_archive_card.html" %}
-        {% endfor %}
+    <div class="micro-timeline mx-auto w-full max-w-3xl" data-micro-append-batch="1">
+        {% include "components/micro_timeline_posts.html" %}
+    </div>
+    <div class="mx-auto max-w-3xl">
         {% include "components/list_pagination.html" %}
     </div>
     {% elif is_article %}
