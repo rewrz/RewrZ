@@ -23,7 +23,7 @@ from sqlalchemy import func, select, text
 from typing import Dict, Any
 from ..core.admin_path import get_request_admin_path
 from ..core.config import settings
-from ..core.database import get_db
+from ..core.database import get_db, resolve_sqlite_database_path
 from ..core.security import get_current_user
 from ..core.template_filters import get_templates
 from ..models import Media
@@ -279,19 +279,15 @@ async def get_database_info(db: Session) -> Dict[str, Any]:
             db_info["url"] = "无法解析连接地址"
 
         if dialect_name == "sqlite":
-            raw_path = str(getattr(url, "database", "") or "")
-            if not raw_path or raw_path == ":memory:":
+            db_path = resolve_sqlite_database_path(bind)
+            if not db_path:
                 db_info["path"] = ":memory:（内存数据库）"
                 db_info["size"] = "不适用"
                 db_info["size_bytes"] = 0
             else:
-                db_path = Path(raw_path).expanduser()
-                if not db_path.is_absolute():
-                    # 与 SQLite 引擎一致：相对路径基于进程当前工作目录解析。
-                    db_path = Path.cwd() / db_path
-                db_info["path"] = str(db_path)
-                if db_path.is_file():
-                    size_bytes = db_path.stat().st_size
+                db_info["path"] = db_path
+                if os.path.isfile(db_path):
+                    size_bytes = os.path.getsize(db_path)
                     db_info["size"] = format_file_size(size_bytes)
                     db_info["size_bytes"] = size_bytes
                 else:

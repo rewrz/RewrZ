@@ -32,6 +32,19 @@
         </div>
     </div>
 
+    <!-- 数据库空间预警 -->
+    <div id="database-maintenance-alert" class="admin-warning-box rounded-xl p-4 mb-6 hidden">
+        <div class="flex items-start gap-3">
+            <i class="fas fa-exclamation-triangle admin-accent-text mt-0.5"></i>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm admin-accent-text" id="database-maintenance-alert-message"></p>
+                <button type="button" class="admin-secondary-btn mt-3 px-3 py-1.5 rounded text-sm" onclick="goToDatabaseMaintenance()">
+                    前往压缩数据库
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- 操作选项卡 -->
     <div class="admin-tab-strip border-b border-gray-200 mb-6">
         <nav class="-mb-px flex space-x-8">
@@ -233,6 +246,23 @@
                     </button>
                 </form>
             </div>
+
+            {% if supports_sqlite_vacuum %}
+            <div class="admin-section-card border rounded-lg p-4">
+                <h4 class="font-medium text-gray-900 mb-2">压缩数据库</h4>
+                <p class="text-sm text-gray-600 mb-3">
+                    SQLite 删除数据后不会自动把空间归还给系统。压缩会重建数据库文件并回收空闲页；执行期间写入会短暂阻塞，建议先创建完整备份。
+                </p>
+                <p id="database-storage-summary" class="text-sm text-gray-600 mb-3 hidden"></p>
+                <div id="database-maintenance-status" class="admin-warning-box rounded-md p-3 mb-3 hidden">
+                    <p class="text-sm admin-accent-text" id="database-maintenance-message"></p>
+                </div>
+                <button type="button" data-db-maintenance-trigger="1" onclick="vacuumDatabase()"
+                        class="admin-secondary-btn px-4 py-2 rounded transition-colors">
+                    压缩数据库
+                </button>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -313,6 +343,7 @@ async function loadDataStats() {
         document.getElementById('tags-count').textContent = data.tags;
         document.getElementById('media-count').textContent = data.media_files;
         document.getElementById('media-size').textContent = data.total_media_size;
+        renderDatabaseMaintenance(data.database || null);
     } catch (error) {
         console.error('加载数据统计失败:', error);
     }
@@ -744,7 +775,7 @@ function showOperationStatus(title = '正在处理中', message = '请稍候，�
 
 function setOperationBusy(isBusy) {
     const targets = document.querySelectorAll(
-        '#wordpress-import-form button[type="submit"], #rewrz-import-form button[type="submit"], #backup-restore-form button[type="submit"], [data-export-trigger="1"]'
+        '#wordpress-import-form button[type="submit"], #rewrz-import-form button[type="submit"], #backup-restore-form button[type="submit"], [data-export-trigger="1"], [data-db-maintenance-trigger="1"]'
     );
     targets.forEach((button) => {
         if (!(button instanceof HTMLButtonElement)) return;
@@ -757,13 +788,98 @@ function setOperationBusy(isBusy) {
             button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>处理中...';
             return;
         }
-        button.disabled = false;
-        button.classList.remove('opacity-70', 'cursor-not-allowed');
+        const maintenanceBlocked = button.dataset.maintenanceBlocked === '1';
+        button.disabled = maintenanceBlocked;
+        button.classList.toggle('opacity-70', maintenanceBlocked);
+        button.classList.toggle('cursor-not-allowed', maintenanceBlocked);
         if (button.dataset.originalHtml) {
             button.innerHTML = button.dataset.originalHtml;
             delete button.dataset.originalHtml;
         }
     });
+}
+
+function renderDatabaseMaintenance(info) {
+    const alertBox = document.getElementById('database-maintenance-alert');
+    const alertMessage = document.getElementById('database-maintenance-alert-message');
+    const statusBox = document.getElementById('database-maintenance-status');
+    const statusMessage = document.getElementById('database-maintenance-message');
+    const summary = document.getElementById('database-storage-summary');
+    const vacuumButton = document.querySelector('[data-db-maintenance-trigger="1"]');
+
+    if (!info) {
+        alertBox?.classList.add('hidden');
+        statusBox?.classList.add('hidden');
+        summary?.classList.add('hidden');
+        return;
+    }
+
+    if (summary) {
+        summary.textContent = `数据库文件 ${info.size}，空闲页可回收 ${info.reclaimable}（${((info.free_page_ratio || 0) * 100).toFixed(1)}%）；磁盘剩余 ${info.disk_free}。`;
+        summary.classList.remove('hidden');
+    }
+
+    const hasWarning = info.level === 'warning' || info.level === 'critical';
+    if (alertBox && alertMessage) {
+        alertMessage.textContent = info.message || '';
+        alertBox.classList.toggle('hidden', !hasWarning);
+    }
+    if (statusBox && statusMessage) {
+        statusMessage.textContent = info.message || '';
+        statusBox.classList.toggle('hidden', !hasWarning);
+    }
+    if (vacuumButton) {
+        const blocked = !info.vacuum_possible;
+        vacuumButton.dataset.maintenanceBlocked = blocked ? '1' : '0';
+        vacuumButton.disabled = blocked;
+        vacuumButton.title = blocked
+            ? `磁盘剩余空间不足，压缩至少需要 ${info.vacuum_required}。`
+            : '';
+    }
+}
+
+function goToDatabaseMaintenance() {
+    switchTab('backup');
+    document.getElementById('database-maintenance-status')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function formatDataBytes(bytes) {
+    const value = Number(bytes) || 0;
+    if (value < 1024) return `${value} B`;
+    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+    if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+    return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+async function vacuumDatabase() {
+    const confirmed = window.confirm('压缩会重建数据库文件，执行期间写入会短暂阻塞。建议先创建完整备份，确定继续吗？');
+    if (!confirmed) return;
+
+    showOperationStatus('正在压缩数据库', '正在执行 WAL 检查点与 VACUUM，请勿关闭页面。');
+    try {
+        const response = await fetch('{{ admin_path }}/api/v1/database/vacuum', {
+            method: 'POST',
+            headers: buildDataManagementCsrfHeaders()
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+            throw new Error(extractApiErrorMessage(result, response));
+        }
+
+        const data = result.data || {};
+        const reclaimed = data.reclaimed_bytes > 0
+            ? `回收 ${formatDataBytes(data.reclaimed_bytes)}`
+            : '未发现可回收空间';
+        let message = `数据库压缩完成：${formatDataBytes(data.size_before)} → ${formatDataBytes(data.size_after)}，${reclaimed}，耗时 ${data.duration_seconds ?? '-'} 秒。`;
+        if (data.checkpoint_busy) {
+            message += ' WAL 因并发读取未完全截断，稍后可再次执行。';
+        }
+        showOperationResult('success', message);
+        loadDataStats();
+    } catch (error) {
+        showOperationResult('error', `数据库压缩失败：${error.message}`);
+        loadDataStats();
+    }
 }
 
 // 显示操作结果

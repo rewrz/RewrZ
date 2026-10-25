@@ -25,7 +25,13 @@ from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 from ..core.admin_path import get_request_admin_path
 from ..core.config import settings
-from ..core.database import get_db, db_manager
+from ..core.database import (
+    get_db,
+    db_manager,
+    get_sqlite_database_path,
+    get_sqlite_storage_status,
+    vacuum_sqlite_database,
+)
 from ..core.time_utils import utc_iso, utc_now_naive
 from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates
@@ -530,6 +536,7 @@ async def data_management_page(
         "request": request,
         "user": current_user,
         "admin_path": get_request_admin_path(request),
+        "supports_sqlite_vacuum": bool(get_sqlite_database_path()),
     })
 
 
@@ -953,11 +960,47 @@ async def get_data_stats(
             "media_files": media_count,
             "settings": settings_count,
             "total_media_size": format_file_size(total_media_size),
-            "total_media_size_bytes": total_media_size
+            "total_media_size_bytes": total_media_size,
+            "database": get_sqlite_storage_status(db.get_bind()),
         })
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取统计失败: {str(e)}")
+
+
+@router.post("/api/v1/database/vacuum")
+@router.post("/api/database/vacuum")
+async def vacuum_database(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
+):
+    """压缩 SQLite 数据库，回收已删除数据占用的空闲页。"""
+    verify_csrf_token(request, csrf_token)
+
+    # 先结束当前请求的读事务，避免自己阻塞 WAL checkpoint
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    try:
+        stats = vacuum_sqlite_database()
+    except RuntimeError as exc:
+        return JSONResponse({"success": False, "error": str(exc)}, status_code=400)
+    except Exception as exc:
+        logger.exception("数据库压缩失败")
+        return JSONResponse(
+            {"success": False, "error": f"数据库压缩失败：{exc}"},
+            status_code=500,
+        )
+
+    return JSONResponse({
+        "success": True,
+        "message": "数据库压缩完成",
+        "data": stats,
+    })
 
 
 def _cleanup_temp_files(temp_dir: str):
