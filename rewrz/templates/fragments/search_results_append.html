@@ -1,7 +1,7 @@
 {% if results %}
 <div class="archive-grid-equal grid grid-cols-1 gap-5 md:grid-cols-2">
     {% for post in results %}
-    <article class="search-result-card archive-card-equal rounded-2xl border border-gray-200/70 bg-white/80 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/80">
+    <article class="search-result-card archive-card-equal rounded-2xl border p-4 shadow-sm">
         {% include "components/timeline_card.html" %}
     </article>
     {% endfor %}
@@ -21,12 +21,12 @@
     hx-swap="outerHTML"
 >
     <div class="flex justify-center">
-        <div class="inline-flex items-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
+        <div class="search-results-loader inline-flex items-center rounded-full border px-4 py-2 text-sm">
             <i class="fas fa-spinner fa-spin mr-2"></i>正在加载更多结果...
         </div>
     </div>
 </div>
 {% elif search_info.page > 1 %}
-<div class="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">已加载全部搜索结果</div>
+<div class="search-pagination-hint mt-6 text-center text-sm">已加载全部搜索结果</div>
 {% endif %}
 {% endif %}

@@ -3034,6 +3034,320 @@ body.site-shell .search-results-loader {
     box-shadow: 0 10px 24px -20px color-mix(in srgb, var(--color-primary) 34%, rgba(15, 23, 42, 0.18));
 }
 
+/* 搜索页：头图、控制台、结果卡片与空状态，全部基于动态主题变量 */
+body.site-shell .search-page-shell {
+    color: var(--color-text);
+}
+
+body.site-shell .search-hero {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    padding: clamp(1.5rem, 4vw, 2.4rem);
+    border: 1px solid var(--surface-glass-border);
+    border-radius: 1.6rem;
+    background:
+        radial-gradient(circle at 88% 10%, color-mix(in srgb, var(--color-primary) 22%, transparent) 0%, transparent 48%),
+        linear-gradient(140deg, color-mix(in srgb, var(--color-primary) 12%, var(--surface-soft-bg)), var(--surface-solid-bg));
+    box-shadow: var(--surface-glass-shadow);
+}
+
+body.site-shell .search-hero::before {
+    content: '';
+    position: absolute;
+    right: -3rem;
+    bottom: -4.5rem;
+    width: 14rem;
+    height: 14rem;
+    border: 1px dashed color-mix(in srgb, var(--color-primary) 32%, transparent);
+    border-radius: 50%;
+    opacity: 0.6;
+    pointer-events: none;
+    z-index: -1;
+}
+
+body.site-shell .search-hero-glyph {
+    position: absolute;
+    right: 2.2rem;
+    top: 50%;
+    transform: translateY(-50%) rotate(-12deg);
+    font-size: 6.5rem;
+    line-height: 1;
+    color: color-mix(in srgb, var(--color-primary) 34%, transparent);
+    opacity: 0.22;
+    pointer-events: none;
+    z-index: -1;
+}
+
+body.site-shell .search-hero-kicker {
+    margin: 0;
+    color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
+    letter-spacing: 0.22em;
+}
+
+body.site-shell .search-hero-title {
+    color: var(--surface-overlay-text);
+    letter-spacing: 0.01em;
+    line-height: 1.18;
+}
+
+body.site-shell .search-hero-summary {
+    max-width: 36rem;
+    color: var(--surface-muted-text);
+    line-height: 1.7;
+}
+
+body.site-shell .search-console {
+    padding: clamp(1rem, 2.6vw, 1.5rem);
+    border: 1px solid var(--surface-glass-border);
+    border-radius: 1.5rem;
+    background: color-mix(in srgb, var(--color-card-bg) 84%, transparent);
+    box-shadow: var(--ui-shadow-soft);
+    backdrop-filter: blur(12px);
+}
+
+body.site-shell .search-field {
+    padding-right: 2.9rem;
+    border-radius: 0.95rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border) 80%);
+    background: color-mix(in srgb, var(--color-card-bg) 94%, transparent);
+    color: var(--color-text);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+body.site-shell .search-field-icon {
+    position: absolute;
+    right: 1.05rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: color-mix(in srgb, var(--color-primary) 58%, var(--color-text-light) 42%);
+    pointer-events: none;
+}
+
+body.site-shell .search-results-archive-link {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    background: var(--surface-solid-bg);
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+    box-shadow: 0 10px 24px -20px color-mix(in srgb, var(--color-primary) 34%, rgba(15, 23, 42, 0.2));
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+body.site-shell .search-results-archive-link:hover {
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--surface-solid-bg));
+    color: color-mix(in srgb, var(--color-primary) 84%, var(--color-text) 16%);
+}
+
+body.site-shell .search-submit-btn {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 34%, transparent);
+    border-radius: 0.95rem;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-primary) 92%, white 8%),
+        color-mix(in srgb, var(--color-primary) 72%, black 8%)
+    );
+    color: var(--color-text-inverse);
+    box-shadow:
+        0 18px 34px -24px color-mix(in srgb, var(--color-primary) 55%, rgba(15, 23, 42, 0.3)),
+        inset 0 1px 0 color-mix(in srgb, white 18%, transparent);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+body.site-shell .search-submit-btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.04);
+    box-shadow:
+        0 22px 40px -24px color-mix(in srgb, var(--color-primary) 62%, rgba(15, 23, 42, 0.32)),
+        inset 0 1px 0 color-mix(in srgb, white 22%, transparent);
+}
+
+body.site-shell .search-filter-label,
+body.site-shell .search-sort-label {
+    color: var(--surface-muted-text);
+}
+
+body.site-shell .search-sort-label {
+    letter-spacing: 0.08em;
+}
+
+body.site-shell .search-filter-field {
+    border-radius: 0.8rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+    background: color-mix(in srgb, var(--color-card-bg) 94%, transparent);
+    color: var(--color-text);
+}
+
+body.site-shell .search-sort-pill {
+    position: relative;
+    display: inline-flex;
+    cursor: pointer;
+}
+
+body.site-shell .search-sort-pill input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+body.site-shell .search-sort-pill span {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.38rem 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border) 80%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-card-bg) 90%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 62%, var(--color-text) 38%);
+    font-size: 0.78rem;
+    font-weight: 600;
+    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+body.site-shell .search-sort-pill:hover span {
+    border-color: color-mix(in srgb, var(--color-primary) 36%, var(--color-border) 64%);
+    color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
+}
+
+body.site-shell .search-sort-pill input:checked + span {
+    border-color: color-mix(in srgb, var(--color-primary) 36%, transparent);
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-primary) 90%, white 10%),
+        color-mix(in srgb, var(--color-primary) 72%, black 8%)
+    );
+    color: var(--color-text-inverse);
+    box-shadow:
+        0 14px 28px -22px color-mix(in srgb, var(--color-primary) 52%, rgba(15, 23, 42, 0.26)),
+        inset 0 1px 0 color-mix(in srgb, white 18%, transparent);
+}
+
+body.site-shell .search-sort-pill input:focus-visible + span {
+    box-shadow: var(--ui-ring);
+}
+
+body.site-shell .search-suggestions-panel {
+    margin-top: 0.4rem;
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid var(--surface-glass-border);
+    background: color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+    box-shadow: var(--surface-glass-shadow);
+}
+
+body.site-shell .search-suggestion-item {
+    padding: 0.7rem 0.9rem;
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+body.site-shell .search-suggestion-item:hover {
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+}
+
+body.site-shell .search-suggestion-icon {
+    color: color-mix(in srgb, var(--color-primary) 58%, var(--color-text-light) 42%);
+}
+
+body.site-shell .search-result-card {
+    border-color: var(--surface-soft-border) !important;
+    background: var(--surface-soft-bg) !important;
+    box-shadow: 0 18px 36px -30px color-mix(in srgb, var(--color-primary) 26%, rgba(15, 23, 42, 0.24));
+    transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.site-shell .search-result-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 26px 50px -32px color-mix(in srgb, var(--color-primary) 34%, rgba(15, 23, 42, 0.28));
+}
+
+body.site-shell .search-empty-panel {
+    border: 1px dashed color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%);
+    background: var(--surface-soft-bg);
+    color: var(--surface-muted-text);
+}
+
+body.site-shell .search-empty-icon {
+    color: color-mix(in srgb, var(--color-primary) 46%, var(--color-text-light) 54%);
+    opacity: 0.7;
+}
+
+body.site-shell .search-empty-tips {
+    color: var(--surface-muted-text);
+}
+
+body.site-shell .search-results-summary-hint {
+    color: var(--surface-muted-text);
+}
+
+body.site-shell .search-pagination-link,
+body.site-shell .search-pagination-current {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.4rem;
+    padding: 0.45rem 0.8rem;
+    border-radius: 0.8rem;
+    font-size: 0.85rem;
+}
+
+body.site-shell .search-pagination-link {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    background: var(--surface-solid-bg);
+    color: color-mix(in srgb, var(--color-primary) 48%, var(--color-text) 52%);
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+body.site-shell .search-pagination-link:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 38%, var(--color-border) 62%);
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--surface-solid-bg));
+    color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
+}
+
+body.site-shell .search-pagination-current {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 34%, transparent);
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-primary) 90%, white 10%),
+        color-mix(in srgb, var(--color-primary) 72%, black 8%)
+    );
+    color: var(--color-text-inverse);
+    font-weight: 600;
+    box-shadow: 0 14px 28px -22px color-mix(in srgb, var(--color-primary) 52%, rgba(15, 23, 42, 0.26));
+}
+
+body.site-shell .search-pagination-gap,
+body.site-shell .search-pagination-hint {
+    color: var(--surface-muted-text);
+}
+
+body.site-shell .search-pagination-gap {
+    padding: 0.45rem 0.35rem;
+    font-size: 0.85rem;
+}
+
+body.site-shell .search-highlight {
+    padding: 0 0.2em;
+    border-radius: 0.3em;
+    background: color-mix(in srgb, var(--color-primary) 24%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 82%, var(--color-text) 18%);
+}
+
+@media (max-width: 640px) {
+    body.site-shell .search-hero-glyph {
+        right: 0.9rem;
+        font-size: 4.6rem;
+        opacity: 0.16;
+    }
+
+    body.site-shell .search-empty-panel {
+        padding: 2.5rem 1.1rem;
+    }
+}
+
 body.site-shell .media-archive-pill.is-active {
     background: linear-gradient(
         135deg,

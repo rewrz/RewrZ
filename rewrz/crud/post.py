@@ -166,7 +166,7 @@ def _resolve_storage_contents(
     return resolved_markdown, ""
 
 
-def _attach_views_metrics(db: Session, posts: List[Post]) -> None:
+def attach_post_views_metrics(db: Session, posts: List[Post]) -> None:
     if not posts:
         return
 
@@ -273,7 +273,7 @@ def get_post(db: Session, post_id: int):
         .filter(Post.id == post_id)
     ).unique().scalar_one_or_none()
     if post:
-        _attach_views_metrics(db, [post])
+        attach_post_views_metrics(db, [post])
     return post
 
 def get_post_by_slug(db: Session, slug: str):
@@ -291,7 +291,7 @@ def get_post_by_slug(db: Session, slug: str):
         .filter(Post.slug == slug)
     ).unique().scalar_one_or_none()
     if post:
-        _attach_views_metrics(db, [post])
+        attach_post_views_metrics(db, [post])
     return post
 
 def get_posts(db: Session, skip: int = 0, limit: int = 100, status: Optional[str] = None, post_type: Optional[str] = None):
@@ -318,7 +318,7 @@ def get_posts(db: Session, skip: int = 0, limit: int = 100, status: Optional[str
     # 默认按发布时间降序排列
     query = query.order_by(Post.published_at.desc())
     posts = db.execute(query.offset(skip).limit(limit)).unique().scalars().all()
-    _attach_views_metrics(db, posts)
+    attach_post_views_metrics(db, posts)
     return posts
 
 
@@ -340,7 +340,7 @@ def get_all_posts(db: Session):
     """获取所有文章（不分页）"""
     query = select(Post).options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags), joinedload(Post.author))
     posts = db.execute(query).unique().scalars().all()
-    _attach_views_metrics(db, posts)
+    attach_post_views_metrics(db, posts)
     return posts
 
 def count_posts_by_status(db: Session, status: str) -> int:
@@ -360,7 +360,7 @@ def get_posts_by_category(db: Session, category_id: int, skip: int = 0, limit: i
         .offset(skip)
         .limit(limit)
     ).unique().scalars().all()
-    _attach_views_metrics(db, posts)
+    attach_post_views_metrics(db, posts)
     return posts
 
 def get_posts_by_format(
@@ -387,7 +387,7 @@ def get_posts_by_format(
         .offset(skip)
         .limit(limit)
     ).unique().scalars().all()
-    _attach_views_metrics(db, posts)
+    attach_post_views_metrics(db, posts)
     return posts
 
 
@@ -402,7 +402,7 @@ def get_posts_by_tag(db: Session, tag_id: int, skip: int = 0, limit: int = 100):
         .offset(skip)
         .limit(limit)
     ).unique().scalars().all()
-    _attach_views_metrics(db, posts)
+    attach_post_views_metrics(db, posts)
     return posts
 
 def create_post(
@@ -749,7 +749,7 @@ def get_posts_by_year_month(
         query = query.limit(limit)
 
     posts = db.execute(query).unique().scalars().all()
-    _attach_views_metrics(db, posts)
+    attach_post_views_metrics(db, posts)
     return posts
 
 
@@ -762,7 +762,7 @@ def get_archive_posts(db: Session) -> List[Post]:
         .order_by(Post.published_at.desc())
     )
     posts = db.execute(query).unique().scalars().all()
-    _attach_views_metrics(db, posts)
+    attach_post_views_metrics(db, posts)
     return posts
 
 
@@ -777,7 +777,7 @@ def get_archive_posts_paginated(db: Session, skip: int = 0, limit: int = 20) -> 
         .limit(limit)
     )
     posts = db.execute(query).unique().scalars().all()
-    _attach_views_metrics(db, posts)
+    attach_post_views_metrics(db, posts)
     return posts
 
 
@@ -822,7 +822,7 @@ def get_posts_by_media_attachment(
         .offset(skip)
         .limit(limit)
     ).unique().scalars().all()
-    _attach_views_metrics(db, posts)
+    attach_post_views_metrics(db, posts)
     return posts
 
 def _delete_orphan_tags(db: Session, tag_ids: List[int]) -> None:

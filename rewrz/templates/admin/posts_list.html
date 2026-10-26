@@ -119,15 +119,15 @@
     <div class="admin-table-shell overflow-x-auto rounded-2xl">
         <table class="admin-list-table min-w-full">
             <colgroup>
-                <col class="w-12">
-                <col class="w-[34%]">
-                <col class="w-28">
-                <col class="w-24">
-                <col class="w-[11%]">
-                <col class="w-[10%]">
-                <col class="w-20">
-                <col class="w-40">
-                <col class="w-24">
+                <col style="width: 3rem">
+                <col style="width: auto">
+                <col style="width: 6.75rem">
+                <col style="width: 7rem">
+                <col style="width: 8.25rem">
+                <col style="width: 8.25rem">
+                <col style="width: 4rem">
+                <col style="width: 9.5rem">
+                <col style="width: 5.5rem">
             </colgroup>
             <thead class="admin-list-table-head">
                 <tr>
@@ -533,6 +533,9 @@
 
     .admin-posts-shell table {
         table-layout: fixed;
+        /* 明确表格宽度，fixed 布局才会按列宽分配，避免列宽随每页内容跳动 */
+        width: 1200px;
+        min-width: 100%;
     }
 
     .admin-posts-shell .admin-inline-region {

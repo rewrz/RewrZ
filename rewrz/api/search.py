@@ -388,6 +388,8 @@ def perform_search(
     # 分页
     offset = (page - 1) * per_page
     results = base_query.offset(offset).limit(per_page).all()
+    # 搜索结果卡片与首页/归档一致，需要补齐阅读量、评论数等展示指标
+    crud_post.attach_post_views_metrics(db, results)
     
     return {
         "results": results,

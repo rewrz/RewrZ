@@ -681,7 +681,7 @@ def register_admin_primary_routes(
         ).unique().scalars().all()
 
         try:
-            crud_post._attach_views_metrics(db, posts)
+            crud_post.attach_post_views_metrics(db, posts)
         except Exception:
             for post in posts:
                 setattr(post, "views", 0)
@@ -1199,7 +1199,7 @@ def register_admin_primary_routes(
         ).scalars().all()
 
         try:
-            crud_post._attach_views_metrics(db, pages)
+            crud_post.attach_post_views_metrics(db, pages)
         except Exception:
             for item in pages:
                 setattr(item, "views", 0)

@@ -3,108 +3,124 @@
 {% block title %}搜索结果 - {{ site_title }}{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
-    {% set search_use_htmx = list_navigation_mode == 'infinite_scroll' %}
-    <!-- 搜索表单 -->
-    <div class="search-shell-panel bg-white p-6 rounded-lg shadow-md mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-6">全站搜索</h1>
-        
-        <form
-            id="search-form"
-            method="GET"
-            action="/search"
-            class="space-y-4"
-            {% if search_use_htmx %}
-            hx-get="/search"
-            hx-target="#search-panel"
-            hx-push-url="true"
-            {% endif %}
-        >
-            <div class="flex space-x-4">
-                <div class="flex-1 relative">
-                    <input type="text" 
-                           name="q" 
-                           value="{{ search_info.query }}" 
-                           placeholder="请输入搜索关键词..." 
-                           class="search-field w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                           autocomplete="off"
-                           id="search-input">
-                    <div id="search-suggestions" class="search-suggestions-panel absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg hidden"></div>
-                    <!-- 建议接口兜底提示 -->
-                    <div id="suggestion-error" class="absolute left-0 right-0 mt-2 text-sm text-red-600 hidden">
-                        无法获取搜索建议，请稍后重试。
+<section class="search-page-shell py-8">
+    <div class="container mx-auto max-w-6xl px-4">
+        {% set search_use_htmx = list_navigation_mode == 'infinite_scroll' %}
+
+        <!-- 搜索页头图 -->
+        <div class="search-hero mb-6">
+            <i class="fas fa-search search-hero-glyph" aria-hidden="true"></i>
+            <div class="relative flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0">
+                    <p class="search-hero-kicker text-xs font-semibold">全站检索</p>
+                    <h1 class="search-hero-title mt-1 text-3xl font-bold md:text-4xl">全站搜索</h1>
+                    <p class="search-hero-summary mt-2 text-sm">
+                        在文章、微博与诗词歌赋之间穿梭，找到你想读的那一页。
+                    </p>
+                </div>
+                <a href="/archives" class="search-results-archive-link inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold">
+                    <i class="fas fa-stream mr-1"></i>查看归档
+                </a>
+            </div>
+        </div>
+
+        <!-- 搜索与筛选控制台 -->
+        <div class="search-console mb-8">
+            <form
+                id="search-form"
+                method="GET"
+                action="/search"
+                {% if search_use_htmx %}
+                hx-get="/search"
+                hx-target="#search-panel"
+                hx-push-url="true"
+                {% endif %}
+            >
+                <div class="flex flex-col gap-3 sm:flex-row">
+                    <div class="relative flex-1">
+                        <input type="text"
+                               name="q"
+                               value="{{ search_info.query }}"
+                               placeholder="请输入搜索关键词..."
+                               class="search-field w-full px-4 py-3"
+                               autocomplete="off"
+                               id="search-input">
+                        <i class="fas fa-search search-field-icon" aria-hidden="true"></i>
+                        <div id="search-suggestions" class="search-suggestions-panel absolute z-10 w-full hidden"></div>
+                        <!-- 建议接口兜底提示 -->
+                        <div id="suggestion-error" class="absolute left-0 right-0 mt-2 text-sm text-red-600 hidden">
+                            无法获取搜索建议，请稍后重试。
+                        </div>
+                    </div>
+                    <button type="submit" id="search-submit-btn"
+                            class="search-submit-btn inline-flex items-center justify-center px-6 py-3 font-semibold">
+                        <i class="fas fa-search mr-2"></i>搜索
+                    </button>
+                </div>
+
+                <!-- 高级筛选 -->
+                <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div>
+                        <label class="search-filter-label mb-1 block text-xs font-medium">分类筛选</label>
+                        <select name="category" class="search-filter-field w-full px-3 py-2">
+                            <option value="">所有分类</option>
+                            {% for category in categories %}
+                            <option value="{{ category.slug }}" {{ 'selected' if category.slug == search_info.category else '' }}>
+                                {{ category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="search-filter-label mb-1 block text-xs font-medium">标签筛选</label>
+                        <select name="tag" class="search-filter-field w-full px-3 py-2">
+                            <option value="">所有标签</option>
+                            {% for tag in tags %}
+                            <option value="{{ tag.slug }}" {{ 'selected' if tag.slug == search_info.tag else '' }}>
+                                {{ tag.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="search-filter-label mb-1 block text-xs font-medium">格式筛选</label>
+                        <select name="format" class="search-filter-field w-full px-3 py-2">
+                            <option value="">所有格式</option>
+                            {% for format in formats %}
+                            <option value="{{ format.slug }}" {{ 'selected' if format.slug == search_info.format else '' }}>
+                                {{ format.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
-                <button type="submit" id="search-submit-btn"
-                        class="search-submit-btn relative z-20 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500">
-                    <i class="fas fa-search mr-2"></i>搜索
-                </button>
-            </div>
-            
-            <!-- 高级筛选 -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">分类筛选</label>
-                    <select name="category" class="search-filter-field w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="">所有分类</option>
-                        {% for category in categories %}
-                        <option value="{{ category.slug }}" {{ 'selected' if category.slug == search_info.category else '' }}>
-                            {{ category.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">标签筛选</label>
-                    <select name="tag" class="search-filter-field w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="">所有标签</option>
-                        {% for tag in tags %}
-                        <option value="{{ tag.slug }}" {{ 'selected' if tag.slug == search_info.tag else '' }}>
-                            {{ tag.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">格式筛选</label>
-                    <select name="format" class="search-filter-field w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="">所有格式</option>
-                        {% for format in formats %}
-                        <option value="{{ format.slug }}" {{ 'selected' if format.slug == search_info.format else '' }}>
-                            {{ format.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            
-            <!-- 排序选项 -->
-            <div class="flex items-center space-x-4">
-                <label class="text-sm font-medium text-gray-700">排序方式：</label>
-                <div class="flex space-x-4">
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="sort" value="relevance" {{ 'checked' if search_info.sort == 'relevance' else '' }} class="form-radio">
-                        <span class="ml-2 text-sm text-gray-700">相关性</span>
+
+                <!-- 排序选项 -->
+                <div class="mt-4 flex flex-wrap items-center gap-2">
+                    <span class="search-sort-label text-xs font-medium">排序方式</span>
+                    <label class="search-sort-pill">
+                        <input type="radio" name="sort" value="relevance" {{ 'checked' if search_info.sort == 'relevance' else '' }}>
+                        <span>相关性</span>
                     </label>
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="sort" value="date" {{ 'checked' if search_info.sort == 'date' else '' }} class="form-radio">
-                        <span class="ml-2 text-sm text-gray-700">发布时间</span>
+                    <label class="search-sort-pill">
+                        <input type="radio" name="sort" value="date" {{ 'checked' if search_info.sort == 'date' else '' }}>
+                        <span>发布时间</span>
                     </label>
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="sort" value="title" {{ 'checked' if search_info.sort == 'title' else '' }} class="form-radio">
-                        <span class="ml-2 text-sm text-gray-700">标题</span>
+                    <label class="search-sort-pill">
+                        <input type="radio" name="sort" value="title" {{ 'checked' if search_info.sort == 'title' else '' }}>
+                        <span>标题</span>
                     </label>
                 </div>
-            </div>
-        </form>
+            </form>
+        </div>
+
+        <div id="search-panel">
+            {% include "components/search_results_panel.html" %}
+        </div>
     </div>
-    
-    <div id="search-panel">
-        {% include "components/search_results_panel.html" %}
-    </div>
-</div>
+</section>
 
 <script>
 // 搜索建议功能
@@ -117,17 +133,17 @@ let suggestionsTimeout;
 
 searchInput.addEventListener('input', function() {
     const query = this.value.trim();
-    
+
     if (suggestionsTimeout) {
         clearTimeout(suggestionsTimeout);
     }
-    
+
     if (query.length < 2) {
         hideSuggestions();
         hideSuggestionError();
         return;
     }
-    
+
     suggestionsTimeout = setTimeout(() => {
         fetchSuggestions(query);
     }, 300);
@@ -177,21 +193,21 @@ function showSuggestions(suggestions) {
         hideSuggestions();
         return;
     }
-    
+
     const html = suggestions.map(suggestion => `
-        <div class="p-3 hover:bg-gray-50 cursor-pointer suggestion-item" data-url="${suggestion.url}">
+        <div class="search-suggestion-item" data-url="${suggestion.url}">
             <div class="flex items-center">
-                <i class="fas fa-${getIcon(suggestion.type)} text-gray-400 mr-2"></i>
+                <i class="fas fa-${getIcon(suggestion.type)} search-suggestion-icon mr-2"></i>
                 <span>${escapeHtml(suggestion.title)}</span>
             </div>
         </div>
     `).join('');
-    
+
     suggestionsContainer.innerHTML = html;
     suggestionsContainer.classList.remove('hidden');
-    
+
     // 添加点击事件
-    suggestionsContainer.querySelectorAll('.suggestion-item').forEach(item => {
+    suggestionsContainer.querySelectorAll('.search-suggestion-item').forEach(item => {
         item.addEventListener('click', function() {
             window.location.href = this.dataset.url;
         });
@@ -236,7 +252,7 @@ function highlightResults() {
         unique.forEach(tok => {
             const esc = tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const re = new RegExp(`(${esc})`, 'gi');
-            html = html.replace(re, '<mark class="bg-yellow-200 px-1 rounded">$1</mark>');
+            html = html.replace(re, '<mark class="search-highlight">$1</mark>');
         });
         return html;
     };
