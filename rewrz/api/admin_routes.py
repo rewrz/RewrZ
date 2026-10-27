@@ -15,6 +15,7 @@ from ..core.avatar import get_avatar_service
 from ..core.admin_path import get_admin_path
 from ..core.config import settings
 from ..core.database import get_db
+from ..core.page_templates import get_page_template_label_map
 from ..core.security import get_current_user
 from ..models import Category, Comment, Post, Tag
 from ..models.post import post_categories, post_tags
@@ -1255,6 +1256,7 @@ def register_admin_primary_routes(
             "selected_visibility": visibility or "",
             "pagination": pagination,
             "total_pages_count": total_pages_count,
+            "page_template_label_map": get_page_template_label_map(),
             "user": current_user,
             "admin_path": admin_path,
         })

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title if post else title }} - {{ site_title }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ static_asset(request, 'css/page-detail.css') }}">
+<link rel="stylesheet" href="{{ static_asset(request, 'css/page-anime-templates.css') }}">
+{% endblock %}
+
+{% block content %}
+{% set template_variant = 'contact' %}
+{% include "components/page_anime_template_layout.html" %}
+{% endblock %}

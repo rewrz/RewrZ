@@ -7,13 +7,27 @@ from markdown import markdown
 
 VALID_EDITOR_MODES = {"markdown", "html"}
 MARKDOWN_RENDER_EXTENSIONS = ("extra", "sane_lists", "nl2br")
+TASK_LIST_ITEM_PATTERN = re.compile(r"<li>\s*\[([ xX])\]\s*")
+
+
+def _render_task_list_items(html_content: str) -> str:
+    """把 Markdown 任务列表的 [x] / [ ] 标记渲染为只读复选框。"""
+    if "[" not in html_content:
+        return html_content
+
+    def replace_item(match: re.Match) -> str:
+        checked = " checked" if match.group(1).lower() == "x" else ""
+        return f'<li class="task-list-item"><input type="checkbox" class="task-list-checkbox" disabled{checked}> '
+
+    return TASK_LIST_ITEM_PATTERN.sub(replace_item, html_content)
 
 
 @lru_cache(maxsize=128)
 def _render_markdown_html_cached(markdown_content: str) -> str:
     if not markdown_content.strip():
         return ""
-    return markdown(markdown_content, extensions=list(MARKDOWN_RENDER_EXTENSIONS))
+    rendered = markdown(markdown_content, extensions=list(MARKDOWN_RENDER_EXTENSIONS))
+    return _render_task_list_items(rendered)
 
 
 def render_markdown_html(content_markdown: Optional[str]) -> str:

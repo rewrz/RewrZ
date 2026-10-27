@@ -262,6 +262,23 @@
                         {% if item.value == current_page_template %}{{ item.description }}{% endif %}
                         {% endfor %}
                     </p>
+                    <div id="page-template-guide" class="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-background-alt)] p-3 text-xs leading-6 text-[var(--color-text-light)]">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <span class="font-semibold text-[var(--color-text)]">
+                                <i class="fas fa-lightbulb admin-accent-text mr-1"></i>
+                                模板写法建议
+                            </span>
+                            <button type="button" id="insert-template-skeleton" class="admin-secondary-btn rounded-md px-2.5 py-1 text-xs">
+                                <i class="fas fa-magic mr-1"></i>
+                                插入示例大纲
+                            </button>
+                        </div>
+                        <p id="page-template-usage" class="mt-2"></p>
+                        <details class="mt-2">
+                            <summary class="cursor-pointer select-none text-[var(--color-text)]">查看示例大纲</summary>
+                            <pre id="page-template-skeleton" class="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--color-border)] bg-[var(--color-card-bg)] p-2 font-mono text-[11px] leading-5 text-[var(--color-text)]"></pre>
+                        </details>
+                    </div>
                 </div>
                 <div>
                     <h3 class="text-lg font-semibold mb-2">可见性</h3>
@@ -388,6 +405,9 @@
     const slugPreview = document.getElementById('slug-preview');
     const pageTemplateSelect = document.getElementById('page-template-select');
     const pageTemplateHint = document.getElementById('page-template-hint');
+    const pageTemplateUsage = document.getElementById('page-template-usage');
+    const pageTemplateSkeleton = document.getElementById('page-template-skeleton');
+    const insertTemplateSkeletonButton = document.getElementById('insert-template-skeleton');
     const pageTemplateOptions = {{ resolved_page_template_options | tojson }};
     let isDirty = false;
     let isSubmitting = false;
@@ -553,6 +573,15 @@
         if (!pageTemplateSelect || !pageTemplateHint) return;
         const selected = pageTemplateOptions.find((item) => item.value === pageTemplateSelect.value);
         pageTemplateHint.textContent = selected && selected.description ? selected.description : '可在前台使用不同版式展示此页面。';
+        if (pageTemplateUsage) {
+            pageTemplateUsage.textContent = selected && selected.usage ? selected.usage : '';
+        }
+        if (pageTemplateSkeleton) {
+            pageTemplateSkeleton.textContent = selected && selected.skeleton ? selected.skeleton : '';
+        }
+        if (insertTemplateSkeletonButton) {
+            insertTemplateSkeletonButton.classList.toggle('hidden', !(selected && selected.skeleton));
+        }
     }
 
     if (pageTemplateSelect) {
@@ -561,6 +590,22 @@
             markDirty();
         });
         updatePageTemplateHint();
+    }
+
+    if (insertTemplateSkeletonButton) {
+        insertTemplateSkeletonButton.addEventListener('click', () => {
+            const selected = pageTemplateOptions.find((item) => item.value === pageTemplateSelect?.value);
+            const skeleton = selected && selected.skeleton ? selected.skeleton : '';
+            if (!skeleton) return;
+
+            const currentMarkdown = editor.getMarkdown().trim();
+            if (currentMarkdown && !window.confirm('当前正文已有内容，是否在末尾追加该模板的示例大纲？')) {
+                return;
+            }
+            editor.setMarkdown(currentMarkdown ? `${currentMarkdown}\n\n${skeleton}` : skeleton);
+            markDirty();
+            window.adminNotify?.('已插入模板示例大纲，请按上方写法建议替换为你的内容。', 'success', { duration: 3600 });
+        });
     }
 
     pageForm.addEventListener('input', markDirty);
@@ -915,6 +960,47 @@
     });
     pageForm.addEventListener('htmx:beforeSwap', () => {
         document.body.classList.remove('editor-fullscreen-active');
+    });
+
+    function restoreSaveButtonAfterFailure() {
+        isSubmitting = false;
+        // 提交前已把状态标记为“无改动”，失败后恢复为未保存，避免关闭页面时丢失内容
+        isDirty = true;
+        updateDirtyUI();
+        if (!savePageButton) return;
+        savePageButton.disabled = false;
+        savePageButton.classList.remove('opacity-70', 'cursor-not-allowed');
+        savePageButton.innerHTML = '<i class="fas fa-save mr-2"></i>保存';
+    }
+
+    function extractSubmitErrorMessage(xhr) {
+        try {
+            const payload = JSON.parse(xhr.responseText || '{}');
+            if (Array.isArray(payload.detail)) {
+                const messages = payload.detail
+                    .map((item) => item?.msg || item?.message || '')
+                    .filter(Boolean);
+                if (messages.length) return messages.join('；');
+            }
+            if (payload.detail) return String(payload.detail);
+            if (payload.error && typeof payload.error === 'object') {
+                return String(payload.error.message || '');
+            }
+            if (payload.error) return String(payload.error);
+            if (payload.message) return String(payload.message);
+        } catch (_) {
+            // 非 JSON 响应时回退到状态码提示
+        }
+        return xhr.status ? `请求失败（HTTP ${xhr.status}）` : '网络请求失败，请稍后重试';
+    }
+
+    pageForm.addEventListener('htmx:responseError', (event) => {
+        restoreSaveButtonAfterFailure();
+        window.adminNotify?.(`保存失败：${extractSubmitErrorMessage(event.detail.xhr)}`, 'error', { duration: 4200 });
+    });
+    pageForm.addEventListener('htmx:sendError', () => {
+        restoreSaveButtonAfterFailure();
+        window.adminNotify?.('保存失败：网络请求未完成，请检查网络后重试。', 'error', { duration: 4200 });
     });
 
     {% if post %}

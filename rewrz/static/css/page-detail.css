@@ -13,17 +13,30 @@
 .page-detail-card {
     /* 正文卡片面积大，背景模糊会让长页面滚动时持续重绘，这里改用实色卡片底 */
     backdrop-filter: none;
+    background: color-mix(in srgb, var(--color-card-bg) 96%, transparent) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
+    box-shadow:
+        0 26px 60px -34px color-mix(in srgb, var(--color-primary) 46%, transparent),
+        0 10px 24px -18px color-mix(in srgb, var(--color-text) 24%, transparent);
 }
 
+/* ===== 页面首屏：有封面图时使用封面横幅，无封面时直接走标题区 ===== */
 .page-hero {
-    min-height: 320px;
-    color: #fff;
-    display: flex;
-    align-items: flex-end;
+    --page-hero-fade-bg: color-mix(in srgb, var(--color-card-bg) 96%, transparent);
+    position: relative;
+    min-height: clamp(168px, 17vw, 220px);
+    overflow: hidden;
+    isolation: isolate;
+    /* 封面图加载中或加载失败时，用主题色兜底，避免露出空白条 */
+    background: linear-gradient(
+        150deg,
+        color-mix(in srgb, var(--color-primary) 34%, var(--color-card-bg) 66%) 0%,
+        color-mix(in srgb, var(--color-primary) 18%, var(--color-card-bg) 82%) 58%,
+        color-mix(in srgb, var(--color-secondary) 22%, var(--color-card-bg) 78%) 100%
+    );
 }
 
 .page-hero-media,
-.page-hero-fallback,
 .page-hero-overlay {
     position: absolute;
     inset: 0;
@@ -37,52 +50,117 @@
     transform: scale(1.02);
 }
 
-.page-hero-fallback {
+/* 无封面时不铺色块横幅，直接让页面背景插画透出，避免出现无含义的大色块；
+   仅保留一条贴合主题色的顶边光带锚定首屏 */
+.page-header--standalone::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 4px;
+    border-radius: 1rem 1rem 0 0;
     background: linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--color-primary) 58%, white) 0%,
-        var(--color-primary) 50%,
-        color-mix(in srgb, var(--color-primary) 72%, black) 100%
+        90deg,
+        color-mix(in srgb, var(--color-primary) 90%, transparent) 0%,
+        color-mix(in srgb, var(--color-primary) 58%, var(--color-secondary) 42%) 46%,
+        color-mix(in srgb, var(--color-accent) 72%, transparent) 100%
     );
 }
 
+/* 横幅底部溶解进卡片底色，让首屏与正文自然衔接 */
 .page-hero-overlay {
     background:
-        linear-gradient(180deg, rgba(2, 6, 23, 0.14) 0%, rgba(2, 6, 23, 0.52) 48%, rgba(2, 6, 23, 0.9) 100%),
-        linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 16%, transparent), transparent 56%);
+        linear-gradient(
+            180deg,
+            transparent 58%,
+            color-mix(in srgb, var(--page-hero-fade-bg) 64%, transparent) 82%,
+            var(--page-hero-fade-bg) 100%
+        ),
+        linear-gradient(120deg, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 62%);
 }
 
-.page-hero-content {
-    position: relative;
+/* 掠光层：给静态首屏一点二次元常见的流动感 */
+.page-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
     z-index: 1;
-    padding: 2.4rem 1.6rem 1.8rem;
-    width: 100%;
+    pointer-events: none;
+    background: linear-gradient(
+        112deg,
+        transparent 36%,
+        color-mix(in srgb, white 18%, transparent) 50%,
+        transparent 64%
+    );
+    opacity: 0.45;
+    transform: translate3d(-24%, 0, 0);
+    animation: page-hero-sheen 11s ease-in-out infinite;
+}
+
+/* 标题信息回到卡片正文区，和站点其它页面保持同一套编辑型排版 */
+.page-header {
+    position: relative;
+    padding: 1.6rem 2rem 1.1rem;
+}
+
+/* 无封面页面：标题区带一层极淡的主题色氛围，替代原来的大色块 */
+.page-header--standalone {
+    background: radial-gradient(
+        128% 150% at 0% 0%,
+        color-mix(in srgb, var(--color-primary) 11%, transparent) 0%,
+        transparent 62%
+    );
+}
+
+.page-header::after {
+    content: "";
+    position: absolute;
+    left: 2rem;
+    right: 2rem;
+    bottom: 0;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--color-primary) 42%, transparent) 0%,
+        color-mix(in srgb, var(--color-primary) 10%, transparent) 48%,
+        transparent 78%
+    );
 }
 
 .page-type-badge {
-    background: rgba(255, 255, 255, 0.18);
-    border: 1px solid rgba(255, 255, 255, 0.32);
-    backdrop-filter: blur(8px);
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card-bg) 88%);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, white 46%, transparent);
+}
+
+.dark .page-type-badge {
+    box-shadow: inset 0 1px 0 color-mix(in srgb, white 8%, transparent);
 }
 
 .page-title {
-    font-size: clamp(1.75rem, 4vw, 2.8rem);
-    line-height: 1.2;
+    margin: 0.85rem 0 0;
+    color: var(--color-text);
+    font-size: clamp(1.7rem, 3.6vw, 2.5rem);
+    line-height: 1.22;
     font-weight: 800;
     letter-spacing: 0.01em;
-    max-width: 18ch;
+    max-width: 20ch;
 }
 
 .page-excerpt {
+    margin: 0.55rem 0 0;
     max-width: 62ch;
-    color: rgba(241, 245, 249, 0.92);
+    color: var(--color-text-light);
     line-height: 1.75;
 }
 
 .page-meta-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.6rem;
+    gap: 0.55rem;
+    margin-top: 0.95rem;
 }
 
 .page-meta-item {
@@ -90,12 +168,22 @@
     align-items: center;
     gap: 0.45rem;
     border-radius: 999px;
-    padding: 0.35rem 0.7rem;
-    font-size: 0.82rem;
-    color: rgba(255, 255, 255, 0.95);
-    background: rgba(15, 23, 42, 0.38);
-    border: 1px solid rgba(255, 255, 255, 0.26);
-    backdrop-filter: blur(8px);
+    padding: 0.32rem 0.68rem;
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+    background: color-mix(in srgb, var(--color-background-alt) 62%, var(--color-card-bg) 38%);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+}
+
+@keyframes page-hero-sheen {
+    0%,
+    55% {
+        transform: translate3d(-26%, 0, 0);
+    }
+    85%,
+    100% {
+        transform: translate3d(26%, 0, 0);
+    }
 }
 
 .page-layout-grid {
@@ -258,16 +346,11 @@
     color: color-mix(in srgb, var(--color-primary) 68%, var(--color-text) 32%);
 }
 
+/* 正文不再二次包边框，避免“卡片套卡片”的廉价感 */
 .page-content-wrap {
-    border-radius: 1rem;
-    border: 1px solid color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
-    background: color-mix(in srgb, var(--color-card-bg) 84%, transparent);
-    padding: 1.05rem 1.1rem;
-}
-
-.dark .page-content-wrap {
-    border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border) 80%);
-    background: color-mix(in srgb, var(--color-card-bg) 74%, transparent);
+    border: 0;
+    background: transparent;
+    padding: 0;
 }
 
 .post-content.page-content {
@@ -332,18 +415,29 @@
 
 @media (max-width: 768px) {
     .page-hero {
-        min-height: 248px;
+        min-height: 148px;
     }
 
-    .page-hero-content {
-        padding: 1.5rem 1rem 1.2rem;
+    .page-header {
+        padding: 1.15rem 1.25rem 0.9rem;
+    }
+
+    .page-header::after {
+        left: 1.25rem;
+        right: 1.25rem;
     }
 
     .page-title {
         max-width: none;
     }
 
-    .page-content-wrap {
-        padding: 0.85rem 0.8rem;
+    .page-hero::after {
+        opacity: 0.28;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page-hero::after {
+        animation: none;
     }
 }

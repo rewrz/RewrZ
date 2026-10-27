@@ -917,10 +917,6 @@ body.site-shell select:focus {
     color: var(--color-text-light) !important;
 }
 
-.page-hero {
-    min-height: clamp(17rem, 34vw, 25rem);
-}
-
 .hero-anime-thumb {
     border-radius: 1rem;
     border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
@@ -2752,10 +2748,6 @@ body.site-shell[data-current-theme="sunset"] .format-hero-overlay-poem {
         margin-top: 0.9rem;
         padding: 0.95rem;
     }
-
-    .page-hero {
-        min-height: 15rem;
-    }
 }
 
 #desktop-theme-toggle:hover,
@@ -2916,7 +2908,6 @@ body.site-shell .page-detail-section .page-content img:hover {
 
 body.site-shell .page-detail-section .page-detail-card,
 body.site-shell .page-detail-section .page-comments-panel,
-body.site-shell .page-detail-section .page-content-wrap,
 body.site-shell .page-detail-section .page-license-box,
 body.site-shell .page-detail-section .page-comments-count {
     border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
@@ -2924,10 +2915,9 @@ body.site-shell .page-detail-section .page-comments-count {
 
 body.site-shell .page-detail-section .page-detail-card,
 body.site-shell .page-detail-section .page-comments-panel {
-    background: color-mix(in srgb, var(--color-card-bg) 90%, transparent) !important;
+    background: color-mix(in srgb, var(--color-card-bg) 96%, transparent) !important;
 }
 
-body.site-shell .page-detail-section .page-content-wrap,
 body.site-shell .page-detail-section .page-license-box,
 body.site-shell .page-detail-section .page-comments-count {
     background: color-mix(in srgb, var(--color-card-bg) 84%, transparent) !important;

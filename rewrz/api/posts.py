@@ -456,7 +456,7 @@ async def edit_post_page(post_id: int, request: Request, db: Session = Depends(g
 async def create_post_api(
     request: Request,
     title: str = Form(...),
-    content: str = Form(...),
+    content: str = Form(""),
     content_html: Optional[str] = Form(None),
     editor_mode: Optional[str] = Form(None),
     slug: Optional[str] = Form(None),
@@ -532,7 +532,7 @@ async def update_post_api(
     request: Request,
     post_id: int,
     title: str = Form(...),
-    content: str = Form(...),
+    content: str = Form(""),
     content_html: Optional[str] = Form(None),
     editor_mode: Optional[str] = Form(None),
     slug: Optional[str] = Form(None),
@@ -916,7 +916,7 @@ async def new_page_page(request: Request, db: Session = Depends(get_db), current
     })
 
 
-@router.get(f"{ADMIN_PATH}/pages/{{ page_id }}/edit", response_class=HTMLResponse)
+@router.get(f"{ADMIN_PATH}/pages/{{page_id}}/edit", response_class=HTMLResponse)
 async def edit_page_page(page_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     显示编辑页面页面
@@ -942,7 +942,7 @@ async def edit_page_page(page_id: int, request: Request, db: Session = Depends(g
 async def create_page_api(
     request: Request,
     title: str = Form(...),
-    content: str = Form(...),
+    content: str = Form(""),
     content_html: Optional[str] = Form(None),
     editor_mode: Optional[str] = Form(None),
     slug: Optional[str] = Form(None),
@@ -1005,7 +1005,7 @@ async def update_page_api(
     request: Request,
     page_id: int,
     title: str = Form(...),
-    content: str = Form(...),
+    content: str = Form(""),
     content_html: Optional[str] = Form(None),
     editor_mode: Optional[str] = Form(None),
     slug: Optional[str] = Form(None),

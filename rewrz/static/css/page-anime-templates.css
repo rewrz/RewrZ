@@ -11,7 +11,8 @@
 }
 
 .anime-page-card {
-    backdrop-filter: blur(4px);
+    /* 不启用 backdrop-filter：它会成为 fixed 元素的包含块，导致浮動目录被限制在卡片内并遮挡标题 */
+    backdrop-filter: none;
 }
 
 .anime-hero {
@@ -347,6 +348,34 @@
     background: linear-gradient(135deg, color-mix(in srgb, var(--color-background-alt) 82%, black) 0%, color-mix(in srgb, var(--color-primary) 52%, #1e3a8a) 45%, color-mix(in srgb, var(--color-primary) 44%, #f43f5e) 100%);
 }
 
+.anime-faq .anime-hero-fallback {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 60%, white) 0%, var(--color-primary) 50%, color-mix(in srgb, var(--color-primary) 66%, black) 100%);
+}
+
+.anime-legal .anime-hero-fallback {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-background-alt) 76%, black) 0%, color-mix(in srgb, var(--color-primary) 56%, var(--color-secondary)) 55%, color-mix(in srgb, var(--color-primary) 42%, black) 100%);
+}
+
+.anime-contact .anime-hero-fallback {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 50%, white) 0%, var(--color-primary) 44%, color-mix(in srgb, var(--color-primary) 58%, var(--color-secondary)) 100%);
+}
+
+.anime-changelog .anime-hero-fallback {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 52%, white) 0%, var(--color-primary) 48%, color-mix(in srgb, var(--color-primary) 46%, var(--color-secondary)) 100%);
+}
+
+.anime-resume .anime-hero-fallback {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 58%, white) 0%, var(--color-primary) 46%, color-mix(in srgb, var(--color-primary) 52%, black) 100%);
+}
+
+.anime-portfolio .anime-hero-fallback {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 48%, white) 0%, var(--color-primary) 52%, color-mix(in srgb, var(--color-primary) 40%, var(--color-secondary)) 100%);
+}
+
+.anime-roadmap .anime-hero-fallback {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 56%, white) 0%, var(--color-primary) 44%, color-mix(in srgb, var(--color-primary) 46%, black) 100%);
+}
+
 .anime-links .anime-content ul {
     list-style: none;
     padding-left: 0;
@@ -409,7 +438,349 @@
     font-size: 1.02rem;
 }
 
-@media (max-width: 1024px) {
+/* 常见问题：二级标题作为问题卡片，正文作为回答 */
+.anime-faq .anime-content {
+    counter-reset: faq-item;
+}
+
+.anime-faq .anime-content h2 {
+    position: relative;
+    margin: 1.35rem 0 0.65rem;
+    padding: 0.7rem 0.9rem 0.7rem 2.55rem;
+    border-radius: 0.8rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    background: color-mix(in srgb, var(--color-primary) 9%, var(--color-card-bg) 91%);
+    font-size: 1.04rem;
+    line-height: 1.5;
+    counter-increment: faq-item;
+}
+
+.anime-faq .anime-content h2:first-child {
+    margin-top: 0;
+}
+
+.anime-faq .anime-content h2::before {
+    content: "Q" counter(faq-item);
+    position: absolute;
+    left: 0.72rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.55rem;
+    height: 1.55rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 32%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 16%, var(--color-card-bg) 84%);
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.anime-faq .anime-content > p,
+.anime-faq .anime-content > ul,
+.anime-faq .anime-content > ol {
+    margin-left: 2.55rem;
+}
+
+.dark .anime-faq .anime-content h2 {
+    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border) 70%);
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%);
+}
+
+/* 条款文档：二级标题自动生成条款编号 */
+.anime-legal .anime-content {
+    counter-reset: legal-section;
+    font-size: 0.97rem;
+}
+
+.anime-legal .anime-content h2 {
+    margin: 2rem 0 0.85rem;
+    padding-bottom: 0.45rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    font-size: 1.18rem;
+    counter-increment: legal-section;
+}
+
+.anime-legal .anime-content h2:first-child {
+    margin-top: 0;
+}
+
+.anime-legal .anime-content h2::before {
+    content: "第 " counter(legal-section) " 条";
+    display: inline-block;
+    margin-right: 0.5rem;
+    padding: 0.1rem 0.42rem;
+    border-radius: 0.4rem;
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%);
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+    font-size: 0.72rem;
+    font-weight: 700;
+    vertical-align: 0.12rem;
+}
+
+.anime-legal .anime-content blockquote {
+    border-left: 3px solid color-mix(in srgb, var(--color-primary) 44%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 7%, var(--color-background-alt) 93%);
+    border-radius: 0 0.6rem 0.6rem 0;
+    padding: 0.6rem 0.9rem;
+}
+
+/* 联系页：公开邮箱与社交入口卡片 */
+.anime-contact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.65rem;
+}
+
+.anime-contact-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    border-radius: 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    background: linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%), color-mix(in srgb, var(--color-background-alt) 62%, transparent));
+    padding: 0.75rem 0.85rem;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.anime-contact-card:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border) 58%);
+}
+
+.dark .anime-contact-card {
+    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border) 70%);
+    background: linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 16%, var(--color-card-bg) 84%), color-mix(in srgb, var(--color-background-alt) 54%, transparent));
+}
+
+.anime-contact-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.05rem;
+    height: 2.05rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%);
+    color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
+    font-size: 0.86rem;
+}
+
+.anime-contact-label {
+    font-size: 0.72rem;
+    color: var(--color-text-light);
+}
+
+.anime-contact-card strong {
+    font-size: 0.88rem;
+    color: var(--color-text);
+    overflow-wrap: anywhere;
+}
+
+/* 更新日志：版本号标题块 */
+.anime-changelog .anime-content h2 {
+    display: block;
+    width: fit-content;
+    margin: 1.8rem 0 0.7rem;
+    padding: 0.3rem 0.78rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border) 72%);
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card-bg) 88%);
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.anime-changelog .anime-content h2:first-child {
+    margin-top: 0;
+}
+
+.anime-changelog .anime-content ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.anime-changelog .anime-content ul li {
+    position: relative;
+    margin: 0.28rem 0;
+    padding-left: 1rem;
+}
+
+.anime-changelog .anime-content ul li::before {
+    content: "";
+    position: absolute;
+    left: 0.18rem;
+    top: 0.72em;
+    width: 0.38rem;
+    height: 0.38rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+}
+
+.dark .anime-changelog .anime-content h2 {
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%);
+    background: color-mix(in srgb, var(--color-primary) 16%, var(--color-card-bg) 84%);
+}
+
+/* 简历：二级标题分区、三级标题条目 */
+.anime-resume .anime-content h2 {
+    margin: 1.8rem 0 0.8rem;
+    padding: 0.3rem 0 0.3rem 0.8rem;
+    border-left: 4px solid color-mix(in srgb, var(--color-primary) 76%, var(--color-border) 24%);
+    font-size: 1.12rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.anime-resume .anime-content h2:first-child {
+    margin-top: 0;
+}
+
+.anime-resume .anime-content h3 {
+    margin: 1rem 0 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border-radius: 0.6rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+    background: color-mix(in srgb, var(--color-primary) 7%, var(--color-card-bg) 93%);
+    font-size: 0.97rem;
+    font-weight: 650;
+}
+
+.anime-resume .anime-content ul {
+    padding-left: 1.15rem;
+}
+
+.anime-resume .anime-content ul li {
+    margin: 0.3rem 0;
+}
+
+/* 作品集：列表自动排成网格卡片 */
+.anime-portfolio .anime-content ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 0.95rem;
+    margin: 0.65rem 0 1.5rem;
+    padding-left: 0;
+    list-style: none;
+}
+
+.anime-portfolio .anime-content ul li {
+    margin: 0;
+    padding: 0.55rem;
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+    background: color-mix(in srgb, var(--color-primary) 6%, var(--color-card-bg) 94%);
+    transition: transform 0.18s ease, border-color 0.18s ease;
+    overflow: hidden;
+}
+
+.anime-portfolio .anime-content ul li:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border) 58%);
+}
+
+.anime-portfolio .anime-content ul li a {
+    display: block;
+}
+
+.anime-portfolio .anime-content ul li img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 0.72rem;
+    margin: 0;
+}
+
+.anime-portfolio .anime-content ul li p {
+    margin: 0.5rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--color-text-light);
+}
+
+.anime-portfolio .anime-content ul li {
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--color-text-light);
+}
+
+.dark .anime-portfolio .anime-content ul li {
+    border-color: color-mix(in srgb, var(--color-primary) 26%, var(--color-border) 74%);
+}
+
+/* 项目进度：阶段编号 + 任务状态 */
+.anime-roadmap .anime-content {
+    counter-reset: roadmap-stage;
+}
+
+.anime-roadmap .anime-content h2 {
+    position: relative;
+    margin: 1.7rem 0 0.75rem;
+    padding: 0.62rem 0.9rem 0.62rem 2.7rem;
+    border-radius: 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%);
+    font-size: 1.02rem;
+    font-weight: 700;
+    counter-increment: roadmap-stage;
+}
+
+.anime-roadmap .anime-content h2:first-child {
+    margin-top: 0;
+}
+
+.anime-roadmap .anime-content h2::before {
+    content: counter(roadmap-stage);
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: color-mix(in srgb, var(--color-primary) 8%, white);
+    font-size: 0.72rem;
+    font-weight: 700;
+    transform: translateY(-50%);
+}
+
+.anime-roadmap .anime-content ul {
+    padding-left: 0;
+    list-style: none;
+}
+
+.anime-roadmap .anime-content ul li {
+    margin: 0.35rem 0;
+    padding: 0.48rem 0.75rem;
+    border-radius: 0.62rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+    background: color-mix(in srgb, var(--color-primary) 4%, var(--color-card-bg) 96%);
+    list-style: none;
+}
+
+.anime-roadmap .anime-content ul li input[type="checkbox"] {
+    accent-color: var(--color-primary);
+    margin-right: 0.35rem;
+    vertical-align: middle;
+}
+
+.anime-roadmap .anime-content ul li:has(input[type="checkbox"]:checked) {
+    opacity: 0.72;
+    text-decoration: line-through;
+    text-decoration-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
+
+.dark .anime-roadmap .anime-content h2 {
+    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border) 70%);
+}
+
+@media (max-width: 1399px) {
     .anime-side-panel {
         left: 0.75rem;
         top: auto;
@@ -434,6 +805,16 @@
 
     .anime-info-grid {
         grid-template-columns: 1fr;
+    }
+
+    .anime-contact-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .anime-faq .anime-content > p,
+    .anime-faq .anime-content > ul,
+    .anime-faq .anime-content > ol {
+        margin-left: 0;
     }
 
     .anime-content-wrap {

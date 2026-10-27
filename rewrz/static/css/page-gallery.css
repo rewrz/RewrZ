@@ -1,0 +1,499 @@
+/* 主题展览模板：沉浸式线上摄影展 */
+
+.photo-exhibit {
+    --exhibit-max: 1180px;
+    position: relative;
+    padding-bottom: 3.5rem;
+    /* 展览主体使用不透明主题底色：避免站点整页背景图在正文后方重复透出，形成两层同一张照片 */
+    background-color: var(--color-background);
+    background-image:
+        radial-gradient(1100px 520px at 12% -6%, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 65%),
+        radial-gradient(900px 460px at 88% 6%, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 60%);
+}
+
+.dark .photo-exhibit {
+    background-image:
+        radial-gradient(1100px 520px at 12% -6%, color-mix(in srgb, var(--color-primary) 18%, transparent), transparent 65%),
+        radial-gradient(900px 460px at 88% 6%, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 60%);
+}
+
+.exhibit-draft-wrap {
+    max-width: var(--exhibit-max);
+    margin: 0 auto;
+    padding: 1.2rem 1.4rem 0;
+}
+
+.exhibit-draft {
+    border-radius: 0.9rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 38%, var(--color-border) 62%);
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card-bg) 88%);
+    padding: 0.7rem 1rem;
+    font-size: 0.85rem;
+    color: var(--color-text);
+}
+
+.exhibit-hero {
+    /* 建立定位上下文：anime-hero-bg / overlay 使用 absolute inset:0，否则会铺满整个 article */
+    position: relative;
+    min-height: clamp(480px, 86vh, 900px);
+    overflow: hidden;
+}
+
+.exhibit-hero-fallback {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 52%, white) 0%, var(--color-primary) 48%, color-mix(in srgb, var(--color-primary) 62%, var(--color-text)) 100%);
+}
+
+.exhibit-hero-inner {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: var(--exhibit-max);
+    margin: 0 auto;
+    padding: 0 1.4rem 4.6rem;
+}
+
+.exhibit-kicker-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.exhibit-title {
+    margin-top: 1.1rem;
+    font-size: clamp(2.2rem, 6vw, 4.4rem);
+    line-height: 1.14;
+    letter-spacing: 0.01em;
+    max-width: 16ch;
+    text-wrap: balance;
+}
+
+.exhibit-excerpt {
+    margin-top: 0.9rem;
+    max-width: 58ch;
+    font-size: clamp(0.96rem, 1.4vw, 1.1rem);
+}
+
+.exhibit-meta {
+    margin-top: 1.1rem;
+}
+
+.exhibit-scroll-hint {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 2.4rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.24em;
+    opacity: 0.72;
+}
+
+.exhibit-scroll-hint i {
+    animation: exhibit-bob 2.2s ease-in-out infinite;
+}
+
+@keyframes exhibit-bob {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(4px);
+    }
+}
+
+.exhibit-stage {
+    max-width: var(--exhibit-max);
+    margin: 0 auto;
+    padding: clamp(2.6rem, 6vw, 5rem) 1.4rem 0;
+}
+
+.exhibit-stage-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: clamp(2rem, 4vw, 3.2rem);
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.68rem;
+    letter-spacing: 0.3em;
+    color: var(--color-text-light);
+}
+
+.exhibit-content {
+    counter-reset: exhibit-chapter;
+    font-size: 1.02rem;
+    line-height: 2;
+    color: var(--color-text);
+}
+
+.exhibit-content > p {
+    max-width: 720px;
+    margin: 0 auto 1.5rem;
+    text-align: center;
+}
+
+.exhibit-content h2 {
+    position: relative;
+    max-width: 720px;
+    margin: clamp(2.8rem, 6vw, 4.6rem) auto 1.4rem;
+    padding-top: 2.5rem;
+    text-align: center;
+    font-size: clamp(1.45rem, 2.6vw, 2rem);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    counter-increment: exhibit-chapter;
+    scroll-margin-top: 7rem;
+}
+
+.exhibit-content h2::before {
+    content: "CHAPTER " counter(exhibit-chapter, decimal-leading-zero);
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.32em;
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+    white-space: nowrap;
+}
+
+.exhibit-content h2::after {
+    content: "";
+    display: block;
+    width: 54px;
+    height: 2px;
+    margin: 1rem auto 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
+
+.exhibit-content h3 {
+    max-width: 720px;
+    margin: 2rem auto 0.6rem;
+    font-size: 1.05rem;
+    font-weight: 650;
+    text-align: center;
+}
+
+.exhibit-content blockquote {
+    max-width: 720px;
+    margin: 2.6rem auto;
+    padding: 1.2rem 1.8rem;
+    border: 0;
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--color-primary) 6%, var(--color-card-bg) 94%);
+    color: var(--color-text-light);
+    text-align: center;
+    font-style: normal;
+}
+
+.exhibit-content blockquote p {
+    margin: 0;
+}
+
+/* 作品图：突破正文宽度，接近画展墙面 */
+.exhibit-content figure.exhibit-shot {
+    width: min(1400px, 96vw);
+    margin-block: clamp(2.4rem, 5vw, 4rem);
+    margin-inline: calc(50% - min(1400px, 96vw) / 2);
+    padding: 0;
+    overflow: hidden;
+    border-radius: 1.2rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border) 88%);
+    background: var(--color-background-alt);
+    cursor: zoom-in;
+}
+
+.exhibit-content figure.exhibit-shot:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-primary) 68%, transparent);
+    outline-offset: 4px;
+}
+
+.exhibit-content figure.exhibit-shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 82vh;
+    margin: 0;
+    border-radius: 0;
+    object-fit: contain;
+    background: var(--color-background-alt);
+    transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.exhibit-content figure.exhibit-shot:hover img {
+    transform: scale(1.012);
+}
+
+.exhibit-content figure.exhibit-shot figcaption {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    padding: 0.9rem 1rem 1rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    color: var(--color-text-light);
+    text-align: center;
+}
+
+.exhibit-content figure.exhibit-shot figcaption::before {
+    content: "NO." attr(data-index);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+}
+
+/* 滚动入场：由脚本给容器加 exhibit-ready 后再启用，避免无 JS 时内容不可见 */
+.exhibit-ready .exhibit-shot,
+.exhibit-ready .exhibit-content h2,
+.exhibit-ready .exhibit-content blockquote {
+    opacity: 0;
+    transform: translateY(26px);
+    transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.exhibit-ready .exhibit-shot.is-visible,
+.exhibit-ready .exhibit-content h2.is-visible,
+.exhibit-ready .exhibit-content blockquote.is-visible {
+    opacity: 1;
+    transform: none;
+}
+
+/* 章节导航 */
+.exhibit-chapter-nav {
+    position: fixed;
+    right: 1.1rem;
+    top: 50%;
+    z-index: 34;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    transform: translateY(-50%);
+}
+
+.exhibit-chapter-nav a {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    text-decoration: none;
+}
+
+.exhibit-chapter-nav .dot {
+    flex: none;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-text-light) 45%, transparent);
+    transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.exhibit-chapter-nav .label {
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    color: var(--color-text-light);
+    transition: max-width 0.25s ease, opacity 0.25s ease;
+}
+
+.exhibit-chapter-nav a:hover .label,
+.exhibit-chapter-nav a.is-active .label {
+    max-width: 160px;
+    opacity: 1;
+}
+
+.exhibit-chapter-nav a.is-active .dot {
+    background: var(--color-primary);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+@media (max-width: 1279px) {
+    .exhibit-chapter-nav {
+        display: none;
+    }
+}
+
+/* 评论区与页脚 */
+.exhibit-comments {
+    max-width: var(--exhibit-max);
+    margin: 3.2rem auto 0;
+    padding: 1.4rem;
+    border-radius: 1.2rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-card-bg);
+}
+
+.exhibit-comments-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.exhibit-comments-head h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.exhibit-comments-head p {
+    margin-top: 0.2rem;
+    font-size: 0.78rem;
+    color: var(--color-text-light);
+}
+
+.exhibit-comments-count {
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: var(--color-background-alt);
+    padding: 0.25rem 0.7rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.exhibit-comments-body {
+    padding-top: 1.2rem;
+}
+
+.exhibit-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    max-width: var(--exhibit-max);
+    margin: 3rem auto 0;
+    padding: 1.2rem 1.4rem 0;
+    border-top: 1px solid var(--color-border);
+    font-size: 0.78rem;
+    color: var(--color-text-light);
+}
+
+.exhibit-top-link {
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+    text-decoration: none;
+}
+
+.exhibit-top-link:hover {
+    text-decoration: underline;
+}
+
+/* 大图浏览 */
+.exhibit-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: clamp(1rem, 4vw, 3rem);
+    background: color-mix(in srgb, var(--color-background) 92%, transparent);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.exhibit-lightbox.is-open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.exhibit-lightbox img {
+    max-width: min(1400px, 92vw);
+    max-height: 78vh;
+    object-fit: contain;
+    border-radius: 0.8rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-background-alt);
+}
+
+.exhibit-lightbox-caption {
+    margin: 0;
+    max-width: 70ch;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    color: var(--color-text-light);
+    text-align: center;
+}
+
+.exhibit-lightbox-count {
+    font-size: 0.72rem;
+    letter-spacing: 0.24em;
+    color: var(--color-text-light);
+}
+
+.exhibit-lightbox-close,
+.exhibit-lightbox-nav {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: var(--color-card-bg);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.exhibit-lightbox-close:hover,
+.exhibit-lightbox-nav:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 55%, var(--color-border) 45%);
+    color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
+}
+
+.exhibit-lightbox-close {
+    top: 1.2rem;
+    right: 1.2rem;
+}
+
+.exhibit-lightbox-nav {
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.exhibit-lightbox-nav.is-prev {
+    left: 1.2rem;
+}
+
+.exhibit-lightbox-nav.is-next {
+    right: 1.2rem;
+}
+
+body.exhibit-lock {
+    overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .exhibit-scroll-hint i,
+    .exhibit-content figure.exhibit-shot img {
+        animation: none;
+        transition: none;
+    }
+
+    .exhibit-ready .exhibit-shot,
+    .exhibit-ready .exhibit-content h2,
+    .exhibit-ready .exhibit-content blockquote {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+}

@@ -43,8 +43,8 @@
         {% endif %}
 
         <article class="page-detail-card overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl dark:border-slate-700 dark:bg-slate-900/90">
+            {% if post and post.featured_image_url %}
             <header class="page-hero relative">
-                {% if post and post.featured_image_url %}
                 <div class="page-hero-media">
                     <img src="{{ post.featured_image_url | thumb_url('post_cover', request.state.db) }}"
                          srcset="{{ post.featured_image_url | thumb_srcset('post_cover', request.state.db) }}"
@@ -55,40 +55,39 @@
                          fetchpriority="high"
                          decoding="async">
                 </div>
-                {% else %}
-                <div class="page-hero-fallback"></div>
-                {% endif %}
 
                 <div class="page-hero-overlay"></div>
-                <div class="page-hero-content">
-                    <span class="page-type-badge inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold">
-                        {% if is_draft %}<i class="fas fa-edit mr-1"></i>草稿页面{% else %}<i class="fas fa-file-alt mr-1"></i>页面{% endif %}
-                    </span>
-                    <h1 class="page-title mt-4">{{ page_title }}</h1>
-                    {% if post and post.excerpt %}
-                    <p class="page-excerpt mt-3">{{ post.excerpt }}</p>
-                    {% endif %}
+            </header>
+            {% endif %}
 
-                    {% if post %}
-                    <div class="page-meta-list mt-5">
-                        <span class="page-meta-item">
-                            <i class="fas fa-calendar-alt"></i>
-                            {{ (post.published_at or post.created_at) | localtime('%Y年%m月%d日') if (post.published_at or post.created_at) else '-' }}
-                        </span>
-                        <span class="page-meta-item">
-                            <i class="far fa-eye"></i>
-                            {{ (post.views_count or 0) | compact_number_cn }}
-                        </span>
-                        {% if post.updated_at and post.created_at and post.updated_at != post.created_at %}
-                        <span class="page-meta-item">
-                            <i class="fas fa-sync"></i>
-                            {{ post.updated_at | localtime('%Y年%m月%d日') }}
-                        </span>
-                        {% endif %}
-                    </div>
+            <div class="page-header{% if not (post and post.featured_image_url) %} page-header--standalone{% endif %}">
+                <span class="page-type-badge inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold">
+                    {% if is_draft %}<i class="fas fa-edit mr-1"></i>草稿页面{% else %}<i class="fas fa-file-alt mr-1"></i>页面{% endif %}
+                </span>
+                <h1 class="page-title">{{ page_title }}</h1>
+                {% if post and post.excerpt %}
+                <p class="page-excerpt">{{ post.excerpt }}</p>
+                {% endif %}
+
+                {% if post %}
+                <div class="page-meta-list">
+                    <span class="page-meta-item">
+                        <i class="fas fa-calendar-alt"></i>
+                        {{ (post.published_at or post.created_at) | localtime('%Y年%m月%d日') if (post.published_at or post.created_at) else '-' }}
+                    </span>
+                    <span class="page-meta-item">
+                        <i class="far fa-eye"></i>
+                        {{ (post.views_count or 0) | compact_number_cn }}
+                    </span>
+                    {% if post.updated_at and post.created_at and post.updated_at != post.created_at %}
+                    <span class="page-meta-item">
+                        <i class="fas fa-sync"></i>
+                        {{ post.updated_at | localtime('%Y年%m月%d日') }}
+                    </span>
                     {% endif %}
                 </div>
-            </header>
+                {% endif %}
+            </div>
 
             <div class="page-body p-5 md:p-8">
                 <div class="page-layout-grid {% if toc_items %}has-toc{% endif %}">

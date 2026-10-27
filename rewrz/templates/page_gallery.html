@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title if post else title }} - {{ site_title }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ static_asset(request, 'css/page-detail.css') }}">
+{# 复用主题钩子类 anime-hero / anime-hero-bg / anime-hero-overlay 的基础结构，缺失时首屏大图会落到文档流 #}
+<link rel="stylesheet" href="{{ static_asset(request, 'css/page-anime-templates.css') }}">
+<link rel="stylesheet" href="{{ static_asset(request, 'css/page-gallery.css') }}">
+{% endblock %}
+
+{% block content %}
+{% set settings = settings or {} %}
+{% set rendered_content = display_content_html if display_content_html is defined else (post.content_html if post else content) %}
+{% set is_published = post and post.status == "published" %}
+{% set is_draft = post and post.status == "draft" %}
+{% set page_title = post.title if post else title %}
+{% set page_content = rendered_content if post else (content if content is defined else '') %}
+
+<article class="photo-exhibit" id="exhibitRoot">
+    {% if is_draft %}
+    <div class="exhibit-draft-wrap">
+        <div class="exhibit-draft">
+            <i class="fas fa-exclamation-triangle mr-2"></i>这是一个草稿页面，仅管理员可见。
+        </div>
+    </div>
+    {% endif %}
+
+    <header class="anime-hero exhibit-hero">
+        {% if post and post.featured_image_url %}
+        <div class="anime-hero-bg">
+            <img src="{{ post.featured_image_url | thumb_url('post_cover', request.state.db) }}"
+                 srcset="{{ post.featured_image_url | thumb_srcset('post_cover', request.state.db) }}"
+                 sizes="100vw"
+                 alt="{{ page_title }}"
+                 loading="eager"
+                 fetchpriority="high"
+                 decoding="async">
+        </div>
+        {% else %}
+        <div class="anime-hero-fallback exhibit-hero-fallback"></div>
+        {% endif %}
+        <div class="anime-hero-overlay"></div>
+        <div class="exhibit-hero-inner">
+            <div class="exhibit-kicker-row">
+                <span class="anime-kicker"><i class="fas fa-camera-retro mr-1"></i>线上摄影展</span>
+                {% if is_draft %}
+                <span class="anime-kicker is-draft"><i class="fas fa-pen mr-1"></i>草稿</span>
+                {% endif %}
+            </div>
+            <h1 class="anime-page-title exhibit-title">{{ page_title }}</h1>
+            {% if post and post.excerpt %}
+            <p class="anime-page-excerpt exhibit-excerpt">{{ post.excerpt }}</p>
+            {% endif %}
+            {% if post %}
+            <div class="anime-page-meta exhibit-meta">
+                <span><i class="fas fa-calendar-alt mr-1"></i>{{ (post.published_at or post.created_at) | localtime('%Y年%m月%d日') if (post.published_at or post.created_at) else '-' }}</span>
+                <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
+            </div>
+            {% endif %}
+            <div class="exhibit-scroll-hint" aria-hidden="true">
+                <i class="fas fa-chevron-down mr-2"></i>向下滚动进入展厅
+            </div>
+        </div>
+    </header>
+
+    <div class="exhibit-stage">
+        <div class="exhibit-stage-head">
+            <span>线上展厅</span>
+            <span>点击作品可放大观看</span>
+        </div>
+        <div class="exhibit-content post-content prose prose-lg max-w-none dark:prose-invert" id="exhibitContent">
+            {{ page_content | content_lazy_images | safe }}
+        </div>
+    </div>
+
+    {% if is_published and post and post.allow_comments %}
+    <section id="page-comments" class="exhibit-comments">
+        <div class="exhibit-comments-head">
+            <div>
+                <h2>评论互动</h2>
+                <p>欢迎补充你的观点和建议。</p>
+            </div>
+            <span id="comment-count-badge" data-count="{{ post.comments|length }}" class="exhibit-comments-count">
+                {{ (post.comments|length) | compact_number_cn }} 条
+            </span>
+        </div>
+        <div class="exhibit-comments-body">
+            {% set show_comments_panel_header = false %}
+            {% include "components/comments.html" %}
+        </div>
+    </section>
+    {% endif %}
+
+    <footer class="exhibit-footer">
+        <span>&copy; {{ (post.published_at or post.created_at) | localtime('%Y') if post and (post.published_at or post.created_at) else '' }} {{ site_title }}</span>
+        <a href="#exhibitRoot" class="exhibit-top-link"><i class="fas fa-arrow-up mr-1"></i>回到顶部</a>
+    </footer>
+</article>
+
+<div class="exhibit-lightbox" id="exhibitLightbox" aria-hidden="true" role="dialog" aria-label="作品大图浏览">
+    <button type="button" class="exhibit-lightbox-close" data-exhibit-close aria-label="关闭">
+        <i class="fas fa-times"></i>
+    </button>
+    <button type="button" class="exhibit-lightbox-nav is-prev" data-exhibit-prev aria-label="上一幅">
+        <i class="fas fa-chevron-left"></i>
+    </button>
+    <img src="" alt="">
+    <p class="exhibit-lightbox-caption"></p>
+    <span class="exhibit-lightbox-count"></span>
+    <button type="button" class="exhibit-lightbox-nav is-next" data-exhibit-next aria-label="下一幅">
+        <i class="fas fa-chevron-right"></i>
+    </button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ static_asset(request, 'js/page-gallery.js') }}" defer></script>
+{% endblock %}

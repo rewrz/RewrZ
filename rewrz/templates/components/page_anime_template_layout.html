@@ -37,10 +37,26 @@
                         <span class="anime-kicker"><i class="fas fa-id-card mr-1"></i>关于页模板</span>
                         {% elif variant == 'links' %}
                         <span class="anime-kicker"><i class="fas fa-link mr-1"></i>友链页模板</span>
+                        {% elif variant == 'resume' %}
+                        <span class="anime-kicker"><i class="fas fa-user-tie mr-1"></i>简历模板</span>
+                        {% elif variant == 'portfolio' %}
+                        <span class="anime-kicker"><i class="fas fa-images mr-1"></i>作品集模板</span>
+                        {% elif variant == 'roadmap' %}
+                        <span class="anime-kicker"><i class="fas fa-tasks mr-1"></i>进度模板</span>
                         {% elif variant == 'timeline' %}
                         <span class="anime-kicker"><i class="fas fa-stream mr-1"></i>时间轴模板</span>
-                        {% else %}
+                        {% elif variant == 'faq' %}
+                        <span class="anime-kicker"><i class="fas fa-question-circle mr-1"></i>问答模板</span>
+                        {% elif variant == 'legal' %}
+                        <span class="anime-kicker"><i class="fas fa-shield-alt mr-1"></i>条款模板</span>
+                        {% elif variant == 'contact' %}
+                        <span class="anime-kicker"><i class="fas fa-envelope-open-text mr-1"></i>联系页模板</span>
+                        {% elif variant == 'changelog' %}
+                        <span class="anime-kicker"><i class="fas fa-history mr-1"></i>更新日志模板</span>
+                        {% elif variant == 'landing' %}
                         <span class="anime-kicker"><i class="fas fa-rocket mr-1"></i>着陆页模板</span>
+                        {% else %}
+                        <span class="anime-kicker"><i class="fas fa-file-alt mr-1"></i>页面模板</span>
                         {% endif %}
                         {% if is_draft %}
                         <span class="anime-kicker is-draft"><i class="fas fa-pen mr-1"></i>草稿</span>
@@ -100,10 +116,72 @@
                             <i class="fas fa-info-circle mr-2"></i>
                             推荐在正文中使用无序列表维护友链，模板会自动将列表渲染为卡片风格。
                         </div>
+                        {% elif variant == 'resume' %}
+                        <div class="anime-link-tip mb-5">
+                            <i class="fas fa-user-tie mr-2"></i>
+                            用二级标题分区、三级标题写公司/学校与时间，列表写职责与成果，简历会自动分块展示。
+                        </div>
+                        {% elif variant == 'portfolio' %}
+                        <div class="anime-link-tip mb-5">
+                            <i class="fas fa-images mr-2"></i>
+                            用二级标题给作品分组，每个作品写成一条列表：图片 + 一句说明，模板会自动排成网格卡片。
+                        </div>
+                        {% elif variant == 'roadmap' %}
+                        <div class="anime-link-tip mb-5">
+                            <i class="fas fa-tasks mr-2"></i>
+                            用二级标题写阶段，任务列表用 - [x] 表示已完成、- [ ] 表示未完成，进度状态会自动区分。
+                        </div>
                         {% elif variant == 'timeline' %}
                         <div class="anime-link-tip mb-5">
                             <i class="fas fa-hourglass-half mr-2"></i>
                             推荐使用 `## 年份` + 列表 的写法，时间线视觉会更清晰。
+                        </div>
+                        {% elif variant == 'faq' %}
+                        <div class="anime-link-tip mb-5">
+                            <i class="fas fa-lightbulb mr-2"></i>
+                            用二级标题写问题、正文写回答，模板会自动加上问答卡片与序号。
+                        </div>
+                        {% elif variant == 'legal' %}
+                        <div class="anime-link-tip mb-5">
+                            <i class="fas fa-file-signature mr-2"></i>
+                            适合隐私政策、服务条款等长文，二级标题会自动生成条款编号。
+                        </div>
+                        {% elif variant == 'contact' %}
+                        {% set contact_email = public_contact_email | default('', true) %}
+                        {% set has_social_links = social_links is defined and social_links %}
+                        <div class="anime-contact-grid mb-5">
+                            {% if contact_email %}
+                            <a class="anime-contact-card" href="mailto:{{ contact_email }}">
+                                <span class="anime-contact-icon"><i class="fas fa-envelope"></i></span>
+                                <span class="anime-contact-label">公开邮箱</span>
+                                <strong>{{ contact_email }}</strong>
+                            </a>
+                            {% endif %}
+                            {% if has_social_links %}
+                            {% for link in social_links %}
+                            <a class="anime-contact-card" href="{{ link.url }}" target="_blank" rel="noopener noreferrer">
+                                <span class="anime-contact-icon"><i class="{{ (link.icon | fa_compat) if link.icon else 'fas fa-link' }}"></i></span>
+                                <span class="anime-contact-label">社交入口</span>
+                                <strong>{{ link.url }}</strong>
+                            </a>
+                            {% endfor %}
+                            {% endif %}
+                            {% if not contact_email and not has_social_links %}
+                            <div class="anime-link-tip">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                还没有配置公开邮箱与社交入口，可在后台站点设置中补充。
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% if is_published and post and post.allow_comments %}
+                        <div class="anime-cta-strip mb-5">
+                            <a href="#page-comments" class="anime-cta-btn"><i class="fas fa-comment-dots mr-1"></i>在评论区留言</a>
+                        </div>
+                        {% endif %}
+                        {% elif variant == 'changelog' %}
+                        <div class="anime-link-tip mb-5">
+                            <i class="fas fa-code-branch mr-2"></i>
+                            推荐使用 `## 版本号` + 列表 的写法，每次更新会显示为独立版本块。
                         </div>
                         {% endif %}
 
@@ -142,7 +220,7 @@
         </article>
 
         {% if is_published and post and post.allow_comments %}
-        <div class="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-lg dark:border-slate-700 dark:bg-slate-900/80">
+        <div id="page-comments" class="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-lg dark:border-slate-700 dark:bg-slate-900/80">
             <div class="border-b border-slate-200/90 px-5 py-4 dark:border-slate-700/80 md:px-6">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-3">
