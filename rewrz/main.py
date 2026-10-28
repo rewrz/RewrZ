@@ -29,7 +29,7 @@ import json
 from sqlalchemy.orm import Session
 from .core.template_filters import get_templates  # 导入带过滤器的模板系统
 from .core.template_context import build_base_template_context, HOMEPAGE_SETTING_KEYS, DEFAULT_HOMEPAGE_SETTINGS, DEFAULT_BASE_SETTINGS
-from .core.database import get_db, create_all_tables, db_manager
+from .core.database import get_db, create_all_tables, db_manager, set_db_request_info, reset_db_request_info
 from .core.config import get_env_file_path, settings  # 导入settings实例
 from .schemas import UserCreate, User, PostCreate, PostUpdate, SettingCreate, SettingUpdate
 from .crud import user as crud_user
@@ -74,6 +74,7 @@ from .core.security import generate_csrf_token # 导入CSRF令牌生成函数
 from .core.settings_middleware import SettingsMiddleware # 导入设置中间件
 from .core.admin_path import get_admin_path
 from .core.request_context import REQUEST_ID_HEADER, ensure_request_id, install_access_log_redaction_filter, redact_url_for_log
+from starlette.concurrency import run_in_threadpool
 from .core.task_scheduler import default_task_scheduler
 from .core import traffic_analytics
 from .core import request_guard  # 垃圾爬虫与扫描路径拦截（最外层，先于会话与数据库）
@@ -274,6 +275,8 @@ _ARTICLE_API_CACHE_HTTP_TIMEOUT_SECONDS = 8
 _ARTICLE_API_CACHE_PUBLIC_PREFIX = f"/media/{_ARTICLE_API_CACHE_DIR_NAME}/"
 _ARTICLE_API_CACHE_PREFETCH_INFLIGHT: set[str] = set()
 _ARTICLE_API_CACHE_PREFETCH_LOCK = threading.Lock()
+_ARTICLE_API_CACHE_CLEANUP_LOCK = threading.Lock()
+_ARTICLE_API_CACHE_CLEANUP_INFLIGHT = False
 # 后台封面预取同时只处理少量图片，避免列表页一次性下载 + 解码大量封面把内存打满
 _ARTICLE_API_CACHE_PREFETCH_MAX_CONCURRENCY = 2
 _ARTICLE_API_CACHE_PREFETCH_SEMAPHORE = threading.BoundedSemaphore(
@@ -736,6 +739,52 @@ def _is_allowed_request_host(request: Request) -> bool:
     return False
 
 
+def _prepare_request_state(request: Request):
+    """在同步线程中建立请求级数据库会话并填充认证与全局上下文。
+
+    建立会话与查询数据库都可能阻塞等待连接池，必须放在线程池里执行，
+    否则连接池一旦耗尽，等待会直接占满事件循环，导致全站请求一起排队。
+    """
+    db_gen = None
+    try:
+        existing_db = getattr(request.state, "db", None)
+        if existing_db is not None:
+            request.state.db = existing_db
+        else:
+            db_dependency = app.dependency_overrides.get(get_db, get_db)
+            candidate = db_dependency()
+            if hasattr(candidate, "__next__"):
+                db_gen = candidate
+                request.state.db = next(db_gen)
+            else:
+                # 测试等场景可能直接返回 Session 实例而不是生成器
+                request.state.db = candidate
+    except Exception:
+        if db_gen is not None:
+            try:
+                db_gen.close()
+            except Exception:
+                pass
+            db_gen = None
+        request.state.db = None
+
+    try:
+        db = request.state.db
+        request.state.authenticated_user = (
+            auth_api._resolve_optional_authenticated_user(request, db) if db is not None else None
+        )
+        # 构建全局上下文并确保 CSRF 令牌
+        _populate_global_request_state(request)
+        return db_gen
+    except Exception:
+        if db_gen is not None:
+            try:
+                db_gen.close()
+            except Exception:
+                pass
+        raise
+
+
 @app.middleware("http")
 async def add_global_context(request: Request, call_next):
     global ADMIN_ROUTES_REGISTERED
@@ -820,18 +869,14 @@ async def add_global_context(request: Request, call_next):
         return attach_request_id(cached_response)
 
     # 复用一个 request 级数据库会话给模板层（如响应式图片、相关文章过滤器）
+    db_context_token = set_db_request_info(
+        f"{request_id} {request.method} {redact_url_for_log(str(request.url), get_admin_path())}"
+    )
     request_db_gen = None
     try:
-        db_dependency = app.dependency_overrides.get(get_db, get_db)
-        request_db_gen = db_dependency()
-        request.state.db = next(request_db_gen)
-    except Exception:
-        request.state.db = None
-
-    try:
-        request.state.authenticated_user = auth_api._resolve_optional_authenticated_user(request, request.state.db) if request.state.db is not None else None
-        # 构建全局上下文并确保 CSRF 令牌
-        _populate_global_request_state(request)
+        # 建会话、认证查询、全局上下文都可能等待数据库连接；
+        # 统一放到线程池里执行，避免池满时把事件循环拖死。
+        request_db_gen = await run_in_threadpool(_prepare_request_state, request)
         if public_list_cache.should_skip_csrf_token(request):
             # 匿名列表页不写会话：响应因此不带 Set-Cookie 与 Vary: Cookie，
             # 才能被 CDN / 反向代理整页缓存。列表页不含需要令牌的表单。
@@ -875,6 +920,7 @@ async def add_global_context(request: Request, call_next):
                 request_db_gen.close()
             except Exception:
                 pass
+        reset_db_request_info(db_context_token)
 
 def get_page_config(db: Session, config_key: str, default_value: Any) -> Any:
     """
@@ -1104,6 +1150,65 @@ def _should_run_article_api_cache_cleanup(
         return True
     elapsed_seconds = (now_utc - last_cleanup_at).total_seconds()
     return elapsed_seconds >= cleanup_interval_minutes * 60
+
+
+def _schedule_article_api_cache_cleanup(
+    *,
+    fallback_api_url: str,
+    cache_ttl_minutes: int,
+) -> None:
+    """把过期缓存清理放到后台线程，读取路径不再提交设置。"""
+    global _ARTICLE_API_CACHE_CLEANUP_INFLIGHT
+
+    with _ARTICLE_API_CACHE_CLEANUP_LOCK:
+        if _ARTICLE_API_CACHE_CLEANUP_INFLIGHT:
+            return
+        _ARTICLE_API_CACHE_CLEANUP_INFLIGHT = True
+
+    def _worker() -> None:
+        try:
+            db_manager.reload_if_needed()
+            db = db_manager.get_session()
+            if db is None:
+                return
+            try:
+                now_utc = datetime.now(timezone.utc)
+                cache_dir = _ensure_article_api_cache_dir()
+                cache_index = _load_article_api_cache_index(db)
+                cleaned_index, _ = _cleanup_article_api_cache(
+                    cache_index,
+                    cache_dir=cache_dir,
+                    now_utc=now_utc,
+                    cache_ttl_minutes=cache_ttl_minutes,
+                    current_api_url=fallback_api_url,
+                )
+                _upsert_runtime_setting(
+                    db,
+                    _ARTICLE_API_CACHE_INDEX_KEY,
+                    cleaned_index,
+                    "Article fallback API cache index",
+                )
+                _upsert_runtime_setting(
+                    db,
+                    _ARTICLE_API_CACHE_LAST_CLEANUP_KEY,
+                    now_utc.isoformat(),
+                    "Article fallback API cache last cleanup time",
+                )
+            finally:
+                db.close()
+        except Exception:
+            # 后台清理失败时保留旧索引，等下一轮到期再试
+            pass
+        finally:
+            with _ARTICLE_API_CACHE_CLEANUP_LOCK:
+                _ARTICLE_API_CACHE_CLEANUP_INFLIGHT = False
+
+    thread = threading.Thread(target=_worker, name="article-api-cache-cleanup", daemon=True)
+    try:
+        thread.start()
+    except RuntimeError:
+        with _ARTICLE_API_CACHE_CLEANUP_LOCK:
+            _ARTICLE_API_CACHE_CLEANUP_INFLIGHT = False
 
 
 def _guess_image_extension(content_type: str, final_url: str) -> str:
@@ -1659,7 +1764,6 @@ def _attach_article_cover_urls(
     )
     api_cache_index: Dict[str, Dict[str, Any]] = {}
     api_cache_dir: Optional[Path] = None
-    api_cache_changed = False
     now_utc = datetime.now(timezone.utc)
 
     if fallback_source == "api" and api_cache_enabled:
@@ -1670,29 +1774,19 @@ def _attach_article_cover_urls(
             now_utc=now_utc,
             cleanup_interval_minutes=api_cache_cleanup_minutes,
         ):
-            api_cache_index, cleanup_changed = _cleanup_article_api_cache(
-                api_cache_index,
-                cache_dir=api_cache_dir,
-                now_utc=now_utc,
+            # 清理涉及写库，读取路径只负责调度，避免列表请求提交大 JSON
+            _schedule_article_api_cache_cleanup(
+                fallback_api_url=fallback_api_url,
                 cache_ttl_minutes=api_cache_ttl_minutes,
-                current_api_url=fallback_api_url,
-            )
-            api_cache_changed = api_cache_changed or cleanup_changed
-            _upsert_runtime_setting(
-                db,
-                _ARTICLE_API_CACHE_LAST_CLEANUP_KEY,
-                now_utc.isoformat(),
-                "Article fallback API cache last cleanup time",
             )
 
     def resolve_cached_api_image(seed_value: str) -> str:
-        nonlocal api_cache_changed
         if fallback_source != "api":
             return _build_seeded_remote_image_url(fallback_api_url, seed_value)
         if not api_cache_enabled or api_cache_dir is None:
             return _build_seeded_remote_image_url(fallback_api_url, seed_value)
 
-        resolved_url, changed = _resolve_cached_remote_article_image(
+        resolved_url, _changed = _resolve_cached_remote_article_image(
             seed_value=seed_value,
             fallback_api_url=fallback_api_url,
             cache_index=api_cache_index,
@@ -1701,7 +1795,6 @@ def _attach_article_cover_urls(
             now_utc=now_utc,
             download_if_missing=False,
         )
-        api_cache_changed = api_cache_changed or changed
         if not _is_article_api_cached_url(resolved_url):
             _schedule_article_api_cache_prefetch(
                 seed_value=seed_value,
@@ -1725,14 +1818,6 @@ def _attach_article_cover_urls(
                 fallback_local_images=fallback_local_images,
                 remote_image_resolver=resolve_cached_api_image,
             ),
-        )
-
-    if fallback_source == "api" and api_cache_enabled and api_cache_changed:
-        _upsert_runtime_setting(
-            db,
-            _ARTICLE_API_CACHE_INDEX_KEY,
-            api_cache_index,
-            "Article fallback API cache index",
         )
 
 
@@ -1840,7 +1925,7 @@ def _safe_local_redirect_target(raw_value: str, fallback: str = "/") -> str:
 
 
 @app.post("/api/v1/posts/{post_id}/unlock")
-async def unlock_password_protected_post(
+def unlock_password_protected_post(
     request: Request,
     post_id: int,
     password: str = Form(...),
@@ -1886,7 +1971,7 @@ async def unlock_password_protected_post(
 
 
 @app.get("/favicon.ico", include_in_schema=False)
-async def favicon():
+def favicon():
     return FileResponse("rewrz/static/favicon.ico")
 
 # 兜底封面缓存单独挂载为长缓存：URL 带 ?v=<cached_at>，刷新封面后 URL 变化，

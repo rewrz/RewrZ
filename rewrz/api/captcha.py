@@ -83,7 +83,7 @@ def generate_captcha_image_upgraded(text):
 
 # --- 在你的FastAPI路由中这样使用 ---
 @router.get("/api/v1/captcha")
-async def get_captcha(request: Request):
+def get_captcha(request: Request):
     """生成并返回验证码图片"""
     # 使用一个大的、安全的字符集
     captcha_text = ''.join(random.sample(CAPTCHA_CHAR_SET, k=4))

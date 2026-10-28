@@ -370,7 +370,7 @@ def _resolve_optional_authenticated_user(request: Request, db: Session):
 #     return {"message": "Login successful"}
 
 # 登录功能实现（供动态路由调用）
-async def login_for_access_token_impl(
+def login_for_access_token_impl(
     response: Response,
     form_data: OAuth2PasswordRequestForm,
     db: Session,
@@ -538,7 +538,7 @@ async def login_for_access_token_impl(
 
 @router.get("/api/v1/auth/status")
 @router.get("/api/auth/status")
-async def auth_status(request: Request, db: Session = Depends(get_db)):
+def auth_status(request: Request, db: Session = Depends(get_db)):
     """前台登录态探针，不返回后台路径。"""
     current_user = _resolve_optional_authenticated_user(request, db)
     if current_user is None:
@@ -563,14 +563,14 @@ async def auth_status(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/auth/logout")
-async def logout(request: Request):
+def logout(request: Request):
     response = RedirectResponse(url="/", status_code=303)
     response.delete_cookie("access_token", path="/")
     request.session.pop("csrf_token", None)
     return response
 
 @router.get("/users/me/", response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_user)):
+def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 # 后台登录和仪表盘路由已完全移至 main.py 中的动态路由注册系统

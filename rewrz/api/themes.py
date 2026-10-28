@@ -810,19 +810,19 @@ def _get_effects_page_context(request: Request, current_user: User, db: Session)
 
 # 主题管理页面已移至 main.py 中的动态路由注册系统
 # 这样可以根据 ADMIN_PATH 配置动态生成路由，提高安全性
-async def admin_theme_system_page(request: Request, db: Session, current_user: User):
+def admin_theme_system_page(request: Request, db: Session, current_user: User):
     """主题系统页面 - 供 main.py 动态路由调用"""
     templates = get_templates()
     return templates.TemplateResponse(request, "admin/themes.html", _get_theme_page_context(request, current_user, db))
 
 
-async def admin_effects_page(request: Request, db: Session, current_user: User):
+def admin_effects_page(request: Request, db: Session, current_user: User):
     """节日特效引擎页面 - 供 main.py 动态路由调用"""
     templates = get_templates()
     return templates.TemplateResponse(request, "admin/effects.html", _get_effects_page_context(request, current_user, db))
 
 # 主题更新路由已移至 main.py 中的动态路由注册系统
-async def update_theme_settings(
+def update_theme_settings(
     request: Request,
     db: Session,
     current_user: User,
@@ -895,7 +895,7 @@ async def update_theme_settings(
         return JSONResponse({"success": True, "message": "主题设置已更新"})
 
 
-async def update_effects_settings(
+def update_effects_settings(
     request: Request,
     db: Session,
     current_user: User,
@@ -1010,7 +1010,7 @@ async def save_custom_anniversary_settings(
 
 
 # 自定义主题创建路由已移至 main.py 中的动态路由注册系统
-async def create_custom_theme(
+def create_custom_theme(
     request: Request,
     db: Session,
     current_user: User,
@@ -1052,7 +1052,7 @@ async def create_custom_theme(
     return JSONResponse({"success": True, "message": "自定义主题已创建"})
 
 # 自定义主题删除路由已移至 main.py 中的动态路由注册系统
-async def delete_custom_theme(
+def delete_custom_theme(
     theme_name: str,
     request: Request,
     db: Session,
@@ -1077,7 +1077,7 @@ async def delete_custom_theme(
     return JSONResponse({"success": True, "message": "主题已删除"})
 
 # 背景图片更新路由已移至 main.py 中的动态路由注册系统
-async def update_background_image(
+def update_background_image(
     request: Request,
     db: Session,
     current_user: User,
@@ -1111,7 +1111,7 @@ async def update_background_image(
 
 @router.post("/api/v1/admin/themes/background")
 @router.post("/api/admin/themes/background")
-async def update_background_image_api(
+def update_background_image_api(
     request: Request,
     background_type: str = Form(...),
     custom_background_url: Optional[str] = Form(None),
@@ -1119,7 +1119,7 @@ async def update_background_image_api(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return await update_background_image(
+    return update_background_image(
         request=request,
         db=db,
         current_user=current_user,
@@ -1131,7 +1131,7 @@ async def update_background_image_api(
 
 @router.get("/api/v1/theme/current")
 @router.get("/api/theme/current")
-async def get_current_theme(request: Request, db: Session = Depends(get_db)):
+def get_current_theme(request: Request, db: Session = Depends(get_db)):
     """获取当前主题配置（前端 API）"""
     requested_theme = str(request.query_params.get("theme") or "").strip()
     resolved_theme = resolve_active_theme(db, request=request, explicit_theme=requested_theme or None)
@@ -1147,11 +1147,11 @@ async def get_current_theme(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/api/v1/theme/variables.css")
 @router.get("/api/theme/variables.css")
-async def theme_variables_css(request: Request, db: Session = Depends(get_db)):
+def theme_variables_css(request: Request, db: Session = Depends(get_db)):
     """动态生成 CSS 变量文件，仅处理主题变量。"""
     from fastapi.responses import Response
     
-    theme_response = await get_current_theme(request, db)
+    theme_response = get_current_theme(request, db)
     theme_data = json.loads(theme_response.body)
     
     # 构建CSS内容
@@ -1168,7 +1168,7 @@ async def theme_variables_css(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/api/v1/theme/update")
 @router.post("/api/theme/update")
-async def update_theme_realtime(
+def update_theme_realtime(
     request: Request,
     theme: str = Form(...),
     csrf_token: str = Form(...),
@@ -1193,7 +1193,7 @@ async def update_theme_realtime(
 
 @router.get("/api/v1/theme/sync")
 @router.get("/api/theme/sync")
-async def sync_theme_settings(request: Request, db: Session = Depends(get_db)):
+def sync_theme_settings(request: Request, db: Session = Depends(get_db)):
     """同步主题与特效设置。"""
     resolved_theme = resolve_active_theme(db, request=request)
     resolved_effects = resolve_active_effects(db)

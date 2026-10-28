@@ -155,26 +155,29 @@ SMTP_FROM=notify@example.com
 - `SITE_TIMEZONE` 是否为站点所在时区（IANA 名称，例如 `Asia/Shanghai`、`Asia/Tokyo`、`America/Toronto`）
 
 数据库连接池与 SQLite 并发参数均有安全默认值，不配置也可直接运行。
-SQLite 站点默认 10 + 10 个溢出连接，PostgreSQL 等网络数据库默认 10 + 20。
-连接按需创建：空闲时不会占满，只有高并发时才扩展；SQLite 每个连接的页缓存
-由 `SQLITE_CACHE_SIZE_KIB` 限死，因此放大连接池不会带来无界内存增长：
+SQLite 站点默认 16 + 8 个溢出连接，PostgreSQL 等网络数据库默认 10 + 20。
+连接池上限需要与 uvicorn 的 `--limit-concurrency` 配合：并发上限应小于池总量，
+给浏览量、统计刷写等后台线程留出余量。池等待默认 3 秒快速失败，不再长时间阻塞请求：
 
 ```env
-# 每个 worker 进程独立的连接池；SQLite 默认 10+10
-DB_POOL_SIZE=10
-DB_MAX_OVERFLOW=10
-DB_POOL_TIMEOUT=10
+# 每个 worker 进程独立的连接池；SQLite 默认 16+8
+DB_POOL_SIZE=16
+DB_MAX_OVERFLOW=8
+DB_POOL_TIMEOUT=3
 # 以下两项仅对网络数据库生效；本地 SQLite 默认关闭预检查与连接回收
 DB_POOL_RECYCLE=1800
 DB_POOL_PRE_PING=true
-# SQLite 默认启用 WAL，并将写锁等待上限提高到 30 秒
-SQLITE_BUSY_TIMEOUT_MS=30000
+# SQLite 默认启用 WAL，写锁等待上限 5 秒；长时间等待会把连接池拖死
+SQLITE_BUSY_TIMEOUT_MS=5000
 SQLITE_JOURNAL_MODE=WAL
-# 每连接页缓存上限（KiB），默认 1MB；20 个连接最坏约 20MB
+# 每连接页缓存上限（KiB），默认 1MB；24 个连接最坏约 24MB
 SQLITE_CACHE_SIZE_KIB=1024
 # WAL 下 synchronous=NORMAL 可减少每次提交的 fsync，提升写吞吐；
 # 断电时可能丢失最后少量事务，博客场景可接受
 SQLITE_SYNCHRONOUS=NORMAL
+# 诊断阈值：慢 SQL 与连接持有过久的告警线（毫秒）
+SLOW_SQL_LOG_MS=500
+DB_HOLD_WARN_MS=3000
 ```
 
 注意：多 worker 时连接池上限按进程分别计算，生产库为 PostgreSQL 时
@@ -183,7 +186,7 @@ SQLITE_SYNCHRONOUS=NORMAL
 突发大并发应优先靠页面与图片缓存卸载到边缘，而不是继续堆 worker。
 
 如果服务器内存特别紧张（低于 512MB），可显式写成 `DB_POOL_SIZE=8`、
-`DB_MAX_OVERFLOW=8`；512MB 及以上保持默认 10+10 即可。
+`DB_MAX_OVERFLOW=8`；512MB 及以上保持默认 16+8 即可。
 
 首页、分类归档与标签归档由两层缓存承载：
 
@@ -217,6 +220,8 @@ SQLite 适合单实例博客，不适合作为横向扩容的共享数据库：
   worker 之间共享同一数据库文件，也不要把数据库放到 NFS、SMB 等网络盘上。
 - WAL 模式下读可以并发，写仍然串行；写事务会排队，`SQLITE_BUSY_TIMEOUT_MS`
   只是等待上限，不会提升写入吞吐。
+- 高频计数（文章浏览量、访问统计等）只写进程内存，由后台线程每 15 秒批量落库；
+  请求路径不做逐次提交，避免单写者被大量小事务占满。
 - 每个 worker 进程都会独立创建连接池、整页缓存和封面预取线程。SQLite 站点
   增加 worker 只会放大内存占用与写锁竞争，不能提升写入能力。
 - 需要多 worker、多实例读写或持续高并发写入时，先迁移到 PostgreSQL，见 5.4。
@@ -268,7 +273,7 @@ ALLOWED_HOSTS=example.com,127.0.0.1
 SITE_TIMEZONE=Asia/Shanghai
 DB_POOL_SIZE=10
 DB_MAX_OVERFLOW=20
-DB_POOL_TIMEOUT=10
+DB_POOL_TIMEOUT=3
 DB_POOL_RECYCLE=1800
 DB_POOL_PRE_PING=true
 ```
@@ -367,7 +372,7 @@ Group=www-data
 WorkingDirectory=/srv/rewrz
 Environment=PYTHONUNBUFFERED=1
 Environment=MALLOC_ARENA_MAX=2
-ExecStart=/srv/rewrz/.venv/bin/uvicorn rewrz.main:app --host 127.0.0.1 --port 8000 --workers 1 --timeout-graceful-shutdown 10
+ExecStart=/srv/rewrz/.venv/bin/uvicorn rewrz.main:app --host 127.0.0.1 --port 8000 --workers 1 --limit-concurrency 20 --timeout-graceful-shutdown 10
 Restart=always
 RestartSec=3
 TimeoutStopSec=30
@@ -425,7 +430,7 @@ sudo systemctl status rewrz
 SQLite 站点固定 `--workers 1`。数据库切换为 PostgreSQL 后，才考虑增加 worker：
 
 ```ini
-ExecStart=/srv/rewrz/.venv/bin/uvicorn rewrz.main:app --host 127.0.0.1 --port 8000 --workers 4 --timeout-graceful-shutdown 10
+ExecStart=/srv/rewrz/.venv/bin/uvicorn rewrz.main:app --host 127.0.0.1 --port 8000 --workers 4 --limit-concurrency 20 --timeout-graceful-shutdown 10
 ```
 
 内存预算：
@@ -481,8 +486,45 @@ server {
         add_header Cache-Control "public, immutable";
     }
 
-    # 媒体目录不要在这里直出：/media/variant/... 是动态缩略图路由，
-    # 被静态 location 抢先匹配后会导致缩略图 404。
+    # 动态媒体路由必须优先回源，不能交给静态直出：
+    # /media/variant/... 为按需生成的缩略图，/media/avatar/... 为 Gravatar 代理，
+    # /media/avatars/... 读取的目录可在后台配置，三者都不在固定上传目录下。
+    location ^~ /media/variant/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location ^~ /media/avatar/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location ^~ /media/avatars/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 其余 /media/... 均为上传目录下的静态文件，由 Nginx 直出。
+    # alias 必须指向 .env 中 MEDIA_UPLOAD_DIR 的绝对路径；文件不存在时 Nginx
+    # 直接返回 404，与应用行为一致，不会额外占用应用连接。
+    location ^~ /media/ {
+        alias /srv/rewrz/media_uploads/;
+        expires 30d;
+        access_log off;
+    }
+
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_http_version 1.1;
@@ -510,6 +552,11 @@ server {
 
 说明：
 - `alias` 路径中的 `/srv/rewrz` 要替换成你的实际部署目录
+- `/media/` 直出的 `alias` 必须指向 `.env` 中 `MEDIA_UPLOAD_DIR` 的绝对路径；
+  该目录为空或路径写错时，图片会全部 404
+- `/media/variant/`、`/media/avatar/`、`/media/avatars/` 三个前缀必须保留回源，
+  它们分别对应按需缩略图、Gravatar 代理与可配置的头像目录；把整个 `/media/`
+  全部静态直出会让缩略图与头像 404
 - 文中出现的 `$http_host` 是 Nginx 变量，不是 shell 变量，不要转义
 - 首次配置时如果证书尚未签发，可先只保留 `listen 80 default_server;`，执行完第 8 节的 certbot 后再补 `443 ssl default_server` 两行
 - 建议在 `.env` 中同时配置 `ALLOWED_HOSTS=example.com,127.0.0.1`，应用层会拒绝不匹配的 Host 头；

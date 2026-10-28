@@ -283,7 +283,7 @@ async def upload_public_quick_micro_media(
 
 @router.post("/api/v1/posts/quick", response_model=dict)
 @router.post("/api/posts/quick", response_model=dict)
-async def create_public_quick_micro_post(
+def create_public_quick_micro_post(
     request: Request,
     content: str = Form(""),
     media_items: Optional[str] = Form(None),
@@ -363,7 +363,7 @@ async def create_public_quick_micro_post(
 
 @router.post("/api/v1/posts/quick/preview", response_model=dict)
 @router.post("/api/posts/quick/preview", response_model=dict)
-async def preview_public_quick_micro_post(
+def preview_public_quick_micro_post(
     request: Request,
     content: str = Form(""),
     csrf_token: str = Form(...),
@@ -406,7 +406,7 @@ async def preview_public_quick_micro_post(
         _PREVIEW_SEMAPHORE.release()
 
 @router.get(f"{ADMIN_PATH}/posts/new", response_class=HTMLResponse)
-async def new_post_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def new_post_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     显示新建文章页面
     """
@@ -427,7 +427,7 @@ async def new_post_page(request: Request, db: Session = Depends(get_db), current
     })
 
 @router.get(f"{ADMIN_PATH}/posts/{{post_id}}/edit", response_class=HTMLResponse)
-async def edit_post_page(post_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def edit_post_page(post_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     显示编辑文章页面
     """
@@ -453,7 +453,7 @@ async def edit_post_page(post_id: int, request: Request, db: Session = Depends(g
     })
 
 @router.post(f"{ADMIN_PATH}/posts/new")
-async def create_post_api(
+def create_post_api(
     request: Request,
     title: str = Form(...),
     content: str = Form(""),
@@ -528,7 +528,7 @@ async def create_post_api(
 
 @router.put(f"{ADMIN_PATH}/posts/{{post_id}}")
 @router.post(f"{ADMIN_PATH}/posts/{{post_id}}")
-async def update_post_api(
+def update_post_api(
     request: Request,
     post_id: int,
     title: str = Form(...),
@@ -620,7 +620,7 @@ async def update_post_api(
 
 
 @router.patch(f"{ADMIN_PATH}/api/v1/posts/{{post_id}}/inline", response_model=dict)
-async def inline_update_post_api(
+def inline_update_post_api(
     request: Request,
     post_id: int,
     payload: PostInlineUpdate,
@@ -725,7 +725,7 @@ async def inline_update_post_api(
     }
 
 @router.delete(f"{ADMIN_PATH}/api/v1/posts/{{post_id}}")
-async def delete_post_api(post_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_post_api(post_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     删除文章的API端点
     """
@@ -740,7 +740,7 @@ async def delete_post_api(post_id: int, db: Session = Depends(get_db), current_u
     return {"success": True, "message": "文章删除成功"}
 
 @router.post(f"{ADMIN_PATH}/api/v1/posts/batch-publish", response_model=dict)
-async def batch_publish_posts(
+def batch_publish_posts(
     request: Request,
     post_batch_update: PostBatchUpdate, # 使用新的Pydantic模型
     csrf_token: str = Header(..., alias="X-CSRF-Token"), # 从请求头获取CSRF令牌
@@ -776,7 +776,7 @@ async def batch_publish_posts(
         return JSONResponse(status_code=500, content={"success": False, "error": f"批量发布失败: {str(e)}"})
 
 @router.post(f"{ADMIN_PATH}/api/v1/posts/batch-draft", response_model=dict)
-async def batch_draft_posts(
+def batch_draft_posts(
     request: Request,
     post_batch_update: PostBatchUpdate, # 使用新的Pydantic模型
     csrf_token: str = Header(..., alias="X-CSRF-Token"), # 从请求头获取CSRF令牌
@@ -812,7 +812,7 @@ async def batch_draft_posts(
         return JSONResponse(status_code=500, content={"success": False, "error": f"批量移至草稿失败: {str(e)}"})
 
 @router.post(f"{ADMIN_PATH}/api/v1/posts/batch-delete", response_model=dict)
-async def batch_delete_posts(
+def batch_delete_posts(
     request: Request,
     post_batch_update: PostBatchUpdate, # 使用新的Pydantic模型
     csrf_token: str = Header(..., alias="X-CSRF-Token"), # 从请求头获取CSRF令牌
@@ -847,7 +847,7 @@ async def batch_delete_posts(
         return JSONResponse(status_code=500, content={"success": False, "error": f"批量删除失败: {str(e)}"})
 
 @router.get(f"{ADMIN_PATH}/api/v1/posts/{{post_id}}/cover", response_model=dict)
-async def get_post_cover_api(
+def get_post_cover_api(
     post_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -867,7 +867,7 @@ async def get_post_cover_api(
 
 
 @router.post(f"{ADMIN_PATH}/api/v1/posts/{{post_id}}/cover-cache/refresh", response_model=dict)
-async def refresh_post_cover_cache_api(
+def refresh_post_cover_cache_api(
     request: Request,
     post_id: int,
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
@@ -898,7 +898,7 @@ async def refresh_post_cover_cache_api(
 # --- 页面管理路由 ---
 
 @router.get(f"{ADMIN_PATH}/pages/new", response_class=HTMLResponse)
-async def new_page_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def new_page_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     显示新建页面页面
     """
@@ -917,7 +917,7 @@ async def new_page_page(request: Request, db: Session = Depends(get_db), current
 
 
 @router.get(f"{ADMIN_PATH}/pages/{{page_id}}/edit", response_class=HTMLResponse)
-async def edit_page_page(page_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def edit_page_page(page_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     显示编辑页面页面
     """
@@ -939,7 +939,7 @@ async def edit_page_page(page_id: int, request: Request, db: Session = Depends(g
     })
 
 @router.post(f"{ADMIN_PATH}/pages/new")
-async def create_page_api(
+def create_page_api(
     request: Request,
     title: str = Form(...),
     content: str = Form(""),
@@ -1001,7 +1001,7 @@ async def create_page_api(
 
 @router.put(f"{ADMIN_PATH}/pages/{{page_id}}")
 @router.post(f"{ADMIN_PATH}/pages/{{page_id}}")
-async def update_page_api(
+def update_page_api(
     request: Request,
     page_id: int,
     title: str = Form(...),
@@ -1076,7 +1076,7 @@ async def update_page_api(
     return response
 
 @router.delete(f"{ADMIN_PATH}/api/v1/pages/{{page_id}}")
-async def delete_page_api(page_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_page_api(page_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     删除页面的API端点
     """

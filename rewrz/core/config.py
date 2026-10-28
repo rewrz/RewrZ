@@ -12,6 +12,14 @@ def get_env_file_path() -> str:
     return raw_path or ".env"
 
 
+def _read_env_file_mtime(path: str) -> float | None:
+    """读取 .env 的修改时间；文件不存在或读取失败时返回 None。"""
+    try:
+        return os.path.getmtime(path)
+    except OSError:
+        return None
+
+
 def _parse_bool_value(raw_value, default: bool = False) -> bool:
     if raw_value is None:
         return default
@@ -46,11 +54,13 @@ class DynamicSettings:
     def __init__(self):
         self.PROJECT_NAME: str = "RewrZ"
         self._runtime_secret_key: str = secrets.token_urlsafe(48)
+        self._env_file_mtime: float | None = None
         self._load_config()
     
     def _load_config(self):
         """加载或重新加载环境变量"""
         env_file_path = get_env_file_path()
+        env_file_mtime = _read_env_file_mtime(env_file_path)
         file_env = {}
         if os.path.exists(env_file_path):
             file_env = {
@@ -74,13 +84,13 @@ class DynamicSettings:
         else:
             self.SECRET_KEY = env_secret_key
         self.DATABASE_URL: str = str(get_value("DATABASE_URL", "")).strip()
-        # SQLite 在 WAL 下读可并发、写串行：池大小主要决定同时能有多少个读查询，
-        # 默认 10+10 以保障突发并发；每连接页缓存由 SQLITE_CACHE_SIZE_KIB 限死，
-        # 内存占用只在高并发时才增长，不会因空闲连接长期膨胀。
+        # SQLite 在 WAL 下读可并发、写串行：池大小主要决定同时能有多少个读查询。
+        # 默认 16+8 与 uvicorn 的并发上限配合，既避免池被瞬间打满，
+        # 也不会让空闲连接把内存拖高（每连接页缓存由 SQLITE_CACHE_SIZE_KIB 限死）。
         # 网络数据库仍保留 10+20 的默认并发能力。
         is_sqlite_database = self.DATABASE_URL.lower().startswith("sqlite")
-        default_pool_size = 10
-        default_max_overflow = 10 if is_sqlite_database else 20
+        default_pool_size = 16 if is_sqlite_database else 10
+        default_max_overflow = 8 if is_sqlite_database else 20
         self.DB_POOL_SIZE: int = _parse_int_value(
             get_value("DB_POOL_SIZE", default_pool_size),
             default_pool_size,
@@ -93,14 +103,23 @@ class DynamicSettings:
             minimum=0,
             maximum=200,
         )
-        self.DB_POOL_TIMEOUT: int = _parse_int_value(get_value("DB_POOL_TIMEOUT", 10), 10, minimum=1, maximum=300)
+        # 池等待必须快速失败：请求会在有界线程池里等待，不再阻塞事件循环
+        self.DB_POOL_TIMEOUT: int = _parse_int_value(get_value("DB_POOL_TIMEOUT", 3), 3, minimum=1, maximum=60)
         self.DB_POOL_RECYCLE: int = _parse_int_value(get_value("DB_POOL_RECYCLE", 1800), 1800, minimum=0, maximum=86400)
         self.DB_POOL_PRE_PING: bool = _parse_bool_value(get_value("DB_POOL_PRE_PING"), True)
+        # 写锁等待上限：默认 5 秒。20 个连接 × 30 秒会把整池按分钟级锁死，必须收敛。
         self.SQLITE_BUSY_TIMEOUT_MS: int = _parse_int_value(
-            get_value("SQLITE_BUSY_TIMEOUT_MS", 30000), 30000, minimum=1000, maximum=300000
+            get_value("SQLITE_BUSY_TIMEOUT_MS", 5000), 5000, minimum=1000, maximum=60000
+        )
+        # 慢 SQL 与连接长期持有的告警阈值，用于定位卡点
+        self.SLOW_SQL_LOG_MS: int = _parse_int_value(
+            get_value("SLOW_SQL_LOG_MS", 500), 500, minimum=50, maximum=60000
+        )
+        self.DB_HOLD_WARN_MS: int = _parse_int_value(
+            get_value("DB_HOLD_WARN_MS", 3000), 3000, minimum=100, maximum=600000
         )
         self.SQLITE_JOURNAL_MODE: str = str(get_value("SQLITE_JOURNAL_MODE", "WAL")).strip().upper() or "WAL"
-        # 每个 SQLite 连接的页缓存上限（KiB）。默认 1MB，20 个连接最坏约 20MB；
+        # 每个 SQLite 连接的页缓存上限（KiB）。默认 1MB，24 个连接最坏约 24MB；
         # 比 SQLite 默认的 2MB/连接更省内存，同时保留读并发。
         self.SQLITE_CACHE_SIZE_KIB: int = _parse_int_value(
             get_value("SQLITE_CACHE_SIZE_KIB", 1024), 1024, minimum=256, maximum=8192
@@ -140,9 +159,19 @@ class DynamicSettings:
         self.BOT_BLOCK_ENABLED: bool = _parse_bool_value(get_value("BOT_BLOCK_ENABLED", "true"), True)
         # 可选强制开关：默认不写，Cookie Secure 标志由 should_use_secure_cookie 按请求自动判定
         self.COOKIE_SECURE: bool = _parse_bool_value(get_value("COOKIE_SECURE"), False)
+        self._env_file_mtime = env_file_mtime
     
-    def reload_config(self) -> bool:
-        """重新加载配置，返回是否有变化"""
+    def reload_config(self, force: bool = False) -> bool:
+        """重新加载配置，返回是否有变化。
+
+        默认按 .env 的修改时间判断：未变化时只做一次 stat，不再解析整个文件。
+        安装向导等明确需要重读的场景传 force=True。
+        """
+        if not force:
+            current_mtime = _read_env_file_mtime(get_env_file_path())
+            if current_mtime == self._env_file_mtime:
+                return False
+
         old_db_url = getattr(self, 'DATABASE_URL', '')
         old_admin_path = getattr(self, 'ADMIN_PATH', '/admin')
         

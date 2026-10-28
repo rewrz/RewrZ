@@ -160,7 +160,7 @@ def get_site_health_snapshot(db: Session) -> dict:
     return health
 
 
-async def dashboard_page(request: Request, db: Session, current_user: User):
+def dashboard_page(request: Request, db: Session, current_user: User):
     recent_comments = crud_comment.get_comments(db, sort_by_latest=True, limit=8)
     return templates.TemplateResponse(
         request,
@@ -175,7 +175,7 @@ async def dashboard_page(request: Request, db: Session, current_user: User):
 
 
 @router.get(f"{get_admin_path()}/api/v1/dashboard/stats")
-async def get_dashboard_stats(
+def get_dashboard_stats(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -189,7 +189,7 @@ async def get_dashboard_stats(
 
 
 @router.get(f"{get_admin_path()}/api/v1/dashboard/site-health")
-async def get_site_health(
+def get_site_health(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -203,7 +203,7 @@ async def get_site_health(
 
 
 @router.post(f"{get_admin_path()}/api/v1/dashboard/quick-draft")
-async def create_quick_draft(
+def create_quick_draft(
     request: Request,
     title: str = Form(""),
     content: str = Form(""),

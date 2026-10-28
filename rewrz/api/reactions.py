@@ -79,7 +79,7 @@ def _validate_target_exists(db: Session, target_type: str, target_id: int) -> No
 
 @router.get("/api/v1/reactions/summary")
 @router.get("/api/reactions/summary")
-async def get_reaction_summary(
+def get_reaction_summary(
     request: Request,
     target_type: str = Query(...),
     target_id: int = Query(..., ge=1),
@@ -105,7 +105,7 @@ async def get_reaction_summary(
 
 @router.post("/api/v1/reactions/like")
 @router.post("/api/reactions/like")
-async def set_like(
+def set_like(
     request: Request,
     payload: LikePayload,
     db: Session = Depends(get_db),
@@ -131,7 +131,7 @@ async def set_like(
 
 @router.post("/api/v1/reactions/react")
 @router.post("/api/reactions/react")
-async def set_reaction(
+def set_reaction(
     request: Request,
     payload: ReactPayload,
     db: Session = Depends(get_db),

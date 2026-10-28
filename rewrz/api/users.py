@@ -242,7 +242,7 @@ def _build_profile_context(
     }
 
 
-async def admin_users_page(
+def admin_users_page(
     request: Request,
     db: Session,
     current_user: User,
@@ -252,7 +252,7 @@ async def admin_users_page(
     return templates.TemplateResponse(request, "admin/users.html", context)
 
 
-async def create_admin_user_action(
+def create_admin_user_action(
     request: Request,
     db: Session,
     current_user: User,
@@ -306,7 +306,7 @@ async def create_admin_user_action(
     return {"success": True, "message": "后台用户已创建", "user_id": int(created.id)}
 
 
-async def update_admin_user_profile(
+def update_admin_user_profile(
     request: Request,
     db: Session,
     current_user: User,
@@ -397,7 +397,7 @@ async def update_admin_user_profile(
     return templates.TemplateResponse(request, "admin/users.html", context)
 
 
-async def update_user_status_action(
+def update_user_status_action(
     request: Request,
     db: Session,
     current_user: User,
@@ -434,7 +434,7 @@ async def update_user_status_action(
     return {"success": True, "message": "用户状态已更新"}
 
 
-async def update_user_role_action(
+def update_user_role_action(
     request: Request,
     db: Session,
     current_user: User,
@@ -474,7 +474,7 @@ async def update_user_role_action(
     return {"success": True, "message": "用户角色已更新"}
 
 
-async def reset_user_password_action(
+def reset_user_password_action(
     request: Request,
     db: Session,
     current_user: User,
@@ -508,7 +508,7 @@ async def reset_user_password_action(
     return {"success": True, "message": "用户密码已重置"}
 
 
-async def force_logout_user_action(
+def force_logout_user_action(
     request: Request,
     db: Session,
     current_user: User,

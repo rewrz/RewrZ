@@ -42,6 +42,8 @@ chmod +x update.sh
   应用冷启动约 30 秒，默认最多等待 60 秒，避免把启动过程误报为健康检查失败
 - 重启前会检测 systemd 的 `--workers` 数量：本机内存 ≤1.5GB 且 worker 数大于 1 时，
   仅提示改为 `--workers 1` 并设置 `MALLOC_ARENA_MAX=2`，不会自动改写服务配置
+- 同时检测 `--limit-concurrency`：缺失时仅提示设为 `20`，与默认连接池 16+8 配合，
+  避免并发把连接池打满，同样不会自动改写服务配置
 - 数据库表结构由应用启动时的 `create_all` 自动维护（只建不存在的表），
   不需要也不应当执行 `alembic upgrade head`
 - 手工执行流程见下文，二者保持一致；修改脚本时必须同步本文
@@ -192,7 +194,10 @@ sudo journalctl -u rewrz -n 100 --no-pager
     `DB_POOL_RECYCLE`、`DB_POOL_PRE_PING` 与 SQLite 参数
     `SQLITE_BUSY_TIMEOUT_MS`、`SQLITE_JOURNAL_MODE`、`SQLITE_CACHE_SIZE_KIB`、
     `SQLITE_SYNCHRONOUS` 均可选，不写时使用默认值；
+    诊断阈值 `SLOW_SQL_LOG_MS`、`DB_HOLD_WARN_MS` 同样可选；
     `update.sh` 只检测 `.env`，不会自动写入这些配置
+  - SQLite 站点的 systemd `ExecStart` 需要带 `--limit-concurrency 20`，
+    与默认连接池 16+8 配合，避免并发把池打满
 - PostgreSQL 站点重建虚拟环境后：
   - `requirements.txt` 不包含 PostgreSQL 驱动，需要重新执行
     `pip install "psycopg[binary]"`

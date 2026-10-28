@@ -159,7 +159,7 @@ def _stamp_alembic_head(database_url: str) -> None:
 
 
 @router.get("/installer", response_class=HTMLResponse)
-async def installer_page(request: Request):
+def installer_page(request: Request):
     """
     安装向导首页
     
@@ -177,7 +177,7 @@ async def installer_page(request: Request):
     })
 
 @router.get("/installer/check-environment")
-async def check_environment(request: Request):
+def check_environment(request: Request):
     """
     检查安装环境
     
@@ -251,7 +251,7 @@ async def check_environment(request: Request):
     })
 
 @router.get("/installer/step/{step_number}")
-async def get_install_step(step_number: float, request: Request):
+def get_install_step(step_number: float, request: Request):
     """
     获取安装步骤页面
     
@@ -292,7 +292,7 @@ async def get_install_step(step_number: float, request: Request):
     return templates.TemplateResponse(request, step_templates[step_number], context)
 
 @router.post("/installer/initialize-database")
-async def initialize_database(
+def initialize_database(
     request: Request,
     database_path: str = Form("./data/rewrz.db"),
     csrf_token: str = Form(...),
@@ -345,7 +345,7 @@ async def initialize_database(
         }, status_code=500)
 
 @router.post("/installer/create-admin")
-async def create_admin_user(
+def create_admin_user(
     request: Request,
     username: str = Form(...),
     email: str = Form(...),
@@ -413,7 +413,7 @@ async def create_admin_user(
         }, status_code=500)
 
 @router.post("/installer/configure-site")
-async def configure_site(
+def configure_site(
     request: Request,
     site_title: str = Form(...),
     tagline: str = Form(None),
@@ -492,7 +492,7 @@ async def configure_site(
         }, status_code=500)
 
 @router.post("/installer/create-initial-content")
-async def create_initial_content(
+def create_initial_content(
     request: Request,
     create_default_content: bool = Form(False),
     create_sample_content: bool = Form(False),
@@ -603,7 +603,7 @@ async def create_initial_content(
         }, status_code=500)
 
 @router.post("/installer/configure-admin-path")
-async def configure_admin_path(
+def configure_admin_path(
     request: Request,
     path_template: str = Form(...),
     brand_name: str = Form("rewrz"),
@@ -670,7 +670,7 @@ async def configure_admin_path(
         }, status_code=500)
 
 @router.post("/installer/finalize")
-async def finalize_installation(
+def finalize_installation(
     request: Request,
     csrf_token: str = Form(...)
 ):
@@ -746,7 +746,7 @@ INSTALLATION_COMPLETE="true"
         from ..core.database import db_manager
         
         # 重新加载配置
-        config_reloaded = settings.reload_config()
+        config_reloaded = settings.reload_config(force=True)
         
         # 重新初始化数据库连接
         db_initialized = db_manager.initialize()
@@ -800,7 +800,7 @@ INSTALLATION_COMPLETE="true"
             except OSError:
                 pass
             try:
-                settings.reload_config()
+                settings.reload_config(force=True)
             except Exception:
                 pass
         return JSONResponse({
@@ -810,7 +810,7 @@ INSTALLATION_COMPLETE="true"
 
 # 旧的简单安装端点（保留兼容性）
 @router.post("/installer/setup")
-async def run_installer(
+def run_installer(
     request: Request,
     username: str = Form(...),
     email: str = Form(...),

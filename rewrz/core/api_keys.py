@@ -111,7 +111,7 @@ def ensure_api_key_permission(api_key_obj, permission: str) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="外部 API 权限不足")
 
 
-async def get_current_external_api_key(
+def get_current_external_api_key(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
     db: Session = Depends(get_db),

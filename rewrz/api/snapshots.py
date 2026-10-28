@@ -25,7 +25,7 @@ router = APIRouter()
 templates = get_templates()
 
 @router.get("/api/v1/posts/{post_id}/snapshots", response_class=HTMLResponse)
-async def get_post_snapshots(
+def get_post_snapshots(
     post_id: int,
     request: Request,
     db: Session = Depends(get_db),
@@ -73,7 +73,7 @@ async def get_post_snapshots(
     })
 
 @router.get("/api/v1/posts/{post_id}/snapshots/json")
-async def get_post_snapshots_json(
+def get_post_snapshots_json(
     post_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -113,7 +113,7 @@ async def get_post_snapshots_json(
     }
 
 @router.get("/api/v1/posts/{post_id}/snapshots/{snapshot_index}")
-async def get_snapshot_content(
+def get_snapshot_content(
     post_id: int,
     snapshot_index: int,
     db: Session = Depends(get_db),
@@ -152,7 +152,7 @@ async def get_snapshot_content(
     }
 
 @router.post("/api/v1/posts/{post_id}/snapshots/{snapshot_index}/restore")
-async def restore_snapshot(
+def restore_snapshot(
     post_id: int,
     snapshot_index: int,
     db: Session = Depends(get_db),
@@ -216,7 +216,7 @@ async def restore_snapshot(
     }
 
 @router.get("/api/v1/posts/{post_id}/snapshots/{snapshot_index}/compare")
-async def compare_snapshot(
+def compare_snapshot(
     post_id: int,
     snapshot_index: int,
     compare_with: str = "current",  # "current" 或 "previous"
@@ -268,7 +268,7 @@ async def compare_snapshot(
     }
 
 @router.delete("/api/v1/posts/{post_id}/snapshots/{snapshot_index}")
-async def delete_snapshot(
+def delete_snapshot(
     post_id: int,
     snapshot_index: int,
     db: Session = Depends(get_db),
@@ -309,7 +309,7 @@ async def delete_snapshot(
     }
 
 @router.post("/api/v1/posts/{post_id}/snapshots/cleanup")
-async def cleanup_snapshots(
+def cleanup_snapshots(
     post_id: int,
     keep_count: int = 3,
     db: Session = Depends(get_db),

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Callable, Iterable, List
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from ..crud import setting as crud_setting
 from ..schemas.setting import SettingCreate, SettingUpdate
@@ -20,6 +20,7 @@ LOCAL_MEMORY_CACHE_MAX_TTL_SECONDS = 60
 _local_cache: dict[str, tuple[float, dict]] = {}
 _local_cache_locks: dict[str, threading.Lock] = {}
 _local_cache_guard = threading.Lock()
+_refresh_inflight: set[str] = set()
 
 
 def _get_key_lock(cache_key: str) -> threading.Lock:
@@ -122,6 +123,59 @@ def _is_cache_fresh(cached: dict | None, *, ttl_seconds: int, now: datetime | No
     return (current - checked_at).total_seconds() < max(30, int(ttl_seconds or PUBLIC_METRICS_CACHE_TTL_SECONDS))
 
 
+def _schedule_snapshot_refresh(
+    *,
+    cache_key: str,
+    loader: Callable[[Session], dict],
+    ttl_seconds: int,
+    description: str,
+    bind,
+) -> None:
+    """返回过期快照的同时在后台刷新，避免请求同步执行聚合查询。"""
+    with _local_cache_guard:
+        if cache_key in _refresh_inflight:
+            return
+        _refresh_inflight.add(cache_key)
+
+    def _worker() -> None:
+        session = None
+        try:
+            session = sessionmaker(bind=bind, autocommit=False, autoflush=False)()
+            payload = dict(loader(session) or {})
+            now_utc = _now_utc()
+            payload["checked_at_iso"] = now_utc.isoformat()
+            payload["checked_at"] = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
+            payload["cache_hit"] = False
+            _save_cache_payload(session, cache_key, payload, description)
+            _write_local_cache(cache_key, payload, ttl_seconds)
+        except Exception:
+            # 后台刷新失败保留旧快照，下一次请求会再次触发
+            if session is not None:
+                try:
+                    session.rollback()
+                except Exception:
+                    pass
+        finally:
+            if session is not None:
+                try:
+                    session.close()
+                except Exception:
+                    pass
+            with _local_cache_guard:
+                _refresh_inflight.discard(cache_key)
+
+    thread = threading.Thread(
+        target=_worker,
+        name=f"public-metrics-{cache_key[-12:]}",
+        daemon=True,
+    )
+    try:
+        thread.start()
+    except RuntimeError:
+        with _local_cache_guard:
+            _refresh_inflight.discard(cache_key)
+
+
 def get_homepage_stats_snapshot(
     db: Session,
     *,
@@ -141,6 +195,21 @@ def get_homepage_stats_snapshot(
         return {
             **cached,
             "cache_hit": True,
+        }
+
+    if cached:
+        # 过期快照先返回给页面，刷新交给后台线程，请求不再同步跑聚合统计
+        _schedule_snapshot_refresh(
+            cache_key=HOMEPAGE_STATS_CACHE_KEY,
+            loader=loader,
+            ttl_seconds=ttl_seconds,
+            description="前台首页聚合统计缓存",
+            bind=db.get_bind(),
+        )
+        return {
+            **cached,
+            "cache_hit": True,
+            "stale": True,
         }
 
     with _get_key_lock(HOMEPAGE_STATS_CACHE_KEY):
@@ -194,6 +263,21 @@ def get_format_archive_stats_snapshot(
         return {
             **cached,
             "cache_hit": True,
+        }
+
+    if cached:
+        # 过期快照先返回给页面，刷新交给后台线程，请求不再同步跑聚合统计
+        _schedule_snapshot_refresh(
+            cache_key=cache_key,
+            loader=loader,
+            ttl_seconds=ttl_seconds,
+            description="前台格式归档聚合统计缓存",
+            bind=db.get_bind(),
+        )
+        return {
+            **cached,
+            "cache_hit": True,
+            "stale": True,
         }
 
     with _get_key_lock(cache_key):

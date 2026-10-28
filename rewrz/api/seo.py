@@ -31,7 +31,7 @@ from ..core.public_alias import resolve_public_display_name
 router = APIRouter()
 
 @router.get("/sitemap.xml", response_class=PlainTextResponse)
-async def generate_sitemap(request: Request, db: Session = Depends(get_db)):
+def generate_sitemap(request: Request, db: Session = Depends(get_db)):
     """
     生成sitemap.xml
     
@@ -88,7 +88,7 @@ async def generate_sitemap(request: Request, db: Session = Depends(get_db)):
     )
 
 @router.get("/robots.txt", response_class=PlainTextResponse)
-async def generate_robots_txt(request: Request, db: Session = Depends(get_db)):
+def generate_robots_txt(request: Request, db: Session = Depends(get_db)):
     """
     生成robots.txt文件
     
@@ -149,7 +149,7 @@ async def generate_robots_txt(request: Request, db: Session = Depends(get_db)):
     return "\n".join(robots_content)
 
 @router.get("/api/v1/seo/meta/{post_slug}")
-async def get_post_meta_tags(post_slug: str, request: Request, db: Session = Depends(get_db)):
+def get_post_meta_tags(post_slug: str, request: Request, db: Session = Depends(get_db)):
     """
     获取文章的SEO元标签信息
     
@@ -170,14 +170,14 @@ async def get_post_meta_tags(post_slug: str, request: Request, db: Session = Dep
     return _generate_post_seo_data(db_post, request, db)
 
 @router.get("/api/v1/seo/meta/homepage")
-async def get_homepage_meta_tags(request: Request, db: Session = Depends(get_db)):
+def get_homepage_meta_tags(request: Request, db: Session = Depends(get_db)):
     """
     获取首页的SEO元标签信息
     """
     return _generate_homepage_seo_data(request, db)
 
 @router.post("/api/v1/seo/ping-search-engines")
-async def ping_search_engines(
+def ping_search_engines(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):

@@ -65,7 +65,7 @@ def _resolve_hidden_block_safe_post_ids(db: Session, tokens: List[str]) -> List[
 
 
 @router.get("/search", response_class=HTMLResponse)
-async def search_page(
+def search_page(
     request: Request, 
     q: Optional[str] = Query(None, description="搜索关键词"),
     category: Optional[str] = Query(None, description="分类筛选"),
@@ -157,7 +157,7 @@ async def search_page(
 
 @router.get("/api/v1/search")
 @router.get("/api/search")
-async def search_api(
+def search_api(
     q: str = Query(..., description="搜索关键词"),
     category: Optional[str] = Query(None, description="分类筛选"),
     tag: Optional[str] = Query(None, description="标签筛选"),
@@ -218,7 +218,7 @@ async def search_api(
 
 @router.get("/api/v1/search/suggestions")
 @router.get("/api/search/suggestions")
-async def search_suggestions(
+def search_suggestions(
     q: str = Query(..., description="搜索关键词"),
     limit: int = Query(5, description="建议数量"),
     db: Session = Depends(get_db)

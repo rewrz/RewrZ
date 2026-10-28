@@ -11,7 +11,7 @@ from ..schemas import Format, FormatCreate, FormatUpdate, User
 router = APIRouter()
 
 @router.get("/api/v1/formats", response_model=List[Format])
-async def get_formats(
+def get_formats(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
@@ -21,7 +21,7 @@ async def get_formats(
     return formats
 
 @router.get("/api/v1/formats/{format_id}", response_model=Format)
-async def get_format(format_id: int, db: Session = Depends(get_db)):
+def get_format(format_id: int, db: Session = Depends(get_db)):
     """根据ID获取格式"""
     db_format = crud_format.get_format(db, format_id=format_id)
     if db_format is None:
@@ -29,7 +29,7 @@ async def get_format(format_id: int, db: Session = Depends(get_db)):
     return db_format
 
 @router.get("/api/v1/formats/slug/{slug}", response_model=Format)
-async def get_format_by_slug(slug: str, db: Session = Depends(get_db)):
+def get_format_by_slug(slug: str, db: Session = Depends(get_db)):
     """根据slug获取格式"""
     db_format = crud_format.get_format_by_slug(db, slug=slug)
     if db_format is None:
@@ -37,7 +37,7 @@ async def get_format_by_slug(slug: str, db: Session = Depends(get_db)):
     return db_format
 
 @router.post("/api/v1/formats", response_model=Format)
-async def create_format(
+def create_format(
     format: FormatCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -46,7 +46,7 @@ async def create_format(
     return crud_format.create_format(db=db, format=format)
 
 @router.put("/api/v1/formats/{format_id}", response_model=Format)
-async def update_format(
+def update_format(
     format_id: int,
     format_update: FormatUpdate,
     current_user: User = Depends(get_current_user),
@@ -59,7 +59,7 @@ async def update_format(
     return db_format
 
 @router.delete("/api/v1/formats/{format_id}")
-async def delete_format(
+def delete_format(
     format_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)

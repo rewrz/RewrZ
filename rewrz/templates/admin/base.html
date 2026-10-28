@@ -252,6 +252,13 @@
     </div>
 
     <script>
+        // 标签页在后台时暂停 HTMX 轮询，避免统计接口在不可见页面持续消耗连接池
+        document.body.addEventListener('htmx:beforeRequest', function (event) {
+            if (document.visibilityState === 'hidden') {
+                event.preventDefault();
+            }
+        });
+
         function getToastIcon(type) {
             if (type === 'success') return 'fas fa-check-circle';
             if (type === 'warning') return 'fas fa-exclamation-triangle';

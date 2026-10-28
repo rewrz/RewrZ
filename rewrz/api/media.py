@@ -985,7 +985,7 @@ def _cleanup_duplicate_groups(
 
 
 @router.get(f"{ADMIN_PATH}/media", response_class=HTMLResponse)
-async def media_library_page(
+def media_library_page(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -1008,7 +1008,7 @@ async def media_library_page(
 
 
 @router.get(f"{ADMIN_PATH}/api/v1/media", response_model=List[Media])
-async def get_media_items_api(
+def get_media_items_api(
     request: Request,
     page: int = 1,
     limit: int = 12,
@@ -1052,7 +1052,7 @@ async def get_media_items_api(
 
 
 @router.get(f"{ADMIN_PATH}/api/v1/media/ids", response_model=List[int])
-async def get_media_item_ids_api(
+def get_media_item_ids_api(
     request: Request,
     search: Optional[str] = None,
     folder: Optional[str] = None,

@@ -716,7 +716,7 @@ def test_system_info_database_uses_actual_engine_url(tmp_path, monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     engine, db = _build_system_info_session(tmp_path)
     try:
-        info = asyncio.run(system_info_api.get_database_info(db))
+        info = system_info_api.get_database_info(db)
 
         assert info["type"] == "SQLite"
         assert info["driver"].startswith("sqlite")
@@ -766,7 +766,7 @@ def test_system_info_media_stats_cover_all_records(tmp_path, monkeypatch):
         db.add_all(rows)
         db.commit()
 
-        info = asyncio.run(system_info_api.get_media_info(db))
+        info = system_info_api.get_media_info(db)
 
         # 超过 100 条时不能只统计第一页
         assert info["total_files"] == 126

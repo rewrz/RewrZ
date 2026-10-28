@@ -228,8 +228,8 @@ def test_sqlite_pool_defaults_keep_read_concurrency(monkeypatch, tmp_path):
 
     monkeypatch.setenv("DATABASE_URL", "sqlite:///./data/test.db")
     sqlite_settings = DynamicSettings()
-    assert sqlite_settings.DB_POOL_SIZE == 10
-    assert sqlite_settings.DB_MAX_OVERFLOW == 10
+    assert sqlite_settings.DB_POOL_SIZE == 16
+    assert sqlite_settings.DB_MAX_OVERFLOW == 8
     assert sqlite_settings.SQLITE_CACHE_SIZE_KIB == 1024
     assert sqlite_settings.SQLITE_SYNCHRONOUS == "NORMAL"
 

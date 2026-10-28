@@ -113,7 +113,7 @@ def _get_intent_format_id(db: Session, post_type: str, requested_format_ids: Opt
 
 
 @router.get("/posts")
-async def list_external_posts(
+def list_external_posts(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -130,7 +130,7 @@ async def list_external_posts(
 
 
 @router.get("/posts/{post_id}")
-async def get_external_post(
+def get_external_post(
     post_id: int,
     db: Session = Depends(get_db),
     api_key=Depends(get_current_external_api_key),
@@ -143,7 +143,7 @@ async def get_external_post(
 
 
 @router.post("/posts")
-async def create_external_post(
+def create_external_post(
     payload: Dict[str, Any],
     db: Session = Depends(get_db),
     api_key=Depends(get_current_external_api_key),
@@ -183,7 +183,7 @@ async def create_external_post(
 
 
 @router.patch("/posts/{post_id}")
-async def update_external_post(
+def update_external_post(
     post_id: int,
     payload: Dict[str, Any],
     db: Session = Depends(get_db),
@@ -221,7 +221,7 @@ async def update_external_post(
 
 
 @router.delete("/posts/{post_id}")
-async def delete_external_post(
+def delete_external_post(
     post_id: int,
     db: Session = Depends(get_db),
     api_key=Depends(get_current_external_api_key),
@@ -235,7 +235,7 @@ async def delete_external_post(
 
 
 @router.get("/pages")
-async def list_external_pages(
+def list_external_pages(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -252,7 +252,7 @@ async def list_external_pages(
 
 
 @router.get("/pages/{page_id}")
-async def get_external_page(
+def get_external_page(
     page_id: int,
     db: Session = Depends(get_db),
     api_key=Depends(get_current_external_api_key),
@@ -265,7 +265,7 @@ async def get_external_page(
 
 
 @router.post("/pages")
-async def create_external_page(
+def create_external_page(
     payload: Dict[str, Any],
     db: Session = Depends(get_db),
     api_key=Depends(get_current_external_api_key),
@@ -300,7 +300,7 @@ async def create_external_page(
 
 
 @router.patch("/pages/{page_id}")
-async def update_external_page(
+def update_external_page(
     page_id: int,
     payload: Dict[str, Any],
     db: Session = Depends(get_db),
@@ -336,7 +336,7 @@ async def update_external_page(
 
 
 @router.delete("/pages/{page_id}")
-async def delete_external_page(
+def delete_external_page(
     page_id: int,
     db: Session = Depends(get_db),
     api_key=Depends(get_current_external_api_key),
@@ -350,7 +350,7 @@ async def delete_external_page(
 
 
 @router.get("/categories")
-async def list_external_categories(
+def list_external_categories(
     db: Session = Depends(get_db),
     api_key=Depends(get_current_external_api_key),
 ):
@@ -367,7 +367,7 @@ async def list_external_categories(
 
 
 @router.get("/tags")
-async def list_external_tags(
+def list_external_tags(
     db: Session = Depends(get_db),
     api_key=Depends(get_current_external_api_key),
 ):

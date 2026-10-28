@@ -364,7 +364,7 @@ async def create_comment_api(
 
 
 @router.post("/api/v1/reveal/{post_id}", response_class=HTMLResponse)
-async def reveal_hidden_content(
+def reveal_hidden_content(
     post_id: int,
     request: Request,
     index: int = Query(0, ge=0),
@@ -404,7 +404,7 @@ async def reveal_hidden_content(
     )
 
 @router.get("/api/v1/comments/reply_form/{post_id}/{parent_id}", response_class=HTMLResponse)
-async def get_reply_form(request: Request, post_id: int, parent_id: int, db: Session = Depends(get_db)):
+def get_reply_form(request: Request, post_id: int, parent_id: int, db: Session = Depends(get_db)):
     """
     获取回复表单
     
@@ -442,7 +442,7 @@ async def get_reply_form(request: Request, post_id: int, parent_id: int, db: Ses
     )
 
 @router.get("/api/v1/comments/form/{post_id}", response_class=HTMLResponse)
-async def get_comment_form(request: Request, post_id: int, db: Session = Depends(get_db)):
+def get_comment_form(request: Request, post_id: int, db: Session = Depends(get_db)):
     """
     获取评论表单
     
@@ -485,7 +485,7 @@ async def get_comment_form(request: Request, post_id: int, db: Session = Depends
 
 
 @router.get("/api/v1/comments/embed/{post_id}", response_class=HTMLResponse)
-async def get_inline_comment_embed(request: Request, post_id: int, db: Session = Depends(get_db)):
+def get_inline_comment_embed(request: Request, post_id: int, db: Session = Depends(get_db)):
     """
     获取微博聚合页内嵌评论区域（可折叠展开）
     """
@@ -533,7 +533,7 @@ async def get_inline_comment_embed(request: Request, post_id: int, db: Session =
 
 @router.post("/api/v1/comments/{comment_id}/approve", status_code=status.HTTP_200_OK)
 @router.post("/api/comments/{comment_id}/approve", status_code=status.HTTP_200_OK)
-async def approve_comment_api(
+def approve_comment_api(
     request: Request,
     comment_id: int,
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
@@ -551,7 +551,7 @@ async def approve_comment_api(
 
 @router.delete("/api/v1/comments/{comment_id}", status_code=status.HTTP_200_OK)
 @router.delete("/api/comments/{comment_id}", status_code=status.HTTP_200_OK)
-async def delete_comment_api(
+def delete_comment_api(
     request: Request,
     comment_id: int,
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
@@ -568,7 +568,7 @@ async def delete_comment_api(
     return {"success": True, "message": "评论已删除"}
 
 @router.post("/api/v1/admin/comments/{comment_id}/moderate")
-async def moderate_comment(
+def moderate_comment(
     request: Request,
     comment_id: int,
     action: str = Form(...),  # approve, reject, spam
@@ -605,7 +605,7 @@ async def moderate_comment(
 
 @router.post("/api/v1/comments/bulk-action", status_code=status.HTTP_200_OK)
 @router.post("/api/comments/bulk-action", status_code=status.HTTP_200_OK)
-async def bulk_action_api(
+def bulk_action_api(
     request: Request,
     bulk_action: BulkAction,
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
@@ -643,7 +643,7 @@ async def bulk_action_api(
 
 @router.post("/api/v1/admin/comments/ip-geo", status_code=status.HTTP_200_OK)
 @router.post("/api/admin/comments/ip-geo", status_code=status.HTTP_200_OK)
-async def lookup_comment_ip_geo(
+def lookup_comment_ip_geo(
     request: Request,
     payload: IpGeoLookupRequest,
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
@@ -659,7 +659,7 @@ async def lookup_comment_ip_geo(
 
 @router.post("/api/v1/comments/{comment_id}/reply", response_model=Comment, status_code=status.HTTP_201_CREATED)
 @router.post("/api/comments/{comment_id}/reply", response_model=Comment, status_code=status.HTTP_201_CREATED)
-async def admin_reply_to_comment(
+def admin_reply_to_comment(
     request: Request,
     comment_id: int,
     reply: AdminReply,
@@ -711,7 +711,7 @@ async def admin_reply_to_comment(
     return db_reply
 
 @router.get("/api/v1/admin/comments/pending")
-async def get_pending_comments(
+def get_pending_comments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

@@ -53,7 +53,7 @@ def get_rss_config(db: Session) -> dict:
     }
 
 @router.get("/feed.xml")
-async def rss_feed(request: Request, db: Session = Depends(get_db)):
+def rss_feed(request: Request, db: Session = Depends(get_db)):
     """
     全站RSS订阅源
     
@@ -66,7 +66,7 @@ async def rss_feed(request: Request, db: Session = Depends(get_db)):
     return generate_rss_feed(request, db, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"], content_mode=rss_config["content_mode"])
 
 @router.get("/rss.xml") 
-async def rss_feed_alt(request: Request, db: Session = Depends(get_db)):
+def rss_feed_alt(request: Request, db: Session = Depends(get_db)):
     """RSS订阅源（备用路径）"""
     if not check_rss_enabled(db):
         raise HTTPException(status_code=404, detail="RSS订阅功能已禁用")
@@ -75,7 +75,7 @@ async def rss_feed_alt(request: Request, db: Session = Depends(get_db)):
     return generate_rss_feed(request, db, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"], content_mode=rss_config["content_mode"])
 
 @router.get("/atom.xml")
-async def atom_feed(request: Request, db: Session = Depends(get_db)):
+def atom_feed(request: Request, db: Session = Depends(get_db)):
     """
     Atom格式订阅源
     
@@ -88,7 +88,7 @@ async def atom_feed(request: Request, db: Session = Depends(get_db)):
     return generate_atom_feed(request, db, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"], content_mode=rss_config["content_mode"])
 
 @router.get("/feed/category/{category_slug}")
-async def category_rss_feed(category_slug: str, request: Request, db: Session = Depends(get_db)):
+def category_rss_feed(category_slug: str, request: Request, db: Session = Depends(get_db)):
     """
     分类RSS订阅源
     
@@ -105,7 +105,7 @@ async def category_rss_feed(category_slug: str, request: Request, db: Session = 
     return generate_rss_feed(request, db, category=category, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"], content_mode=rss_config["content_mode"])
 
 @router.get("/feed/tag/{tag_slug}")
-async def tag_rss_feed(tag_slug: str, request: Request, db: Session = Depends(get_db)):
+def tag_rss_feed(tag_slug: str, request: Request, db: Session = Depends(get_db)):
     """
     标签RSS订阅源
     
@@ -122,7 +122,7 @@ async def tag_rss_feed(tag_slug: str, request: Request, db: Session = Depends(ge
     return generate_rss_feed(request, db, tag=tag, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"], content_mode=rss_config["content_mode"])
 
 @router.get("/feed/format/{format_slug}")
-async def format_rss_feed(format_slug: str, request: Request, db: Session = Depends(get_db)):
+def format_rss_feed(format_slug: str, request: Request, db: Session = Depends(get_db)):
     """
     格式RSS订阅源
     

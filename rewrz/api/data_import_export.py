@@ -522,7 +522,7 @@ def _run_wordpress_import_job(job_id: str, wxr_path: str, options: Dict[str, Any
             pass
 
 
-async def data_management_page(
+def data_management_page(
     request: Request,
     db: Session,
     current_user: User
@@ -542,7 +542,7 @@ async def data_management_page(
 
 @router.get("/api/v1/export/json")
 @router.get("/api/export/json")
-async def export_data_json(
+def export_data_json(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -591,7 +591,7 @@ async def export_data_json(
 
 @router.get("/api/v1/export/backup")
 @router.get("/api/export/backup")
-async def export_backup_package(
+def export_backup_package(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -725,7 +725,7 @@ async def create_wordpress_import_task(
 
 @router.get("/api/v1/import/jobs/{job_id}")
 @router.get("/api/import/jobs/{job_id}")
-async def get_import_job_status(
+def get_import_job_status(
     job_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -745,7 +745,7 @@ async def get_import_job_status(
 
 @router.get("/api/v1/import/wordpress/options")
 @router.get("/api/import/wordpress/options")
-async def get_wordpress_import_options(
+def get_wordpress_import_options(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -755,7 +755,7 @@ async def get_wordpress_import_options(
 
 @router.post("/api/v1/import/wordpress/options")
 @router.post("/api/import/wordpress/options")
-async def update_wordpress_import_options(
+def update_wordpress_import_options(
     request: Request,
     payload: Dict[str, Any] = Body(...),
     db: Session = Depends(get_db),
@@ -907,7 +907,7 @@ async def import_backup_package(
 
 @router.get("/api/v1/data/stats")
 @router.get("/api/data/stats")
-async def get_data_stats(
+def get_data_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -970,7 +970,7 @@ async def get_data_stats(
 
 @router.post("/api/v1/database/vacuum")
 @router.post("/api/database/vacuum")
-async def vacuum_database(
+def vacuum_database(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -984,6 +984,18 @@ async def vacuum_database(
         db.commit()
     except Exception:
         db.rollback()
+
+    # 仍有其他请求持有连接时直接拒绝：VACUUM 会长时间占写锁，
+    # 在流量期间执行会把连接池和写路径一起拖住。
+    pool_status = db_manager.get_pool_status()
+    if int(pool_status.get("checked_out") or 0) > 2:
+        return JSONResponse(
+            {
+                "success": False,
+                "error": "当前仍有请求在使用数据库，请等流量空闲后再压缩。",
+            },
+            status_code=409,
+        )
 
     try:
         stats = vacuum_sqlite_database()

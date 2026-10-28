@@ -33,7 +33,7 @@ def _checkbox_to_bool(raw_value: Optional[str]) -> bool:
 
 
 # 评论设置页面已移至 main.py 中的动态路由注册系统
-async def comment_settings_page(
+def comment_settings_page(
     request: Request,
     db: Session,
     current_user: User

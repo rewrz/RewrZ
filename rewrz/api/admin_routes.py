@@ -7,6 +7,7 @@ from typing import Optional
 from fastapi import BackgroundTasks, Depends, FastAPI, Form, Header, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload, selectinload
@@ -62,32 +63,32 @@ def register_admin_primary_routes(
     admin_path = get_admin_path()
 
     @app.get(f"{admin_path}", response_class=HTMLResponse)
-    async def dynamic_admin_root_entry(
+    def dynamic_admin_root_entry(
         request: Request,
         db: Session = Depends(get_db),
     ):
         token = (request.cookies.get("access_token") or "").strip()
         if token:
             try:
-                await get_current_user(token=token, db=db)
+                get_current_user(token=token, db=db)
                 return RedirectResponse(url=f"{admin_path}/dashboard", status_code=303)
             except Exception:
                 pass
         return RedirectResponse(url=f"{admin_path}/login", status_code=303)
 
     @app.get(f"{admin_path}/login", response_class=HTMLResponse)
-    async def dynamic_admin_login_page(request: Request):
+    def dynamic_admin_login_page(request: Request):
         return templates.TemplateResponse(request, "admin/login.html", {"request": request, "admin_path": admin_path})
 
     @app.post(f"{admin_path}/auth")
-    async def dynamic_admin_login(
+    def dynamic_admin_login(
         request: Request,
         response: Response,
         background_tasks: BackgroundTasks,
         form_data: OAuth2PasswordRequestForm = Depends(),
         db: Session = Depends(get_db),
     ):
-        return await auth_api.login_for_access_token_impl(
+        return auth_api.login_for_access_token_impl(
             response,
             form_data,
             db,
@@ -96,11 +97,11 @@ def register_admin_primary_routes(
         )
 
     @app.get(f"{admin_path}/forgot-password", response_class=HTMLResponse)
-    async def dynamic_admin_forgot_password_page(request: Request):
+    def dynamic_admin_forgot_password_page(request: Request):
         return auth_api.forgot_password_page(request)
 
     @app.post(f"{admin_path}/forgot-password", response_class=HTMLResponse)
-    async def dynamic_admin_forgot_password_submit(
+    def dynamic_admin_forgot_password_submit(
         request: Request,
         background_tasks: BackgroundTasks,
         db: Session = Depends(get_db),
@@ -116,7 +117,7 @@ def register_admin_primary_routes(
         )
 
     @app.get(f"{admin_path}/reset-password", response_class=HTMLResponse, name="dynamic_admin_reset_password_page")
-    async def dynamic_admin_reset_password_page(
+    def dynamic_admin_reset_password_page(
         request: Request,
         token: str,
         db: Session = Depends(get_db),
@@ -124,7 +125,7 @@ def register_admin_primary_routes(
         return auth_api.reset_password_page(request, db, token=token)
 
     @app.post(f"{admin_path}/reset-password")
-    async def dynamic_admin_reset_password_submit(
+    def dynamic_admin_reset_password_submit(
         request: Request,
         db: Session = Depends(get_db),
         token: str = Form(...),
@@ -142,20 +143,20 @@ def register_admin_primary_routes(
         )
 
     @app.get(f"{admin_path}/dashboard", response_class=HTMLResponse)
-    async def dynamic_admin_dashboard_page(
+    def dynamic_admin_dashboard_page(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await admin_dashboard_api.dashboard_page(request, db, current_user)
+        return admin_dashboard_api.dashboard_page(request, db, current_user)
 
     @app.get(f"{admin_path}/settings", response_class=HTMLResponse)
-    async def dynamic_admin_settings_page(
+    def dynamic_admin_settings_page(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await settings_api.admin_settings_page(request, db, current_user)
+        return settings_api.admin_settings_page(request, db, current_user)
 
     @app.post(f"{admin_path}/settings", response_class=HTMLResponse)
     async def dynamic_update_admin_settings(
@@ -166,17 +167,17 @@ def register_admin_primary_routes(
         return await settings_api.update_admin_settings(request, db, current_user)
 
     @app.get(f"{admin_path}/users", response_class=HTMLResponse)
-    async def dynamic_admin_users_page(
+    def dynamic_admin_users_page(
         request: Request,
         page: int = 1,
         page_size: Optional[int] = None,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await users_api.admin_users_page(request, db, current_user)
+        return users_api.admin_users_page(request, db, current_user)
 
     @app.post(f"{admin_path}/users", response_class=HTMLResponse)
-    async def dynamic_update_admin_user_profile(
+    def dynamic_update_admin_user_profile(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
@@ -197,7 +198,7 @@ def register_admin_primary_routes(
         creator_profile_motto: Optional[str] = Form(None),
         csrf_token: str = Form(...),
     ):
-        return await users_api.update_admin_user_profile(
+        return users_api.update_admin_user_profile(
             request=request,
             db=db,
             current_user=current_user,
@@ -220,7 +221,7 @@ def register_admin_primary_routes(
         )
 
     @app.post(f"{admin_path}/api/v1/users")
-    async def dynamic_create_admin_user(
+    def dynamic_create_admin_user(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
@@ -231,7 +232,7 @@ def register_admin_primary_routes(
         display_name: Optional[str] = Form(None),
         csrf_token: str = Form(...),
     ):
-        return await users_api.create_admin_user_action(
+        return users_api.create_admin_user_action(
             request=request,
             db=db,
             current_user=current_user,
@@ -244,7 +245,7 @@ def register_admin_primary_routes(
         )
 
     @app.post(f"{admin_path}/api/v1/users/{{user_id}}/status")
-    async def dynamic_update_user_status(
+    def dynamic_update_user_status(
         user_id: int,
         request: Request,
         db: Session = Depends(get_db),
@@ -252,7 +253,7 @@ def register_admin_primary_routes(
         is_active: str = Form(...),
         csrf_token: str = Form(...),
     ):
-        return await users_api.update_user_status_action(
+        return users_api.update_user_status_action(
             request=request,
             db=db,
             current_user=current_user,
@@ -262,7 +263,7 @@ def register_admin_primary_routes(
         )
 
     @app.post(f"{admin_path}/api/v1/users/{{user_id}}/role")
-    async def dynamic_update_user_role(
+    def dynamic_update_user_role(
         user_id: int,
         request: Request,
         db: Session = Depends(get_db),
@@ -270,7 +271,7 @@ def register_admin_primary_routes(
         role: str = Form(...),
         csrf_token: str = Form(...),
     ):
-        return await users_api.update_user_role_action(
+        return users_api.update_user_role_action(
             request=request,
             db=db,
             current_user=current_user,
@@ -280,7 +281,7 @@ def register_admin_primary_routes(
         )
 
     @app.post(f"{admin_path}/api/v1/users/{{user_id}}/password")
-    async def dynamic_reset_user_password(
+    def dynamic_reset_user_password(
         user_id: int,
         request: Request,
         db: Session = Depends(get_db),
@@ -288,7 +289,7 @@ def register_admin_primary_routes(
         password: str = Form(...),
         csrf_token: str = Form(...),
     ):
-        return await users_api.reset_user_password_action(
+        return users_api.reset_user_password_action(
             request=request,
             db=db,
             current_user=current_user,
@@ -298,14 +299,14 @@ def register_admin_primary_routes(
         )
 
     @app.post(f"{admin_path}/api/v1/users/{{user_id}}/force-logout")
-    async def dynamic_force_logout_user(
+    def dynamic_force_logout_user(
         user_id: int,
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
         csrf_token: str = Form(...),
     ):
-        return await users_api.force_logout_user_action(
+        return users_api.force_logout_user_action(
             request=request,
             db=db,
             current_user=current_user,
@@ -314,15 +315,15 @@ def register_admin_primary_routes(
         )
 
     @app.get(f"{admin_path}/api-keys", response_class=HTMLResponse)
-    async def dynamic_admin_api_keys_page(
+    def dynamic_admin_api_keys_page(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await api_keys_api.admin_api_keys_page(request, db, current_user)
+        return api_keys_api.admin_api_keys_page(request, db, current_user)
 
     @app.post(f"{admin_path}/api/v1/api-keys")
-    async def dynamic_create_api_key(
+    def dynamic_create_api_key(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
@@ -332,7 +333,7 @@ def register_admin_primary_routes(
         expires_at: Optional[str] = Form(None),
         csrf_token: str = Form(...),
     ):
-        return await api_keys_api.create_api_key_action(
+        return api_keys_api.create_api_key_action(
             request=request,
             db=db,
             current_user=current_user,
@@ -344,7 +345,7 @@ def register_admin_primary_routes(
         )
 
     @app.post(f"{admin_path}/api/v1/api-keys/{{api_key_id}}/status")
-    async def dynamic_update_api_key_status(
+    def dynamic_update_api_key_status(
         api_key_id: int,
         request: Request,
         db: Session = Depends(get_db),
@@ -352,7 +353,7 @@ def register_admin_primary_routes(
         status: str = Form(...),
         csrf_token: str = Form(...),
     ):
-        return await api_keys_api.update_api_key_status_action(
+        return api_keys_api.update_api_key_status_action(
             request=request,
             db=db,
             current_user=current_user,
@@ -362,7 +363,7 @@ def register_admin_primary_routes(
         )
 
     @app.post(f"{admin_path}/api/v1/api-keys/{{api_key_id}}/rotate")
-    async def dynamic_rotate_api_key(
+    def dynamic_rotate_api_key(
         api_key_id: int,
         request: Request,
         db: Session = Depends(get_db),
@@ -370,7 +371,7 @@ def register_admin_primary_routes(
         expires_at: Optional[str] = Form(None),
         csrf_token: str = Form(...),
     ):
-        return await api_keys_api.rotate_api_key_action(
+        return api_keys_api.rotate_api_key_action(
             request=request,
             db=db,
             current_user=current_user,
@@ -380,14 +381,14 @@ def register_admin_primary_routes(
         )
 
     @app.post(f"{admin_path}/api/v1/api-keys/{{api_key_id}}/delete")
-    async def dynamic_delete_api_key(
+    def dynamic_delete_api_key(
         api_key_id: int,
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
         csrf_token: str = Form(...),
     ):
-        return await api_keys_api.delete_api_key_action(
+        return api_keys_api.delete_api_key_action(
             request=request,
             db=db,
             current_user=current_user,
@@ -447,7 +448,7 @@ def register_admin_primary_routes(
         )
 
     @app.post(f"{admin_path}/api/v1/admin/themes/background")
-    async def dynamic_update_background_image(
+    def dynamic_update_background_image(
         request: Request,
         background_type: str = Form(...),
         custom_background_url: Optional[str] = Form(None),
@@ -455,7 +456,7 @@ def register_admin_primary_routes(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await themes_api.update_background_image(
+        return themes_api.update_background_image(
             request=request,
             db=db,
             current_user=current_user,
@@ -465,36 +466,36 @@ def register_admin_primary_routes(
         )
 
     @app.get(f"{admin_path}/media", response_class=HTMLResponse)
-    async def dynamic_admin_media_page(
+    def dynamic_admin_media_page(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await media_api.media_library_page(request, db, current_user)
+        return media_api.media_library_page(request, db, current_user)
 
     @app.get(f"{admin_path}/media/settings", response_class=HTMLResponse)
-    async def dynamic_admin_media_settings_page(
+    def dynamic_admin_media_settings_page(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await media_settings_api.media_settings_page(request, db, current_user)
+        return media_settings_api.media_settings_page(request, db, current_user)
 
     @app.get(f"{admin_path}/themes", response_class=HTMLResponse)
-    async def dynamic_admin_themes_page(
+    def dynamic_admin_themes_page(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await themes_api.admin_theme_system_page(request, db, current_user)
+        return themes_api.admin_theme_system_page(request, db, current_user)
 
     @app.get(f"{admin_path}/effects", response_class=HTMLResponse)
-    async def dynamic_admin_effects_page(
+    def dynamic_admin_effects_page(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await themes_api.admin_effects_page(request, db, current_user)
+        return themes_api.admin_effects_page(request, db, current_user)
 
     @app.post(f"{admin_path}/themes/update")
     async def dynamic_update_theme(
@@ -503,7 +504,7 @@ def register_admin_primary_routes(
         current_user: User = Depends(get_current_user),
     ):
         form_data = await request.form()
-        return await themes_api.update_theme_settings(
+        return await run_in_threadpool(themes_api.update_theme_settings, 
             request=request,
             db=db,
             current_user=current_user,
@@ -519,7 +520,7 @@ def register_admin_primary_routes(
         current_user: User = Depends(get_current_user),
     ):
         form_data = await request.form()
-        return await themes_api.update_effects_settings(
+        return await run_in_threadpool(themes_api.update_effects_settings, 
             request=request,
             db=db,
             current_user=current_user,
@@ -534,7 +535,7 @@ def register_admin_primary_routes(
         current_user: User = Depends(get_current_user),
     ):
         form_data = await request.form()
-        return await themes_api.create_custom_theme(
+        return await run_in_threadpool(themes_api.create_custom_theme, 
             request=request,
             db=db,
             current_user=current_user,
@@ -544,14 +545,14 @@ def register_admin_primary_routes(
         )
 
     @app.delete(f"{admin_path}/themes/custom/{{theme_name}}")
-    async def dynamic_delete_custom_theme(
+    def dynamic_delete_custom_theme(
         theme_name: str,
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
         csrf_token: str = Header(..., alias="X-CSRF-Token"),
     ):
-        return await themes_api.delete_custom_theme(theme_name, request, db, current_user, csrf_token)
+        return themes_api.delete_custom_theme(theme_name, request, db, current_user, csrf_token)
 
     @app.post(f"{admin_path}/themes/schedule")
     async def dynamic_schedule_themes(
@@ -596,7 +597,7 @@ def register_admin_primary_routes(
         return JSONResponse({"success": True, "message": "节日特效调度已更新"})
 
     @app.get(f"{admin_path}/posts", response_class=HTMLResponse)
-    async def dynamic_admin_posts_list_page(
+    def dynamic_admin_posts_list_page(
         request: Request,
         search: Optional[str] = None,
         status: Optional[str] = None,
@@ -767,7 +768,7 @@ def register_admin_primary_routes(
         })
 
     @app.get(f"{admin_path}/api/v1/categories/options")
-    async def dynamic_get_category_options(
+    def dynamic_get_category_options(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
@@ -779,7 +780,7 @@ def register_admin_primary_routes(
         return HTMLResponse(content=options_html)
 
     @app.get(f"{admin_path}/categories", response_class=HTMLResponse)
-    async def dynamic_admin_categories_page(
+    def dynamic_admin_categories_page(
         request: Request,
         search: Optional[str] = None,
         usage: Optional[str] = None,
@@ -894,7 +895,7 @@ def register_admin_primary_routes(
         })
 
     @app.get(f"{admin_path}/tags", response_class=HTMLResponse)
-    async def dynamic_admin_tags_page(
+    def dynamic_admin_tags_page(
         request: Request,
         search: Optional[str] = None,
         usage: Optional[str] = None,
@@ -1008,7 +1009,7 @@ def register_admin_primary_routes(
         })
 
     @app.get(f"{admin_path}/comments", response_class=HTMLResponse)
-    async def dynamic_admin_comments_page(
+    def dynamic_admin_comments_page(
         request: Request,
         status: Optional[str] = None,
         search: Optional[str] = None,
@@ -1138,7 +1139,7 @@ def register_admin_primary_routes(
         })
 
     @app.get(f"{admin_path}/pages", response_class=HTMLResponse)
-    async def dynamic_admin_pages_page(
+    def dynamic_admin_pages_page(
         request: Request,
         search: Optional[str] = None,
         status: Optional[str] = None,
@@ -1262,30 +1263,30 @@ def register_admin_primary_routes(
         })
 
     @app.get(f"{admin_path}/system-info", response_class=HTMLResponse)
-    async def dynamic_admin_system_info_page(
+    def dynamic_admin_system_info_page(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await system_info_api.system_info_page(request, db, current_user)
+        return system_info_api.system_info_page(request, db, current_user)
 
     @app.get(f"{admin_path}/api/v1/system-info")
-    async def dynamic_get_system_info_api(
+    def dynamic_get_system_info_api(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await system_info_api.get_system_info_api(db, current_user)
+        return system_info_api.get_system_info_api(db, current_user)
 
     @app.get(f"{admin_path}/error-settings", response_class=HTMLResponse)
-    async def dynamic_admin_error_settings_page(
+    def dynamic_admin_error_settings_page(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await error_config_api.error_settings_page(request, db, current_user)
+        return error_config_api.error_settings_page(request, db, current_user)
 
     @app.post(f"{admin_path}/error-settings")
-    async def dynamic_update_error_settings(
+    def dynamic_update_error_settings(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
@@ -1308,7 +1309,7 @@ def register_admin_primary_routes(
         reading_time_cache_duration: int = Form(7200),
         csrf_token: str = Form(...),
     ):
-        return await error_config_api.update_error_settings(
+        return error_config_api.update_error_settings(
             request,
             db,
             current_user,
@@ -1333,25 +1334,25 @@ def register_admin_primary_routes(
         )
 
     @app.get(f"{admin_path}/comment-settings", response_class=HTMLResponse)
-    async def dynamic_admin_comment_settings_page(
+    def dynamic_admin_comment_settings_page(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await comment_settings_api.comment_settings_page(request, db, current_user)
+        return comment_settings_api.comment_settings_page(request, db, current_user)
 
     @app.get(f"{admin_path}/security-center", response_class=HTMLResponse)
-    async def dynamic_admin_security_center_page(
+    def dynamic_admin_security_center_page(
         request: Request,
         page: int = 1,
         page_size: Optional[int] = None,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await security_center_api.security_center_page(request, db, current_user)
+        return security_center_api.security_center_page(request, db, current_user)
 
     @app.post(f"{admin_path}/security-center", response_class=HTMLResponse)
-    async def dynamic_update_security_center(
+    def dynamic_update_security_center(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
@@ -1363,7 +1364,7 @@ def register_admin_primary_routes(
         login_audit_retention_days: int = Form(30),
         csrf_token: str = Form(...),
     ):
-        return await security_center_api.update_security_center(
+        return security_center_api.update_security_center(
             request=request,
             db=db,
             current_user=current_user,
@@ -1377,14 +1378,14 @@ def register_admin_primary_routes(
         )
 
     @app.post(f"{admin_path}/security-center/audit/cleanup", response_class=HTMLResponse)
-    async def dynamic_clear_security_audit_logs(
+    def dynamic_clear_security_audit_logs(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
         clear_mode: str = Form(...),
         csrf_token: str = Form(...),
     ):
-        return await security_center_api.clear_security_audit_logs(
+        return security_center_api.clear_security_audit_logs(
             request=request,
             db=db,
             current_user=current_user,
@@ -1393,12 +1394,12 @@ def register_admin_primary_routes(
         )
 
     @app.get(f"{admin_path}/data-management", response_class=HTMLResponse)
-    async def dynamic_admin_data_management_page(
+    def dynamic_admin_data_management_page(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ):
-        return await data_api.data_management_page(request, db, current_user)
+        return data_api.data_management_page(request, db, current_user)
 
     app.include_router(data_api.router, prefix=admin_path)
     app.include_router(categories_api.router, prefix=admin_path)

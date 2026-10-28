@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from datetime import datetime
 
 from rewrz.core.cache import clear_cache, cache_key_for_setting
@@ -45,7 +46,13 @@ def test_homepage_stats_snapshot_uses_cache_until_expired(test_db):
     clear_public_metrics_memory_cache()
 
     third = get_homepage_stats_snapshot(test_db, loader=loader, ttl_seconds=900)
-    assert third["cache_hit"] is False
+    # 过期快照立即返回，刷新由后台线程完成
+    assert third["cache_hit"] is True
+    assert third["stale"] is True
+    assert third["total_views"] == 6
+    deadline = time.time() + 3
+    while call_count["value"] < 2 and time.time() < deadline:
+        time.sleep(0.02)
     assert call_count["value"] == 2
 
 
@@ -82,5 +89,11 @@ def test_format_archive_stats_snapshot_uses_cache_until_expired(test_db):
     clear_public_metrics_memory_cache()
 
     third = get_format_archive_stats_snapshot(test_db, cache_key=cache_key, loader=loader, ttl_seconds=900)
-    assert third["cache_hit"] is False
+    # 过期快照立即返回，刷新由后台线程完成
+    assert third["cache_hit"] is True
+    assert third["stale"] is True
+    assert third["micro_interaction_count"] == 12
+    deadline = time.time() + 3
+    while call_count["value"] < 2 and time.time() < deadline:
+        time.sleep(0.02)
     assert call_count["value"] == 2

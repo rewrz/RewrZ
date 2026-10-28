@@ -143,7 +143,7 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
     }
     return settings_data
 
-async def admin_settings_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def admin_settings_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     settings_data = _get_settings_data(db, request, current_user)
     
     return templates.TemplateResponse(request, "admin/settings.html", {

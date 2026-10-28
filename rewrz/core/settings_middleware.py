@@ -6,12 +6,13 @@
 """
 from fastapi import Request
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 from typing import Dict, Any
 
 from ..crud import setting as crud_setting
-from ..core.database import get_db
+from ..core.database import get_db, reset_db_request_info, set_db_request_info
 from ..core.template_context import (
     HOMEPAGE_SETTING_KEYS, 
     DEFAULT_HOMEPAGE_SETTINGS, 
@@ -19,6 +20,25 @@ from ..core.template_context import (
     CODE_HIGHLIGHT_THEME_OPTIONS,
     normalize_rss_content_mode,
 )
+
+
+def _load_settings_from_db(request: Request, setting_keys: list[str]) -> Dict[str, Any]:
+    """在同步线程中批量读取设置，避免数据库等待阻塞事件循环。"""
+    db_gen = None
+    try:
+        db: Session = getattr(request.state, "db", None)
+        if db is None:
+            db_gen = get_db()
+            db = next(db_gen)
+        if db is None:
+            raise RuntimeError("Database session is unavailable")
+        return crud_setting.get_settings_by_keys(db, setting_keys)
+    finally:
+        if db_gen is not None:
+            try:
+                db_gen.close()
+            except Exception:
+                pass
 
 
 class SettingsMiddleware(BaseHTTPMiddleware):
@@ -79,23 +99,21 @@ class SettingsMiddleware(BaseHTTPMiddleware):
         # 添加主页个性化设置键
         all_setting_keys.extend(HOMEPAGE_SETTING_KEYS)
 
-        db_gen = None
         try:
             # 先查批量设置缓存：命中时完全不需要创建数据库会话，
             # 匿名访客的绝大多数请求都能走这条路径。
             all_settings = crud_setting.get_cached_settings_by_keys(all_setting_keys)
             if all_settings is None:
-                # 优先复用 request 级数据库会话
-                db: Session = getattr(request.state, "db", None)
-                if db is None:
-                    db_gen = get_db()
-                    db = next(db_gen)
-
-                if db is None:
-                    raise RuntimeError("Database session is unavailable")
-
-                # 批量加载所有设置
-                all_settings = crud_setting.get_settings_by_keys(db, all_setting_keys)
+                # 缓存未命中时才查库；数据库等待放到线程池，避免阻塞事件循环
+                db_context_token = set_db_request_info(
+                    f"settings {request.method} {request.url.path}"
+                )
+                try:
+                    all_settings = await run_in_threadpool(
+                        _load_settings_from_db, request, all_setting_keys
+                    )
+                finally:
+                    reset_db_request_info(db_context_token)
             raw_code_highlight_theme = all_settings.get(
                 "code_highlight_theme",
                 DEFAULT_BASE_SETTINGS["code_highlight_theme"],
@@ -223,13 +241,6 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                 setattr(request.state, key, default_value)
             for key, default_value in DEFAULT_HOMEPAGE_SETTINGS.items():
                 setattr(request.state, key, default_value)
-        finally:
-            # 确保通过 get_db() 打开的会话被正确关闭，避免连接池泄漏
-            if db_gen is not None:
-                try:
-                    db_gen.close()
-                except Exception:
-                    pass
         
         # 继续处理请求
         response = await call_next(request)

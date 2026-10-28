@@ -33,7 +33,7 @@ router = APIRouter()
 templates = get_templates()
 
 
-async def system_info_page(
+def system_info_page(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -44,7 +44,7 @@ async def system_info_page(
     显示完整的系统运行环境信息
     """
     # 收集系统信息
-    system_info = await get_system_info(db)
+    system_info = get_system_info(db)
     
     return templates.TemplateResponse(request, "admin/system_info.html", {
         "request": request,
@@ -54,7 +54,7 @@ async def system_info_page(
     })
 
 
-async def get_system_info_api(
+def get_system_info_api(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -67,7 +67,7 @@ async def get_system_info_api(
     
     try:
         # 收集最新的系统信息
-        system_info = await get_system_info(db)
+        system_info = get_system_info(db)
         
         return JSONResponse({
             "success": True,
@@ -84,7 +84,7 @@ async def get_system_info_api(
         }, status_code=500)
 
 
-async def get_system_info(db: Session) -> Dict[str, Any]:
+def get_system_info(db: Session) -> Dict[str, Any]:
     """
     收集系统信息
     
@@ -130,10 +130,10 @@ async def get_system_info(db: Session) -> Dict[str, Any]:
     info['frameworks'] = get_framework_versions()
     
     # 数据库信息
-    info['database'] = await get_database_info(db)
+    info['database'] = get_database_info(db)
     
     # 媒体库信息
-    info['media'] = await get_media_info(db)
+    info['media'] = get_media_info(db)
     
     # 系统资源信息
     info['resources'] = get_system_resources()
@@ -248,7 +248,7 @@ def _get_database_table_count(db: Session, dialect_name: str):
         return f"无法获取：{exc}"
 
 
-async def get_database_info(db: Session) -> Dict[str, Any]:
+def get_database_info(db: Session) -> Dict[str, Any]:
     """获取数据库信息。
 
     以当前会话实际绑定的引擎为准，而不是读取进程环境变量：
@@ -302,7 +302,7 @@ async def get_database_info(db: Session) -> Dict[str, Any]:
     return db_info
 
 
-async def get_media_info(db: Session) -> Dict[str, Any]:
+def get_media_info(db: Session) -> Dict[str, Any]:
     """获取媒体库信息。
 
     统计口径以数据库记录为准，并使用聚合查询：

@@ -110,7 +110,7 @@ async def upload_user_avatar(
 
 
 @router.put("/api/v1/users/{user_id}/avatar/settings")
-async def update_avatar_settings(
+def update_avatar_settings(
     user_id: int,
     avatar_settings: UserAvatarUpdate,
     db: Session = Depends(get_db),
@@ -136,7 +136,7 @@ async def update_avatar_settings(
 
 
 @router.delete("/api/v1/users/{user_id}/avatar")
-async def delete_user_avatar(
+def delete_user_avatar(
     user_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -163,7 +163,7 @@ async def delete_user_avatar(
 
 
 @router.get("/api/v1/users/{user_id}/avatar")
-async def get_user_avatar_info(
+def get_user_avatar_info(
     user_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -194,7 +194,7 @@ async def get_user_avatar_info(
 
 
 @router.get("/media/avatars/{filename}")
-async def serve_avatar_file(
+def serve_avatar_file(
     filename: str,
     db: Session = Depends(get_db),
 ):
@@ -217,7 +217,7 @@ async def serve_avatar_file(
 
 
 @router.get("/api/v1/avatar/preview")
-async def preview_gravatar(
+def preview_gravatar(
     email: str,
     size: int = 80,
     db: Session = Depends(get_db),

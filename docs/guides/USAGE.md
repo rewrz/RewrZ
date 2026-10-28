@@ -160,7 +160,7 @@ MEDIA_UPLOAD_DIR=media_uploads
 ### Q5：宝塔下出现 502 Bad Gateway？
 通常是 Python 项目进程没起来或端口不一致，按顺序检查：
 1. 宝塔 Python 项目是否正在运行（先重启一次项目）
-2. 启动命令是否正确：`.venv/bin/uvicorn rewrz.main:app --host 127.0.0.1 --port 8000 --workers 1`（小内存服务器必须单 worker）
+2. 启动命令是否正确：`.venv/bin/uvicorn rewrz.main:app --host 127.0.0.1 --port 8000 --workers 1 --limit-concurrency 20`（小内存服务器必须单 worker，并发上限与默认连接池 16+8 配合）
 3. Nginx 反代端口是否和 Python 项目一致（例如都为 `8000`）
 4. 项目日志是否报错（缺依赖、权限不足、`.env` 配置错误）
 

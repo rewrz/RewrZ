@@ -23,7 +23,7 @@ router = APIRouter()
 templates = get_templates()
 
 
-async def admin_api_keys_page(request: Request, db: Session, current_user: User):
+def admin_api_keys_page(request: Request, db: Session, current_user: User):
     ensure_admin_user(current_user)
     api_keys = crud_api_key.get_api_keys(db)
     return templates.TemplateResponse(
@@ -39,11 +39,11 @@ async def admin_api_keys_page(request: Request, db: Session, current_user: User)
 
 
 @router.get("/api/v1/admin/api-keys")
-async def get_api_keys_public_guard():
+def get_api_keys_public_guard():
     raise HTTPException(status_code=404, detail="Not found")
 
 
-async def create_api_key_action(
+def create_api_key_action(
     request: Request,
     db: Session,
     current_user: User,
@@ -107,7 +107,7 @@ async def create_api_key_action(
     )
 
 
-async def update_api_key_status_action(
+def update_api_key_status_action(
     request: Request,
     db: Session,
     current_user: User,
@@ -136,7 +136,7 @@ async def update_api_key_status_action(
     return {"success": True, "message": "API Key 状态已更新"}
 
 
-async def rotate_api_key_action(
+def rotate_api_key_action(
     request: Request,
     db: Session,
     current_user: User,
@@ -195,7 +195,7 @@ async def rotate_api_key_action(
     )
 
 
-async def delete_api_key_action(
+def delete_api_key_action(
     request: Request,
     db: Session,
     current_user: User,
@@ -222,7 +222,7 @@ async def delete_api_key_action(
     return {"success": True, "message": "API Key 已删除"}
 
 
-async def update_api_key_action(
+def update_api_key_action(
     request: Request,
     db: Session,
     current_user: User,

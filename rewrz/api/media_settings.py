@@ -66,7 +66,7 @@ def _normalize_csv_text(raw: str) -> str:
     return ",".join(items)
 
 
-async def media_settings_page(
+def media_settings_page(
     request: Request,
     db: Session,
     current_user: User,
@@ -290,7 +290,7 @@ async def update_media_settings(
 
 
 @router.get(f"{ADMIN_PATH}/api/v1/media/settings/current")
-async def get_current_media_settings(
+def get_current_media_settings(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

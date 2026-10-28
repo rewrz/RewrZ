@@ -112,11 +112,11 @@ def _render_security_center(
     )
 
 
-async def security_center_page(request: Request, db: Session, current_user: User) -> HTMLResponse:
+def security_center_page(request: Request, db: Session, current_user: User) -> HTMLResponse:
     return _render_security_center(request, user=current_user, db=db)
 
 
-async def update_security_center(
+def update_security_center(
     request: Request,
     db: Session,
     current_user: User,
@@ -156,7 +156,7 @@ async def update_security_center(
     )
 
 
-async def clear_security_audit_logs(
+def clear_security_audit_logs(
     request: Request,
     db: Session,
     current_user: User,

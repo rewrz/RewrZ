@@ -41,7 +41,7 @@ def verify_password(plain_password, hashed_password) -> bool:
 def get_password_hash(password) -> str:
     return bcrypt.hashpw(_encode_password(password), bcrypt.gensalt()).decode("utf-8")
 
-async def get_token_from_cookie(request: Request):
+def get_token_from_cookie(request: Request):
     token = request.cookies.get("access_token")
     if not token:
         raise HTTPException(
@@ -96,7 +96,8 @@ def should_use_secure_cookie(connection: HTTPConnection) -> bool:
     return str(getattr(connection.url, "scheme", "")).lower() == "https"
 
 # Dependency to get current user (for protected routes)
-async def get_current_user(token: str = Depends(get_token_from_cookie), db: Session = Depends(get_db)):
+# 同步依赖：FastAPI 会把同步依赖放进线程池执行，避免用户查询阻塞事件循环
+def get_current_user(token: str = Depends(get_token_from_cookie), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

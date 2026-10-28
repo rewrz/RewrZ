@@ -93,7 +93,7 @@ def _normalize_error_config(config_data: Dict[str, Any]) -> Dict[str, Any]:
     return normalized
 
 
-async def error_settings_page(
+def error_settings_page(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -115,7 +115,7 @@ async def error_settings_page(
     })
 
 
-async def update_error_settings(
+def update_error_settings(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

@@ -112,7 +112,7 @@ def _redirect_analytics(request: Request, *, range_key: str, start: str, end: st
 
 
 @router.get(f"{ADMIN_PATH}/analytics", response_class=HTMLResponse)
-async def analytics_page(
+def analytics_page(
     request: Request,
     range_key: str = Query("today", alias="range"),
     start: str = Query(""),
@@ -146,7 +146,7 @@ async def analytics_page(
 
 
 @router.get(f"{ADMIN_PATH}/api/v1/analytics/summary")
-async def analytics_summary(
+def analytics_summary(
     request: Request,
     range_key: str = Query("today", alias="range"),
     start: str = Query(""),
@@ -163,7 +163,7 @@ async def analytics_summary(
 
 
 @router.get(f"{ADMIN_PATH}/api/v1/analytics/live", response_class=HTMLResponse)
-async def analytics_live(
+def analytics_live(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -178,7 +178,7 @@ async def analytics_live(
 
 
 @router.get(f"{ADMIN_PATH}/api/v1/dashboard/traffic-summary", response_class=HTMLResponse)
-async def dashboard_traffic_summary(
+def dashboard_traffic_summary(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -197,7 +197,7 @@ async def dashboard_traffic_summary(
 
 
 @router.post(f"{ADMIN_PATH}/analytics/settings")
-async def update_analytics_settings(
+def update_analytics_settings(
     request: Request,
     enabled: Optional[str] = Form(None),
     retention_days: int = Form(365),
@@ -226,7 +226,7 @@ async def update_analytics_settings(
 
 
 @router.post(f"{ADMIN_PATH}/analytics/clear")
-async def clear_analytics(
+def clear_analytics(
     request: Request,
     range_key: str = Form("today", alias="range"),
     start: str = Form(""),

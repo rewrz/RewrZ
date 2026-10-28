@@ -1,8 +1,12 @@
+import logging
 import os
 import shutil
 import sqlite3
+import sys
 import threading
 import time
+import traceback
+from contextvars import ContextVar
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
@@ -11,6 +15,86 @@ from ..models.base import Base
 from .config import settings
 
 VALID_SQLITE_JOURNAL_MODES = {"DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"}
+
+logger = logging.getLogger("rewrz.database")
+
+# 当前请求的数据库诊断信息（请求ID + 方法 + 路径），由中间件写入。
+# 同步路由会在线程池中执行，contextvars 会自动传递。
+_DB_REQUEST_INFO: ContextVar[str] = ContextVar("rewrz_db_request_info", default="")
+
+# 慢 SQL / 连接长期持有的告警阈值，可通过环境变量覆盖
+_SLOW_SQL_LOG_MS = 500
+_DB_HOLD_WARN_MS = 3000
+# 连接池看门狗：持续饱和超过该时长才输出线程栈，避免瞬时并发误报
+_POOL_WATCHDOG_INTERVAL_SECONDS = 5.0
+_POOL_WATCHDOG_SATURATION_SECONDS = 30.0
+_POOL_WATCHDOG_LOG_INTERVAL_SECONDS = 60.0
+_POOL_WATCHDOG_SATURATION_RATIO = 0.8
+_MAX_DUMPED_THREADS = 8
+
+
+def set_db_request_info(info: str):
+    """写入当前请求的诊断信息，返回可用于恢复的 token。"""
+    return _DB_REQUEST_INFO.set(str(info or ""))
+
+
+def reset_db_request_info(token) -> None:
+    """恢复请求诊断信息，跨任务复用时避免串值。"""
+    if token is None:
+        return
+    try:
+        _DB_REQUEST_INFO.reset(token)
+    except (ValueError, RuntimeError):
+        pass
+
+
+def get_db_request_info() -> str:
+    return _DB_REQUEST_INFO.get()
+
+
+class _PoolDiagnostics:
+    """追踪连接池中每个连接的持有者，供超时日志与看门狗定位卡点。"""
+
+    def __init__(self, hold_warn_ms: int = _DB_HOLD_WARN_MS):
+        self._lock = threading.Lock()
+        self._checked_out: dict[int, dict] = {}
+        self.hold_warn_ms = max(100, int(hold_warn_ms or _DB_HOLD_WARN_MS))
+
+    def on_checkout(self, connection_record) -> None:
+        info = {
+            "at": time.monotonic(),
+            "request": _DB_REQUEST_INFO.get() or "后台任务/非请求线程",
+            "thread": threading.current_thread().name,
+        }
+        with self._lock:
+            self._checked_out[id(connection_record)] = info
+
+    def on_checkin(self, connection_record) -> None:
+        with self._lock:
+            info = self._checked_out.pop(id(connection_record), None)
+        if not info:
+            return
+        held_ms = (time.monotonic() - info["at"]) * 1000
+        if held_ms >= self.hold_warn_ms:
+            logger.warning(
+                "数据库连接持有过久 %.0fms｜请求: %s｜线程: %s",
+                held_ms,
+                info["request"],
+                info["thread"],
+            )
+
+    def snapshot(self, limit: int = 20) -> list[dict]:
+        now = time.monotonic()
+        with self._lock:
+            items = list(self._checked_out.values())[:limit]
+        return [
+            {
+                "held_ms": round((now - item["at"]) * 1000),
+                "request": item["request"],
+                "thread": item["thread"],
+            }
+            for item in items
+        ]
 
 
 def _is_sqlite_url(database_url: str) -> bool:
@@ -59,15 +143,102 @@ class DatabaseManager:
         self._initialized = False
         self._pool_timeout_count = 0
         self._pool_timeout_lock = threading.Lock()
+        # 会话建立现在分散在线程池线程里，.env 变化时可能被并发触发重建引擎
+        self._reload_lock = threading.Lock()
+        self._diagnostics = _PoolDiagnostics()
+        self._watchdog_stop = threading.Event()
+        self._watchdog_thread: threading.Thread | None = None
         self.initialize()
-    
+        self._start_watchdog()
+
+    def _start_watchdog(self) -> None:
+        """启动连接池看门狗（幂等）。饱和超时后输出持有者与线程栈。"""
+        if self._watchdog_thread is not None and self._watchdog_thread.is_alive():
+            return
+        self._watchdog_thread = threading.Thread(
+            target=self._watchdog_loop,
+            name="rewrz-db-watchdog",
+            daemon=True,
+        )
+        self._watchdog_thread.start()
+
+    def _watchdog_loop(self) -> None:
+        saturated_since = None
+        last_log_at = 0.0
+        while not self._watchdog_stop.wait(_POOL_WATCHDOG_INTERVAL_SECONDS):
+            try:
+                engine = self.engine
+                if engine is None or not self._initialized:
+                    saturated_since = None
+                    continue
+                pool = engine.pool
+                get_size = getattr(pool, "size", None)
+                get_checked_out = getattr(pool, "checkedout", None)
+                if not callable(get_size) or not callable(get_checked_out):
+                    saturated_since = None
+                    continue
+                size = int(get_size() or 0)
+                checked_out = int(get_checked_out() or 0)
+                capacity = max(
+                    1,
+                    int(getattr(settings, "DB_POOL_SIZE", 10) or 10)
+                    + int(getattr(settings, "DB_MAX_OVERFLOW", 0) or 0),
+                )
+                now = time.monotonic()
+                if size > 0 and checked_out >= max(1, int(capacity * _POOL_WATCHDOG_SATURATION_RATIO)):
+                    if saturated_since is None:
+                        saturated_since = now
+                    elapsed = now - saturated_since
+                    if (
+                        elapsed >= _POOL_WATCHDOG_SATURATION_SECONDS
+                        and now - last_log_at >= _POOL_WATCHDOG_LOG_INTERVAL_SECONDS
+                    ):
+                        last_log_at = now
+                        self._dump_pool_saturation(elapsed, checked_out, capacity)
+                else:
+                    if saturated_since is not None and now - saturated_since >= _POOL_WATCHDOG_SATURATION_SECONDS:
+                        logger.warning("数据库连接池已恢复，持续饱和约 %.0f 秒", now - saturated_since)
+                    saturated_since = None
+            except Exception:
+                logger.debug("连接池看门狗检查失败", exc_info=True)
+
+    def _dump_pool_saturation(self, elapsed: float, checked_out: int, capacity: int) -> None:
+        holders = self._diagnostics.snapshot()
+        logger.error(
+            "数据库连接池持续饱和 %.0f 秒：checked_out=%s/%s，持有明细=%s",
+            elapsed,
+            checked_out,
+            capacity,
+            holders or "未知",
+        )
+        frames = sys._current_frames()
+        current = threading.current_thread()
+        dumped = 0
+        for thread in threading.enumerate():
+            if thread is current or thread.ident is None:
+                continue
+            name = thread.name or ""
+            if not name.startswith(("AnyIO", "asyncio", "MainThread", "uvicorn")) and "rewrz" not in name:
+                continue
+            frame = frames.get(thread.ident)
+            if frame is None:
+                continue
+            stack = "".join(traceback.format_stack(frame, limit=12))
+            logger.error("线程 %s 当前堆栈:\n%s", name, stack.rstrip())
+            dumped += 1
+            if dumped >= _MAX_DUMPED_THREADS:
+                break
+
     def initialize(self) -> bool:
         """初始化或重新初始化数据库连接"""
         if settings.installation_complete and settings.DATABASE_URL:
             # 清理旧连接
             if self.engine:
                 self.engine.dispose()
-            
+
+            # 每次重建引擎都换一份诊断状态，避免旧连接的持有记录残留
+            self._diagnostics = _PoolDiagnostics()
+
             database_url = settings.DATABASE_URL
             is_sqlite = _is_sqlite_url(database_url)
             if is_sqlite:
@@ -81,19 +252,20 @@ class DatabaseManager:
                 }
             if not (is_sqlite and _is_memory_sqlite_url(database_url)):
                 engine_kwargs.update({
-                    "pool_size": int(getattr(settings, "DB_POOL_SIZE", 10)),
-                    "max_overflow": int(getattr(settings, "DB_MAX_OVERFLOW", 20)),
-                    "pool_timeout": int(getattr(settings, "DB_POOL_TIMEOUT", 10)),
+                    "pool_size": int(getattr(settings, "DB_POOL_SIZE", 16)),
+                    "max_overflow": int(getattr(settings, "DB_MAX_OVERFLOW", 8)),
+                    "pool_timeout": int(getattr(settings, "DB_POOL_TIMEOUT", 3)),
                 })
             if is_sqlite:
                 engine_kwargs["connect_args"] = {
                     "check_same_thread": False,
-                    "timeout": max(1, int(getattr(settings, "SQLITE_BUSY_TIMEOUT_MS", 30000) or 30000)) / 1000,
+                    "timeout": max(1, int(getattr(settings, "SQLITE_BUSY_TIMEOUT_MS", 5000) or 5000)) / 1000,
                 }
 
             self.engine = create_engine(database_url, **engine_kwargs)
             if is_sqlite:
                 self._configure_sqlite(self.engine)
+            self._configure_diagnostics(self.engine)
             self.SessionLocal = sessionmaker(
                 autocommit=False, 
                 autoflush=False, 
@@ -108,7 +280,7 @@ class DatabaseManager:
         journal_mode = str(getattr(settings, "SQLITE_JOURNAL_MODE", "WAL") or "WAL").strip().upper()
         if journal_mode not in VALID_SQLITE_JOURNAL_MODES:
             journal_mode = "WAL"
-        busy_timeout_ms = max(1000, int(getattr(settings, "SQLITE_BUSY_TIMEOUT_MS", 30000) or 30000))
+        busy_timeout_ms = max(1000, int(getattr(settings, "SQLITE_BUSY_TIMEOUT_MS", 5000) or 5000))
         cache_size_kib = max(256, int(getattr(settings, "SQLITE_CACHE_SIZE_KIB", 1024) or 1024))
         synchronous = str(getattr(settings, "SQLITE_SYNCHRONOUS", "NORMAL") or "NORMAL").strip().upper()
         if synchronous not in {"OFF", "NORMAL", "FULL", "EXTRA"}:
@@ -125,6 +297,43 @@ class DatabaseManager:
                 cursor.execute(f"PRAGMA synchronous={synchronous}")
             finally:
                 cursor.close()
+
+    def _configure_diagnostics(self, engine) -> None:
+        """注册慢 SQL、连接持有与池事件的诊断监听器。"""
+        slow_sql_ms = max(50, int(getattr(settings, "SLOW_SQL_LOG_MS", _SLOW_SQL_LOG_MS) or _SLOW_SQL_LOG_MS))
+        hold_warn_ms = max(
+            100,
+            int(getattr(settings, "DB_HOLD_WARN_MS", _DB_HOLD_WARN_MS) or _DB_HOLD_WARN_MS),
+        )
+        diagnostics = self._diagnostics
+        diagnostics.hold_warn_ms = hold_warn_ms
+
+        @event.listens_for(engine, "before_cursor_execute")
+        def _before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+            conn.info.setdefault("_rewrz_sql_started", []).append(time.perf_counter())
+
+        @event.listens_for(engine, "after_cursor_execute")
+        def _after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+            started_stack = conn.info.get("_rewrz_sql_started")
+            if not started_stack:
+                return
+            started_at = started_stack.pop()
+            elapsed_ms = (time.perf_counter() - started_at) * 1000
+            if elapsed_ms >= slow_sql_ms:
+                logger.warning(
+                    "慢 SQL %.0fms｜请求: %s｜SQL: %s",
+                    elapsed_ms,
+                    _DB_REQUEST_INFO.get() or "后台任务/非请求线程",
+                    " ".join(str(statement).split())[:300],
+                )
+
+        @event.listens_for(engine, "checkout")
+        def _on_checkout(dbapi_connection, connection_record, connection_proxy):
+            diagnostics.on_checkout(connection_record)
+
+        @event.listens_for(engine, "checkin")
+        def _on_checkin(dbapi_connection, connection_record):
+            diagnostics.on_checkin(connection_record)
 
     def get_pool_status(self) -> dict:
         """返回连接池使用情况，供异常日志和排障使用。"""
@@ -144,7 +353,13 @@ class DatabaseManager:
                     status[key] = method()
                 except Exception:
                     continue
-        status["timeout_seconds"] = int(getattr(settings, "DB_POOL_TIMEOUT", 10) or 10)
+        status["timeout_seconds"] = int(getattr(settings, "DB_POOL_TIMEOUT", 3) or 3)
+        status["max_size"] = int(getattr(settings, "DB_POOL_SIZE", 16) or 16) + int(
+            getattr(settings, "DB_MAX_OVERFLOW", 8) or 0
+        )
+        holders = self._diagnostics.snapshot(limit=10)
+        if holders:
+            status["holders"] = holders
         with self._pool_timeout_lock:
             status["timeout_count"] = self._pool_timeout_count
         return status
@@ -157,8 +372,10 @@ class DatabaseManager:
 
     def reload_if_needed(self) -> bool:
         """检查配置变化并重新加载"""
-        if settings.reload_config():
-            return self.initialize()
+        # 串行化配置检测与引擎重建，避免多个线程同时 dispose/create 引擎
+        with self._reload_lock:
+            if settings.reload_config():
+                return self.initialize()
         return self._initialized
     
     def get_session(self):
