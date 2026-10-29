@@ -14,7 +14,14 @@ from ..core.database import get_db
 from ..core.security import get_current_user, verify_csrf_token
 from ..core.template_filters import get_templates, post_summary_text_filter
 from ..core.config import settings
-from ..core.page_templates import DEFAULT_PAGE_TEMPLATE, get_page_template_options, normalize_page_template
+from ..core.page_templates import (
+    DEFAULT_PAGE_TEMPLATE,
+    get_page_template_grouped_options,
+    get_page_template_options,
+    normalize_page_template,
+)
+from ..core.post_templates import DEFAULT_POST_TEMPLATE, get_post_template_options, normalize_post_template
+from ..core.format_presets import get_style_preset_options, normalize_style_preset_for_intent
 from ..crud import post as crud_post, category as crud_category, format as crud_format, setting as crud_setting, tag as crud_tag
 from ..models.category import Category
 from ..schemas import Post, PostCreate, PostUpdate, PostInlineUpdate, User, PostBatchUpdate, FormatCreate
@@ -419,6 +426,8 @@ def new_post_page(request: Request, db: Session = Depends(get_db), current_user:
         "admin_path": ADMIN_PATH,
         "categories": categories,
         "formats": formats,
+        "post_template_options": get_post_template_options(),
+        "style_preset_options": get_style_preset_options(),
         "content_primary_mode": content_primary_mode,
         "site_timezone": settings.SITE_TIMEZONE,
         "post": None, # 新建文章时没有post对象
@@ -446,6 +455,8 @@ def edit_post_page(post_id: int, request: Request, db: Session = Depends(get_db)
         "post": post,
         "categories": categories,
         "formats": formats,
+        "post_template_options": get_post_template_options(),
+        "style_preset_options": get_style_preset_options(),
         "content_primary_mode": content_primary_mode,
         "site_timezone": settings.SITE_TIMEZONE,
         "post_type": "post", # 明确指定为文章类型
@@ -465,10 +476,13 @@ def create_post_api(
     status: str = Form("draft"),
     visibility: str = Form("public"),
     password: Optional[str] = Form(None),
-    allow_comments: bool = Form(True),
+    # 复选框未勾选时浏览器不会提交该字段，默认值必须为 False，否则会恒定保存为允许评论
+    allow_comments: bool = Form(False),
     category_ids: Optional[List[int]] = Form(None),
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
     format_id: Optional[int] = Form(None),
+    post_template: str = Form(DEFAULT_POST_TEMPLATE),
+    style_preset: str = Form("auto"),
     license_type: str = Form("cc_by_nc_sa_4"),
     published_at: Optional[str] = Form(None),
     csrf_token: str = Form(...),
@@ -485,6 +499,9 @@ def create_post_api(
     
     selected_intent_slug = _resolve_selected_intent_slug(db, format_id, fallback_slug="article")
     normalized_category_ids = _normalize_category_ids_for_intent(category_ids, selected_intent_slug)
+    # 文章模板只对标准文章生效；微动态/诗词始终走格式专属布局。
+    resolved_post_template = normalize_post_template(post_template) if selected_intent_slug == "article" else "auto"
+    resolved_style_preset = normalize_style_preset_for_intent(selected_intent_slug, style_preset)
 
     create_payload = {
         "title": title,
@@ -494,6 +511,8 @@ def create_post_api(
         "slug": slug,
         "excerpt": excerpt,
         "featured_image_url": featured_image_url,
+        "post_template": resolved_post_template,
+        "style_preset": resolved_style_preset,
         "status": status,
         "visibility": visibility,
         "password": normalized_password,
@@ -541,10 +560,13 @@ def update_post_api(
     status: str = Form("draft"),
     visibility: str = Form("public"),
     password: Optional[str] = Form(None),
-    allow_comments: bool = Form(True),
+    # 复选框未勾选时浏览器不会提交该字段，默认值必须为 False，否则会恒定保存为允许评论
+    allow_comments: bool = Form(False),
     category_ids: Optional[List[int]] = Form(None),
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
     format_id: Optional[int] = Form(None),
+    post_template: str = Form(DEFAULT_POST_TEMPLATE),
+    style_preset: str = Form("auto"),
     license_type: str = Form("cc_by_nc_sa_4"),
     published_at: Optional[str] = Form(None),
     method_override: Optional[str] = Form(None, alias="_method"),
@@ -576,6 +598,8 @@ def update_post_api(
     fallback_intent_slug = _resolve_post_primary_intent_slug(db_post)
     selected_intent_slug = _resolve_selected_intent_slug(db, format_id, fallback_slug=fallback_intent_slug)
     normalized_category_ids = _normalize_category_ids_for_intent(category_ids, selected_intent_slug)
+    resolved_post_template = normalize_post_template(post_template) if selected_intent_slug == "article" else "auto"
+    resolved_style_preset = normalize_style_preset_for_intent(selected_intent_slug, style_preset)
 
     update_payload = {
         "title": title,
@@ -585,6 +609,8 @@ def update_post_api(
         "slug": slug,
         "excerpt": excerpt,
         "featured_image_url": featured_image_url,
+        "post_template": resolved_post_template,
+        "style_preset": resolved_style_preset,
         "status": status,
         "visibility": visibility,
         "password": normalized_password,
@@ -910,6 +936,7 @@ def new_page_page(request: Request, db: Session = Depends(get_db), current_user:
         "admin_path": ADMIN_PATH,
         "post": None,  # 新建页面时没有post对象
         "page_template_options": get_page_template_options(),
+        "page_template_groups": get_page_template_grouped_options(),
         "content_primary_mode": content_primary_mode,
         "site_timezone": settings.SITE_TIMEZONE,
         "license_options": get_license_options_filter
@@ -933,6 +960,7 @@ def edit_page_page(page_id: int, request: Request, db: Session = Depends(get_db)
         "admin_path": ADMIN_PATH,
         "post": page,
         "page_template_options": get_page_template_options(),
+        "page_template_groups": get_page_template_grouped_options(),
         "content_primary_mode": content_primary_mode,
         "site_timezone": settings.SITE_TIMEZONE,
         "license_options": get_license_options_filter
@@ -952,7 +980,8 @@ def create_page_api(
     status: str = Form("draft"),
     visibility: str = Form("public"),
     password: Optional[str] = Form(None),
-    allow_comments: bool = Form(True),
+    # 复选框未勾选时浏览器不会提交该字段，默认值必须为 False，否则会恒定保存为允许评论
+    allow_comments: bool = Form(False),
     license_type: str = Form("cc_by_nc_sa_4"),
     published_at: Optional[str] = Form(None),
     csrf_token: str = Form(...),
@@ -1015,7 +1044,8 @@ def update_page_api(
     status: str = Form("draft"),
     visibility: str = Form("public"),
     password: Optional[str] = Form(None),
-    allow_comments: bool = Form(True),
+    # 复选框未勾选时浏览器不会提交该字段，默认值必须为 False，否则会恒定保存为允许评论
+    allow_comments: bool = Form(False),
     license_type: str = Form("cc_by_nc_sa_4"),
     published_at: Optional[str] = Form(None),
     method_override: Optional[str] = Form(None, alias="_method"),

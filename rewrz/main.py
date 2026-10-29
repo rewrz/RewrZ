@@ -111,6 +111,8 @@ from .core.page_templates import (
     normalize_page_template,
     resolve_page_template_file,
 )
+from .core.post_templates import resolve_post_template
+from .core.format_presets import resolve_micro_style_preset, resolve_poem_style_preset
 
 # 全局状态，用于标记后台路由是否已注册
 ADMIN_ROUTES_REGISTERED = False
@@ -436,6 +438,16 @@ def register_admin_routes():
 
         # 自动目录（TOC）：达到阈值时生成
         display_content_html, toc_items = build_toc_from_html(display_content_html, min_headings=3)
+
+        # 三条轴互不越界：文章模板仅标准文章生效，格式预设仅微动态/诗词生效。
+        post_template_meta = resolve_post_template(getattr(db_post, "post_template", "auto"))
+        micro_style_preset = ""
+        poem_style_preset = ""
+        if active_format_slug == "micro":
+            micro_style_preset = resolve_micro_style_preset(getattr(db_post, "style_preset", "auto"), display_content_html)
+        elif active_format_slug == "poem":
+            poem_style_preset = resolve_poem_style_preset(getattr(db_post, "style_preset", "auto"))
+
         profile_resolver = get_public_profile_resolver()
         format_profile = profile_resolver.resolve_format_profile(request, db, active_format_slug)
         _attach_post_author_profiles(db, [db_post], fallback_name=format_profile.get("display_name", "博主"))
@@ -465,6 +477,12 @@ def register_admin_routes():
             "display_content_html": display_content_html,
             "toc_items": toc_items,
             "active_format_slug": active_format_slug,
+            "post_template_key": post_template_meta["key"],
+            "post_template_partial": post_template_meta["partial"],
+            "post_template_css": post_template_meta["css"],
+            "post_template_js": post_template_meta["js"],
+            "micro_style_preset": micro_style_preset,
+            "poem_style_preset": poem_style_preset,
             "format_profile": format_profile,
             "related_articles": related_articles,
             "page_background_image_url": getattr(db_post, "detail_cover_url", "") or "",

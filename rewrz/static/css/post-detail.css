@@ -2746,4 +2746,250 @@ body.site-shell[data-current-theme="galaxy"] .poetry-section .poetry-format-badg
     color: color-mix(in srgb, var(--color-text) 92%, var(--color-primary) 8%);
 }
 
+/* ===== 诗词背景：用主题色生成氛围底，深浅主题自动跟随 ===== */
+.poetry-section .poetry-bg {
+    background:
+        radial-gradient(
+            circle at 18% 12%,
+            color-mix(in srgb, var(--color-primary) 24%, transparent) 0%,
+            transparent 58%
+        ),
+        linear-gradient(
+            160deg,
+            color-mix(in srgb, var(--color-primary) 14%, var(--color-background-alt) 86%) 0%,
+            var(--color-background-alt) 62%,
+            color-mix(in srgb, var(--color-primary) 10%, var(--color-background-alt) 90%) 100%
+        );
+}
+
+/* ===== 微动态格式内预设 ===== */
+.micro-detail-card.micro-preset-quote .micro-detail-body {
+    padding-inline: clamp(1.5rem, 4vw, 3rem);
+}
+
+.micro-detail-card.micro-preset-quote .micro-content {
+    font-size: 1.08rem;
+    line-height: 1.95;
+}
+
+.micro-detail-card.micro-preset-quote .micro-content blockquote {
+    margin: 1.5rem 0;
+    padding: 1.1rem 1.25rem;
+    border-left: 3px solid color-mix(in srgb, var(--color-primary) 56%, var(--color-border) 44%);
+    border-radius: 0.85rem;
+    background: var(--color-background-alt);
+    font-size: 1.15rem;
+    line-height: 1.9;
+    color: var(--color-text);
+}
+
+.micro-detail-card.micro-preset-quote .micro-content blockquote p {
+    margin-bottom: 0;
+}
+
+.micro-detail-card.micro-preset-gallery .micro-content {
+    line-height: 1.75;
+}
+
+.micro-detail-card.micro-preset-gallery .micro-gallery-frame .micro-image-grid {
+    gap: 0.4rem;
+}
+
+.micro-detail-card.micro-preset-gallery .micro-image-grid img {
+    height: 11rem;
+}
+
+@media (min-width: 768px) {
+    .micro-detail-card.micro-preset-gallery .micro-image-grid img {
+        height: 13.5rem;
+    }
+}
+
+.micro-detail-card.micro-preset-plain .micro-content {
+    font-size: 1rem;
+}
+
+/* ===== 诗词格式内预设：只改字体、行距与留白，不改朗诵/自动滚动交互 ===== */
+.poetry-section.poetry-preset-classic .poetry-content {
+    font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", serif;
+    line-height: 2.15;
+    letter-spacing: 0.06em;
+}
+
+.poetry-section.poetry-preset-classic .poetry-content p {
+    margin-bottom: 1.9em;
+}
+
+.poetry-section.poetry-preset-modern .poetry-content {
+    font-family: "Source Han Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    line-height: 2.3;
+    letter-spacing: 0.02em;
+    text-align: left;
+}
+
+.poetry-section.poetry-preset-modern .poetry-content {
+    max-width: 36rem;
+}
+
+.poetry-section.poetry-preset-modern .poetry-content p {
+    margin-bottom: 2.1em;
+}
+
+.poetry-section.poetry-preset-ci .poetry-content {
+    font-family: "Kaiti SC", "STKaiti", "KaiTi", "Songti SC", serif;
+    max-width: 30rem;
+    line-height: 2.6;
+    letter-spacing: 0.14em;
+}
+
+.poetry-section.poetry-preset-ci .poetry-content p {
+    margin-bottom: 2.6em;
+}
+
+/* 预设在 prefers-reduced-motion 下不需要额外处理：不引入动画 */
+
+/* ===== Markdown 区块指令 =====
+   统一收口为 .md-block 家族，供 markdown 里以 ::: 指令书写的区块使用。 */
+.md-block {
+    margin: 2rem 0;
+}
+
+.md-block-wide {
+    position: relative;
+    left: 50%;
+    width: min(920px, calc(100vw - 2.5rem));
+    max-width: none;
+    transform: translateX(-50%);
+}
+
+.md-block-wide img {
+    width: 100%;
+    border-radius: 0.9rem;
+}
+
+.md-block-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+}
+
+.md-block-gallery.md-gallery-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.md-block-gallery img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 0.8rem;
+}
+
+.md-block-quote {
+    padding: 1.25rem 1.5rem;
+    border-left: 3px solid color-mix(in srgb, var(--color-primary) 56%, var(--color-border) 44%);
+    border-radius: 0.9rem;
+    background: var(--color-background-alt);
+}
+
+.md-block-quote blockquote {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    font-size: 1.1rem;
+    line-height: 1.85;
+    color: var(--color-text);
+}
+
+.md-block-notice {
+    display: flex;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-radius: 0.9rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-card-bg) 92%);
+    color: var(--color-text);
+    line-height: 1.8;
+}
+
+.md-block-notice::before {
+    content: '提示';
+    flex: none;
+    align-self: flex-start;
+    border-radius: 999px;
+    padding: 0.1rem 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
+}
+
+.md-block-notice.is-warn {
+    border-color: color-mix(in srgb, var(--color-warning, var(--color-primary)) 32%, var(--color-border) 68%);
+    background: color-mix(in srgb, var(--color-warning, var(--color-primary)) 10%, var(--color-card-bg) 90%);
+}
+
+.md-block-notice.is-warn::before {
+    content: '注意';
+    background: color-mix(in srgb, var(--color-warning, var(--color-primary)) 18%, transparent);
+    color: color-mix(in srgb, var(--color-warning, var(--color-primary)) 82%, var(--color-text) 18%);
+}
+
+.md-block-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.md-column > :first-child {
+    margin-top: 0;
+}
+
+.md-column > :last-child {
+    margin-bottom: 0;
+}
+
+.md-block-timeline {
+    position: relative;
+    padding-left: 1.35rem;
+    border-left: 2px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%);
+}
+
+.md-block-timeline li {
+    position: relative;
+    margin-bottom: 1rem;
+    list-style: none;
+    line-height: 1.8;
+}
+
+.md-block-timeline li::before {
+    content: '';
+    position: absolute;
+    left: calc(-1.35rem - 5px);
+    top: 0.55rem;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--color-primary);
+}
+
+.md-block-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+    .md-block-wide {
+        left: auto;
+        width: 100%;
+        transform: none;
+    }
+
+    .md-block-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
+
 

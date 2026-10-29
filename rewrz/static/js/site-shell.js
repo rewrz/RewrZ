@@ -195,6 +195,8 @@ class SiteShellController {
     this.themeToastTimer = null;
     this.themeSyncInFlight = null;
     this.themeSyncPending = null;
+    this.themeSyncTimer = null;
+    this.isPageUnloading = false;
   }
 
   init() {
@@ -688,12 +690,46 @@ class SiteShellController {
   }
 
   bindVisibilitySync() {
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        this.syncThemeFromServer(false);
-      }
+    // 页面卸载或进入后台后，浏览器会中止在途请求并在控制台留下 ERR_ABORTED。
+    // 这里统一延迟触发：只有在页面保持可见时才真正发起同步，卸载时直接丢弃。
+    window.addEventListener('pagehide', () => {
+      this.isPageUnloading = true;
+      this.cancelThemeSyncTimer();
     });
-    window.addEventListener('focus', () => this.syncThemeFromServer(false));
+    window.addEventListener('pageshow', () => {
+      this.isPageUnloading = false;
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.cancelThemeSyncTimer();
+        return;
+      }
+      this.scheduleThemeSync();
+    });
+    window.addEventListener('focus', () => this.scheduleThemeSync());
+  }
+
+  cancelThemeSyncTimer() {
+    if (!this.themeSyncTimer) {
+      return;
+    }
+    clearTimeout(this.themeSyncTimer);
+    this.themeSyncTimer = null;
+  }
+
+  scheduleThemeSync() {
+    // 页面不可见、正在卸载或处于预渲染阶段时不发起请求，避免被浏览器中止
+    if (this.isPageUnloading || document.hidden || document.visibilityState !== 'visible' || document.prerendering) {
+      return;
+    }
+    this.cancelThemeSyncTimer();
+    this.themeSyncTimer = setTimeout(() => {
+      this.themeSyncTimer = null;
+      if (this.isPageUnloading || document.visibilityState !== 'visible') {
+        return;
+      }
+      this.syncThemeFromServer(false);
+    }, 300);
   }
 
   async syncThemeFromServer(forceCssReload) {

@@ -1,0 +1,17 @@
+{# 标准文章详情容器：按 post_template_key 加载具体版面 partial #}
+<section class="py-8 detail-article-section detail-cover-shell detail-cover-article post-template-{{ post_template_key }}">
+    {% if detail_cover_url and post_template_key not in ['gallery'] %}
+    <div class="detail-cover-bg" style="background-image: url('{{ detail_cover_url | e }}');"></div>
+    {% endif %}
+
+    <div class="container relative mx-auto px-4 max-w-7xl">
+        <div class="detail-layout {% if toc_items and post_template_key not in ['gallery'] %}has-toc{% endif %}">
+        {% include post_template_partial %}
+        {% if toc_items and post_template_key not in ['gallery'] %}
+        {% set toc_panel_class = "detail-toc-panel detail-toc-panel-article" %}
+        {% set toc_panel_label = "文章目录" %}
+        {% include "partials/detail/toc.html" %}
+        {% endif %}
+        </div>
+    </div>
+</section>

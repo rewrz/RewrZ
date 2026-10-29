@@ -128,6 +128,30 @@ def get_page_template_options() -> List[Dict[str, str]]:
     return options
 
 
+# 后台下拉分组：只做展示分组，不新增模板
+PAGE_TEMPLATE_GROUPS: List[Dict[str, object]] = [
+    {
+        "label": "基础页面",
+        "keys": ["default", "about", "resume", "faq", "legal", "contact", "links", "changelog"],
+    },
+    {
+        "label": "展示型页面",
+        "keys": ["portfolio", "gallery", "timeline", "roadmap", "landing"],
+    },
+]
+
+
+def get_page_template_grouped_options() -> List[Dict[str, object]]:
+    """按后台下拉分组返回页面模板选项，保持分组内原有顺序。"""
+    flat_options = {item["value"]: item for item in get_page_template_options()}
+    groups: List[Dict[str, object]] = []
+    for group in PAGE_TEMPLATE_GROUPS:
+        items = [flat_options[key] for key in group["keys"] if key in flat_options]
+        if items:
+            groups.append({"label": group["label"], "items": items})
+    return groups
+
+
 def get_page_template_label_map() -> Dict[str, str]:
     """返回模板键到展示名称的映射，供后台列表直接使用。"""
     return {

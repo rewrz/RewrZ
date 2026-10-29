@@ -248,13 +248,18 @@
                 </div>
                 {% set current_page_template = post.page_template if post and post.page_template else 'default' %}
                 {% set resolved_page_template_options = page_template_options if page_template_options else [{'value': 'default', 'label': '默认页面（全宽）', 'description': 'WordPress 常见默认页风格，适合通用内容展示。'}] %}
+                {% set resolved_page_template_groups = page_template_groups if page_template_groups else [{'label': '', 'items': resolved_page_template_options}] %}
                 <div>
                     <h3 class="text-lg font-semibold mb-2">页面模板</h3>
                     <select id="page-template-select" name="page_template" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                        {% for item in resolved_page_template_options %}
-                        <option value="{{ item.value }}" {% if item.value == current_page_template %}selected{% endif %}>
-                            {{ item.label }}
-                        </option>
+                        {% for group in resolved_page_template_groups %}
+                        <optgroup label="{{ group['label'] }}">
+                            {% for item in group['items'] %}
+                            <option value="{{ item.value }}" {% if item.value == current_page_template %}selected{% endif %}>
+                                {{ item.label }}
+                            </option>
+                            {% endfor %}
+                        </optgroup>
                         {% endfor %}
                     </select>
                     <p id="page-template-hint" class="mt-2 text-xs text-gray-500">

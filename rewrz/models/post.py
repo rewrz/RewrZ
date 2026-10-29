@@ -43,6 +43,8 @@ class Post(Base):
     media_attachment_summary = Column(JSON, nullable=False, default=dict)
     post_type = Column(String, nullable=False, default="post") # 'post'（文章）或 'page'（页面）
     page_template = Column(String, nullable=False, default="default") # 页面模板，仅 page 类型生效
+    post_template = Column(String, nullable=False, default="auto") # 文章详情整页模板，仅标准文章生效
+    style_preset = Column(String, nullable=False, default="auto") # 格式内样式预设，仅微动态/诗词生效
     status = Column(String, nullable=False, default="draft") # 'published' or 'draft'
     visibility = Column(String, nullable=False, default="public") # 'public', 'private', 'password'
     password = Column(String, nullable=True) # Hashed password

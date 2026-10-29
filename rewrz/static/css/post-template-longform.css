@@ -1,0 +1,112 @@
+/* 深度长文模板：只调整正文排版，颜色与背景全部走主题变量。 */
+
+.article-longform-card {
+    border-color: var(--color-border);
+    background: var(--color-card-bg);
+    max-width: 58rem;
+    margin-inline: auto;
+}
+
+.article-longform-header {
+    border-bottom: 1px solid var(--color-border);
+    text-align: center;
+}
+
+.article-longform-kicker {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 26%, var(--color-border) 74%);
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    padding: 0.24rem 0.75rem;
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+}
+
+.article-longform-title {
+    margin: 0.9rem auto 0.75rem;
+    max-width: 42rem;
+    color: var(--color-text);
+}
+
+.article-longform-excerpt {
+    max-width: 38rem;
+    margin: 0 auto 1.1rem;
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--color-text-light);
+}
+
+.article-longform-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem 1.5rem;
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+}
+
+.article-longform-body {
+    max-width: 46rem;
+    margin-inline: auto;
+}
+
+.article-longform-content {
+    font-size: 1.0625rem;
+    line-height: 2.05;
+    letter-spacing: 0.01em;
+    color: var(--color-text);
+}
+
+.article-longform-content h2 {
+    margin-top: 3rem;
+    margin-bottom: 1.35rem;
+    padding-top: 1.75rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.article-longform-content p {
+    margin-bottom: 1.5em;
+}
+
+.article-longform-content img {
+    border-radius: 0.85rem;
+}
+
+.article-longform-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.article-longform-tags a {
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: var(--color-background-alt);
+    padding: 0.25rem 0.7rem;
+    font-size: 0.78rem;
+    color: var(--color-text-light);
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.article-longform-tags a:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+@media (max-width: 640px) {
+    .article-longform-content {
+        font-size: 1rem;
+        line-height: 1.95;
+    }
+
+    .article-longform-content h2 {
+        margin-top: 2.25rem;
+    }
+}

@@ -1,0 +1,15 @@
+{# 详情页通用浮动目录：由调用方设置 toc_panel_class 与 toc_panel_label #}
+<aside class="{{ toc_panel_class }} is-collapsed" data-floating-toc data-toc-title="{{ toc_panel_label }}" aria-label="{{ toc_panel_label }}">
+    <button type="button" class="floating-toc-toggle" data-floating-toc-toggle aria-expanded="false" aria-label="展开{{ toc_panel_label }}">
+        <i class="fas fa-angle-double-right" aria-hidden="true"></i>
+        <span>目录</span>
+    </button>
+    <h2 class="detail-toc-title">{{ toc_panel_label }}</h2>
+    <ul class="detail-toc-list">
+        {% for item in toc_items %}
+        <li class="{% if item.level == 'h3' %}is-sub{% endif %}">
+            <a href="#{{ item.id }}" data-toc-link="{{ item.id }}" class="detail-toc-link">{{ item.title }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+</aside>

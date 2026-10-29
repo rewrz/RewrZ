@@ -504,6 +504,34 @@
                             </div>
                             <p class="mt-2 text-xs text-[var(--color-text-light)]">每篇内容仅选择一个主类型；图片/视频/音频通过内容附件体现。</p>
                         </div>
+                        <div id="post-template-panel">
+                            <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">文章模板</h3>
+                            {% set current_post_template = post.post_template if post and post.post_template else 'auto' %}
+                            {% set resolved_post_template_options = post_template_options if post_template_options else [{'value': 'auto', 'label': '自动（标准阅读）', 'description': '跟随默认文章版式。'}] %}
+                            <select id="post-template-select" name="post_template" class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
+                                {% for item in resolved_post_template_options %}
+                                <option value="{{ item.value }}" data-description="{{ item.description }}" {% if item.value == current_post_template %}selected{% endif %}>{{ item.label }}</option>
+                                {% endfor %}
+                            </select>
+                            <p id="post-template-desc" class="mt-1 text-xs text-[var(--color-text-light)]">
+                                {% for item in resolved_post_template_options %}
+                                {% if item.value == current_post_template %}{{ item.description }}{% endif %}
+                                {% endfor %}
+                            </p>
+                            <p class="mt-1 text-xs text-[var(--color-text-light)]">仅标准文章生效；微动态与诗词始终使用格式专属布局。</p>
+                        </div>
+                        <div id="style-preset-panel">
+                            <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">格式内样式</h3>
+                            {% set current_style_preset = post.style_preset if post and post.style_preset else 'auto' %}
+                            {% set resolved_style_preset_options = style_preset_options if style_preset_options else [{'value': 'auto', 'intent': 'micro', 'label': '自动匹配', 'description': '按内容特征自动匹配样式。'}] %}
+                            <select id="style-preset-select" name="style_preset" class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
+                                {% for item in resolved_style_preset_options %}
+                                <option value="{{ item.value }}" data-intent="{{ item.intent }}" data-description="{{ item.description }}" {% if item.value == current_style_preset %}selected{% endif %}>{{ item.label }}</option>
+                                {% endfor %}
+                            </select>
+                            <p id="style-preset-desc" class="mt-1 text-xs text-[var(--color-text-light)]"></p>
+                            <p class="mt-1 text-xs text-[var(--color-text-light)]">只影响微动态/诗词详情页的排版，不影响列表卡片与文章模板。</p>
+                        </div>
                         <div id="category-panel">
                             <div class="editor-section-head">
                                 <h3 class="text-lg font-semibold text-[var(--color-text)]">分类</h3>
@@ -631,6 +659,12 @@
         const passwordToggle = document.getElementById('post-password-toggle');
         const passwordToggleIcon = document.getElementById('post-password-toggle-icon');
         const formatInputs = Array.from(document.querySelectorAll('input[name="format_id"]'));
+        const postTemplatePanel = document.getElementById('post-template-panel');
+        const postTemplateSelect = document.getElementById('post-template-select');
+        const postTemplateDesc = document.getElementById('post-template-desc');
+        const stylePresetPanel = document.getElementById('style-preset-panel');
+        const stylePresetSelect = document.getElementById('style-preset-select');
+        const stylePresetDesc = document.getElementById('style-preset-desc');
         const toggleCategoryQuickCreateButton = document.getElementById('toggle-category-quick-create');
         const categoryQuickCreatePanel = document.getElementById('category-quick-create-panel');
         const categoryQuickCreateInput = document.getElementById('quick-category-name');
@@ -861,6 +895,48 @@
             });
         }
 
+        function getSelectedOptionDescription(select) {
+            if (!select) return '';
+            const option = select.options[select.selectedIndex];
+            return option ? (option.dataset.description || '') : '';
+        }
+
+        // 文章模板只对标准文章可见；格式内预设只对微动态/诗词可见，并按内容类型过滤选项。
+        function syncDetailStylePanelsByIntent() {
+            const intentSlug = getSelectedIntentSlug();
+            const isArticle = intentSlug === 'article';
+            if (postTemplatePanel) {
+                postTemplatePanel.classList.toggle('hidden', !isArticle);
+            }
+            if (postTemplateSelect) {
+                postTemplateSelect.disabled = !isArticle;
+            }
+            if (stylePresetPanel) {
+                stylePresetPanel.classList.toggle('hidden', isArticle);
+            }
+            if (stylePresetSelect) {
+                stylePresetSelect.disabled = isArticle;
+                Array.from(stylePresetSelect.options).forEach((option) => {
+                    const matches = option.dataset.intent === intentSlug;
+                    option.hidden = !matches;
+                    option.disabled = !matches;
+                });
+                const selectedOption = stylePresetSelect.options[stylePresetSelect.selectedIndex];
+                if (!selectedOption || selectedOption.disabled) {
+                    const autoOption = Array.from(stylePresetSelect.options).find((option) => option.value === 'auto' && !option.disabled);
+                    if (autoOption) {
+                        stylePresetSelect.value = 'auto';
+                    }
+                }
+            }
+            if (postTemplateDesc) {
+                postTemplateDesc.textContent = getSelectedOptionDescription(postTemplateSelect);
+            }
+            if (stylePresetDesc) {
+                stylePresetDesc.textContent = getSelectedOptionDescription(stylePresetSelect);
+            }
+        }
+
         function updateEditorStats() {
             const markdown = editor.getMarkdown();
             const plain = markdown
@@ -929,10 +1005,18 @@
             item.addEventListener('change', () => {
                 markUserInteracted();
                 syncCategoryPanelByIntent();
+                syncDetailStylePanelsByIntent();
                 markDirty();
             });
         });
         syncCategoryPanelByIntent();
+        syncDetailStylePanelsByIntent();
+        postTemplateSelect?.addEventListener('change', () => {
+            if (postTemplateDesc) postTemplateDesc.textContent = getSelectedOptionDescription(postTemplateSelect);
+        });
+        stylePresetSelect?.addEventListener('change', () => {
+            if (stylePresetDesc) stylePresetDesc.textContent = getSelectedOptionDescription(stylePresetSelect);
+        });
 
         try {
             editor.on('change', () => {

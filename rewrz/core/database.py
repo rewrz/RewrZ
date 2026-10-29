@@ -8,7 +8,7 @@ import time
 import traceback
 from contextvars import ContextVar
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import sessionmaker, Session
 from starlette.requests import Request
 from ..models.base import Base
@@ -603,11 +603,35 @@ def get_db(request: Request = None):
         # 在安装向导阶段，返回None
         yield None
 
+# create_all 只会创建缺失的表，不会给已存在的表补列。
+# 这里登记 posts 表的增量列，老站点升级后重启即可自动补齐，无需手工执行 SQL。
+_POST_COLUMN_UPGRADES = (
+    ("post_template", "VARCHAR NOT NULL DEFAULT 'auto'"),
+    ("style_preset", "VARCHAR NOT NULL DEFAULT 'auto'"),
+)
+
+
+def ensure_post_columns(bind) -> None:
+    """幂等补齐 posts 表的新增列，兼容 SQLite / PostgreSQL / MySQL。"""
+    inspector = inspect(bind)
+    if "posts" not in inspector.get_table_names():
+        return
+    existing_columns = {column["name"] for column in inspector.get_columns("posts")}
+    missing = [(name, ddl) for name, ddl in _POST_COLUMN_UPGRADES if name not in existing_columns]
+    if not missing:
+        return
+    with bind.begin() as connection:
+        for name, ddl in missing:
+            connection.execute(text(f"ALTER TABLE posts ADD COLUMN {name} {ddl}"))
+    logger.info("已为 posts 表补齐列：%s", ", ".join(name for name, _ in missing))
+
+
 # 创建所有表的函数（仅用于初始设置，不用于迁移）
 def create_all_tables():
-    """创建所有表"""
+    """创建所有表，并为已存在的表补齐新增列"""
     if db_manager.is_available:
         Base.metadata.create_all(bind=db_manager.engine)
+        ensure_post_columns(db_manager.engine)
         return True
     return False
 

@@ -1,0 +1,70 @@
+{# 图文展览版式：沉浸式首屏 + 展厅正文 + 大图浏览 #}
+<article class="article-gallery" id="articleGalleryRoot">
+    <header class="article-gallery-hero">
+        {% if detail_cover_url %}
+        <div class="article-gallery-hero-bg">
+            <img src="{{ detail_cover_url | thumb_url('post_cover', request.state.db) }}"
+                 srcset="{{ detail_cover_url | thumb_srcset('post_cover', request.state.db) }}"
+                 sizes="100vw"
+                 alt="{{ detail_display_title }}"
+                 loading="eager"
+                 fetchpriority="high"
+                 decoding="async">
+        </div>
+        {% endif %}
+        <div class="article-gallery-hero-overlay"></div>
+        <div class="article-gallery-hero-inner">
+            <span class="article-gallery-kicker"><i class="fas fa-images mr-1"></i>图文展览</span>
+            <h1 class="article-gallery-title">{{ detail_display_title }}</h1>
+            {% if manual_excerpt %}
+            <p class="article-gallery-excerpt">{{ manual_excerpt }}</p>
+            {% endif %}
+            <div class="article-gallery-meta">
+                <span><i class="fas fa-calendar-alt mr-1"></i>{{ (post.published_at or post.created_at) | localtime('%Y年%m月%d日') }}</span>
+                <span><i class="fas fa-user mr-1"></i>{{ post_author_name }}</span>
+                <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
+            </div>
+            <div class="article-gallery-scroll-hint" aria-hidden="true">
+                <i class="fas fa-chevron-down mr-2"></i>向下滚动进入展厅
+            </div>
+        </div>
+    </header>
+
+    <div class="article-gallery-stage">
+        <div class="article-gallery-stage-head">
+            <span>线上展厅</span>
+            <span>点击作品可放大观看</span>
+        </div>
+        <div class="post-content prose prose-lg dark:prose-invert max-w-none article-gallery-content"
+             id="articleGalleryContent">
+            {{ rendered_content | content_lazy_images | safe }}
+        </div>
+    </div>
+
+    <footer class="article-gallery-footer">
+        {% if post.tags %}
+        <div class="article-gallery-tags">
+            {% for tag in post.tags %}
+            <a href="/archives/by-tag/{{ tag.slug }}">#{{ tag.name }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% set license_box_class = "rounded-xl border p-4 md:p-5" %}
+        {% include "components/post_license_inline.html" %}
+    </footer>
+</article>
+
+<div class="article-gallery-lightbox" id="articleGalleryLightbox" aria-hidden="true" role="dialog" aria-label="作品大图浏览">
+    <button type="button" class="article-gallery-lightbox-close" data-gallery-close aria-label="关闭">
+        <i class="fas fa-times"></i>
+    </button>
+    <button type="button" class="article-gallery-lightbox-nav is-prev" data-gallery-prev aria-label="上一幅">
+        <i class="fas fa-chevron-left"></i>
+    </button>
+    <img src="" alt="">
+    <p class="article-gallery-lightbox-caption"></p>
+    <span class="article-gallery-lightbox-count"></span>
+    <button type="button" class="article-gallery-lightbox-nav is-next" data-gallery-next aria-label="下一幅">
+        <i class="fas fa-chevron-right"></i>
+    </button>
+</div>

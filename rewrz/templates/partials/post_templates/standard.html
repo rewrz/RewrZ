@@ -1,0 +1,41 @@
+{# 标准文章卡片版式 #}
+<article class="article-detail-card rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 shadow-xl overflow-hidden">
+    <header class="p-6 md:p-8 border-b border-gray-200 dark:border-gray-700">
+        <h1 class="text-3xl md:text-4xl font-bold mb-4 leading-tight">{{ detail_display_title }}</h1>
+        {% if manual_excerpt %}
+        <p class="mb-6 rounded-xl border border-blue-100 bg-blue-50/80 p-4 text-gray-700 dark:border-blue-900/60 dark:bg-blue-900/20 dark:text-gray-200">{{ manual_excerpt }}</p>
+        {% endif %}
+
+        <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+            <span><i class="fas fa-calendar-alt mr-2 text-blue-500"></i>{{ (post.published_at or post.created_at) | localtime('%Y年%m月%d日') }}</span>
+            <span><i class="fas fa-user mr-2 text-green-500"></i>{{ post_author_name }}</span>
+            <span><i class="far fa-eye mr-2 text-indigo-500"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
+
+            {% if post.categories %}
+            <div class="flex items-center gap-1 flex-wrap">
+                <i class="fas fa-folder mr-1 text-purple-500"></i>
+                {% for category in post.categories %}
+                <a href="/archives/by-category/{{ category.slug }}" class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded-full text-xs hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors">{{ category.name }}</a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if post.tags %}
+            <div class="flex items-center gap-1 flex-wrap">
+                <i class="fas fa-tags mr-1 text-orange-500"></i>
+                {% for tag in post.tags %}
+                <a href="/archives/by-tag/{{ tag.slug }}" class="bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 px-2 py-1 rounded-full text-xs hover:bg-orange-200 dark:hover:bg-orange-800 transition-colors">#{{ tag.name }}</a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="p-6 md:p-8 space-y-5">
+        <div class="post-content article-content prose prose-lg dark:prose-invert max-w-none">
+            {{ rendered_content | content_lazy_images | safe }}
+        </div>
+        {% set license_box_class = "rounded-xl bg-gray-50 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-700 p-4 md:p-5" %}
+        {% include "components/post_license_inline.html" %}
+    </div>
+</article>

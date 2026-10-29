@@ -1,0 +1,408 @@
+/* 图文展览文章模板：沉浸式首屏、展厅正文与作品大图浏览。
+   仅使用主题变量，深浅主题自动跟随。 */
+
+.article-gallery {
+    --gallery-max: 1180px;
+    --gallery-text-max: 52rem;
+    position: relative;
+    width: 100%;
+}
+
+/* ---------- 首屏 ---------- */
+.article-gallery-hero {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    min-height: clamp(340px, 58vh, 600px);
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-background-alt);
+}
+
+.article-gallery-hero-bg {
+    position: absolute;
+    inset: 0;
+}
+
+.article-gallery-hero-bg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.article-gallery-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--color-background-alt) 14%, transparent) 0%,
+        color-mix(in srgb, var(--color-background-alt) 52%, transparent) 52%,
+        color-mix(in srgb, var(--color-background-alt) 94%, transparent) 100%
+    );
+}
+
+.article-gallery-hero-inner {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: var(--gallery-max);
+    margin-inline: auto;
+    padding: clamp(1.5rem, 4vw, 3.25rem);
+    color: var(--color-text);
+}
+
+.article-gallery-kicker {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 26%, var(--color-border) 74%);
+    background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+    padding: 0.24rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+}
+
+.article-gallery-title {
+    margin: 0.9rem 0 0.6rem;
+    font-size: clamp(1.9rem, 4vw, 3.2rem);
+    font-weight: 700;
+    line-height: 1.18;
+    letter-spacing: 0.01em;
+}
+
+.article-gallery-excerpt {
+    max-width: 46rem;
+    color: var(--color-text-light);
+    font-size: clamp(0.95rem, 1.6vw, 1.15rem);
+    line-height: 1.75;
+}
+
+.article-gallery-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem 1.5rem;
+    margin-top: 1.1rem;
+    font-size: 0.82rem;
+    color: var(--color-text-light);
+}
+
+.article-gallery-scroll-hint {
+    margin-top: 1.6rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    color: var(--color-text-muted);
+    animation: article-gallery-float 2.6s ease-in-out infinite;
+}
+
+@keyframes article-gallery-float {
+    0%, 100% { transform: translateY(0); opacity: 0.75; }
+    50% { transform: translateY(6px); opacity: 1; }
+}
+
+/* ---------- 展厅 ---------- */
+.article-gallery-stage {
+    position: relative;
+    max-width: var(--gallery-max);
+    margin: -1.5rem auto 0;
+    padding: clamp(1.75rem, 4vw, 3rem) clamp(1rem, 3vw, 2.75rem) clamp(2rem, 5vw, 3.5rem);
+    border-radius: 1rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-card-bg);
+    box-shadow: 0 26px 60px -34px color-mix(in srgb, var(--color-primary) 24%, transparent);
+    z-index: 2;
+}
+
+.article-gallery-stage-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 1.75rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.78rem;
+    letter-spacing: 0.14em;
+    color: var(--color-text-muted);
+}
+
+.article-gallery-content {
+    max-width: var(--gallery-text-max);
+    margin-inline: auto;
+}
+
+.article-gallery-content h2 {
+    position: relative;
+    margin: 2.75rem 0 1.25rem;
+    padding-top: 1.25rem;
+    text-align: center;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+.article-gallery-content h2::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 2.5rem;
+    height: 1px;
+    transform: translateX(-50%);
+    background: color-mix(in srgb, var(--color-primary) 52%, transparent);
+}
+
+.article-gallery-content blockquote {
+    margin: 2rem 0;
+    padding: 1.1rem 1.4rem;
+    border-left: 3px solid color-mix(in srgb, var(--color-primary) 52%, var(--color-border) 48%);
+    border-radius: 0.75rem;
+    background: var(--color-background-alt);
+    color: var(--color-text-light);
+}
+
+.article-gallery-content figure.article-gallery-shot {
+    margin: 2.5rem 0;
+    border-radius: 0.9rem;
+    outline: none;
+}
+
+.article-gallery-content figure.article-gallery-shot img {
+    width: 100%;
+    border-radius: 0.9rem;
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+
+.article-gallery-content figure.article-gallery-shot:hover img,
+.article-gallery-content figure.article-gallery-shot:focus-visible img {
+    transform: scale(1.012);
+    box-shadow: 0 22px 44px -26px color-mix(in srgb, var(--color-primary) 28%, transparent);
+}
+
+.article-gallery-shot figcaption {
+    margin-top: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+.article-gallery-shot figcaption::before {
+    content: attr(data-index);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.08em;
+    color: color-mix(in srgb, var(--color-primary) 70%, var(--color-text-muted) 30%);
+}
+
+/* 入场动画：减少动画偏好下直接显示 */
+.article-gallery-ready .article-gallery-shot,
+.article-gallery-ready .article-gallery-content h2,
+.article-gallery-ready .article-gallery-content blockquote {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.55s ease, transform 0.55s ease;
+}
+
+.article-gallery-ready .article-gallery-shot.is-visible,
+.article-gallery-ready .article-gallery-content h2.is-visible,
+.article-gallery-ready .article-gallery-content blockquote.is-visible {
+    opacity: 1;
+    transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .article-gallery-ready .article-gallery-shot,
+    .article-gallery-ready .article-gallery-content h2,
+    .article-gallery-ready .article-gallery-content blockquote {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+
+    .article-gallery-scroll-hint {
+        animation: none;
+    }
+}
+
+/* ---------- 章节导航 ---------- */
+.article-gallery-nav {
+    position: fixed;
+    right: 1.5rem;
+    top: 50%;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    transform: translateY(-50%);
+}
+
+.article-gallery-nav a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    color: var(--color-text-light);
+    font-size: 0.75rem;
+    text-decoration: none;
+}
+
+.article-gallery-nav .label {
+    max-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    transition: max-width 0.3s ease, opacity 0.3s ease;
+}
+
+.article-gallery-nav a:hover .label,
+.article-gallery-nav a:focus-visible .label {
+    max-width: 9rem;
+    opacity: 1;
+}
+
+.article-gallery-nav .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-card-bg) 82%, transparent);
+    transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.article-gallery-nav a.is-active .dot {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    transform: scale(1.25);
+}
+
+@media (max-width: 768px) {
+    .article-gallery-nav {
+        display: none;
+    }
+}
+
+/* ---------- 页脚 ---------- */
+.article-gallery-footer {
+    max-width: var(--gallery-max);
+    margin: 2rem auto 0;
+    padding: 0 clamp(0.5rem, 2vw, 1rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.article-gallery-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.article-gallery-tags a {
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: var(--color-background-alt);
+    padding: 0.25rem 0.7rem;
+    font-size: 0.78rem;
+    color: var(--color-text-light);
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.article-gallery-tags a:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+/* ---------- 大图浏览 ---------- */
+.article-gallery-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: color-mix(in srgb, var(--color-background-alt) 88%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.article-gallery-lightbox.is-open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.article-gallery-lightbox img {
+    max-width: min(92vw, 1200px);
+    max-height: 82vh;
+    object-fit: contain;
+    border-radius: 0.75rem;
+}
+
+.article-gallery-lightbox-caption {
+    position: absolute;
+    bottom: 1.75rem;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: min(80vw, 40rem);
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+}
+
+.article-gallery-lightbox-count {
+    position: absolute;
+    top: 1.5rem;
+    left: 1.5rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    color: var(--color-text-muted);
+}
+
+.article-gallery-lightbox-close,
+.article-gallery-lightbox-nav {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: var(--color-card-bg);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.article-gallery-lightbox-close:hover,
+.article-gallery-lightbox-nav:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.article-gallery-lightbox-close {
+    top: 1.5rem;
+    right: 1.5rem;
+}
+
+.article-gallery-lightbox-nav.is-prev {
+    left: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.article-gallery-lightbox-nav.is-next {
+    right: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+body.article-gallery-lock {
+    overflow: hidden;
+}

@@ -1,0 +1,118 @@
+{# 诗词歌赋详情：格式专属布局，样式由 poem_style_preset 控制 #}
+<section class="poetry-section poetry-preset-{{ poem_style_preset }} detail-cover-shell relative min-h-[85vh] flex items-center py-8 overflow-hidden">
+    <!-- 背景氛围层 -->
+    {% if not detail_cover_url %}
+    <div class="poetry-bg absolute inset-0">
+        <div class="absolute inset-0 opacity-30" id="poetry-particles"></div>
+    </div>
+    {% endif %}
+    
+    <!-- 浮动粒子效果 -->
+    <div class="poetry-particles absolute inset-0 pointer-events-none overflow-hidden" id="poetry-float-particles">
+        <div class="particle particle-1"></div>
+        <div class="particle particle-2"></div>
+        <div class="particle particle-3"></div>
+        <div class="particle particle-4"></div>
+        <div class="particle particle-5"></div>
+    </div>
+
+    <div class="relative container mx-auto px-4 max-w-7xl">
+        <!-- 返回导航 -->
+        <nav class="detail-floating-nav mb-6 flex items-center justify-between text-sm">
+            <div class="flex items-center gap-2">
+                <a href="/formats/poem" class="detail-floating-nav-link transition-colors">
+                    <i class="fas fa-arrow-left mr-1"></i>返回诗词列表
+                </a>
+                <span class="detail-floating-nav-divider">|</span>
+                <a href="/archives" class="detail-floating-nav-link transition-colors">
+                    <i class="fas fa-stream mr-1"></i>全部归档
+                </a>
+            </div>
+        </nav>
+
+        <div class="detail-layout detail-layout-poetry {% if toc_items %}has-toc{% endif %}">
+        <article class="poetry-article rounded-2xl border border-white/20 dark:border-gray-700/50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl shadow-2xl overflow-hidden transition-all duration-500">
+            <!-- 头部区域 -->
+            <div class="poetry-header text-center p-6 md:p-10 border-b border-white/10 dark:border-gray-700/30">
+                <div class="flex items-center justify-center gap-2 mb-4">
+                    <span class="poetry-format-badge inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium shadow-lg">
+                        <i class="fas fa-feather-alt mr-2"></i>诗词歌赋
+                    </span>
+                </div>
+                
+                <h1 class="poetry-title text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-4 transition-all duration-300">{{ post.title }}</h1>
+                
+                {% if manual_excerpt %}
+                <p class="poetry-excerpt text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-4 italic">{{ manual_excerpt }}</p>
+                {% endif %}
+                
+                <div class="poetry-meta flex items-center justify-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                    <span><i class="far fa-user mr-1"></i>{{ post_author_name }}</span>
+                    <span><i class="far fa-calendar mr-1"></i>{{ (post.published_at or post.created_at) | localtime('%Y年%m月%d日') }}</span>
+                    <span><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
+                </div>
+            </div>
+
+            <!-- 控制栏 -->
+            <div class="poetry-controls flex flex-wrap items-center justify-center gap-2 p-4 bg-gray-50/50 dark:bg-gray-800/50 border-b border-white/10 dark:border-gray-700/30">
+                <!-- 字体选择 -->
+                <div class="poetry-font-selector flex items-center gap-1">
+                    <span class="text-xs text-gray-500 dark:text-gray-400 mr-1">字体:</span>
+                    <button type="button" class="font-btn px-3 py-1 rounded-full text-xs bg-white dark:bg-gray-700 shadow-sm hover:shadow transition-all active" data-font="sans" title="默认字体">
+                        默认
+                    </button>
+                    <button type="button" class="font-btn px-3 py-1 rounded-full text-xs bg-white dark:bg-gray-700 shadow-sm hover:shadow transition-all" data-font="serif" title="宋体">
+                        宋体
+                    </button>
+                    <button type="button" class="font-btn px-3 py-1 rounded-full text-xs bg-white dark:bg-gray-700 shadow-sm hover:shadow transition-all" data-font="kai" title="楷体">
+                        楷体
+                    </button>
+                </div>
+                
+                <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2"></div>
+                
+                <!-- 功能按钮 -->
+                <button type="button" id="poetry-speak-btn" class="poetry-control-btn px-3 py-1.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-all" title="朗诵">
+                    <i class="fas fa-volume-up mr-1"></i>朗诵
+                </button>
+                <button type="button" id="poetry-scroll-toggle" class="poetry-control-btn px-3 py-1.5 rounded-full text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900 transition-all" title="自动滚动">
+                    <i class="fas fa-wave-square mr-1"></i>自动滚动
+                </button>
+                <button type="button" id="poetry-copy-btn" class="poetry-control-btn px-3 py-1.5 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all" title="复制全文" onclick="copyPoetryContent()">
+                    <i class="fas fa-copy mr-1"></i>复制全文
+                </button>
+                <button type="button" id="poetry-share-btn" class="poetry-control-btn px-3 py-1.5 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all" title="分享" onclick="sharePoetry()">
+                    <i class="fas fa-share-alt mr-1"></i>分享
+                </button>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="poetry-body p-6 md:p-10 space-y-5">
+                <div id="poetry-lyrics-content" class="post-content poetry-content prose dark:prose-invert max-w-none text-center leading-loose overflow-y-auto pr-2 text-lg md:text-xl transition-all duration-300" data-font="sans" data-preset="{{ poem_style_preset }}">
+                    {{ rendered_content | content_lazy_images | safe }}
+                </div>
+                {% set license_box_class = "rounded-xl bg-white/70 dark:bg-gray-900/60 border border-white/40 dark:border-gray-700/60 p-4 md:p-5" %}
+                {% include "components/post_license_inline.html" %}
+            </div>
+
+            <!-- 标签区域 -->
+            {% if post.tags %}
+            <div class="px-6 md:px-10 pb-6 md:pb-10">
+                <div class="flex flex-wrap items-center justify-center gap-2 pt-4 border-t border-white/10 dark:border-gray-700/30">
+                    {% for tag in post.tags %}
+                    <a href="/archives/by-tag/{{ tag.slug }}" class="poetry-tag px-3 py-1 rounded-full text-xs bg-purple-100/80 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800/50 transition-all">
+                        #{{ tag.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </article>
+        {% if toc_items %}
+        {% set toc_panel_class = "detail-toc-panel detail-toc-panel-poetry" %}
+        {% set toc_panel_label = "内容目录" %}
+        {% include "partials/detail/toc.html" %}
+        {% endif %}
+        </div>
+    </div>
+</section>

@@ -23,6 +23,8 @@ from ..core.content_utils import (
 from ..core.content_intents import choose_primary_intent_slug, normalize_intent_slug, INTENT_NAME_MAP
 from ..core.media_attachments import detect_media_flags, summarize_media_attachments
 from ..core.page_templates import normalize_page_template
+from ..core.post_templates import normalize_post_template
+from ..core.format_presets import normalize_style_preset_value
 from ..core import public_list_cache
 from ..core import public_detail_cache
 from ..core import post_views
@@ -83,6 +85,18 @@ def _normalize_page_template_for_post(post_type: Optional[str], template_value: 
     if str(post_type or "").strip().lower() != "page":
         return "default"
     return normalize_page_template(template_value)
+
+
+def _normalize_post_template_for_post(post_type: Optional[str], template_value: Optional[str]) -> str:
+    if str(post_type or "").strip().lower() != "post":
+        return "auto"
+    return normalize_post_template(template_value)
+
+
+def _normalize_style_preset_for_post(post_type: Optional[str], preset_value: Optional[str]) -> str:
+    if str(post_type or "").strip().lower() != "post":
+        return "auto"
+    return normalize_style_preset_value(preset_value)
 
 
 def _normalize_excerpt_value(excerpt: Optional[str]) -> str:
@@ -465,6 +479,8 @@ def create_post(
         "featured_image_url": _normalize_featured_image_url(post.featured_image_url),
         "post_type": normalized_post_type,
         "page_template": _normalize_page_template_for_post(normalized_post_type, post.page_template),
+        "post_template": _normalize_post_template_for_post(normalized_post_type, post.post_template),
+        "style_preset": _normalize_style_preset_for_post(normalized_post_type, post.style_preset),
         "status": post.status,
         "visibility": post.visibility,
         "password": get_password_hash(post.password) if post.password else None,
@@ -550,6 +566,8 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
         if incoming_post_type is not None:
             update_data["post_type"] = incoming_post_type
         incoming_page_template = update_data.pop("page_template", None)
+        incoming_post_template = update_data.pop("post_template", None)
+        incoming_style_preset = update_data.pop("style_preset", None)
         incoming_password = update_data.pop("password", None)
         
         # 可见性为 public/private 时，清空访问密码
@@ -618,6 +636,17 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
             db_post.page_template = _normalize_page_template_for_post(target_post_type, incoming_page_template)
         elif incoming_post_type is not None and str(incoming_post_type).strip().lower() != "page":
             db_post.page_template = "default"
+
+        target_post_type = incoming_post_type if incoming_post_type is not None else db_post.post_type
+        if incoming_post_template is not None:
+            db_post.post_template = _normalize_post_template_for_post(target_post_type, incoming_post_template)
+        elif str(target_post_type).strip().lower() != "post":
+            db_post.post_template = "auto"
+
+        if incoming_style_preset is not None:
+            db_post.style_preset = _normalize_style_preset_for_post(target_post_type, incoming_style_preset)
+        elif str(target_post_type).strip().lower() != "post":
+            db_post.style_preset = "auto"
 
         db_post.media_attachment_summary = _build_media_attachment_summary_payload(
             content_markdown=db_post.content_markdown,
