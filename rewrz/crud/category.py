@@ -1,9 +1,17 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
+from cachetools import TTLCache
+import threading
 from ..models import Category, Post
 from ..models.post import post_categories
 from ..schemas import CategoryCreate, CategoryUpdate
 from ..core.time_utils import utc_now_naive
+
+# 分类导航计数每次渲染页面都要查询，且聚合结果变化频率很低。
+# 缓存 60 秒可把这类聚合查询从「每页一次」降到「每分钟一次」，
+# 文章写入时通过 invalidate_category_post_counts_cache() 主动失效。
+_CATEGORY_POST_COUNTS_CACHE: TTLCache = TTLCache(maxsize=1, ttl=60)
+_CATEGORY_POST_COUNTS_LOCK = threading.Lock()
 
 def get_category(db: Session, category_id: int):
     return db.execute(select(Category).filter(Category.id == category_id)).scalar_one_or_none()
@@ -19,8 +27,19 @@ def get_all_categories(db: Session):
     return db.execute(select(Category)).scalars().all()
 
 
+def invalidate_category_post_counts_cache() -> None:
+    """文章或分类写入后清空导航计数缓存，保证下一次渲染拿到最新数字。"""
+    with _CATEGORY_POST_COUNTS_LOCK:
+        _CATEGORY_POST_COUNTS_CACHE.clear()
+
+
 def get_published_post_category_counts(db: Session) -> dict[int, int]:
     """按分类聚合已发布文章数量，避免加载分类下的全部文章。"""
+    with _CATEGORY_POST_COUNTS_LOCK:
+        cached = _CATEGORY_POST_COUNTS_CACHE.get("counts")
+    if cached is not None:
+        return dict(cached)
+
     rows = db.execute(
         select(post_categories.c.category_id, func.count(Post.id))
         .join(Post, Post.id == post_categories.c.post_id)
@@ -33,7 +52,10 @@ def get_published_post_category_counts(db: Session) -> dict[int, int]:
         )
         .group_by(post_categories.c.category_id)
     ).all()
-    return {int(category_id): int(count) for category_id, count in rows if category_id is not None}
+    counts = {int(category_id): int(count) for category_id, count in rows if category_id is not None}
+    with _CATEGORY_POST_COUNTS_LOCK:
+        _CATEGORY_POST_COUNTS_CACHE["counts"] = counts
+    return dict(counts)
 
 def count_categories(db: Session) -> int:
     """
@@ -55,6 +77,7 @@ def create_category(db: Session, category: CategoryCreate):
     db.add(db_category)
     db.commit()
     db.refresh(db_category)
+    invalidate_category_post_counts_cache()
     return db_category
 
 def update_category(db: Session, category_id: int, category_update: CategoryUpdate):
@@ -64,6 +87,7 @@ def update_category(db: Session, category_id: int, category_update: CategoryUpda
             setattr(db_category, key, value)
         db.commit()
         db.refresh(db_category)
+        invalidate_category_post_counts_cache()
     return db_category
 
 def delete_category(db: Session, category_id: int):
@@ -71,6 +95,7 @@ def delete_category(db: Session, category_id: int):
     if db_category:
         db.delete(db_category)
         db.commit()
+        invalidate_category_post_counts_cache()
     return db_category
 
 
@@ -119,6 +144,7 @@ def bulk_delete_categories(db: Session, category_ids: list[int]):
     if deletable_ids:
         db.query(Category).filter(Category.id.in_(deletable_ids)).delete(synchronize_session=False)
         db.commit()
+        invalidate_category_post_counts_cache()
 
     missing_ids = [category_id for category_id in category_ids if category_id not in existing_ids]
     return {

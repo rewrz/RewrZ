@@ -53,11 +53,12 @@ def get_rss_config(db: Session) -> dict:
     }
 
 @router.get("/feed.xml")
+@router.get("/feed")
 def rss_feed(request: Request, db: Session = Depends(get_db)):
     """
     全站RSS订阅源
-    
-    生成包含最新文章的RSS 2.0格式订阅源
+
+    裸 /feed 与 /feed.xml 共用同一逻辑，兼容阅读器默认探测路径。
     """
     if not check_rss_enabled(db):
         raise HTTPException(status_code=404, detail="RSS订阅功能已禁用")
@@ -66,8 +67,9 @@ def rss_feed(request: Request, db: Session = Depends(get_db)):
     return generate_rss_feed(request, db, limit=rss_config["items_limit"], cache_duration=rss_config["cache_duration"], content_mode=rss_config["content_mode"])
 
 @router.get("/rss.xml") 
+@router.get("/rss")
 def rss_feed_alt(request: Request, db: Session = Depends(get_db)):
-    """RSS订阅源（备用路径）"""
+    """RSS订阅源（备用路径，兼容 /rss 与 /rss.xml）"""
     if not check_rss_enabled(db):
         raise HTTPException(status_code=404, detail="RSS订阅功能已禁用")
     

@@ -22,6 +22,10 @@ logger = logging.getLogger(__name__)
 # 又不会让浏览量在页面上明显滞后。
 FLUSH_INTERVAL_SECONDS = 15
 
+# 与访问统计刷写（同样 15 秒一次）错开半拍，避免两次后台写在同一时刻
+# 争抢 SQLite 写锁，放大 WAL checkpoint 期间的等待时间。
+FLUSH_INITIAL_OFFSET_SECONDS = 7
+
 _PENDING: Dict[int, int] = {}
 _LOCK = threading.Lock()
 _FLUSH_THREAD: threading.Thread | None = None
@@ -176,6 +180,8 @@ def flush_post_views() -> int:
 
 def _flush_loop() -> None:
     """后台刷新线程：按固定间隔落库，进程退出时由 stop 唤醒。"""
+    if _STOP_EVENT.wait(FLUSH_INITIAL_OFFSET_SECONDS):
+        return
     while not _STOP_EVENT.wait(FLUSH_INTERVAL_SECONDS):
         try:
             flush_post_views()

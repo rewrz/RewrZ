@@ -49,6 +49,6 @@
 
 ## 文档维护规则
 - 功能行为变化时，至少同步更新一份文档。
-- 涉及接口行为变更，必须更新 `API_CONVENTIONS.md` 或 `CHANGELOG.md`。
+- 涉及接口行为变更，必须更新 `API_CONVENTIONS.md`；`CHANGELOG.md` 只在发布正式版本时统一汇总，不随提交逐次更新。
 - 涉及部署与运维变化，必须更新 `USAGE.md` 或 `TROUBLESHOOTING.md`。
 - 涉及测试基线或真实验收变化，必须更新 `docs/testing/` 下对应主文档。

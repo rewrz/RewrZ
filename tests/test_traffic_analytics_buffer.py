@@ -13,6 +13,7 @@ from rewrz.core import traffic_analytics
 from rewrz.core.admin_path import get_admin_path
 from rewrz.core.database import Base
 from rewrz.core.time_utils import site_day_start_utc, utc_now_naive
+from rewrz.crud import traffic as crud_traffic
 from rewrz.models import (
     TrafficAnomalySource,
     TrafficDimensionDaily,
@@ -407,6 +408,46 @@ def test_beacon_page_view_rate_limits_per_ip(monkeypatch):
 
     minute_bucket = traffic_analytics._MINUTE_BUCKETS[fixed_now]
     assert minute_bucket["beacon_page_views"] == traffic_analytics.MAX_BEACON_PER_IP_MINUTE
+
+
+def test_user_4xx_only_counts_non_bot_non_suspicious_requests(traffic_db, monkeypatch):
+    """4xx 指标只反映真实用户请求，扫描器与爬虫不参与比例。"""
+    session_factory = _make_session_factory(traffic_db.get_bind())
+    monkeypatch.setattr(traffic_analytics, "_get_client_ip", lambda request: "203.0.113.30")
+    monkeypatch.setattr(traffic_analytics.db_manager, "get_session", lambda: session_factory())
+
+    traffic_analytics.record_http_request(_fake_request(path="/missing-page"), _html_response(404), None)
+
+    bot_request = _fake_request(path="/missing-page")
+    bot_request.headers["user-agent"] = "Mozilla/5.0 (compatible; Googlebot/2.1)"
+    traffic_analytics.record_http_request(bot_request, _html_response(404), None)
+    traffic_analytics.record_http_request(bot_request, _html_response(500), None)
+
+    traffic_analytics.record_http_request(_fake_request(path="/.env"), _html_response(404), None)
+
+    minute_bucket = next(iter(traffic_analytics._MINUTE_BUCKETS.values()))
+    assert minute_bucket["requests"] == 4
+    assert minute_bucket["status_4xx"] == 1
+    # 5xx 不区分来源，服务端异常必须完整计数
+    assert minute_bucket["status_5xx"] == 1
+
+
+def test_with_ratios_excludes_bot_and_suspicious_from_4xx_denominator():
+    totals = {
+        "requests": 100,
+        "bot_requests": 40,
+        "suspicious_requests": 30,
+        "status_4xx": 6,
+        "status_5xx": 0,
+        "page_views": 0,
+        "beacon_page_views": 0,
+    }
+    result = crud_traffic._with_ratios(totals)
+
+    # 分母为真实用户请求 100 - 40 - 30 = 30，4xx 比例 = 6/30
+    assert result["status_4xx_ratio"] == 20.0
+    assert result["bot_ratio"] == 40.0
+    assert result["suspicious_ratio"] == 30.0
 
 
 def test_upsert_statements_compile_for_sqlite_and_postgresql():

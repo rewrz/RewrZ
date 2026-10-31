@@ -351,9 +351,14 @@ class UnifiedTaskScheduler:
             await asyncio.to_thread(self.state_store.save_state, task.name, state)
 
             try:
-                result = task.handler()
-                if inspect.isawaitable(result):
-                    await result
+                handler = task.handler
+                if inspect.iscoroutinefunction(handler):
+                    await handler()
+                else:
+                    # 同步 handler 必须交给线程池：锁等待或磁盘 IO 期间不能阻塞事件循环
+                    result = await asyncio.to_thread(handler)
+                    if inspect.isawaitable(result):
+                        await result
                 state.last_completed_at = self.now_provider().isoformat()
                 state.last_success_period_key = period_key
                 state.last_error = None

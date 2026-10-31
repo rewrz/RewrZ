@@ -290,11 +290,14 @@ def _record_classification(
     minute_bucket = _MINUTE_BUCKETS.setdefault(minute, _new_counter_bucket())
     hour_bucket = _HOUR_BUCKETS.setdefault(hour, _new_counter_bucket())
     category_field = _CATEGORY_FIELD_MAP.get(classification.category, "other_requests")
+    # 4xx 只统计非爬虫、非可疑请求：扫描器探测会在 4xx 上长期占多数，
+    # 直接计入会让容量告警一直误报；5xx 仍按全部请求统计，服务端异常不能漏。
+    counts_user_4xx = classification.category not in {CATEGORY_BOT, CATEGORY_SUSPICIOUS}
 
     for bucket in (minute_bucket, hour_bucket):
         bucket["requests"] += 1
         bucket[category_field] += 1
-        if 400 <= int(status_code) < 500:
+        if counts_user_4xx and 400 <= int(status_code) < 500:
             bucket["status_4xx"] += 1
         if int(status_code) >= 500:
             bucket["status_5xx"] += 1

@@ -147,6 +147,7 @@ _SOCIAL_HOST_SUFFIXES = (
 _FEED_PATHS = {
     "/feed",
     "/feed.xml",
+    "/rss",
     "/rss.xml",
     "/atom.xml",
     "/sitemap.xml",

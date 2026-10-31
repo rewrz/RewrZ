@@ -114,7 +114,7 @@
             <p class="mt-1 text-xs" style="color: var(--color-text-light);">占 {{ totals.suspicious_ratio }}%</p>
         </div>
         <div class="admin-panel p-4">
-            <p class="text-xs" style="color: var(--color-text-light);">4xx / 5xx</p>
+            <p class="text-xs" style="color: var(--color-text-light);">4xx / 5xx（4xx 已排除爬虫与可疑请求）</p>
             <p class="text-2xl font-bold mt-1" style="color: var(--color-text);">{{ totals.status_4xx }} / {{ totals.status_5xx }}</p>
             <p class="mt-1 text-xs" style="color: var(--color-text-light);">{{ totals.status_4xx_ratio }}% / {{ totals.status_5xx_ratio }}%</p>
         </div>
@@ -268,7 +268,7 @@
 
         <div class="admin-section-card p-6 rounded-lg">
             <h2 class="text-lg font-semibold mb-1" style="color: var(--color-text);">状态码分布</h2>
-            <p class="text-xs mb-4" style="color: var(--color-text-light);">4xx/5xx 过高通常意味着扫描、失效链接或服务异常。</p>
+            <p class="text-xs mb-4" style="color: var(--color-text-light);">4xx 比例已排除爬虫与可疑请求；状态码分布仍按全部回源请求统计。</p>
             {% if summary.statuses %}
             <div class="space-y-3">
                 {% for item in summary.statuses %}

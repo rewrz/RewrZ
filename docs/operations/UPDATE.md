@@ -41,9 +41,13 @@ chmod +x update.sh
 - 重启后会等待 systemd 服务进入 active，再对健康检查入口做重试探测；
   应用冷启动约 30 秒，默认最多等待 60 秒，避免把启动过程误报为健康检查失败
 - 重启前会检测 systemd 的 `--workers` 数量：本机内存 ≤1.5GB 且 worker 数大于 1 时，
-  仅提示改为 `--workers 1` 并设置 `MALLOC_ARENA_MAX=2`，不会自动改写服务配置
+  仅提示改为 `--workers 1`，不会自动改写服务配置
+- 检测同时读取主 unit 与 `/etc/systemd/system/<服务名>.d/*.conf`，以 override 中的
+  最后一项为准，避免已通过 drop-in 修正的配置被误报
 - 同时检测 `--limit-concurrency`：缺失时仅提示设为 `20`，与默认连接池 16+8 配合，
   避免并发把连接池打满，同样不会自动改写服务配置
+- 小内存机器还会检测 `MALLOC_ARENA_MAX`：未设置时提示加入 `Environment=MALLOC_ARENA_MAX=2`，
+  避免 glibc 线程内存池长期占用 RSS
 - 数据库表结构由应用启动时的 `create_all` 自动维护（只建不存在的表）；
   `alembic/versions/` 下的迁移脚本只承载 `create_all` 无法覆盖的数据变更
 - `update.sh` 会在依赖安装后执行 `alembic upgrade head`（未检测到 `.env` 时跳过，

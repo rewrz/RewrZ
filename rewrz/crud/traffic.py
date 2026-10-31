@@ -286,6 +286,10 @@ def _sum_hour_rows(rows: Iterable[TrafficHourStat]) -> dict[str, int]:
 
 def _with_ratios(totals: dict[str, Any]) -> dict[str, Any]:
     requests = int(totals.get("requests", 0) or 0)
+    bot_requests = int(totals.get("bot_requests", 0) or 0)
+    suspicious_requests = int(totals.get("suspicious_requests", 0) or 0)
+    # 4xx 已在记录时排除爬虫与可疑请求，分母同步排除，避免比例被稀释
+    user_requests = max(1, requests - bot_requests - suspicious_requests) if requests > 0 else 0
     page_views = int(totals.get("page_views", 0) or 0)
     beacon_page_views = int(totals.get("beacon_page_views", 0) or 0)
     # 有效访问取回源与前端上报的较大值：上报能覆盖 CDN 缓存命中，
@@ -306,7 +310,7 @@ def _with_ratios(totals: dict[str, Any]) -> dict[str, Any]:
         )
         totals["page_view_ratio"] = round(page_views * 100.0 / requests, 2)
         totals["status_4xx_ratio"] = round(
-            int(totals.get("status_4xx", 0)) * 100.0 / requests, 2
+            int(totals.get("status_4xx", 0)) * 100.0 / user_requests, 2
         )
         totals["status_5xx_ratio"] = round(
             int(totals.get("status_5xx", 0)) * 100.0 / requests, 2
@@ -618,6 +622,10 @@ def _build_capacity(db: Session, now_utc: datetime) -> dict[str, Any]:
     total_requests = sum(int(row.requests or 0) for row in rows)
     total_4xx = sum(int(row.status_4xx or 0) for row in rows)
     total_5xx = sum(int(row.status_5xx or 0) for row in rows)
+    bot_requests = sum(int(row.bot_requests or 0) for row in rows)
+    suspicious_requests = sum(int(row.suspicious_requests or 0) for row in rows)
+    # 4xx 在记录时已排除爬虫与可疑请求，分母也要用有效请求数
+    user_requests = max(1, total_requests - bot_requests - suspicious_requests)
     duration_sum = sum(int(row.duration_ms_sum or 0) for row in rows)
     peak_rpm = max((int(row.requests or 0) for row in rows), default=0)
     peak_concurrency = max((int(row.peak_concurrency or 0) for row in rows), default=0)
@@ -625,7 +633,7 @@ def _build_capacity(db: Session, now_utc: datetime) -> dict[str, Any]:
     pool = db_manager.get_pool_status() or {}
     timeout_count = int(pool.get("timeout_count", 0) or 0)
     five_xx_ratio = (total_5xx / total_requests) if total_requests > 0 else 0.0
-    four_xx_ratio = (total_4xx / total_requests) if total_requests > 0 else 0.0
+    four_xx_ratio = (total_4xx / user_requests) if total_requests > 0 else 0.0
     avg_duration = round(duration_sum / total_requests, 1) if total_requests > 0 else 0.0
 
     reasons: list[str] = []
@@ -649,7 +657,8 @@ def _build_capacity(db: Session, now_utc: datetime) -> dict[str, Any]:
         watch_reasons.append(
             f"峰值并发 {peak_concurrency}（关注阈值 {_CAPACITY_THRESHOLDS['peak_concurrency_watch']}）"
         )
-    if total_requests >= 20 and four_xx_ratio > _CAPACITY_THRESHOLDS["four_xx_ratio_watch"]:
+    # 样本量同样只看真实用户请求：爬虫流量再多，也不能让少数用户 4xx 被放大成比例告警
+    if user_requests >= 20 and four_xx_ratio > _CAPACITY_THRESHOLDS["four_xx_ratio_watch"]:
         watch_reasons.append(f"4xx 比例 {four_xx_ratio * 100:.2f}%（关注阈值 10%）")
 
     if reasons:

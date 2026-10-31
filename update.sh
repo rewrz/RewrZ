@@ -277,14 +277,28 @@ fi
 
 # 8.1 小内存部署提示（仅检测，不修改 systemd 配置）
 SERVICE_UNIT="/etc/systemd/system/$SERVICE_NAME"
-if [ -f "$SERVICE_UNIT" ]; then
-    WORKER_COUNT="$(grep -oE -- '--workers[= ][0-9]+' "$SERVICE_UNIT" | head -n1 | grep -oE '[0-9]+' || true)"
+SERVICE_DROPIN_DIR="/etc/systemd/system/$SERVICE_NAME.d"
+if [ -f "$SERVICE_UNIT" ] || [ -d "$SERVICE_DROPIN_DIR" ]; then
+    # systemd 允许用 override.d 覆盖主 unit，检测必须把 drop-in 一起读进来，
+    # 否则会把已经在 override 里修正过的 worker 数或并发限制误判为缺失。
+    UNIT_CONFIG="$(cat "$SERVICE_UNIT" 2>/dev/null || true)"
+    if [ -d "$SERVICE_DROPIN_DIR" ]; then
+        for dropin in "$SERVICE_DROPIN_DIR"/*.conf; do
+            [ -f "$dropin" ] || continue
+            UNIT_CONFIG="${UNIT_CONFIG}
+$(cat "$dropin" 2>/dev/null || true)"
+        done
+    fi
+    WORKER_COUNT="$(printf '%s\n' "$UNIT_CONFIG" | grep -oE -- '--workers[= ][0-9]+' | tail -n1 | grep -oE '[0-9]+' || true)"
     TOTAL_MEM_MB="$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo 0)"
     if [ -n "${WORKER_COUNT:-}" ] && [ "$WORKER_COUNT" -gt 1 ] && [ "${TOTAL_MEM_MB:-0}" -gt 0 ] && [ "$TOTAL_MEM_MB" -le 1536 ]; then
-        warn "检测到 systemd 使用 ${WORKER_COUNT} 个 worker，本机内存 ${TOTAL_MEM_MB}MB；建议改为 --workers 1 并设置 MALLOC_ARENA_MAX=2，避免整机 OOM"
+        warn "检测到 systemd 使用 ${WORKER_COUNT} 个 worker，本机内存 ${TOTAL_MEM_MB}MB；建议改为 --workers 1，避免整机 OOM"
     fi
-    if ! grep -q -- '--limit-concurrency' "$SERVICE_UNIT"; then
+    if ! printf '%s\n' "$UNIT_CONFIG" | grep -q -- '--limit-concurrency'; then
         warn "systemd 未设置 --limit-concurrency；建议设为 20，与默认连接池 16+8 配合，避免并发把连接池打满"
+    fi
+    if [ "${TOTAL_MEM_MB:-0}" -gt 0 ] && [ "$TOTAL_MEM_MB" -le 1536 ] && ! printf '%s\n' "$UNIT_CONFIG" | grep -q 'MALLOC_ARENA_MAX'; then
+        warn "systemd 未设置 MALLOC_ARENA_MAX=2；glibc 会保留已释放的线程内存，小内存机器建议在 unit 或 override 中加入 Environment=MALLOC_ARENA_MAX=2"
     fi
 fi
 

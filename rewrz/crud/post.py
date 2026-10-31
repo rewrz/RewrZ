@@ -13,6 +13,7 @@ from ..core.time_utils import site_month_range_utc, utc_now_naive
 from ..core.security import get_password_hash, verify_password
 from ..crud import format as crud_format
 from ..crud import tag as crud_tag
+from ..crud import category as crud_category
 from ..core.content_utils import (
     infer_editor_mode,
     normalize_editor_mode,
@@ -45,9 +46,10 @@ def _snapshot_matches_content(snapshot: dict, content_markdown: str, content_htm
 
 
 def _invalidate_public_caches() -> None:
-    """内容写入后同时失效列表页与详情页缓存。"""
+    """内容写入后同时失效列表页与详情页缓存，并刷新分类导航计数。"""
     public_list_cache.invalidate_public_list_cache()
     public_detail_cache.invalidate_public_detail_cache()
+    crud_category.invalidate_category_post_counts_cache()
 
 
 def _normalize_post_type_value(post_type: Optional[str], *, allow_none: bool = False) -> Optional[str]:

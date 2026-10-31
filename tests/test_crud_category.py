@@ -5,9 +5,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from rewrz.crud import category as crud_category
+from rewrz.crud import post as crud_post
 from rewrz.models.base import Base
 from rewrz.models.post import Post
 from rewrz.schemas.category import CategoryCreate, CategoryUpdate
+from rewrz.schemas.post import PostCreate
 
 
 @pytest.fixture(name="db")
@@ -108,6 +110,44 @@ def test_bulk_delete_categories(db: Session):
     assert result["missing_ids"] == [99999]
     assert crud_category.get_category(db, category_id=delete_me_id) is None
     assert crud_category.get_category(db, category_id=used_by_post_id) is not None
+
+
+def test_published_category_counts_cache_and_invalidation(db: Session):
+    from rewrz.core.time_utils import utc_now_naive
+
+    category = crud_category.create_category(db, CategoryCreate(name="缓存计数", slug="cached-counts"))
+    assert crud_category.get_published_post_category_counts(db) == {}
+
+    # 直接写库绕过 CRUD 失效，缓存仍应命中，证明聚合结果被复用
+    post = Post(
+        title="已发布文章",
+        slug="published-for-counts",
+        content_markdown="x",
+        content_html="<p>x</p>",
+        status="published",
+        visibility="public",
+        published_at=utc_now_naive(),
+    )
+    post.categories.append(category)
+    db.add(post)
+    db.commit()
+    assert crud_category.get_published_post_category_counts(db) == {}
+
+    crud_category.invalidate_category_post_counts_cache()
+    assert crud_category.get_published_post_category_counts(db) == {category.id: 1}
+
+    # 文章写入路径同样要失效缓存，避免导航计数延迟一分钟
+    crud_post.create_post(
+        db,
+        PostCreate(
+            title="再写一篇",
+            content_markdown="x",
+            status="published",
+            category_ids=[category.id],
+        ),
+        author_id=None,
+    )
+    assert crud_category.get_published_post_category_counts(db)[category.id] == 2
 
 
 def test_bulk_delete_categories_blocked_by_child(db: Session):
