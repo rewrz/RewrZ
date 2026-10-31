@@ -1789,6 +1789,58 @@ body.site-shell > footer a:hover {
     border-radius: var(--ui-radius-lg);
 }
 
+.admin-modal-header {
+    border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+}
+
+.admin-modal-sidebar {
+    border-right: 1px solid color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+}
+
+.admin-soft-btn:disabled,
+.admin-primary-btn:disabled,
+.admin-soft-btn-danger:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.snapshot-diff {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.snapshot-diff-line {
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+}
+
+.snapshot-diff-line.is-addition {
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%);
+    color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
+}
+
+.snapshot-diff-line.is-deletion {
+    background: color-mix(in srgb, var(--color-text) 8%, var(--color-card-bg) 92%);
+    color: var(--color-text-light);
+}
+
+.snapshot-diff-line.is-context {
+    color: var(--color-text-light);
+}
+
+.snapshot-diff-line.is-meta {
+    color: var(--color-text-light);
+    font-style: italic;
+}
+
+.snapshot-select-all,
+.snapshot-select {
+    accent-color: var(--color-primary);
+}
+
 .admin-action-links {
     color: var(--color-text-light);
 }

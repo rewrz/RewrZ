@@ -357,12 +357,8 @@
             }
             
             try {
-                const response = await fetch(`/api/v1/posts/${postId}/snapshots/cleanup`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ keep_count: parseInt(keepCount) })
+                const response = await fetch(`/api/v1/posts/${postId}/snapshots/cleanup?keep_count=${parseInt(keepCount)}`, {
+                    method: 'POST'
                 });
                 const data = await response.json();
                 

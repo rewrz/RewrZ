@@ -200,6 +200,16 @@ def normalize_editor_mode(value: Optional[str], fallback: str = "markdown") -> s
     return fallback if fallback in VALID_EDITOR_MODES else "markdown"
 
 
+def detect_stored_editor_mode(content_markdown: Optional[str], content_html: Optional[str]) -> str:
+    """按存储约定判断已有正文使用的编辑模式。
+
+    存储层面只会保留一种正文：Markdown 模式 content_html 为空，HTML 模式 content_markdown 为空。
+    """
+    if (content_html or "").strip() and not (content_markdown or "").strip():
+        return "html"
+    return "markdown"
+
+
 def infer_editor_mode(
     requested_mode: Optional[str],
     content_markdown: Optional[str],

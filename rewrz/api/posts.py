@@ -11,7 +11,7 @@ from collections import defaultdict, deque
 
 from ..core.admin_path import get_admin_path
 from ..core.database import get_db
-from ..core.security import get_current_user, verify_csrf_token
+from ..core.security import get_current_user, verify_csrf_token, is_admin_user
 from ..core.template_filters import get_templates, post_summary_text_filter
 from ..core.config import settings
 from ..core.page_templates import (
@@ -697,6 +697,9 @@ def inline_update_post_api(
         updated_labels.append("发布时间")
 
     if "category_ids" in provided_fields:
+        # 分类只属于标准文章，微博/诗词不允许通过内联编辑写入分类
+        if _resolve_post_primary_intent_slug(db_post) in {"micro", "poem"}:
+            raise HTTPException(status_code=400, detail="微博/诗词不支持分类")
         requested_ids = sorted({
             int(category_id)
             for category_id in (payload.category_ids or [])
@@ -871,6 +874,47 @@ def batch_delete_posts(
         return JSONResponse(status_code=e.status_code, content={"success": False, "error": e.detail})
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "error": f"批量删除失败: {str(e)}"})
+
+
+@router.post(f"{ADMIN_PATH}/api/v1/posts/batch-clear-snapshots", response_model=dict)
+def batch_clear_post_snapshots(
+    request: Request,
+    post_batch_update: PostBatchUpdate,
+    csrf_token: str = Header(..., alias="X-CSRF-Token"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """批量清空所选文章/页面的全部历史快照。"""
+    verify_csrf_token(request, csrf_token)
+    try:
+        requested_ids = sorted({
+            post_id for post_id in post_batch_update.post_ids
+            if isinstance(post_id, int) and post_id > 0
+        })
+        author_id = None if is_admin_user(current_user) else current_user.id
+        cleared_count, deleted_snapshot_count = crud_post.clear_version_snapshots_by_post_ids(
+            db=db,
+            post_ids=requested_ids,
+            author_id=author_id,
+        )
+        untouched_count = max(len(requested_ids) - cleared_count, 0)
+        message = f"已为 {cleared_count} 个内容清空 {deleted_snapshot_count} 条历史快照"
+        if untouched_count:
+            # runBatchPostAction / runBatchPageAction 会根据“跳过”文案避免重复追加提示
+            message += f"，跳过 {untouched_count} 个"
+        return {
+            "success": True,
+            "message": message,
+            "requested_count": len(requested_ids),
+            "cleared_count": cleared_count,
+            "deleted_snapshot_count": deleted_snapshot_count,
+            "skipped_count": untouched_count,
+        }
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={"success": False, "error": e.detail})
+    except Exception as e:
+        db.rollback()
+        return JSONResponse(status_code=500, content={"success": False, "error": f"清空快照失败: {str(e)}"})
 
 @router.get(f"{ADMIN_PATH}/api/v1/posts/{{post_id}}/cover", response_model=dict)
 def get_post_cover_api(

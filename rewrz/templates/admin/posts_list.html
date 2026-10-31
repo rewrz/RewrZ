@@ -31,6 +31,11 @@
                     disabled>
                 批量删除
             </button>
+            <button onclick="batchClearSnapshots()" data-batch-action
+                    class="admin-soft-btn admin-soft-btn-danger rounded-md px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled>
+                清空快照
+            </button>
             <span id="selected-count" class="text-sm text-[var(--color-text-light)]">已选 0 篇</span>
             <span id="batch-operation-status" class="admin-accent-text hidden text-sm">
                 <i class="fas fa-spinner fa-spin mr-1"></i>
@@ -270,6 +275,11 @@
                         </div>
                     </td>
                     <td class="px-4 py-4 align-top">
+                        {% if is_micro or is_poem %}
+                        <div class="admin-inline-cell">
+                            <span class="admin-inline-placeholder" title="微博/诗词使用标签组织内容，不支持分类">不适用</span>
+                        </div>
+                        {% else %}
                         <div class="admin-inline-region"
                              data-inline-field="categories"
                              data-post-id="{{ post.id }}"
@@ -291,6 +301,7 @@
                                 </button>
                             </div>
                         </div>
+                        {% endif %}
                     </td>
                     <td class="px-4 py-4 align-top">
                         <div class="admin-inline-region"
@@ -977,6 +988,18 @@ async function batchDelete() {
         `{{ request.state.admin_path }}/api/v1/posts/batch-delete`,
         `正在批量删除 ${selected.length} 篇文章，请稍候...`,
         '批量删除失败'
+    );
+}
+
+async function batchClearSnapshots() {
+    const selected = getSelectedPosts();
+    if (!selected.length) return;
+    if (!(await window.adminConfirm(`确定要清空选中的 ${selected.length} 篇文章的全部历史快照吗？此操作不可撤销。`, { tone: 'danger', confirmText: '清空快照' }))) return;
+    runBatchPostAction(
+        selected,
+        `{{ request.state.admin_path }}/api/v1/posts/batch-clear-snapshots`,
+        `正在清空 ${selected.length} 篇文章的历史快照，请稍候...`,
+        '清空快照失败'
     );
 }
 

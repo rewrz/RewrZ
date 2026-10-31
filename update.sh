@@ -244,6 +244,27 @@ else
     warn ".env 不存在，请先运行安装向导 /installer"
 fi
 
+# 7.1 数据库迁移（仅对已安装站点执行，新站点由安装向导建表并标记版本）
+echo ""
+echo ">>> 执行数据库迁移..."
+if [ ! -f ".env" ]; then
+    warn "未检测到 .env，跳过数据库迁移；新站点请先完成安装向导 /installer"
+elif [ -f "alembic.ini" ]; then
+    # 旧迁移脚本已废弃删除；若数据库仍记录旧 revision，先重置到空基线再迁移。
+    if ! ALEMBIC_STATE="$(.venv/bin/python -m alembic current 2>&1)"; then
+        if printf '%s' "$ALEMBIC_STATE" | grep -q "Can't locate revision"; then
+            warn "检测到已废弃的历史迁移版本，正在重置迁移基线..."
+            .venv/bin/python -m alembic stamp --purge base || fail "重置数据库迁移基线失败"
+        else
+            fail "读取数据库迁移状态失败: ${ALEMBIC_STATE}"
+        fi
+    fi
+    .venv/bin/python -m alembic upgrade head || fail "数据库迁移失败，请检查 DATABASE_URL 与迁移日志"
+    ok "数据库迁移已应用到最新版本"
+else
+    warn "未找到 alembic.ini，跳过数据库迁移"
+fi
+
 # 8. 提示前端产物重建
 if [ "$IN_GIT_REPO" = true ] && [ "$CHANGED" = true ] && [ -n "$OLD_REV" ]; then
     FRONTEND_CHANGED="$(git diff --name-only "$OLD_REV" HEAD -- rewrz/templates tailwind.config.js package.json 2>/dev/null || true)"

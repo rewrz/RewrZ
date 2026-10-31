@@ -9,7 +9,7 @@
 ## 一键更新脚本（推荐）
 
 仓库根目录提供了 `update.sh`，它按顺序完成备份、拉代码、装依赖、
-重启服务、重载 Nginx 与最小烟测，等价于本文「标准更新流程」。
+执行数据库迁移、重启服务、重载 Nginx 与最小烟测，等价于本文「标准更新流程」。
 
 ```bash
 cd /srv/rewrz                      # 换成你的部署目录
@@ -44,17 +44,20 @@ chmod +x update.sh
   仅提示改为 `--workers 1` 并设置 `MALLOC_ARENA_MAX=2`，不会自动改写服务配置
 - 同时检测 `--limit-concurrency`：缺失时仅提示设为 `20`，与默认连接池 16+8 配合，
   避免并发把连接池打满，同样不会自动改写服务配置
-- 数据库表结构由应用启动时的 `create_all` 自动维护（只建不存在的表），
-  不需要也不应当执行 `alembic upgrade head`
+- 数据库表结构由应用启动时的 `create_all` 自动维护（只建不存在的表）；
+  `alembic/versions/` 下的迁移脚本只承载 `create_all` 无法覆盖的数据变更
+- `update.sh` 会在依赖安装后执行 `alembic upgrade head`（未检测到 `.env` 时跳过，
+  新站点由安装向导建表并标记版本）；若检测到已废弃的历史
+  revision，会先 `alembic stamp --purge base` 重置基线再迁移，不会重复建表
 - 手工执行流程见下文，二者保持一致；修改脚本时必须同步本文
 
 ## 1. 更新原则
 
 - 先备份，再更新
 - 先停服务，再改代码
-- 表结构随应用启动自动补齐，无需单独执行数据库迁移
-- Alembic 迁移脚本仅服务于本地开发库的 schema 演进；不要在生产库上执行
-  `alembic upgrade head`（生产库缺少迁移脚本，必然失败），回滚优先恢复备份
+- 表结构由应用启动时的 `create_all` 自动补齐；数据迁移由 `update.sh` 执行
+  `alembic upgrade head`
+- 历史迁移脚本已全部废弃删除；生产库若残留旧 revision，脚本会自动重置迁移基线
 
 ## 2. 更新前备份
 
@@ -130,17 +133,26 @@ pip install -r requirements.txt
 `requirements.txt` 中的 `tzdata` 提供 IANA 时区数据库，缺少时
 `SITE_TIMEZONE` 会回落到默认时区，`update.sh` 会在依赖检查阶段直接报错。
 
-### 3.4 数据库表结构（自动）
+### 3.4 数据库迁移（自动）
 
-不需要手工执行迁移。应用启动时会基于当前模型创建缺失的表，并自动补齐已登记
-的增量列（已存在的列不做改动），因此更新代码后直接恢复服务即可：
+表结构仍由应用启动时的 `create_all` 自动补齐；`alembic/versions/` 中的脚本用于
+`create_all` 无法覆盖的数据变更。使用 `update.sh` 时会自动执行迁移；手工更新时
+执行：
 
 ```bash
-sudo systemctl start rewrz
-sudo journalctl -u rewrz -n 50 --no-pager   # 确认无启动报错
+cd /srv/rewrz
+source .venv/bin/activate
+alembic current
+alembic upgrade head
 ```
 
-如对表结构变更有疑问，可对照本地开发库的 `alembic/versions/` 迁移脚本。
+若 `alembic current` 报 `Can't locate revision`（旧迁移脚本已废弃删除），先重置
+迁移基线再执行：
+
+```bash
+alembic stamp --purge base
+alembic upgrade head
+```
 
 ### 3.5 恢复服务
 

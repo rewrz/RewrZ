@@ -109,13 +109,16 @@ RewrZ 会拒绝不安全备份包，包括：
 
 ## 6. 数据库迁移
 
-### 6.1 全新安装后执行 `alembic upgrade head` 报 duplicate table
-原因：安装向导建库时已经完成建表，并把新库标记为 Alembic head；
-新装站点再执行 `upgrade head` 会重复建表。
+### 6.1 迁移报 `Can't locate revision`
+
+原因：旧迁移脚本已废弃删除，但数据库的 `alembic_version` 仍记录旧 revision。
 
 处理：
-1. `alembic current` 确认版本是否已是 head
-2. 新装站点无需执行迁移，只有更新已有站点才需要
+1. `alembic current` 确认报错信息
+2. `alembic stamp --purge base` 清空失效基线
+3. `alembic upgrade head` 重新应用当前迁移
+
+`update.sh` 会自动完成上述重置与升级。
 
 ### 6.2 迁移目标库不是预期数据库
 迁移目标库优先读取 `.env` 的 `DATABASE_URL`，`alembic.ini` 只是兜底值：

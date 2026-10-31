@@ -64,7 +64,7 @@ npm run build:css
 这里仅保留三条不会变的原则：
 - 新站点首次上线时，不要预先手工创建 `.env`
 - 先完成 `/installer`，再补生产安全项、SMTP 与反向代理
-- 新装站点由安装向导自动标记迁移版本，不要重复执行 `alembic upgrade head`；只有更新已有站点才执行
+- 新装站点由安装向导自动标记迁移版本；升级已有站点时由 `update.sh` 自动执行迁移，无需手工运行 `alembic upgrade head`
 
 ## 4. 关键配置
 

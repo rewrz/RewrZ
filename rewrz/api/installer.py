@@ -145,8 +145,8 @@ def _ensure_default_formats(db: Session) -> int:
 def _stamp_alembic_head(database_url: str) -> None:
     """把新库标记为 Alembic 最新版本。
 
-    安装阶段由 `create_all` 直接建表，若不标记 head，
-    后续 `alembic upgrade head` 会重复执行建表迁移而失败。
+    安装阶段由 `create_all` 直接建表，把新库标记为最新版本，
+    避免后续迁移停留在旧基线或重复执行历史脚本。
     """
     from alembic import command
     from alembic.config import Config

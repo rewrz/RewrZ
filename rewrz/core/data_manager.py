@@ -37,7 +37,7 @@ from ..schemas import PostCreate, CategoryCreate, TagCreate, FormatCreate, Setti
 from .cache import clear_cache, cache_key_for_setting, cache
 import re
 from .template_context import DEFAULT_BASE_SETTINGS
-from .content_intents import INTENT_NAME_MAP, normalize_intent_slug
+from .content_intents import INTENT_NAME_MAP, normalize_intent_slug, choose_primary_intent_slug
 from .time_utils import utc_now_naive
 from .comment_security import (
     normalize_comment_author_url,
@@ -2059,6 +2059,13 @@ class WordPressImporter:
                 default_format = self._ensure_post_format("article", "标准文章")
                 if default_format and default_format not in post.formats:
                     post.formats.append(default_format)
+
+            # 分类只属于标准文章，导入的微博/诗词不保留分类关联。
+            primary_intent = choose_primary_intent_slug(
+                getattr(fmt, "slug", None) for fmt in post.formats
+            )
+            if primary_intent in {"micro", "poem"}:
+                post.categories.clear()
             
         except Exception as e:
             self.db.rollback()

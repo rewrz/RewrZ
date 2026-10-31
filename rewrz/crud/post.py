@@ -19,6 +19,7 @@ from ..core.content_utils import (
     get_effective_plain_text,
     get_effective_content_html,
     render_markdown_html,
+    detect_stored_editor_mode,
 )
 from ..core.content_intents import choose_primary_intent_slug, normalize_intent_slug, INTENT_NAME_MAP
 from ..core.media_attachments import detect_media_flags, summarize_media_attachments
@@ -29,7 +30,18 @@ from ..core import public_list_cache
 from ..core import public_detail_cache
 from ..core import post_views
 
-from typing import Optional, List
+from typing import Optional, List, Tuple
+
+# 每篇文章/页面保留的版本快照上限
+SNAPSHOT_LIMIT = 5
+
+
+def _snapshot_matches_content(snapshot: dict, content_markdown: str, content_html: str) -> bool:
+    """判断快照是否已经代表同一份正文，避免重复写入。"""
+    return (
+        str(snapshot.get("content_markdown") or "") == content_markdown
+        and str(snapshot.get("content_html") or "") == content_html
+    )
 
 
 def _invalidate_public_caches() -> None:
@@ -485,7 +497,7 @@ def create_post(
         "visibility": post.visibility,
         "password": get_password_hash(post.password) if post.password else None,
         "allow_comments": post.allow_comments,
-        "version_snapshots": post.version_snapshots,
+        "version_snapshots": list(post.version_snapshots or [])[:SNAPSHOT_LIMIT],
         "author_id": author_id,
         "published_at": resolved_published_at,
     }
@@ -506,10 +518,7 @@ def create_post(
     # 新建内容可能与已删除内容复用同一 ID，同步丢弃旧的内存增量
     post_views.discard_post_views(db_post.id)
 
-    # 如果指定了分类ID，则关联对应的分类
-    if post.category_ids:
-        categories = db.execute(select(Category).filter(Category.id.in_(post.category_ids))).scalars().all()
-        db_post.categories.extend(categories)
+    # 分类关联已统一放到格式解析之后处理
 
     # 如果指定了标签ID，则关联对应的标签
     if post.tag_ids is not None:
@@ -529,6 +538,14 @@ def create_post(
         if default_intent is not None:
             db_post.formats.append(default_intent)
 
+    # 分类只属于标准文章，微博/诗词不建立分类关联
+    primary_intent = choose_primary_intent_slug(
+        getattr(fmt, "slug", None) for fmt in db_post.formats
+    )
+    if post.category_ids and primary_intent not in {"micro", "poem"}:
+        categories = db.execute(select(Category).filter(Category.id.in_(post.category_ids))).scalars().all()
+        db_post.categories.extend(categories)
+
     if auto_commit:
         db.commit()
         db.refresh(db_post)
@@ -547,14 +564,9 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
     """
     db_post = db.execute(select(Post).filter(Post.id == post_id)).scalar_one_or_none()
     if db_post:
-        # 保存旧内容作为版本快照
-        old_content = db_post.content_markdown or db_post.content_html
-        if old_content:
-            db_post.version_snapshots.insert(0, {"timestamp": utc_now_naive().isoformat(), "content": old_content})
-            if len(db_post.version_snapshots) > 5:
-                db_post.version_snapshots.pop()
-
         update_data = post.model_dump(exclude_unset=True)
+        # 恢复、删除、清理快照时会显式传入整份列表，此时不再自动追加历史
+        snapshots_explicitly_set = "version_snapshots" in update_data
         incoming_title = update_data.pop("title", None)
         incoming_slug = update_data.pop("slug", None)
         incoming_content_markdown = update_data.pop("content_markdown", None)
@@ -621,12 +633,34 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
                 content_markdown=incoming_content_markdown if incoming_content_markdown is not None else db_post.content_markdown,
                 content_html=incoming_content_html if incoming_content_html is not None else db_post.content_html,
             )
+            content_changed = (
+                next_markdown != (db_post.content_markdown or "")
+                or next_html != (db_post.content_html or "")
+            )
+            if content_changed and not snapshots_explicitly_set:
+                old_markdown = db_post.content_markdown or ""
+                old_html = db_post.content_html or ""
+                snapshots = list(db_post.version_snapshots or [])
+                if (old_markdown.strip() or old_html.strip()) and (
+                    not snapshots or not _snapshot_matches_content(snapshots[0], old_markdown, old_html)
+                ):
+                    snapshots.insert(0, {
+                        "timestamp": utc_now_naive().isoformat(),
+                        "editor_mode": detect_stored_editor_mode(old_markdown, old_html),
+                        "content_markdown": old_markdown,
+                        "content_html": old_html,
+                    })
+                    # JSON 列不支持原位变更追踪，必须整体赋值才会落库
+                    db_post.version_snapshots = snapshots[:SNAPSHOT_LIMIT]
             db_post.content_markdown = next_markdown
             db_post.content_html = next_html
 
         for key, value in update_data.items():
             if key == "excerpt":
                 db_post.excerpt = _normalize_excerpt_value(value)
+            elif key == "version_snapshots":
+                # 任何写入路径都不能突破快照上限
+                db_post.version_snapshots = list(value or [])[:SNAPSHOT_LIMIT]
             # 跳过featured_image_url，因为它已经在上面处理过了
             elif key not in {"featured_image_url", "category_ids", "tag_ids", "format_ids", "content_markdown", "content_html", "editor_mode"}:
                 setattr(db_post, key, value)
@@ -660,12 +694,6 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
         elif incoming_status is not None and incoming_status != "published" and db_post.published_at is not None:
             db_post.published_at = None # 或者保持不变，取决于具体取消发布的需求
 
-        if post.category_ids is not None:
-            db_post.categories.clear()
-            if post.category_ids:
-                categories = db.execute(select(Category).filter(Category.id.in_(post.category_ids))).scalars().all()
-                db_post.categories.extend(categories)
-
         # 更新标签（优先按ID）
         if post.tag_ids is not None:
             db_post.tags.clear()
@@ -688,6 +716,18 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
             default_intent = _ensure_intent_format(db, "article")
             if default_intent is not None:
                 db_post.formats.append(default_intent)
+
+        # 分类只属于标准文章：微博/诗词即使收到分类也一并清空
+        primary_intent = choose_primary_intent_slug(
+            getattr(fmt, "slug", None) for fmt in db_post.formats
+        )
+        if primary_intent in {"micro", "poem"}:
+            db_post.categories.clear()
+        elif post.category_ids is not None:
+            db_post.categories.clear()
+            if post.category_ids:
+                categories = db.execute(select(Category).filter(Category.id.in_(post.category_ids))).scalars().all()
+                db_post.categories.extend(categories)
 
         # 确保 updated_at 设置为当前时间
         db_post.updated_at = utc_now_naive()
@@ -729,17 +769,22 @@ def update_post_metadata(
         db_post.published_at = changes.get("published_at")
 
     if "category_ids" in changes:
-        db_post.categories.clear()
-        normalized_ids = [
-            int(category_id)
-            for category_id in (changes.get("category_ids") or [])
-            if isinstance(category_id, int) and category_id > 0
-        ]
-        if normalized_ids:
-            categories = db.execute(
-                select(Category).filter(Category.id.in_(normalized_ids))
-            ).scalars().all()
-            db_post.categories.extend(categories)
+        primary_intent = choose_primary_intent_slug(
+            getattr(fmt, "slug", None) for fmt in db_post.formats
+        )
+        # 微博/诗词不支持分类，忽略分类变更
+        if primary_intent not in {"micro", "poem"}:
+            db_post.categories.clear()
+            normalized_ids = [
+                int(category_id)
+                for category_id in (changes.get("category_ids") or [])
+                if isinstance(category_id, int) and category_id > 0
+            ]
+            if normalized_ids:
+                categories = db.execute(
+                    select(Category).filter(Category.id.in_(normalized_ids))
+                ).scalars().all()
+                db_post.categories.extend(categories)
 
     if "tag_names" in changes:
         db_post.tags.clear()
@@ -927,6 +972,36 @@ def delete_posts_by_ids(db: Session, post_ids: List[int], author_id: Optional[in
     db.commit()
     _invalidate_public_caches()
     return len(db_posts)
+
+
+def clear_version_snapshots_by_post_ids(
+    db: Session,
+    post_ids: List[int],
+    author_id: Optional[int] = None,
+) -> Tuple[int, int]:
+    """清空指定文章/页面的全部版本快照，返回 (清空文章数, 删除快照数)。"""
+    normalized_ids = sorted({post_id for post_id in post_ids if isinstance(post_id, int) and post_id > 0})
+    if not normalized_ids:
+        return 0, 0
+
+    query = select(Post).filter(Post.id.in_(normalized_ids))
+    if author_id is not None:
+        query = query.filter(Post.author_id == author_id)
+
+    cleared_posts = 0
+    deleted_snapshots = 0
+    for db_post in db.execute(query).scalars().all():
+        snapshots = list(db_post.version_snapshots or [])
+        if not snapshots:
+            continue
+        deleted_snapshots += len(snapshots)
+        # JSON 列不支持原位变更追踪，必须整体赋值
+        db_post.version_snapshots = []
+        cleared_posts += 1
+
+    if cleared_posts:
+        db.commit()
+    return cleared_posts, deleted_snapshots
 
 
 def bulk_update_posts_status_by_ids(

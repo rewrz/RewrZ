@@ -1627,6 +1627,16 @@
                 window.RewrzSnapshotModal.open({
                     postId: {{ post.id }},
                     editor: editor,
+                    onRestored: (snapshot) => {
+                        const mode = snapshot.editor_mode === 'html' ? 'html' : 'markdown';
+                        setEditorMode(mode, true);
+                        if (mode === 'html') {
+                            editor.setHTML(snapshot.new_html || '');
+                        } else {
+                            editor.setMarkdown(snapshot.new_content || '');
+                        }
+                        markDirty();
+                    },
                 });
             });
         }

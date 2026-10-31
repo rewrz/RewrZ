@@ -1,8 +1,8 @@
-<div id="snapshot-modal" class="fixed inset-0 z-50 hidden bg-gray-900/50 p-4">
-    <div class="mx-auto mt-8 w-full max-w-6xl rounded-lg bg-white shadow-xl">
-        <div class="flex items-center justify-between border-b px-5 py-4">
-            <h3 class="text-lg font-semibold text-gray-900">历史快照</h3>
-            <button type="button" id="snapshot-close-btn" class="rounded p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700">
+<div id="snapshot-modal" class="fixed inset-0 z-50 hidden admin-modal-backdrop p-4">
+    <div class="admin-modal-panel mx-auto mt-8 w-full max-w-6xl rounded-lg shadow-xl">
+        <div class="admin-modal-header flex items-center justify-between px-5 py-4">
+            <h3 class="text-lg font-semibold">历史快照</h3>
+            <button type="button" id="snapshot-close-btn" class="admin-muted rounded p-2">
                 <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
                 </svg>
@@ -10,14 +10,21 @@
         </div>
 
         <div class="grid gap-0 md:grid-cols-3">
-            <div class="border-r border-gray-200 p-4">
+            <div class="admin-modal-sidebar p-4">
+                <div class="mb-2 flex items-center justify-between gap-2">
+                    <label class="admin-muted flex items-center gap-1 text-xs">
+                        <input type="checkbox" id="snapshot-select-all" class="snapshot-select-all"> 全选
+                    </label>
+                    <button type="button" id="snapshot-batch-delete" class="admin-soft-btn-danger rounded px-2 py-1 text-xs" disabled>删除选中 (0)</button>
+                </div>
+                <p id="snapshot-limit-tip" class="admin-muted mb-3 text-xs"></p>
                 <div id="snapshot-list" class="max-h-[65vh] space-y-2 overflow-y-auto">
-                    <p class="text-sm text-gray-500">加载中...</p>
+                    <p class="admin-muted text-sm">加载中...</p>
                 </div>
             </div>
             <div class="md:col-span-2 p-4">
-                <p id="snapshot-preview-title" class="mb-3 text-sm font-medium text-gray-700">选择左侧快照进行预览</p>
-                <div id="snapshot-preview" class="prose max-w-none max-h-[65vh] overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-4 text-sm"></div>
+                <p id="snapshot-preview-title" class="mb-3 text-sm font-medium">选择左侧快照进行预览</p>
+                <div id="snapshot-preview" class="prose admin-panel max-w-none max-h-[65vh] overflow-y-auto rounded-md p-4 text-sm"></div>
             </div>
         </div>
     </div>
@@ -30,6 +37,9 @@
 
     const elements = {
         closeBtn: document.getElementById("snapshot-close-btn"),
+        selectAll: document.getElementById("snapshot-select-all"),
+        batchDelete: document.getElementById("snapshot-batch-delete"),
+        limitTip: document.getElementById("snapshot-limit-tip"),
         list: document.getElementById("snapshot-list"),
         previewTitle: document.getElementById("snapshot-preview-title"),
         preview: document.getElementById("snapshot-preview"),
@@ -38,8 +48,12 @@
     const state = {
         postId: null,
         editor: null,
+        onRestored: null,
         snapshots: [],
+        selected: new Set(),
+        currentHtml: "",
         currentContent: "",
+        limit: 5,
     };
 
     function escapeHtml(text) {
@@ -51,25 +65,160 @@
             .replaceAll("'", "&#39;");
     }
 
-    function markdownToHtml(markdown) {
-        const escaped = escapeHtml(markdown || "");
-        return escaped
-            .replace(/^### (.*)$/gim, "<h3>$1</h3>")
-            .replace(/^## (.*)$/gim, "<h2>$1</h2>")
-            .replace(/^# (.*)$/gim, "<h1>$1</h1>")
-            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-            .replace(/\*(.*?)\*/g, "<em>$1</em>")
-            .replace(/`(.*?)`/g, "<code>$1</code>")
-            .replace(/\n/g, "<br>");
-    }
-
-    function renderPreview(title, content) {
+    // 后端已按站点渲染管线生成 HTML，这里直接展示
+    function renderPreview(title, html) {
         elements.previewTitle.textContent = title;
-        elements.preview.innerHTML = markdownToHtml(content);
+        elements.preview.innerHTML = html || '<p class="admin-muted">（空）</p>';
     }
 
-    async function restoreSnapshot(snapshotIndex, formattedTime) {
-        const confirmed = await window.adminConfirm(`确定恢复到该快照吗？\n${formattedTime}\n\n当前内容会自动存为新快照。`, {
+    function renderDiff(data) {
+        const summary = data.summary || {};
+        elements.previewTitle.textContent = `快照 ${data.snapshot_index + 1} 对比 ${data.compare_label || "当前版本"}`;
+        const summaryHtml = `<div class="admin-muted mb-2 text-xs">+${summary.additions || 0} 行添加 / -${summary.deletions || 0} 行删除</div>`;
+
+        if (!data.diff || !data.diff.length) {
+            elements.preview.innerHTML = `${summaryHtml}<p class="admin-muted text-sm">两个版本内容相同，无差异。</p>`;
+            return;
+        }
+
+        const lines = data.diff.map((line) => {
+            let lineClass = "is-context";
+            if (line.type === "addition") {
+                lineClass = "is-addition";
+            } else if (line.type === "deletion") {
+                lineClass = "is-deletion";
+            } else if (line.type === "header" || line.type === "range") {
+                lineClass = "is-meta";
+            }
+            return `<div class="snapshot-diff-line ${lineClass}">${escapeHtml(line.content || "")}</div>`;
+        }).join("");
+
+        elements.preview.innerHTML = `${summaryHtml}<div class="snapshot-diff">${lines}</div>`;
+    }
+
+    function applyRestoredSnapshot(result) {
+        if (state.onRestored) {
+            state.onRestored(result);
+            return;
+        }
+        const mode = result.editor_mode === "html" ? "html" : "markdown";
+        if (state.editor && typeof state.editor.setMarkdown === "function") {
+            if (mode === "html" && typeof state.editor.setHTML === "function") {
+                state.editor.setHTML(result.new_html || "");
+            } else {
+                state.editor.setMarkdown(result.new_content || "");
+            }
+        }
+    }
+
+    function updateBatchBar() {
+        elements.batchDelete.disabled = state.selected.size === 0;
+        elements.batchDelete.textContent = `删除选中 (${state.selected.size})`;
+        elements.selectAll.checked = state.snapshots.length > 0 && state.selected.size === state.snapshots.length;
+        elements.selectAll.indeterminate = state.selected.size > 0 && state.selected.size < state.snapshots.length;
+    }
+
+    function renderList() {
+        const rows = [];
+        const currentPreview = escapeHtml(state.currentContent || "").slice(0, 120);
+        rows.push(`
+            <div class="admin-panel p-3">
+                <div class="mb-2 text-xs font-medium admin-accent-text">当前内容</div>
+                <div class="admin-muted mb-2 line-clamp-3 text-xs">${currentPreview || "（空）"}</div>
+                <button type="button" data-current="1" class="snapshot-preview-current admin-primary-btn rounded px-2 py-1 text-xs">预览当前</button>
+            </div>
+        `);
+
+        if (!state.snapshots.length) {
+            rows.push(`<div class="admin-panel admin-muted p-3 text-xs">暂无历史快照，正文保存后会自动记录版本。</div>`);
+        } else {
+            state.snapshots.forEach((item, index) => {
+                const preview = escapeHtml(item.content_preview || "");
+                const checked = state.selected.has(index) ? "checked" : "";
+                const restoreBadge = item.restore_point
+                    ? '<span class="ml-2 text-xs admin-accent-text">恢复点</span>'
+                    : "";
+                rows.push(`
+                    <div class="admin-panel p-3">
+                        <div class="flex items-start gap-2">
+                            <input type="checkbox" class="snapshot-select mt-1" data-select="${index}" ${checked}>
+                            <div class="min-w-0 flex-1">
+                                <div class="mb-1 text-xs font-medium">快照 ${index + 1}${restoreBadge}</div>
+                                <div class="admin-muted mb-2 text-xs">${escapeHtml(item.formatted_time || "")}</div>
+                                <div class="admin-muted mb-3 line-clamp-3 text-xs">${preview || "（空）"}</div>
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-preview="${index}" class="snapshot-preview-btn admin-soft-btn rounded px-2 py-1 text-xs">预览</button>
+                                    <button type="button" data-compare="${index}" class="snapshot-compare-btn admin-soft-btn rounded px-2 py-1 text-xs">对比</button>
+                                    <button type="button" data-restore="${index}" class="snapshot-restore-btn admin-primary-btn rounded px-2 py-1 text-xs">恢复</button>
+                                    <button type="button" data-delete="${index}" class="snapshot-delete-btn admin-soft-btn-danger rounded px-2 py-1 text-xs">删除</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `);
+            });
+        }
+
+        elements.list.innerHTML = rows.join("");
+        updateBatchBar();
+
+        elements.list.querySelector(".snapshot-preview-current")?.addEventListener("click", () => {
+            renderPreview("当前内容", state.currentHtml);
+        });
+
+        elements.list.querySelectorAll(".snapshot-select").forEach((checkbox) => {
+            checkbox.addEventListener("change", () => {
+                const index = Number(checkbox.dataset.select);
+                if (checkbox.checked) {
+                    state.selected.add(index);
+                } else {
+                    state.selected.delete(index);
+                }
+                updateBatchBar();
+            });
+        });
+
+        elements.list.querySelectorAll(".snapshot-preview-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const index = Number(btn.dataset.preview);
+                const snapshot = state.snapshots[index];
+                if (!snapshot) return;
+                renderPreview(`快照 ${index + 1} - ${snapshot.formatted_time || ""}`, snapshot.content_html);
+            });
+        });
+
+        elements.list.querySelectorAll(".snapshot-compare-btn").forEach((btn) => {
+            btn.addEventListener("click", () => compareSnapshot(Number(btn.dataset.compare)));
+        });
+
+        elements.list.querySelectorAll(".snapshot-restore-btn").forEach((btn) => {
+            btn.addEventListener("click", () => restoreSnapshot(Number(btn.dataset.restore)));
+        });
+
+        elements.list.querySelectorAll(".snapshot-delete-btn").forEach((btn) => {
+            btn.addEventListener("click", () => deleteSnapshot(Number(btn.dataset.delete)));
+        });
+    }
+
+    async function compareSnapshot(snapshotIndex) {
+        const snapshot = state.snapshots[snapshotIndex];
+        if (!snapshot) return;
+        const response = await fetch(
+            `/api/v1/posts/${state.postId}/snapshots/${snapshotIndex}/compare?compare_with=current`,
+            { credentials: "same-origin" },
+        );
+        const result = await response.json();
+        if (!response.ok) {
+            window.adminNotify(`对比失败：${result.detail || response.statusText}`, "error", { duration: 4200 });
+            return;
+        }
+        renderDiff(result);
+    }
+
+    async function restoreSnapshot(snapshotIndex) {
+        const snapshot = state.snapshots[snapshotIndex];
+        if (!snapshot) return;
+        const confirmed = await window.adminConfirm(`确定恢复到该快照吗？\n${snapshot.formatted_time || "未知时间"}\n\n当前内容会自动存为新快照。`, {
             confirmText: "恢复快照"
         });
         if (!confirmed) return;
@@ -84,77 +233,62 @@
             return;
         }
 
-        if (state.editor && typeof state.editor.setMarkdown === "function") {
-            state.editor.setMarkdown(result.new_content || "");
-        }
-        renderPreview(`已恢复：${formattedTime}`, result.new_content || "");
+        applyRestoredSnapshot(result);
         window.adminNotify("快照已恢复到编辑器，请继续编辑后保存。", "success");
         close();
     }
 
-    function renderList() {
-        const rows = [];
-        rows.push(`
-            <div class="rounded-md border border-green-200 bg-green-50 p-3">
-                <div class="mb-2 text-xs font-medium text-green-700">当前内容</div>
-                <div class="mb-2 line-clamp-3 text-xs text-gray-700">${escapeHtml(state.currentContent || "").slice(0, 120) || "（空）"}</div>
-                <button type="button" data-current="1" class="snapshot-preview-current rounded bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-700">预览当前</button>
-            </div>
-        `);
+    async function deleteSnapshot(snapshotIndex) {
+        const confirmed = await window.adminConfirm("确定删除这个快照吗？此操作不可恢复。", {
+            tone: "danger",
+            confirmText: "删除快照"
+        });
+        if (!confirmed) return;
 
-        if (!state.snapshots.length) {
-            rows.push(`<div class="rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500">暂无历史快照</div>`);
-        } else {
-            state.snapshots.forEach((item, index) => {
-                const preview = escapeHtml(item.content || "").slice(0, 100);
-                rows.push(`
-                    <div class="rounded-md border border-gray-200 p-3">
-                        <div class="mb-1 text-xs font-medium text-gray-800">快照 ${index + 1}</div>
-                        <div class="mb-2 text-xs text-gray-500">${escapeHtml(item.formatted_time || "")}</div>
-                        <div class="mb-3 line-clamp-3 text-xs text-gray-600">${preview || "（空）"}</div>
-                        <div class="flex gap-2">
-                            <button type="button" data-preview="${index}" class="snapshot-preview-btn rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700">预览</button>
-                            <button type="button" data-restore="${index}" class="snapshot-restore-btn rounded bg-emerald-600 px-2 py-1 text-xs text-white hover:bg-emerald-700">恢复</button>
-                        </div>
-                    </div>
-                `);
-            });
+        const response = await fetch(`/api/v1/posts/${state.postId}/snapshots/${snapshotIndex}`, {
+            method: "DELETE",
+            credentials: "same-origin",
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            window.adminNotify(`删除失败：${result.detail || response.statusText}`, "error", { duration: 4200 });
+            return;
         }
 
-        elements.list.innerHTML = rows.join("");
-
-        elements.list.querySelector(".snapshot-preview-current")?.addEventListener("click", () => {
-            renderPreview("当前内容", state.currentContent || "");
-        });
-
-        elements.list.querySelectorAll(".snapshot-preview-btn").forEach((btn) => {
-            btn.addEventListener("click", () => {
-                const index = Number(btn.dataset.preview);
-                const snapshot = state.snapshots[index];
-                if (!snapshot) return;
-                renderPreview(`快照 ${index + 1} - ${snapshot.formatted_time || ""}`, snapshot.content || "");
-            });
-        });
-
-        elements.list.querySelectorAll(".snapshot-restore-btn").forEach((btn) => {
-            btn.addEventListener("click", () => {
-                const index = Number(btn.dataset.restore);
-                const snapshot = state.snapshots[index];
-                if (!snapshot) return;
-                restoreSnapshot(index, snapshot.formatted_time || "未知时间");
-            });
-        });
+        window.adminNotify(result.message || "快照已删除", "success");
+        await loadSnapshots();
     }
 
-    async function open(options) {
-        state.postId = options?.postId;
-        state.editor = options?.editor || null;
-        if (!state.postId) return;
+    async function deleteSelectedSnapshots() {
+        if (!state.selected.size) return;
+        const count = state.selected.size;
+        const confirmed = await window.adminConfirm(`确定删除选中的 ${count} 个快照吗？此操作不可恢复。`, {
+            tone: "danger",
+            confirmText: "批量删除"
+        });
+        if (!confirmed) return;
 
-        modal.classList.remove("hidden");
-        elements.list.innerHTML = `<p class="text-sm text-gray-500">加载中...</p>`;
+        const response = await fetch(`/api/v1/posts/${state.postId}/snapshots/batch-delete`, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ indices: Array.from(state.selected) }),
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            window.adminNotify(`批量删除失败：${result.detail || response.statusText}`, "error", { duration: 4200 });
+            return;
+        }
+
+        window.adminNotify(result.message || "选中快照已删除", "success");
+        await loadSnapshots();
+    }
+
+    async function loadSnapshots() {
+        elements.list.innerHTML = `<p class="admin-muted text-sm">加载中...</p>`;
         elements.previewTitle.textContent = "选择左侧快照进行预览";
         elements.preview.innerHTML = "";
+        state.selected.clear();
 
         try {
             const response = await fetch(`/api/v1/posts/${state.postId}/snapshots/json`, {
@@ -165,23 +299,50 @@
                 throw new Error(data.detail || response.statusText);
             }
             state.snapshots = data.snapshots || [];
+            state.currentHtml = data.current_html || "";
             state.currentContent = data.current_content || "";
+            state.limit = data.snapshot_limit || state.limit;
+            elements.limitTip.textContent = `最多保留 ${state.limit} 条，超出时自动删除最旧版本。`;
             renderList();
-            renderPreview("当前内容", state.currentContent);
+            renderPreview("当前内容", state.currentHtml);
         } catch (error) {
-            elements.list.innerHTML = `<p class="text-sm text-red-600">快照加载失败：${error.message}</p>`;
+            elements.list.innerHTML = `<p class="admin-muted text-sm">快照加载失败：${escapeHtml(error.message)}</p>`;
         }
+    }
+
+    async function open(options) {
+        state.postId = options?.postId;
+        state.editor = options?.editor || null;
+        state.onRestored = options?.onRestored || null;
+        if (!state.postId) return;
+
+        modal.classList.remove("hidden");
+        await loadSnapshots();
     }
 
     function close() {
         modal.classList.add("hidden");
         state.postId = null;
         state.editor = null;
+        state.onRestored = null;
         state.snapshots = [];
+        state.selected.clear();
+        state.currentHtml = "";
         state.currentContent = "";
     }
 
     elements.closeBtn.addEventListener("click", close);
+    elements.batchDelete.addEventListener("click", deleteSelectedSnapshots);
+    elements.selectAll.addEventListener("change", () => {
+        state.selected.clear();
+        if (elements.selectAll.checked) {
+            state.snapshots.forEach((_, index) => state.selected.add(index));
+        }
+        elements.list.querySelectorAll(".snapshot-select").forEach((checkbox) => {
+            checkbox.checked = elements.selectAll.checked;
+        });
+        updateBatchBar();
+    });
     modal.addEventListener("click", (event) => {
         if (event.target === modal) close();
     });

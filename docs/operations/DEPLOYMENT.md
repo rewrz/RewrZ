@@ -102,10 +102,8 @@ uvicorn rewrz.main:app --host 127.0.0.1 --port 8000
 ### 5.1 数据库迁移：新装站点不需要执行
 
 安装向导在建库时已经把新库标记为 Alembic 最新版本（`alembic stamp head`），
-因此**全新安装的站点不要再执行 `alembic upgrade head`**，
-否则会重复执行建表迁移并报错。
-
-只有升级已有站点才需要迁移，见 [`UPDATE.md`](UPDATE.md)。
+因此全新安装的站点不需要手工迁移。只有升级已有站点时才需要，`update.sh` 会
+自动执行，详见 [`UPDATE.md`](UPDATE.md)。
 
 如果要确认当前版本状态，可执行：
 
@@ -291,7 +289,7 @@ sudo journalctl -u rewrz -n 50 --no-pager
 ```
 
 空库首次启动时，应用会通过 `create_all_tables()` 创建当前模型对应的表。
-不要执行 `alembic upgrade head`：生产库没有迁移基线，会重复建表并报错。
+不要对空库执行 `alembic upgrade head`：迁移脚本只用于已有库的数据变更。
 
 #### 5. 创建管理员并导入数据
 
@@ -849,7 +847,7 @@ curl -I https://example.com/static/css/site-tailwind.css
 - 首次安装前不要先手工创建 `.env`
 - 先把 Python 项目跑起来，再访问 `/installer`
 - 安装完成后再编辑 `.env` 补生产配置
-- 仍然执行一次 `alembic upgrade head`
+- 安装向导会自动标记迁移 head，无需再执行 `alembic upgrade head`
 
 最少确认：
 - Python 项目启动命令正确

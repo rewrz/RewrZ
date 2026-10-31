@@ -103,7 +103,6 @@ node_modules/
 # mypy
 .mypy_cache/
 rewrz/media/uploads/
-/alembic/versions/
 *.sqlite3
 *.db
 *.db-journal

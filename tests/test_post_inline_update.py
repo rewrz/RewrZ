@@ -24,8 +24,10 @@ from rewrz.core.security import get_current_user
 from rewrz.core.time_utils import site_local_to_utc_naive
 from rewrz.crud import post as crud_post
 from rewrz.models.category import Category
+from rewrz.models.format import Format
 from rewrz.models.post import Post as PostModel
 from rewrz.models.user import User as DbUser
+from rewrz.schemas.post import PostCreate, PostUpdate
 
 
 def _set_installation_complete(monkeypatch, value: bool) -> None:
@@ -263,6 +265,86 @@ def test_inline_update_rejects_unknown_category(inline_setup):
 
     assert response.status_code == 400
     assert _error_message(response) == "部分分类不存在，请刷新页面后重试"
+
+
+def test_inline_update_rejects_categories_for_micro(inline_setup):
+    db = inline_setup.db
+    micro_format = db.query(Format).filter(Format.slug == "micro").first()
+    if micro_format is None:
+        micro_format = Format(name="微博", slug="micro")
+        db.add(micro_format)
+        db.commit()
+        db.refresh(micro_format)
+
+    micro_post = PostModel(
+        title="微博内容",
+        slug=f"micro-{inline_setup.suffix}",
+        content_markdown="今天随手记一条",
+        content_html="<p>今天随手记一条</p>",
+        post_type="post",
+        status="published",
+        visibility="public",
+        published_at=datetime(2026, 1, 2, 3, 4, 5),
+        author_id=1,
+        version_snapshots=[],
+    )
+    micro_post.formats.append(micro_format)
+    micro_post.categories.append(inline_setup.category_a)
+    db.add(micro_post)
+    db.commit()
+    db.refresh(micro_post)
+
+    response = inline_setup.client.patch(
+        _inline_url(micro_post.id),
+        json={"category_ids": [inline_setup.category_b.id]},
+        headers={"X-CSRF-Token": "test-token"},
+    )
+    assert response.status_code == 400, response.text
+    assert "不支持分类" in _error_message(response)
+
+
+def test_switching_to_micro_clears_existing_categories(inline_setup):
+    db = inline_setup.db
+    micro_format = db.query(Format).filter(Format.slug == "micro").first()
+    if micro_format is None:
+        micro_format = Format(name="微博", slug="micro")
+        db.add(micro_format)
+        db.commit()
+        db.refresh(micro_format)
+
+    updated = crud_post.update_post(
+        db=db,
+        post_id=inline_setup.post.id,
+        post=PostUpdate(),
+        format_ids=[micro_format.id],
+    )
+
+    db.refresh(updated)
+    assert updated.categories == []
+
+
+def test_create_micro_ignores_category_ids(inline_setup):
+    db = inline_setup.db
+    micro_format = db.query(Format).filter(Format.slug == "micro").first()
+    if micro_format is None:
+        micro_format = Format(name="微博", slug="micro")
+        db.add(micro_format)
+        db.commit()
+        db.refresh(micro_format)
+
+    created = crud_post.create_post(
+        db=db,
+        post=PostCreate(
+            title="新建微博",
+            content_markdown="新建微博正文",
+            category_ids=[inline_setup.category_a.id],
+        ),
+        author_id=1,
+        format_ids=[micro_format.id],
+    )
+
+    db.refresh(created)
+    assert created.categories == []
 
 
 def test_inline_update_rejects_empty_payload(inline_setup):

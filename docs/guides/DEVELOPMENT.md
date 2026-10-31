@@ -79,6 +79,14 @@ alembic revision --autogenerate -m "描述"
 alembic upgrade head
 ```
 
+若本地库仍记录已废弃的历史 revision（报 `Can't locate revision`），先重置迁移
+基线再升级：
+
+```bash
+alembic stamp --purge base
+alembic upgrade head
+```
+
 ### 5.3 运行测试
 ```bash
 pytest -q

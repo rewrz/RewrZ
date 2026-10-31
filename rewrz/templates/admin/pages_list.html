@@ -32,6 +32,11 @@
                     disabled>
                 批量删除
             </button>
+            <button onclick="batchClearSnapshotsPages()" data-batch-action
+                    class="admin-soft-btn admin-soft-btn-danger rounded-md px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled>
+                清空快照
+            </button>
             <span id="selected-count" class="text-sm text-[var(--color-text-light)]">已选 0 个</span>
             <span id="batch-operation-status" class="admin-accent-text hidden text-sm">
                 <i class="fas fa-spinner fa-spin mr-1"></i>
@@ -382,6 +387,18 @@ async function batchDeletePages() {
         `{{ request.state.admin_path }}/api/v1/posts/batch-delete`,
         `正在批量删除 ${selected.length} 个页面，请稍候...`,
         '批量删除失败'
+    );
+}
+
+async function batchClearSnapshotsPages() {
+    const selected = getSelectedPages();
+    if (!selected.length) return;
+    if (!(await window.adminConfirm(`确定要清空选中的 ${selected.length} 个页面的全部历史快照吗？此操作不可撤销。`, { tone: 'danger', confirmText: '清空快照' }))) return;
+    runBatchPageAction(
+        selected,
+        `{{ request.state.admin_path }}/api/v1/posts/batch-clear-snapshots`,
+        `正在清空 ${selected.length} 个页面的历史快照，请稍候...`,
+        '清空快照失败'
     );
 }
 
