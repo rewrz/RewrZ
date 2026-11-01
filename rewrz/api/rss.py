@@ -20,7 +20,7 @@ from ..crud import category as crud_category
 from ..crud import tag as crud_tag
 from ..crud import format as crud_format
 from ..core.content_access import strip_hide_blocks
-from ..core.content_utils import get_effective_content_html, get_effective_plain_text
+from ..core.content_utils import get_effective_content_html, get_effective_plain_text, is_nsfw_rating
 from ..core.time_utils import as_utc, utc_iso
 from ..crud import setting as crud_setting
 from ..models import Post
@@ -258,21 +258,24 @@ def get_filtered_posts(
     format_obj=None,
     limit: int = 20
 ) -> List[Post]:
-    """获取筛选后的文章列表"""
+    """获取筛选后的文章列表，订阅源不含 NSFW 内容。"""
     # 筛选条件必须下沉到查询，否则最新 N 篇之外的分类/标签/格式会得到空订阅源
     if category:
-        return crud_post.get_posts_by_category(db, category_id=category.id, limit=limit)
-    if tag:
-        return crud_post.get_posts_by_tag(db, tag_id=tag.id, limit=limit)
-    if format_obj:
-        return crud_post.get_posts_by_format(db, format_id=format_obj.id, limit=limit)
-    return crud_post.get_posts(
-        db,
-        skip=0,
-        limit=limit,
-        status="published",
-        post_type="post",
-    )
+        posts = crud_post.get_posts_by_category(db, category_id=category.id, limit=limit)
+    elif tag:
+        posts = crud_post.get_posts_by_tag(db, tag_id=tag.id, limit=limit)
+    elif format_obj:
+        posts = crud_post.get_posts_by_format(db, format_id=format_obj.id, limit=limit)
+    else:
+        posts = crud_post.get_posts(
+            db,
+            skip=0,
+            limit=limit,
+            status="published",
+            post_type="post",
+        )
+    # NSFW 内容不进入 RSS / Atom，避免敏感正文与封面被第三方阅读器二次分发
+    return [post for post in posts if not is_nsfw_rating(getattr(post, "content_rating", "general"))]
 
 def _resolve_public_excerpt(post: Post, fallback_text: str) -> str:
     """RSS 摘要：剔除手写摘要中的评论后可见块，再回退到公开正文。"""

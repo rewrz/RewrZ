@@ -6478,3 +6478,167 @@ body.site-shell .page-comments-panel {
     padding-right: 0;
     border-left: 0;
 }
+
+/* ===== 内容分级提示与 NSFW 图片遮挡 ===== */
+.content-rating-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.9rem 1.1rem;
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 26%, var(--color-border) 74%);
+    background: color-mix(in srgb, var(--color-primary) 9%, var(--color-card-bg) 91%);
+    color: var(--color-text);
+    box-shadow: 0 12px 26px -22px color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+
+.content-rating-notice__icon {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.content-rating-notice__body {
+    min-width: 0;
+}
+
+.content-rating-notice__title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.content-rating-notice__desc {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--color-text-light);
+}
+
+.content-rating-notice__action {
+    margin-left: 0.35rem;
+    padding: 0.1rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%);
+    background: transparent;
+    color: var(--color-primary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+
+.content-rating-notice__action:hover {
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+/* NSFW：正文图片默认模糊，点击后揭晓 */
+body.is-nsfw .post-content img:not(.is-nsfw-revealed),
+body.is-nsfw .page-content img:not(.is-nsfw-revealed),
+body.is-nsfw .anime-content img:not(.is-nsfw-revealed),
+body.is-nsfw .exhibit-content img:not(.is-nsfw-revealed) {
+    filter: blur(22px) saturate(0.85);
+    cursor: pointer;
+}
+
+body.is-nsfw .post-content img.is-nsfw-revealed,
+body.is-nsfw .page-content img.is-nsfw-revealed,
+body.is-nsfw .anime-content img.is-nsfw-revealed,
+body.is-nsfw .exhibit-content img.is-nsfw-revealed {
+    filter: none;
+}
+
+/* 微动态详情底部的图集网格：同样默认模糊，避免绕过正文遮挡直接开灯箱 */
+body.is-nsfw .micro-image-grid img:not(.is-nsfw-revealed) {
+    filter: blur(22px) saturate(0.85);
+    cursor: pointer;
+}
+
+body.is-nsfw .micro-image-grid img.is-nsfw-revealed {
+    filter: none;
+}
+
+/* ===== 正文图片尺寸档位（Markdown attr_list 使用） ===== */
+/* 文章与页面共用同一套档位，容器类名不同故统一列出 */
+.post-content img.md-img-xs,
+.page-content img.md-img-xs,
+.anime-content img.md-img-xs,
+.exhibit-content img.md-img-xs {
+    max-width: 240px;
+}
+
+.post-content img.md-img-sm,
+.page-content img.md-img-sm,
+.anime-content img.md-img-sm,
+.exhibit-content img.md-img-sm {
+    max-width: 360px;
+}
+
+.post-content img.md-img-md,
+.page-content img.md-img-md,
+.anime-content img.md-img-md,
+.exhibit-content img.md-img-md {
+    max-width: 560px;
+}
+
+.post-content img.md-img-lg,
+.page-content img.md-img-lg,
+.anime-content img.md-img-lg,
+.exhibit-content img.md-img-lg {
+    max-width: 800px;
+}
+
+.post-content img.md-img-full,
+.page-content img.md-img-full,
+.anime-content img.md-img-full,
+.exhibit-content img.md-img-full {
+    max-width: 100%;
+}
+
+/* 图集网格由模板控制列宽，尺寸档位在网格内不生效 */
+.md-block-gallery img.md-img-xs,
+.md-block-gallery img.md-img-sm,
+.md-block-gallery img.md-img-md,
+.md-block-gallery img.md-img-lg,
+.md-block-gallery img.md-img-full {
+    max-width: 100%;
+}
+
+/* 列表卡片封面：NSFW 内容默认模糊，点击进入详情后再按正文规则处理 */
+[data-content-rating="nsfw"] .archive-card-cover-image {
+    filter: blur(16px) saturate(0.9);
+    transform: scale(1.03);
+}
+
+/* 首页时间线卡片封面：无论桌面左右栏还是移动端单卡都统一遮挡 */
+[data-content-rating="nsfw"] .timeline-bridge-media img,
+[data-content-rating="nsfw"] .timeline-card-shell img {
+    filter: blur(16px) saturate(0.9);
+}
+
+/* 相关推荐卡片封面：NSFW 内容同样模糊，点击卡片进入详情后再揭晓 */
+[data-content-rating="nsfw"] .related-post-thumb img,
+[data-content-rating="nsfw"] .poetry-related-thumb img {
+    filter: blur(16px) saturate(0.9);
+}
+
+/* NSFW 详情页头图与展览版式首屏默认模糊，点“显示全部图片”后一并揭晓 */
+body.is-nsfw .detail-cover-bg,
+body.is-nsfw .article-gallery-hero-bg img,
+body.is-nsfw .page-hero-image,
+body.is-nsfw .anime-hero-bg img {
+    filter: blur(22px) saturate(0.85);
+}
+
+body.is-nsfw.is-nsfw-revealed .detail-cover-bg,
+body.is-nsfw.is-nsfw-revealed .article-gallery-hero-bg img,
+body.is-nsfw.is-nsfw-revealed .page-hero-image,
+body.is-nsfw.is-nsfw-revealed .anime-hero-bg img {
+    filter: none;
+}

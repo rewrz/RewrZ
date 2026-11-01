@@ -17,6 +17,7 @@ class PostBase(BaseModel):
     style_preset: str = "auto"
     status: str = "draft"
     visibility: str = "public"
+    content_rating: str = "general"
     password: Optional[str] = None
     allow_comments: bool = True
     license_type: Optional[str] = "cc_by_nc_sa_4"  # 版权协议类型
@@ -28,6 +29,16 @@ class PostBase(BaseModel):
         normalized = str(value or "").strip().lower()
         if normalized not in {"post", "page"}:
             raise ValueError("post_type 仅允许为 post（文章）或 page（页面）")
+        return normalized
+
+    @field_validator("content_rating")
+    @classmethod
+    def validate_content_rating(cls, value: str) -> str:
+        if value is None:
+            return value
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"general", "sensitive", "nsfw"}:
+            raise ValueError("content_rating 仅允许为 general（通用）、sensitive（敏感）或 nsfw")
         return normalized
 
 class PostCreate(PostBase):
@@ -45,6 +56,7 @@ class PostUpdate(PostBase):
     slug: Optional[str] = None
     content_markdown: Optional[str] = None
     content_html: Optional[str] = None
+    content_rating: Optional[str] = None
     editor_mode: Optional[str] = None
     category_ids: Optional[List[int]] = None
     tag_ids: Optional[List[int]] = None

@@ -42,6 +42,9 @@
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/static/vendor/font-awesome/webfonts/fa-solid-900.woff2">
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/static/vendor/font-awesome/webfonts/fa-regular-400.woff2">
     
+    {# 内容分级在 head 阶段就要可用：决定 robots 与后续正文遮挡 #}
+    {% set _content_rating = (post.content_rating if post is defined and post and post.content_rating else 'general') %}
+
     <!-- SEO Meta Tags -->
     <meta name="description" content="{% block meta_description %}{{ site_description if site_description else (tagline if tagline else site_title) }}{% endblock %}">
     <meta property="og:title" content="{% block og_title %}{{ title if title else site_title }}{% endblock %}">
@@ -53,7 +56,7 @@
     <meta name="twitter:title" content="{% block twitter_title %}{{ title if title else site_title }}{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}{{ site_description if site_description else (tagline if tagline else site_title) }}{% endblock %}">
     {% if featured_image_url %}<meta name="twitter:image" content="{{ featured_image_url }}">{% endif %}
-    {% if noindex_site %}<meta name="robots" content="noindex, nofollow">{% endif %}
+    {% if noindex_site or _content_rating == 'nsfw' %}<meta name="robots" content="noindex, nofollow">{% endif %}
     
     {% block head %}{% endblock %}
     
@@ -139,7 +142,8 @@
         document.documentElement.classList.add('js-ready');
     </script>
 </head>
-<body class="site-shell min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 {{ effect_body_class if effect_body_class else '' }}"
+<body class="site-shell min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 {{ effect_body_class if effect_body_class else '' }}{% if _content_rating == 'nsfw' %} is-nsfw{% endif %}"
+      data-content-rating="{{ _content_rating }}"
       data-list-navigation-mode="{{ list_navigation_mode if list_navigation_mode else 'pagination' }}"
       data-glass-intensity="{{ glass_intensity }}"
       data-current-theme="{{ current_theme }}"
@@ -365,6 +369,28 @@
 
 
     <main class="pt-20 md:pt-24">
+        {% if _content_rating in ['sensitive', 'nsfw'] %}
+        <div class="container mx-auto max-w-7xl px-4 pt-6">
+            <aside class="content-rating-notice" role="note">
+                <span class="content-rating-notice__icon" aria-hidden="true">
+                    <i class="fas fa-triangle-exclamation"></i>
+                </span>
+                <div class="content-rating-notice__body">
+                    <p class="content-rating-notice__title">
+                        {% if _content_rating == 'nsfw' %}该内容包含 NSFW 素材{% else %}该内容可能引起不适{% endif %}
+                    </p>
+                    {% if _content_rating == 'nsfw' %}
+                    <p class="content-rating-notice__desc">
+                        正文图片已默认模糊处理，点击单张图片可揭晓。
+                        <button type="button" class="content-rating-notice__action" data-nsfw-reveal>显示全部图片</button>
+                    </p>
+                    {% else %}
+                    <p class="content-rating-notice__desc">请自行判断是否继续阅读。</p>
+                    {% endif %}
+                </div>
+            </aside>
+        </div>
+        {% endif %}
         {% block content %}{% endblock %}
     </main>
 
@@ -664,6 +690,56 @@
     <script src="{{ static_asset(request, 'js/effects/effect-manager.js') }}" defer></script>
     <script type="module" src="{{ static_asset(request, 'js/multi-format-interactions.js') }}"></script>
     <script type="module" src="{{ static_asset(request, 'js/ui-enhancements.js') }}"></script>
+    {% if _content_rating == 'nsfw' %}
+    <script>
+        // NSFW 正文图片默认模糊：点击单张图片揭晓，点击“显示全部”解开整篇。
+        // 同一会话内记住用户已确认，避免每次进入都重复遮挡。
+        (function () {
+            if (!document.body || !document.body.classList.contains('is-nsfw')) return;
+            var storageKey = 'rewrz:nsfw-revealed:{{ post.id }}';
+            var imageSelector = '.post-content img, .page-content img, .anime-content img, .exhibit-content img, .micro-image-grid img';
+
+            function contentImages() {
+                return Array.prototype.slice.call(document.querySelectorAll(imageSelector));
+            }
+            function reveal(image) {
+                if (image) image.classList.add('is-nsfw-revealed');
+            }
+            function rememberRevealed() {
+                try { sessionStorage.setItem(storageKey, '1'); } catch (error) {}
+            }
+            function revealAll() {
+                contentImages().forEach(reveal);
+                // 头图/展览首屏跟随“显示全部”一并揭晓
+                document.body.classList.add('is-nsfw-revealed');
+                rememberRevealed();
+            }
+
+            try {
+                if (sessionStorage.getItem(storageKey) === '1') {
+                    revealAll();
+                }
+            } catch (error) {}
+
+            // 捕获阶段拦截，避免图片外层链接或灯箱在揭晓前就打开原图
+            document.addEventListener('click', function (event) {
+                var revealAllButton = event.target.closest('[data-nsfw-reveal]');
+                if (revealAllButton) {
+                    event.preventDefault();
+                    revealAll();
+                    return;
+                }
+                var image = event.target.closest('img');
+                if (!image || !image.closest(imageSelector)) return;
+                if (image.classList.contains('is-nsfw-revealed')) return;
+                event.preventDefault();
+                event.stopPropagation();
+                reveal(image);
+                rememberRevealed();
+            }, true);
+        })();
+    </script>
+    {% endif %}
     {% block scripts %}{% endblock %}
 </body>
 </html>

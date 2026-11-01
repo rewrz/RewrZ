@@ -60,6 +60,9 @@ def generate_sitemap(request: Request, db: Session = Depends(get_db)):
     # 添加已发布的文章
     posts = crud_post.get_posts(db, status="published", limit=1000, post_type="post")
     for post in posts:
+        # NSFW 内容不进入 sitemap，避免被搜索引擎收录缩略图与正文入口
+        if str(getattr(post, "content_rating", "general") or "general") == "nsfw":
+            continue
         format_slugs = [fmt.slug for fmt in post.formats if getattr(fmt, "slug", None)] if post.formats else []
         primary_intent = choose_primary_intent_slug(format_slugs)
         post_url = urljoin(base_url, f"/{to_public_post_segment(primary_intent)}/{post.slug}")
@@ -392,7 +395,8 @@ def _generate_post_seo_data(db_post, request, db: Session) -> Dict:
         "title": f"{db_post.title} - {site_title}",
         "description": public_excerpt or _extract_description_from_content(public_markdown),
         "url": post_url,
-        "image": db_post.featured_image_url,
+        # NSFW 内容不输出封面图，避免 Open Graph / Twitter 卡片抓走敏感缩略图
+        "image": None if str(getattr(db_post, "content_rating", "general") or "general") == "nsfw" else db_post.featured_image_url,
         "type": "article",
         "published_time": utc_iso(db_post.published_at),
         "modified_time": utc_iso(db_post.updated_at),

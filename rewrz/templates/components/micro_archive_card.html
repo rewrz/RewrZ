@@ -17,8 +17,11 @@
 {% set media_images = content_images[:8] %}
 {% set display_images = media_images[:4] %}
 {% set micro_lightbox_group = "micro-card-" ~ post.id %}
+{% set post_rating = post.content_rating if post.content_rating else 'general' %}
+{# NSFW 卡片不挂灯箱入口，避免模糊遮罩被点击直接绕开，只能进详情页揭晓 #}
+{% set is_nsfw_post = post_rating == 'nsfw' %}
 
-<article class="micro-card micro-timeline-item" data-micro-card="{{ post.id }}">
+<article class="micro-card micro-timeline-item" data-micro-card="{{ post.id }}" data-content-rating="{{ post_rating }}">
     <div class="micro-card-body">
         <header class="micro-card-header">
             <a href="/" class="micro-card-avatar-link" aria-label="{{ profile_name }}">
@@ -29,6 +32,9 @@
                 <span class="micro-card-meta">
                     <i class="far fa-clock" aria-hidden="true"></i>
                     <span>{{ published_text }}</span>
+                    {% if post_rating in ['sensitive', 'nsfw'] %}
+                    <span class="micro-card-rating">{{ 'NSFW' if is_nsfw_post else '敏感' }}</span>
+                    {% endif %}
                 </span>
             </div>
             <a href="{{ post_url_value }}" class="micro-card-detail-link">
@@ -60,6 +66,11 @@
         {% if display_images %}
         <div class="micro-media-frame">
             {% if display_images|length == 1 %}
+            {% if is_nsfw_post %}
+            <a href="{{ post_url_value }}" class="micro-media-single" aria-label="进入详情页查看这张图片">
+                <img src="{{ display_images[0] }}" alt="{{ post.title or '微博图片' }}" loading="lazy">
+            </a>
+            {% else %}
             <button
                 type="button"
                 class="micro-media-single"
@@ -71,9 +82,18 @@
             >
                 <img src="{{ display_images[0] }}" alt="{{ post.title or '微博图片' }}" loading="lazy">
             </button>
+            {% endif %}
             {% else %}
             <div class="micro-media-grid">
                 {% for img_url in display_images %}
+                {% if is_nsfw_post %}
+                <a href="{{ post_url_value }}" class="micro-media-cell" aria-label="进入详情页查看第{{ loop.index }}张图片">
+                    <img src="{{ img_url }}" alt="{{ post.title or '微博图片' }}" loading="lazy">
+                    {% if loop.last and media_images|length > 4 %}
+                    <span class="micro-media-more">+{{ media_images|length - 4 }}</span>
+                    {% endif %}
+                </a>
+                {% else %}
                 <button
                     type="button"
                     class="micro-media-cell"
@@ -88,11 +108,12 @@
                     <span class="micro-media-more">+{{ media_images|length - 4 }}</span>
                     {% endif %}
                 </button>
+                {% endif %}
                 {% endfor %}
             </div>
             {% endif %}
 
-            {% if media_images|length > display_images|length %}
+            {% if media_images|length > display_images|length and not is_nsfw_post %}
             <div hidden aria-hidden="true">
                 {% for img_url in media_images[display_images|length:] %}
                 <button
@@ -111,6 +132,9 @@
         {% endif %}
 
         {% if content_videos %}
+        {% if is_nsfw_post %}
+        <p class="micro-media-hint">该动态包含 NSFW 视频，请进入详情页查看。</p>
+        {% else %}
         <div class="micro-media-stack">
             {% for video_url in content_videos[:2] %}
             <div class="micro-media-frame micro-media-video">
@@ -124,8 +148,12 @@
             {% endif %}
         </div>
         {% endif %}
+        {% endif %}
 
         {% if content_audio %}
+        {% if is_nsfw_post %}
+        <p class="micro-media-hint">该动态包含 NSFW 音频，请进入详情页查看。</p>
+        {% else %}
         <div class="micro-media-stack">
             {% for audio_url in content_audio[:3] %}
             <div class="micro-media-frame micro-media-audio">
@@ -139,6 +167,7 @@
             <p class="micro-media-hint">还有 {{ content_audio|length - 3 }} 个音频，前往详情页查看。</p>
             {% endif %}
         </div>
+        {% endif %}
         {% endif %}
 
         <div class="micro-action-bar">
@@ -228,6 +257,13 @@
                 <i class="fas fa-share-alt" aria-hidden="true"></i>
                 <span class="micro-action-label">分享</span>
             </button>
+
+            {% if is_logged_in and (post.author_id == current_user_id or current_user_role in ['admin', 'super_admin']) %}
+            <a href="/formats/micro?edit={{ post.id }}#micro-quick-composer" class="micro-action micro-action-edit" title="编辑这条动态">
+                <i class="fas fa-pen" aria-hidden="true"></i>
+                <span class="micro-action-label">编辑</span>
+            </a>
+            {% endif %}
 
             <span class="micro-action micro-action-views">
                 <i class="far fa-eye" aria-hidden="true"></i>

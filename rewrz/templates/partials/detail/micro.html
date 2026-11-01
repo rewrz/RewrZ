@@ -156,6 +156,11 @@
 
             <footer class="micro-detail-footer px-5 py-4 border-t flex flex-wrap items-center justify-end gap-3 text-sm">
                 <div class="flex items-center gap-2">
+                    {% if is_logged_in and (post.author_id == current_user_id or current_user_role in ['admin', 'super_admin']) %}
+                    <a href="/formats/micro?edit={{ post.id }}#micro-quick-composer" class="micro-action-btn" title="回到微博发布器编辑这条动态">
+                        <i class="fas fa-pen mr-1"></i>编辑
+                    </a>
+                    {% endif %}
                     <button type="button" id="micro-focus-btn" class="micro-action-btn" title="进入沉浸全屏阅读" aria-pressed="false">
                         <i class="fas fa-expand-alt mr-1" data-immersive-icon></i><span data-immersive-label>沉浸</span>
                     </button>

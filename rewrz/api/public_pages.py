@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -303,6 +303,7 @@ def format_page(
     format_slug: str,
     page: int = 1,
     append: int = 0,
+    edit: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     _ensure_registered()
@@ -400,11 +401,49 @@ def format_page(
     _attach_cover_url_attr(posts, archive_cover_url_map)
 
     context = build_base_template_context(request)
+    # 前台微博编辑：只在 micro 列表页接受 edit 参数，并严格校验作者身份
+    micro_edit_post = None
+    if edit is not None:
+        viewer_id = int(context.get("current_user_id") or 0)
+        viewer_role = str(context.get("current_user_role") or "").strip().lower()
+        edit_post = crud_post.get_post(db, post_id=int(edit)) if viewer_id > 0 else None
+        edit_intents = {
+            normalize_public_intent_slug(getattr(fmt, "slug", None))
+            for fmt in (getattr(edit_post, "formats", None) or [])
+        } if edit_post else set()
+        is_owner = bool(edit_post) and int(getattr(edit_post, "author_id", 0) or 0) == viewer_id
+        can_moderate = viewer_role in {"admin", "super_admin"}
+        if (
+            canonical_format_slug != "micro"
+            or edit_post is None
+            or edit_post.post_type != "post"
+            or "micro" not in edit_intents
+            or not (is_owner or can_moderate)
+        ):
+            raise HTTPException(status_code=404, detail="动态不存在或无权编辑")
+        edit_content = (edit_post.content_markdown or "").strip()
+        edit_tags = [
+            str(getattr(tag, "name", "") or "").strip()
+            for tag in (edit_post.tags or [])
+            if str(getattr(tag, "name", "") or "").strip()
+        ]
+        if edit_tags:
+            # 标签存在关联表里，编辑时回填到正文，避免保存后标签被整体清空
+            edit_content = f"{edit_content} {' '.join('#' + name for name in edit_tags)}".strip()
+        micro_edit_post = {
+            "id": int(edit_post.id),
+            "content": edit_content,
+            "visibility": str(getattr(edit_post, "visibility", "public") or "public"),
+            "content_rating": str(getattr(edit_post, "content_rating", "general") or "general"),
+            "password_protected": bool(getattr(edit_post, "password", None)),
+        }
+
     context.update(
         {
             "db": db,
             "format": format_obj,
             "format_slug": canonical_format_slug,
+            "micro_edit_post": micro_edit_post,
             "posts": posts,
             "pagination": pagination,
             "list_navigation_mode": list_navigation_mode,

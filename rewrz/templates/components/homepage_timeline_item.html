@@ -23,7 +23,8 @@
     {% set format_badge_class = 'home-format-chip home-format-chip-poem' %}
 {% endif %}
 
-<article class="timeline-reveal relative mb-6 md:mb-8">
+{# 卡片带内容分级，NSFW 封面在首页默认模糊，点击卡片进入详情页再揭晓 #}
+<article class="timeline-reveal relative mb-6 md:mb-8" data-content-rating="{{ post.content_rating if post.content_rating else 'general' }}">
     <div class="timeline-desktop-row hidden md:flex items-start">
         <div class="w-5/12 {{ 'pr-9' if info_on_left else 'pr-5' }}">
             {% if info_on_left %}

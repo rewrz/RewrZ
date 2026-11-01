@@ -19,7 +19,7 @@
             {% set related_summary = related_post | post_summary_text(56) %}
             {% set related_title = related_post.title if related_post.title else '' %}
             {% if related_title or related_summary %}
-            <article class="poetry-related-item group">
+            <article class="poetry-related-item group" data-content-rating="{{ related_post.content_rating if related_post.content_rating else 'general' }}">
                 <a href="{{ related_post | post_url }}" class="poetry-related-link">
                     {% if related_cover %}
                     <span class="poetry-related-thumb">
@@ -47,7 +47,7 @@
             {% set related_summary = related_post | post_summary_text(52) %}
             {% set related_title = related_post.title if related_post.title else '' %}
             {% if related_title or related_summary %}
-            <article class="related-post-card group overflow-hidden rounded-xl border transition-colors">
+            <article class="related-post-card group overflow-hidden rounded-xl border transition-colors" data-content-rating="{{ related_post.content_rating if related_post.content_rating else 'general' }}">
                 {% if related_cover %}
                 <a href="{{ related_post | post_url }}" class="related-post-link related-post-link-cover flex items-stretch gap-2 p-2">
                     <span class="related-post-thumb overflow-hidden rounded-lg">

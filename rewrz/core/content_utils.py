@@ -6,7 +6,8 @@ from markdown import markdown
 
 
 VALID_EDITOR_MODES = {"markdown", "html"}
-MARKDOWN_RENDER_EXTENSIONS = ("extra", "sane_lists", "nl2br")
+MARKDOWN_RENDER_EXTENSIONS = ("extra", "sane_lists", "nl2br", "attr_list")
+VALID_CONTENT_RATINGS = ("general", "sensitive", "nsfw")
 TASK_LIST_ITEM_PATTERN = re.compile(r"<li>\s*\[([ xX])\]\s*")
 # Markdown 区块指令：:::名称 [参数]，闭合为单独一行 :::
 DIRECTIVE_OPEN_PATTERN = re.compile(r"^:::(\w+)(?:\s+([\w-]+))?$")
@@ -191,6 +192,19 @@ def render_markdown_html(content_markdown: Optional[str]) -> str:
     - nl2br: 单换行也保留为可见换行
     """
     return _render_markdown_html_cached(content_markdown or "")
+
+
+def normalize_content_rating(value: Optional[str], fallback: str = "general") -> str:
+    """收敛内容分级取值，未知值回落到给定默认值。"""
+    normalized = (value or "").strip().lower()
+    if normalized in VALID_CONTENT_RATINGS:
+        return normalized
+    return fallback if fallback in VALID_CONTENT_RATINGS else "general"
+
+
+def is_nsfw_rating(value: Optional[str]) -> bool:
+    """是否属于需要默认模糊遮挡的分级。"""
+    return normalize_content_rating(value) == "nsfw"
 
 
 def normalize_editor_mode(value: Optional[str], fallback: str = "markdown") -> str:

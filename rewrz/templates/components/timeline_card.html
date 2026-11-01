@@ -13,7 +13,7 @@
 {% set summary_text = post | post_summary_text(200) %}
 
 {% if is_micro %}
-<div class="archive-card-equal timeline-card timeline-card-micro rounded-lg shadow-sm border p-4 hover:shadow-md transition-transform duration-200">
+<div class="archive-card-equal timeline-card timeline-card-micro rounded-lg shadow-sm border p-4 hover:shadow-md transition-transform duration-200" data-content-rating="{{ post.content_rating if post.content_rating else 'general' }}">
     <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2">
             <span class="timeline-card-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
@@ -82,12 +82,17 @@
                 {% endfor %}
             {% endif %}
         </div>
-        <a href="{{ post | post_url }}" class="timeline-card-link text-xs hover:underline">查看详情</a>
+        <div class="flex items-center gap-3">
+            {% if is_logged_in and (post.author_id == current_user_id or current_user_role in ['admin', 'super_admin']) %}
+            <a href="/formats/micro?edit={{ post.id }}#micro-quick-composer" class="timeline-card-link text-xs hover:underline">编辑</a>
+            {% endif %}
+            <a href="{{ post | post_url }}" class="timeline-card-link text-xs hover:underline">查看详情</a>
+        </div>
     </div>
 </div>
 
 {% elif is_poem %}
-<div class="poem-scroll-card archive-card-equal archive-card-poem rounded-lg shadow-sm border p-4 hover:shadow-md transition-transform duration-200">
+<div class="poem-scroll-card archive-card-equal archive-card-poem rounded-lg shadow-sm border p-4 hover:shadow-md transition-transform duration-200" data-content-rating="{{ post.content_rating if post.content_rating else 'general' }}">
     <div class="flex items-center justify-between mb-3">
         <span class="archive-card-poem-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
             <i class="fas fa-feather-alt mr-1"></i>诗词歌赋
@@ -143,7 +148,7 @@
 </div>
 
 {% else %}
-<div class="archive-card-equal timeline-card timeline-card-article rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-transform duration-200">
+<div class="archive-card-equal timeline-card timeline-card-article rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-transform duration-200" data-content-rating="{{ post.content_rating if post.content_rating else 'general' }}">
     {% if has_featured_image %}
     <a href="{{ post | post_url }}" class="archive-card-cover-motion block overflow-hidden" data-profile-motion>
         <img src="{{ post.featured_image_url | thumb_url('archive_card', template_db) }}"

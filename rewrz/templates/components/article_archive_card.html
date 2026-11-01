@@ -23,7 +23,8 @@
 {% set cover_thumb_url = cover_url | thumb_url('archive_card', template_db) if cover_url else '' %}
 {% set cover_thumb_srcset = cover_url | thumb_srcset('archive_card', template_db) if cover_url else '' %}
 
-<article class="article-anime-card archive-card-equal group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
+<article class="article-anime-card archive-card-equal group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
+         data-content-rating="{{ post.content_rating if post.content_rating else 'general' }}">
     <a href="{{ post | post_url }}" class="article-anime-cover archive-card-cover-motion block overflow-hidden" data-profile-motion>
         {% if cover_thumb_url %}
         <img src="{{ cover_thumb_url }}"
@@ -56,6 +57,15 @@
         {% endif %}
 
         <div class="mt-4 flex min-h-[2.4rem] flex-wrap items-center gap-2 text-xs">
+            {% if post.content_rating == 'nsfw' %}
+            <span class="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-1 font-semibold text-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
+                <i class="fas fa-triangle-exclamation mr-1"></i>NSFW
+            </span>
+            {% elif post.content_rating == 'sensitive' %}
+            <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                <i class="fas fa-circle-exclamation mr-1"></i>敏感
+            </span>
+            {% endif %}
             {% if post.categories %}
                 {% for category in post.categories[:2] %}
                 <a href="/archives/by-category/{{ category.slug }}" class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50">

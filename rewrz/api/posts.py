@@ -26,7 +26,7 @@ from ..crud import post as crud_post, category as crud_category, format as crud_
 from ..models.category import Category
 from ..schemas import Post, PostCreate, PostUpdate, PostInlineUpdate, User, PostBatchUpdate, FormatCreate
 from ..core.content_intents import INTENT_SLUGS, INTENT_NAME_MAP, to_public_post_segment
-from ..core.content_utils import render_markdown_html
+from ..core.content_utils import normalize_content_rating, render_markdown_html
 from ..core.micro_text import MICRO_TAG_LIMIT, enhance_micro_html, extract_micro_tags, strip_micro_tags
 from ..core.time_utils import site_local_to_utc_naive, utc_iso, format_site_time
 from . import media as media_api
@@ -295,6 +295,7 @@ def create_public_quick_micro_post(
     content: str = Form(""),
     media_items: Optional[str] = Form(None),
     visibility: str = Form("public"),
+    content_rating: str = Form("general"),
     password: Optional[str] = Form(None),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
@@ -342,6 +343,7 @@ def create_public_quick_micro_post(
         post_type="post",
         status="published",
         visibility=normalized_visibility,
+        content_rating=normalize_content_rating(content_rating),
         password=normalized_password,
         allow_comments=True,
         category_ids=[],
@@ -412,6 +414,83 @@ def preview_public_quick_micro_post(
     finally:
         _PREVIEW_SEMAPHORE.release()
 
+
+@router.post("/api/v1/posts/quick/{post_id}", response_model=dict)
+@router.post("/api/posts/quick/{post_id}", response_model=dict)
+def update_public_quick_micro_post(
+    post_id: int,
+    request: Request,
+    content: str = Form(""),
+    media_items: Optional[str] = Form(None),
+    visibility: str = Form("public"),
+    content_rating: str = Form("general"),
+    password: Optional[str] = Form(None),
+    csrf_token: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    前台快捷编辑接口。
+
+    设计约束：
+    - 仅允许作者本人或管理员修改
+    - 仅允许内容意图为 micro，编辑后保持原有链接不变
+    """
+    verify_csrf_token(request, csrf_token)
+
+    db_post = crud_post.get_post(db, post_id=post_id)
+    if db_post is None or db_post.post_type != "post":
+        raise HTTPException(status_code=404, detail="动态不存在")
+    if _resolve_post_primary_intent_slug(db_post) != "micro":
+        raise HTTPException(status_code=400, detail="仅支持编辑微博动态")
+    if not is_admin_user(current_user) and int(db_post.author_id or 0) != int(current_user.id):
+        raise HTTPException(status_code=403, detail="只能编辑自己发布的动态")
+
+    normalized_content = (content or "").strip()
+    normalized_visibility = str(visibility or "public").strip().lower() or "public"
+    normalized_password = (password or "").strip() or None
+    parsed_media_items = _parse_micro_media_items(media_items)
+    if not normalized_content and not parsed_media_items:
+        raise HTTPException(status_code=400, detail="动态内容或媒体至少填写一项")
+    if len(normalized_content) > 2000:
+        raise HTTPException(status_code=400, detail="动态内容最多 2000 字")
+    if normalized_visibility not in {"public", "private", "password"}:
+        raise HTTPException(status_code=400, detail="动态可见性无效")
+    if normalized_visibility == "password" and not normalized_password and not db_post.password:
+        raise HTTPException(status_code=400, detail="密码保护动态必须设置访问密码")
+    if normalized_visibility != "password":
+        normalized_password = None
+    body_content = strip_micro_tags(normalized_content)
+    if not body_content and not parsed_media_items:
+        raise HTTPException(status_code=400, detail="动态正文不能只包含标签")
+    merged_content, featured_image_url = _merge_micro_content_with_media(body_content, parsed_media_items)
+
+    updated = crud_post.update_post(
+        db=db,
+        post_id=post_id,
+        post=PostUpdate(
+            content_markdown=merged_content,
+            editor_mode="markdown",
+            visibility=normalized_visibility,
+            content_rating=normalize_content_rating(content_rating),
+            password=normalized_password,
+            # 未新增媒体时保留原封面，避免仅在正文改动时把封面清空
+            featured_image_url=featured_image_url or db_post.featured_image_url,
+        ),
+        tag_names=extract_micro_tags(normalized_content),
+        tag_limit=MICRO_TAG_LIMIT,
+    )
+
+    updated_time = getattr(updated, "published_at", None) or getattr(updated, "created_at", None)
+    return {
+        "success": True,
+        "id": updated.id,
+        "post_url": f"/{to_public_post_segment('micro')}/{updated.slug}",
+        "published_at": utc_iso(updated_time),
+        "media_count": len(parsed_media_items),
+    }
+
+
 @router.get(f"{ADMIN_PATH}/posts/new", response_class=HTMLResponse)
 def new_post_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
@@ -475,6 +554,7 @@ def create_post_api(
     featured_image_url: Optional[str] = Form(None),
     status: str = Form("draft"),
     visibility: str = Form("public"),
+    content_rating: str = Form("general"),
     password: Optional[str] = Form(None),
     # 复选框未勾选时浏览器不会提交该字段，默认值必须为 False，否则会恒定保存为允许评论
     allow_comments: bool = Form(False),
@@ -515,6 +595,7 @@ def create_post_api(
         "style_preset": resolved_style_preset,
         "status": status,
         "visibility": visibility,
+        "content_rating": content_rating,
         "password": normalized_password,
         "allow_comments": allow_comments,
         "category_ids": normalized_category_ids,
@@ -559,6 +640,7 @@ def update_post_api(
     featured_image_url: Optional[str] = Form(None),
     status: str = Form("draft"),
     visibility: str = Form("public"),
+    content_rating: str = Form("general"),
     password: Optional[str] = Form(None),
     # 复选框未勾选时浏览器不会提交该字段，默认值必须为 False，否则会恒定保存为允许评论
     allow_comments: bool = Form(False),
@@ -613,6 +695,7 @@ def update_post_api(
         "style_preset": resolved_style_preset,
         "status": status,
         "visibility": visibility,
+        "content_rating": content_rating,
         "password": normalized_password,
         "allow_comments": allow_comments,
         "category_ids": normalized_category_ids,
@@ -1023,6 +1106,7 @@ def create_page_api(
     page_template: str = Form(DEFAULT_PAGE_TEMPLATE),
     status: str = Form("draft"),
     visibility: str = Form("public"),
+    content_rating: str = Form("general"),
     password: Optional[str] = Form(None),
     # 复选框未勾选时浏览器不会提交该字段，默认值必须为 False，否则会恒定保存为允许评论
     allow_comments: bool = Form(False),
@@ -1051,6 +1135,7 @@ def create_page_api(
         "page_template": normalize_page_template(page_template),
         "status": status,
         "visibility": visibility,
+        "content_rating": content_rating,
         "password": normalized_password,
         "allow_comments": allow_comments,
         "license_type": license_type,
@@ -1087,6 +1172,7 @@ def update_page_api(
     page_template: str = Form(DEFAULT_PAGE_TEMPLATE),
     status: str = Form("draft"),
     visibility: str = Form("public"),
+    content_rating: str = Form("general"),
     password: Optional[str] = Form(None),
     # 复选框未勾选时浏览器不会提交该字段，默认值必须为 False，否则会恒定保存为允许评论
     allow_comments: bool = Form(False),
@@ -1128,6 +1214,7 @@ def update_page_api(
         "page_template": normalize_page_template(page_template),
         "status": status,
         "visibility": visibility,
+        "content_rating": content_rating,
         "password": normalized_password,
         "allow_comments": allow_comments,
         "license_type": license_type,

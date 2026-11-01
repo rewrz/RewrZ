@@ -28,9 +28,22 @@
                     <div id="media-lib-loading" class="col-span-full py-8 text-center text-sm text-gray-500">加载中...</div>
                 </div>
 
-                <div class="flex items-center justify-between">
+                <div class="flex flex-wrap items-center gap-2">
                     <button type="button" id="media-lib-load-more-btn" class="hidden rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200">加载更多</button>
-                    <button type="button" id="media-lib-select-btn" class="ml-auto rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50" disabled>插入选中项</button>
+                    <div class="ml-auto flex items-center gap-2">
+                        <div id="media-lib-size-options" class="hidden items-center gap-2">
+                        <label for="media-lib-size-select" class="text-xs text-gray-600">图片尺寸</label>
+                        <select id="media-lib-size-select" class="rounded-md border border-gray-300 px-2 py-2 text-sm">
+                            <option value="">原始尺寸</option>
+                            <option value="md-img-xs">小（240px）</option>
+                            <option value="md-img-sm">中（360px）</option>
+                            <option value="md-img-md">大（560px）</option>
+                            <option value="md-img-lg">特大（800px）</option>
+                            <option value="md-img-full">通栏</option>
+                        </select>
+                        </div>
+                        <button type="button" id="media-lib-select-btn" class="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50" disabled>插入选中项</button>
+                    </div>
                 </div>
             </section>
 
@@ -74,6 +87,8 @@
         loading: document.getElementById("media-lib-loading"),
         loadMoreBtn: document.getElementById("media-lib-load-more-btn"),
         selectBtn: document.getElementById("media-lib-select-btn"),
+        sizeOptions: document.getElementById("media-lib-size-options"),
+        sizeSelect: document.getElementById("media-lib-size-select"),
         dropArea: document.getElementById("media-lib-drop-area"),
         fileInput: document.getElementById("media-lib-file-input"),
         uploadStatus: document.getElementById("media-lib-upload-status"),
@@ -466,6 +481,14 @@
 
     async function open(options = {}) {
         state.onSelect = typeof options.onSelect === "function" ? options.onSelect : null;
+        // 只有编辑器插入正文时才展示尺寸档位，选封面/头像等场景保持简洁
+        if (elements.sizeOptions) {
+            elements.sizeOptions.classList.toggle("hidden", !options.showSizeOptions);
+            elements.sizeOptions.classList.toggle("flex", Boolean(options.showSizeOptions));
+        }
+        if (elements.sizeSelect) {
+            elements.sizeSelect.value = "";
+        }
         modal.classList.remove("hidden");
         switchTab("library");
 
@@ -496,8 +519,9 @@
 
     function confirmSelect() {
         if (!state.selectedItem) return;
+        const sizeClass = elements.sizeSelect ? elements.sizeSelect.value : "";
         const handler = state.onSelect || defaultSelectHandler;
-        handler(state.selectedItem);
+        handler(state.selectedItem, { sizeClass });
         close();
     }
 

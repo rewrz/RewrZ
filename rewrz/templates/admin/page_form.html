@@ -309,6 +309,16 @@
                     </div>
                 </div>
                 <div>
+                    <h3 class="text-lg font-semibold mb-2">内容分级</h3>
+                    {% set _content_rating = (post.content_rating if post and post.content_rating else 'general') %}
+                    <select id="content-rating-select" name="content_rating" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="general" {% if _content_rating == "general" %}selected{% endif %}>通用</option>
+                        <option value="sensitive" {% if _content_rating == "sensitive" %}selected{% endif %}>敏感（显示提示，不模糊图片）</option>
+                        <option value="nsfw" {% if _content_rating == "nsfw" %}selected{% endif %}>NSFW（默认模糊图片且不收录）</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">NSFW 内容会默认模糊正文图片，并同时关闭搜索引擎收录与 sitemap 收录。</p>
+                </div>
+                <div>
                     <h3 class="text-lg font-semibold mb-2">特色图片</h3>
                     <input type="hidden" name="featured_image_url" id="feature-image-url-input" value="{% if post %}{{ post.featured_image_url }}{% endif %}">
                     <div id="feature-image-preview" class="feature-image-shell mb-2 {% if not post or not post.featured_image_url or post.featured_image_url == 'None' %}hidden{% endif %}">
@@ -715,13 +725,19 @@
             .trim();
     }
 
-    function buildMediaInsertSnippet(mediaItem) {
+    function buildMediaInsertSnippet(mediaItem, options) {
         if (!mediaItem) return '';
         const fileLabel = mediaItem.filename || mediaItem.title || 'file';
         const altText = mediaItem.alt_text || mediaItem.title || mediaItem.filename || 'image';
         const safeUrl = String(mediaItem.url || '').replaceAll('"', '%22');
         if (!safeUrl) return '';
         if (mediaItem.file_type === 'image') {
+            // 指定尺寸时输出带 class 的 img：编辑器的 Markdown 预览不解析 attr_list，
+            // 用原生 HTML 片段可以让后台预览与前台渲染保持一致。
+            const sizeClass = String((options && options.sizeClass) || '').trim();
+            if (sizeClass) {
+                return `<img src="${safeUrl}" alt="${escapeHtml(altText)}" class="${sizeClass}">`;
+            }
             return `![${escapeMarkdownText(altText)}](${safeUrl})`;
         }
         return `<a href="${safeUrl}">${escapeHtml(fileLabel)}</a>`;
@@ -836,8 +852,10 @@
                 return;
             }
             window.RewrzMediaLibrary.open({
-                onSelect: (item) => {
-                    const snippet = buildMediaInsertSnippet(item);
+                // 插入正文时才提供图片尺寸档位
+                showSizeOptions: true,
+                onSelect: (item, options) => {
+                    const snippet = buildMediaInsertSnippet(item, options);
                     if (snippet) {
                         insertEditorText(`\n${snippet}\n`);
                         markDirty();

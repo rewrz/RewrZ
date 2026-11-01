@@ -17,6 +17,7 @@ from ..crud import category as crud_category
 from ..core.content_utils import (
     infer_editor_mode,
     normalize_editor_mode,
+    normalize_content_rating,
     get_effective_plain_text,
     get_effective_content_html,
     render_markdown_html,
@@ -497,6 +498,7 @@ def create_post(
         "style_preset": _normalize_style_preset_for_post(normalized_post_type, post.style_preset),
         "status": post.status,
         "visibility": post.visibility,
+        "content_rating": normalize_content_rating(post.content_rating),
         "password": get_password_hash(post.password) if post.password else None,
         "allow_comments": post.allow_comments,
         "version_snapshots": list(post.version_snapshots or [])[:SNAPSHOT_LIMIT],
@@ -582,7 +584,11 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
         incoming_page_template = update_data.pop("page_template", None)
         incoming_post_template = update_data.pop("post_template", None)
         incoming_style_preset = update_data.pop("style_preset", None)
+        incoming_content_rating = update_data.pop("content_rating", None)
         incoming_password = update_data.pop("password", None)
+
+        if incoming_content_rating is not None:
+            db_post.content_rating = normalize_content_rating(incoming_content_rating)
         
         # 可见性为 public/private 时，清空访问密码
         if incoming_visibility and incoming_visibility != "password":
@@ -859,7 +865,10 @@ def get_archive_posts_paginated(db: Session, skip: int = 0, limit: int = 20) -> 
 
 def count_posts_by_media_attachment(db: Session, media_slug: str) -> int:
     media_key = str(media_slug or "").strip().lower()
-    query = select(func.count(Post.id)).where(*get_public_post_conditions())
+    # 媒体聚合页属于公开分发入口，NSFW 内容不在此展示，避免缩略图被直接浏览
+    query = select(func.count(Post.id)).where(*get_public_post_conditions()).where(
+        Post.content_rating != "nsfw"
+    )
 
     if media_key == "images":
         query = query.where(_json_extract_media_summary_int(db, "$.image_count") == 1)
@@ -883,6 +892,8 @@ def get_posts_by_media_attachment(
         select(Post)
         .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags), joinedload(Post.author))
         .filter(*get_public_post_conditions())
+        # 媒体聚合页属于公开分发入口，NSFW 内容不在此展示，避免缩略图被直接浏览
+        .filter(Post.content_rating != "nsfw")
     )
 
     if media_key == "images":

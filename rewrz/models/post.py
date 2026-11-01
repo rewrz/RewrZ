@@ -47,6 +47,7 @@ class Post(Base):
     style_preset = Column(String, nullable=False, default="auto") # 格式内样式预设，仅微动态/诗词生效
     status = Column(String, nullable=False, default="draft") # 'published' or 'draft'
     visibility = Column(String, nullable=False, default="public") # 'public', 'private', 'password'
+    content_rating = Column(String, nullable=False, default="general") # 'general', 'sensitive', 'nsfw'
     password = Column(String, nullable=True) # Hashed password
     allow_comments = Column(Boolean, default=True)
     license_type = Column(String, default="cc_by_nc_sa_4") # 版权协议类型

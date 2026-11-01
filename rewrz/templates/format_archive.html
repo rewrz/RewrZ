@@ -16,6 +16,9 @@
 {% set is_micro = format_slug == 'micro' %}
 {% set is_poem = format_slug == 'poem' %}
 {% set is_article = format_slug == 'article' %}
+{% set micro_edit_post = micro_edit_post if micro_edit_post is defined else None %}
+{% set micro_edit_visibility = micro_edit_post.visibility if micro_edit_post else 'public' %}
+{% set micro_edit_rating = micro_edit_post.content_rating if micro_edit_post else 'general' %}
 {% set profile = format_profile if format_profile is defined and format_profile else {} %}
 {% set profile_name = profile.display_name if profile.display_name else site_title %}
 {% set profile_avatar = profile.avatar_url if profile.avatar_url else '/static/images/default-avatar.png' %}
@@ -262,7 +265,7 @@
         </div>
 
         {% if is_micro and is_logged_in %}
-        <section class="mb-6">
+        <section class="mb-6" id="micro-quick-composer">
             <div class="micro-composer-shell micro-composer-shell-anime mx-auto max-w-3xl overflow-hidden rounded-3xl border border-sky-200 bg-white shadow-sm dark:border-sky-800/70 dark:bg-gray-800/90">
                 <div class="micro-composer-hero flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 to-cyan-50 px-4 py-3 dark:border-sky-900/40 dark:from-slate-900 dark:to-slate-800">
                     <div class="flex min-w-0 items-center gap-3">
@@ -274,9 +277,14 @@
                     </div>
                     <div class="micro-composer-badges flex flex-wrap items-center gap-2 text-[11px] font-semibold">
                         <div class="micro-quick-visibility-group inline-flex flex-wrap items-center gap-2" role="group" aria-label="动态可见性">
-                            <button type="button" data-quick-visibility="public" class="micro-composer-badge micro-composer-badge-action is-active">公开</button>
-                            <button type="button" data-quick-visibility="private" class="micro-composer-badge micro-composer-badge-action">私密</button>
-                            <button type="button" data-quick-visibility="password" class="micro-composer-badge micro-composer-badge-action">密码保护</button>
+                            <button type="button" data-quick-visibility="public" class="micro-composer-badge micro-composer-badge-action{% if micro_edit_visibility == 'public' %} is-active{% endif %}">公开</button>
+                            <button type="button" data-quick-visibility="private" class="micro-composer-badge micro-composer-badge-action{% if micro_edit_visibility == 'private' %} is-active{% endif %}">私密</button>
+                            <button type="button" data-quick-visibility="password" class="micro-composer-badge micro-composer-badge-action{% if micro_edit_visibility == 'password' %} is-active{% endif %}">密码保护</button>
+                        </div>
+                        <div class="micro-quick-rating-group inline-flex flex-wrap items-center gap-2" role="group" aria-label="内容分级">
+                            <button type="button" data-quick-rating="general" class="micro-composer-badge micro-composer-badge-action{% if micro_edit_rating == 'general' %} is-active{% endif %}">通用</button>
+                            <button type="button" data-quick-rating="sensitive" class="micro-composer-badge micro-composer-badge-action{% if micro_edit_rating == 'sensitive' %} is-active{% endif %}">敏感</button>
+                            <button type="button" data-quick-rating="nsfw" class="micro-composer-badge micro-composer-badge-action{% if micro_edit_rating == 'nsfw' %} is-active{% endif %}">NSFW</button>
                         </div>
                         <button type="button" id="micro-quick-insert-hide" class="micro-composer-badge micro-composer-badge-action">
                             <i class="fas fa-comment-dots micro-tool-emoji" aria-hidden="true"></i>评论可见
@@ -284,9 +292,10 @@
                     </div>
                 </div>
                 <div class="p-4 md:p-5">
-                    <form id="micro-quick-post-form" class="space-y-3">
+                    <form id="micro-quick-post-form" class="space-y-3"{% if micro_edit_post %} data-edit-post-id="{{ micro_edit_post.id }}" data-password-protected="{{ 1 if micro_edit_post.password_protected else 0 }}"{% endif %}>
                         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                        <input type="hidden" id="micro-quick-visibility" name="visibility" value="public">
+                        <input type="hidden" id="micro-quick-visibility" name="visibility" value="{{ micro_edit_visibility }}">
+                        <input type="hidden" id="micro-quick-content-rating" name="content_rating" value="{{ micro_edit_rating }}">
                         <input id="micro-quick-media-input" type="file" class="hidden" accept="image/*,video/*,audio/*" multiple>
 
                         <div class="relative">
@@ -297,7 +306,7 @@
                                 maxlength="2000"
                                 class="micro-composer-textarea w-full resize-none rounded-2xl border px-4 py-3 text-[15px] leading-7 outline-none transition"
                                 placeholder="今天想掉落哪一段心情、灵感或碎片？支持 #标签、@对象、粘贴截图和 Ctrl+Enter 快捷发布"
-                            ></textarea>
+                            >{{ micro_edit_post.content if micro_edit_post else '' }}</textarea>
                             <div class="micro-composer-corner-note">
                                 <span>☆ 适合发碎碎念、练习日志、临时脑洞和小广播</span>
                             </div>
@@ -403,6 +412,9 @@
                                     <span id="micro-quick-draft-state" class="micro-status-label micro-status-muted"></span>
                                 </div>
                                 <div class="ml-auto flex items-end justify-end gap-3 self-end">
+                                    {% if micro_edit_post %}
+                                    <a href="/formats/micro" class="micro-tool-btn micro-tool-btn-muted inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700">取消编辑</a>
+                                    {% endif %}
                                     <div class="w-28">
                                     <div class="h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                                         <span id="micro-quick-progress" class="micro-progress-bar block h-full w-0 rounded-full transition-all"></span>
@@ -415,7 +427,7 @@
                                         class="micro-launch-btn inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
                                         disabled
                                     >
-                                        <i class="fas fa-rocket micro-tool-emoji" aria-hidden="true"></i>发射动态
+                                        <i class="fas fa-rocket micro-tool-emoji" aria-hidden="true"></i>{% if micro_edit_post %}保存修改{% else %}发射动态{% endif %}
                                     </button>
                                 </div>
                             </div>
@@ -510,6 +522,8 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         const uploadStatus = document.getElementById("micro-quick-upload-status");
         const visibilityInput = document.getElementById("micro-quick-visibility");
         const visibilityButtons = Array.from(document.querySelectorAll("[data-quick-visibility]"));
+        const contentRatingInput = document.getElementById("micro-quick-content-rating");
+        const contentRatingButtons = Array.from(document.querySelectorAll("[data-quick-rating]"));
         const passwordPanel = document.getElementById("micro-quick-password-panel");
         const passwordInput = document.getElementById("micro-quick-password");
         const passwordToggle = document.getElementById("micro-quick-password-toggle");
@@ -521,6 +535,13 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         }
         const maxLength = 2000;
         const maxMediaCount = 9;
+        // 编辑模式复用同一个发布器，仅切换提交地址与文案
+        const editPostId = Number(form.dataset.editPostId || 0) || 0;
+        const isEditing = editPostId > 0;
+        const submitIdleText = isEditing ? "保存修改" : "发射动态";
+        const submitBusyText = isEditing ? "保存中..." : "发布中...";
+        // 编辑时若原动态已有访问密码，留空即代表沿用旧密码
+        const canKeepExistingPassword = isEditing && form.dataset.passwordProtected === "1";
         const draftKey = "rewrz_micro_quick_draft_v1";
         const recentEmojiKey = "rewrz_micro_recent_emojis_v1";
         const microTagMaxLength = 64;
@@ -1000,6 +1021,10 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
     };
 
     const scheduleDraftSave = (content) => {
+        // 编辑模式下正文已持久化在服务端，不再写入本地草稿，避免新旧草稿互相覆盖
+        if (isEditing) {
+            return;
+        }
         if (draftTimer) {
             window.clearTimeout(draftTimer);
         }
@@ -1050,6 +1075,19 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             passwordInput.value = "";
             setPasswordRevealState(false);
         }
+    };
+
+    const getSelectedContentRating = () => {
+        return String(contentRatingInput?.value || "general").trim().toLowerCase() || "general";
+    };
+
+    const syncContentRatingControls = () => {
+        const currentRating = getSelectedContentRating();
+        contentRatingButtons.forEach((button) => {
+            const isActive = (button.getAttribute("data-quick-rating") || "") === currentRating;
+            button.classList.toggle("is-active", isActive);
+            button.setAttribute("aria-pressed", isActive ? "true" : "false");
+        });
     };
 
     const setPasswordRevealState = (revealed) => {
@@ -1403,6 +1441,17 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         });
     });
 
+    contentRatingButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            const nextRating = String(button.getAttribute("data-quick-rating") || "").trim();
+            if (!contentRatingInput || !nextRating) {
+                return;
+            }
+            contentRatingInput.value = nextRating;
+            syncContentRatingControls();
+        });
+    });
+
     if (passwordToggle && passwordInput) {
         passwordToggle.addEventListener("click", () => {
             setPasswordRevealState(passwordInput.type === "password");
@@ -1572,7 +1621,11 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             refreshState();
             return;
         }
-        if (getSelectedVisibility() === "password" && !String(passwordInput?.value || "").trim()) {
+        if (
+            getSelectedVisibility() === "password"
+            && !String(passwordInput?.value || "").trim()
+            && !canKeepExistingPassword
+        ) {
             setMessage("密码保护动态必须设置访问密码。", "error");
             if (passwordInput) {
                 passwordInput.focus();
@@ -1582,7 +1635,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         }
 
         isSubmitting = true;
-        submitButton.textContent = "发布中...";
+        submitButton.textContent = submitBusyText;
         setMessage("");
         setDraftText("");
         refreshState();
@@ -1598,7 +1651,9 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
                 }));
                 formData.set("media_items", JSON.stringify(serializedMedia));
             }
-            const response = await fetch("/api/v1/posts/quick", {
+            // 编辑模式复用同一份提交逻辑，只切换接口地址
+            const requestUrl = isEditing ? `/api/v1/posts/quick/${editPostId}` : "/api/v1/posts/quick";
+            const response = await fetch(requestUrl, {
                 method: "POST",
                 body: formData,
             });
@@ -1620,6 +1675,15 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             syncTextareaHeight();
             renderDetectedTopics("");
             renderPreview("");
+            if (isEditing) {
+                setMessage("修改已保存，正在跳转...", "success");
+                setDraftText("已保存");
+                const targetUrl = String(payload.post_url || "/formats/micro");
+                window.setTimeout(() => {
+                    window.location.href = targetUrl;
+                }, 450);
+                return;
+            }
             setMessage("发布成功，正在刷新动态流...", "success");
             setDraftText("已发布");
             window.setTimeout(() => {
@@ -1629,13 +1693,14 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             setMessage(getErrorMessage(error, "发布失败，请稍后重试。"), "error");
         } finally {
             isSubmitting = false;
-            submitButton.textContent = "发布动态";
+            submitButton.textContent = submitIdleText;
             refreshState();
         }
     });
 
     try {
-        const savedDraft = localStorage.getItem(draftKey) || "";
+        // 编辑模式正文来自服务端，不恢复本地草稿，避免覆盖待编辑内容
+        const savedDraft = isEditing ? "" : (localStorage.getItem(draftKey) || "");
         if (savedDraft.trim()) {
             textarea.value = savedDraft;
             setDraftText("已恢复上次草稿");
@@ -1648,6 +1713,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         renderEmojiGrid();
         renderMediaList();
         syncVisibilityControls();
+        syncContentRatingControls();
         refreshState();
         window.__rewrzMicroComposer = { ready: true, reason: "ok" };
     } catch (error) {

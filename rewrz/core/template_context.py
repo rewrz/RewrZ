@@ -112,6 +112,8 @@ def build_base_template_context(request: Request) -> dict:
     token = str((request.cookies.get("access_token") or "")).strip()
     is_logged_in = False
     theme_persist_allowed = False
+    current_user_id = 0
+    current_user_role = ""
     if token:
         payload = decode_access_token(token)
         if payload:
@@ -126,6 +128,11 @@ def build_base_template_context(request: Request) -> dict:
                 # 主题偏好属于账号级设置：任何有效登录用户都应能写回自己的偏好，
                 # 否则换设备/浏览器登录后无法同步主题。
                 theme_persist_allowed = bool(is_logged_in and current_user is not None)
+                # 前台需要按作者身份显示编辑入口，仅暴露 ID 与角色，不暴露其他账号信息
+                if is_logged_in:
+                    current_user_id = user_id
+                    # 角色统一小写，模板里做管理员判断时不用再兼容大小写
+                    current_user_role = str(getattr(current_user, "role", "") or "").strip().lower()
 
     # 仅保留三种内容类型，避免旧格式继续出现在导航中
     all_formats = crud_format.get_formats(db)
@@ -248,6 +255,8 @@ def build_base_template_context(request: Request) -> dict:
         "media_nav_items": get_default_media_navigation(),
         "custom_pages": custom_pages,
         "is_logged_in": is_logged_in,
+        "current_user_id": current_user_id,
+        "current_user_role": current_user_role,
     }
     
     if db_gen is not None:
