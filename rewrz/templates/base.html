@@ -143,7 +143,6 @@
     </script>
 </head>
 <body class="site-shell min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 {{ effect_body_class if effect_body_class else '' }}{% if _content_rating == 'nsfw' %} is-nsfw{% endif %}"
-      data-content-rating="{{ _content_rating }}"
       data-list-navigation-mode="{{ list_navigation_mode if list_navigation_mode else 'pagination' }}"
       data-glass-intensity="{{ glass_intensity }}"
       data-current-theme="{{ current_theme }}"
@@ -373,11 +372,12 @@
         <div class="container mx-auto max-w-7xl px-4 pt-6">
             <aside class="content-rating-notice" role="note">
                 <span class="content-rating-notice__icon" aria-hidden="true">
-                    <i class="fas fa-triangle-exclamation"></i>
+                    <i class="fas fa-exclamation-triangle"></i>
                 </span>
                 <div class="content-rating-notice__body">
                     <p class="content-rating-notice__title">
-                        {% if _content_rating == 'nsfw' %}该内容包含 NSFW 素材{% else %}该内容可能引起不适{% endif %}
+                        {% set rating = _content_rating %}{% include "components/content_rating_badge.html" %}
+                        <span>{% if _content_rating == 'nsfw' %}该内容包含 NSFW 素材{% else %}该内容可能引起不适{% endif %}</span>
                     </p>
                     {% if _content_rating == 'nsfw' %}
                     <p class="content-rating-notice__desc">
@@ -693,10 +693,9 @@
     {% if _content_rating == 'nsfw' %}
     <script>
         // NSFW 正文图片默认模糊：点击单张图片揭晓，点击“显示全部”解开整篇。
-        // 同一会话内记住用户已确认，避免每次进入都重复遮挡。
+        // 揭晓状态只保留在当前页面，刷新后重新遮挡，不写入任何浏览器存储。
         (function () {
             if (!document.body || !document.body.classList.contains('is-nsfw')) return;
-            var storageKey = 'rewrz:nsfw-revealed:{{ post.id }}';
             var imageSelector = '.post-content img, .page-content img, .anime-content img, .exhibit-content img, .micro-image-grid img';
 
             function contentImages() {
@@ -705,21 +704,11 @@
             function reveal(image) {
                 if (image) image.classList.add('is-nsfw-revealed');
             }
-            function rememberRevealed() {
-                try { sessionStorage.setItem(storageKey, '1'); } catch (error) {}
-            }
             function revealAll() {
                 contentImages().forEach(reveal);
                 // 头图/展览首屏跟随“显示全部”一并揭晓
                 document.body.classList.add('is-nsfw-revealed');
-                rememberRevealed();
             }
-
-            try {
-                if (sessionStorage.getItem(storageKey) === '1') {
-                    revealAll();
-                }
-            } catch (error) {}
 
             // 捕获阶段拦截，避免图片外层链接或灯箱在揭晓前就打开原图
             document.addEventListener('click', function (event) {
@@ -735,7 +724,6 @@
                 event.preventDefault();
                 event.stopPropagation();
                 reveal(image);
-                rememberRevealed();
             }, true);
         })();
     </script>

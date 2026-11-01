@@ -695,24 +695,11 @@
     }
 }
 
-/* ===== 内容分级标记与 NSFW 媒体遮挡 ===== */
-.micro-card-rating {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.06rem 0.42rem;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border) 70%);
-    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%);
-    color: var(--color-primary);
-    font-size: 0.64rem;
-    font-weight: 700;
-    line-height: 1.4;
-}
-
+/* ===== NSFW 媒体遮挡 ===== */
 /* NSFW 卡片图片默认模糊，卡片内不提供灯箱入口，点击只能进入详情页揭晓 */
 [data-content-rating="nsfw"] .micro-media-frame img {
-    filter: blur(16px) saturate(0.9);
-    transform: scale(1.02);
+    filter: blur(24px) saturate(1.22) brightness(1.05);
+    transform: scale(1.04);
 }
 
 /* 遮挡状态下的图片是详情页入口，不再使用放大镜光标 */

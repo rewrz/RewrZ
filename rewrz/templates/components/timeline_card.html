@@ -19,6 +19,7 @@
             <span class="timeline-card-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
                 <i class="fas fa-comment-dots mr-1"></i>微博
             </span>
+            {% set rating = post.content_rating %}{% include "components/content_rating_badge.html" %}
             <span class="timeline-card-meta-text text-sm"><i class="far fa-calendar-alt mr-1"></i>{{ post.published_at | localtime('%m月%d日 %H:%M') }}</span>
         </div>
         <span class="timeline-card-meta-text text-xs"><i class="far fa-eye mr-1"></i>{{ (post.views_count or 0) | compact_number_cn }}</span>
@@ -94,8 +95,11 @@
 {% elif is_poem %}
 <div class="poem-scroll-card archive-card-equal archive-card-poem rounded-lg shadow-sm border p-4 hover:shadow-md transition-transform duration-200" data-content-rating="{{ post.content_rating if post.content_rating else 'general' }}">
     <div class="flex items-center justify-between mb-3">
-        <span class="archive-card-poem-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
-            <i class="fas fa-feather-alt mr-1"></i>诗词歌赋
+        <span class="inline-flex items-center gap-1.5">
+            <span class="archive-card-poem-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
+                <i class="fas fa-feather-alt mr-1"></i>诗词歌赋
+            </span>
+            {% set rating = post.content_rating %}{% include "components/content_rating_badge.html" %}
         </span>
         <span class="archive-card-poem-date text-xs"><i class="far fa-calendar-alt mr-1"></i>{{ post.published_at | localtime('%Y-%m-%d') }}</span>
     </div>
@@ -173,8 +177,11 @@
 
     <div class="archive-card-body p-4">
         <div class="flex items-center justify-between mb-2">
-            <span class="timeline-card-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
-                <i class="fas fa-file-alt mr-1"></i>文章
+            <span class="inline-flex items-center gap-1.5">
+                <span class="timeline-card-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
+                    <i class="fas fa-file-alt mr-1"></i>文章
+                </span>
+                {% set rating = post.content_rating %}{% include "components/content_rating_badge.html" %}
             </span>
             <span class="timeline-card-meta-text text-xs"><i class="far fa-calendar-alt mr-1"></i>{{ post.published_at | localtime('%Y-%m-%d') }}</span>
         </div>

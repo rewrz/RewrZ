@@ -55,6 +55,8 @@
                         {% endif %}
 
                         <div class="flex-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                            {% set rating = post.content_rating %}{% include "components/content_rating_badge.html" %}
                             <a href="{{ post | post_url }}"
                                class="text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400">
                                 {% if post.title and post.title.strip() %}
@@ -65,6 +67,7 @@
                                     无标题内容
                                 {% endif %}
                             </a>
+                            </div>
                         </div>
                     </div>
 

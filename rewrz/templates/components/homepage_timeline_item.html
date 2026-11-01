@@ -32,8 +32,11 @@
                 <span aria-hidden="true" class="timeline-bridge-stroke"></span>
                 <div class="timeline-bridge-card timeline-card-shell p-4 md:p-5">
                 <div class="flex items-center justify-between gap-2">
-                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ format_badge_class }}">
-                        <i class="{{ format_icon }} mr-1"></i>{{ format_label }}
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ format_badge_class }}">
+                            <i class="{{ format_icon }} mr-1"></i>{{ format_label }}
+                        </span>
+                        {% set rating = post.content_rating %}{% include "components/content_rating_badge.html" %}
                     </span>
                     <span class="text-xs text-gray-500 dark:text-gray-400">更新 {{ (post.updated_at or post.published_at or post.created_at) | localtime('%Y-%m-%d') }}</span>
                 </div>
@@ -131,8 +134,11 @@
                 <span aria-hidden="true" class="timeline-bridge-stroke"></span>
                 <div class="timeline-bridge-card timeline-card-shell p-4 md:p-5">
                 <div class="flex items-center justify-between gap-2">
-                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ format_badge_class }}">
-                        <i class="{{ format_icon }} mr-1"></i>{{ format_label }}
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ format_badge_class }}">
+                            <i class="{{ format_icon }} mr-1"></i>{{ format_label }}
+                        </span>
+                        {% set rating = post.content_rating %}{% include "components/content_rating_badge.html" %}
                     </span>
                     <span class="text-xs text-gray-500 dark:text-gray-400">更新 {{ (post.updated_at or post.published_at or post.created_at) | localtime('%Y-%m-%d') }}</span>
                 </div>
@@ -189,7 +195,7 @@
         <div class="ml-8 flex-1">
             <div class="timeline-card-shell overflow-hidden p-0">
                 <a href="{{ post_url_value }}" class="block">
-                    <div class="aspect-[4/3] w-full overflow-hidden">
+                    <div class="aspect-[4/3] w-full overflow-hidden{% if cover_thumb_url %} nsfw-veil-host{% endif %}">
                         {% if cover_thumb_url %}
                         <img src="{{ cover_thumb_url }}"
                              {% if cover_thumb_srcset %}srcset="{{ cover_thumb_srcset }}" sizes="92vw"{% endif %}
@@ -204,8 +210,11 @@
                     </div>
                 </a>
                 <div class="p-3.5">
-                    <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold {{ format_badge_class }}">
-                        <i class="{{ format_icon }} mr-1"></i>{{ format_label }}
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold {{ format_badge_class }}">
+                            <i class="{{ format_icon }} mr-1"></i>{{ format_label }}
+                        </span>
+                        {% set rating = post.content_rating %}{% include "components/content_rating_badge.html" %}
                     </span>
                     {% if post.title and post.title.strip() %}
                     <h3 class="mt-2 text-base font-semibold text-gray-900 dark:text-white leading-snug">

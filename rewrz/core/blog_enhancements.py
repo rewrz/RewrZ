@@ -251,7 +251,9 @@ class BlogEnhancementEngine:
                 return []
         
         related_posts = []
-        
+        # 同一篇文章命中多个标签/分类时，JOIN 查询会返回重复行，这里统一按 ID 去重
+        seen_post_ids = set()
+
         # 策略1: 基于标签的相关性
         if current_post.tags:
             tag_ids = [tag.id for tag in current_post.tags]
@@ -265,8 +267,11 @@ class BlogEnhancementEngine:
                 )
                 .limit(max(limit * strategy_multiplier, limit))
             ).scalars().all()
-            related_posts.extend(tag_related)
-        
+            for post in tag_related:
+                if post.id not in seen_post_ids:
+                    seen_post_ids.add(post.id)
+                    related_posts.append(post)
+
         # 策略2: 基于分类的相关性
         if current_post.categories and len(related_posts) < limit:
             category_ids = [cat.id for cat in current_post.categories]
@@ -280,17 +285,18 @@ class BlogEnhancementEngine:
                 )
                 .limit(max(limit * strategy_multiplier, limit))
             ).scalars().all()
-            
+
             # 添加不重复的文章
             for post in category_related:
-                if post not in related_posts:
+                if post.id not in seen_post_ids:
+                    seen_post_ids.add(post.id)
                     related_posts.append(post)
-        
+
         # 策略3: 基于格式的相关性
         if current_post.formats and len(related_posts) < limit:
             format_ids = [fmt.id for fmt in current_post.formats]
             from ..models.format import Format
-            
+
             format_related = db.execute(
                 select(Post)
                 .join(Post.formats)
@@ -301,12 +307,13 @@ class BlogEnhancementEngine:
                 )
                 .limit(max(limit * strategy_multiplier, limit))
             ).scalars().all()
-            
+
             # 添加不重复的文章
             for post in format_related:
-                if post not in related_posts:
+                if post.id not in seen_post_ids:
+                    seen_post_ids.add(post.id)
                     related_posts.append(post)
-        
+
         # 策略4: 如果相关文章不足，添加最新文章
         if len(related_posts) < limit:
             recent_posts = db.execute(
@@ -318,10 +325,11 @@ class BlogEnhancementEngine:
                 .order_by(Post.published_at.desc())
                 .limit(max(limit * strategy_multiplier, limit))
             ).scalars().all()
-            
+
             # 添加不重复的文章
             for post in recent_posts:
-                if post not in related_posts:
+                if post.id not in seen_post_ids:
+                    seen_post_ids.add(post.id)
                     related_posts.append(post)
         
         # 按相关性和发布时间排序，并限制数量

@@ -27,6 +27,7 @@
                     </span>
                     {% endif %}
                     <span class="poetry-related-copy">
+                        {% set rating = related_post.content_rating %}{% include "components/content_rating_badge.html" %}
                         {% if related_title %}
                         <span class="poetry-related-title">{{ related_title }}</span>
                         {% endif %}
@@ -54,6 +55,7 @@
                         {{ related_cover | responsive_image(related_post.title, "h-full w-full object-cover transition-transform duration-300 group-hover:scale-105", "(max-width: 768px) 72px, 88px", request.state.db, "related_card") | safe }}
                     </span>
                     <span class="related-post-copy min-w-0">
+                        {% set rating = related_post.content_rating %}{% include "components/content_rating_badge.html" %}
                         {% if related_title %}
                         <span class="related-post-title block text-sm font-semibold leading-5" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
                             {{ related_title }}
@@ -68,6 +70,7 @@
                 </a>
                 {% else %}
                 <a href="{{ related_post | post_url }}" class="related-post-link related-post-link-plain block p-2">
+                    {% set rating = related_post.content_rating %}{% include "components/content_rating_badge.html" %}
                     {% if related_title %}
                     <p class="related-post-title text-sm font-semibold leading-6" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
                         {{ related_title }}
