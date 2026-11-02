@@ -1,11 +1,12 @@
 {% extends "admin/base.html" %}
 
 {% block title_text %}{% if post %}编辑页面{% else %}新建页面{% endif %}{% endblock %}
-{% block page_title %}{% if post %}<i class="fas fa-edit text-yellow-600 mr-3"></i>编辑页面{% else %}<i class="fas fa-plus-circle text-green-600 mr-3"></i>新建页面{% endif %}{% endblock %}
+{% block page_title %}{% if post %}<i class="fas fa-edit admin-accent-text mr-3"></i>编辑页面{% else %}<i class="fas fa-plus-circle admin-accent-text mr-3"></i>新建页面{% endif %}{% endblock %}
 {% block content %}
 <!-- Toast UI Editor -->
 <link rel="stylesheet" href="{{ static_asset(request, 'vendor/toastui/toastui-editor.min.css') }}" />
 <script src="{{ static_asset(request, 'vendor/toastui/toastui-editor-all.min.js') }}"></script>
+<script src="{{ static_asset(request, 'js/editor-raw-html.js') }}"></script>
 <style>
     .editor-hero {
         position: relative;
@@ -153,16 +154,29 @@
     #page-form.editor-fullscreen #editor {
         min-height: 82vh;
     }
-    @media (min-width: 1280px) {
-        /* 侧栏高度由脚本按左栏底部对齐计算，超出部分内部滚动 */
+    #editor-layout-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+        gap: 1.5rem;
+    }
+    #editor-main-panel,
+    #editor-side-panel {
+        min-width: 0;
+    }
+    @media (min-width: 1120px) {
+        #editor-layout-grid {
+            grid-template-columns: minmax(0, 1.42fr) minmax(320px, 0.9fr);
+        }
         #editor-side-panel > .admin-panel {
+            /* 高度由脚本按左栏底部实测设置，内容超出面板时内部滚动 */
             overflow-y: auto;
             overscroll-behavior: contain;
         }
     }
 </style>
 
-<form id="page-form" hx-post="{% if post %}{{ request.state.admin_path }}/pages/{{ post.id }}{% else %}{{ request.state.admin_path }}/pages/new{% endif %}" hx-target="#admin-content" hx-swap="outerHTML" class="space-y-6">
+<form id="page-form" hx-post="{% if post %}{{ request.state.admin_path }}/pages/{{ post.id }}{% else %}{{ request.state.admin_path }}/pages/new{% endif %}" hx-target="#admin-content" hx-swap="outerHTML" class="editor-admin-page space-y-6">
     <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
     <input type="hidden" name="editor_mode" id="editor-mode-input" value="markdown">
     {% if post %}
@@ -175,31 +189,31 @@
                     <i class="fas fa-file-alt"></i>
                     {% if post %}正在编辑页面 #{{ post.id }}{% else %}新的页面草稿{% endif %}
                 </div>
-                <h2 class="text-xl md:text-2xl font-semibold tracking-tight">页面内容编辑区</h2>
-                <p class="mt-1.5 text-sm text-gray-600">聚焦结构化内容创作，支持快捷保存与离开提醒。</p>
+                <h2 class="text-xl md:text-2xl font-semibold tracking-tight text-[var(--color-text)]">页面内容编辑区</h2>
+                <p class="mt-1.5 text-sm text-[var(--color-text-light)]">聚焦结构化内容创作，支持快捷保存与离开提醒。</p>
             </div>
-            <div class="text-sm text-gray-600 space-y-1">
+            <div class="text-sm text-[var(--color-text-light)] space-y-1">
                 <div id="editor-wording">字数统计: 0 字</div>
                 <div id="editor-chars">字符统计: 0 字符</div>
             </div>
         </div>
     </section>
-    <div id="editor-layout-grid" class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+    <div id="editor-layout-grid">
         <!-- Main Editor -->
-        <div id="editor-main-panel" class="xl:col-span-8 space-y-6">
+        <div id="editor-main-panel" class="space-y-6">
             <div class="admin-panel p-4 md:p-6">
                 <div class="mb-4">
-                    <label for="title" class="block text-sm font-medium text-gray-700">标题</label>
+                    <label for="title" class="block text-sm font-medium text-[var(--color-text)]">标题</label>
                     <input type="text" id="title" name="title" value="{% if post %}{{ post.title }}{% endif %}" class="editor-input" required>
-                    <p class="mt-2 text-xs text-gray-500">建议使用清晰的页面标题，便于导航与索引。</p>
+                    <p class="mt-2 text-xs text-[var(--color-text-light)]">建议使用清晰的页面标题，便于导航与索引。</p>
                 </div>
                 <div class="editor-toolbar mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <div class="text-sm text-gray-600">
-                        快捷键: <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200">Ctrl/Cmd + S</kbd>
+                    <div class="text-sm text-[var(--color-text-light)]">
+                        快捷键: <kbd class="admin-inline-kbd px-1.5 py-0.5 rounded">Ctrl/Cmd + S</kbd>
                     </div>
-                    <div class="inline-flex rounded-md border border-gray-300 overflow-hidden text-sm" role="group" aria-label="编辑模式切换">
-                        <button type="button" id="editor-mode-markdown" class="px-3 py-2 bg-white text-gray-700 hover:bg-gray-50">Markdown</button>
-                        <button type="button" id="editor-mode-html" class="px-3 py-2 bg-white text-gray-700 hover:bg-gray-50 border-l border-gray-300">富文本</button>
+                    <div class="editor-mode-toggle inline-flex overflow-hidden rounded-md text-sm" role="group" aria-label="编辑模式切换">
+                        <button type="button" id="editor-mode-markdown" class="editor-mode-button is-active px-3 py-2">Markdown</button>
+                        <button type="button" id="editor-mode-html" class="editor-mode-button px-3 py-2">富文本</button>
                     </div>
                     <div class="flex flex-wrap gap-2">
                     <button type="button" id="editor-font-decrease" class="editor-utility-pill" title="缩小字号">
@@ -213,13 +227,13 @@
                         <i class="fas fa-expand"></i><span>全屏</span>
                     </button>
                     <input type="file" id="direct-upload-input" class="hidden" multiple>
-                    <button type="button" id="direct-upload-button" title="也可以直接把截图粘贴进编辑器" class="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">
+                    <button type="button" id="direct-upload-button" title="也可以直接把截图粘贴进编辑器" class="admin-secondary-btn inline-flex items-center rounded-md px-3 py-2 text-sm">
                         <i class="fas fa-upload mr-2"></i>上传文件
                     </button>
-                    <button type="button" id="insert-media-button" class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700">
+                    <button type="button" id="insert-media-button" class="admin-primary-btn inline-flex items-center rounded-md px-3 py-2 text-sm">
                         <i class="fas fa-paperclip mr-2"></i>插入媒体
                     </button>
-                    <button type="button" id="insert-hide-block-button" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700" title="插入 [hide] 评论后可见块（仅 Markdown 模式）">
+                    <button type="button" id="insert-hide-block-button" class="admin-soft-btn inline-flex items-center rounded-md px-3 py-2 text-sm" title="插入 [hide] 评论后可见块（仅 Markdown 模式）">
                         <i class="fas fa-comment-dots mr-2"></i>评论后可见
                     </button>
                     </div>
@@ -231,50 +245,50 @@
             <div class="admin-panel editor-actionbar p-4 md:p-6">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div class="flex flex-wrap items-center gap-2">
-                            <label class="inline-flex items-center gap-2 px-2.5 py-1.5 border border-gray-300 rounded-md text-sm">
-                                <input type="checkbox" name="allow_comments" {% if post is none or post.allow_comments %}checked{% endif %} class="form-checkbox">
-                                <span class="text-gray-700">允许评论</span>
+                            <label class="inline-flex items-center gap-2 rounded-md border border-[color:var(--ui-border)] px-2.5 py-1.5 text-sm text-[var(--color-text)]">
+                                <input type="checkbox" name="allow_comments" {% if post is none or post.allow_comments %}checked{% endif %} class="admin-form-check form-checkbox">
+                                <span class="text-[var(--color-text)]">允许评论</span>
                             </label>
                             <label class="inline-flex items-center gap-2 text-sm">
-                                <span class="text-gray-600">版权</span>
-                                <select name="license_type" class="px-2.5 py-1.5 border border-gray-300 rounded-md text-sm max-w-[13rem]">
+                                <span class="text-[var(--color-text-light)]">版权</span>
+                                <select name="license_type" class="admin-form-field max-w-[13rem] px-2.5 py-1.5 rounded-md text-sm">
                                     {{ license_options(post.license_type if post else 'cc_by_nc_sa_4') | safe }}
                                 </select>
                             </label>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
                             <a href="{{ request.state.admin_path }}/pages" 
-                                class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                                class="admin-secondary-btn inline-block rounded-md px-4 py-2">
                                 <i class="fas fa-arrow-left mr-2"></i>返回列表
                             </a>
                             <button type="submit" id="save-page-button"
-                                class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                                class="admin-primary-btn rounded-md px-4 py-2">
                                 <i class="fas fa-save mr-2"></i>保存
                             </button>
                         </div>
                     </div>
-                    <div class="mt-2 text-sm text-gray-600">
-                        <span id="dirty-indicator" class="hidden text-amber-600"><i class="fas fa-circle text-[0.55rem] mr-1"></i>有未保存更改</span>
-                        <span id="saved-indicator" class="text-emerald-600"><i class="fas fa-check-circle mr-1"></i>已同步到当前表单</span>
+                    <div class="mt-2 text-sm text-[var(--color-text-light)]">
+                        <span id="dirty-indicator" class="hidden admin-accent-text"><i class="fas fa-circle text-[0.55rem] mr-1"></i>有未保存更改</span>
+                        <span id="saved-indicator" class="admin-accent-text"><i class="fas fa-check-circle mr-1"></i>已同步到当前表单</span>
                     </div>
             </div>
         </div>
 
         <!-- Sidebar -->
-        <div id="editor-side-panel" class="xl:col-span-4">
-            <div class="admin-panel p-4 md:p-6 space-y-6 xl:sticky xl:top-24">
+        <div id="editor-side-panel">
+            <div class="admin-panel p-4 md:p-6 space-y-6">
                 {% include 'admin/components/publish_settings.html' %}
                 <div>
-                    <h3 class="text-lg font-semibold mb-2">URL 别名 (Slug)</h3>
+                    <h3 class="text-lg font-semibold mb-2 text-[var(--color-text)]">URL 别名 (Slug)</h3>
                     <input type="text" id="slug-input" name="slug" value="{% if post %}{{ post.slug }}{% endif %}" class="editor-input">
-                    <p class="mt-1 text-xs text-gray-500">预览链接: <span id="slug-preview" class="font-mono"></span></p>
+                    <p class="mt-1 text-xs text-[var(--color-text-light)]">预览链接: <span id="slug-preview" class="font-mono"></span></p>
                 </div>
                 {% set current_page_template = post.page_template if post and post.page_template else 'default' %}
                 {% set resolved_page_template_options = page_template_options if page_template_options else [{'value': 'default', 'label': '默认页面（全宽）', 'description': 'WordPress 常见默认页风格，适合通用内容展示。'}] %}
                 {% set resolved_page_template_groups = page_template_groups if page_template_groups else [{'label': '', 'items': resolved_page_template_options}] %}
                 <div>
-                    <h3 class="text-lg font-semibold mb-2">页面模板</h3>
-                    <select id="page-template-select" name="page_template" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <h3 class="text-lg font-semibold mb-2 text-[var(--color-text)]">页面模板</h3>
+                    <select id="page-template-select" name="page_template" class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
                         {% for group in resolved_page_template_groups %}
                         <optgroup label="{{ group['label'] }}">
                             {% for item in group['items'] %}
@@ -285,7 +299,7 @@
                         </optgroup>
                         {% endfor %}
                     </select>
-                    <p id="page-template-hint" class="mt-2 text-xs text-gray-500">
+                    <p id="page-template-hint" class="mt-2 text-xs text-[var(--color-text-light)]">
                         {% for item in resolved_page_template_options %}
                         {% if item.value == current_page_template %}{{ item.description }}{% endif %}
                         {% endfor %}
@@ -309,8 +323,8 @@
                     </div>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold mb-2">可见性</h3>
-                    <select id="visibility-select" name="visibility" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <h3 class="text-lg font-semibold mb-2 text-[var(--color-text)]">可见性</h3>
+                    <select id="visibility-select" name="visibility" class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
                         <option value="public" {% if not post or post.visibility == "public" %}selected{% endif %}>公开</option>
                         <option value="private" {% if post and post.visibility == "private" %}selected{% endif %}>私密（仅管理员）</option>
                         <option value="password" {% if post and post.visibility == "password" %}selected{% endif %}>密码保护</option>
@@ -319,10 +333,10 @@
                         <input
                             type="password"
                             name="password"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                            class="admin-form-field block w-full rounded-md px-3 py-2"
                             placeholder="{% if post and post.visibility == 'password' %}请输入新密码，留空则保持原密码{% else %}请输入访问密码{% endif %}"
                         >
-                        <p class="mt-1 text-xs text-gray-500">
+                        <p class="mt-1 text-xs text-[var(--color-text-light)]">
                             {% if post and post.visibility == 'password' %}
                             当前页面已设置访问密码，但系统仅保存密码哈希，无法回显原密码；如需修改，请输入新密码。
                             {% else %}
@@ -332,38 +346,38 @@
                     </div>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold mb-2">内容分级</h3>
+                    <h3 class="text-lg font-semibold mb-2 text-[var(--color-text)]">内容分级</h3>
                     {% set _content_rating = (post.content_rating if post and post.content_rating else 'general') %}
-                    <select id="content-rating-select" name="content_rating" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <select id="content-rating-select" name="content_rating" class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
                         <option value="general" {% if _content_rating == "general" %}selected{% endif %}>通用</option>
                         <option value="sensitive" {% if _content_rating == "sensitive" %}selected{% endif %}>敏感（显示提示，不模糊图片）</option>
                         <option value="nsfw" {% if _content_rating == "nsfw" %}selected{% endif %}>NSFW（默认模糊图片且不收录）</option>
                     </select>
-                    <p class="mt-1 text-xs text-gray-500">NSFW 内容会默认模糊正文图片，并同时关闭搜索引擎收录与 sitemap 收录。</p>
+                    <p class="mt-1 text-xs text-[var(--color-text-light)]">NSFW 内容会默认模糊正文图片，并同时关闭搜索引擎收录与 sitemap 收录。</p>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold mb-2">特色图片</h3>
+                    <h3 class="text-lg font-semibold mb-2 text-[var(--color-text)]">特色图片</h3>
                     <input type="hidden" name="featured_image_url" id="feature-image-url-input" value="{% if post %}{{ post.featured_image_url }}{% endif %}">
                     <div id="feature-image-preview" class="feature-image-shell mb-2 {% if not post or not post.featured_image_url or post.featured_image_url == 'None' %}hidden{% endif %}">
                         {% if post and post.featured_image_url and post.featured_image_url != 'None' %}
                         <img src="{{ post.featured_image_url }}" alt="特色图片预览">
                         {% endif %}
                     </div>
-                    <button type="button" class="w-full py-2 border-dashed border-2 border-gray-300 rounded-md hover:bg-gray-50" id="feature-image-upload-button">选择或上传图片</button>
-                    <button type="button" class="w-full mt-2 py-2 border-dashed border-2 border-red-300 text-red-600 rounded-md hover:bg-red-50 {% if not post or not post.featured_image_url %}hidden{% endif %}" id="remove-feature-image-button">移除图片</button>
+                    <button type="button" class="admin-secondary-btn w-full rounded-md border-2 border-dashed px-3 py-2" id="feature-image-upload-button">选择或上传图片</button>
+                    <button type="button" class="admin-soft-btn admin-soft-btn-danger mt-2 w-full rounded-md border-2 border-dashed px-3 py-2 {% if not post or not post.featured_image_url %}hidden{% endif %}" id="remove-feature-image-button">移除图片</button>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold mb-2">摘要</h3>
+                    <h3 class="text-lg font-semibold mb-2 text-[var(--color-text)]">摘要</h3>
                     <textarea name="excerpt" rows="4" class="editor-input" placeholder="选填：仅在需要时手动填写摘要，不会自动生成">{% if post %}{{ post.excerpt }}{% endif %}</textarea>
-                    <p class="mt-1 text-xs text-gray-500">仅手动填写时才会展示；留空时前台聚合页会自动截取正文。</p>
+                    <p class="mt-1 text-xs text-[var(--color-text-light)]">仅手动填写时才会展示；留空时前台聚合页会自动截取正文。</p>
                 </div>
                 {% if post %}
                 <div>
-                    <h3 class="text-lg font-semibold mb-2">版本快照</h3>
+                    <h3 class="text-lg font-semibold mb-2 text-[var(--color-text)]">版本快照</h3>
                     <button
                         type="button"
                         id="snapshot-history-button"
-                        class="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700"
+                        class="admin-primary-btn inline-flex w-full items-center justify-center rounded-md px-3 py-2 text-sm"
                     >
                         <i class="fas fa-history mr-2"></i>查看历史快照
                     </button>
@@ -406,6 +420,13 @@
             ['code', 'codeblock'],
             ['scrollSync']
         ],
+        // 富文本只保留 div 一个 HTML 块节点，配合 editor-raw-html.js
+        // 把整块原始 HTML 装进保护容器，避免 video/audio 等标签被解析丢弃
+        customHTMLRenderer: {
+            htmlBlock: {
+                div: window.RewrzEditorRawHtml.createDivHtmlBlockRenderer()
+            }
+        },
         hooks: {
             addImageBlobHook: async (blob, callback) => {
                 try {
@@ -468,16 +489,15 @@
         const sideHost = document.getElementById('editor-side-panel');
         const sidePanel = sideHost ? sideHost.querySelector(':scope > .admin-panel') : null;
         if (!mainPanel || !sideHost || !sidePanel) return;
-        if (isEditorFullscreen() || !window.matchMedia('(min-width: 1280px)').matches) {
+        if (isEditorFullscreen() || !window.matchMedia('(min-width: 1120px)').matches) {
+            sidePanel.style.height = '';
             sidePanel.style.maxHeight = '';
             return;
         }
-        // 两栏随页面同步位移，视口坐标差值不受滚动影响
+        // 两栏随页面同步位移，视口坐标差值不受滚动影响；直接把右栏拉到左栏底部
         const alignHeight = mainPanel.getBoundingClientRect().bottom - sideHost.getBoundingClientRect().top;
-        // 粘性定位顶部 6rem，预留 1rem 底部安全距离
-        const viewportLimit = window.innerHeight - 96 - 16;
-        const nextHeight = Math.max(320, Math.min(alignHeight, viewportLimit));
-        sidePanel.style.maxHeight = `${Math.round(nextHeight)}px`;
+        sidePanel.style.height = `${Math.round(Math.max(320, alignHeight))}px`;
+        sidePanel.style.maxHeight = 'none';
     }
 
     function updateFullscreenButton() {
@@ -532,28 +552,38 @@
     function updateEditorModeButtons(activeMode) {
         const isMarkdown = activeMode === 'markdown';
         if (markdownModeButton) {
-            markdownModeButton.classList.toggle('bg-blue-600', isMarkdown);
-            markdownModeButton.classList.toggle('text-white', isMarkdown);
-            markdownModeButton.classList.toggle('hover:bg-blue-700', isMarkdown);
-            markdownModeButton.classList.toggle('bg-white', !isMarkdown);
-            markdownModeButton.classList.toggle('text-gray-700', !isMarkdown);
+            markdownModeButton.classList.toggle('is-active', isMarkdown);
         }
         if (htmlModeButton) {
-            htmlModeButton.classList.toggle('bg-blue-600', !isMarkdown);
-            htmlModeButton.classList.toggle('text-white', !isMarkdown);
-            htmlModeButton.classList.toggle('hover:bg-blue-700', !isMarkdown);
-            htmlModeButton.classList.toggle('bg-white', isMarkdown);
-            htmlModeButton.classList.toggle('text-gray-700', isMarkdown);
+            htmlModeButton.classList.toggle('is-active', !isMarkdown);
         }
     }
 
     function setEditorMode(mode, shouldSwitch = true) {
         const targetMode = mode === 'html' ? 'html' : 'markdown';
+        const currentMode = getActiveEditorMode();
         if (editorModeInput) {
             editorModeInput.value = targetMode;
         }
-        if (shouldSwitch && editor && typeof editor.changeMode === 'function') {
-            editor.changeMode(targetMode === 'html' ? 'wysiwyg' : 'markdown', true);
+        if (shouldSwitch && editor && typeof editor.changeMode === 'function' && currentMode !== targetMode) {
+            if (targetMode === 'html') {
+                // 切到富文本前先把整块原始 HTML 包进保护容器，
+                // 否则 video/audio 等非内置标签会在解析时被直接丢弃
+                const markdown = editor.getMarkdown();
+                const protectedMarkdown = window.RewrzEditorRawHtml.protect(markdown);
+                if (protectedMarkdown !== markdown) {
+                    editor.setMarkdown(protectedMarkdown, false);
+                }
+                editor.changeMode('wysiwyg', true);
+            } else {
+                editor.changeMode('markdown', true);
+                // 切回 Markdown 后拆掉保护容器，还原为原始 HTML
+                const markdown = editor.getMarkdown();
+                const unwrapped = window.RewrzEditorRawHtml.unwrap(markdown);
+                if (unwrapped !== markdown) {
+                    editor.setMarkdown(unwrapped, false);
+                }
+            }
         }
         updateEditorModeButtons(targetMode);
     }
@@ -572,7 +602,7 @@
     }
 
     function updateEditorStats() {
-        const markdown = editor.getMarkdown();
+        const markdown = window.RewrzEditorRawHtml.unwrap(editor.getMarkdown());
         const plain = markdown
             .replace(/```[\s\S]*?```/g, ' ')
             .replace(/`[^`]*`/g, ' ')
@@ -716,8 +746,14 @@
 
     pageForm.addEventListener('htmx:configRequest', function (event) {
         const mode = getActiveEditorMode();
-        const markdownContent = editor.getMarkdown();
-        const shouldForceMarkdown = mode === 'html' && hasHideBlock(markdownContent);
+        const rawMarkdown = editor.getMarkdown();
+        const hasRawHtml = window.RewrzEditorRawHtml.hasWrapper(rawMarkdown);
+        // 保护容器只用于富文本过渡，保存时必须拆掉才能还原原始 HTML
+        const markdownContent = window.RewrzEditorRawHtml.unwrap(rawMarkdown);
+        const forceReasons = [];
+        if (hasHideBlock(markdownContent)) forceReasons.push('评论后可见块');
+        if (hasRawHtml) forceReasons.push('原始 HTML');
+        const shouldForceMarkdown = mode === 'html' && forceReasons.length > 0;
         const submitMode = shouldForceMarkdown ? 'markdown' : mode;
         setEditorMode(submitMode, false);
         event.detail.parameters.editor_mode = submitMode;
@@ -729,7 +765,7 @@
             event.detail.parameters.content_html = '';
         }
         if (shouldForceMarkdown) {
-            window.adminNotify('检测到评论后可见块，已自动按 Markdown 模式保存。', 'warning', { duration: 3200 });
+            window.adminNotify(`检测到${forceReasons.join('、')}，已自动按 Markdown 模式保存。`, 'warning', { duration: 3200 });
         }
     });
 

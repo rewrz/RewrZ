@@ -84,6 +84,25 @@ h6,
     font-family: var(--font-family-heading);
 }
 
+/* 表单控件默认不继承文档字体，统一收敛到主题字体，避免输入框字体与站点字体不一致 */
+input,
+textarea,
+select,
+button {
+    font-family: var(--font-family-base);
+}
+
+/* Toast UI 自带 Open Sans 且缺少中文字形，统一改用主题字体；代码块继续由组件维护等宽字体 */
+.admin-app .toastui-editor-defaultUI,
+.admin-app .toastui-editor-defaultUI .ProseMirror,
+.admin-app .toastui-editor-contents,
+.admin-app .toastui-editor-tooltip,
+.admin-app .toastui-editor-popup,
+.admin-app .toastui-editor-dropdown-toolbar,
+.admin-app .toastui-editor-context-menu {
+    font-family: var(--font-family-base);
+}
+
 /* ===== Frontend ===== */
 body.site-shell {
     color: var(--color-text);
@@ -4639,223 +4658,223 @@ body.site-shell .media-external-box {
     }
 }
 
-.post-editor-admin-page .admin-panel,
-.post-editor-admin-page .editor-toolbar,
-.post-editor-admin-page .editor-surface,
-.post-editor-admin-page .editor-check-item,
-.post-editor-admin-page .editor-format-item,
-.post-editor-admin-page .feature-image-shell {
+.editor-admin-page .admin-panel,
+.editor-admin-page .editor-toolbar,
+.editor-admin-page .editor-surface,
+.editor-admin-page .editor-check-item,
+.editor-admin-page .editor-format-item,
+.editor-admin-page .feature-image-shell {
     border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
 }
 
-.post-editor-admin-page .admin-panel,
-.post-editor-admin-page .editor-toolbar,
-.post-editor-admin-page .editor-surface,
-.post-editor-admin-page .feature-image-shell {
+.editor-admin-page .admin-panel,
+.editor-admin-page .editor-toolbar,
+.editor-admin-page .editor-surface,
+.editor-admin-page .feature-image-shell {
     background:
         linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 48%),
         color-mix(in srgb, var(--color-card-bg) 95%, transparent) !important;
     box-shadow: var(--ui-shadow-soft) !important;
 }
 
-.post-editor-admin-page .editor-check-item,
-.post-editor-admin-page .editor-format-item {
+.editor-admin-page .editor-check-item,
+.editor-admin-page .editor-format-item {
     background: color-mix(in srgb, var(--color-background-alt) 80%, transparent) !important;
     color: var(--color-text) !important;
 }
 
-.post-editor-admin-page h3,
-.post-editor-admin-page label,
-.post-editor-admin-page .text-gray-700,
-.post-editor-admin-page .text-gray-600,
-.post-editor-admin-page .text-gray-500 {
+.editor-admin-page h3,
+.editor-admin-page label,
+.editor-admin-page .text-gray-700,
+.editor-admin-page .text-gray-600,
+.editor-admin-page .text-gray-500 {
     color: var(--color-text) !important;
 }
 
-.post-editor-admin-page .text-xs,
-.post-editor-admin-page .text-sm.text-\[var\(--color-text-light\)\],
-.post-editor-admin-page .text-gray-500 {
+.editor-admin-page .text-xs,
+.editor-admin-page .text-sm.text-\[var\(--color-text-light\)\],
+.editor-admin-page .text-gray-500 {
     color: var(--color-text-light) !important;
 }
 
-.post-editor-admin-page .toastui-editor-defaultUI,
-.post-editor-admin-page .toastui-editor-defaultUI-toolbar,
-.post-editor-admin-page .toastui-editor-main-container,
-.post-editor-admin-page .toastui-editor-md-tab-container,
-.post-editor-admin-page .toastui-editor-mode-switch,
-.post-editor-admin-page .toastui-editor-ww-container,
-.post-editor-admin-page .toastui-editor-md-container,
-.post-editor-admin-page .toastui-editor-md-preview,
-.post-editor-admin-page .toastui-editor,
-.post-editor-admin-page .toastui-editor-contents,
-.post-editor-admin-page .toastui-editor-contents p,
-.post-editor-admin-page .toastui-editor-contents li,
-.post-editor-admin-page .toastui-editor-contents td,
-.post-editor-admin-page .toastui-editor-contents th,
-.post-editor-admin-page .toastui-editor-contents h1,
-.post-editor-admin-page .toastui-editor-contents h2,
-.post-editor-admin-page .toastui-editor-contents h3,
-.post-editor-admin-page .toastui-editor-contents h4,
-.post-editor-admin-page .toastui-editor-contents h5,
-.post-editor-admin-page .toastui-editor-contents h6,
-.post-editor-admin-page .toastui-editor-contents table,
-.post-editor-admin-page .toastui-editor-contents dir,
-.post-editor-admin-page .toastui-editor-contents menu,
-.post-editor-admin-page .toastui-editor-contents ol,
-.post-editor-admin-page .toastui-editor-contents ul,
-.post-editor-admin-page .toastui-editor-ww-container .ProseMirror,
-.post-editor-admin-page .toastui-editor-md-container .ProseMirror,
-.post-editor-admin-page .toastui-editor-md-container .ProseMirror div,
-.post-editor-admin-page .toastui-editor-md-container .ProseMirror p,
-.post-editor-admin-page .toastui-editor-md-container .ProseMirror span,
-.post-editor-admin-page .toastui-editor-main .CodeMirror,
-.post-editor-admin-page .toastui-editor-main .CodeMirror pre,
-.post-editor-admin-page .toastui-editor-main .CodeMirror-line,
-.post-editor-admin-page .toastui-editor-main .CodeMirror-lines,
-.post-editor-admin-page .toastui-editor-main .CodeMirror-cursor,
-.post-editor-admin-page .toastui-editor-md-container .cm-content,
-.post-editor-admin-page .toastui-editor-md-container .cm-line {
+.editor-admin-page .toastui-editor-defaultUI,
+.editor-admin-page .toastui-editor-defaultUI-toolbar,
+.editor-admin-page .toastui-editor-main-container,
+.editor-admin-page .toastui-editor-md-tab-container,
+.editor-admin-page .toastui-editor-mode-switch,
+.editor-admin-page .toastui-editor-ww-container,
+.editor-admin-page .toastui-editor-md-container,
+.editor-admin-page .toastui-editor-md-preview,
+.editor-admin-page .toastui-editor,
+.editor-admin-page .toastui-editor-contents,
+.editor-admin-page .toastui-editor-contents p,
+.editor-admin-page .toastui-editor-contents li,
+.editor-admin-page .toastui-editor-contents td,
+.editor-admin-page .toastui-editor-contents th,
+.editor-admin-page .toastui-editor-contents h1,
+.editor-admin-page .toastui-editor-contents h2,
+.editor-admin-page .toastui-editor-contents h3,
+.editor-admin-page .toastui-editor-contents h4,
+.editor-admin-page .toastui-editor-contents h5,
+.editor-admin-page .toastui-editor-contents h6,
+.editor-admin-page .toastui-editor-contents table,
+.editor-admin-page .toastui-editor-contents dir,
+.editor-admin-page .toastui-editor-contents menu,
+.editor-admin-page .toastui-editor-contents ol,
+.editor-admin-page .toastui-editor-contents ul,
+.editor-admin-page .toastui-editor-ww-container .ProseMirror,
+.editor-admin-page .toastui-editor-md-container .ProseMirror,
+.editor-admin-page .toastui-editor-md-container .ProseMirror div,
+.editor-admin-page .toastui-editor-md-container .ProseMirror p,
+.editor-admin-page .toastui-editor-md-container .ProseMirror span,
+.editor-admin-page .toastui-editor-main .CodeMirror,
+.editor-admin-page .toastui-editor-main .CodeMirror pre,
+.editor-admin-page .toastui-editor-main .CodeMirror-line,
+.editor-admin-page .toastui-editor-main .CodeMirror-lines,
+.editor-admin-page .toastui-editor-main .CodeMirror-cursor,
+.editor-admin-page .toastui-editor-md-container .cm-content,
+.editor-admin-page .toastui-editor-md-container .cm-line {
     color: var(--color-text) !important;
 }
 
-.post-editor-admin-page .toastui-editor-main-container,
-.post-editor-admin-page .toastui-editor-ww-container,
-.post-editor-admin-page .toastui-editor-md-container,
-.post-editor-admin-page .toastui-editor-md-preview,
-.post-editor-admin-page .toastui-editor-defaultUI .ProseMirror,
-.post-editor-admin-page .toastui-editor-md-container .ProseMirror,
-.post-editor-admin-page .toastui-editor-main .CodeMirror,
-.post-editor-admin-page .toastui-editor-main .CodeMirror-scroll,
-.post-editor-admin-page .toastui-editor-main .CodeMirror-gutters {
+.editor-admin-page .toastui-editor-main-container,
+.editor-admin-page .toastui-editor-ww-container,
+.editor-admin-page .toastui-editor-md-container,
+.editor-admin-page .toastui-editor-md-preview,
+.editor-admin-page .toastui-editor-defaultUI .ProseMirror,
+.editor-admin-page .toastui-editor-md-container .ProseMirror,
+.editor-admin-page .toastui-editor-main .CodeMirror,
+.editor-admin-page .toastui-editor-main .CodeMirror-scroll,
+.editor-admin-page .toastui-editor-main .CodeMirror-gutters {
     background: color-mix(in srgb, var(--color-card-bg) 96%, transparent) !important;
 }
 
-.post-editor-admin-page .toastui-editor-defaultUI,
-.post-editor-admin-page .toastui-editor-defaultUI-toolbar,
-.post-editor-admin-page .toastui-editor-md-tab-container,
-.post-editor-admin-page .toastui-editor-mode-switch,
-.post-editor-admin-page .toastui-editor-popup,
-.post-editor-admin-page .toastui-editor-dropdown-toolbar,
-.post-editor-admin-page .toastui-editor-context-menu {
+.editor-admin-page .toastui-editor-defaultUI,
+.editor-admin-page .toastui-editor-defaultUI-toolbar,
+.editor-admin-page .toastui-editor-md-tab-container,
+.editor-admin-page .toastui-editor-mode-switch,
+.editor-admin-page .toastui-editor-popup,
+.editor-admin-page .toastui-editor-dropdown-toolbar,
+.editor-admin-page .toastui-editor-context-menu {
     border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
     background: color-mix(in srgb, var(--color-card-bg) 96%, transparent) !important;
     color: var(--color-text) !important;
 }
 
-.post-editor-admin-page .toastui-editor-defaultUI-toolbar button,
-.post-editor-admin-page .toastui-editor-mode-switch .tab-item,
-.post-editor-admin-page .toastui-editor-md-tab-container .tab-item,
-.post-editor-admin-page .toastui-editor-popup-body label,
-.post-editor-admin-page .toastui-editor-context-menu,
-.post-editor-admin-page .toastui-editor-context-menu .menu-item {
+.editor-admin-page .toastui-editor-defaultUI-toolbar button,
+.editor-admin-page .toastui-editor-mode-switch .tab-item,
+.editor-admin-page .toastui-editor-md-tab-container .tab-item,
+.editor-admin-page .toastui-editor-popup-body label,
+.editor-admin-page .toastui-editor-context-menu,
+.editor-admin-page .toastui-editor-context-menu .menu-item {
     color: var(--color-text) !important;
 }
 
-.post-editor-admin-page .toastui-editor-mode-switch .tab-item,
-.post-editor-admin-page .toastui-editor-md-tab-container .tab-item {
+.editor-admin-page .toastui-editor-mode-switch .tab-item,
+.editor-admin-page .toastui-editor-md-tab-container .tab-item {
     border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
     background: color-mix(in srgb, var(--color-background-alt) 84%, transparent) !important;
 }
 
-.post-editor-admin-page .toastui-editor-mode-switch .tab-item.active,
-.post-editor-admin-page .toastui-editor-md-tab-container .tab-item.active {
+.editor-admin-page .toastui-editor-mode-switch .tab-item.active,
+.editor-admin-page .toastui-editor-md-tab-container .tab-item.active {
     background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%) !important;
     color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%) !important;
     border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%) !important;
 }
 
-.post-editor-admin-page .toastui-editor-contents-placeholder:before,
-.post-editor-admin-page .toastui-editor-ww-container .ProseMirror .placeholder,
-.post-editor-admin-page .toastui-editor-popup-body input[type="text"]::placeholder {
+.editor-admin-page .toastui-editor-contents-placeholder:before,
+.editor-admin-page .toastui-editor-ww-container .ProseMirror .placeholder,
+.editor-admin-page .toastui-editor-popup-body input[type="text"]::placeholder {
     color: var(--color-text-light) !important;
 }
 
-.post-editor-admin-page .toastui-editor-popup-body input[type="text"],
-.post-editor-admin-page .toastui-editor-ww-code-block-language,
-.post-editor-admin-page .toastui-editor-ww-code-block-language input {
+.editor-admin-page .toastui-editor-popup-body input[type="text"],
+.editor-admin-page .toastui-editor-ww-code-block-language,
+.editor-admin-page .toastui-editor-ww-code-block-language input {
     border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
     background: color-mix(in srgb, var(--color-card-bg) 96%, transparent) !important;
     color: var(--color-text) !important;
 }
 
-.post-editor-admin-page .toastui-editor-contents del,
-.post-editor-admin-page .toastui-editor-contents blockquote,
-.post-editor-admin-page .toastui-editor-contents blockquote p,
-.post-editor-admin-page .toastui-editor-contents blockquote ol,
-.post-editor-admin-page .toastui-editor-contents blockquote ul,
-.post-editor-admin-page .toastui-editor-md-block-quote,
-.post-editor-admin-page .toastui-editor-md-delimiter,
-.post-editor-admin-page .toastui-editor-md-table,
-.post-editor-admin-page .toastui-editor-md-meta,
-.post-editor-admin-page .toastui-editor-md-html {
+.editor-admin-page .toastui-editor-contents del,
+.editor-admin-page .toastui-editor-contents blockquote,
+.editor-admin-page .toastui-editor-contents blockquote p,
+.editor-admin-page .toastui-editor-contents blockquote ol,
+.editor-admin-page .toastui-editor-contents blockquote ul,
+.editor-admin-page .toastui-editor-md-block-quote,
+.editor-admin-page .toastui-editor-md-delimiter,
+.editor-admin-page .toastui-editor-md-table,
+.editor-admin-page .toastui-editor-md-meta,
+.editor-admin-page .toastui-editor-md-html {
     color: var(--color-text-light) !important;
 }
 
-.post-editor-admin-page .toastui-editor-contents blockquote {
+.editor-admin-page .toastui-editor-contents blockquote {
     border-left-color: color-mix(in srgb, var(--color-primary) 32%, var(--color-border) 68%) !important;
 }
 
-.post-editor-admin-page .toastui-editor-contents h1 {
+.editor-admin-page .toastui-editor-contents h1 {
     border-bottom-color: color-mix(in srgb, var(--color-primary) 44%, var(--color-border) 56%) !important;
 }
 
-.post-editor-admin-page .toastui-editor-contents h2,
-.post-editor-admin-page .toastui-editor-contents hr,
-.post-editor-admin-page .toastui-editor-main .CodeMirror-gutters,
-.post-editor-admin-page .toastui-editor-main .CodeMirror-linenumber {
+.editor-admin-page .toastui-editor-contents h2,
+.editor-admin-page .toastui-editor-contents hr,
+.editor-admin-page .toastui-editor-main .CodeMirror-gutters,
+.editor-admin-page .toastui-editor-main .CodeMirror-linenumber {
     border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
     color: var(--color-text-light) !important;
 }
 
-.post-editor-admin-page .toastui-editor-contents a,
-.post-editor-admin-page .toastui-editor-md-link.toastui-editor-md-link-desc.toastui-editor-md-marked-text,
-.post-editor-admin-page .toastui-editor-md-list-item-style.toastui-editor-md-list-item-odd,
-.post-editor-admin-page .toastui-editor-md-list-item-style.toastui-editor-md-list-item-even {
+.editor-admin-page .toastui-editor-contents a,
+.editor-admin-page .toastui-editor-md-link.toastui-editor-md-link-desc.toastui-editor-md-marked-text,
+.editor-admin-page .toastui-editor-md-list-item-style.toastui-editor-md-list-item-odd,
+.editor-admin-page .toastui-editor-md-list-item-style.toastui-editor-md-list-item-even {
     color: color-mix(in srgb, var(--color-primary) 76%, white 24%) !important;
 }
 
-.post-editor-admin-page .toastui-editor-contents ul > li:before {
+.editor-admin-page .toastui-editor-contents ul > li:before {
     background-color: color-mix(in srgb, var(--color-primary) 56%, white 14%) !important;
 }
 
-.post-editor-admin-page .toastui-editor-contents ol > li:before {
+.editor-admin-page .toastui-editor-contents ol > li:before {
     color: color-mix(in srgb, var(--color-primary) 60%, var(--color-text-light) 40%) !important;
 }
 
-.post-editor-admin-page .toastui-editor-contents code,
-.post-editor-admin-page .toastui-editor-md-code,
-.post-editor-admin-page .toastui-editor-md-code.toastui-editor-md-marked-text {
+.editor-admin-page .toastui-editor-contents code,
+.editor-admin-page .toastui-editor-md-code,
+.editor-admin-page .toastui-editor-md-code.toastui-editor-md-marked-text {
     background-color: color-mix(in srgb, var(--color-primary) 12%, var(--color-background-alt) 88%) !important;
     color: color-mix(in srgb, #f8b4d9 52%, var(--color-text) 48%) !important;
 }
 
-.post-editor-admin-page .toastui-editor-contents pre,
-.post-editor-admin-page .toastui-editor-md-code-block-line-background {
+.editor-admin-page .toastui-editor-contents pre,
+.editor-admin-page .toastui-editor-md-code-block-line-background {
     background: color-mix(in srgb, var(--color-background-alt) 88%, transparent) !important;
 }
 
-.post-editor-admin-page .toastui-editor-contents table,
-.post-editor-admin-page .toastui-editor-contents table td,
-.post-editor-admin-page .toastui-editor-contents table th {
+.editor-admin-page .toastui-editor-contents table,
+.editor-admin-page .toastui-editor-contents table td,
+.editor-admin-page .toastui-editor-contents table th {
     border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
 }
 
-.post-editor-admin-page .toastui-editor-contents table th {
+.editor-admin-page .toastui-editor-contents table th {
     background: color-mix(in srgb, var(--color-primary) 34%, black 14%) !important;
     color: var(--color-text-inverse) !important;
 }
 
-.post-editor-admin-page .toastui-editor-custom-block .toastui-editor-custom-block-editor,
-.post-editor-admin-page .toastui-editor-md-custom-block-line-background {
+.editor-admin-page .toastui-editor-custom-block .toastui-editor-custom-block-editor,
+.editor-admin-page .toastui-editor-md-custom-block-line-background {
     background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%) !important;
     border-color: color-mix(in srgb, var(--color-primary) 26%, var(--color-border) 74%) !important;
 }
 
-.post-editor-admin-page .toastui-editor-custom-block .toastui-editor-custom-block-editor,
-.post-editor-admin-page .toastui-editor-custom-block-view .info,
-.post-editor-admin-page .toastui-editor-md-custom-block,
-.post-editor-admin-page .toastui-editor-md-custom-block .toastui-editor-md-meta,
-.post-editor-admin-page .toastui-editor-md-custom-block .toastui-editor-md-delimiter {
+.editor-admin-page .toastui-editor-custom-block .toastui-editor-custom-block-editor,
+.editor-admin-page .toastui-editor-custom-block-view .info,
+.editor-admin-page .toastui-editor-md-custom-block,
+.editor-admin-page .toastui-editor-md-custom-block .toastui-editor-md-meta,
+.editor-admin-page .toastui-editor-md-custom-block .toastui-editor-md-delimiter {
     color: color-mix(in srgb, var(--color-primary) 66%, var(--color-text) 34%) !important;
 }
 

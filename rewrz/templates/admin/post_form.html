@@ -6,6 +6,7 @@
 <!-- Toast UI Editor -->
 <link rel="stylesheet" href="{{ static_asset(request, 'vendor/toastui/toastui-editor.min.css') }}" />
 <script src="{{ static_asset(request, 'vendor/toastui/toastui-editor-all.min.js') }}"></script>
+<script src="{{ static_asset(request, 'js/editor-raw-html.js') }}"></script>
 <style>
     .editor-hero {
         position: relative;
@@ -248,10 +249,7 @@
             grid-template-columns: minmax(0, 1.42fr) minmax(320px, 0.9fr);
         }
         #editor-side-panel > .admin-panel {
-            position: sticky;
-            top: 6rem;
-            /* 侧栏内容比视口长时允许内部滚动，避免底部设置项被粘性定位永久裁掉 */
-            max-height: calc(100vh - 7.5rem);
+            /* 高度由脚本按左栏底部实测设置，内容超出面板时内部滚动 */
             overflow-y: auto;
             overscroll-behavior: contain;
         }
@@ -324,7 +322,7 @@
     }
 </style>
 
-<form id="post-form" hx-post="{% if post %}{{ request.state.admin_path }}/posts/{{ post.id }}{% else %}{{ request.state.admin_path }}/posts/new{% endif %}" hx-target="#admin-content" hx-swap="outerHTML" class="post-editor-admin-page space-y-6">
+<form id="post-form" hx-post="{% if post %}{{ request.state.admin_path }}/posts/{{ post.id }}{% else %}{{ request.state.admin_path }}/posts/new{% endif %}" hx-target="#admin-content" hx-swap="outerHTML" class="editor-admin-page space-y-6">
     <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
             <input type="hidden" name="editor_mode" id="editor-mode-input" value="markdown">
             {% if post %}
@@ -638,6 +636,13 @@
                 ['code', 'codeblock'],
                 ['scrollSync']
             ],
+            // 富文本只保留 div 一个 HTML 块节点，配合 editor-raw-html.js
+            // 把整块原始 HTML 装进保护容器，避免 video/audio 等标签被解析丢弃
+            customHTMLRenderer: {
+                htmlBlock: {
+                    div: window.RewrzEditorRawHtml.createDivHtmlBlockRenderer()
+                }
+            },
             hooks: {
                 addImageBlobHook: async (blob, callback) => {
                     try {
@@ -722,15 +727,14 @@
             const sidePanel = sideHost ? sideHost.querySelector(':scope > .admin-panel') : null;
             if (!mainPanel || !sideHost || !sidePanel) return;
             if (isEditorFullscreen() || !window.matchMedia('(min-width: 1120px)').matches) {
+                sidePanel.style.height = '';
                 sidePanel.style.maxHeight = '';
                 return;
             }
-            // 两栏随页面同步位移，视口坐标差值不受滚动影响
+            // 两栏随页面同步位移，视口坐标差值不受滚动影响；直接把右栏拉到左栏底部
             const alignHeight = mainPanel.getBoundingClientRect().bottom - sideHost.getBoundingClientRect().top;
-            // 粘性定位顶部 6rem，预留 1rem 底部安全距离
-            const viewportLimit = window.innerHeight - 96 - 16;
-            const nextHeight = Math.max(320, Math.min(alignHeight, viewportLimit));
-            sidePanel.style.maxHeight = `${Math.round(nextHeight)}px`;
+            sidePanel.style.height = `${Math.round(Math.max(320, alignHeight))}px`;
+            sidePanel.style.maxHeight = 'none';
         }
 
         function updateFullscreenButton() {
@@ -794,11 +798,29 @@
 
         function setEditorMode(mode, shouldSwitch = true) {
             const targetMode = mode === 'html' ? 'html' : 'markdown';
+            const currentMode = getActiveEditorMode();
             if (editorModeInput) {
                 editorModeInput.value = targetMode;
             }
-            if (shouldSwitch && editor && typeof editor.changeMode === 'function') {
-                editor.changeMode(targetMode === 'html' ? 'wysiwyg' : 'markdown', true);
+            if (shouldSwitch && editor && typeof editor.changeMode === 'function' && currentMode !== targetMode) {
+                if (targetMode === 'html') {
+                    // 切到富文本前先把整块原始 HTML 包进保护容器，
+                    // 否则 video/audio 等非内置标签会在解析时被直接丢弃
+                    const markdown = editor.getMarkdown();
+                    const protectedMarkdown = window.RewrzEditorRawHtml.protect(markdown);
+                    if (protectedMarkdown !== markdown) {
+                        editor.setMarkdown(protectedMarkdown, false);
+                    }
+                    editor.changeMode('wysiwyg', true);
+                } else {
+                    editor.changeMode('markdown', true);
+                    // 切回 Markdown 后拆掉保护容器，还原为原始 HTML
+                    const markdown = editor.getMarkdown();
+                    const unwrapped = window.RewrzEditorRawHtml.unwrap(markdown);
+                    if (unwrapped !== markdown) {
+                        editor.setMarkdown(unwrapped, false);
+                    }
+                }
             }
             updateEditorModeButtons(targetMode);
         }
@@ -838,7 +860,7 @@
                 tags: tagsHiddenInput ? tagsHiddenInput.value : '',
                 excerpt: excerptField ? excerptField.value : '',
                 editorMode: currentMode,
-                markdown: editor.getMarkdown(),
+                markdown: window.RewrzEditorRawHtml.unwrap(editor.getMarkdown()),
                 html: currentMode === 'html' ? editor.getHTML() : '',
             });
         }
@@ -982,7 +1004,7 @@
         }
 
         function updateEditorStats() {
-            const markdown = editor.getMarkdown();
+            const markdown = window.RewrzEditorRawHtml.unwrap(editor.getMarkdown());
             const plain = markdown
                 .replace(/```[\s\S]*?```/g, ' ')
                 .replace(/`[^`]*`/g, ' ')
@@ -1128,8 +1150,14 @@
 
         postForm.addEventListener('htmx:configRequest', function (event) {
             const mode = getActiveEditorMode();
-            const markdownContent = editor.getMarkdown();
-            const shouldForceMarkdown = mode === 'html' && hasHideBlock(markdownContent);
+            const rawMarkdown = editor.getMarkdown();
+            const hasRawHtml = window.RewrzEditorRawHtml.hasWrapper(rawMarkdown);
+            // 保护容器只用于富文本过渡，保存时必须拆掉才能还原原始 HTML
+            const markdownContent = window.RewrzEditorRawHtml.unwrap(rawMarkdown);
+            const forceReasons = [];
+            if (hasHideBlock(markdownContent)) forceReasons.push('评论后可见块');
+            if (hasRawHtml) forceReasons.push('原始 HTML');
+            const shouldForceMarkdown = mode === 'html' && forceReasons.length > 0;
             const submitMode = shouldForceMarkdown ? 'markdown' : mode;
             setEditorMode(submitMode, false);
             event.detail.parameters.editor_mode = submitMode;
@@ -1144,7 +1172,7 @@
                 event.detail.parameters.content_html = '';
             }
             if (shouldForceMarkdown) {
-                window.adminNotify('检测到评论后可见块，已自动按 Markdown 模式保存。', 'warning', { duration: 3200 });
+                window.adminNotify(`检测到${forceReasons.join('、')}，已自动按 Markdown 模式保存。`, 'warning', { duration: 3200 });
             }
         });
 
