@@ -9,6 +9,7 @@
 """
 
 import os
+import html
 import json
 import mimetypes
 import hashlib
@@ -58,7 +59,25 @@ DEFAULT_WP_IMPORT_OPTIONS = {
     # slug 冲突策略：skip=跳过已存在文章（幂等，重复导入/中断重传不产生副本）；
     # suffix=加 -imported 后缀另存（用于从其它站点聚合同 slug 不同内容）
     "slug_conflict": "skip",
+    # 远程媒体单文件上限与下载超时；视频/音频通常远大于图片，需可调
+    "media_download_max_mb": 30,
+    "media_download_timeout_seconds": 20,
 }
+
+# 懒加载图片的真实地址常放在这些属性里，src 只是占位图
+WP_IMAGE_LAZY_SOURCE_ATTRS = (
+    "data-src",
+    "data-lazy-src",
+    "data-original",
+    "data-actualsrc",
+    "data-original-src",
+)
+# 响应式图片的多分辨率地址
+WP_IMAGE_SRCSET_ATTRS = ("srcset", "data-srcset")
+# 短代码属性解析（支持双引号、单引号与无引号值）
+WP_SHORTCODE_ATTR_RE = re.compile(
+    r"([a-zA-Z0-9_\-]+)\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^\s\]]+))"
+)
 
 
 def _assert_public_remote_url(url: str) -> ParseResult:
@@ -393,6 +412,8 @@ class WordPressImporter:
         self.progress_callback = progress_callback
         self._deferred_setting_cache_keys: set[str] = set()
         self._attachment_url_map: Dict[int, str] = {}
+        # WordPress 附件 -> 所属文章 ID，用于还原没有 ids 属性的 [gallery]
+        self._attachment_parent_map: Dict[int, List[int]] = {}
         self._site_base_url: str = ""
         self._downloaded_media_url_map: Dict[str, str] = {}
         self._downloaded_media_count: int = 0
@@ -460,7 +481,21 @@ class WordPressImporter:
         if slug_conflict not in {"skip", "suffix"}:
             slug_conflict = "skip"
         merged["slug_conflict"] = slug_conflict
+        merged["media_download_max_mb"] = self._coerce_int_option(
+            merged.get("media_download_max_mb"), default=30, minimum=1, maximum=1024
+        )
+        merged["media_download_timeout_seconds"] = self._coerce_int_option(
+            merged.get("media_download_timeout_seconds"), default=20, minimum=1, maximum=600
+        )
         return merged
+
+    @staticmethod
+    def _coerce_int_option(value: Any, default: int, minimum: int, maximum: int) -> int:
+        try:
+            number = int(value)
+        except (TypeError, ValueError):
+            number = default
+        return max(minimum, min(maximum, number))
     
     def import_from_wxr(self, wxr_file_path: str) -> Dict[str, Any]:
         """
@@ -675,6 +710,10 @@ class WordPressImporter:
                 post_date_gmt = item.find('wp:post_date_gmt', self.namespaces)
                 post_modified = item.find('wp:post_modified', self.namespaces)
                 post_modified_gmt = item.find('wp:post_modified_gmt', self.namespaces)
+                wp_post_id = self._safe_int(
+                    item.findtext("wp:post_id", default="", namespaces=self.namespaces),
+                    default=None,
+                )
                 
                 if title is not None:
                     content_text = content.text if (content is not None and content.text is not None) else ""
@@ -705,12 +744,14 @@ class WordPressImporter:
                     markdown_strategy = self.options.get("markdown_strategy")
                     if markdown_strategy == "raw_html":
                         markdown_content = ""
-                        html_content = content_text
+                        # 原始 HTML 策略也要展开短代码，否则画廊/音视频会以字面文本留在正文里
+                        html_content = self._rewrite_wp_shortcodes(content_text, wp_post_id=wp_post_id)
                         editor_mode = "html"
                     else:
                         markdown_content = self._html_to_markdown(
                             content_text,
                             source_link=(link.text if link is not None else ""),
+                            wp_post_id=wp_post_id,
                         )
                         if not (markdown_content or "").strip():
                             markdown_content = content_text
@@ -1100,6 +1141,7 @@ class WordPressImporter:
     def _build_wp_attachment_map(self, root: ET.Element) -> Dict[int, str]:
         """构建 WordPress 附件 ID -> URL 的映射，用于恢复特色图。"""
         mapping: Dict[int, str] = {}
+        self._attachment_parent_map = {}
         if root is None:
             return mapping
 
@@ -1122,6 +1164,12 @@ class WordPressImporter:
             normalized = self._normalize_media_url(raw_url)
             if normalized:
                 mapping[int(post_id)] = normalized
+            parent_id = self._safe_int(
+                item.findtext("wp:post_parent", default="", namespaces=self.namespaces),
+                default=None,
+            )
+            if parent_id:
+                self._attachment_parent_map.setdefault(int(parent_id), []).append(int(post_id))
 
         return mapping
 
@@ -1155,6 +1203,55 @@ class WordPressImporter:
             return urljoin(base, url)
         return url
 
+    def _is_placeholder_image_url(self, url: str) -> bool:
+        """判断是否是懒加载占位图（data URI、blank/spacer/placeholder）。"""
+        lowered = (url or "").strip().lower()
+        if not lowered:
+            return True
+        if lowered.startswith("data:"):
+            return True
+        basename = os.path.basename(lowered.split("?", 1)[0])
+        return any(key in basename for key in ("blank", "spacer", "placeholder", "lazyload", "lazy-load"))
+
+    def _parse_srcset_urls(self, raw_srcset: str) -> List[str]:
+        """从 srcset/data-srcset 中提取候选地址，按宽度从大到小排序。"""
+        entries: List[Tuple[float, str]] = []
+        for part in (raw_srcset or "").split(","):
+            tokens = part.strip().split()
+            if not tokens:
+                continue
+            candidate = tokens[0].strip()
+            if not candidate or self._is_placeholder_image_url(candidate):
+                continue
+            width = 0.0
+            for descriptor in tokens[1:]:
+                match = re.fullmatch(r"(\d+(?:\.\d+)?)w", descriptor)
+                if match:
+                    width = float(match.group(1))
+                    break
+            entries.append((width, candidate))
+        entries.sort(key=lambda item: item[0], reverse=True)
+        return [url for _, url in entries]
+
+    def _pick_image_source_url(self, node: BsTag, source_link: str = "") -> Optional[str]:
+        """挑选图片的真实地址，优先避开懒加载占位图。"""
+        raw_src = (node.get("src") or "").strip()
+        candidates: List[str] = []
+        if raw_src and not self._is_placeholder_image_url(raw_src):
+            candidates.append(raw_src)
+        for attr in WP_IMAGE_LAZY_SOURCE_ATTRS:
+            value = (node.get(attr) or "").strip()
+            if value and not self._is_placeholder_image_url(value):
+                candidates.append(value)
+        for attr in WP_IMAGE_SRCSET_ATTRS:
+            candidates.extend(self._parse_srcset_urls(node.get(attr) or ""))
+        if not candidates and raw_src:
+            candidates.append(raw_src)
+        if not candidates:
+            return None
+        normalized = self._normalize_media_url(candidates[0], source_link=source_link)
+        return normalized or None
+
     def _extract_first_image_url_from_html(self, html_content: str, source_link: str = "") -> Optional[str]:
         if not (html_content or "").strip():
             return None
@@ -1162,17 +1259,7 @@ class WordPressImporter:
         img = soup.find("img")
         if not isinstance(img, BsTag):
             return None
-        raw_src = (
-            img.get("src")
-            or img.get("data-src")
-            or img.get("data-original")
-            or img.get("data-lazy-src")
-            or ""
-        ).strip()
-        if not raw_src:
-            return None
-        normalized = self._normalize_media_url(raw_src, source_link=source_link)
-        return normalized or None
+        return self._pick_image_source_url(img, source_link=source_link)
 
     def _extract_wp_featured_image_url(self, item: ET.Element, html_content: str, source_link: str = "") -> Optional[str]:
         """提取特色图：_thumbnail_id -> post_theme_color_meta.image_url -> 正文首图。"""
@@ -1269,10 +1356,12 @@ class WordPressImporter:
 
         ext = os.path.splitext(path)[1].lower()
         media_exts = {
-            ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".avif",
-            ".mp4", ".m4v", ".mov", ".webm", ".avi", ".mkv",
-            ".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac",
-            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+            ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".avif", ".ico",
+            ".mp4", ".m4v", ".mov", ".webm", ".avi", ".mkv", ".wmv", ".flv", ".ogv",
+            ".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac", ".wma", ".amr", ".opus",
+            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".md",
+            ".csv", ".rtf", ".odt", ".ods", ".odp", ".epub", ".mobi",
+            ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz",
         }
         return ext in media_exts
 
@@ -1296,11 +1385,11 @@ class WordPressImporter:
         if mime:
             return "document"
         ext = os.path.splitext((url_or_path or "").lower())[1]
-        if ext in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".avif"}:
+        if ext in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".avif", ".ico"}:
             return "image"
-        if ext in {".mp4", ".m4v", ".mov", ".webm", ".avi", ".mkv"}:
+        if ext in {".mp4", ".m4v", ".mov", ".webm", ".avi", ".mkv", ".wmv", ".flv", ".ogv"}:
             return "video"
-        if ext in {".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac"}:
+        if ext in {".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac", ".wma", ".amr", ".opus"}:
             return "audio"
         return "document"
 
@@ -1533,8 +1622,18 @@ class WordPressImporter:
         for node in soup.find_all(True):
             tag_name = (node.name or "").lower()
             attrs: List[str] = []
-            if tag_name in {"img", "source", "video", "audio", "iframe"}:
+            if tag_name == "img":
+                attrs = ["src", *WP_IMAGE_LAZY_SOURCE_ATTRS]
+            elif tag_name == "source":
+                attrs = ["src"]
+            elif tag_name in {"video", "audio"}:
                 attrs = ["src", "poster"]
+            elif tag_name == "iframe":
+                attrs = ["src"]
+            elif tag_name == "embed":
+                attrs = ["src"]
+            elif tag_name == "object":
+                attrs = ["data"]
             elif tag_name == "a":
                 attrs = ["href"]
             if not attrs:
@@ -1542,7 +1641,7 @@ class WordPressImporter:
 
             for attr_name in attrs:
                 raw_value = (node.get(attr_name) or "").strip()
-                if not raw_value:
+                if not raw_value or raw_value.lower().startswith(("data:", "javascript:")):
                     continue
                 normalized = self._normalize_media_url(raw_value, source_link=source_link)
                 local_url = self._download_media_and_get_local_url(
@@ -1554,6 +1653,35 @@ class WordPressImporter:
                 if local_url != raw_value:
                     node[attr_name] = local_url
                     changed = True
+
+            if tag_name in {"img", "source"}:
+                for srcset_attr in WP_IMAGE_SRCSET_ATTRS:
+                    raw_srcset = (node.get(srcset_attr) or "").strip()
+                    if not raw_srcset:
+                        continue
+                    # 只本地化分辨率最高的候选，避免同一张图按全部变体重复下载
+                    candidates = self._parse_srcset_urls(raw_srcset)
+                    if not candidates:
+                        continue
+                    best_url = self._normalize_media_url(candidates[0], source_link=source_link)
+                    local_url = self._download_media_and_get_local_url(
+                        best_url,
+                        source_link=source_link,
+                        uploaded_by_id=uploaded_by_id,
+                        reference_datetime=reference_datetime,
+                    )
+                    if local_url and local_url != best_url:
+                        node[srcset_attr] = local_url
+                        changed = True
+
+            # 兜底：懒加载图片的 src 只是占位图时，用已本地化的真实地址替换 src
+            if tag_name == "img" and self._is_placeholder_image_url((node.get("src") or "").strip()):
+                for attr_name in WP_IMAGE_LAZY_SOURCE_ATTRS:
+                    local_value = (node.get(attr_name) or "").strip()
+                    if local_value and not self._is_placeholder_image_url(local_value):
+                        node["src"] = local_value
+                        changed = True
+                        break
 
         return str(soup) if changed else html_content
 
@@ -1599,12 +1727,32 @@ class WordPressImporter:
         cleaned = re.sub(r"<!--\s*/?wp:[\s\S]*?-->", "", raw_html, flags=re.IGNORECASE)
         return cleaned.strip()
 
-    def _rewrite_wp_shortcodes(self, raw_html: str) -> str:
+    def _rewrite_wp_shortcodes(self, raw_html: str, wp_post_id: Optional[int] = None) -> str:
         """处理常见短代码，避免导入后丢语义。"""
         if not raw_html:
             return ""
         content = raw_html
 
+        # [gallery ids="..."] / [playlist ids="..."] -> 按附件映射还原为真实媒体标签
+        content = re.sub(
+            r"\[gallery\b([^\]]*)\]",
+            lambda match: self._render_gallery_shortcode(match.group(1), wp_post_id=wp_post_id),
+            content,
+            flags=re.IGNORECASE,
+        )
+        content = re.sub(
+            r"\[playlist\b([^\]]*)\]",
+            lambda match: self._render_playlist_shortcode(match.group(1)),
+            content,
+            flags=re.IGNORECASE,
+        )
+        # [audio mp3="..."] / [video mp4="..." poster="..."] -> 标准媒体标签
+        content = re.sub(
+            r"\[(audio|video)\b([^\]]*)\]",
+            lambda match: self._render_media_shortcode(match.group(1), match.group(2)),
+            content,
+            flags=re.IGNORECASE,
+        )
         # [dm href='...']text[/dm] -> 链接
         content = re.sub(
             r"\[dm\s+href=['\"]([^'\"]+)['\"]\](.*?)\[/dm\]",
@@ -1626,20 +1774,94 @@ class WordPressImporter:
             content,
             flags=re.IGNORECASE | re.DOTALL,
         )
-        # [audio src="..."] [video src="..."]
-        content = re.sub(
-            r"\[audio[^\]]*src=['\"]([^'\"]+)['\"][^\]]*\]",
-            r'<audio src="\1"></audio>',
-            content,
-            flags=re.IGNORECASE,
-        )
-        content = re.sub(
-            r"\[video[^\]]*src=['\"]([^'\"]+)['\"][^\]]*\]",
-            r'<video src="\1"></video>',
-            content,
-            flags=re.IGNORECASE,
-        )
         return content
+
+    def _parse_shortcode_attrs(self, raw_attrs: str) -> Dict[str, str]:
+        attrs: Dict[str, str] = {}
+        for match in WP_SHORTCODE_ATTR_RE.finditer(raw_attrs or ""):
+            value = match.group(2) or match.group(3) or match.group(4) or ""
+            attrs[match.group(1).strip().lower()] = value.strip()
+        return attrs
+
+    def _resolve_attachment_ids(self, raw_ids: str, wp_post_id: Optional[int] = None) -> List[int]:
+        attachment_ids: List[int] = []
+        for token in re.split(r"[, \n]+", raw_ids or ""):
+            if not token.strip():
+                continue
+            attachment_id = self._safe_int(token.strip(), default=None)
+            if attachment_id is not None:
+                attachment_ids.append(int(attachment_id))
+        if attachment_ids:
+            return attachment_ids
+        if wp_post_id:
+            return list(self._attachment_parent_map.get(int(wp_post_id), []))
+        return []
+
+    def _render_gallery_shortcode(self, raw_attrs: str, wp_post_id: Optional[int] = None) -> str:
+        attrs = self._parse_shortcode_attrs(raw_attrs)
+        attachment_ids = self._resolve_attachment_ids(
+            attrs.get("ids") or attrs.get("include") or "",
+            wp_post_id=wp_post_id,
+        )
+        urls = [self._attachment_url_map.get(attachment_id) for attachment_id in attachment_ids]
+        urls = [url for url in urls if url]
+        if not urls:
+            # 无 ids 且没有可用的父附件映射时保留原短代码，避免误删内容
+            return f"[gallery{raw_attrs}]"
+        # 短代码常位于 <p> 内，输出 <figure> 会产生非法嵌套，这里直接输出图片
+        return "".join(
+            f'<img src="{html.escape(url, quote=True)}" alt=""/>'
+            for url in urls
+        )
+
+    def _render_playlist_shortcode(self, raw_attrs: str) -> str:
+        attrs = self._parse_shortcode_attrs(raw_attrs)
+        attachment_ids = self._resolve_attachment_ids(attrs.get("ids") or "")
+        urls = [self._attachment_url_map.get(attachment_id) for attachment_id in attachment_ids]
+        urls = [url for url in urls if url]
+        if not urls:
+            return f"[playlist{raw_attrs}]"
+        playlist_type = (attrs.get("type") or "").strip().lower()
+        default_tag = playlist_type if playlist_type in {"audio", "video"} else ""
+        rendered: List[str] = []
+        for url in urls:
+            parsed = self._safe_urlparse(url)
+            ext = os.path.splitext(parsed.path if parsed else "")[1].lower()
+            if ext in {".mp3", ".m4a", ".ogg", ".wav", ".flac", ".aac", ".wma", ".amr", ".opus"}:
+                tag_name = "audio"
+            elif ext in {".mp4", ".m4v", ".mov", ".webm", ".avi", ".mkv", ".wmv", ".flv", ".ogv"}:
+                tag_name = "video"
+            else:
+                tag_name = default_tag
+            escaped = html.escape(url, quote=True)
+            if tag_name:
+                rendered.append(f'<{tag_name} controls src="{escaped}"></{tag_name}>')
+            else:
+                rendered.append(f'<a href="{escaped}">{escaped}</a>')
+        return "".join(rendered)
+
+    def _render_media_shortcode(self, tag_name: str, raw_attrs: str) -> str:
+        attrs = self._parse_shortcode_attrs(raw_attrs)
+        tag_name = (tag_name or "").strip().lower()
+        if tag_name == "audio":
+            keys = ("mp3", "m4a", "ogg", "oga", "wav", "flac", "aac", "wma", "src")
+        else:
+            keys = ("mp4", "m4v", "webm", "ogv", "mov", "wmv", "flv", "src")
+        sources = [attrs[key] for key in keys if attrs.get(key)]
+        if not sources:
+            return f"[{tag_name}{raw_attrs}]"
+
+        poster = (attrs.get("poster") or "").strip()
+        opening = f'<{tag_name} controls'
+        if poster:
+            opening += f' poster="{html.escape(poster, quote=True)}"'
+        opening += ">"
+
+        if len(sources) == 1:
+            return f'{opening}<source src="{html.escape(sources[0], quote=True)}"/></{tag_name}>'
+        return opening + "".join(
+            f'<source src="{html.escape(source, quote=True)}"/>' for source in sources
+        ) + f"</{tag_name}>"
 
     def _clean_markdown_text(self, text: str) -> str:
         cleaned = (text or "").replace("\xa0", " ")
@@ -1672,14 +1894,32 @@ class WordPressImporter:
             if href:
                 return f"[{text}]({href})"
             return text
+        if name in {"video", "audio", "iframe", "embed", "object"}:
+            return self._media_tag_to_markdown(node, source_link=source_link)
         if name == "img":
-            src = self._normalize_media_url((node.get("src") or node.get("data-src") or "").strip(), source_link=source_link)
+            src = self._pick_image_source_url(node, source_link=source_link)
             if not src:
                 return ""
             alt = (node.get("alt") or "").strip()
             return f"![{alt}]({src})"
 
         return self._inline_children_to_markdown(node, source_link=source_link)
+
+    def _media_tag_to_markdown(self, node: BsTag, source_link: str = "") -> str:
+        """把 video/audio/iframe/embed/object 统一渲染为 Markdown 媒体链接。"""
+        tag_name = (node.name or "").lower()
+        media_src = (node.get("src") or "").strip()
+        if not media_src and tag_name == "object":
+            media_src = (node.get("data") or "").strip()
+        if not media_src:
+            source_node = node.find("source")
+            if isinstance(source_node, BsTag):
+                media_src = (source_node.get("src") or "").strip()
+        media_src = self._normalize_media_url(media_src, source_link=source_link)
+        if not media_src:
+            return ""
+        label = "视频" if tag_name == "video" else ("音频" if tag_name == "audio" else "嵌入内容")
+        return f"[{label}]({media_src})"
 
     def _inline_children_to_markdown(self, parent: BsTag, source_link: str = "") -> str:
         parts = [self._inline_node_to_markdown(child, source_link=source_link) for child in parent.children]
@@ -1804,32 +2044,34 @@ class WordPressImporter:
         if name == "img":
             inline = self._inline_node_to_markdown(node, source_link=source_link).strip()
             return f"{inline}\n\n" if inline else ""
-        if name in {"video", "audio", "iframe"}:
-            media_src = (
-                (node.get("src") or "").strip()
-                or ((node.find("source") or {}).get("src") if node.find("source") else "")
-            )
-            media_src = self._normalize_media_url(media_src, source_link=source_link)
-            if not media_src:
-                return ""
-            label = "视频" if name == "video" else ("音频" if name == "audio" else "嵌入内容")
-            return f"[{label}]({media_src})\n\n"
+        if name in {"video", "audio", "iframe", "embed", "object"}:
+            media_markdown = self._media_tag_to_markdown(node, source_link=source_link)
+            return f"{media_markdown}\n\n" if media_markdown else ""
         if name == "figure":
-            image_markdown = ""
-            figure_img = node.find("img")
-            if isinstance(figure_img, BsTag):
-                image_markdown = self._inline_node_to_markdown(figure_img, source_link=source_link).strip()
-            caption_node = node.find("figcaption")
-            caption = (
-                self._inline_children_to_markdown(caption_node, source_link=source_link).strip()
-                if isinstance(caption_node, BsTag)
-                else ""
-            )
+            # 图片/视频/音频可能直接位于 figure；画廊图还会嵌套多层 figure，
+            # 这里逐个渲染子块，避免只取首图导致其余附件丢失。
             result_parts: List[str] = []
-            if image_markdown:
-                result_parts.append(image_markdown)
-            if caption:
-                result_parts.append(f"*{caption}*")
+            direct_caption: Optional[BsTag] = None
+            for child in node.children:
+                if isinstance(child, BsTag):
+                    child_name = (child.name or "").lower()
+                    if child_name == "figcaption":
+                        direct_caption = child
+                        continue
+                    if child_name in {"img", "a"}:
+                        rendered = self._inline_node_to_markdown(child, source_link=source_link).strip()
+                    else:
+                        rendered = self._block_node_to_markdown(child, source_link=source_link).strip()
+                else:
+                    rendered = self._inline_node_to_markdown(child, source_link=source_link).strip()
+                if rendered:
+                    result_parts.append(rendered)
+
+            if isinstance(direct_caption, BsTag):
+                caption = self._inline_children_to_markdown(direct_caption, source_link=source_link).strip()
+                if caption:
+                    result_parts.append(f"*{caption}*")
+
             if result_parts:
                 return "\n".join(result_parts).strip() + "\n\n"
             return ""
@@ -1845,12 +2087,15 @@ class WordPressImporter:
         inline = self._inline_children_to_markdown(node, source_link=source_link).strip()
         return f"{inline}\n\n" if inline else ""
 
-    def _html_to_markdown(self, html_content: str, source_link: str = "") -> str:
+    def _html_to_markdown(self, html_content: str, source_link: str = "", wp_post_id: Optional[int] = None) -> str:
         """增强版 HTML -> Markdown 转换（兼容 Gutenberg 与常见媒体块）。"""
         if not html_content:
             return ""
 
-        prepared = self._rewrite_wp_shortcodes(self._strip_wp_block_comments(html_content))
+        prepared = self._rewrite_wp_shortcodes(
+            self._strip_wp_block_comments(html_content),
+            wp_post_id=wp_post_id,
+        )
         if not prepared.strip():
             return ""
 

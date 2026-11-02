@@ -1477,3 +1477,130 @@ def test_assert_public_remote_url_rejects_private_and_allows_public(monkeypatch)
     parsed = data_manager._assert_public_remote_url("http://example.com/file.jpg")
     assert parsed.hostname == "example.com"
 
+
+def test_wordpress_import_expands_gallery_and_media_shortcodes(db, tmp_path):
+    """无 ids 的 [gallery] 需按附件父级关系还原，[audio mp3] 需还原为可下载音频。"""
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin_media_shortcode", email="admin_media_shortcode@example.com", password="password123"),
+    )
+
+    wxr_content = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <link>https://old.example.com</link>
+    <item>
+      <title>g1</title>
+      <wp:post_id>101</wp:post_id>
+      <wp:post_parent>900</wp:post_parent>
+      <wp:post_type>attachment</wp:post_type>
+      <wp:attachment_url>https://old.example.com/wp-content/uploads/2024/01/g1.jpg</wp:attachment_url>
+    </item>
+    <item>
+      <title>g2</title>
+      <wp:post_id>102</wp:post_id>
+      <wp:post_parent>900</wp:post_parent>
+      <wp:post_type>attachment</wp:post_type>
+      <wp:attachment_url>https://old.example.com/wp-content/uploads/2024/01/g2.jpg</wp:attachment_url>
+    </item>
+    <item>
+      <title>短代码附件测试</title>
+      <wp:post_id>900</wp:post_id>
+      <content:encoded><![CDATA[
+        <p>[gallery]</p>
+        <p>[audio mp3="https://old.example.com/wp-content/uploads/audio/song.mp3"]</p>
+        <p>[video mp4="https://old.example.com/wp-content/uploads/video/movie.mp4" poster="https://old.example.com/wp-content/uploads/video/poster.jpg"]</p>
+      ]]></content:encoded>
+      <wp:post_name>shortcode-media-post</wp:post_name>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_date>2024-01-01 00:00:00</wp:post_date>
+    </item>
+  </channel>
+</rss>
+"""
+    wxr_file = tmp_path / "wordpress_shortcode_media.xml"
+    wxr_file.write_text(wxr_content, encoding="utf-8")
+
+    stats = WordPressImporter(db).import_from_wxr(str(wxr_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["errors"] == []
+    post = crud_post.get_post_by_slug(db, "shortcode-media-post")
+    assert post is not None
+    markdown = post.content_markdown or ""
+    assert "https://old.example.com/wp-content/uploads/2024/01/g1.jpg" in markdown
+    assert "https://old.example.com/wp-content/uploads/2024/01/g2.jpg" in markdown
+    assert "https://old.example.com/wp-content/uploads/audio/song.mp3" in markdown
+    assert "https://old.example.com/wp-content/uploads/video/movie.mp4" in markdown
+    assert "[gallery" not in markdown
+    assert "[audio" not in markdown
+    assert "[video" not in markdown
+
+
+def test_wordpress_markdown_keeps_gallery_images_lazy_images_and_video(db, tmp_path):
+    """画廊块多图、懒加载图片、figure 视频与 embed/object 不能在 Markdown 转换阶段丢失。"""
+    importer = WordPressImporter(db)
+    html_content = """
+      <figure class="wp-block-gallery">
+        <figure class="wp-block-image"><img src="https://old.example.com/wp-content/uploads/2024/01/g1.jpg" alt="1"/></figure>
+        <figure class="wp-block-image"><img src="https://old.example.com/wp-content/uploads/2024/01/g2.jpg" alt="2"/></figure>
+      </figure>
+      <figure class="wp-block-image">
+        <img src="data:image/gif;base64,R0lGODlh" data-src="https://old.example.com/wp-content/uploads/2024/01/real.jpg" alt="real"/>
+      </figure>
+      <figure class="wp-block-video">
+        <video controls src="https://old.example.com/wp-content/uploads/2024/01/movie.mp4"></video>
+      </figure>
+      <embed src="https://old.example.com/wp-content/uploads/2024/01/legacy.mp4"/>
+      <object data="https://old.example.com/wp-content/uploads/2024/01/slides.pdf"></object>
+    """
+    markdown = importer._html_to_markdown(html_content, source_link="https://old.example.com/post/1")
+
+    assert "https://old.example.com/wp-content/uploads/2024/01/g1.jpg" in markdown
+    assert "https://old.example.com/wp-content/uploads/2024/01/g2.jpg" in markdown
+    assert "https://old.example.com/wp-content/uploads/2024/01/real.jpg" in markdown
+    assert "data:image/gif" not in markdown
+    assert "https://old.example.com/wp-content/uploads/2024/01/movie.mp4" in markdown
+    assert "https://old.example.com/wp-content/uploads/2024/01/legacy.mp4" in markdown
+    assert "https://old.example.com/wp-content/uploads/2024/01/slides.pdf" in markdown
+
+
+def test_wordpress_html_localization_covers_lazy_srcset_and_embed(db, tmp_path):
+    """HTML 模式需本地化懒加载 data-src、srcset 变体与 embed 资源。"""
+    user = crud_user.create_user(
+        db,
+        UserCreate(username="admin_lazy", email="admin_lazy@example.com", password="password123"),
+    )
+    importer = WordPressImporter(db, options={"download_remote_media": True})
+    local_media_root = tmp_path / "media_uploads"
+    importer._get_media_upload_root = lambda: str(local_media_root)
+    importer._fetch_remote_media_bytes = lambda url, timeout_seconds, max_bytes: (b"fake-bytes", "image/png")
+
+    html_content = """
+      <p>
+        <img
+          src="data:image/gif;base64,R0lGODlh"
+          data-src="https://old.example.com/wp-content/uploads/2024/01/real.jpg"
+          srcset="https://old.example.com/wp-content/uploads/2024/01/real-300.jpg 300w, https://old.example.com/wp-content/uploads/2024/01/real-1024.jpg 1024w"
+          alt="lazy"/>
+        <embed src="https://old.example.com/wp-content/uploads/2024/01/embed.mp4"/>
+      </p>
+    """
+    localized = importer._localize_media_urls_in_html(
+        html_content,
+        source_link="https://old.example.com/post/1",
+        uploaded_by_id=user.id,
+    )
+
+    assert "data:image/gif" not in localized
+    assert 'src="/media/' in localized
+    assert 'data-src="/media/' in localized
+    assert "srcset=" in localized and 'srcset="/media/' in localized
+    # 只保留最高分辨率候选，避免按全部变体重复下载
+    assert "real-300.jpg" not in localized
+    assert 'src="/media/' in localized and "embed.mp4" not in localized
+    assert importer._media_download_failures == []
+

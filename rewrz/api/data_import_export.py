@@ -229,7 +229,21 @@ def _normalize_wp_import_options(payload: Optional[Dict[str, Any]]) -> Dict[str,
     if slug_conflict not in {"skip", "suffix"}:
         slug_conflict = "skip"
     merged["slug_conflict"] = slug_conflict
+    merged["media_download_max_mb"] = _coerce_int_option(
+        merged.get("media_download_max_mb"), default=30, minimum=1, maximum=1024
+    )
+    merged["media_download_timeout_seconds"] = _coerce_int_option(
+        merged.get("media_download_timeout_seconds"), default=20, minimum=1, maximum=600
+    )
     return merged
+
+
+def _coerce_int_option(value: Any, default: int, minimum: int, maximum: int) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        number = default
+    return max(minimum, min(maximum, number))
 
 
 def _get_wp_import_options(db: Session) -> Dict[str, Any]:

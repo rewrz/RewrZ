@@ -150,6 +150,17 @@
                             </select>
                             <p class="mt-1 text-xs text-gray-500">大量媒体建议使用"一比一还原"，可避免全部集中到同一月份目录。</p>
                         </div>
+                        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1" for="wp-media-max-mb">媒体单文件上限（MB）</label>
+                                <input id="wp-media-max-mb" type="number" min="1" max="1024" step="1" value="30" class="admin-form-field block w-full rounded px-3 py-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1" for="wp-media-timeout">媒体下载超时（秒）</label>
+                                <input id="wp-media-timeout" type="number" min="1" max="600" step="1" value="20" class="admin-form-field block w-full rounded px-3 py-2 text-sm">
+                            </div>
+                        </div>
+                        <p class="md:col-span-2 mt-1 text-xs text-gray-500">视频/音频体积常超过默认 30MB，超过上限的文件会记录到下载失败明细中。</p>
                         <label class="inline-flex items-center gap-2">
                             <input type="checkbox" id="wp-import-type-post" class="admin-form-check form-checkbox" checked>
                             <span>导入 post</span>
@@ -369,6 +380,8 @@ function collectWordPressImportOptions() {
         import_views: Boolean(document.getElementById('wp-import-views')?.checked),
         download_remote_media: Boolean(document.getElementById('wp-download-remote-media')?.checked),
         remote_media_path_strategy: document.getElementById('wp-remote-media-path-strategy')?.value || 'latest_month',
+        media_download_max_mb: Number(document.getElementById('wp-media-max-mb')?.value || 30),
+        media_download_timeout_seconds: Number(document.getElementById('wp-media-timeout')?.value || 20),
         import_post_types: types,
         post_type_format_map: parsePostTypeFormatMap(postTypeFormatMapText),
         postmeta_whitelist: (document.getElementById('wp-postmeta-whitelist')?.value || '')
@@ -434,6 +447,8 @@ function applyWordPressImportOptions(options) {
     document.getElementById('wp-download-remote-media').checked = !!safe.download_remote_media;
     const strategy = String(safe.remote_media_path_strategy || 'latest_month').toLowerCase();
     document.getElementById('wp-remote-media-path-strategy').value = strategy === 'preserve_relative_path' ? 'preserve_relative_path' : 'latest_month';
+    document.getElementById('wp-media-max-mb').value = Number(safe.media_download_max_mb) > 0 ? Number(safe.media_download_max_mb) : 30;
+    document.getElementById('wp-media-timeout').value = Number(safe.media_download_timeout_seconds) > 0 ? Number(safe.media_download_timeout_seconds) : 20;
     const types = Array.isArray(safe.import_post_types) ? safe.import_post_types : [];
     document.getElementById('wp-import-type-post').checked = types.includes('post');
     document.getElementById('wp-import-type-page').checked = types.includes('page');
@@ -926,6 +941,8 @@ function showOperationResult(type, message, stats = null) {
                     ${(!stats.posts_imported && stats.views_imported) ? `<li>阅读量元数据: ${stats.views_imported} 篇</li>` : ''}
                     ${stats.settings_imported ? `<li>设置: ${stats.settings_imported} 项</li>` : ''}
                     ${stats.media_restored ? `<li>媒体文件: ${stats.media_restored} 个</li>` : ''}
+                    ${stats.media_downloaded ? `<li>远程媒体下载成功: ${stats.media_downloaded} 个</li>` : ''}
+                    ${stats.media_download_failed ? `<li>远程媒体下载失败: ${stats.media_download_failed} 个</li>` : ''}
                 </ul>
                 ${stats.errors && stats.errors.length > 0 ? `
                     <div class="mt-2">
@@ -933,6 +950,15 @@ function showOperationResult(type, message, stats = null) {
                         <ul class="list-disc list-inside mt-1 space-y-1 ${style.errorText}">
                             ${stats.errors.map(error => `<li>${error}</li>`).join('')}
                         </ul>
+                    </div>
+                ` : ''}
+                ${stats.media_download_failures && stats.media_download_failures.length > 0 ? `
+                    <div class="mt-2">
+                        <p class="${style.errorText} font-semibold">媒体下载失败明细</p>
+                        <ul class="list-disc list-inside mt-1 space-y-1 ${style.errorText}">
+                            ${stats.media_download_failures.slice(0, 50).map(item => `<li>${item.url}：${item.reason}</li>`).join('')}
+                        </ul>
+                        ${stats.media_download_failures.length > 50 ? `<p class="mt-1 ${style.errorText}">仅显示前 50 条，共 ${stats.media_download_failures.length} 条。</p>` : ''}
                     </div>
                 ` : ''}
             </div>
