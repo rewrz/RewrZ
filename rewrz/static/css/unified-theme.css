@@ -1797,6 +1797,60 @@ body.site-shell > footer a:hover {
     border-right: 1px solid color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
 }
 
+/* 快照弹窗：桌面端固定视口高度，左右两栏各自滚动，长文也能完整预览 */
+.snapshot-modal-panel {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 2rem);
+    overflow: hidden;
+}
+
+.snapshot-modal-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.snapshot-modal-list-col,
+.snapshot-modal-preview-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.snapshot-modal-list,
+.snapshot-modal-preview {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+@media (min-width: 768px) {
+    .snapshot-modal-body {
+        grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr);
+    }
+}
+
+@media (max-width: 767px) {
+    .snapshot-modal-panel {
+        overflow-y: auto;
+    }
+
+    .snapshot-modal-body {
+        flex: 0 0 auto;
+    }
+
+    .snapshot-modal-list {
+        max-height: 30dvh;
+    }
+
+    .snapshot-modal-preview {
+        max-height: 46dvh;
+    }
+}
+
 .admin-soft-btn:disabled,
 .admin-primary-btn:disabled,
 .admin-soft-btn-danger:disabled {

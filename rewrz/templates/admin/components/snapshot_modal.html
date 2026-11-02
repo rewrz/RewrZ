@@ -1,6 +1,6 @@
-<div id="snapshot-modal" class="fixed inset-0 z-50 hidden admin-modal-backdrop p-4">
-    <div class="admin-modal-panel mx-auto mt-8 w-full max-w-6xl rounded-lg shadow-xl">
-        <div class="admin-modal-header flex items-center justify-between px-5 py-4">
+<div id="snapshot-modal" class="fixed inset-0 z-50 hidden admin-modal-backdrop flex items-center justify-center p-4">
+    <div class="admin-modal-panel snapshot-modal-panel mx-auto w-full max-w-6xl rounded-lg shadow-xl">
+        <div class="admin-modal-header flex shrink-0 items-center justify-between px-5 py-4">
             <h3 class="text-lg font-semibold">历史快照</h3>
             <button type="button" id="snapshot-close-btn" class="admin-muted rounded p-2">
                 <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
@@ -9,22 +9,22 @@
             </button>
         </div>
 
-        <div class="grid gap-0 md:grid-cols-3">
-            <div class="admin-modal-sidebar p-4">
-                <div class="mb-2 flex items-center justify-between gap-2">
+        <div class="snapshot-modal-body">
+            <div class="admin-modal-sidebar snapshot-modal-list-col p-4">
+                <div class="mb-2 flex shrink-0 items-center justify-between gap-2">
                     <label class="admin-muted flex items-center gap-1 text-xs">
                         <input type="checkbox" id="snapshot-select-all" class="snapshot-select-all"> 全选
                     </label>
                     <button type="button" id="snapshot-batch-delete" class="admin-soft-btn-danger rounded px-2 py-1 text-xs" disabled>删除选中 (0)</button>
                 </div>
-                <p id="snapshot-limit-tip" class="admin-muted mb-3 text-xs"></p>
-                <div id="snapshot-list" class="max-h-[65vh] space-y-2 overflow-y-auto">
+                <p id="snapshot-limit-tip" class="admin-muted mb-3 shrink-0 text-xs"></p>
+                <div id="snapshot-list" class="snapshot-modal-list space-y-2">
                     <p class="admin-muted text-sm">加载中...</p>
                 </div>
             </div>
-            <div class="md:col-span-2 p-4">
-                <p id="snapshot-preview-title" class="mb-3 text-sm font-medium">选择左侧快照进行预览</p>
-                <div id="snapshot-preview" class="prose admin-panel max-w-none max-h-[65vh] overflow-y-auto rounded-md p-4 text-sm"></div>
+            <div class="snapshot-modal-preview-col p-4">
+                <p id="snapshot-preview-title" class="mb-3 shrink-0 text-sm font-medium">选择左侧快照进行预览</p>
+                <div id="snapshot-preview" class="prose admin-panel snapshot-modal-preview max-w-none rounded-md p-4 text-sm"></div>
             </div>
         </div>
     </div>

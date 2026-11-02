@@ -22,6 +22,7 @@ from ..core.template_filters import get_templates
 from ..core.time_utils import as_utc, format_site_time, utc_now, utc_now_naive
 from ..core.content_utils import (
     detect_stored_editor_mode,
+    get_comparable_content_text,
     get_effective_content_html,
     get_effective_plain_text,
 )
@@ -153,7 +154,7 @@ def compare_snapshot(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """比较快照与当前内容或更早快照的差异，统一按纯文本对比。"""
+    """比较快照与当前内容或更早快照的差异，按保留段落结构的可比文本对比。"""
     db_post = _load_post_or_404(db, post_id)
     _ensure_snapshot_permission(db_post, current_user)
 
@@ -162,17 +163,17 @@ def compare_snapshot(
         raise HTTPException(status_code=404, detail="快照不存在")
 
     snapshot = snapshots[snapshot_index]
-    snapshot_text = get_effective_plain_text(
+    snapshot_text = get_comparable_content_text(
         snapshot.get('content_markdown', ''),
         snapshot.get('content_html', ''),
     )
 
     if compare_with == "current":
-        compare_text = get_effective_plain_text(db_post.content_markdown, db_post.content_html)
+        compare_text = get_comparable_content_text(db_post.content_markdown, db_post.content_html)
         compare_label = "当前版本"
     elif compare_with == "previous" and snapshot_index < len(snapshots) - 1:
         previous = snapshots[snapshot_index + 1]
-        compare_text = get_effective_plain_text(
+        compare_text = get_comparable_content_text(
             previous.get('content_markdown', ''),
             previous.get('content_html', ''),
         )

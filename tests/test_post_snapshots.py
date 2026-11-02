@@ -155,6 +155,43 @@ def test_same_content_update_skips_duplicate_snapshot(test_db):
     assert len(post.version_snapshots) == 1
 
 
+def test_editor_mode_switch_same_content_does_not_create_snapshot(test_db):
+    post = _make_post(test_db, content_markdown="同一段正文")
+
+    # 只切换编辑模式（Markdown -> HTML），正文内容没有变化，不应生成快照
+    _update_content(test_db, post, "", html="<p>同一段正文</p>", editor_mode="html")
+    test_db.refresh(post)
+
+    assert post.content_markdown == ""
+    assert post.content_html == "<p>同一段正文</p>"
+    assert post.version_snapshots == []
+
+
+def test_duplicate_snapshots_are_pruned_on_save(test_db):
+    post = _make_post(test_db)
+
+    duplicates = [
+        {
+            "timestamp": "2026-01-01T00:00:00",
+            "editor_mode": "markdown",
+            "content_markdown": "同一正文",
+            "content_html": "",
+        },
+        {
+            "timestamp": "2026-01-01T00:00:01",
+            "editor_mode": "html",
+            "content_markdown": "",
+            "content_html": "<p>同一正文</p>",
+        },
+    ]
+    crud_post.update_post(test_db, post.id, PostUpdate(version_snapshots=duplicates))
+    test_db.refresh(post)
+
+    # 编辑模式不同但正文一致，只保留最早的一条
+    assert len(post.version_snapshots) == 1
+    assert post.version_snapshots[0]["content_markdown"] == "同一正文"
+
+
 def test_snapshot_limit_keeps_latest_entries(test_db):
     post = _make_post(test_db)
 
@@ -234,6 +271,41 @@ def test_compare_snapshot_returns_diff(snapshot_client, test_db):
     assert body["summary"]["deletions"] >= 1
     assert any(line["type"] == "addition" for line in body["diff"])
     assert any(line["type"] == "deletion" for line in body["diff"])
+
+
+def test_compare_snapshot_keeps_paragraph_structure(snapshot_client, test_db):
+    post = _make_post(test_db, content_markdown="第一段\n\n第二段")
+
+    _update_content(test_db, post, "第一段\n\n第二段修改")
+
+    response = snapshot_client.get(f"/api/v1/posts/{post.id}/snapshots/0/compare?compare_with=current")
+    assert response.status_code == 200, response.text
+    body = response.json()
+
+    # 未变化的段落应作为独立上下文行出现，而不是被折叠成一整行
+    assert any(line["type"] == "context" and line["content"] == " 第一段" for line in body["diff"])
+    assert any(line["type"] == "deletion" and line["content"] == "-第二段" for line in body["diff"])
+
+
+def test_same_content_compare_returns_empty_diff(snapshot_client, test_db):
+    post = _make_post(test_db, content_markdown="完全一致的正文")
+    crud_post.update_post(
+        test_db,
+        post.id,
+        PostUpdate(version_snapshots=[{
+            "timestamp": "2026-01-01T00:00:00",
+            "editor_mode": "markdown",
+            "content_markdown": "完全一致的正文",
+            "content_html": "",
+        }]),
+    )
+
+    response = snapshot_client.get(f"/api/v1/posts/{post.id}/snapshots/0/compare?compare_with=current")
+    assert response.status_code == 200, response.text
+    body = response.json()
+
+    assert body["summary"]["total_changes"] == 0
+    assert body["diff"] == []
 
 
 def test_batch_clear_snapshots_across_posts_and_pages(snapshot_client, test_db):

@@ -112,6 +112,10 @@ def _insert_post(
 
 def test_attr_list_renders_size_class_and_width():
     """attr_list 生效后，语义类与原生 width 都能输出到 img 标签。"""
+    fragment_html = render_markdown_html("![演示](/media/demo.jpg#md-img-lg)")
+    assert 'class="md-img-lg"' in fragment_html
+    assert "#md-img-lg" not in fragment_html
+
     class_html = render_markdown_html("![演示](/media/demo.jpg){: .md-img-sm }")
     assert 'class="md-img-sm"' in class_html
 

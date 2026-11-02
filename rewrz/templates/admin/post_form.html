@@ -269,6 +269,22 @@
         font-size: var(--editor-font-size, 17px);
         line-height: 1.9;
     }
+    /* 编辑区按尺寸片段预览图片，与前台 md-img 档位保持一致 */
+    .editor-surface .toastui-editor-contents img[src*="#md-img-xs"] {
+        max-width: 240px;
+    }
+    .editor-surface .toastui-editor-contents img[src*="#md-img-sm"] {
+        max-width: 360px;
+    }
+    .editor-surface .toastui-editor-contents img[src*="#md-img-md"] {
+        max-width: 560px;
+    }
+    .editor-surface .toastui-editor-contents img[src*="#md-img-lg"] {
+        max-width: 800px;
+    }
+    .editor-surface .toastui-editor-contents img[src*="#md-img-full"] {
+        max-width: 100%;
+    }
     .editor-utility-pill {
         display: inline-flex;
         align-items: center;
@@ -700,6 +716,23 @@
             editor.setHeight(isEditorFullscreen() ? '82vh' : '70vh');
         }
 
+        function syncSidePanelHeight() {
+            const mainPanel = document.getElementById('editor-main-panel');
+            const sideHost = document.getElementById('editor-side-panel');
+            const sidePanel = sideHost ? sideHost.querySelector(':scope > .admin-panel') : null;
+            if (!mainPanel || !sideHost || !sidePanel) return;
+            if (isEditorFullscreen() || !window.matchMedia('(min-width: 1120px)').matches) {
+                sidePanel.style.maxHeight = '';
+                return;
+            }
+            // 两栏随页面同步位移，视口坐标差值不受滚动影响
+            const alignHeight = mainPanel.getBoundingClientRect().bottom - sideHost.getBoundingClientRect().top;
+            // 粘性定位顶部 6rem，预留 1rem 底部安全距离
+            const viewportLimit = window.innerHeight - 96 - 16;
+            const nextHeight = Math.max(320, Math.min(alignHeight, viewportLimit));
+            sidePanel.style.maxHeight = `${Math.round(nextHeight)}px`;
+        }
+
         function updateFullscreenButton() {
             if (!fullscreenToggleButton) return;
             const active = isEditorFullscreen();
@@ -720,6 +753,7 @@
             document.body.classList.toggle('editor-fullscreen-active', target);
             updateFullscreenButton();
             applyEditorHeight();
+            syncSidePanelHeight();
             setTimeout(() => {
                 try {
                     editor.focus();
@@ -1046,6 +1080,10 @@
         setEditorMode(initialEditorMode, false);
         updateFullscreenButton();
         applyEditorHeight();
+        syncSidePanelHeight();
+        if (window.ResizeObserver) {
+            new ResizeObserver(syncSidePanelHeight).observe(document.getElementById('editor-main-panel'));
+        }
         syncDirtyState(true);
         setTimeout(() => {
             isInitializing = false;
@@ -1085,6 +1123,7 @@
             if (isEditorFullscreen()) {
                 applyEditorHeight();
             }
+            syncSidePanelHeight();
         });
 
         postForm.addEventListener('htmx:configRequest', function (event) {
@@ -1355,13 +1394,12 @@
             const safeUrl = String(mediaItem.url || '').replaceAll('"', '%22');
             if (!safeUrl) return '';
             if (mediaItem.file_type === 'image') {
-                // 指定尺寸时输出带 class 的 img：编辑器的 Markdown 预览不解析 attr_list，
-                // 用原生 HTML 片段可以让后台预览与前台渲染保持一致。
+                // 尺寸档位写入 URL fragment：Toast UI 在 Markdown/富文本往返时
+                // 会丢弃 class/style 等属性，但会完整保留 src 片段；服务端渲染时
+                // 再把 #md-img-* 转成真实 class，避免编辑器模式切换异常。
                 const sizeClass = String((options && options.sizeClass) || '').trim();
-                if (sizeClass) {
-                    return `<img src="${safeUrl}" alt="${escapeHtml(altText)}" class="${sizeClass}">`;
-                }
-                return `![${escapeMarkdownText(altText)}](${safeUrl})`;
+                const imageUrl = sizeClass ? `${safeUrl}#${sizeClass}` : safeUrl;
+                return `![${escapeMarkdownText(altText)}](${imageUrl})`;
             }
             return `<a href="${safeUrl}">${escapeHtml(fileLabel)}</a>`;
         }

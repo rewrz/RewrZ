@@ -20,6 +20,7 @@ from ..core.content_utils import (
     normalize_content_rating,
     get_effective_plain_text,
     get_effective_content_html,
+    get_comparable_content_text,
     render_markdown_html,
     detect_stored_editor_mode,
 )
@@ -38,12 +39,30 @@ from typing import Optional, List, Tuple
 SNAPSHOT_LIMIT = 5
 
 
-def _snapshot_matches_content(snapshot: dict, content_markdown: str, content_html: str) -> bool:
-    """判断快照是否已经代表同一份正文，避免重复写入。"""
-    return (
-        str(snapshot.get("content_markdown") or "") == content_markdown
-        and str(snapshot.get("content_html") or "") == content_html
+def _snapshot_content_text(snapshot: dict) -> str:
+    return get_comparable_content_text(
+        str(snapshot.get("content_markdown") or ""),
+        str(snapshot.get("content_html") or ""),
     )
+
+
+def _snapshot_matches_content(snapshot: dict, comparable_text: str) -> bool:
+    """判断快照是否已经代表同一份正文，避免重复写入。"""
+    return _snapshot_content_text(snapshot) == comparable_text
+
+
+def _dedupe_snapshots(snapshots: list[dict]) -> list[dict]:
+    """按正文可比文本去重，清掉编辑模式切换产生的无差异快照。"""
+    deduped: list[dict] = []
+    seen_texts: set[str] = set()
+    for item in snapshots:
+        text = _snapshot_content_text(item)
+        if text and text in seen_texts:
+            continue
+        if text:
+            seen_texts.add(text)
+        deduped.append(item)
+    return deduped
 
 
 def _invalidate_public_caches() -> None:
@@ -648,18 +667,21 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
             if content_changed and not snapshots_explicitly_set:
                 old_markdown = db_post.content_markdown or ""
                 old_html = db_post.content_html or ""
-                snapshots = list(db_post.version_snapshots or [])
-                if (old_markdown.strip() or old_html.strip()) and (
-                    not snapshots or not _snapshot_matches_content(snapshots[0], old_markdown, old_html)
-                ):
-                    snapshots.insert(0, {
-                        "timestamp": utc_now_naive().isoformat(),
-                        "editor_mode": detect_stored_editor_mode(old_markdown, old_html),
-                        "content_markdown": old_markdown,
-                        "content_html": old_html,
-                    })
+                old_text = get_comparable_content_text(old_markdown, old_html)
+                next_text = get_comparable_content_text(next_markdown, next_html)
+                # 只有正文可比文本真正变化时才记录快照：编辑器模式切换、
+                # 尾随换行、图片尺寸调整等纯排版差异不再浪费快照空间。
+                if old_text and old_text != next_text:
+                    snapshots = list(db_post.version_snapshots or [])
+                    if not snapshots or not _snapshot_matches_content(snapshots[0], old_text):
+                        snapshots.insert(0, {
+                            "timestamp": utc_now_naive().isoformat(),
+                            "editor_mode": detect_stored_editor_mode(old_markdown, old_html),
+                            "content_markdown": old_markdown,
+                            "content_html": old_html,
+                        })
                     # JSON 列不支持原位变更追踪，必须整体赋值才会落库
-                    db_post.version_snapshots = snapshots[:SNAPSHOT_LIMIT]
+                    db_post.version_snapshots = _dedupe_snapshots(snapshots)[:SNAPSHOT_LIMIT]
             db_post.content_markdown = next_markdown
             db_post.content_html = next_html
 
@@ -667,8 +689,8 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
             if key == "excerpt":
                 db_post.excerpt = _normalize_excerpt_value(value)
             elif key == "version_snapshots":
-                # 任何写入路径都不能突破快照上限
-                db_post.version_snapshots = list(value or [])[:SNAPSHOT_LIMIT]
+                # 任何写入路径都不能突破快照上限，同时清掉正文重复的快照
+                db_post.version_snapshots = _dedupe_snapshots(list(value or []))[:SNAPSHOT_LIMIT]
             # 跳过featured_image_url，因为它已经在上面处理过了
             elif key not in {"featured_image_url", "category_ids", "tag_ids", "format_ids", "content_markdown", "content_html", "editor_mode"}:
                 setattr(db_post, key, value)

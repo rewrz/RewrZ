@@ -1,5 +1,6 @@
 import re
 from functools import lru_cache
+from html import unescape
 from typing import Optional
 
 from markdown import markdown
@@ -12,6 +13,86 @@ TASK_LIST_ITEM_PATTERN = re.compile(r"<li>\s*\[([ xX])\]\s*")
 # Markdown 区块指令：:::名称 [参数]，闭合为单独一行 :::
 DIRECTIVE_OPEN_PATTERN = re.compile(r"^:::(\w+)(?:\s+([\w-]+))?$")
 DIRECTIVE_CLOSE_LINE = ":::"
+# 正文图片标签与尺寸档位：编辑器用 URL fragment 承载尺寸（#md-img-lg），
+# 因为 Toast UI 在 Markdown/富文本往返时会丢弃 class 等非白名单属性。
+HTML_IMAGE_TAG_PATTERN = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
+HTML_SRC_ATTR_PATTERN = re.compile(r'(?<![\w:-])src\s*=\s*(?:"([^"]*)"|\'([^\']*)\')', re.IGNORECASE)
+HTML_ALT_ATTR_PATTERN = re.compile(r'(?<![\w:-])alt\s*=\s*(?:"([^"]*)"|\'([^\']*)\')', re.IGNORECASE)
+HTML_CLASS_ATTR_PATTERN = re.compile(r'(?<![\w:-])class\s*=\s*(?:"([^"]*)"|\'([^\']*)\')', re.IGNORECASE)
+MARKDOWN_IMAGE_SIZE_FRAGMENT_PATTERN = re.compile(r"#md-img-(?:xs|sm|md|lg|full)$", re.IGNORECASE)
+# 可比文本按块级标签断行，保证 diff 有真实的行结构
+HTML_BLOCK_BOUNDARY_PATTERN = re.compile(
+    r"</?(?:p|div|section|article|aside|header|footer|nav|blockquote|figure|figcaption|"
+    r"h[1-6]|ul|ol|li|table|thead|tbody|tr|th|td|pre|hr|br)\b[^>]*>",
+    re.IGNORECASE,
+)
+
+
+def _read_tag_attr(pattern: re.Pattern, tag: str) -> Optional[str]:
+    """读取标签上的属性值，同时兼容单引号与双引号写法。"""
+    match = pattern.search(tag)
+    if not match:
+        return None
+    return match.group(1) if match.group(1) is not None else match.group(2)
+
+
+def _image_tag_to_text(tag: str) -> str:
+    """把图片标签折叠成可用于 diff 的文本标记，保留图片地址但不比较尺寸片段。"""
+    src = _read_tag_attr(HTML_SRC_ATTR_PATTERN, tag) or ""
+    alt = _read_tag_attr(HTML_ALT_ATTR_PATTERN, tag) or ""
+    src = MARKDOWN_IMAGE_SIZE_FRAGMENT_PATTERN.sub("", src)
+    return f"![{alt}]({src})"
+
+
+def _replace_image_size_fragment(match: re.Match) -> str:
+    """把 src 里的 #md-img-* 片段转成对应的尺寸 class，并清理 URL 片段。"""
+    tag = match.group(0)
+    src_attr = HTML_SRC_ATTR_PATTERN.search(tag)
+    if src_attr is None:
+        return tag
+
+    raw_src = src_attr.group(1) if src_attr.group(1) is not None else src_attr.group(2)
+    fragment_match = MARKDOWN_IMAGE_SIZE_FRAGMENT_PATTERN.search(raw_src or "")
+    if fragment_match is None:
+        return tag
+
+    size = fragment_match.group(0)[len("#md-img-"):].strip().lower()
+    size_class = f"md-img-{size}"
+    cleaned_src = raw_src[:fragment_match.start()]
+    tag = f'{tag[:src_attr.start()]}src="{cleaned_src}"{tag[src_attr.end():]}'
+
+    class_attr = HTML_CLASS_ATTR_PATTERN.search(tag)
+    if class_attr is not None:
+        class_value = class_attr.group(1) if class_attr.group(1) is not None else class_attr.group(2)
+        class_names = [name for name in (class_value or "").split() if name]
+        if size_class not in class_names:
+            class_names.append(size_class)
+        return f'{tag[:class_attr.start()]}class="{" ".join(class_names)}"{tag[class_attr.end():]}'
+
+    closing = "/>" if tag.rstrip().endswith("/>") else ">"
+    body = tag.rstrip()[:-len(closing)].rstrip()
+    return f'{body} class="{size_class}" {closing}'
+
+
+def apply_image_size_fragments(html_content: Optional[str]) -> str:
+    """把正文图片地址里的尺寸片段转换为真实 class，供前端尺寸样式生效。"""
+    raw_html = html_content or ""
+    if "#md-img-" not in raw_html:
+        return raw_html
+    return HTML_IMAGE_TAG_PATTERN.sub(_replace_image_size_fragment, raw_html)
+
+
+def _html_to_comparable_text(content_html: str) -> str:
+    """把 HTML 转成保留段落结构的可比文本，用于快照去重与 diff。"""
+    if not content_html:
+        return ""
+
+    text = HTML_IMAGE_TAG_PATTERN.sub(lambda match: _image_tag_to_text(match.group(0)), content_html)
+    text = HTML_BLOCK_BOUNDARY_PATTERN.sub("\n", text)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = unescape(text)
+    lines = [re.sub(r"[ \t\u00a0\u3000]+", " ", line).strip() for line in text.splitlines()]
+    return "\n".join(line for line in lines if line)
 
 
 def _render_task_list_items(html_content: str) -> str:
@@ -190,8 +271,10 @@ def render_markdown_html(content_markdown: Optional[str]) -> str:
     - extra: 支持表格、围栏代码块等常见语法
     - sane_lists: 列表渲染更稳定
     - nl2br: 单换行也保留为可见换行
+
+    图片尺寸片段（#md-img-*）在这里统一转成真实 class，保证前台尺寸样式生效。
     """
-    return _render_markdown_html_cached(content_markdown or "")
+    return apply_image_size_fragments(_render_markdown_html_cached(content_markdown or ""))
 
 
 def normalize_content_rating(value: Optional[str], fallback: str = "general") -> str:
@@ -248,7 +331,8 @@ def infer_editor_mode(
 def _get_effective_content_html_cached(content_markdown: str, content_html: str) -> str:
     html_content = content_html.strip()
     if html_content:
-        return html_content
+        # HTML 模式同样可能带着编辑器写入的尺寸片段，这里统一收口
+        return apply_image_size_fragments(html_content)
 
     return render_markdown_html(content_markdown)
 
@@ -309,3 +393,33 @@ def _get_effective_plain_text_cached(content_markdown: str, content_html: str) -
 
 def get_effective_plain_text(content_markdown: Optional[str], content_html: Optional[str]) -> str:
     return _get_effective_plain_text_cached(content_markdown or "", content_html or "")
+
+
+@lru_cache(maxsize=128)
+def _get_comparable_content_text_cached(content_markdown: str, content_html: str) -> str:
+    html_content = content_html.strip()
+    if html_content:
+        text = _html_to_comparable_text(html_content)
+        if text:
+            return text
+
+    markdown_content = content_markdown.strip()
+    if markdown_content:
+        rendered_html = render_markdown_html(markdown_content)
+        text = _html_to_comparable_text(rendered_html)
+        if text:
+            return text
+        fallback_text = markdown_to_plain_text(markdown_content)
+        if fallback_text:
+            return fallback_text
+
+    return ""
+
+
+def get_comparable_content_text(content_markdown: Optional[str], content_html: Optional[str]) -> str:
+    """返回保留段落结构的正文可比文本，用于快照去重与差异对比。
+
+    与纯文本口径不同，这里按块级标签断行，Markdown/HTML 两种存储模式
+    只要正文一致就会得到相同结果，不会因为编辑器模式切换而产生假差异。
+    """
+    return _get_comparable_content_text_cached(content_markdown or "", content_html or "")
