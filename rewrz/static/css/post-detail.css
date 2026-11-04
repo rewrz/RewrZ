@@ -1149,8 +1149,10 @@ body.site-shell .donation-widget .donation-qr-block {
 body.site-shell .donation-widget .donation-qr-image {
     width: 64px;
     height: 64px;
+    padding: 2px;
     border-radius: 0.45rem;
-    object-fit: cover;
+    object-fit: contain;
+    background: #ffffff;
     box-shadow: 0 10px 22px -18px rgba(15, 23, 42, 0.3);
 }
 

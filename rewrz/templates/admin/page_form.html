@@ -53,6 +53,10 @@
         overflow: hidden;
         background: color-mix(in srgb, var(--color-card-bg) 96%, transparent);
     }
+    .editor-surface.is-media-dragover {
+        border-color: color-mix(in srgb, var(--color-primary) 55%, var(--ui-border) 45%) !important;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent) !important;
+    }
     .editor-surface .toastui-editor-defaultUI {
         border: 0;
     }
@@ -93,6 +97,16 @@
         bottom: 0.75rem;
         z-index: 35;
         backdrop-filter: blur(10px);
+    }
+    /* 移动端改为文档流内的紧凑操作栏，避免固定浮层盖住工具栏与正文 */
+    @media (max-width: 767px) {
+        .editor-actionbar {
+            position: static;
+            bottom: auto;
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            backdrop-filter: none;
+        }
     }
     .editor-surface .toastui-editor-md-container .cm-content,
     .editor-surface .toastui-editor-md-container .CodeMirror-lines,
@@ -924,6 +938,45 @@
             event.target.value = '';
         });
     }
+
+    // 拖拽上传图片/视频/音频：复用直传逻辑，拖入时高亮，失败时统一提示
+    (function enableEditorDropUpload() {
+        const dropRoot = document.getElementById('editor');
+        if (!dropRoot) return;
+        let dragDepth = 0;
+        const hasFiles = (event) => {
+            const types = event.dataTransfer ? Array.from(event.dataTransfer.types || []) : [];
+            return types.includes('Files');
+        };
+        dropRoot.addEventListener('dragenter', (event) => {
+            if (!hasFiles(event)) return;
+            event.preventDefault();
+            dragDepth += 1;
+            dropRoot.classList.add('is-media-dragover');
+        }, true);
+        dropRoot.addEventListener('dragover', (event) => {
+            if (!hasFiles(event)) return;
+            event.preventDefault();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+        }, true);
+        dropRoot.addEventListener('dragleave', (event) => {
+            if (!hasFiles(event)) return;
+            dragDepth = Math.max(0, dragDepth - 1);
+            if (!dragDepth) dropRoot.classList.remove('is-media-dragover');
+        }, true);
+        dropRoot.addEventListener('drop', (event) => {
+            const files = Array.from(event.dataTransfer ? event.dataTransfer.files || [] : []);
+            if (!files.length) return;
+            event.preventDefault();
+            event.stopPropagation();
+            dragDepth = 0;
+            dropRoot.classList.remove('is-media-dragover');
+            const normalizedFiles = files.map((file) => (
+                String(file.type || '').toLowerCase().startsWith('image/') ? normalizeImageFile(file) : file
+            ));
+            handleDirectUpload(normalizedFiles);
+        }, true);
+    })();
 
     const insertMediaButton = document.getElementById('insert-media-button');
     if (insertMediaButton) {

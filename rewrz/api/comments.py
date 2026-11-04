@@ -16,11 +16,13 @@ from ..crud import user as crud_user
 from ..schemas import CommentCreate, Comment, User
 from ..core.security import (
     decode_access_token,
+    ensure_admin_user,
     get_current_user,
     is_user_token_payload_valid,
     should_use_secure_cookie,
     verify_csrf_token,
 )
+import hmac
 from pydantic import BaseModel
 from typing import List, Optional
 from markdown import markdown
@@ -252,14 +254,23 @@ async def create_comment_api(
         raise HTTPException(status_code=400, detail="表单已过期，请刷新页面后重试")
     
     elif spam_result.action == "captcha":
-        # 需要验证码确认
-        if not captcha_response or captcha_response != request.session.get('captcha'):
+        # 需要验证码确认：验证通过后立即销毁会话中的验证码，防止同一张验证码被重复使用。
+        session_captcha = str(request.session.get('captcha') or "")
+        submitted_captcha = str(captcha_response or "").strip()
+        if (
+            not session_captcha
+            or not submitted_captcha
+            or not hmac.compare_digest(
+                session_captcha.encode("utf-8"), submitted_captcha.encode("utf-8")
+            )
+        ):
             # 通过响应头告知前端“本条需要验证码”，前端据此按需揭示验证码区域
             raise HTTPException(
                 status_code=400,
                 detail="验证码错误，请重新输入",
                 headers={"X-RewrZ-Captcha-Required": "1"},
             )
+        request.session.pop('captcha', None)
         
     # 决定评论状态
     if spam_result.action == "moderate" or spam_result.confidence > 0.3:
@@ -544,6 +555,7 @@ def approve_comment_api(
     批准评论
     """
     verify_csrf_token(request, csrf_token)
+    ensure_admin_user(current_user)
     db_comment = crud_comment.update_comment_status(db, comment_id=comment_id, status="approved")
     if db_comment is None:
         raise HTTPException(status_code=404, detail="评论不存在")
@@ -562,6 +574,7 @@ def delete_comment_api(
     删除评论
     """
     verify_csrf_token(request, csrf_token)
+    ensure_admin_user(current_user)
     db_comment = crud_comment.delete_comment(db, comment_id=comment_id)
     if db_comment is None:
         raise HTTPException(status_code=404, detail="评论不存在")
@@ -584,6 +597,7 @@ def moderate_comment(
         action: 审核动作 (approve/reject/spam)
     """
     verify_csrf_token(request, csrf_token)
+    ensure_admin_user(current_user)
     if action not in ["approve", "reject", "spam"]:
         raise HTTPException(status_code=400, detail="无效的操作类型")
     
@@ -616,6 +630,7 @@ def bulk_action_api(
     批量操作评论
     """
     verify_csrf_token(request, csrf_token)
+    ensure_admin_user(current_user)
     comment_ids = sorted({
         comment_id for comment_id in (bulk_action.comment_ids or [])
         if isinstance(comment_id, int) and comment_id > 0
@@ -654,6 +669,7 @@ def lookup_comment_ip_geo(
     批量查询评论IP地理位置信息（用于后台列表参考展示）
     """
     verify_csrf_token(request, csrf_token)
+    ensure_admin_user(current_user)
     ips = payload.ips if payload and payload.ips else []
     return {"success": True, "locations": lookup_ip_locations(ips)}
 
@@ -671,6 +687,7 @@ def admin_reply_to_comment(
     管理员回复评论
     """
     verify_csrf_token(request, csrf_token)
+    ensure_admin_user(current_user)
     # 获取被回复的评论
     original_comment = crud_comment.get_comment(db, comment_id=comment_id)
     if not original_comment:
@@ -718,6 +735,7 @@ def get_pending_comments(
     """
     获取待审核的评论列表
     """
+    ensure_admin_user(current_user)
     pending_comments = crud_comment.get_comments(
         db=db,
         status="pending",

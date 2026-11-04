@@ -1317,12 +1317,17 @@
     color: color-mix(in srgb, var(--color-primary) 22%, #e11d48 78%) !important;
 }
 
+/* 拖拽上传时的高亮提示：只使用主题变量，兼容动态主题 */
+.format-archive-glass #micro-quick-post-form.is-media-dragover .micro-composer-textarea {
+    border-color: color-mix(in srgb, var(--color-primary) 55%, var(--color-border) 45%) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+
+/* 说明文字改为输入框下方的正常文档流，避免长文本/多行输入时被绝对定位层遮住 */
 .format-archive-glass .micro-composer-corner-note {
     pointer-events: none;
-    position: absolute;
-    right: 1rem;
-    bottom: 0.8rem;
-    max-width: min(60%, 18rem);
+    margin-top: -0.25rem;
+    padding-right: 0.25rem;
     text-align: right;
     font-size: 11px;
     line-height: 1.45;

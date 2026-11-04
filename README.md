@@ -84,6 +84,7 @@ RewrZ 不是“大而全 CMS”，也不是“纯静态生成器”，而是偏�
 - 开发文档：[`docs/guides/DEVELOPMENT.md`](docs/guides/DEVELOPMENT.md)
 - APP 开发指南：[`docs/architecture/API_APP.md`](docs/architecture/API_APP.md)
 - 发布包生成：[`docs/operations/RELEASE.md`](docs/operations/RELEASE.md)
+- 生产部署与 Nginx 加固：[`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md)
 - 路线图（含 AI / 联邦化方向）：[`docs/planning/ROADMAP.md`](docs/planning/ROADMAP.md)
 
 ## 快速开始

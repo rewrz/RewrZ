@@ -620,6 +620,25 @@ DNT 用户、禁用 JS 的用户与爬虫不会执行上报，这部分由回源
 已知垃圾爬虫、任何自称 `bot/crawler/spider/scraper` 的 UA 与空 UA 返回 `403`，
 扫描路径返回 `404`，这些请求不会进入会话、设置与数据库。
 
+通用兜底规则按子串匹配，包含 `bot` 字样的手机品牌裸 UA（例如 `CUBOT`）会被误判。
+默认保持拦截；需要放行时在 `.env` 增加例外（逗号分隔、小写子串匹配、命中即放行）：
+
+```env
+BOT_BLOCK_UA_ALLOWLIST=cubot
+```
+
+修改后重启应用：`sudo systemctl restart rewrz`。Nginx 侧如果启用了本节下面的 `map`，
+还要同步加入 `"~*cubot" 0;`，否则请求仍会在 Nginx 层返回 `403`。
+
+例外只写具体品牌/设备串，不要写 `bot`、`spider`、`crawler` 这类宽泛词，
+否则会把垃圾蜘蛛一并放行。验证：
+
+```bash
+curl -I -A 'CUBOT X30' https://example.com/
+```
+
+应返回 `200` 而不是 `403`；再换一个带 `Bytespider` 的 UA 确认仍为 `403`。
+
 在 Nginx 再加一层可以更进一步：请求连 uvicorn 都不会到达，直接由 Nginx 拒绝，
 节省带宽与进程调度。在站点配置文件**顶层**（`server {}` 之外）加入：
 
@@ -796,7 +815,232 @@ map $http_user_agent $rewrz_bad_bot {
   现有 `/static/` 配的是普通前缀，不受影响
 - 改完执行 `sudo nginx -t && sudo systemctl reload nginx` 验证
 
-### 7.6 启用配置
+### 7.6 可信代理与真实 IP
+
+应用的 `get_client_ip` 只在直连方属于 `.env` 的 `TRUSTED_PROXIES`（默认 `127.0.0.1,::1`）
+时才解析 `X-Forwarded-For`，否则按直连地址记录。Nginx 反代到本机应用时，
+真实 IP 由 Nginx 还原并通过 `X-Forwarded-For` 传给应用。
+
+**只有在本机或已知反代之后才能信任 XFF。** 如果 Nginx 直接暴露公网，又配置了
+`set_real_ip_from 0.0.0.0/0;`，任何人都能伪造 IP，登录封禁、评论限流、验证码限流、
+访问统计 UV 与审计记录都会失真。
+
+站点前面只有本机 Nginx 时，创建 `/etc/nginx/conf.d/rewrz-real-ip.conf`：
+
+```nginx
+# 仅信任本机 Nginx；有上游反代时按实际网段追加，不要写成 0.0.0.0/0
+set_real_ip_from 127.0.0.1;
+set_real_ip_from ::1;
+real_ip_header X-Forwarded-For;
+real_ip_recursive on;
+```
+
+站点配置中覆盖而不是追加 XFF：
+
+```nginx
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $remote_addr;
+proxy_set_header X-Forwarded-Proto $scheme;
+```
+
+`.env` 保持默认即可：
+
+```env
+TRUSTED_PROXIES=127.0.0.1,::1
+```
+
+生效位置：`set_real_ip_from` / `real_ip_header` 可写在 Nginx 的 `http`、`server` 或
+`location` 上下文；放在 `conf.d/*.conf` 时由 `nginx.conf` 的 `include` 加载，对全部站点生效。
+`proxy_set_header` 写在需要回源的 `location` 内。
+
+Cloudflare 回源使用 `CF-Connecting-IP`，按 [`CLOUDFLARE_ORIGIN.md`](CLOUDFLARE_ORIGIN.md)
+配置；不要把 Cloudflare 网段写进 `TRUSTED_PROXIES`。
+
+验证：
+
+```bash
+nginx -T | grep -E 'real_ip_header|set_real_ip_from' | head
+sudo tail -n 20 /var/log/nginx/access.log
+```
+
+访问日志应为访客公网 IP，而不是 `127.0.0.1` 或上游反代地址；后台“登录审计”
+与评论记录中的 IP 应一致。
+
+影响范围：应用的真实 IP 判定同时决定登录失败封禁、评论频率限制、验证码图片限流、
+访问统计 UV 去重与审计日志；Nginx 限流用的也是同一个 `$remote_addr`。
+
+### 7.7 限流、请求体与慢连接
+
+这些限制全部在部署层完成，应用里没有重复实现。Nginx 配置只用示例后台路径
+`/rewrz-admin`，请替换为你的实际 `ADMIN_PATH`。
+
+#### 7.7.1 频率限制
+
+在 `/etc/nginx/conf.d/rewrz-limits.conf` 写 `http` 级共享区（`conf.d` 默认被 `http {}` 引入）：
+
+```nginx
+# 按客户端 IP 限流；10m 约可容纳 16 万个地址
+limit_req_zone $binary_remote_addr zone=rewrz_login:10m rate=5r/m;
+limit_req_zone $binary_remote_addr zone=rewrz_comment:10m rate=40r/m;
+limit_req_zone $binary_remote_addr zone=rewrz_captcha:10m rate=50r/m;
+limit_conn_zone $binary_remote_addr zone=rewrz_conn:10m;
+
+limit_req_status 429;
+limit_conn_status 429;
+```
+
+建议阈值与站内现状的对应关系：
+
+| 接口 | Nginx 建议 | 应用层现状 | 说明 |
+|---|---|---|---|
+| `POST /<ADMIN_PATH>/auth` 登录 | `rate=5r/m burst=3 nodelay` | 连续失败 3 次封 IP 15 分钟（安全中心可调） | Nginx 只限制频率，是否封禁由应用判定 |
+| `POST /api/v1/comments/{id}` 评论 | `rate=40r/m burst=10 nodelay` | 默认 30 次/分/IP（安全中心可调） | Nginx 略高于应用，保留应用的中文提示与审计 |
+| `GET /api/v1/captcha` 验证码 | `rate=50r/m burst=20 nodelay` | 40 次/分/IP（固定） | 防止图片生成被刷 CPU |
+
+Nginx 阈值不要低于应用阈值，否则请求会先被 Nginx 429 拦下，访客看不到应用的中文提示。
+反向调整时两处一起改：先改应用设置，再改 Nginx。
+
+在站点配置的 `server {}` 内加入：
+
+```nginx
+    location = /api/v1/captcha {
+        limit_req zone=rewrz_captcha burst=20 nodelay;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 同时覆盖 /api/v1/comments/{id} 与旧前缀 /api/comments/{id}
+    location ~ ^/api(?:/v1)?/comments/[0-9]+$ {
+        limit_req zone=rewrz_comment burst=10 nodelay;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /rewrz-admin/auth {
+        limit_req zone=rewrz_login burst=3 nodelay;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+```
+
+验证 429：
+
+```bash
+for i in $(seq 1 40); do
+  curl -s -o /dev/null -w '%{http_code}\n' -A 'Mozilla/5.0' \
+    https://example.com/api/v1/captcha &
+done | sort | uniq -c
+```
+
+`rate=50r/m` + `burst=20` 下，瞬时并发超过突发量后应出现 `429`；正常单次访问仍为 `200`。
+
+#### 7.7.2 请求体大小
+
+在站点 `server {}` 顶层保留：
+
+```nginx
+    client_max_body_size 100m;
+```
+
+与应用限制的对应关系：
+
+| 上传入口 | 应用层上限 | 说明 |
+|---|---|---|
+| 媒体库 / 编辑器单文件 | 默认 50MB（媒体设置 `media_max_file_size` 可调） | 超过时应用返回 `400` + 中文提示 |
+| 完整备份 ZIP 导入 | 100MB | `client_max_body_size` 至少 100m |
+| WXR 导入 | 50MB | — |
+| JSON 导入 | 10MB | — |
+
+如果后台把 `media_max_file_size` 调到 100MB 以上，`client_max_body_size` 要同步调大，
+否则请求在 Nginx 层就被 `413` 截断。经 Cloudflare 回源时还要受其套餐的 100MB 上传上限约束。
+
+验证 413：
+
+```bash
+dd if=/dev/zero of=/tmp/rewrz-big.bin bs=1M count=120
+curl -i -X POST --data-binary @/tmp/rewrz-big.bin https://example.com/
+```
+
+应返回 `413 Request Entity Too Large`，且请求不会转发到 uvicorn。
+
+#### 7.7.3 超时与慢连接
+
+同一 `server {}` 内加入：
+
+```nginx
+    client_header_timeout 15s;
+    client_body_timeout 30s;
+    keepalive_timeout 30s;
+    keepalive_requests 100;
+    send_timeout 30s;
+
+    proxy_connect_timeout 10s;
+    proxy_read_timeout 120s;
+    proxy_send_timeout 120s;
+
+    limit_conn rewrz_conn 20;
+```
+
+- `client_header_timeout` / `client_body_timeout` 限制慢速发送请求头、请求体（Slowloris 类攻击）
+- `keepalive_timeout` / `keepalive_requests` 限制长连接占用
+- `proxy_read_timeout` / `proxy_send_timeout` 给缩略图生成与大文件导入留出时间；
+  不要低于 60s，否则后台生成缩略图或导入备份会被提前断开
+- `limit_conn` 限制单 IP 并发连接数，配合 `limit_conn_status 429`
+
+验证限流与连接数：
+
+```bash
+ab -n 200 -c 50 https://example.com/
+```
+
+高频并发下应出现 `429` 或 `503`；正常访问不应被误伤。若站点图片/视频较重，
+可把 `limit_conn rewrz_conn 20` 调到 30 再验证。
+
+#### 7.7.4 静态缓存与压缩（可选）
+
+`/static/` 与 `/media/` 的 30 天缓存已在 7.2 配置。再补 `http` 级压缩：
+
+```nginx
+gzip on;
+gzip_comp_level 5;
+gzip_min_length 1024;
+gzip_vary on;
+gzip_types text/plain text/css text/xml application/javascript application/json
+           application/xml image/svg+xml;
+```
+
+只压缩文本类资源，不要对图片、视频、音频再压缩。
+
+### 7.8 应用层与部署层防护分工
+
+| 防护项 | 应用层已实现（不要重复改代码） | 部署层负责 |
+|---|---|---|
+| 安全响应头 | 全部响应带 `X-Content-Type-Options`、`Referrer-Policy`、`Permissions-Policy`；后台额外 `X-Frame-Options` 与 `CSP frame-ancestors`；HTTPS 自动加 HSTS | 无需重复添加，除非要覆盖为更严格的值 |
+| 垃圾爬虫 / 扫描路径 | `BOT_BLOCK_ENABLED` 开关、内置 UA 白名单、`BOT_BLOCK_UA_ALLOWLIST` 例外、扫描路径 404 | 7.5 的 `map` 可选前置拦截，省带宽 |
+| 登录暴力破解 | 失败 3 次封 IP 15 分钟（可调）+ 登录审计 + 新 IP 告警 | 7.7.1 的 `limit_req` |
+| 评论反滥用 | 蜜罐、时间阈值、关键词/链接、Akismet、验证码；默认 30 次/分/IP | 7.7.1 的 `limit_req` |
+| 验证码图片 | 40 次/分/IP 限流、`no-store` 缓存头、单次使用 | 7.7.1 的 `limit_req` |
+| 请求体大小 | 媒体单文件 50MB 流式校验；备份 100MB、WXR 50MB、JSON 10MB | 7.7.2 的 `client_max_body_size` |
+| 慢连接 / 连接数 | 不实现 | 7.7.3 的 timeout 与 `limit_conn` |
+| 真实 IP | `TRUSTED_PROXIES` + XFF 可信链解析 | 7.6 的 `real_ip` 与 XFF 覆盖 |
+| 静态资源缓存 | 列表页/详情页缓存策略与 `Cache-Control` | `/static/`、`/media/` 直出与 `expires` |
+
+结论：请求体上限、连接数、慢连接、压缩与边缘缓存属于 Nginx 职责，应用层不重复实现；
+需要调整阈值时改 Nginx 与应用设置，不要新增应用中间件。
+
+### 7.9 启用配置
 
 ```bash
 sudo rm -f /etc/nginx/sites-enabled/default
@@ -831,6 +1075,12 @@ curl -I https://example.com/<你的ADMIN_PATH>/login
 
 # 静态资源（必须 200，不能是跨域绝对地址）
 curl -I https://example.com/static/css/site-tailwind.css
+
+# 安全响应头
+curl -sI https://example.com/ | grep -Ei 'x-content-type-options|referrer-policy|permissions-policy'
+curl -sI https://example.com/<你的ADMIN_PATH>/login | grep -Ei 'x-frame-options|content-security-policy'
+
+# 限流、大包与慢连接按 7.7 的验证命令执行
 ```
 
 人工验收建议：

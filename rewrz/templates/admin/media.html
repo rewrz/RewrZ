@@ -81,9 +81,45 @@
         outline-offset: -3px;
         border-color: color-mix(in srgb, var(--color-primary) 62%, transparent);
     }
+    /* 拖入高亮：后台空状态样式带 !important，这里必须同步提高优先级才能覆盖 */
     .upload-drop-zone.dragover {
-        border-color: color-mix(in srgb, var(--color-primary) 58%, transparent);
-        background-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg));
+        border-color: var(--color-primary) !important;
+        background: color-mix(in srgb, var(--color-primary) 16%, var(--color-card-bg)) !important;
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 22%, transparent) !important;
+    }
+    /* 媒体库工具栏：窄屏下改为两行按钮组，按钮文字不换行、不挤压 */
+    .media-toolbar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .media-toolbar-actions > * {
+        flex: 0 0 auto;
+    }
+    .media-toolbar-actions button {
+        white-space: nowrap;
+    }
+    @media (max-width: 640px) {
+        .media-toolbar-actions {
+            width: 100%;
+        }
+        .media-toolbar-actions .editor-mode-toggle {
+            flex: 1 1 100%;
+            display: flex;
+        }
+        .media-toolbar-actions .editor-mode-toggle button {
+            flex: 1 1 50%;
+        }
+        .media-toolbar-actions #select-filtered-button,
+        .media-toolbar-actions #select-all-button {
+            flex: 1 1 calc(50% - 0.25rem);
+            justify-content: center;
+        }
+        .media-toolbar-actions #batch-actions-toolbar {
+            flex: 1 1 100%;
+            flex-wrap: wrap;
+        }
     }
     .modal-backdrop {
         transition: opacity 0.3s ease-in-out;
@@ -255,22 +291,24 @@
         </div>
     </header>
 
-    <!-- Upload Drop Zone -->
-    <div id="upload-drop-zone" class="admin-empty-state upload-drop-zone mt-4 hidden rounded-xl border-2 border-dashed p-8 text-center transition-colors duration-300">
-        <div class="flex flex-col items-center justify-center">
-            <svg class="w-16 h-16 opacity-60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v5a4 4 0 01-4 4H7z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-            <p class="mt-4 text-lg font-semibold text-[var(--color-text)]">将文件拖拽到此处</p>
-            <p class="mt-1 text-sm text-[var(--color-text-light)]">或</p>
-            <label for="file-input" class="admin-secondary-btn mt-2 cursor-pointer rounded-lg px-4 py-2 font-semibold">
+    <!-- Upload Drop Zone：默认可见，既是上传入口也是拖拽落点 -->
+    <div id="upload-drop-zone" class="admin-empty-state upload-drop-zone mt-4 rounded-xl border-2 border-dashed p-4 transition-colors duration-300">
+        <div class="flex flex-col items-center justify-center gap-3 md:flex-row md:flex-wrap">
+            <svg class="h-8 w-8 shrink-0 opacity-60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v5a4 4 0 01-4 4H7z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <div class="text-center md:text-left">
+                <p class="text-sm font-semibold text-[var(--color-text)]">将文件拖拽到此处上传</p>
+                <p class="mt-0.5 text-xs text-[var(--color-text-light)]">支持图片、视频、音频与文档，可多选</p>
+            </div>
+            <label for="file-input" class="admin-secondary-btn cursor-pointer rounded-lg px-3 py-1.5 text-sm font-semibold">
                 选择文件
             </label>
             <input type="file" id="file-input" multiple class="hidden">
-            <div class="mt-4 w-full max-w-md text-left">
-                <label for="upload-folder-select" class="mb-1 block text-xs font-medium text-[var(--color-text-light)]">上传到文件夹</label>
-                <select id="upload-folder-select" class="admin-form-field w-full rounded-lg px-3 py-2 text-sm"></select>
+            <div class="flex items-center gap-2">
+                <label for="upload-folder-select" class="text-xs font-medium text-[var(--color-text-light)]">上传到</label>
+                <select id="upload-folder-select" class="admin-form-field rounded-lg px-2.5 py-1.5 text-sm"></select>
             </div>
         </div>
-        <div id="upload-previews" class="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+        <div id="upload-previews" class="mt-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
     </div>
 
     <!-- Toolbar & Filters -->
@@ -294,7 +332,7 @@
                 <input id="new-folder-input" type="text" placeholder="新建文件夹，如 covers/2026" class="admin-form-field w-56 rounded-lg px-3 py-2 text-sm">
                 <button id="create-folder-button" type="button" class="admin-primary-btn rounded-lg px-3 py-2 text-sm font-semibold">新建文件夹</button>
             </div>
-            <div class="flex items-center space-x-2">
+            <div class="media-toolbar-actions">
                 <div class="editor-mode-toggle inline-flex overflow-hidden rounded-lg">
                     <button id="grid-view-button" class="editor-mode-button is-active px-3 py-2 text-sm">网格</button>
                     <button id="list-view-button" class="editor-mode-button px-3 py-2 text-sm">列表</button>
@@ -1160,7 +1198,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     uploadButton.addEventListener('click', () => {
-        uploadDropZone.classList.toggle('hidden');
+        uploadDropZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        fileInput.click();
     });
 
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((eventName) => {

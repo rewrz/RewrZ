@@ -10,6 +10,7 @@
 import re
 import hashlib
 import time
+import threading
 import asyncio
 import hmac
 from datetime import datetime, timedelta
@@ -42,26 +43,34 @@ class AntiSpamEngine:
     
     def load_settings(self):
         """从数据库加载反垃圾设置"""
-        # 第一层设置
-        self.honeypot_enabled = self._get_setting_bool("anti_spam_honeypot_enabled", True)
-        self.time_threshold = self._get_setting_int("anti_spam_time_threshold", 5)  # 最少5秒提交时间
-        self.form_max_age_seconds = self._get_setting_int("anti_spam_form_max_age_seconds", 3 * 60 * 60)
-        
-        # 第二层设置
-        self.max_links = self._get_setting_int("anti_spam_max_links", 2)  # 最多2个链接
-        self.keyword_filter_enabled = self._get_setting_bool("anti_spam_keyword_filter", True)
-        self.akismet_enabled = self._get_setting_bool("anti_spam_akismet_enabled", False)
-        self.akismet_api_key = self._get_setting_str("anti_spam_akismet_key", "")
-        
-        # 第三层设置
-        self.captcha_enabled = self._get_setting_bool("anti_spam_captcha_enabled", True)
-        self.captcha_threshold = self._get_setting_float("anti_spam_captcha_threshold", 0.6)  # 垃圾概率超过60%启用验证码
-        
-        # 垃圾关键词列表
-        self.spam_keywords = self._get_setting_list("anti_spam_keywords", [
-            "优惠", "促销", "打折", "免费", "赚钱", "兼职", "代刷", "加QQ", "加微信",
-            "viagra", "casino", "poker", "loan", "mortgage", "insurance", "pharmacy"
-        ])
+        self.apply_settings(self.read_settings_from_db())
+
+    def read_settings_from_db(self) -> Dict[str, Any]:
+        """读取当前数据库中的反垃圾设置快照"""
+        return {
+            # 第一层设置
+            "honeypot_enabled": self._get_setting_bool("anti_spam_honeypot_enabled", True),
+            "time_threshold": self._get_setting_int("anti_spam_time_threshold", 5),  # 最少5秒提交时间
+            "form_max_age_seconds": self._get_setting_int("anti_spam_form_max_age_seconds", 3 * 60 * 60),
+            # 第二层设置
+            "max_links": self._get_setting_int("anti_spam_max_links", 2),  # 最多2个链接
+            "keyword_filter_enabled": self._get_setting_bool("anti_spam_keyword_filter", True),
+            "akismet_enabled": self._get_setting_bool("anti_spam_akismet_enabled", False),
+            "akismet_api_key": self._get_setting_str("anti_spam_akismet_key", ""),
+            # 第三层设置
+            "captcha_enabled": self._get_setting_bool("anti_spam_captcha_enabled", True),
+            "captcha_threshold": self._get_setting_float("anti_spam_captcha_threshold", 0.6),  # 垃圾概率超过60%启用验证码
+            # 垃圾关键词列表
+            "spam_keywords": self._get_setting_list("anti_spam_keywords", [
+                "优惠", "促销", "打折", "免费", "赚钱", "兼职", "代刷", "加QQ", "加微信",
+                "viagra", "casino", "poker", "loan", "mortgage", "insurance", "pharmacy"
+            ]),
+        }
+
+    def apply_settings(self, values: Dict[str, Any]):
+        """将设置快照应用到当前实例"""
+        for key, value in values.items():
+            setattr(self, key, value)
     
     def _get_setting_bool(self, key: str, default: bool) -> bool:
         """获取布尔类型设置"""
@@ -136,8 +145,23 @@ class AntiSpamEngine:
             content, author_name, author_email, author_url, ip_address, user_agent
         )
         if layer2_result.is_spam:
+            # 中等风险（0.5~0.8）优先用验证码确认，避免直接静默丢弃或只进待审核；
+            # 之前此处直接返回 moderate，导致后面的验证码分支永远不可达，
+            # 后台开启验证码也不会生效。
+            if (
+                self.captcha_enabled
+                and layer2_result.action == "moderate"
+                and layer2_result.confidence >= self.captcha_threshold
+            ):
+                return SpamCheckResult(
+                    is_spam=False,
+                    confidence=layer2_result.confidence,
+                    reason="需要验证码确认",
+                    action="captcha",
+                    layer=3
+                )
             return layer2_result
-        
+
         # 第三层：根据概率决定是否需要验证码
         if layer2_result.confidence >= self.captcha_threshold and self.captcha_enabled:
             return SpamCheckResult(
@@ -293,13 +317,7 @@ class AntiSpamEngine:
         # 确定最终结果
         is_spam = spam_score >= 0.5  # 降低垃圾阈值，使更多明显垃圾内容被拦截
         action = "block" if spam_score >= 0.8 else ("moderate" if spam_score >= 0.5 else "allow")
-        
-        # 调试信息
-        # print(f"Content: {content}")
-        # print(f"Spam score: {spam_score}")
-        # print(f"Reasons: {reasons}")
-        # print(f"Is spam: {is_spam}")
-        
+
         return SpamCheckResult(
             is_spam=is_spam,
             confidence=min(spam_score, 1.0),
@@ -440,12 +458,48 @@ class AntiSpamEngine:
         return hashlib.md5(f"form_token_{timestamp}".encode()).hexdigest()
 
 
-# 全局反垃圾引擎实例（延迟初始化）
-_anti_spam_engine: Optional[AntiSpamEngine] = None
+# 反垃圾设置快照缓存：按数据库维度缓存，避免每次渲染评论表单都重复查库，
+# 同时不再把某个请求的 Session 长期挂在全局实例上（原先会导致设置变更后不生效、
+# 以及跨请求复用已关闭会话的问题）。
+_ANTI_SPAM_SETTINGS_TTL_SECONDS = 15.0
+_ANTI_SPAM_SETTINGS_CACHE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+_ANTI_SPAM_SETTINGS_LOCK = threading.Lock()
+
+
+def _anti_spam_cache_key(db: Session) -> str:
+    """按数据库连接串区分缓存，避免不同租户/测试库互相污染。"""
+    try:
+        return str(db.get_bind().url)
+    except Exception:
+        return "default"
+
+
+def clear_anti_spam_settings_cache() -> None:
+    """清空反垃圾设置缓存（后台保存设置、初始化默认设置时调用）。"""
+    with _ANTI_SPAM_SETTINGS_LOCK:
+        _ANTI_SPAM_SETTINGS_CACHE.clear()
+
+
+def _load_cached_settings(db: Session) -> Dict[str, Any]:
+    cache_key = _anti_spam_cache_key(db)
+    now_ts = time.monotonic()
+    with _ANTI_SPAM_SETTINGS_LOCK:
+        cached = _ANTI_SPAM_SETTINGS_CACHE.get(cache_key)
+        if cached and now_ts - cached[0] < _ANTI_SPAM_SETTINGS_TTL_SECONDS:
+            return dict(cached[1])
+
+    reader = AntiSpamEngine.__new__(AntiSpamEngine)
+    reader.db = db
+    values = reader.read_settings_from_db()
+
+    with _ANTI_SPAM_SETTINGS_LOCK:
+        _ANTI_SPAM_SETTINGS_CACHE[cache_key] = (now_ts, values)
+    return dict(values)
+
 
 def get_anti_spam_engine(db: Session) -> AntiSpamEngine:
-    """获取反垃圾引擎实例"""
-    global _anti_spam_engine
-    if _anti_spam_engine is None:
-        _anti_spam_engine = AntiSpamEngine(db)
-    return _anti_spam_engine
+    """获取反垃圾引擎实例（使用短 TTL 的设置快照，绑定当前请求的会话）"""
+    engine = AntiSpamEngine.__new__(AntiSpamEngine)
+    engine.db = db
+    engine.apply_settings(_load_cached_settings(db))
+    return engine

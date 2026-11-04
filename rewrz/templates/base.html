@@ -34,6 +34,14 @@
                 doc.classList.remove('dark');
             }
         })();
+
+        // 图片加载失败时隐藏破损图标与替代文字，保留容器底色，避免长替代文字撑破卡片
+        document.addEventListener('error', function (event) {
+            var target = event.target;
+            if (target && target.tagName === 'IMG') {
+                target.classList.add('img-load-failed');
+            }
+        }, true);
     </script>
 
     <script src="{{ static_asset(request, 'vendor/htmx/htmx.min.js') }}" defer></script>
@@ -161,7 +169,7 @@
                 <a href="/" class="flex items-center space-x-2 group">
                     {% set logo_src = site_logo_light if site_logo_light else (site_logo_dark if site_logo_dark else '') %}
                     {% if logo_src %}
-                    <img src="{{ logo_src }}" alt="{{ site_title }}" class="h-6 md:h-8 w-auto object-contain transition-transform duration-200 group-hover:scale-105" loading="eager">
+                    <img src="{{ logo_src }}" alt="{{ site_title }}" class="h-6 md:h-8 w-auto object-contain transition-transform duration-200 group-hover:scale-105" loading="eager" onerror="this.remove()">
                     {% endif %}
                     <span class="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">{{ site_title }}</span>
                 </a>
@@ -396,7 +404,7 @@
 
     <!-- 全局背景音乐播放器 -->
     {% if homepage_background_music_url %}
-    <div class="fixed bottom-4 right-4 z-50">
+    <div class="fixed right-4 bottom-4 z-50 site-music-dock">
         <audio id="global-bg-music" 
                src="{{ homepage_background_music_url }}" 
                {% if homepage_music_autoplay %}autoplay{% endif %} 
@@ -463,6 +471,19 @@
                 icon.classList.remove('fa-volume-up');
                 icon.classList.add('fa-volume-off');
             });
+
+            // 滚动时短暂淡出，避免悬浮按钮压住正文；停止滚动后恢复显示
+            const musicDock = button.closest('.site-music-dock');
+            if (musicDock) {
+                let dockHideTimer = null;
+                window.addEventListener('scroll', function() {
+                    musicDock.classList.add('is-scrolling');
+                    clearTimeout(dockHideTimer);
+                    dockHideTimer = setTimeout(function() {
+                        musicDock.classList.remove('is-scrolling');
+                    }, 600);
+                }, { passive: true });
+            }
         });
     </script>
     {% endif %}

@@ -19,6 +19,7 @@ from ..core.template_filters import get_templates
 from ..crud import setting as crud_setting
 from ..schemas import User, SettingCreate, SettingUpdate
 from ..core.akismet_client import get_akismet_client
+from ..core.anti_spam import clear_anti_spam_settings_cache
 
 router = APIRouter()
 templates = get_templates()
@@ -221,7 +222,10 @@ async def update_comment_settings(
                     type=_get_setting_type(value)
                 )
                 crud_setting.create_setting(db, setting_create)
-        
+
+        # 设置已变更，立即让反垃圾引擎的短 TTL 快照失效，避免后台改了不生效
+        clear_anti_spam_settings_cache()
+
         return JSONResponse({
             "success": True,
             "message": "评论设置已更新",

@@ -167,3 +167,7 @@ def init_anti_spam_settings(db):
             print(f"初始化反垃圾设置: {setting_data['key']}")
         else:
             print(f"反垃圾设置已存在: {setting_data['key']}")
+
+    # 初始化后让反垃圾设置快照失效，避免新库/测试库复用旧缓存
+    from .anti_spam import clear_anti_spam_settings_cache
+    clear_anti_spam_settings_cache()

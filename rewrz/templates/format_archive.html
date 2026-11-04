@@ -307,9 +307,9 @@
                                 class="micro-composer-textarea w-full resize-none rounded-2xl border px-4 py-3 text-[15px] leading-7 outline-none transition"
                                 placeholder="今天想掉落哪一段心情、灵感或碎片？支持 #标签、@对象、粘贴截图和 Ctrl+Enter 快捷发布"
                             >{{ micro_edit_post.content if micro_edit_post else '' }}</textarea>
-                            <div class="micro-composer-corner-note">
-                                <span>☆ 适合发碎碎念、练习日志、临时脑洞和小广播</span>
-                            </div>
+                        </div>
+                        <div class="micro-composer-corner-note">
+                            <span>☆ 适合发碎碎念、练习日志、临时脑洞和小广播</span>
                         </div>
 
                         <div id="micro-quick-topic-hints" class="flex flex-wrap items-center gap-2">
@@ -1560,6 +1560,51 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             }
             event.preventDefault();
             uploadMediaFiles(pastedFiles);
+        });
+    }
+
+    // 支持把图片/视频/音频直接拖进编辑器，复用同一套上传与失败提示
+    if (form) {
+        let dragDepth = 0;
+        const hasDraggedFiles = (event) => {
+            const types = event.dataTransfer ? Array.from(event.dataTransfer.types || []) : [];
+            return types.includes("Files");
+        };
+        form.addEventListener("dragenter", (event) => {
+            if (!hasDraggedFiles(event)) {
+                return;
+            }
+            event.preventDefault();
+            dragDepth += 1;
+            form.classList.add("is-media-dragover");
+        });
+        form.addEventListener("dragover", (event) => {
+            if (!hasDraggedFiles(event)) {
+                return;
+            }
+            event.preventDefault();
+            if (event.dataTransfer) {
+                event.dataTransfer.dropEffect = "copy";
+            }
+        });
+        form.addEventListener("dragleave", (event) => {
+            if (!hasDraggedFiles(event)) {
+                return;
+            }
+            dragDepth = Math.max(0, dragDepth - 1);
+            if (!dragDepth) {
+                form.classList.remove("is-media-dragover");
+            }
+        });
+        form.addEventListener("drop", (event) => {
+            const droppedFiles = Array.from(event.dataTransfer ? event.dataTransfer.files || [] : []);
+            if (!droppedFiles.length) {
+                return;
+            }
+            event.preventDefault();
+            dragDepth = 0;
+            form.classList.remove("is-media-dragover");
+            uploadMediaFiles(droppedFiles);
         });
     }
 

@@ -299,9 +299,66 @@ def is_blocked_user_agent(user_agent: str) -> bool:
         return True
     if any(token in ua for token in _ALLOWED_UA_TOKENS):
         return False
+    # 站点侧 UA 例外（例如 CUBOT 等手机品牌裸 UA），在拦截规则之前放行
+    if any(token in ua for token in (getattr(settings, "BOT_BLOCK_UA_ALLOWLIST", None) or ())):
+        return False
     if any(token in ua for token in _BLOCKED_UA_TOKENS):
         return True
     return bool(_GENERIC_BOT_UA_RE.search(ua))
+
+
+_GLOBAL_SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
+    (b"x-content-type-options", b"nosniff"),
+    (b"referrer-policy", b"strict-origin-when-cross-origin"),
+    (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
+)
+
+# 后台页面禁止被第三方页面嵌套，避免点击劫持；前台保持可嵌入。
+_ADMIN_FRAME_HEADERS: tuple[tuple[bytes, bytes], ...] = (
+    (b"x-frame-options", b"SAMEORIGIN"),
+    (b"content-security-policy", b"frame-ancestors 'self'"),
+)
+
+
+def _is_https_request(scope: dict) -> bool:
+    forwarded_proto = _read_header(scope, b"x-forwarded-proto").strip().lower()
+    if forwarded_proto:
+        return forwarded_proto.split(",")[0].strip() == "https"
+    return str(scope.get("scheme") or "").lower() == "https"
+
+
+def _is_admin_scope_path(path: str) -> bool:
+    admin_path = str(get_admin_path() or "").strip().lower()
+    lower_path = str(path or "").lower()
+    if not admin_path or admin_path == "/":
+        return False
+    return lower_path == admin_path or lower_path.startswith(admin_path + "/")
+
+
+def _apply_security_headers(message: dict, scope: dict) -> dict:
+    """给响应追加基础安全头；已有同名头时以业务响应为准。"""
+    if message.get("type") != "http.response.start":
+        return message
+
+    headers = list(message.get("headers") or [])
+    existing = {key.lower() for key, _ in headers}
+    extra: list[tuple[bytes, bytes]] = []
+
+    for key, value in _GLOBAL_SECURITY_HEADERS:
+        if key not in existing:
+            extra.append((key, value))
+
+    if _is_admin_scope_path(scope.get("path") or "/"):
+        for key, value in _ADMIN_FRAME_HEADERS:
+            if key not in existing:
+                extra.append((key, value))
+
+    if _is_https_request(scope) and b"strict-transport-security" not in existing:
+        extra.append((b"strict-transport-security", b"max-age=31536000; includeSubDomains"))
+
+    if extra:
+        message = {**message, "headers": headers + extra}
+    return message
 
 
 async def _send_plain(send, status_code: int, body: bytes, headers: Iterable[tuple[bytes, bytes]] = ()) -> None:
@@ -330,18 +387,22 @@ class BotBlockMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # 统一给所有 HTTP 响应补充安全头（含静态资源与拦截响应）
+        async def send_with_headers(message):
+            await send(_apply_security_headers(message, scope))
+
         if not getattr(settings, "BOT_BLOCK_ENABLED", True):
-            await self.app(scope, receive, send)
+            await self.app(scope, receive, send_with_headers)
             return
 
         path = str(scope.get("path") or "/")
 
         if is_scanner_path(path):
-            await _send_plain(send, 404, "资源不存在".encode("utf-8"))
+            await _send_plain(send_with_headers, 404, "资源不存在".encode("utf-8"))
             return
 
         if is_blocked_user_agent(_read_header(scope, b"user-agent")):
-            await _send_plain(send, 403, "禁止访问".encode("utf-8"))
+            await _send_plain(send_with_headers, 403, "禁止访问".encode("utf-8"))
             return
 
-        await self.app(scope, receive, send)
+        await self.app(scope, receive, send_with_headers)

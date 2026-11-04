@@ -212,6 +212,15 @@
         }
     </style>
     {% block head %}{% endblock %}
+    <script>
+        // 图片加载失败时隐藏破损图标与替代文字，保留容器底色，避免侧栏 Logo 失效后重复显示站名
+        document.addEventListener('error', function (event) {
+            var target = event.target;
+            if (target && target.tagName === 'IMG') {
+                target.classList.add('img-load-failed');
+            }
+        }, true);
+    </script>
 </head>
 <body class="admin-app {{ effect_body_class if effect_body_class else '' }}" data-current-theme="{{ request.state.current_theme }}">
     <script>

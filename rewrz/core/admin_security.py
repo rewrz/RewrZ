@@ -53,6 +53,7 @@ _ADMIN_ACTION_AUDIT_LOG_PATH = Path("data/logs/admin_action_audit.log")
 
 _COMMENT_RATE_BUCKETS: Dict[str, Deque[float]] = defaultdict(deque)
 _COMMENT_RATE_LOCK = threading.Lock()
+_COMMENT_RATE_LAST_PRUNE = 0.0
 
 
 def _now_utc() -> datetime:
@@ -597,7 +598,18 @@ def check_comment_rate_limit(db: Session, ip_address: str) -> Tuple[bool, int]:
         return True, 0
 
     now_ts = time.time()
+    global _COMMENT_RATE_LAST_PRUNE
     with _COMMENT_RATE_LOCK:
+        # 定期清理长时间无访问的 IP 桶，避免被大量伪造来源的请求撑大内存
+        if now_ts - _COMMENT_RATE_LAST_PRUNE >= 60:
+            stale_keys = [
+                key for key, bucket in _COMMENT_RATE_BUCKETS.items()
+                if not bucket or now_ts - bucket[-1] >= 120
+            ]
+            for key in stale_keys:
+                _COMMENT_RATE_BUCKETS.pop(key, None)
+            _COMMENT_RATE_LAST_PRUNE = now_ts
+
         bucket = _COMMENT_RATE_BUCKETS[ip_address]
         while bucket and now_ts - bucket[0] >= 60:
             bucket.popleft()

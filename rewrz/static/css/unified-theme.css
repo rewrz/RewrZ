@@ -1415,6 +1415,54 @@ body.site-shell > footer a:hover {
     }
 }
 
+/* 背景音乐按钮上移，避让返回顶部按钮，避免移动端两个悬浮按钮互相遮挡 */
+.site-music-dock {
+    right: 1rem;
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+/* 滚动过程中淡出，避免悬浮按钮持续压住正文；停止滚动后自动恢复 */
+.site-music-dock.is-scrolling {
+    opacity: 0;
+    transform: translateY(0.35rem);
+    pointer-events: none;
+}
+
+@media (max-width: 767px) {
+    /* 移动端改为贴右边缘的窄条，只占页边距，不压住正文与阅读时长 */
+    .site-music-dock {
+        right: 0;
+        bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .site-music-dock #bg-music-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.9rem;
+        height: 2.75rem;
+        padding: 0;
+        border-radius: 0.55rem 0 0 0.55rem;
+    }
+
+    .site-music-dock #bg-music-toggle i {
+        font-size: 0.85rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .site-music-dock {
+        right: 2rem;
+        bottom: 5.75rem;
+    }
+}
+
+/* 图片失效时隐藏破损图标与 alt 替代文字，保留父容器底色，防止卡片被撑破 */
+img.img-load-failed {
+    opacity: 0 !important;
+}
+
 /* 加载动画 */
 .loading-spinner {
     width: 40px;

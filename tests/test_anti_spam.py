@@ -232,6 +232,25 @@ class TestAntiSpamEngine:
             assert result.action == "captcha"
             assert result.layer == 3
     
+    @pytest.mark.asyncio
+    async def test_moderate_spam_triggers_captcha(self):
+        """中等风险评论应触发验证码，而不是直接落到待审核分支"""
+        result = await self.anti_spam.check_comment(
+            content="这里有免费优惠信息，欢迎了解",
+            author_name="用户",
+            author_email="user@example.com",
+            author_url=None,
+            ip_address="192.168.1.1",
+            user_agent="Mozilla/5.0 Test",
+            honeypot_field=None,
+            form_timestamp=time.time() - 10,
+        )
+
+        assert result.confidence >= 0.6
+        assert result.is_spam is False
+        assert result.action == "captcha"
+        assert result.layer == 3
+
     def test_honeypot_field_generation(self):
         """测试蜜罐字段生成"""
         field_name = self.anti_spam.generate_honeypot_field_name()
