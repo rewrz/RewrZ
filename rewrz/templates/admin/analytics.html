@@ -268,7 +268,7 @@
 
         <div class="admin-section-card p-6 rounded-lg">
             <h2 class="text-lg font-semibold mb-1" style="color: var(--color-text);">状态码分布</h2>
-            <p class="text-xs mb-4" style="color: var(--color-text-light);">4xx 比例已排除爬虫与可疑请求；状态码分布仍按全部回源请求统计。</p>
+            <p class="text-xs mb-4" style="color: var(--color-text-light);">4xx 比例已排除爬虫与可疑请求；状态码分布按进入统计中间件的回源请求统计，最外层拦截与 Nginx 直出不在其中。</p>
             {% if summary.statuses %}
             <div class="space-y-3">
                 {% for item in summary.statuses %}
@@ -277,6 +277,20 @@
             </div>
             {% else %}
             <p class="text-sm" style="color: var(--color-text-light);">暂无状态码数据。</p>
+            {% endif %}
+        </div>
+
+        <div class="admin-section-card p-6 rounded-lg mt-4">
+            <h2 class="text-lg font-semibold mb-1" style="color: var(--color-text);">安全拦截（应用层）</h2>
+            <p class="text-xs mb-4" style="color: var(--color-text-light);">最外层拦截不回源、不计入请求总数；Nginx 规则拦截请以 Nginx 日志核对。</p>
+            {% if summary.guard_blocks %}
+            <div class="space-y-3">
+                {% for item in summary.guard_blocks %}
+                {{ bar_row(item.value, item.hits, (item.hits * 100 / summary.guard_blocks[0].hits) if summary.guard_blocks[0].hits else 0, 0.85 if loop.first else 0.5) }}
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm" style="color: var(--color-text-light);">该区间未记录到应用层拦截。</p>
             {% endif %}
         </div>
     </div>

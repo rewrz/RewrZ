@@ -138,6 +138,13 @@ Authorization: Bearer <api_key>
 - 对权限不足返回 `403`
 - 对非法参数返回 `422`
 
+### 5.1 后台统计接口
+
+- `{ADMIN_PATH}/api/v1/analytics/summary` 为后台统计页与看板提供聚合快照，需登录、只读。
+- 响应允许逐版本新增向后兼容字段，消费方应忽略未知字段，不按字段数量做断言。
+- `guard_blocks` 记录应用层最外层拦截构成，单独成维度，不计入 `requests` 与状态码分布；
+  Nginx 规则拦截、静态直出与边缘拦截不回源，需以 Nginx / CDN 日志核对。
+
 ## 6. 新增接口 Checklist
 
 新增接口前后至少完成：

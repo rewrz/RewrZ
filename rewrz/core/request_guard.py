@@ -9,7 +9,9 @@
 3. 通用兜底：UA 含 bot / crawler / spider / scraper 的请求一律 403；
 4. 空 UA 一律 403（正常浏览器与订阅器都会携带 UA）；
 5. 扫描路径：PHP/ASP/JSP 等无价值后缀与 wp-admin、.env 等探测路径，
-   无论什么 UA 都直接返回 404。
+   无论什么 UA 都直接返回 404；
+6. 仅 `/robots.txt` 豁免 UA 拦截：爬虫必须先读到 Disallow 规则才谈得上
+   遵守；站点地图含全站 URL 清单、订阅入口属于内容输出，仍一律按黑名单拦截。
 
 刻意放行的客户端：curl / wget / python-requests / Go-http-client 等
 不匹配通用规则，避免误杀健康检查与自建订阅器；这些客户端的异常扫描
@@ -243,6 +245,27 @@ _ALLOWED_EXACT_PATHS = frozenset({
     "/favicon.ico",
 })
 
+# 只豁免 UA 拦截，不豁免扫描路径判定：站点必须能把 Disallow 规则送达被拉黑的
+# 爬虫，否则拉黑只剩「不告知地拒绝」。按最小必要原则只放行 robots.txt：
+# sitemap*.xml 会一次性交出全站 URL 清单，ads.txt 与 feed/rss/atom 属于声明或内容
+# 输出，都不对黑名单 UA 开放；白名单中的正规搜索引擎本就不受 UA 拦截影响。
+_UA_BLOCK_EXEMPT_PATHS = frozenset({"/robots.txt"})
+
+
+def is_ua_block_exempt_path(path: str) -> bool:
+    """判断路径是否为 UA 拦截豁免的协议入口。"""
+    return str(path or "").strip().lower() in _UA_BLOCK_EXEMPT_PATHS
+
+
+def _record_guard_block(reason: str) -> None:
+    """把最外层拦截计入安全维度；统计模块不可用时静默跳过。"""
+    try:
+        from . import traffic_analytics
+
+        traffic_analytics.record_guard_block(reason)
+    except Exception:
+        pass
+
 
 def _read_header(scope: dict, name: bytes) -> str:
     """从 ASGI scope 中读取首个同名请求头并解码为字符串。"""
@@ -398,10 +421,14 @@ class BotBlockMiddleware:
         path = str(scope.get("path") or "/")
 
         if is_scanner_path(path):
+            _record_guard_block("扫描路径 404")
             await _send_plain(send_with_headers, 404, "资源不存在".encode("utf-8"))
             return
 
-        if is_blocked_user_agent(_read_header(scope, b"user-agent")):
+        if not is_ua_block_exempt_path(path) and is_blocked_user_agent(
+            _read_header(scope, b"user-agent")
+        ):
+            _record_guard_block("UA 拦截 403")
             await _send_plain(send_with_headers, 403, "禁止访问".encode("utf-8"))
             return
 

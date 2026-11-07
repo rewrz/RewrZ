@@ -150,17 +150,10 @@ def ensure_admin_user(user) -> None:
 
 
 def get_client_ip(request: Request) -> str:
-    forwarded = str(request.headers.get("x-forwarded-for", "") or "").strip()
-    if forwarded:
-        return forwarded.split(",")[0].strip()[:128]
+    """统一走可信代理解析，避免审计 IP 被客户端伪造的 XFF 污染。"""
+    from .admin_security import get_client_ip as get_trusted_client_ip
 
-    real_ip = str(request.headers.get("x-real-ip", "") or "").strip()
-    if real_ip:
-        return real_ip[:128]
-
-    client = getattr(request, "client", None)
-    host = getattr(client, "host", "") if client is not None else ""
-    return str(host or "")[:128]
+    return get_trusted_client_ip(request)
 
 
 def get_request_origin(request: Request) -> str:

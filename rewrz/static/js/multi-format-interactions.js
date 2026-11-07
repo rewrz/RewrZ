@@ -7,6 +7,7 @@
 class MultiFormatInteractions {
     constructor() {
         this.reactionSummaryCache = new Map();
+        this.reactionSummaryPending = new Map();
         this.reactionWidgetsBound = new WeakSet();
         this.openReactionMenus = new Map();
         this.speechSynthesis = window.speechSynthesis || null;
@@ -765,6 +766,21 @@ class MultiFormatInteractions {
         }
     }
 
+    async _fetchReactionSummary(cacheKey, target) {
+        const url = `/api/v1/reactions/summary?target_type=${encodeURIComponent(target.targetType)}&target_id=${encodeURIComponent(target.targetId)}`;
+        try {
+            const payload = await this.requestJson(url, { method: 'GET', headers: {} });
+            const summary = payload && payload.summary;
+            if (summary) this.reactionSummaryCache.set(cacheKey, summary);
+            return summary || null;
+        } catch (error) {
+            console.error('加载互动数据失败:', error);
+            return null;
+        } finally {
+            this.reactionSummaryPending.delete(cacheKey);
+        }
+    }
+
     async loadReactionWidgetSummary(widget, force = false) {
         const target = this.getReactionWidgetTarget(widget);
         if (!target) return;
@@ -786,15 +802,16 @@ class MultiFormatInteractions {
                 // 摘要解析失败时回退到接口请求
             }
         }
-        const url = `/api/v1/reactions/summary?target_type=${encodeURIComponent(target.targetType)}&target_id=${target.targetId}`;
-        try {
-            const payload = await this.requestJson(url, { method: 'GET', headers: {} });
-            if (!payload || !payload.summary) return;
-            this.reactionSummaryCache.set(cacheKey, payload.summary);
-            this.renderReactionWidget(widget, payload.summary);
-        } catch (error) {
-            console.error('加载互动数据失败:', error);
+
+        // 同一目标可能被多个 widget 或重复初始化同时请求，合并成一次网络调用，
+        // 避免移动端首屏十几秒内打出几十次 /reactions/summary 被误判为高频访问。
+        let pending = force ? null : this.reactionSummaryPending.get(cacheKey);
+        if (!pending) {
+            pending = this._fetchReactionSummary(cacheKey, target);
+            if (!force) this.reactionSummaryPending.set(cacheKey, pending);
         }
+        const summary = await pending;
+        if (summary) this.renderReactionWidget(widget, summary);
     }
 
     initReactionWidgets(root = document) {
@@ -803,7 +820,10 @@ class MultiFormatInteractions {
         if (!widgets.length) return;
 
         widgets.forEach((widget) => {
-            if (!widget || this.reactionWidgetsBound.has(widget)) {
+            if (!widget) return;
+            if (this.reactionWidgetsBound.has(widget)) {
+                // 事件已绑定，仍允许补齐一次摘要（保留首次请求失败后的重试能力）；
+                // 同一目标的并发请求会被合并，重复初始化不会打爆接口
                 this.loadReactionWidgetSummary(widget, false);
                 return;
             }

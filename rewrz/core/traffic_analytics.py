@@ -59,6 +59,8 @@ ANOMALY_MAX_ROWS = 500
 
 # 前端 beacon 端点：公开页面上报页面浏览，用于覆盖 CDN 缓存命中的访问
 BEACON_PATH = "/api/v1/traffic/pageview"
+# 最外层安全拦截单独成维度：这些请求不回源，不能混入请求总数与状态码分布
+GUARD_BLOCK_KIND = "guard"
 BEACON_MAX_BODY_BYTES = 2048
 MAX_BEACON_PER_IP_MINUTE = 120
 
@@ -84,6 +86,7 @@ _DIMENSION_LIMITS = {
     "source_type": 10,
     "utm_source": 50,
     "status": 20,
+    "guard": 20,
     # 前端上报的页面维度独立存放，避免与回源维度相加后重复计数
     "beacon_path": 300,
     "beacon_referer": 200,
@@ -434,6 +437,24 @@ def record_beacon_page_view(
             _trim_days(_VISITOR_VALUES)
     except Exception:
         logger.debug("访问统计 beacon 记录失败，已忽略", exc_info=True)
+
+
+def record_guard_block(reason: str) -> None:
+    """记录最外层安全拦截：只写有界内存维度，不建会话、不查库、不联网。
+
+    这些请求在统计中间件之前就被拒绝，不能计入「回源请求数」与状态码分布；
+    单独成维度后，后台可核对应用层实际拦截量。Nginx 层拦截仍以 Nginx 日志为准。
+    """
+    if not _ENABLED:
+        return
+    try:
+        now = time_utils.utc_now_naive()
+        day = time_utils.site_day_start_utc(now)
+        with _LOCK:
+            _add_dimension(day, GUARD_BLOCK_KIND, reason)
+            _trim_days(_DIMENSION_VALUES)
+    except Exception:
+        logger.debug("安全拦截统计记录失败，已忽略", exc_info=True)
 
 
 def record_http_request(

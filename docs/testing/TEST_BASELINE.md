@@ -10,7 +10,7 @@
 .\.venv\Scripts\python.exe -m pytest --collect-only -q
 ```
 
-- `438 tests collected in 1.15s`
+- `503 tests collected in 1.09s`
 
 ## 2. 当前已验证的专项回归
 
@@ -73,7 +73,7 @@
 .\.venv\Scripts\python.exe -m pytest tests\test_traffic_classifier.py tests\test_traffic_analytics_buffer.py tests\test_analytics_api.py -q
 ```
 
-- `36 passed`
+- `38 passed`
 
 覆盖点：
 
@@ -103,7 +103,22 @@
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-- `438 passed in 358.68s`
+- `503 passed in 491.92s`
+
+### 2.8 容量与拦截加固
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests\test_capacity_hardening.py -q
+```
+
+- `12 passed`
+
+覆盖点：
+
+- 协议入口最小放行（仅 `robots.txt`）、站点地图对黑名单 UA 仍拦截、拦截量独立统计维度
+- 列表缓存键归一化、缓存命中不建请求级会话、登录 Cookie 绕过共享缓存
+- 导航页轻量查询与写入失效、`posts` 复合索引、只读 API 高频阈值
+- 真实 IP 可信代理口径与 Akismet 分级超时
 
 ## 3. 使用规则
 

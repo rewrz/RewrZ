@@ -20,6 +20,11 @@ CATEGORY_API = "api"
 CATEGORY_HTMX = "htmx"
 CATEGORY_OTHER = "other"
 
+# 单 IP 每分钟请求数超过阈值才记「高频访问」。只读幂等 API（互动摘要等）会由
+# 前端对同一页面并发触发，阈值单独放宽，避免把正常手机访客判成可疑来源。
+DEFAULT_FREQUENCY_THRESHOLD = 60
+IDEMPOTENT_API_FREQUENCY_THRESHOLD = 180
+
 SOURCE_DIRECT = "direct"
 SOURCE_INTERNAL = "internal"
 SOURCE_SEARCH = "search"
@@ -244,6 +249,11 @@ def _is_api_path(path: str) -> bool:
     return lower_path.startswith(("/feed/", "/rss/", "/atom/", "/sitemap"))
 
 
+def _is_idempotent_read_api(path: str, method: str) -> bool:
+    """只读幂等 API 由页面并发触发，高频判定用更宽松的阈值。"""
+    return method in {"GET", "HEAD"} and str(path or "").lower().startswith("/api/")
+
+
 def _host_matches(host: str, suffixes: tuple[str, ...]) -> bool:
     return any(host == suffix or host.endswith("." + suffix) for suffix in suffixes)
 
@@ -328,7 +338,12 @@ def classify_request(
     if scanner_token:
         suspicious_score += 3
         reasons.append("扫描器 UA")
-    if int(requests_in_minute or 0) > 60:
+    frequency_threshold = (
+        IDEMPOTENT_API_FREQUENCY_THRESHOLD
+        if _is_idempotent_read_api(normalized_path, normalized_method)
+        else DEFAULT_FREQUENCY_THRESHOLD
+    )
+    if int(requests_in_minute or 0) > frequency_threshold:
         suspicious_score += 2
         reasons.append("高频访问")
     if status_code in {401, 403, 429} and not is_sensitive:

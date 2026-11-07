@@ -603,6 +603,8 @@ server {
   不要把 API 请求纳入整页缓存或改写规则
 - 真实 IP 决定 UV 去重与上报限流（单 IP 每分钟最多 120 条）；真实 IP 丢失会导致 UV 偏低，
   多用户被合并到同一边缘 IP 而提前触发限流
+- 应用层最外层 UA / 扫描路径拦截写入独立的「安全拦截」维度，不计入回源请求数与状态码分布；
+  Nginx 规则拦截、静态直出与 CDN 边缘拦截都不回源，需以 Nginx / CDN 日志核对
 
 `TRUSTED_PROXIES` 按实际拓扑二选一：
 
@@ -786,10 +788,28 @@ map $http_user_agent $rewrz_bad_bot {
 }
 ```
 
-在 `server {}` 内、`location` 之前加入 UA 判定与扫描路径规则：
+UA 规则只对 `robots.txt` 放行：被拉黑的爬虫必须先读到站点声明的 `Disallow`，否则拉黑
+只剩「不告知地拒绝」。这是最小必要放行——`sitemap*.xml`
+含全站 URL 清单，`ads.txt` 是广告声明，`/feed`、`/rss`、`/atom` 属于内容输出，都不对
+黑名单 UA 开放。正规搜索引擎已在 7.5 的 UA 白名单里，本来就能正常读取站点地图与
+订阅源，SEO 不受影响。
+先在 `http {}` 级（与 `$rewrz_bad_bot` 的 `map` 同级）声明这个例外：
 
 ```nginx
-    if ($rewrz_bad_bot) {
+map $uri $rewrz_protocol_path {
+    default 0;
+    ~^/robots\.txt$ 1;
+}
+```
+
+再在 `server {}` 内、`location` 之前加入 UA 判定与扫描路径规则：
+
+```nginx
+    set $rewrz_block_bot $rewrz_bad_bot;
+    if ($rewrz_protocol_path = 1) {
+        set $rewrz_block_bot 0;
+    }
+    if ($rewrz_block_bot) {
         return 403;
     }
 
@@ -871,8 +891,9 @@ sudo tail -n 20 /var/log/nginx/access.log
 
 ### 7.7 限流、请求体与慢连接
 
-这些限制全部在部署层完成，应用里没有重复实现。Nginx 配置只用示例后台路径
-`/rewrz-admin`，请替换为你的实际 `ADMIN_PATH`。
+应用层已有按 IP 的评论（默认 30 次/分）与验证码（40 次/分）限流，Nginx 阈值略高，
+用于先挡住突发流量、同时保留应用的中文提示与审计；两层阈值调整时必须一起改。
+Nginx 配置只用示例后台路径 `/rewrz-admin`，请替换为你的实际 `ADMIN_PATH`。
 
 #### 7.7.1 频率限制
 
@@ -1050,6 +1071,61 @@ sudo systemctl reload nginx
 ```
 
 `default` 默认站点会抢占 `80` 端口，建议删除。
+
+### 7.10 百万级日访问量的容量配置
+
+目标口径：100 万 PV/日 ≈ 平均 12 req/s，按 10 倍峰值约 120 req/s。
+**单进程 + 本地 SQLite 无法独立承担这个量级**：必须由边缘缓存吸收绝大部分匿名读流量，
+应用只处理缓存未命中与写操作。
+
+应用层已就位的能力：
+
+- 首页、分类/标签归档与详情页的整页缓存命中发生在数据库会话建立之前，命中请求不借连接、
+  不查设置/主题/文章；
+- 列表缓存键只保留 `page`/`append`，`?p=`、`utm_*`、`fbclid` 等无关参数不再产生新变体、
+  不再挤掉热点条目；列表 192 条 / 16MB、详情 384 条 / 16MB；
+- 模板导航只查 `slug`/`title` 两列并缓存 60 秒，列表查询跳过版本快照大字段；
+- `posts` 增加公开列表与导航复合索引；浏览量、访问统计保持 15 秒批量落库，写量不随 PV 线性增长；
+- 只读幂等 API 的高频判定阈值提高到 180 次/分，前端合并同一互动摘要的并发请求。
+
+部署层必须同时满足：
+
+1. **边缘缓存吸收匿名列表页**：列表页响应带 `public, max-age=0, s-maxage=20`，对 `/`、
+   `/archives/by-category/*`、`/archives/by-tag/*` 配 CDN Cache Rule 或 Nginx `proxy_cache`，
+   命中率目标 ≥ 90%。边缘缓存键建议只拼接已知查询参数，避免 `?p=` 变体各存一份。
+2. **详情页不能被共享缓存**：始终 `private, no-store`（含每访客 CSRF 与互动状态），
+   由应用内整页缓存承担。因此详情页回源量等于详情页 PV；占比高时要增加 worker 或引入共享缓存，
+   **不要**把 `no-store` 改成 `public`，那会让访客拿到别人的 CSRF 令牌与点赞状态。
+3. **worker 与数据库**：`uvicorn --workers N`（N ≈ CPU 核数），SQLite 保持单实例单写者；
+   多 worker 会让进程内缓存各自独立，命中率按 worker 数摊薄，务必配合第 1 条。
+   写冲突或 `busy_timeout` 告警持续出现时迁 PostgreSQL（修改 `DATABASE_URL`）。
+4. **全站宽松频控 + 写接口严格频控**：7.7.1 的三个 `limit_req` 只保护登录/评论/验证码；
+   另加一个宽松区兜住扫描器，避免大量 404 探测挤占回源容量：
+
+```nginx
+limit_req_zone $binary_remote_addr zone=rewrz_global:20m rate=30r/s;
+# server {} 内：limit_req zone=rewrz_global burst=60 nodelay;
+```
+
+   这一层是「防刷爆」而不是「防抓取」，阈值要按真实峰值调整，不要压到正常用户。
+5. **静态资源**：`/static/`、`/media/` 由 Nginx 直出并带长缓存；这些请求的 404/403 不会回源，
+   也不需要计入应用统计。
+
+容量估算与实测（不要只靠估算上线）：
+
+```bash
+# 缓存命中路径：测的是 ASGI 与 HTML 字符串替换，不碰数据库
+ab -n 5000 -c 100 https://example.com/
+# 缓存未命中路径：详情页带任意查询串会跳过整页缓存，测渲染 + 数据库耗时
+curl -o /dev/null -s -w '%{time_total}\n' 'https://example.com/<文章slug>?bench=<随机数>'
+```
+
+命中路径应稳定在毫秒级；设未命中单次耗时为 T，单 worker 渲染上限约 `1/T` req/s。
+按 CDN 命中 90% + 应用内缓存命中 90% 估算，100 万 PV/日只需约 1.2 req/s 的平均渲染能力。
+这个数字依赖 URL 集中度、主题数量与机器性能，**必须用自己的日志和压测结果复核**。
+
+上线后盯四个信号：后台「访问统计」的回源请求数与「安全拦截」构成、Nginx 日志的
+403/404/429 分布、慢 SQL 与连接持有告警（`SLOW_SQL_LOG_MS` / `DB_HOLD_WARN_MS`）。
 
 ## 8. 配置 HTTPS
 

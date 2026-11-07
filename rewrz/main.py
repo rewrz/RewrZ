@@ -886,6 +886,28 @@ async def add_global_context(request: Request, call_next):
                 pass
         return attach_request_id(cached_response)
 
+    # 列表页整页缓存命中同样提前到建会话之前：命中请求不再占用数据库连接，
+    # 也不重复解析认证、主题与特效。缓存键已忽略无关查询参数，避免探测链接污染。
+    list_cache_version = public_list_cache.get_public_list_cache_version()
+    cached_list_html = public_list_cache.get_cached_public_list_html(
+        request, version=list_cache_version
+    )
+    if cached_list_html is not None:
+        cached_list_response = HTMLResponse(content=cached_list_html)
+        public_list_cache.apply_public_list_cache_headers(request, cached_list_response)
+        if traffic_tracking:
+            try:
+                traffic_analytics.record_http_request(
+                    request, cached_list_response, traffic_started
+                )
+            except Exception:
+                pass
+            try:
+                traffic_analytics.end_request()
+            except Exception:
+                pass
+        return attach_request_id(cached_list_response)
+
     # 复用一个 request 级数据库会话给模板层（如响应式图片、相关文章过滤器）
     db_context_token = set_db_request_info(
         f"{request_id} {request.method} {redact_url_for_log(str(request.url), get_admin_path())}"
@@ -927,6 +949,17 @@ async def add_global_context(request: Request, call_next):
             except Exception:
                 pass
         return error_handler.build_database_unavailable_response(request)
+    except Exception:
+        # 未捕获异常由最外层 ServerErrorMiddleware 生成 500，响应不经过本中间件；
+        # 这里补记一次，避免 5xx 在访问统计里凭空消失。
+        if traffic_tracking:
+            try:
+                traffic_analytics.record_http_request(
+                    request, None, traffic_started, forced_status=500
+                )
+            except Exception:
+                pass
+        raise
     finally:
         if traffic_tracking:
             try:

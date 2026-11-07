@@ -3,8 +3,10 @@
 本模块提供文章相关的数据库操作功能，包括创建、读取、更新、删除文章。
 支持多重身份内容系统和版本快照功能。
 """
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, defer
 from sqlalchemy import select, func, delete, cast, Integer
+from cachetools import TTLCache
+import threading
 from ..models import Post, Format, Category, Tag, Setting, Comment
 from ..models.post import post_tags
 from ..schemas import PostCreate, PostUpdate, FormatCreate
@@ -38,6 +40,43 @@ from typing import Optional, List, Tuple
 # 每篇文章/页面保留的版本快照上限
 SNAPSHOT_LIMIT = 5
 
+# 模板导航只需要公开页面的 slug/title。此前每请求都用 get_posts 取最多 100 行
+# 完整文章（含正文与快照 JSON），这里改成只取两列并缓存 60 秒，写入时主动失效。
+_NAV_PAGES_CACHE: TTLCache = TTLCache(maxsize=1, ttl=60)
+_NAV_PAGES_LOCK = threading.Lock()
+NAV_PAGES_LIMIT = 100
+
+
+def invalidate_nav_pages_cache() -> None:
+    """文章/页面写入后清空导航页缓存，保证下一次渲染拿到最新导航。"""
+    with _NAV_PAGES_LOCK:
+        _NAV_PAGES_CACHE.clear()
+
+
+def get_public_nav_pages(db: Session) -> list[dict]:
+    """返回公开已发布页面的轻量导航数据，缓存 60 秒。"""
+    with _NAV_PAGES_LOCK:
+        cached = _NAV_PAGES_CACHE.get("pages")
+    if cached is not None:
+        return [dict(item) for item in cached]
+
+    rows = db.execute(
+        select(Post.slug, Post.title)
+        .where(
+            Post.post_type == "page",
+            Post.status == "published",
+            Post.visibility == "public",
+            Post.published_at.isnot(None),
+            Post.published_at <= utc_now_naive(),
+        )
+        .order_by(Post.published_at.desc())
+        .limit(NAV_PAGES_LIMIT)
+    ).all()
+    pages = [{"slug": str(row.slug or ""), "title": str(row.title or "")} for row in rows]
+    with _NAV_PAGES_LOCK:
+        _NAV_PAGES_CACHE["pages"] = pages
+    return [dict(item) for item in pages]
+
 
 def _snapshot_content_text(snapshot: dict) -> str:
     return get_comparable_content_text(
@@ -70,6 +109,7 @@ def _invalidate_public_caches() -> None:
     public_list_cache.invalidate_public_list_cache()
     public_detail_cache.invalidate_public_detail_cache()
     crud_category.invalidate_category_post_counts_cache()
+    invalidate_nav_pages_cache()
 
 
 def _normalize_post_type_value(post_type: Optional[str], *, allow_none: bool = False) -> Optional[str]:
@@ -91,7 +131,7 @@ def _normalize_post_type_value(post_type: Optional[str], *, allow_none: bool = F
 def get_public_post_conditions(*, published_only: bool = True):
     """公开文章列表统一过滤条件。
 
-    发布时间在未来的“已发布”内容视为定时发布：时间未到时不出现在任何公开结果中，
+    发布时间在未来的"已发布"内容视为定时发布：时间未到时不出现在任何公开结果中，
     到点后自动按 visibility 规则生效，无需额外的状态翻转任务。
     """
     conditions = [Post.post_type == "post", Post.visibility == "public"]
@@ -344,7 +384,14 @@ def get_post_by_slug(db: Session, slug: str):
 
 def get_posts(db: Session, skip: int = 0, limit: int = 100, status: Optional[str] = None, post_type: Optional[str] = None):
     """获取文章列表，支持分页和状态过滤"""
-    query = select(Post).options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
+    # 列表模板会读 content_markdown/content_html 计算阅读时长，正文不能延迟加载；
+    # 版本快照 JSON 只用于后台与快照接口，前台列表一律不取，避免无谓的大字段传输。
+    query = select(Post).options(
+        joinedload(Post.formats),
+        joinedload(Post.categories),
+        joinedload(Post.tags),
+        defer(Post.version_snapshots),
+    )
     normalized_post_type = _normalize_post_type_value(post_type, allow_none=True) if post_type is not None else None
 
     # 公开文章列表统一走公共 helper，避免各处条件漂移。

@@ -47,9 +47,11 @@ def test_db(test_engine):
 def clear_setting_cache_between_tests():
     """清理全局设置缓存，避免不同测试数据库之间串值。"""
     from rewrz.core.public_list_cache import clear_public_list_cache
+    from rewrz.core.public_detail_cache import clear_public_detail_cache
     from rewrz.core.public_metrics_cache import clear_public_metrics_memory_cache
     from rewrz.core import traffic_analytics
     from rewrz.crud.category import invalidate_category_post_counts_cache
+    from rewrz.crud.post import invalidate_nav_pages_cache
     from rewrz.api import analytics as analytics_api
 
     traffic_analytics.reset_for_tests()
@@ -57,14 +59,18 @@ def clear_setting_cache_between_tests():
     clear_cache()
     clear_public_metrics_memory_cache()
     clear_public_list_cache()
+    clear_public_detail_cache()
     invalidate_category_post_counts_cache()
+    invalidate_nav_pages_cache()
     yield
     traffic_analytics.reset_for_tests()
     analytics_api.clear_caches()
     clear_cache()
     clear_public_metrics_memory_cache()
     clear_public_list_cache()
+    clear_public_detail_cache()
     invalidate_category_post_counts_cache()
+    invalidate_nav_pages_cache()
 
 
 @pytest.fixture(autouse=True)

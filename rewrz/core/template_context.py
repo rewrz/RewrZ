@@ -155,12 +155,8 @@ def build_base_template_context(request: Request) -> dict:
         setattr(category, "posts_count", published_post_count)
         nav_categories.append(category)
 
-    # 获取所有公开的已发布自定义页面，私密/密码页面不进入导航
-    custom_pages = [
-        page
-        for page in crud_post.get_posts(db, post_type="page", status="published")
-        if getattr(page, "visibility", "public") == "public"
-    ]
+    # 导航只需要 slug/title：走轻量查询与 60 秒缓存，不再每请求加载整行页面数据
+    custom_pages = crud_post.get_public_nav_pages(db)
     
     # 获取中间件提供的统一设置数据
     settings = getattr(request.state, "settings", {})

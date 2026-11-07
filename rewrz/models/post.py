@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, JSON, Table
+from sqlalchemy import Column, Index, Integer, String, Text, Boolean, DateTime, ForeignKey, JSON, Table
 from sqlalchemy.orm import relationship
 from ..core.time_utils import utc_now_naive
 from .base import Base
@@ -32,6 +32,12 @@ post_formats = Table(
 
 class Post(Base):
     __tablename__ = "posts"
+    # 公开列表按 type/visibility/status 过滤并按 published_at 倒序；导航页按 type/status
+    # 取已发布页面。两个索引覆盖这两类高频查询，避免全表扫描与临时排序。
+    __table_args__ = (
+        Index("ix_posts_public_listing", "post_type", "visibility", "status", "published_at"),
+        Index("ix_posts_page_nav", "post_type", "status", "published_at"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)

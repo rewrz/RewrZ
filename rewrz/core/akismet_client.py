@@ -15,6 +15,12 @@ from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
 
+# 评论提交会持有请求级数据库会话，外呼必须快速失败，避免拖住连接；
+# 密钥验证与误判反馈是低频后台操作，给足等待时间，避免慢网络下把有效密钥误判成
+# 无效、或丢掉反馈。两者都保留完整功能，只为等待时间设上限。
+COMMENT_CHECK_TIMEOUT_SECONDS = 8
+BACKGROUND_TIMEOUT_SECONDS = 30
+
 
 class AkismetClient:
     """Akismet API客户端"""
@@ -45,7 +51,7 @@ class AkismetClient:
         }
         
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=BACKGROUND_TIMEOUT_SECONDS)) as session:
                 async with session.post(url, data=data) as response:
                     result = await response.text()
                     return result.strip() == 'valid'
@@ -102,7 +108,7 @@ class AkismetClient:
         data = {k: v for k, v in data.items() if v}
         
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=COMMENT_CHECK_TIMEOUT_SECONDS)) as session:
                 async with session.post(url, data=data) as response:
                     result = await response.text()
                     headers = response.headers
@@ -134,7 +140,7 @@ class AkismetClient:
                     
         except Exception as e:
             logger.error(f"Akismet检查失败: {e}")
-            # 发生错误时，返回保守结果
+            # 超时/失败时只跳过这一层：蜜罐、时间阈值、关键词与链接等其它层继续生效
             return {"is_spam": False, "confidence": 0.0}
     
     async def submit_spam(self,
@@ -182,7 +188,7 @@ class AkismetClient:
         data = {k: v for k, v in data.items() if v}
         
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=BACKGROUND_TIMEOUT_SECONDS)) as session:
                 async with session.post(url, data=data) as response:
                     result = await response.text()
                     return result.strip() == 'Thanks for making the web a better place.'
@@ -235,7 +241,7 @@ class AkismetClient:
         data = {k: v for k, v in data.items() if v}
         
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=BACKGROUND_TIMEOUT_SECONDS)) as session:
                 async with session.post(url, data=data) as response:
                     result = await response.text()
                     return result.strip() == 'Thanks for making the web a better place.'

@@ -18,6 +18,7 @@ import threading
 import time
 from collections import OrderedDict
 from typing import Optional
+from urllib.parse import parse_qsl, urlencode
 
 from fastapi import Request
 
@@ -29,11 +30,15 @@ DEFAULT_TTL_SECONDS = 20
 PUBLIC_CACHE_CONTROL = f"public, max-age=0, s-maxage={DEFAULT_TTL_SECONDS}"
 
 # 最多缓存多少个页面变体（分页、分类、标签、主题组合）。
-MAX_ENTRIES = 64
+# 高流量站点文章与归档页数量更多，容量放大后避免热点条目被互相挤出。
+MAX_ENTRIES = 192
 
-# 缓存 HTML 的总字符预算：单页通常几百 KB，限制总量后即使条目打满，
-# 额外内存也不会超过约 8MB，符合 512MB VPS 的内存预算。
-MAX_TOTAL_CHARS = 8 * 1024 * 1024
+# 缓存 HTML 的总字符预算：单页通常几十 KB，按 16MB 上限控制进程常驻内存。
+MAX_TOTAL_CHARS = 16 * 1024 * 1024
+
+# 只有这些查询参数会改变列表页 HTML；?p= 旧链接探测、UTM 与跟踪参数一律忽略，
+# 否则每个变体都会占一个缓存条目并触发一次全量列表查询。
+_CACHEABLE_QUERY_KEYS = frozenset({"page", "append"})
 
 # 游客主题 Cookie 名，与 themes 模块保持一致。
 GUEST_THEME_COOKIE_NAME = "rewrz_theme"
@@ -62,6 +67,10 @@ def is_cacheable_public_list_request(request: Request) -> bool:
         return False
     if str(request.query_params.get("append") or "") == "1":
         return False
+    # 缓存命中已前移到中间件、早于认证解析，必须用 Cookie 判定登录态，
+    # 否则登录访客会拿到匿名缓存 HTML。
+    if request.cookies.get("access_token"):
+        return False
     if getattr(request.state, "authenticated_user", None) is not None:
         return False
     return is_public_list_page_path(request.url.path)
@@ -81,9 +90,14 @@ def should_skip_csrf_token(request: Request) -> bool:
 
 
 def _build_cache_key(request: Request, version: int) -> str:
-    """缓存键包含完整路径、查询串与游客主题，避免不同变体互相污染。"""
+    """缓存键只保留影响 HTML 的查询参数与游客主题，避免无关变体互相挤掉。"""
     theme_preference = str(request.cookies.get(GUEST_THEME_COOKIE_NAME) or "").strip().lower()
-    query = request.url.query
+    query_items = [
+        (key, value)
+        for key, value in parse_qsl(request.url.query, keep_blank_values=True)
+        if key in _CACHEABLE_QUERY_KEYS
+    ]
+    query = urlencode(sorted(query_items))
     return f"{request.url.path}?{query}|theme={theme_preference}|v={version}"
 
 

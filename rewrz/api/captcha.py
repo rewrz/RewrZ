@@ -12,9 +12,11 @@ import threading
 import time
 from collections import defaultdict, deque
 from pathlib import Path
+import logging
 
 from ..core.admin_security import get_client_ip
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # 验证码专用字体：仅包含 CAPTCHA_CHAR_SET 字符的思源黑体子集（约 12KB），
@@ -90,7 +92,7 @@ def generate_captcha_image_upgraded(text):
         font = ImageFont.truetype(FONT_PATH, 36)
     except OSError:
         # 字体缺失时回退默认字体，仅用于保证接口可用；生产环境应保证字体文件存在。
-        print(f"错误：字体文件未在 '{FONT_PATH}' 找到。")
+        logger.error("验证码字体文件缺失，已回退默认字体：%s", FONT_PATH)
         font = ImageFont.load_default()
 
     d = ImageDraw.Draw(image)

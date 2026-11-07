@@ -122,6 +122,8 @@ MEDIA_UPLOAD_DIR=media_uploads
 - 后台“访问统计”页支持今日 / 本周 / 本月 / 今年 / 近三年 / 自定义范围查看访问量趋势
 - 区分有效访问、爬虫、可疑请求、后台与 API 流量，并列出异常来源 IP
 - 提供突发流量检测与数据库容量结论，用于判断是否需要迁移 PostgreSQL
+- 单列「安全拦截（应用层）」构成：最外层 UA / 扫描路径拦截不回源、不计入请求总数；
+  Nginx 规则拦截、静态直出与边缘拦截需以 Nginx / CDN 日志核对
 - 套 CDN / 反向代理时，公开页通过 `sendBeacon` 补全缓存命中的浏览；
   需保证 `POST /api/v1/traffic/pageview` 可回源且不被缓存，具体见
   [DEPLOYMENT.md](../operations/DEPLOYMENT.md) 的“访问统计与 CDN / 反向代理”一节

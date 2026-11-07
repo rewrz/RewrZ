@@ -28,10 +28,10 @@ from fastapi import Request
 DEFAULT_TTL_SECONDS = 20
 
 # 最多缓存多少个页面变体（文章 + 页面 + 主题组合）
-MAX_ENTRIES = 128
+MAX_ENTRIES = 384
 
-# 缓存 HTML 的总字符预算：单页通常几百 KB，限制总量后额外内存不超过约 8MB
-MAX_TOTAL_CHARS = 8 * 1024 * 1024
+# 缓存 HTML 的总字符预算：按 16MB 上限控制进程常驻内存
+MAX_TOTAL_CHARS = 16 * 1024 * 1024
 
 # CSRF 令牌占位符：命中缓存时替换为当前访客的令牌
 CSRF_TOKEN_PLACEHOLDER = "__REWRZ_CSRF_TOKEN__"

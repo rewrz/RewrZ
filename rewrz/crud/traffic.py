@@ -809,6 +809,10 @@ def get_analytics_summary(
         lambda: _dimension_totals(db, period.start_utc, period.data_end_utc, "status", limit=20),
         [],
     )
+    guard_blocks = _safe_call(
+        lambda: _dimension_totals(db, period.start_utc, period.data_end_utc, "guard", limit=20),
+        [],
+    )
     anomalies = _safe_call(
         lambda: _fetch_anomalies(db, current_utc, hours=24),
         {"items": [], "total": 0},
@@ -874,6 +878,7 @@ def get_analytics_summary(
             for item in bots
         ],
         "statuses": statuses,
+        "guard_blocks": guard_blocks,
         "anomalies": anomalies,
         "burst": burst,
         "capacity": capacity,
@@ -887,6 +892,7 @@ def get_analytics_summary(
             "回源请求数、爬虫、可疑来源与容量指标只能观察到达源站的流量；CDN 边缘拦截或纯缓存命中不会回源。",
             "UV 按保留窗口内的访客哈希去重，不能把每日 UV 直接相加。",
             "爬虫与可疑来源基于 UA 与路径启发式识别，仅用于观察，不自动封禁。",
+            "安全拦截只统计应用层最外层拒绝的请求，不计入回源请求数；Nginx 规则、静态直出与边缘拦截请以 Nginx 日志核对。",
             "异常来源 IP 原文最多保留 7 天，正常访客不会落库原始 IP。",
             "CDN / 反向代理直接回源到应用时，必须把回源 IP 加入 TRUSTED_PROXIES；若前面有 Nginx 已还原真实 IP，则保持默认并只信任本机 Nginx，否则 UV 与上报限流会按边缘节点 IP 计算。",
         ],
