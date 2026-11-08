@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Callable, Iterable
@@ -453,6 +454,27 @@ def _build_trend(
     return trend
 
 
+def _nice_axis(values: Iterable[int]) -> dict[str, Any]:
+    """为趋势图生成整齐的纵轴刻度（1/2/5 × 10^n 步长，固定 5 段）。"""
+    peak = int(max(values, default=0) or 0)
+    raw_step = max(peak, 1) / 5
+    exponent = math.floor(math.log10(raw_step))
+    base = 10 ** exponent
+    # 步长至少为 1：低流量区间（峰值 1~2 次）不能出现 0 步长导致除零。
+    step = max(
+        1,
+        math.ceil(
+            next(
+                (factor * base for factor in (1, 2, 5, 10) if factor * base >= raw_step),
+                10 * base,
+            )
+        ),
+    )
+    axis_max = step * 5
+    ticks = [axis_max - index * step for index in range(6)]
+    return {"max": axis_max, "ticks": ticks}
+
+
 def _dimension_totals(
     db: Session,
     start_utc: datetime,
@@ -770,6 +792,10 @@ def get_analytics_summary(
     trend = _safe_call(
         lambda: _build_trend(rows, period, data_end_utc=period.data_end_utc), []
     )
+    trend_axis = {
+        "requests": _nice_axis(point["requests"] for point in trend),
+        "page_views": _nice_axis(point["effective_page_views"] for point in trend),
+    }
     # 维度同时存在回源与上报两套：上报更多时改用上报维度，
     # 否则保留更完整的回源维度，避免两套数据相加造成重复计数。
     page_views = int(totals.get("page_views", 0) or 0)
@@ -853,6 +879,7 @@ def get_analytics_summary(
             "bot_ratio": _compare(totals["bot_ratio"], previous_totals["bot_ratio"]),
         },
         "trend": trend,
+        "trend_axis": trend_axis,
         "composition": _composition(totals),
         "paths": [
             {

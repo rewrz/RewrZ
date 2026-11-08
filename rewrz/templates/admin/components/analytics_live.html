@@ -60,24 +60,26 @@
         <p class="text-sm font-medium mb-2" style="color: var(--color-text);">最近 15 分钟异常来源（共 {{ anomalies.total }} 个）</p>
         {% if anomalies["items"] %}
         <div class="overflow-x-auto">
-            <table class="w-full text-xs">
+            <table class="w-full text-xs analytics-live-anomaly-table">
                 <thead>
                     <tr style="color: var(--color-text-light); text-align: left;">
-                        <th class="py-1 pr-3">IP</th>
-                        <th class="py-1 pr-3">原因</th>
-                        <th class="py-1 pr-3">命中</th>
-                        <th class="py-1 pr-3">最近出现</th>
-                        <th class="py-1">样例路径</th>
+                        <th class="py-1 pr-3 whitespace-nowrap">IP</th>
+                        <th class="py-1 pr-3 whitespace-nowrap">原因</th>
+                        <th class="py-1 pr-3 whitespace-nowrap">命中</th>
+                        <th class="py-1 pr-3 whitespace-nowrap">最近出现</th>
+                        <th class="py-1 whitespace-nowrap">样例路径</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in anomalies["items"][:5] %}
                     <tr style="border-top: 1px solid var(--color-border); color: var(--color-text);">
-                        <td class="py-1.5 pr-3"><code>{{ item.ip }}</code></td>
-                        <td class="py-1.5 pr-3">{{ item.reason }}</td>
-                        <td class="py-1.5 pr-3">{{ item.hits }}</td>
-                        <td class="py-1.5 pr-3">{{ item.last_seen }}</td>
-                        <td class="py-1.5 break-all">{{ item.sample_path }}</td>
+                        <td class="py-1.5 pr-3 whitespace-nowrap"><code>{{ item.ip }}</code></td>
+                        <td class="py-1.5 pr-3 whitespace-nowrap">{{ item.reason }}</td>
+                        <td class="py-1.5 pr-3 whitespace-nowrap">{{ item.hits }}</td>
+                        <td class="py-1.5 pr-3 whitespace-nowrap">{{ item.last_seen }}</td>
+                        <td class="py-1.5">
+                            <div class="truncate" style="max-width: 220px;" title="{{ item.sample_path }}">{{ item.sample_path }}</div>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
