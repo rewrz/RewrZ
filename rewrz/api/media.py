@@ -16,7 +16,7 @@ from urllib.request import Request as UrlRequest, urlopen
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Header, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from ..core.admin_path import get_admin_path
@@ -26,12 +26,15 @@ from ..core.database import get_db
 from ..core.media_processor import get_media_processor
 from ..core.time_utils import site_local_to_utc_naive, site_now_naive, utc_iso
 from ..core.thumbnail_service import (
+    ALLOWED_DPR,
+    ALLOWED_FMT,
+    DEFAULT_PRESETS,
     ThumbnailServiceError,
     build_variant_url,
     generate_media_variant,
     purge_media_variant_cache,
 )
-from ..core.security import get_current_user, verify_csrf_token
+from ..core.security import get_client_ip, require_admin_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..crud import media as crud_media
 from ..crud import setting as crud_setting
@@ -257,11 +260,30 @@ async def _store_media_upload(
         if not is_valid:
             raise HTTPException(status_code=400, detail=error_msg)
 
+        file_info = media_processor.get_file_info(str(temp_filepath))
+
+        if file_info.get("file_type") == "image" and auto_process:
+            try:
+                media_processor.extract_image_metadata(str(temp_filepath))
+                if media_processor.auto_compress:
+                    media_processor.optimize_image(str(temp_filepath))
+            except Exception:
+                pass
+
+        # 压缩会改变文件字节，必须用最终字节的哈希与大小查重；用上传流哈希查重会永远匹配不上。
+        stored_hash, stored_size = _stat_media_file(str(temp_filepath))
+        final_hash = stored_hash or upload_hash
+        final_size = stored_size or file_size
+
         cdn_base = _get_media_cdn_base(db)
-        if deduplicate:
-            duplicate = _find_duplicate_media(db, upload_hash, file_size)
+        if deduplicate and final_hash:
+            duplicate = _find_duplicate_media(
+                db,
+                final_hash,
+                final_size,
+                uploaded_by_id=uploaded_by_user_id,
+            )
             if duplicate is not None:
-                _safe_unlink(temp_filepath)
                 _attach_media_url(duplicate, cdn_base=cdn_base)
                 duplicate.is_duplicate = True
                 return duplicate
@@ -269,31 +291,18 @@ async def _store_media_upload(
         os.replace(temp_filepath, filepath)
         cleanup_saved_file = True
 
-        file_info = media_processor.get_file_info(str(filepath))
-
-        if file_info.get("file_type") == "image" and auto_process:
-            try:
-                media_processor.extract_image_metadata(str(filepath))
-                if media_processor.auto_compress:
-                    media_processor.optimize_image(str(filepath))
-            except Exception:
-                pass
-
         media_create = MediaCreate(
             filename=original_name,
             filepath=str(filepath),
             folder=_folder_from_filepath(str(filepath)),
             file_type=file_info.get("file_type", "other"),
             mime_type=file.content_type or file_info.get("mime_type") or "application/octet-stream",
-            file_hash="",
-            file_size=0,
+            file_hash=final_hash,
+            file_size=final_size,
             title=title or Path(original_name).stem,
             alt_text=alt_text,
             description=description,
         )
-        stored_hash, stored_size = _stat_media_file(str(filepath))
-        media_create.file_hash = stored_hash or upload_hash
-        media_create.file_size = stored_size or file_size
         db_media = crud_media.create_media(db=db, media=media_create, uploaded_by_id=uploaded_by_user_id)
         _invalidate_media_folder_cache()
 
@@ -580,13 +589,20 @@ async def _write_upload_stream_to_file(upload_file: UploadFile, target_path: Pat
     return total_size, digest.hexdigest()
 
 
-def _find_duplicate_media(db: Session, upload_hash: str, file_size: int) -> Optional[MediaModel]:
+def _find_duplicate_media(
+    db: Session,
+    upload_hash: str,
+    file_size: int,
+    uploaded_by_id: int,
+) -> Optional[MediaModel]:
+    """只复用当前上传者自己的文件，避免返回他人记录导致上传者无法管理。"""
     if not upload_hash or file_size < 0:
         return None
     media_items = db.execute(
         select(MediaModel)
         .filter(MediaModel.file_hash == upload_hash)
         .filter(MediaModel.file_size == int(file_size))
+        .filter(MediaModel.uploaded_by_id == int(uploaded_by_id))
         .order_by(MediaModel.id.asc())
     ).scalars().all()
     for item in media_items:
@@ -608,6 +624,16 @@ def _make_unique_path(path: Path) -> Path:
         if not candidate.exists():
             return candidate
         index += 1
+
+
+def is_media_owner(media_row: Any, current_user: User) -> bool:
+    """媒体写操作沿用「仅上传者本人」口径。
+
+    列表可见全量媒体属于后台管理需要；角色门槛由 require_admin_user 统一保证。
+    这里不额外放宽到管理员，避免改变既有最小权限模型。
+    """
+    owner_id = getattr(media_row, "uploaded_by_id", 0) or 0
+    return int(owner_id) == int(current_user.id)
 
 
 def _move_related_media_files(old_path: Path, new_path: Path) -> None:
@@ -654,37 +680,79 @@ def _replace_nested_value(value: Any, replacements: List[Tuple[str, str]]) -> Tu
     return value, False
 
 
+def _like_pattern(value: str) -> str:
+    """把替换目标转成 LIKE 模式；转义通配符，避免文件名中的 % / _ 造成误匹配。"""
+    escaped = str(value).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def _candidate_ids(db: Session, id_column, columns, old_values: List[str]) -> Set[int]:
+    """在数据库端分批粗筛可能包含目标 URL 的记录，避免全表载入与超长 SQL。"""
+    candidate_ids: Set[int] = set()
+    batch_size = 40
+    for start in range(0, len(old_values), batch_size):
+        conditions = [
+            column.like(_like_pattern(old), escape="\\")
+            for old in old_values[start:start + batch_size]
+            for column in columns
+        ]
+        if not conditions:
+            continue
+        ids = db.execute(select(id_column).where(or_(*conditions))).scalars().all()
+        candidate_ids.update(int(row_id) for row_id in ids)
+    return candidate_ids
+
+
 def _replace_media_references(db: Session, replacements: List[Tuple[str, str]]) -> Dict[str, int]:
-    if not replacements:
+    """批量替换媒体引用：只加载可能命中的记录，避免随文章量线性增长的全表扫描。"""
+    effective = [(old, new) for old, new in replacements if old and old != new]
+    if not effective:
         return {"posts": 0, "users": 0, "settings": 0}
+    old_values = list(dict.fromkeys(old for old, _ in effective))
 
     post_changed = 0
     user_changed = 0
     setting_changed = 0
 
-    posts = db.execute(select(PostModel)).scalars().all()
+    post_ids = _candidate_ids(
+        db,
+        PostModel.id,
+        (PostModel.featured_image_url, PostModel.content_markdown, PostModel.content_html),
+        old_values,
+    )
+    posts = (
+        db.execute(select(PostModel).where(PostModel.id.in_(post_ids))).scalars().all()
+        if post_ids
+        else []
+    )
     for post in posts:
         changed = False
         for field in ("featured_image_url", "content_markdown", "content_html"):
             current = getattr(post, field, None)
-            updated, has_changed = _replace_text_value(current, replacements)
+            updated, has_changed = _replace_text_value(current, effective)
             if has_changed:
                 setattr(post, field, updated)
                 changed = True
         if changed:
             post_changed += 1
 
-    users = db.execute(select(UserModel)).scalars().all()
+    user_ids = _candidate_ids(db, UserModel.id, (UserModel.avatar_url,), old_values)
+    users = (
+        db.execute(select(UserModel).where(UserModel.id.in_(user_ids))).scalars().all()
+        if user_ids
+        else []
+    )
     for user in users:
-        updated_avatar, has_changed = _replace_text_value(getattr(user, "avatar_url", None), replacements)
+        updated_avatar, has_changed = _replace_text_value(getattr(user, "avatar_url", None), effective)
         if has_changed:
             user.avatar_url = updated_avatar
             user_changed += 1
 
+    # 设置项为 JSON 结构且总量很小，保留递归替换，不引入方言相关的 JSON 表达式。
     settings_items = db.execute(select(SettingModel)).scalars().all()
     for setting_item in settings_items:
         current_value = setting_item.value
-        updated_value, has_changed = _replace_nested_value(current_value, replacements)
+        updated_value, has_changed = _replace_nested_value(current_value, effective)
         if has_changed:
             setting_item.value = updated_value
             setting_changed += 1
@@ -944,7 +1012,7 @@ def _cleanup_duplicate_groups(
             duplicate_media = crud_media.get_media(db, row["id"])
             if duplicate_media is None:
                 continue
-            if duplicate_media.uploaded_by_id != current_user.id:
+            if not is_media_owner(duplicate_media, current_user):
                 continue
 
             duplicate_path = str(duplicate_media.filepath)
@@ -988,7 +1056,7 @@ def _cleanup_duplicate_groups(
 def media_library_page(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     # 首屏仅渲染页面框架，媒体列表改为前端异步加载，降低首次访问耗时。
     page_size = MEDIA_LIBRARY_PAGE_SIZE
@@ -999,7 +1067,6 @@ def media_library_page(
         {
             "request": request,
             "user": current_user,
-            "media_items": [],
             "media_folders": [],
             "media_page_size": page_size,
             "media_has_more": False,
@@ -1010,6 +1077,7 @@ def media_library_page(
 @router.get(f"{ADMIN_PATH}/api/v1/media", response_model=List[Media])
 def get_media_items_api(
     request: Request,
+    response: Response,
     page: int = 1,
     limit: int = 12,
     search: Optional[str] = None,
@@ -1018,7 +1086,7 @@ def get_media_items_api(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     page = max(1, int(page))
     limit = max(1, min(200, int(limit)))
@@ -1045,6 +1113,16 @@ def get_media_items_api(
         uploaded_to=uploaded_to,
     )
 
+    total_count = crud_media.count_all_media(
+        db=db,
+        search=search,
+        folder=folder_filter,
+        file_type_prefix=file_type_prefix,
+        uploaded_from=uploaded_from,
+        uploaded_to=uploaded_to,
+    )
+    response.headers["X-Total-Count"] = str(total_count)
+
     cdn_base = _get_media_cdn_base(db)
     for item in media_items:
         _attach_media_url(item, cdn_base=cdn_base)
@@ -1061,7 +1139,7 @@ def get_media_item_ids_api(
     date_to: Optional[str] = None,
     limit: int = 10000,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     file_type_prefix = (file_type or "").strip().lower() or None
     uploaded_from = _parse_media_filter_date(date_from, end_of_day=False)
@@ -1088,7 +1166,7 @@ def get_media_item_ids_api(
 @router.get(f"{ADMIN_PATH}/api/v1/media/folders")
 def get_media_folders_api(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     return _list_media_folders(db)
 
@@ -1098,7 +1176,7 @@ def create_media_folder(
     request: Request,
     payload: MediaFolderCreateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
@@ -1118,7 +1196,7 @@ def create_media_folder(
 @router.get(f"{ADMIN_PATH}/api/v1/media/duplicates")
 def get_duplicate_media_groups(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     cdn_base = _get_media_cdn_base(db)
     return _collect_duplicate_groups(db=db, current_user_id=current_user.id, cdn_base=cdn_base)
@@ -1129,7 +1207,7 @@ def cleanup_duplicate_media_groups(
     request: Request,
     payload: MediaDuplicateCleanupRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
@@ -1143,6 +1221,22 @@ def cleanup_duplicate_media_groups(
     )
 
 
+def _variant_error_response(
+    request: Request, status_code: int, error_code: str, message: str
+) -> JSONResponse:
+    """变体接口统一错误响应；限流响应附带重试提示。"""
+    headers = {"Retry-After": "5"} if status_code == 429 else None
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "error_code": error_code,
+            "message": message,
+            "request_id": request.headers.get("X-Request-Id", ""),
+        },
+        headers=headers,
+    )
+
+
 @router.get("/media/variant/{media_id}/{preset}")
 def get_media_variant_file(
     request: Request,
@@ -1152,35 +1246,33 @@ def get_media_variant_file(
     fmt: str = Query("auto"),
     db: Session = Depends(get_db),
 ):
+    # 前台文章图片必须匿名可访问，因此不做登录校验；改为在查库之前完成零成本参数校验，
+    # 并把节流放在「实际编码」环节，避免匿名遍历 media_id / preset 放大图片处理开销。
+    preset_value = str(preset or "").strip()
+    if preset_value not in DEFAULT_PRESETS:
+        return _variant_error_response(request, 400, "invalid_preset", f"不支持的缩略图预设: {preset_value}")
+    if dpr not in ALLOWED_DPR:
+        return _variant_error_response(request, 400, "invalid_dpr", "dpr 仅支持 1 或 2")
+    fmt_value = str(fmt or "auto").strip().lower()
+    if fmt_value not in ALLOWED_FMT:
+        return _variant_error_response(request, 400, "invalid_fmt", "fmt 参数不合法")
+
     db_media = db.execute(select(MediaModel).filter(MediaModel.id == media_id)).scalar_one_or_none()
     if db_media is None:
-        return JSONResponse(
-            status_code=404,
-            content={
-                "error_code": "media_not_found",
-                "message": "媒体不存在",
-                "request_id": request.headers.get("X-Request-Id", ""),
-            },
-        )
+        return _variant_error_response(request, 404, "media_not_found", "媒体不存在")
 
     try:
         variant = generate_media_variant(
             db=db,
             media_obj=db_media,
-            preset_name=preset,
+            preset_name=preset_value,
             dpr=dpr,
-            fmt=fmt,
+            fmt=fmt_value,
             accept_header=request.headers.get("accept", ""),
+            client_key=get_client_ip(request),
         )
     except ThumbnailServiceError as exc:
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
-                "error_code": exc.error_code,
-                "message": exc.message,
-                "request_id": request.headers.get("X-Request-Id", ""),
-            },
-        )
+        return _variant_error_response(request, exc.status_code, exc.error_code, exc.message)
 
     response_headers = {
         "Cache-Control": "public, max-age=31536000, immutable",
@@ -1211,7 +1303,7 @@ async def upload_media(
     deduplicate: bool = Form(True),
     auto_process: bool = Form(True),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
@@ -1232,7 +1324,7 @@ async def upload_media(
 def get_media_item(
     media_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     db_media = db.execute(
         select(MediaModel).filter(MediaModel.id == media_id).options(joinedload(MediaModel.uploaded_by))
@@ -1252,7 +1344,7 @@ def update_media_item(
     media_id: int,
     media_update: MediaUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
@@ -1260,8 +1352,8 @@ def update_media_item(
     db_media = crud_media.get_media(db, media_id=media_id)
     if db_media is None:
         raise HTTPException(status_code=404, detail="Media file not found")
-    if db_media.uploaded_by_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to update this media file")
+    if not is_media_owner(db_media, current_user):
+        raise HTTPException(status_code=403, detail="无权修改该媒体文件")
 
     updated_media = crud_media.update_media(db=db, media_id=media_id, media_update=media_update)
     cdn_base = _get_media_cdn_base(db)
@@ -1275,7 +1367,7 @@ def move_media_item(
     media_id: int,
     payload: MediaMoveRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
@@ -1283,8 +1375,8 @@ def move_media_item(
     db_media = crud_media.get_media(db, media_id=media_id)
     if db_media is None:
         raise HTTPException(status_code=404, detail="Media file not found")
-    if db_media.uploaded_by_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to move this media file")
+    if not is_media_owner(db_media, current_user):
+        raise HTTPException(status_code=403, detail="无权移动该媒体文件")
 
     try:
         target_folder = _normalize_folder_path(payload.target_folder)
@@ -1313,7 +1405,7 @@ def bulk_move_media_items(
     request: Request,
     payload: MediaBulkMoveRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
@@ -1338,7 +1430,7 @@ def bulk_move_media_items(
         if db_media is None:
             skipped.append({"id": media_id, "reason": "not_found"})
             continue
-        if db_media.uploaded_by_id != current_user.id:
+        if not is_media_owner(db_media, current_user):
             skipped.append({"id": media_id, "reason": "forbidden"})
             continue
         try:
@@ -1372,7 +1464,7 @@ def delete_media_item(
     request: Request,
     media_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
@@ -1380,8 +1472,8 @@ def delete_media_item(
     db_media = crud_media.get_media(db, media_id=media_id)
     if db_media is None:
         raise HTTPException(status_code=404, detail="Media file not found")
-    if db_media.uploaded_by_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this media file")
+    if not is_media_owner(db_media, current_user):
+        raise HTTPException(status_code=403, detail="无权删除该媒体文件")
 
     _delete_media_files(db, db_media)
     crud_media.delete_media(db=db, media_id=media_id)
@@ -1394,7 +1486,7 @@ def bulk_delete_media_items(
     request: Request,
     payload: MediaBulkDeleteRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
@@ -1418,7 +1510,7 @@ def bulk_delete_media_items(
         if media_row is None:
             skipped.append({"id": media_id, "reason": "not_found"})
             continue
-        if int(media_row.uploaded_by_id or 0) != int(current_user.id):
+        if not is_media_owner(media_row, current_user):
             skipped.append({"id": media_id, "reason": "forbidden"})
             continue
 

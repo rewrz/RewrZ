@@ -4,6 +4,7 @@ import hashlib
 import shutil
 import threading
 import time
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Any
@@ -77,6 +78,36 @@ _MEDIA_ID_CACHE_MAX_ENTRIES = 4096
 _SETTINGS_CACHE: Dict[str, Tuple[float, Any]] = {}
 _SETTINGS_CACHE_GUARD = threading.Lock()
 _SETTINGS_CACHE_TTL_SECONDS = 10
+
+# 公开变体接口可被匿名枚举：只在「缓存未命中、确实要编码」时做节流与并发上限。
+# 缓存命中、上传预热与批量预热脚本不传入客户端键，因此完全不受限流影响。
+_GENERATION_SEMAPHORE = threading.BoundedSemaphore(4)
+_GENERATION_RATE_WINDOW_SECONDS = 60
+_GENERATION_RATE_MAX_PER_CLIENT = 120
+_GENERATION_RATE_MAX_ENTRIES = 1024
+_GENERATION_RATE_BUCKETS: Dict[str, Any] = {}
+_GENERATION_RATE_GUARD = threading.Lock()
+
+
+def _allow_generation_for_client(client_key: str) -> bool:
+    """按客户端键做滑动窗口节流，防止遍历 media_id / preset 触发大量图片编码。"""
+    key = str(client_key or "")[:128]
+    now = time.monotonic()
+    with _GENERATION_RATE_GUARD:
+        bucket = _GENERATION_RATE_BUCKETS.setdefault(key, deque())
+        while bucket and now - bucket[0] > _GENERATION_RATE_WINDOW_SECONDS:
+            bucket.popleft()
+        if len(bucket) >= _GENERATION_RATE_MAX_PER_CLIENT:
+            return False
+        bucket.append(now)
+        if len(_GENERATION_RATE_BUCKETS) > _GENERATION_RATE_MAX_ENTRIES:
+            for stale_key in [
+                candidate
+                for candidate, values in _GENERATION_RATE_BUCKETS.items()
+                if not values or now - values[-1] > _GENERATION_RATE_WINDOW_SECONDS
+            ]:
+                _GENERATION_RATE_BUCKETS.pop(stale_key, None)
+        return True
 
 
 def get_preset(name: str) -> ThumbnailPreset:
@@ -175,7 +206,9 @@ def generate_media_variant(
     dpr: int = 1,
     fmt: str = "auto",
     accept_header: str = "",
+    client_key: str = "",
 ) -> ThumbnailResult:
+    """生成变体；client_key 仅由公开 HTTP 入口传入，用于限制匿名枚举编码。"""
     if media_obj is None:
         raise ThumbnailServiceError(404, "media_not_found", "媒体不存在")
     if not str(getattr(media_obj, "file_type", "") or "").startswith("image"):
@@ -229,12 +262,13 @@ def generate_media_variant(
     if _is_negative_cached(cache_key):
         raise ThumbnailServiceError(429, "variant_recently_failed", "该变体近期生成失败，请稍后重试")
 
-    lock = _get_lock(cache_key)
     lock_timeout_ms = _get_setting_int(db, "thumbnail_lock_timeout_ms", 15000)
+    lock = _get_lock(cache_key)
     acquired = lock.acquire(timeout=max(0.1, lock_timeout_ms / 1000))
     if not acquired:
         raise ThumbnailServiceError(429, "variant_busy", "变体生成繁忙，请稍后重试")
 
+    generation_slot = False
     try:
         if cache_path.exists():
             return ThumbnailResult(
@@ -246,6 +280,14 @@ def generate_media_variant(
                 dpr=dpr_value,
                 fmt=negotiated_fmt,
             )
+
+        # 只有真正要编码的请求才计入节流与并发上限；并发下命中缓存的请求不受影响。
+        if client_key:
+            if not _allow_generation_for_client(client_key):
+                raise ThumbnailServiceError(429, "variant_rate_limited", "变体生成请求过于频繁，请稍后重试")
+            if not _GENERATION_SEMAPHORE.acquire(blocking=False):
+                raise ThumbnailServiceError(429, "variant_busy", "变体生成繁忙，请稍后重试")
+            generation_slot = True
 
         try:
             _generate_variant_file(
@@ -277,6 +319,8 @@ def generate_media_variant(
             fmt=negotiated_fmt,
         )
     finally:
+        if generation_slot:
+            _GENERATION_SEMAPHORE.release()
         lock.release()
 
 

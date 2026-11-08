@@ -55,11 +55,15 @@ RewrZ 当前 API 分为四层：
 ### 3.1 后台写接口
 以下两项缺一不可：
 
-1. `Depends(get_current_user)`
+1. `Depends(get_current_user)`，或其角色包装 `Depends(require_admin_user)`
 2. `verify_csrf_token(request, csrf_token)`
 
 典型头部：
 - `X-CSRF-Token: <token>`
+
+后台媒体库全量接口（页面、列表、ID 列表、文件夹、重复扫描、上传、改删）统一使用
+`Depends(require_admin_user)`：登录态之上还要求 `admin` / `super_admin` 角色，
+非管理员返回 403。列表可见全站媒体用于管理，写操作仍仅允许上传者本人。
 
 ### 3.2 前台登录态写接口
 - 仍可使用固定公共路径
@@ -76,6 +80,13 @@ Authorization: Bearer <api_key>
 ```
 - 不使用 Cookie
 - 不依赖 CSRF
+
+### 3.4 公开媒体变体接口
+- `GET /media/variant/{media_id}/{preset}` 服务前台 `<img>`，保持匿名可读，不引入登录校验
+- `preset` / `dpr` / `fmt` 在查库之前按白名单校验，非法参数返回 400 JSON
+  （`invalid_preset` / `invalid_dpr` / `invalid_fmt`）
+- 仅「缓存未命中、实际编码」的请求按客户端 IP 节流并受全局并发上限约束，
+  超出返回 429 且带 `Retry-After`；缓存命中与内部预热不受限，避免影响正常图片加载
 
 ## 4. API Key 约定
 

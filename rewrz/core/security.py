@@ -149,6 +149,15 @@ def ensure_admin_user(user) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限")
 
 
+def require_admin_user(current_user=Depends(get_current_user)):
+    """后台管理接口统一角色门槛：仅 admin / super_admin 可进入。
+
+    作为依赖使用，登录态仍由 get_current_user 解析，便于已有 dependency_overrides 复用。
+    """
+    ensure_admin_user(current_user)
+    return current_user
+
+
 def get_client_ip(request: Request) -> str:
     """统一走可信代理解析，避免审计 IP 被客户端伪造的 XFF 污染。"""
     from .admin_security import get_client_ip as get_trusted_client_ip

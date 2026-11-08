@@ -782,3 +782,42 @@ def test_system_info_media_stats_cover_all_records(tmp_path, monkeypatch):
     finally:
         db.close()
         engine.dispose()
+
+
+def test_media_library_requires_admin_role(test_db, monkeypatch):
+    client = _build_admin_client(test_db, monkeypatch)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+    try:
+        main_module.app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+            id=2,
+            username="viewer",
+            email="viewer@example.com",
+            role="viewer",
+            is_active=True,
+            use_gravatar="auto",
+        )
+        for path in (
+            f"{admin_prefix}/media",
+            f"{admin_prefix}/api/v1/media",
+            f"{admin_prefix}/api/v1/media/folders",
+        ):
+            response = client.get(path)
+            assert response.status_code == 403, (path, response.status_code)
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_media_variant_rejects_invalid_params_before_database(test_db, monkeypatch):
+    client = _build_admin_client(test_db, monkeypatch)
+    try:
+        cases = [
+            ("/media/variant/1/not_a_preset", "invalid_preset"),
+            ("/media/variant/1/post_cover?dpr=3", "invalid_dpr"),
+            ("/media/variant/1/post_cover?fmt=bogus", "invalid_fmt"),
+        ]
+        for url, error_code in cases:
+            response = client.get(url)
+            assert response.status_code == 400, (url, response.status_code)
+            assert response.json()["error_code"] == error_code
+    finally:
+        main_module.app.dependency_overrides.clear()

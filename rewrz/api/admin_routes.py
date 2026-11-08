@@ -17,7 +17,7 @@ from ..core.admin_path import get_admin_path
 from ..core.config import settings
 from ..core.database import get_db
 from ..core.page_templates import get_page_template_label_map
-from ..core.security import get_current_user
+from ..core.security import get_current_user, require_admin_user
 from ..models import Category, Comment, Post, Tag
 from ..models.post import post_categories, post_tags
 from ..crud import category as crud_category
@@ -469,7 +469,7 @@ def register_admin_primary_routes(
     def dynamic_admin_media_page(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return media_api.media_library_page(request, db, current_user)
 

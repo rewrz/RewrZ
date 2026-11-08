@@ -1,8 +1,33 @@
-<div id="media-library-modal" class="fixed inset-0 z-50 hidden bg-gray-900/50 p-4">
-    <div class="mx-auto mt-8 w-full max-w-5xl rounded-lg bg-white shadow-xl">
-        <div class="flex items-center justify-between border-b px-5 py-4">
-            <h3 class="text-lg font-semibold text-gray-900">媒体库</h3>
-            <button type="button" id="media-lib-close-btn" class="rounded p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700">
+<style>
+/* 编辑器媒体库弹窗：配色统一收口到动态主题变量，随后台主题切换。 */
+/* 遮罩为中性明暗蒙层，不参与主题配色。 */
+.mlm-backdrop { background: rgba(0, 0, 0, 0.5); }
+.mlm-panel { background: var(--color-card-bg); color: var(--color-text); }
+.mlm-header, .mlm-tabs { border-bottom: 1px solid var(--color-border); }
+.mlm-title { color: var(--color-text); }
+.mlm-muted, .mlm-label { color: var(--color-text-light); }
+.mlm-icon-btn { color: var(--color-text-light); }
+.mlm-icon-btn:hover { background: var(--color-background-alt); color: var(--color-text); }
+.mlm-tab { border-bottom: 2px solid transparent; color: var(--color-text-light); }
+.mlm-tab:hover { color: var(--color-text); }
+.mlm-tab.is-active { border-bottom-color: var(--color-primary); color: var(--color-primary); }
+.mlm-grid { border: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-background-alt) 28%, var(--color-card-bg) 72%); }
+.mlm-card { border: 1px solid var(--color-border); background: var(--color-card-bg); }
+.mlm-card:hover { box-shadow: 0 10px 22px -16px color-mix(in srgb, var(--color-primary) 55%, transparent); }
+.mlm-card.is-selected { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.mlm-card-title { color: var(--color-text); }
+.mlm-placeholder { background: color-mix(in srgb, var(--color-background-alt) 78%, var(--color-card-bg) 22%); color: var(--color-text-light); }
+.mlm-preview { border: 1px solid var(--color-border); }
+.mlm-drop-area { border: 2px dashed var(--color-border); }
+.mlm-drop-area:hover, .mlm-drop-area.is-dragover { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%); }
+.mlm-status { background: var(--color-background-alt); color: var(--color-text-light); }
+.mlm-error { background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%); color: color-mix(in srgb, var(--color-primary) 70%, var(--color-text) 30%); }
+</style>
+<div id="media-library-modal" class="mlm-backdrop fixed inset-0 z-50 hidden p-4">
+    <div class="mlm-panel mx-auto mt-8 w-full max-w-5xl rounded-lg shadow-xl">
+        <div class="mlm-header flex items-center justify-between px-5 py-4">
+            <h3 class="mlm-title text-lg font-semibold">媒体库</h3>
+            <button type="button" id="media-lib-close-btn" class="mlm-icon-btn rounded p-2">
                 <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
                 </svg>
@@ -10,30 +35,30 @@
         </div>
 
         <div class="px-5 pb-5 pt-4">
-            <div class="mb-4 border-b border-gray-200">
+            <div class="mlm-tabs mb-4">
                 <nav class="-mb-px flex gap-4">
-                    <button type="button" id="media-lib-tab-library" class="border-b-2 border-blue-600 px-1 py-2 text-sm font-medium text-blue-600">媒体库</button>
-                    <button type="button" id="media-lib-tab-upload" class="border-b-2 border-transparent px-1 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">上传文件</button>
+                    <button type="button" id="media-lib-tab-library" class="mlm-tab is-active px-1 py-2 text-sm font-medium">媒体库</button>
+                    <button type="button" id="media-lib-tab-upload" class="mlm-tab px-1 py-2 text-sm font-medium">上传文件</button>
                 </nav>
             </div>
 
             <section id="media-lib-panel-library" class="space-y-4">
                 <div class="flex gap-2">
-                    <input type="text" id="media-lib-search-input" placeholder="按标题或文件名搜索..." class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    <select id="media-lib-folder-filter" class="w-44 rounded-md border border-gray-300 px-2 py-2 text-sm"></select>
-                    <button type="button" id="media-lib-search-btn" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">搜索</button>
+                    <input type="text" id="media-lib-search-input" placeholder="按标题或文件名搜索..." class="admin-form-field w-full rounded-md px-3 py-2 text-sm">
+                    <select id="media-lib-folder-filter" class="admin-form-field w-44 rounded-md px-2 py-2 text-sm"></select>
+                    <button type="button" id="media-lib-search-btn" class="admin-primary-btn rounded-md px-4 py-2 text-sm font-medium">搜索</button>
                 </div>
 
-                <div id="media-lib-grid" class="grid max-h-96 grid-cols-2 gap-3 overflow-y-auto rounded-md border border-gray-200 p-3 md:grid-cols-4">
-                    <div id="media-lib-loading" class="col-span-full py-8 text-center text-sm text-gray-500">加载中...</div>
+                <div id="media-lib-grid" class="mlm-grid grid max-h-96 grid-cols-2 gap-3 overflow-y-auto rounded-md p-3 md:grid-cols-4">
+                    <div id="media-lib-loading" class="mlm-muted col-span-full py-8 text-center text-sm">加载中...</div>
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2">
-                    <button type="button" id="media-lib-load-more-btn" class="hidden rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200">加载更多</button>
+                    <button type="button" id="media-lib-load-more-btn" class="admin-secondary-btn hidden rounded-md px-3 py-2 text-sm">加载更多</button>
                     <div class="ml-auto flex items-center gap-2">
                         <div id="media-lib-size-options" class="hidden items-center gap-2">
-                        <label for="media-lib-size-select" class="text-xs text-gray-600">图片尺寸</label>
-                        <select id="media-lib-size-select" class="rounded-md border border-gray-300 px-2 py-2 text-sm">
+                        <label for="media-lib-size-select" class="mlm-label text-xs">图片尺寸</label>
+                        <select id="media-lib-size-select" class="admin-form-field rounded-md px-2 py-2 text-sm">
                             <option value="">原始尺寸</option>
                             <option value="md-img-xs">小（240px）</option>
                             <option value="md-img-sm">中（360px）</option>
@@ -42,23 +67,23 @@
                             <option value="md-img-full">通栏</option>
                         </select>
                         </div>
-                        <button type="button" id="media-lib-select-btn" class="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50" disabled>插入选中项</button>
+                        <button type="button" id="media-lib-select-btn" class="admin-primary-btn rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50" disabled>插入选中项</button>
                     </div>
                 </div>
             </section>
 
             <section id="media-lib-panel-upload" class="hidden space-y-4">
                 <div>
-                    <label for="media-lib-upload-folder-select" class="mb-1 block text-xs text-gray-600">上传到文件夹</label>
-                    <select id="media-lib-upload-folder-select" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"></select>
+                    <label for="media-lib-upload-folder-select" class="mlm-label mb-1 block text-xs">上传到文件夹</label>
+                    <select id="media-lib-upload-folder-select" class="admin-form-field w-full rounded-md px-3 py-2 text-sm"></select>
                 </div>
-                <div id="media-lib-drop-area" class="cursor-pointer rounded-md border-2 border-dashed border-gray-300 p-8 text-center hover:bg-gray-50">
+                <div id="media-lib-drop-area" class="mlm-drop-area cursor-pointer rounded-md p-8 text-center">
                     <input type="file" id="media-lib-file-input" multiple class="hidden">
-                    <p class="text-sm text-gray-700">拖拽文件到此处，或点击选择</p>
-                    <p class="mt-1 text-xs text-gray-500">支持图片、视频、音频和常见文档</p>
+                    <p class="text-sm">拖拽文件到此处，或点击选择</p>
+                    <p class="mlm-muted mt-1 text-xs">支持图片、视频、音频和常见文档</p>
                 </div>
 
-                <div id="media-lib-upload-status" class="hidden rounded-md bg-gray-50 p-3 text-sm text-gray-600"></div>
+                <div id="media-lib-upload-status" class="mlm-status hidden rounded-md p-3 text-sm"></div>
                 <div id="media-lib-uploaded-preview" class="grid grid-cols-3 gap-3"></div>
             </section>
         </div>
@@ -117,23 +142,28 @@
     const MAX_RENDERED_MEDIA_ITEMS = 240;
     const TRIMMED_MEDIA_ITEMS = 180;
 
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
     function switchTab(tabName) {
         const isLibrary = tabName === "library";
         elements.panelLibrary.classList.toggle("hidden", !isLibrary);
         elements.panelUpload.classList.toggle("hidden", isLibrary);
-        elements.tabLibrary.className = isLibrary
-            ? "border-b-2 border-blue-600 px-1 py-2 text-sm font-medium text-blue-600"
-            : "border-b-2 border-transparent px-1 py-2 text-sm font-medium text-gray-500 hover:text-gray-700";
-        elements.tabUpload.className = isLibrary
-            ? "border-b-2 border-transparent px-1 py-2 text-sm font-medium text-gray-500 hover:text-gray-700"
-            : "border-b-2 border-blue-600 px-1 py-2 text-sm font-medium text-blue-600";
+        elements.tabLibrary.classList.toggle("is-active", isLibrary);
+        elements.tabUpload.classList.toggle("is-active", !isLibrary);
     }
 
     function clearSelection() {
         state.selectedItem = null;
         state.selectedItemId = null;
         if (state.selectedCardEl && state.selectedCardEl.isConnected) {
-            state.selectedCardEl.classList.remove("ring-2", "ring-blue-500");
+            state.selectedCardEl.classList.remove("is-selected");
         }
         state.selectedCardEl = null;
         elements.selectBtn.disabled = true;
@@ -146,12 +176,12 @@
         if (!item) return;
 
         if (state.selectedCardEl && state.selectedCardEl !== card && state.selectedCardEl.isConnected) {
-            state.selectedCardEl.classList.remove("ring-2", "ring-blue-500");
+            state.selectedCardEl.classList.remove("is-selected");
         }
         state.selectedItem = item;
         state.selectedItemId = itemId;
         state.selectedCardEl = card;
-        card.classList.add("ring-2", "ring-blue-500");
+        card.classList.add("is-selected");
         elements.selectBtn.disabled = false;
     }
 
@@ -265,20 +295,20 @@
     function renderMediaCard(item) {
         const card = document.createElement("button");
         card.type = "button";
-        card.className = "media-lib-item overflow-hidden rounded-md border border-gray-200 text-left transition hover:shadow";
+        card.className = "mlm-card media-lib-item overflow-hidden rounded-md text-left transition";
         card.dataset.id = String(item.id);
 
         const previewUrl = item.preview_url || item.url || "";
         const fullUrl = item.url || previewUrl;
         const imageAlt = item.alt_text || item.title || item.filename || "image";
         const preview = String(item.file_type || "").startsWith("image")
-            ? `<img data-src="${previewUrl}" data-full-src="${fullUrl}" alt="${imageAlt}" class="h-28 w-full bg-gray-100 object-cover" loading="lazy" decoding="async" fetchpriority="low" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">`
-            : `<div class="flex h-28 w-full items-center justify-center bg-gray-100 text-xs text-gray-500">非图片文件</div>`;
+            ? `<img data-src="${escapeHtml(previewUrl)}" data-full-src="${escapeHtml(fullUrl)}" alt="${escapeHtml(imageAlt)}" class="mlm-placeholder h-28 w-full object-cover" loading="lazy" decoding="async" fetchpriority="low" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">`
+            : `<div class="mlm-placeholder flex h-28 w-full items-center justify-center text-xs">非图片文件</div>`;
         card.innerHTML = `
             ${preview}
             <div class="p-2">
-                <div class="truncate text-xs font-medium text-gray-800">${item.title || item.filename}</div>
-                <div class="truncate text-xs text-gray-500">${item.filename}</div>
+                <div class="mlm-card-title truncate text-xs font-medium">${escapeHtml(item.title || item.filename)}</div>
+                <div class="mlm-muted truncate text-xs">${escapeHtml(item.filename)}</div>
             </div>
         `;
 
@@ -304,11 +334,16 @@
 
     async function appendMediaCards(items) {
         const safeItems = Array.isArray(items) ? items : [];
+        const renderedIds = new Set(
+            Array.from(elements.grid.querySelectorAll(".media-lib-item")).map((card) => String(card.dataset.id || ""))
+        );
         for (let start = 0; start < safeItems.length; start += RENDER_CHUNK_SIZE) {
             const chunk = safeItems.slice(start, start + RENDER_CHUNK_SIZE);
             const fragment = document.createDocumentFragment();
             chunk.forEach((item) => {
-                const mediaId = String(item.id);
+                const mediaId = String(item?.id ?? "");
+                if (!mediaId || renderedIds.has(mediaId)) return;
+                renderedIds.add(mediaId);
                 state.itemIndex.set(mediaId, item);
                 fragment.appendChild(renderMediaCard(item));
             });
@@ -350,7 +385,7 @@
             if (!loadMore) elements.grid.innerHTML = "";
 
             if (!items.length && !loadMore) {
-                elements.grid.innerHTML = `<div class="col-span-full py-8 text-center text-sm text-gray-500">暂无媒体文件</div>`;
+                elements.grid.innerHTML = `<div class="mlm-muted col-span-full py-8 text-center text-sm">暂无媒体文件</div>`;
             } else {
                 await appendMediaCards(items);
                 if (loadMore) {
@@ -358,7 +393,10 @@
                 }
             }
 
-            state.hasMore = items.length === state.perPage;
+            const totalHeader = Number(response.headers.get("X-Total-Count"));
+            state.hasMore = Number.isFinite(totalHeader) && totalHeader > 0
+                ? state.page * state.perPage < totalHeader
+                : items.length === state.perPage;
             state.lastLoadedAt = Date.now();
             elements.loadMoreBtn.classList.toggle("hidden", !state.hasMore);
         } catch (error) {
@@ -368,7 +406,7 @@
                     window.adminNotify(`加载更多失败：${error.message}`, "warning", { duration: 3200 });
                 }
             } else {
-                elements.grid.innerHTML = `<div class="col-span-full py-8 text-center text-sm text-red-600">加载失败：${error.message}</div>`;
+                elements.grid.innerHTML = `<div class="mlm-error col-span-full py-8 text-center text-sm">加载失败：${escapeHtml(error.message)}</div>`;
             }
         } finally {
             state.loading = false;
@@ -405,7 +443,7 @@
         if (!featureImageUrlInput || !featureImagePreview || !featureImageRemoveButton) return;
 
         featureImageUrlInput.value = item.url;
-        featureImagePreview.innerHTML = `<img src="${item.url}" alt="${item.alt_text || item.title || item.filename}" class="max-w-full h-auto rounded-md">`;
+        featureImagePreview.innerHTML = `<img src="${escapeHtml(item.url)}" alt="${escapeHtml(item.alt_text || item.title || item.filename)}" class="max-w-full h-auto rounded-md">`;
         featureImagePreview.classList.remove("hidden");
         featureImageRemoveButton.classList.remove("hidden");
     }
@@ -446,15 +484,15 @@
                 }
 
                 const preview = document.createElement("div");
-                preview.className = "rounded-md border border-gray-200";
+                preview.className = "mlm-preview rounded-md";
                 preview.innerHTML = `
-                    <img src="${data.url}" alt="${data.title || data.filename}" class="h-20 w-full rounded-t-md object-cover">
-                    <div class="truncate p-1 text-xs text-gray-700">${data.title || data.filename}</div>
+                    <img src="${escapeHtml(data.url)}" alt="${escapeHtml(data.title || data.filename)}" class="h-20 w-full rounded-t-md object-cover">
+                    <div class="mlm-card-title truncate p-1 text-xs">${escapeHtml(data.title || data.filename)}</div>
                 `;
                 elements.uploadedPreview.appendChild(preview);
             } catch (error) {
                 const errorRow = document.createElement("div");
-                errorRow.className = "col-span-full rounded-md bg-red-50 p-2 text-xs text-red-600";
+                errorRow.className = "mlm-error col-span-full rounded-md p-2 text-xs";
                 errorRow.textContent = `${file.name} 上传失败：${error.message}`;
                 elements.uploadedPreview.appendChild(errorRow);
             }
@@ -552,14 +590,14 @@
     elements.fileInput.addEventListener("change", (event) => uploadFiles(event.target.files));
     elements.dropArea.addEventListener("dragover", (event) => {
         event.preventDefault();
-        elements.dropArea.classList.add("border-blue-500", "bg-blue-50");
+        elements.dropArea.classList.add("is-dragover");
     });
     elements.dropArea.addEventListener("dragleave", () => {
-        elements.dropArea.classList.remove("border-blue-500", "bg-blue-50");
+        elements.dropArea.classList.remove("is-dragover");
     });
     elements.dropArea.addEventListener("drop", (event) => {
         event.preventDefault();
-        elements.dropArea.classList.remove("border-blue-500", "bg-blue-50");
+        elements.dropArea.classList.remove("is-dragover");
         uploadFiles(event.dataTransfer.files);
     });
 

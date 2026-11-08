@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from ..models import Media
 from ..schemas import MediaCreate, MediaUpdate
 from typing import List, Optional
@@ -40,8 +40,29 @@ def get_all_media(
     query = (
         select(Media)
         .options(joinedload(Media.uploaded_by))
-        .order_by(desc(Media.uploaded_at))
+        .order_by(desc(Media.uploaded_at), desc(Media.id))
     )
+    query = _apply_media_filters(
+        query,
+        search=search,
+        folder=folder,
+        file_type_prefix=file_type_prefix,
+        uploaded_from=uploaded_from,
+        uploaded_to=uploaded_to,
+    )
+    return db.execute(query.offset(skip).limit(limit)).scalars().all()
+
+
+def _apply_media_filters(
+    query,
+    *,
+    search: Optional[str] = None,
+    folder: Optional[str] = None,
+    file_type_prefix: Optional[str] = None,
+    uploaded_from: Optional[datetime] = None,
+    uploaded_to: Optional[datetime] = None,
+):
+    """列表、ID 列表与总数统计共用同一套筛选条件，避免三处口径不一致。"""
     if search:
         query = query.filter(Media.filename.ilike(f"%{search}%") | Media.title.ilike(f"%{search}%"))
     if folder is not None:
@@ -52,8 +73,28 @@ def get_all_media(
         query = query.filter(Media.uploaded_at >= uploaded_from)
     if uploaded_to is not None:
         query = query.filter(Media.uploaded_at <= uploaded_to)
-    
-    return db.execute(query.offset(skip).limit(limit)).scalars().all()
+    return query
+
+
+def count_all_media(
+    db: Session,
+    *,
+    search: Optional[str] = None,
+    folder: Optional[str] = None,
+    file_type_prefix: Optional[str] = None,
+    uploaded_from: Optional[datetime] = None,
+    uploaded_to: Optional[datetime] = None,
+) -> int:
+    """按列表筛选条件统计总数，供前端准确判断分页与展示「已加载 / 总数」。"""
+    query = _apply_media_filters(
+        select(func.count()).select_from(Media),
+        search=search,
+        folder=folder,
+        file_type_prefix=file_type_prefix,
+        uploaded_from=uploaded_from,
+        uploaded_to=uploaded_to,
+    )
+    return int(db.execute(query).scalar_one() or 0)
 
 
 def get_media_ids(
@@ -66,17 +107,14 @@ def get_media_ids(
     uploaded_to: Optional[datetime] = None,
     limit: int = 10000,
 ) -> List[int]:
-    query = select(Media.id).order_by(desc(Media.uploaded_at))
-    if search:
-        query = query.filter(Media.filename.ilike(f"%{search}%") | Media.title.ilike(f"%{search}%"))
-    if folder is not None:
-        query = query.filter(Media.folder == folder)
-    if file_type_prefix:
-        query = query.filter(Media.file_type.ilike(f"{file_type_prefix}%"))
-    if uploaded_from is not None:
-        query = query.filter(Media.uploaded_at >= uploaded_from)
-    if uploaded_to is not None:
-        query = query.filter(Media.uploaded_at <= uploaded_to)
+    query = _apply_media_filters(
+        select(Media.id).order_by(desc(Media.uploaded_at), desc(Media.id)),
+        search=search,
+        folder=folder,
+        file_type_prefix=file_type_prefix,
+        uploaded_from=uploaded_from,
+        uploaded_to=uploaded_to,
+    )
 
     effective_limit = max(1, min(int(limit), 20000))
     return [int(media_id) for media_id in db.execute(query.limit(effective_limit)).scalars().all()]

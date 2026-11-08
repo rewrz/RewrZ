@@ -24,6 +24,7 @@ class MediaUpdate(BaseModel):
 
 class Media(MediaBase):
     id: int
+    file_size: int = 0
     uploaded_at: datetime
     uploaded_by_id: int
     uploaded_by: Optional[User] = None
