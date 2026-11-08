@@ -146,7 +146,7 @@ def register_admin_primary_routes(
     def dynamic_admin_dashboard_page(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return admin_dashboard_api.dashboard_page(request, db, current_user)
 
@@ -154,7 +154,7 @@ def register_admin_primary_routes(
     def dynamic_admin_settings_page(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return settings_api.admin_settings_page(request, db, current_user)
 
@@ -162,7 +162,7 @@ def register_admin_primary_routes(
     async def dynamic_update_admin_settings(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return await settings_api.update_admin_settings(request, db, current_user)
 
@@ -172,7 +172,7 @@ def register_admin_primary_routes(
         page: int = 1,
         page_size: Optional[int] = None,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return users_api.admin_users_page(request, db, current_user)
 
@@ -180,7 +180,7 @@ def register_admin_primary_routes(
     def dynamic_update_admin_user_profile(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         username: str = Form(...),
         email: str = Form(...),
         display_name: Optional[str] = Form(None),
@@ -224,7 +224,7 @@ def register_admin_primary_routes(
     def dynamic_create_admin_user(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         username: str = Form(...),
         email: str = Form(...),
         password: str = Form(...),
@@ -249,7 +249,7 @@ def register_admin_primary_routes(
         user_id: int,
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         is_active: str = Form(...),
         csrf_token: str = Form(...),
     ):
@@ -267,7 +267,7 @@ def register_admin_primary_routes(
         user_id: int,
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         role: str = Form(...),
         csrf_token: str = Form(...),
     ):
@@ -285,7 +285,7 @@ def register_admin_primary_routes(
         user_id: int,
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         password: str = Form(...),
         csrf_token: str = Form(...),
     ):
@@ -303,7 +303,7 @@ def register_admin_primary_routes(
         user_id: int,
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         csrf_token: str = Form(...),
     ):
         return users_api.force_logout_user_action(
@@ -318,7 +318,7 @@ def register_admin_primary_routes(
     def dynamic_admin_api_keys_page(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return api_keys_api.admin_api_keys_page(request, db, current_user)
 
@@ -326,7 +326,7 @@ def register_admin_primary_routes(
     def dynamic_create_api_key(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         name: str = Form(...),
         access_level: str = Form("read_only"),
         notes: Optional[str] = Form(None),
@@ -349,7 +349,7 @@ def register_admin_primary_routes(
         api_key_id: int,
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         status: str = Form(...),
         csrf_token: str = Form(...),
     ):
@@ -367,7 +367,7 @@ def register_admin_primary_routes(
         api_key_id: int,
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         expires_at: Optional[str] = Form(None),
         csrf_token: str = Form(...),
     ):
@@ -385,7 +385,7 @@ def register_admin_primary_routes(
         api_key_id: int,
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         csrf_token: str = Form(...),
     ):
         return api_keys_api.delete_api_key_action(
@@ -401,7 +401,7 @@ def register_admin_primary_routes(
     async def dynamic_update_admin_path(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return await settings_api.update_admin_path(request, db, current_user)
 
@@ -409,7 +409,7 @@ def register_admin_primary_routes(
     async def dynamic_save_public_holidays(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         csrf_token: str = Header(..., alias="X-CSRF-Token"),
     ):
         return await themes_api.save_public_holiday_settings(
@@ -423,7 +423,7 @@ def register_admin_primary_routes(
     async def dynamic_rebuild_public_holidays(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         csrf_token: str = Header(..., alias="X-CSRF-Token"),
     ):
         return await themes_api.rebuild_public_holiday_settings(
@@ -437,7 +437,7 @@ def register_admin_primary_routes(
     async def dynamic_save_custom_anniversaries(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         csrf_token: str = Header(..., alias="X-CSRF-Token"),
     ):
         return await themes_api.save_custom_anniversary_settings(
@@ -454,7 +454,7 @@ def register_admin_primary_routes(
         custom_background_url: Optional[str] = Form(None),
         csrf_token: str = Form(...),
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return themes_api.update_background_image(
             request=request,
@@ -477,7 +477,7 @@ def register_admin_primary_routes(
     def dynamic_admin_media_settings_page(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return media_settings_api.media_settings_page(request, db, current_user)
 
@@ -485,7 +485,7 @@ def register_admin_primary_routes(
     def dynamic_admin_themes_page(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return themes_api.admin_theme_system_page(request, db, current_user)
 
@@ -493,7 +493,7 @@ def register_admin_primary_routes(
     def dynamic_admin_effects_page(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return themes_api.admin_effects_page(request, db, current_user)
 
@@ -501,7 +501,7 @@ def register_admin_primary_routes(
     async def dynamic_update_theme(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         form_data = await request.form()
         return await run_in_threadpool(themes_api.update_theme_settings, 
@@ -517,7 +517,7 @@ def register_admin_primary_routes(
     async def dynamic_update_effects(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         form_data = await request.form()
         return await run_in_threadpool(themes_api.update_effects_settings, 
@@ -532,7 +532,7 @@ def register_admin_primary_routes(
     async def dynamic_create_custom_theme(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         form_data = await request.form()
         return await run_in_threadpool(themes_api.create_custom_theme, 
@@ -549,7 +549,7 @@ def register_admin_primary_routes(
         theme_name: str,
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         csrf_token: str = Header(..., alias="X-CSRF-Token"),
     ):
         return themes_api.delete_custom_theme(theme_name, request, db, current_user, csrf_token)
@@ -558,7 +558,7 @@ def register_admin_primary_routes(
     async def dynamic_schedule_themes(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         form_data = await request.form()
         themes_api.verify_csrf_token(request, form_data.get("csrf_token", ""))
@@ -607,7 +607,7 @@ def register_admin_primary_routes(
         page: int = 1,
         page_size: Optional[int] = None,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         search = (search or "").strip() or None
         status = (status or "").strip() or None
@@ -771,7 +771,7 @@ def register_admin_primary_routes(
     def dynamic_get_category_options(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         categories = crud_category.get_categories(db)
         options_html = '<option value="">全部分类</option>'
@@ -787,7 +787,7 @@ def register_admin_primary_routes(
         page: int = 1,
         page_size: Optional[int] = None,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         search = (search or "").strip() or None
         usage = (usage or "").strip().lower() or None
@@ -902,7 +902,7 @@ def register_admin_primary_routes(
         page: int = 1,
         page_size: Optional[int] = None,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         search = (search or "").strip() or None
         usage = (usage or "").strip().lower() or None
@@ -1016,7 +1016,7 @@ def register_admin_primary_routes(
         page: int = 1,
         page_size: Optional[int] = None,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         status = (status or "").strip() or None
         search = (search or "").strip() or None
@@ -1147,7 +1147,7 @@ def register_admin_primary_routes(
         page: int = 1,
         page_size: Optional[int] = None,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         search = (search or "").strip() or None
         status = (status or "").strip() or None
@@ -1266,14 +1266,14 @@ def register_admin_primary_routes(
     def dynamic_admin_system_info_page(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return system_info_api.system_info_page(request, db, current_user)
 
     @app.get(f"{admin_path}/api/v1/system-info")
     def dynamic_get_system_info_api(
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return system_info_api.get_system_info_api(db, current_user)
 
@@ -1281,7 +1281,7 @@ def register_admin_primary_routes(
     def dynamic_admin_error_settings_page(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return error_config_api.error_settings_page(request, db, current_user)
 
@@ -1289,7 +1289,7 @@ def register_admin_primary_routes(
     def dynamic_update_error_settings(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         enable_custom_error_pages: bool = Form(False),
         error_page_template: str = Form("default"),
         custom_error_404_title: str = Form("页面未找到"),
@@ -1337,7 +1337,7 @@ def register_admin_primary_routes(
     def dynamic_admin_comment_settings_page(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return comment_settings_api.comment_settings_page(request, db, current_user)
 
@@ -1347,7 +1347,7 @@ def register_admin_primary_routes(
         page: int = 1,
         page_size: Optional[int] = None,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return security_center_api.security_center_page(request, db, current_user)
 
@@ -1355,7 +1355,7 @@ def register_admin_primary_routes(
     def dynamic_update_security_center(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         login_max_attempts: int = Form(3),
         login_ban_minutes: int = Form(15),
         new_ip_login_alert_enabled: bool = Form(False),
@@ -1381,7 +1381,7 @@ def register_admin_primary_routes(
     def dynamic_clear_security_audit_logs(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
         clear_mode: str = Form(...),
         csrf_token: str = Form(...),
     ):
@@ -1397,7 +1397,7 @@ def register_admin_primary_routes(
     def dynamic_admin_data_management_page(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(require_admin_user),
     ):
         return data_api.data_management_page(request, db, current_user)
 

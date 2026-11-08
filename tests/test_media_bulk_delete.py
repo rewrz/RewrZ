@@ -97,10 +97,17 @@ def test_replace_media_references_only_updates_matching_rows(tmp_path):
             Post(title="命中", slug="hit", content_markdown="封面 /media/old/a.jpg", content_html=""),
             Post(title="无关", slug="miss", content_markdown="无引用", content_html=""),
             Post(title="通配符", slug="wild", content_markdown="/media/old/a%b.jpg", content_html=""),
+            Post(title="摘要", slug="excerpt", content_markdown="无引用", content_html="",
+                 excerpt="封面 /media/old/a.jpg"),
+            Post(title="附件索引", slug="summary", content_markdown="无引用", content_html="",
+                 media_attachment_summary={"image_count": 1, "image_urls": ["/media/old/a.jpg"]}),
+            Post(title="历史快照", slug="snapshot", content_markdown="无引用", content_html="",
+                 version_snapshots=[{"timestamp": "t1", "content_markdown": "/media/old/a.jpg"}]),
         ])
         db.add_all([
             DbUser(username="u1", email="u1@example.com", avatar_url="/media/old/a.jpg"),
-            DbUser(username="u2", email="u2@example.com", avatar_url=None),
+            DbUser(username="u2", email="u2@example.com", avatar_url=None, bio="头像 /media/old/a.jpg"),
+            DbUser(username="u3", email="u3@example.com", avatar_url=None, bio="无引用"),
         ])
         db.add(Setting(key="site_logo", value={"value": "/media/old/a.jpg"}, description="测试"))
         db.commit()
@@ -114,16 +121,23 @@ def test_replace_media_references_only_updates_matching_rows(tmp_path):
         )
         db.commit()
 
-        assert result == {"posts": 2, "users": 1, "settings": 1}
+        assert result == {"posts": 4, "users": 2, "settings": 1}
 
         posts = {post.slug: post for post in db.execute(select(Post)).scalars().all()}
         assert "/media/new/a.jpg" in posts["hit"].content_markdown
         assert posts["miss"].content_markdown == "无引用"
         assert "/media/new/a%b.jpg" in posts["wild"].content_markdown
+        assert "/media/new/a.jpg" in posts["excerpt"].excerpt
+        assert posts["summary"].media_attachment_summary["image_urls"] == ["/media/new/a.jpg"]
+        # 历史快照是不可变历史，不参与 URL 重写
+        assert posts["snapshot"].version_snapshots == [
+            {"timestamp": "t1", "content_markdown": "/media/old/a.jpg"}
+        ]
 
         users = {user.username: user for user in db.execute(select(DbUser)).scalars().all()}
         assert users["u1"].avatar_url == "/media/new/a.jpg"
-        assert users["u2"].avatar_url is None
+        assert "/media/new/a.jpg" in users["u2"].bio
+        assert users["u3"].bio == "无引用"
 
         setting = db.execute(select(Setting)).scalars().first()
         assert setting.value["value"] == "/media/new/a.jpg"

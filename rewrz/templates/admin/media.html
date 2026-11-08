@@ -43,6 +43,55 @@
     .media-detail-preview {
         background: color-mix(in srgb, var(--color-background-alt) 22%, var(--color-card-bg) 78%);
     }
+    /* 网格视图元信息分层：类型标签做成主题徽章，标题/文件名/日期各归其位 */
+    #media-grid:not(.media-list-view) .media-card .media-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem;
+        min-width: 0;
+    }
+    #media-grid:not(.media-list-view) .media-card .media-title-row > p {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    /* 两种视图共用：以主色成块，避免与卡片背景同色而退化成普通文字 */
+    #media-grid .media-type-chip {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        width: fit-content;
+        border-radius: 999px;
+        padding: 0.12rem 0.48rem;
+        font-size: 0.68rem;
+        font-weight: 600;
+        line-height: 1.25;
+        white-space: nowrap;
+        background: color-mix(in srgb, var(--color-primary) 18%, var(--color-card-bg) 82%);
+        color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
+        border: 1px solid color-mix(in srgb, var(--color-primary) 45%, var(--color-border) 55%);
+    }
+    #media-grid:not(.media-list-view) .media-filename-line {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        word-break: break-all;
+        margin-top: 0.25rem;
+        font-size: 0.72rem;
+        line-height: 1.35;
+        color: var(--color-text-light);
+    }
+    #media-grid:not(.media-list-view) .media-folder-chip {
+        margin-top: 0.2rem;
+    }
+    #media-grid:not(.media-list-view) .media-detail-line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.45rem;
+        margin-top: 0.3rem;
+    }
     /* 桌面端网格视图下，详情按钮悬停时出现，避免常驻遮挡缩略图；触屏与列表视图保持常驻 */
     @media (hover: hover) {
         #media-grid:not(.media-list-view) .media-detail-button {
@@ -249,19 +298,6 @@
         line-height: 1.4;
         max-width: 100%;
     }
-    #media-grid.media-list-view .media-type-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        width: fit-content;
-        border-radius: 999px;
-        background: color-mix(in srgb, var(--color-background-alt) 82%, var(--color-card-bg) 18%);
-        color: color-mix(in srgb, var(--color-text) 82%, var(--color-primary) 18%);
-        padding: 0.16rem 0.5rem;
-        font-size: 0.68rem;
-        font-weight: 600;
-        border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border) 88%);
-    }
     #media-grid.media-list-view .media-card .media-folder-chip {
         display: inline-flex;
         align-items: center;
@@ -348,7 +384,7 @@
                 <select id="upload-folder-select" class="admin-form-field rounded-lg px-2.5 py-1.5 text-sm"></select>
             </div>
         </div>
-        <div id="upload-previews" class="mt-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+        <div id="upload-previews" class="mt-3 grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
     </div>
 
     <!-- Toolbar & Filters -->
@@ -364,12 +400,12 @@
                 <option value="document">文档</option>
                 <option value="other">其他</option>
             </select>
-            <input type="date" id="date-from-filter" class="admin-form-field rounded-lg px-3 py-2 text-sm">
-            <input type="date" id="date-to-filter" class="admin-form-field rounded-lg px-3 py-2 text-sm">
+            <input type="date" id="date-from-filter" class="admin-form-field w-full sm:w-auto min-w-0 flex-1 rounded-lg px-3 py-2 text-sm">
+            <input type="date" id="date-to-filter" class="admin-form-field w-full sm:w-auto min-w-0 flex-1 rounded-lg px-3 py-2 text-sm">
         </div>
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
-                <input id="new-folder-input" type="text" placeholder="新建文件夹，如 covers/2026" class="admin-form-field w-56 rounded-lg px-3 py-2 text-sm">
+                <input id="new-folder-input" type="text" placeholder="新建文件夹，如 covers/2026" class="admin-form-field w-full sm:w-56 min-w-0 flex-1 rounded-lg px-3 py-2 text-sm">
                 <button id="create-folder-button" type="button" class="admin-primary-btn rounded-lg px-3 py-2 text-sm font-semibold">新建文件夹</button>
             </div>
             <div class="media-toolbar-actions">
@@ -563,9 +599,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function getFileTypeLabel(fileType) {
         const value = String(fileType || '').toLowerCase();
         if (!value) return '未知类型';
-        if (value.startsWith('image/')) return '图片';
-        if (value.startsWith('video/')) return '视频';
-        if (value.startsWith('audio/')) return '音频';
+        if (value === 'image' || value.startsWith('image/')) return '图片';
+        if (value === 'video' || value.startsWith('video/')) return '视频';
+        if (value === 'audio' || value.startsWith('audio/')) return '音频';
         if (value.includes('pdf')) return 'PDF';
         if (value.includes('zip') || value.includes('rar') || value.includes('7z')) return '压缩包';
         if (value.includes('word') || value.includes('document')) return '文档';

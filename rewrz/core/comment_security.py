@@ -13,8 +13,14 @@ import bleach
 from markdown import markdown
 
 # 评论允许的 HTML 标签与属性，与公开评论接口保持一致。
-ALLOWED_COMMENT_TAGS = ["a", "strong", "em", "code", "p", "br"]
+ALLOWED_COMMENT_TAGS = [
+    "a", "strong", "em", "code", "p", "br",
+    "blockquote", "ul", "ol", "li", "pre", "hr",
+]
 ALLOWED_COMMENT_ATTRIBUTES = {"a": ["href", "title"]}
+
+# 与正文渲染保持一致的基础扩展：列表更稳定，并支持围栏代码块
+COMMENT_MARKDOWN_EXTENSIONS = ["fenced_code", "sane_lists"]
 
 
 def sanitize_comment_content(raw_content: Optional[str]) -> str:
@@ -23,7 +29,7 @@ def sanitize_comment_content(raw_content: Optional[str]) -> str:
     if not text:
         return ""
     return bleach.clean(
-        markdown(text),
+        markdown(text, extensions=COMMENT_MARKDOWN_EXTENSIONS),
         tags=ALLOWED_COMMENT_TAGS,
         attributes=ALLOWED_COMMENT_ATTRIBUTES,
         strip=True,

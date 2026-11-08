@@ -7,7 +7,7 @@ from slugify import slugify
 
 from .. import crud, schemas
 from ..core.database import get_db
-from ..core.security import get_current_user, verify_csrf_token
+from ..core.security import get_current_user, require_admin_user, verify_csrf_token
 
 
 router = APIRouter(
@@ -30,7 +30,7 @@ def create_category(
     parent_id: Optional[int] = Form(None),
     description: Optional[str] = Form(None),
     db: Session = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user),
+    current_user: schemas.User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
@@ -58,7 +58,7 @@ def bulk_action_categories(
     request: Request,
     payload: CategoryBulkAction,
     db: Session = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user),
+    current_user: schemas.User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
@@ -135,7 +135,7 @@ def update_category(
     parent_id: Optional[int] = Form(None),
     description: Optional[str] = Form(None),
     db: Session = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user),
+    current_user: schemas.User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
@@ -166,7 +166,7 @@ def delete_category(
     request: Request,
     category_id: int,
     db: Session = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user),
+    current_user: schemas.User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)

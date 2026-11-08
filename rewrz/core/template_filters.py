@@ -33,6 +33,7 @@ from ..core.config import settings # 导入settings
 from ..core.database import get_db
 from ..core.thumbnail_service import (
     build_variant_url,
+    get_thumbnail_runtime_settings,
     is_local_media_url,
     resolve_media_id_from_url,
 )
@@ -485,6 +486,14 @@ def thumb_srcset_filter(source, preset: str = "post_cover", db=None, dprs="1,2",
     else:
         dpr_values = str(dprs or "1,2").split(",")
 
+    # 后台可收窄允许的 DPR；收窄后不再输出会被变体接口拒绝的 srcset 分支
+    allowed_dpr = None
+    if db is not None:
+        try:
+            allowed_dpr = get_thumbnail_runtime_settings(db)["allowed_dpr"]
+        except Exception:
+            allowed_dpr = None
+
     entries = []
     seen = set()
     for item in dpr_values:
@@ -496,6 +505,8 @@ def thumb_srcset_filter(source, preset: str = "post_cover", db=None, dprs="1,2",
             continue
         seen.add(dpr_value)
         if dpr_value < 1:
+            continue
+        if allowed_dpr is not None and dpr_value not in allowed_dpr:
             continue
         url = thumb_url_filter(media_id, preset=preset, db=db, dpr=dpr_value, fmt=fmt)
         if not url:

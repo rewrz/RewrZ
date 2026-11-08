@@ -6615,7 +6615,7 @@ body.site-shell .page-comments-panel {
     box-shadow: 0 16px 32px -26px color-mix(in srgb, var(--color-primary) 55%, transparent);
 }
 
-/* NSFW 使用强调色，和“敏感”在视觉权重上拉开差距 */
+/* NSFW 使用强调色，和"敏感"在视觉权重上拉开差距 */
 body.is-nsfw .content-rating-notice {
     border-color: color-mix(in srgb, var(--color-accent) 58%, var(--color-border) 42%);
     border-left-color: var(--color-accent);
@@ -6717,7 +6717,7 @@ body.is-nsfw .content-rating-notice__action:hover {
     white-space: nowrap;
 }
 
-/* NSFW 用更强的强调色，与“敏感”在视觉上区分开 */
+/* NSFW 用更强的强调色，与"敏感"在视觉上区分开 */
 .content-rating-badge.is-nsfw {
     border-color: color-mix(in srgb, var(--color-accent) 72%, var(--color-border) 28%);
     background: color-mix(in srgb, var(--color-accent) 20%, var(--color-card-bg) 80%);
@@ -6725,7 +6725,7 @@ body.is-nsfw .content-rating-notice__action:hover {
 }
 
 /* NSFW：正文图片默认模糊，点击后揭晓 */
-/* 用更强的模糊与提饱和做出“朦胧”的二次元柔光感，避免糊成一块灰色 */
+/* 用更强的模糊与提饱和做出"朦胧"的二次元柔光感，避免糊成一块灰色 */
 body.is-nsfw .post-content img:not(.is-nsfw-revealed),
 body.is-nsfw .page-content img:not(.is-nsfw-revealed),
 body.is-nsfw .anime-content img:not(.is-nsfw-revealed),
@@ -6846,7 +6846,7 @@ body.is-nsfw .micro-image-grid img.is-nsfw-revealed {
     inset: 0;
     z-index: 1;
     pointer-events: none;
-    /* 斜向警示细纹 + 雾面柔光，做出带二次元感的“不可直接观看”提示 */
+    /* 斜向警示细纹 + 雾面柔光，做出带二次元感的"不可直接观看"提示 */
     background:
         repeating-linear-gradient(
             135deg,
@@ -6891,7 +6891,7 @@ body.is-nsfw .micro-image-grid img.is-nsfw-revealed {
     pointer-events: none;
 }
 
-/* NSFW 详情页头图与展览版式首屏默认模糊，点“显示全部图片”后一并揭晓 */
+/* NSFW 详情页头图与展览版式首屏默认模糊，点"显示全部图片"后一并揭晓 */
 body.is-nsfw .detail-cover-bg,
 body.is-nsfw .article-gallery-hero-bg img,
 body.is-nsfw .page-hero-image,
@@ -6905,4 +6905,30 @@ body.is-nsfw.is-nsfw-revealed .article-gallery-hero-bg img,
 body.is-nsfw.is-nsfw-revealed .page-hero-image,
 body.is-nsfw.is-nsfw-revealed .anime-hero-bg img {
     filter: none;
+}
+
+/* 后台表单窄屏兜底：固定宽输入、不换行横向行与 space-x 间距在 320px 下会把内容挤到不可用 */
+@media (max-width: 640px) {
+    .admin-app form .flex:not(.flex-wrap),
+    .admin-app .admin-filter-panel:not(.flex-wrap),
+    .admin-app .admin-section-card .flex:not(.flex-wrap) {
+        flex-wrap: wrap !important;
+    }
+    .admin-app form input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]),
+    .admin-app form select,
+    .admin-app form textarea {
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+    .admin-app form [class*="space-x-"] {
+        column-gap: 0.5rem;
+        row-gap: 0.5rem;
+    }
+    .admin-app form [class*="space-x-"] > * + * {
+        margin-left: 0 !important;
+    }
+    .admin-app form label {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
 }

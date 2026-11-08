@@ -61,9 +61,15 @@ RewrZ 当前 API 分为四层：
 典型头部：
 - `X-CSRF-Token: <token>`
 
-后台媒体库全量接口（页面、列表、ID 列表、文件夹、重复扫描、上传、改删）统一使用
-`Depends(require_admin_user)`：登录态之上还要求 `admin` / `super_admin` 角色，
-非管理员返回 403。列表可见全站媒体用于管理，写操作仍仅允许上传者本人。
+全站后台管理接口（动态 `ADMIN_PATH` 下的页面/接口，以及文章快照、格式管理等后台语义的
+固定路径接口）统一使用 `Depends(require_admin_user)`：登录态之上还要求
+`admin` / `super_admin` 角色，非管理员返回 403。
+
+保持 `Depends(get_current_user)` 的白名单：后台登录/找回密码/重置密码等公开入口、
+前台快捷发布与头像等登录态接口、主题实时更新、外部 API Key 接口、匿名公开读取接口。
+评论管理等已有函数体 `ensure_admin_user` 校验的接口保持原样，效果等价。
+
+媒体库列表可见全站媒体用于管理，写操作仍仅允许上传者本人。
 
 ### 3.2 前台登录态写接口
 - 仍可使用固定公共路径
@@ -82,11 +88,21 @@ Authorization: Bearer <api_key>
 - 不依赖 CSRF
 
 ### 3.4 公开媒体变体接口
-- `GET /media/variant/{media_id}/{preset}` 服务前台 `<img>`，保持匿名可读，不引入登录校验
-- `preset` / `dpr` / `fmt` 在查库之前按白名单校验，非法参数返回 400 JSON
-  （`invalid_preset` / `invalid_dpr` / `invalid_fmt`）
+- `GET /media/variant/{media_id}/{preset}/{sig}` 服务前台 `<img>`，保持匿名可读，不引入登录校验
+- `sig` 是由站点密钥派生的 HMAC-SHA256 稳定签名（无过期时间），生成端统一由
+  `build_variant_url` 输出；签名输入为 `media_id:preset:dpr:fmt`，其中 `dpr` / `fmt`
+  取 URL 中实际出现的参数值，缺省为空串。签名放在路径段，CDN 仅按路径缓存也不会丢失
+- 签名校验在参数白名单之后、查库之前完成：无效签名返回 403 `invalid_signature`；
+  `preset` / `dpr` / `fmt` 非法参数返回 400（`invalid_preset` / `invalid_dpr` / `invalid_fmt`）
 - 仅「缓存未命中、实际编码」的请求按客户端 IP 节流并受全局并发上限约束，
   超出返回 429 且带 `Retry-After`；缓存命中与内部预热不受限，避免影响正常图片加载
+- 旧形态 `GET /media/variant/{media_id}/{preset}`（无签名）不再提供，升级后需刷新
+  页面与 CDN 缓存，否则缓存中的旧链接会返回 404
+- 更换 `.env` 的 `SECRET_KEY` 会使已缓存的旧签名 URL 失效，运维需同步刷新页面缓存
+- 后台缩略图配置只能收窄、不能剔除基础档位：`thumbnail_allowed_dpr` 必须包含 `1`
+  （所有 `src` 默认使用），`thumbnail_allowed_fmt` 必须包含 `jpg`
+  （媒体库卡片预览固定使用）；否则请求会被 400 拒绝，表现为整站图片不可用。
+  `srcset` 生成侧会按 `thumbnail_allowed_dpr` 过滤，不输出被拒绝的倍率
 
 ## 4. API Key 约定
 

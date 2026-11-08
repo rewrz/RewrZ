@@ -11,7 +11,7 @@ from collections import defaultdict, deque
 
 from ..core.admin_path import get_admin_path
 from ..core.database import get_db
-from ..core.security import get_current_user, verify_csrf_token, is_admin_user
+from ..core.security import get_current_user, require_admin_user, verify_csrf_token, is_admin_user
 from ..core.template_filters import get_templates, post_summary_text_filter
 from ..core.config import settings
 from ..core.page_templates import (
@@ -492,7 +492,7 @@ def update_public_quick_micro_post(
 
 
 @router.get(f"{ADMIN_PATH}/posts/new", response_class=HTMLResponse)
-def new_post_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def new_post_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
     """
     显示新建文章页面
     """
@@ -515,7 +515,7 @@ def new_post_page(request: Request, db: Session = Depends(get_db), current_user:
     })
 
 @router.get(f"{ADMIN_PATH}/posts/{{post_id}}/edit", response_class=HTMLResponse)
-def edit_post_page(post_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def edit_post_page(post_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
     """
     显示编辑文章页面
     """
@@ -567,7 +567,7 @@ def create_post_api(
     published_at: Optional[str] = Form(None),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """
     创建新文章的API端点
@@ -654,7 +654,7 @@ def update_post_api(
     method_override: Optional[str] = Form(None, alias="_method"),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """
     更新文章的API端点
@@ -735,7 +735,7 @@ def inline_update_post_api(
     payload: PostInlineUpdate,
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     """列表页内联编辑：只更新轻量元数据，不触碰正文、slug 与封面缓存。"""
     verify_csrf_token(request, csrf_token)
@@ -837,7 +837,7 @@ def inline_update_post_api(
     }
 
 @router.delete(f"{ADMIN_PATH}/api/v1/posts/{{post_id}}")
-def delete_post_api(post_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_post_api(post_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
     """
     删除文章的API端点
     """
@@ -857,7 +857,7 @@ def batch_publish_posts(
     post_batch_update: PostBatchUpdate, # 使用新的Pydantic模型
     csrf_token: str = Header(..., alias="X-CSRF-Token"), # 从请求头获取CSRF令牌
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """
     批量发布文章的API端点
@@ -893,7 +893,7 @@ def batch_draft_posts(
     post_batch_update: PostBatchUpdate, # 使用新的Pydantic模型
     csrf_token: str = Header(..., alias="X-CSRF-Token"), # 从请求头获取CSRF令牌
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """
     批量将文章移至草稿的API端点
@@ -929,7 +929,7 @@ def batch_delete_posts(
     post_batch_update: PostBatchUpdate, # 使用新的Pydantic模型
     csrf_token: str = Header(..., alias="X-CSRF-Token"), # 从请求头获取CSRF令牌
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """
     批量删除文章的API端点
@@ -965,7 +965,7 @@ def batch_clear_post_snapshots(
     post_batch_update: PostBatchUpdate,
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """批量清空所选文章/页面的全部历史快照。"""
     verify_csrf_token(request, csrf_token)
@@ -1003,7 +1003,7 @@ def batch_clear_post_snapshots(
 def get_post_cover_api(
     post_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     """返回文章当前实际使用的封面 URL，供后台刷新后更新缩略图。"""
     db_post = crud_post.get_post(db, post_id=post_id)
@@ -1025,7 +1025,7 @@ def refresh_post_cover_cache_api(
     post_id: int,
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     """手动清理并重建单篇文章的兜底封面缓存。"""
     verify_csrf_token(request, csrf_token)
@@ -1051,7 +1051,7 @@ def refresh_post_cover_cache_api(
 # --- 页面管理路由 ---
 
 @router.get(f"{ADMIN_PATH}/pages/new", response_class=HTMLResponse)
-def new_page_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def new_page_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
     """
     显示新建页面页面
     """
@@ -1071,7 +1071,7 @@ def new_page_page(request: Request, db: Session = Depends(get_db), current_user:
 
 
 @router.get(f"{ADMIN_PATH}/pages/{{page_id}}/edit", response_class=HTMLResponse)
-def edit_page_page(page_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def edit_page_page(page_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
     """
     显示编辑页面页面
     """
@@ -1114,7 +1114,7 @@ def create_page_api(
     published_at: Optional[str] = Form(None),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """
     创建新页面的API端点
@@ -1181,7 +1181,7 @@ def update_page_api(
     method_override: Optional[str] = Form(None, alias="_method"),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """
     更新页面的API端点
@@ -1237,7 +1237,7 @@ def update_page_api(
     return response
 
 @router.delete(f"{ADMIN_PATH}/api/v1/pages/{{page_id}}")
-def delete_page_api(page_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_page_api(page_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
     """
     删除页面的API端点
     """

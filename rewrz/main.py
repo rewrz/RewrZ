@@ -82,9 +82,9 @@ from .core import post_views  # 浏览量内存计数，后台批量落库
 from .core.content_access import (
     build_post_access_cookie_value,
     count_hide_blocks,
-    get_comment_unlock_cookie_name,
     get_post_access_cookie_name,
     has_hide_blocks,
+    has_valid_comment_unlock_cookie,
     has_valid_password_cookie,
     render_markdown_with_hide_blocks,
     strip_hide_blocks,
@@ -425,7 +425,7 @@ def register_admin_routes():
         donation_config = donation_system.settings
 
         # 处理评论后可见内容
-        can_view_hidden = is_admin or request.cookies.get(get_comment_unlock_cookie_name(db_post.id)) == "true"
+        can_view_hidden = is_admin or has_valid_comment_unlock_cookie(request, db_post.id)
         display_content_html = get_effective_content_html(db_post.content_markdown, db_post.content_html)
         if db_post.content_markdown and has_hide_blocks(db_post.content_markdown):
             display_content_html = render_markdown_with_hide_blocks(
@@ -577,7 +577,7 @@ def register_admin_routes():
         seo_data = _generate_post_seo_data(db_page, request, db)
 
         # 处理评论后可见内容
-        can_view_hidden = is_admin or request.cookies.get(get_comment_unlock_cookie_name(db_page.id)) == "true"
+        can_view_hidden = is_admin or has_valid_comment_unlock_cookie(request, db_page.id)
         display_content_html = get_effective_content_html(db_page.content_markdown, db_page.content_html)
         if db_page.content_markdown and has_hide_blocks(db_page.content_markdown):
             display_content_html = render_markdown_with_hide_blocks(
@@ -1014,11 +1014,10 @@ def _build_comment_view_context(db: Session, post_obj, request: Request) -> Dict
     except Exception:
         reaction_summaries = {}
 
-    unlock_cookie_name = get_comment_unlock_cookie_name(getattr(post_obj, "id", 0))
     return {
         "comment_reaction_summaries": reaction_summaries,
         "comment_hide_block_count": count_hide_blocks(getattr(post_obj, "content_markdown", None)),
-        "comment_unlocked": request.cookies.get(unlock_cookie_name) == "true",
+        "comment_unlocked": has_valid_comment_unlock_cookie(request, getattr(post_obj, "id", 0)),
     }
 
 

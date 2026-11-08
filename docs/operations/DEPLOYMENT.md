@@ -280,6 +280,9 @@ DB_POOL_PRE_PING=true
 - `DATABASE_URL` 必须带 `+psycopg`，否则 SQLAlchemy 会去寻找未安装的 `psycopg2`。
 - SQLite 专属参数（`SQLITE_*`）在 PostgreSQL 下不生效，可以直接删除。
 - `SECRET_KEY` 可用 `openssl rand -hex 32` 重新生成；更换后所有旧登录会话失效。
+- `SECRET_KEY` 未配置或仍是示例值时，每个进程会各自生成随机密钥：多 worker 部署下
+  登录态与媒体变体签名互不通用，表现为部分图片 403。多 worker 必须配置固定的
+  `SECRET_KEY`，单 worker 也建议固定，避免重启后已缓存页面里的变体链接失效。
 
 #### 4. 首次启动建表
 
@@ -495,6 +498,11 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
+
+    # 变体 URL 形如 /media/variant/<id>/<preset>/<sig>?dpr=&fmt=，签名位于路径段：
+    # 按完整路径缓存即可；若边缘缓存键按查询参数裁剪，必须保留 dpr 与 fmt，
+    # 否则不同像素密度/输出格式会共用同一份缓存。签名由站点 SECRET_KEY 派生，
+    # 轮换 SECRET_KEY 会令已缓存 HTML 中的旧签名链接失效，需同步刷新页面缓存。
 
     location ^~ /media/avatar/ {
         proxy_pass http://127.0.0.1:8000;

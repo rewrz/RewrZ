@@ -33,7 +33,7 @@ from ..core.database import (
     vacuum_sqlite_database,
 )
 from ..core.time_utils import utc_iso, utc_now_naive
-from ..core.security import get_current_user, verify_csrf_token
+from ..core.security import get_current_user, require_admin_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..core.data_manager import (
     get_data_export_manager, 
@@ -558,7 +558,7 @@ def data_management_page(
 @router.get("/api/export/json")
 def export_data_json(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """
     导出数据为JSON格式
@@ -607,7 +607,7 @@ def export_data_json(
 @router.get("/api/export/backup")
 def export_backup_package(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """
     创建并下载完整备份包
@@ -648,7 +648,7 @@ async def import_wordpress_data(
     request: Request,
     wxr_file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     """
@@ -695,7 +695,7 @@ async def create_wordpress_import_task(
     request: Request,
     wxr_file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     """
@@ -742,7 +742,7 @@ async def create_wordpress_import_task(
 def get_import_job_status(
     job_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     """
     获取异步导入任务状态。
@@ -761,7 +761,7 @@ def get_import_job_status(
 @router.get("/api/import/wordpress/options")
 def get_wordpress_import_options(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     options = _get_wp_import_options(db)
     return JSONResponse({"success": True, "options": options})
@@ -773,7 +773,7 @@ def update_wordpress_import_options(
     request: Request,
     payload: Dict[str, Any] = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     verify_csrf_token(request, csrf_token)
@@ -787,7 +787,7 @@ async def import_rewrz_data(
     request: Request,
     json_file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     """
@@ -833,7 +833,7 @@ async def import_backup_package(
     request: Request,
     backup_file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     """
@@ -923,7 +923,7 @@ async def import_backup_package(
 @router.get("/api/data/stats")
 def get_data_stats(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """
     获取数据统计信息
@@ -987,7 +987,7 @@ def get_data_stats(
 def vacuum_database(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
 ):
     """压缩 SQLite 数据库，回收已删除数据占用的空闲页。"""

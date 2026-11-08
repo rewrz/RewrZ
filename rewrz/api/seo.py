@@ -16,7 +16,7 @@ from datetime import datetime
 import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
 from ..core.database import get_db
-from ..core.security import get_current_user
+from ..core.security import require_admin_user
 from ..crud import post as crud_post
 from ..crud import category as crud_category
 from ..crud import tag as crud_tag
@@ -181,7 +181,7 @@ def get_homepage_meta_tags(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/api/v1/seo/ping-search-engines")
 def ping_search_engines(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     db: Session = Depends(get_db)
 ):
     """

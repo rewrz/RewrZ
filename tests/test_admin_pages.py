@@ -811,13 +811,101 @@ def test_media_variant_rejects_invalid_params_before_database(test_db, monkeypat
     client = _build_admin_client(test_db, monkeypatch)
     try:
         cases = [
-            ("/media/variant/1/not_a_preset", "invalid_preset"),
-            ("/media/variant/1/post_cover?dpr=3", "invalid_dpr"),
-            ("/media/variant/1/post_cover?fmt=bogus", "invalid_fmt"),
+            ("/media/variant/1/not_a_preset/x", "invalid_preset"),
+            ("/media/variant/1/post_cover/x?dpr=3", "invalid_dpr"),
+            ("/media/variant/1/post_cover/x?fmt=bogus", "invalid_fmt"),
         ]
         for url, error_code in cases:
             response = client.get(url)
             assert response.status_code == 400, (url, response.status_code)
             assert response.json()["error_code"] == error_code
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_admin_routes_require_admin_role_across_modules(test_db, monkeypatch):
+    client = _build_admin_client(test_db, monkeypatch)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+    try:
+        main_module.app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+            id=2,
+            username="viewer",
+            email="viewer@example.com",
+            role="viewer",
+            is_active=True,
+            use_gravatar="auto",
+        )
+        for path in (
+            f"{admin_prefix}/dashboard",
+            f"{admin_prefix}/posts",
+            f"{admin_prefix}/settings",
+            f"{admin_prefix}/data-management",
+            f"{admin_prefix}/media/settings",
+            f"{admin_prefix}/api/v1/system-info",
+            "/api/v1/posts/1/snapshots",
+        ):
+            response = client.get(path)
+            assert response.status_code == 403, (path, response.status_code)
+
+        # 公开入口不能被角色门槛误伤
+        assert client.get(f"{admin_prefix}/login").status_code == 200
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_media_variant_signature_is_required_and_stable(test_db, monkeypatch):
+    from rewrz.core.thumbnail_service import build_variant_url
+
+    client = _build_admin_client(test_db, monkeypatch)
+    try:
+        url = build_variant_url(225, "media_lib_card", fmt="jpg")
+        assert re.search(r"/media/variant/225/media_lib_card/[0-9a-f]{24}", url)
+
+        # 签名通过后才会进入查库；测试库无该媒体，返回 404 而不是 403
+        assert client.get(url).status_code == 404
+
+        tampered = re.sub(r"/[0-9a-f]{24}", "/" + "0" * 24, url, count=1)
+        denied = client.get(tampered)
+        assert denied.status_code == 403
+        assert denied.json()["error_code"] == "invalid_signature"
+
+        # 缺少签名段时路由不匹配
+        assert client.get("/media/variant/225/media_lib_card").status_code == 404
+
+        # 同参数签名稳定，不同参数签名不同
+        assert build_variant_url(225, "media_lib_card", fmt="jpg") == url
+        assert build_variant_url(225, "media_lib_card", dpr=2, fmt="jpg") != url
+    finally:
+        main_module.app.dependency_overrides.clear()
+
+
+def test_media_variant_falls_back_to_original_when_disabled(test_db, monkeypatch, tmp_path):
+    from rewrz.api import media as media_api
+    from rewrz.core.thumbnail_service import build_variant_url
+
+    payload = b"original-image-bytes"
+    source = tmp_path / "origin.png"
+    source.write_bytes(payload)
+    media = Media(
+        filename="origin.png",
+        filepath=str(source),
+        file_type="image",
+        mime_type="image/png",
+        file_size=len(payload),
+        uploaded_by_id=1,
+    )
+    test_db.add(media)
+    test_db.commit()
+    test_db.refresh(media)
+
+    client = _build_admin_client(test_db, monkeypatch)
+    runtime = media_api.get_thumbnail_runtime_settings(test_db)
+    runtime["enabled"] = False
+    monkeypatch.setattr(media_api, "get_thumbnail_runtime_settings", lambda db: runtime)
+    try:
+        response = client.get(build_variant_url(int(media.id), "media_lib_card", fmt="jpg"))
+        assert response.status_code == 200
+        assert response.content == payload
+        assert response.headers["cache-control"] == "public, max-age=3600"
     finally:
         main_module.app.dependency_overrides.clear()

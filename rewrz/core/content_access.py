@@ -22,17 +22,37 @@ from .time_utils import utc_now_naive
 HIDE_BLOCK_RE = re.compile(r"\[hide\](.*?)\[/hide\]", re.IGNORECASE | re.DOTALL)
 
 
+# 前缀集中定义：详情页缓存用同一批常量排除敏感 Cookie，避免两处拼写漂移
+COMMENT_UNLOCK_COOKIE_PREFIX = "commented_post_"
+POST_ACCESS_COOKIE_PREFIX = "post_access_"
+
+
 def get_comment_unlock_cookie_name(post_id: int) -> str:
-    return f"commented_post_{post_id}"
+    return f"{COMMENT_UNLOCK_COOKIE_PREFIX}{post_id}"
 
 
 def get_post_access_cookie_name(post_id: int) -> str:
-    return f"post_access_{post_id}"
+    return f"{POST_ACCESS_COOKIE_PREFIX}{post_id}"
 
 
 def build_post_access_cookie_value(post_id: int, hashed_password: str) -> str:
     payload = f"{post_id}:{hashed_password}:{settings.SECRET_KEY}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def build_comment_unlock_cookie_value(post_id: int) -> str:
+    """评论解锁凭证由站点密钥派生，避免明文 true 被任意伪造。"""
+    payload = f"comment-unlock:{post_id}:{settings.SECRET_KEY}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def has_valid_comment_unlock_cookie(request, post_id: int) -> bool:
+    """校验访客是否确实通过发表评论取得了当前文章的解锁凭证。"""
+    cookie_value = request.cookies.get(get_comment_unlock_cookie_name(post_id))
+    if not cookie_value:
+        return False
+    expected = build_comment_unlock_cookie_value(post_id)
+    return secrets.compare_digest(cookie_value, expected)
 
 
 def has_valid_password_cookie(request, post_obj) -> bool:

@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from typing import List
 from ..core.database import get_db
-from ..core.security import get_current_user
+from ..core.security import get_current_user, require_admin_user
 from ..core.template_filters import get_templates
 from ..crud import format as crud_format
 from ..schemas import Format, FormatCreate, FormatUpdate, User
@@ -39,7 +39,7 @@ def get_format_by_slug(slug: str, db: Session = Depends(get_db)):
 @router.post("/api/v1/formats", response_model=Format)
 def create_format(
     format: FormatCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     db: Session = Depends(get_db)
 ):
     """创建新格式（仅管理员）"""
@@ -49,7 +49,7 @@ def create_format(
 def update_format(
     format_id: int,
     format_update: FormatUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     db: Session = Depends(get_db)
 ):
     """更新格式（仅管理员）"""
@@ -61,7 +61,7 @@ def update_format(
 @router.delete("/api/v1/formats/{format_id}")
 def delete_format(
     format_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     db: Session = Depends(get_db)
 ):
     """删除格式（仅管理员）"""

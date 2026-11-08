@@ -8,7 +8,7 @@
     <!-- 数据统计概览 -->
     <div class="mb-8">
         <h2 class="text-xl font-semibold text-gray-800 mb-4">数据概览</h2>
-        <div class="grid grid-cols-2 xl:grid-cols-5 gap-4" id="data-stats">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4" id="data-stats">
             <div class="admin-stats-card rounded-2xl border p-4 text-center shadow-sm">
                 <div class="text-2xl font-bold admin-accent-text" id="posts-count">-</div>
                 <div class="mt-1 text-sm text-gray-600">文章</div>
@@ -47,7 +47,7 @@
 
     <!-- 操作选项卡 -->
     <div class="admin-tab-strip border-b border-gray-200 mb-6">
-        <nav class="-mb-px flex space-x-8">
+        <nav class="-mb-px flex flex-wrap gap-x-4 gap-y-1">
             <button class="tab-button admin-tab-button is-active py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap" 
                     data-tab="export" onclick="switchTab('export')">
                 数据导出

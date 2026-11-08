@@ -16,7 +16,7 @@ from ..core.admin_path import get_request_admin_path
 from ..core.template_filters import get_templates
 from ..core.database import get_db
 from ..schemas import User, SettingCreate, SettingUpdate
-from ..core.security import get_current_user, verify_csrf_token
+from ..core.security import get_current_user, require_admin_user, verify_csrf_token
 from ..crud import setting as setting_crud
 from typing import Optional, Dict, Any
 
@@ -96,7 +96,7 @@ def _normalize_error_config(config_data: Dict[str, Any]) -> Dict[str, Any]:
 def error_settings_page(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """
     错误处理设置页面
@@ -118,7 +118,7 @@ def error_settings_page(
 def update_error_settings(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     enable_custom_error_pages: bool = Form(False),
     error_page_template: str = Form("default"),
     custom_error_404_title: str = Form("页面未找到"),

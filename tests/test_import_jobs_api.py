@@ -199,7 +199,7 @@ def test_should_write_progress_throttle_and_force():
 def api_client_fixture(test_db, monkeypatch):
     """挂载依赖覆写的 TestClient，使用测试数据库与固定用户。"""
     admin_path = main_module.settings.ADMIN_PATH.rstrip("/")
-    fake_user = SimpleNamespace(id=1)
+    fake_user = SimpleNamespace(id=1, role="super_admin")
 
     monkeypatch.setattr(db_manager, "reload_if_needed", lambda: True)
     monkeypatch.setattr(db_manager, "get_session", lambda: test_db)

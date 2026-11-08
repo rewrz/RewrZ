@@ -14,7 +14,7 @@
 
 {% macro bar_row(label, count, pct, opacity=0.78) %}
 <div class="flex items-center gap-3 text-sm">
-    <span class="w-36 md:w-44 truncate" title="{{ label }}" style="color: var(--color-text);">{{ label }}</span>
+    <span class="w-24 sm:w-36 md:w-44 min-w-0 truncate" title="{{ label }}" style="color: var(--color-text);">{{ label }}</span>
     <div class="flex-1 h-2 rounded-full overflow-hidden" style="background: var(--color-background-alt);">
         <div class="h-full rounded-full" style="width: {{ pct }}%; background: var(--color-primary); opacity: {{ opacity }};"></div>
     </div>
@@ -87,7 +87,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <div class="admin-panel p-4">
             <p class="text-xs" style="color: var(--color-text-light);">总请求</p>
             <p class="text-2xl font-bold mt-1" style="color: var(--color-text);">{{ totals.requests }}</p>
@@ -358,7 +358,7 @@
             <p class="text-xs mb-4" style="color: var(--color-text-light);">依据近 48 小时的峰值请求、峰值并发、5xx 与连接池超时判断。</p>
             <p class="text-sm font-medium mb-2" style="color: var(--color-text);">{{ capacity.verdict_label or '容量状态未知' }}</p>
             <p class="text-sm mb-4" style="color: var(--color-text-light);">{{ capacity.summary or '暂无容量结论' }}</p>
-            <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div class="rounded-lg p-3" style="background: var(--color-background-alt);">
                     <p style="color: var(--color-text-light);">峰值请求 / 分钟</p>
                     <p class="text-base font-semibold mt-1" style="color: var(--color-text);">{{ capacity.metrics.peak_rpm or 0 }}</p>

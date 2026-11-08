@@ -74,8 +74,11 @@
         overflow-y: auto;
         padding-right: 0.1rem;
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: minmax(0, 1fr);
         gap: 0.45rem;
+    }
+    @media (min-width: 640px) {
+        .editor-format-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
     .editor-format-item {
         display: flex;

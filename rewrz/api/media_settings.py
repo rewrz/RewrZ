@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from ..core.admin_path import get_admin_path, get_request_admin_path
 from ..core.database import get_db
 from ..core.media_config import get_media_settings_schema
-from ..core.security import get_current_user, verify_csrf_token
+from ..core.security import get_current_user, require_admin_user, verify_csrf_token
 from ..core.template_context import DEFAULT_BASE_SETTINGS
 from ..core.template_filters import get_templates
 from ..crud import setting as crud_setting
@@ -95,7 +95,7 @@ def media_settings_page(
 async def update_media_settings(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     form = await request.form()
     csrf_token = _form_text(form, "csrf_token", "")
@@ -191,6 +191,9 @@ async def update_media_settings(
     allowed_dpr_values = sorted(set(allowed_dpr_values))
     if not allowed_dpr_values:
         errors.append("thumbnail_allowed_dpr 不能为空")
+    # dpr=1 是所有缩略图 URL 的默认值，收窄掉它会让前台图片整体请求 400
+    if allowed_dpr_values and 1 not in allowed_dpr_values:
+        errors.append("thumbnail_allowed_dpr 必须包含 1")
     settings_to_update["thumbnail_allowed_dpr"] = ",".join(str(v) for v in allowed_dpr_values)
 
     allowed_fmt_set = {"auto", "avif", "webp", "jpg", "png"}
@@ -201,6 +204,9 @@ async def update_media_settings(
         errors.append("thumbnail_allowed_fmt 包含不支持的格式")
     if "auto" not in allowed_fmt_raw:
         errors.append("thumbnail_allowed_fmt 必须包含 auto")
+    # 媒体库卡片预览固定使用 jpg，移除 jpg 会让后台媒体库缩略图整体请求失败
+    if "jpg" not in allowed_fmt_raw:
+        errors.append("thumbnail_allowed_fmt 必须包含 jpg")
     if settings_to_update["thumbnail_default_fmt"] not in allowed_fmt_set:
         errors.append("thumbnail_default_fmt 不合法")
     if settings_to_update["thumbnail_default_fmt"] not in allowed_fmt_raw:
@@ -292,7 +298,7 @@ async def update_media_settings(
 @router.get(f"{ADMIN_PATH}/api/v1/media/settings/current")
 def get_current_media_settings(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     try:
         media_settings = {}

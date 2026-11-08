@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import shutil
 import threading
 import time
@@ -110,6 +111,38 @@ def _allow_generation_for_client(client_key: str) -> bool:
         return True
 
 
+_VARIANT_SIGNING_KEY: Optional[bytes] = None
+_VARIANT_SIGNING_KEY_GUARD = threading.Lock()
+_VARIANT_SIGNATURE_LENGTH = 24
+
+
+def _variant_signing_key() -> bytes:
+    """签名密钥由站点密钥派生，进程内缓存；生成与校验共用同一口径。"""
+    global _VARIANT_SIGNING_KEY
+    if _VARIANT_SIGNING_KEY is not None:
+        return _VARIANT_SIGNING_KEY
+    with _VARIANT_SIGNING_KEY_GUARD:
+        if _VARIANT_SIGNING_KEY is None:
+            secret = str(getattr(settings, "SECRET_KEY", "") or "")
+            _VARIANT_SIGNING_KEY = hashlib.sha256(
+                f"rewrz-media-variant-v1:{secret}".encode("utf-8")
+            ).digest()
+        return _VARIANT_SIGNING_KEY
+
+
+def sign_variant_path(media_id: int, preset: str, dpr_param: str, fmt_param: str) -> str:
+    """生成稳定签名；输入必须与 URL 中实际出现的 dpr / fmt 参数一致。"""
+    payload = f"{int(media_id)}:{preset}:{dpr_param}:{fmt_param}".encode("utf-8")
+    return hmac.new(_variant_signing_key(), payload, hashlib.sha256).hexdigest()[:_VARIANT_SIGNATURE_LENGTH]
+
+
+def verify_variant_signature(
+    media_id: int, preset: str, dpr_param: str, fmt_param: str, signature: str
+) -> bool:
+    expected = sign_variant_path(media_id, preset, dpr_param, fmt_param)
+    return hmac.compare_digest(expected, str(signature or "").strip())
+
+
 def get_preset(name: str) -> ThumbnailPreset:
     preset = DEFAULT_PRESETS.get(str(name or "").strip())
     if preset is None:
@@ -128,12 +161,18 @@ def build_variant_url(media_id: int, preset: str, dpr: int = 1, fmt: str = "auto
     if fmt_value not in ALLOWED_FMT:
         raise ThumbnailServiceError(400, "invalid_fmt", "fmt 参数不合法")
     query = {}
+    dpr_param = ""
     if dpr != 1:
-        query["dpr"] = str(dpr)
+        dpr_param = str(dpr)
+        query["dpr"] = dpr_param
+    fmt_param = ""
     if fmt_value != "auto":
-        query["fmt"] = fmt_value
+        fmt_param = fmt_value
+        query["fmt"] = fmt_param
+    # 签名放在路径段而不是 query：CDN 即使只按路径缓存也不会丢掉签名。
+    signature = sign_variant_path(media_value, preset_value, dpr_param, fmt_param)
     query_part = f"?{urlencode(query)}" if query else ""
-    return f"/media/variant/{media_value}/{preset_value}{query_part}"
+    return f"/media/variant/{media_value}/{preset_value}/{signature}{query_part}"
 
 
 def is_local_media_url(image_url: str) -> bool:
@@ -209,6 +248,9 @@ def generate_media_variant(
     client_key: str = "",
 ) -> ThumbnailResult:
     """生成变体；client_key 仅由公开 HTTP 入口传入，用于限制匿名枚举编码。"""
+    runtime = get_thumbnail_runtime_settings(db)
+    if not runtime["enabled"]:
+        raise ThumbnailServiceError(404, "thumbnail_disabled", "动态缩略图服务已关闭")
     if media_obj is None:
         raise ThumbnailServiceError(404, "media_not_found", "媒体不存在")
     if not str(getattr(media_obj, "file_type", "") or "").startswith("image"):
@@ -216,15 +258,15 @@ def generate_media_variant(
 
     preset = get_preset(preset_name)
     dpr_value = int(dpr)
-    if dpr_value not in ALLOWED_DPR:
-        raise ThumbnailServiceError(400, "invalid_dpr", "dpr 仅支持 1 或 2")
+    if dpr_value not in runtime["allowed_dpr"]:
+        raise ThumbnailServiceError(400, "invalid_dpr", f"dpr 不在允许范围: {sorted(runtime['allowed_dpr'])}")
 
     source_path = Path(str(media_obj.filepath or "")).resolve()
     if not source_path.exists() or not source_path.is_file():
         raise ThumbnailServiceError(404, "source_missing", "原图文件不存在")
 
     requested_fmt = str(fmt or "auto").strip().lower()
-    if requested_fmt not in ALLOWED_FMT:
+    if requested_fmt not in runtime["allowed_fmt"]:
         raise ThumbnailServiceError(400, "invalid_fmt", "fmt 参数不合法")
     negotiated_fmt = _resolve_output_format(
         requested_fmt,
@@ -290,6 +332,13 @@ def generate_media_variant(
             generation_slot = True
 
         try:
+            maybe_cleanup_variant_cache(db, runtime["cleanup_interval_hours"])
+        except OSError:
+            pass
+
+        deadline = time.monotonic() + runtime["generate_timeout_ms"] / 1000
+        _check_generate_deadline(deadline)
+        try:
             _generate_variant_file(
                 source_path=source_path,
                 output_path=cache_path,
@@ -297,6 +346,7 @@ def generate_media_variant(
                 dpr=dpr_value,
                 output_fmt=negotiated_fmt,
                 megapixel_limit=_get_setting_int(db, "thumbnail_source_max_megapixels", 25),
+                deadline=deadline,
             )
         except ThumbnailServiceError:
             _set_negative_cache(cache_key, negative_ttl)
@@ -358,6 +408,100 @@ def _get_setting_int(db: Session, key: str, default: int) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def _parse_allowed_dpr(raw: str) -> set[int]:
+    values = set()
+    for item in str(raw or "").split(","):
+        try:
+            value = int(item.strip())
+        except (TypeError, ValueError):
+            continue
+        if value > 0:
+            values.add(value)
+    return values or set(ALLOWED_DPR)
+
+
+def _parse_allowed_fmt(raw: str) -> set[str]:
+    values = {item.strip().lower() for item in str(raw or "").split(",") if item.strip()}
+    return values or set(ALLOWED_FMT)
+
+
+def get_thumbnail_runtime_settings(db: Session) -> Dict[str, Any]:
+    """集中读取缩略图运行时配置，统一走 10 秒缓存；解析失败回退到代码默认值。"""
+    raw_enabled = _get_cached_setting_value(db, "thumbnail_enabled", True)
+    if isinstance(raw_enabled, str):
+        enabled = raw_enabled.strip().lower() not in {"", "false", "0", "no", "off", "none"}
+    else:
+        enabled = bool(raw_enabled)
+
+    allowed_fmt = _parse_allowed_fmt(
+        _get_setting_str(db, "thumbnail_allowed_fmt", "auto,avif,webp,jpg,png")
+    )
+    default_fmt = _get_setting_str(db, "thumbnail_default_fmt", "auto").strip().lower() or "auto"
+    if default_fmt not in allowed_fmt:
+        default_fmt = "auto" if "auto" in allowed_fmt else next(iter(allowed_fmt))
+
+    timeout_ms = _get_setting_int(db, "thumbnail_generate_timeout_ms", 4000)
+    cleanup_hours = _get_setting_int(db, "thumbnail_cleanup_interval_hours", 168)
+
+    return {
+        "enabled": enabled,
+        "allowed_dpr": _parse_allowed_dpr(_get_setting_str(db, "thumbnail_allowed_dpr", "1,2")),
+        "allowed_fmt": allowed_fmt,
+        "default_fmt": default_fmt,
+        "generate_timeout_ms": max(500, min(30000, timeout_ms)),
+        "cleanup_interval_hours": max(1, cleanup_hours),
+    }
+
+
+_LAST_CLEANUP_CHECK_TS = 0.0
+_CLEANUP_CHECK_GUARD = threading.Lock()
+_CLEANUP_CHECK_INTERVAL_SECONDS = 300
+
+
+def maybe_cleanup_variant_cache(db: Session, interval_hours: int) -> None:
+    """按配置周期惰性清理过期变体文件；用缓存目录内标记文件协调多进程。"""
+    global _LAST_CLEANUP_CHECK_TS
+    now_monotonic = time.monotonic()
+    if now_monotonic - _LAST_CLEANUP_CHECK_TS < _CLEANUP_CHECK_INTERVAL_SECONDS:
+        return
+    with _CLEANUP_CHECK_GUARD:
+        if now_monotonic - _LAST_CLEANUP_CHECK_TS < _CLEANUP_CHECK_INTERVAL_SECONDS:
+            return
+        _LAST_CLEANUP_CHECK_TS = now_monotonic
+
+    root = _resolve_cache_root(db)
+    marker = root / ".last_cleanup"
+    try:
+        last_cleanup = float(marker.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        last_cleanup = 0.0
+
+    now_wall = time.time()
+    ttl_seconds = max(1, int(interval_hours)) * 3600
+    if now_wall - last_cleanup < ttl_seconds:
+        return
+
+    cutoff = now_wall - ttl_seconds
+    for path in root.rglob("*"):
+        if not path.is_file() or path.name == ".last_cleanup":
+            continue
+        try:
+            if path.stat().st_mtime < cutoff:
+                path.unlink(missing_ok=True)
+        except OSError:
+            continue
+
+    temp_marker = marker.with_suffix(".tmp")
+    temp_marker.write_text(str(now_wall), encoding="utf-8")
+    temp_marker.replace(marker)
+
+
+def _check_generate_deadline(deadline: Optional[float]) -> None:
+    """协作式超时：在编码关键步骤之间检查，避免单次生成长时间占用线程。"""
+    if deadline is not None and time.monotonic() > deadline:
+        raise ThumbnailServiceError(504, "variant_generate_timeout", "缩略图生成超时")
 
 
 def _get_cached_setting_value(db: Session, key: str, default: Any) -> Any:
@@ -469,11 +613,14 @@ def _generate_variant_file(
     dpr: int,
     output_fmt: str,
     megapixel_limit: int,
+    deadline: Optional[float] = None,
 ) -> None:
+    _check_generate_deadline(deadline)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     resample = Image.Resampling.BILINEAR if preset.fast_mode else Image.Resampling.LANCZOS
 
     with Image.open(source_path) as image_obj:
+        _check_generate_deadline(deadline)
         source_width, source_height = image_obj.size
 
         target_width = max(1, int(preset.width * dpr))
@@ -489,6 +636,7 @@ def _generate_variant_file(
         if image_obj.format == "JPEG":
             # JPEG 先按目标尺寸降采样解码，再做 EXIF 方向校正，避免原图全尺寸进入内存
             image_obj.draft("RGB", (target_width, target_height))
+            _check_generate_deadline(deadline)
             pixel_count = int(image_obj.width * image_obj.height)
         else:
             # 非 JPEG 无法在解码前缩图，只能靠文件头尺寸提前拒绝
@@ -498,6 +646,7 @@ def _generate_variant_file(
             raise ThumbnailServiceError(422, "source_too_large", "原图像素超出处理上限")
 
         image_obj = ImageOps.exif_transpose(image_obj)
+        _check_generate_deadline(deadline)
 
         if preset.mode == "cover":
             rendered = ImageOps.fit(
@@ -514,6 +663,7 @@ def _generate_variant_file(
         else:
             raise ThumbnailServiceError(400, "invalid_preset_mode", f"不支持的预设模式: {preset.mode}")
 
+        _check_generate_deadline(deadline)
         save_format = output_fmt.upper()
         save_kwargs: Dict[str, object] = {"optimize": not preset.fast_mode}
         if output_fmt in {"jpg", "jpeg"}:
@@ -535,5 +685,7 @@ def _generate_variant_file(
             raise ThumbnailServiceError(400, "invalid_fmt", f"不支持的输出格式: {output_fmt}")
 
         temp_path = output_path.with_suffix(f"{output_path.suffix}.tmp")
+        _check_generate_deadline(deadline)
         rendered.save(temp_path, format=save_format, **save_kwargs)
         temp_path.replace(output_path)
+        _check_generate_deadline(deadline)

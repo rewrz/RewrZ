@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from ..core.admin_path import get_request_admin_path
 from ..core.database import get_db
-from ..core.security import get_current_user
+from ..core.security import get_current_user, require_admin_user
 from ..crud import setting as crud_setting
 from ..schemas import Setting, SettingCreate, SettingUpdate, User
 from fastapi.templating import Jinja2Templates
@@ -143,7 +143,7 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
     }
     return settings_data
 
-def admin_settings_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def admin_settings_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
     settings_data = _get_settings_data(db, request, current_user)
     
     return templates.TemplateResponse(request, "admin/settings.html", {
@@ -156,7 +156,7 @@ def admin_settings_page(request: Request, db: Session = Depends(get_db), current
 async def update_admin_settings(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     form = await request.form()
 
@@ -377,7 +377,7 @@ async def update_admin_settings(
 async def update_admin_path(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """更新后台路径API端点"""
     try:

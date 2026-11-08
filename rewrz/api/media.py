@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import mimetypes
 import os
 import re
@@ -26,13 +27,13 @@ from ..core.database import get_db
 from ..core.media_processor import get_media_processor
 from ..core.time_utils import site_local_to_utc_naive, site_now_naive, utc_iso
 from ..core.thumbnail_service import (
-    ALLOWED_DPR,
-    ALLOWED_FMT,
     DEFAULT_PRESETS,
     ThumbnailServiceError,
     build_variant_url,
     generate_media_variant,
+    get_thumbnail_runtime_settings,
     purge_media_variant_cache,
+    verify_variant_signature,
 )
 from ..core.security import get_client_ip, require_admin_user, verify_csrf_token
 from ..core.template_filters import get_templates
@@ -703,6 +704,18 @@ def _candidate_ids(db: Session, id_column, columns, old_values: List[str]) -> Se
     return candidate_ids
 
 
+def _candidate_ids_from_json(db: Session, id_column, json_column, old_values: List[str]) -> Set[int]:
+    """JSON 列不做方言相关的 SQL 表达式；只加载 id 与摘要列，在 Python 侧粗筛。"""
+    candidate_ids: Set[int] = set()
+    for row_id, value in db.execute(select(id_column, json_column)).all():
+        if value is None:
+            continue
+        text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, default=str)
+        if any(old in text for old in old_values):
+            candidate_ids.add(int(row_id))
+    return candidate_ids
+
+
 def _replace_media_references(db: Session, replacements: List[Tuple[str, str]]) -> Dict[str, int]:
     """批量替换媒体引用：只加载可能命中的记录，避免随文章量线性增长的全表扫描。"""
     effective = [(old, new) for old, new in replacements if old and old != new]
@@ -714,11 +727,16 @@ def _replace_media_references(db: Session, replacements: List[Tuple[str, str]]) 
     user_changed = 0
     setting_changed = 0
 
-    post_ids = _candidate_ids(
-        db,
-        PostModel.id,
-        (PostModel.featured_image_url, PostModel.content_markdown, PostModel.content_html),
-        old_values,
+    post_text_columns = (
+        PostModel.featured_image_url,
+        PostModel.content_markdown,
+        PostModel.content_html,
+        PostModel.excerpt,
+    )
+    post_ids = _candidate_ids(db, PostModel.id, post_text_columns, old_values)
+    # media_attachment_summary 是派生索引，必须同步替换；version_snapshots 是历史正文，保持不可变。
+    post_ids |= _candidate_ids_from_json(
+        db, PostModel.id, PostModel.media_attachment_summary, old_values
     )
     posts = (
         db.execute(select(PostModel).where(PostModel.id.in_(post_ids))).scalars().all()
@@ -727,25 +745,37 @@ def _replace_media_references(db: Session, replacements: List[Tuple[str, str]]) 
     )
     for post in posts:
         changed = False
-        for field in ("featured_image_url", "content_markdown", "content_html"):
+        for field in ("featured_image_url", "content_markdown", "content_html", "excerpt"):
             current = getattr(post, field, None)
             updated, has_changed = _replace_text_value(current, effective)
             if has_changed:
                 setattr(post, field, updated)
                 changed = True
+        summary = getattr(post, "media_attachment_summary", None)
+        updated_summary, summary_changed = _replace_nested_value(summary, effective)
+        if summary_changed:
+            post.media_attachment_summary = updated_summary
+            changed = True
         if changed:
             post_changed += 1
 
-    user_ids = _candidate_ids(db, UserModel.id, (UserModel.avatar_url,), old_values)
+    user_ids = _candidate_ids(
+        db, UserModel.id, (UserModel.avatar_url, UserModel.bio), old_values
+    )
     users = (
         db.execute(select(UserModel).where(UserModel.id.in_(user_ids))).scalars().all()
         if user_ids
         else []
     )
     for user in users:
-        updated_avatar, has_changed = _replace_text_value(getattr(user, "avatar_url", None), effective)
-        if has_changed:
-            user.avatar_url = updated_avatar
+        changed = False
+        for field in ("avatar_url", "bio"):
+            current = getattr(user, field, None)
+            updated, has_changed = _replace_text_value(current, effective)
+            if has_changed:
+                setattr(user, field, updated)
+                changed = True
+        if changed:
             user_changed += 1
 
     # 设置项为 JSON 结构且总量很小，保留递归替换，不引入方言相关的 JSON 表达式。
@@ -1237,29 +1267,55 @@ def _variant_error_response(
     )
 
 
-@router.get("/media/variant/{media_id}/{preset}")
+@router.get("/media/variant/{media_id}/{preset}/{sig}")
 def get_media_variant_file(
     request: Request,
     media_id: int,
     preset: str,
+    sig: str,
     dpr: int = Query(1),
-    fmt: str = Query("auto"),
+    fmt: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     # 前台文章图片必须匿名可访问，因此不做登录校验；改为在查库之前完成零成本参数校验，
-    # 并把节流放在「实际编码」环节，避免匿名遍历 media_id / preset 放大图片处理开销。
+    # 并用稳定签名阻断匿名遍历 media_id / preset，节流只作用于实际编码环节。
+    runtime = get_thumbnail_runtime_settings(db)
+    raw_dpr = request.query_params.get("dpr", "") or ""
+    raw_fmt = request.query_params.get("fmt", "") or ""
+    fmt_value = (raw_fmt or runtime["default_fmt"]).strip().lower()
+
     preset_value = str(preset or "").strip()
     if preset_value not in DEFAULT_PRESETS:
         return _variant_error_response(request, 400, "invalid_preset", f"不支持的缩略图预设: {preset_value}")
-    if dpr not in ALLOWED_DPR:
-        return _variant_error_response(request, 400, "invalid_dpr", "dpr 仅支持 1 或 2")
-    fmt_value = str(fmt or "auto").strip().lower()
-    if fmt_value not in ALLOWED_FMT:
+    if dpr not in runtime["allowed_dpr"]:
+        return _variant_error_response(request, 400, "invalid_dpr", f"dpr 不在允许范围: {sorted(runtime['allowed_dpr'])}")
+    if fmt_value not in runtime["allowed_fmt"]:
         return _variant_error_response(request, 400, "invalid_fmt", "fmt 参数不合法")
+
+    if not verify_variant_signature(media_id, preset_value, raw_dpr, raw_fmt, sig):
+        return _variant_error_response(request, 403, "invalid_signature", "变体链接签名无效")
 
     db_media = db.execute(select(MediaModel).filter(MediaModel.id == media_id)).scalar_one_or_none()
     if db_media is None:
         return _variant_error_response(request, 404, "media_not_found", "媒体不存在")
+
+    # 关闭动态缩略图时回退到原图，保证前台图片仍然可见，不降级既有能力。
+    if not runtime["enabled"]:
+        source_path = Path(str(db_media.filepath or "")).resolve()
+        if not source_path.is_file():
+            return _variant_error_response(request, 404, "source_missing", "原图文件不存在")
+        if not str(getattr(db_media, "file_type", "") or "").startswith("image"):
+            return _variant_error_response(request, 415, "unsupported_media_type", "该媒体类型不支持缩略图变体")
+        original_type = (
+            str(db_media.mime_type or "")
+            or mimetypes.guess_type(str(source_path))[0]
+            or "application/octet-stream"
+        )
+        return FileResponse(
+            path=str(source_path),
+            media_type=original_type,
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
 
     try:
         variant = generate_media_variant(

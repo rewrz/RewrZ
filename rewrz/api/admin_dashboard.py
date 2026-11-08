@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from ..core.admin_path import get_admin_path, get_request_admin_path
 from ..core.config import settings
 from ..core.database import get_db
-from ..core.security import get_current_user, verify_csrf_token
+from ..core.security import get_current_user, require_admin_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..core.time_utils import site_now
 from ..crud import category as crud_category
@@ -178,7 +178,7 @@ def dashboard_page(request: Request, db: Session, current_user: User):
 def get_dashboard_stats(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     stats = _collect_stats(db)
     return templates.TemplateResponse(
@@ -192,7 +192,7 @@ def get_dashboard_stats(
 def get_site_health(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     health = get_site_health_snapshot(db)
     return templates.TemplateResponse(
@@ -209,7 +209,7 @@ def create_quick_draft(
     content: str = Form(""),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     verify_csrf_token(request, csrf_token)
 

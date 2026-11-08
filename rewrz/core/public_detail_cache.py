@@ -24,6 +24,8 @@ from typing import Optional
 
 from fastapi import Request
 
+from .content_access import COMMENT_UNLOCK_COOKIE_PREFIX, POST_ACCESS_COOKIE_PREFIX
+
 # 详情页允许的最大陈旧时间：20 秒足以吸收突发流量，也不影响作者发布后预览
 DEFAULT_TTL_SECONDS = 20
 
@@ -40,7 +42,7 @@ GUEST_THEME_COOKIE_NAME = "rewrz_theme"
 
 # 出现这些 Cookie 的请求跳过缓存：页面内容会因身份或解锁状态而不同
 _SENSITIVE_COOKIE_NAMES = ("access_token", "rewrz_visitor_token")
-_SENSITIVE_COOKIE_PREFIXES = ("rewrz_comment_unlock_", "rewrz_post_access_")
+_SENSITIVE_COOKIE_PREFIXES = (COMMENT_UNLOCK_COOKIE_PREFIX, POST_ACCESS_COOKIE_PREFIX)
 
 # 不参与详情缓存的路径前缀与入口
 _SKIP_PATH_PREFIXES = ("/api/", "/static/", "/media/", "/installer")

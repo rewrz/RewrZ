@@ -18,7 +18,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from ..core.database import get_db, db_manager
 from ..core import effects_engine
-from ..core.security import ensure_admin_user, get_current_user, verify_csrf_token
+from ..core.security import ensure_admin_user, get_current_user, require_admin_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..crud import setting as crud_setting
 from ..crud import user as crud_user
@@ -1117,7 +1117,7 @@ def update_background_image_api(
     custom_background_url: Optional[str] = Form(None),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     return update_background_image(
         request=request,

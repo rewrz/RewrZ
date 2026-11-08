@@ -43,13 +43,13 @@
             </div>
 
             <section id="media-lib-panel-library" class="space-y-4">
-                <div class="flex gap-2">
-                    <input type="text" id="media-lib-search-input" placeholder="按标题或文件名搜索..." class="admin-form-field w-full rounded-md px-3 py-2 text-sm">
-                    <select id="media-lib-folder-filter" class="admin-form-field w-44 rounded-md px-2 py-2 text-sm"></select>
-                    <button type="button" id="media-lib-search-btn" class="admin-primary-btn rounded-md px-4 py-2 text-sm font-medium">搜索</button>
+                <div class="flex flex-wrap gap-2">
+                    <input type="text" id="media-lib-search-input" placeholder="按标题或文件名搜索..." class="admin-form-field min-w-0 w-full sm:w-auto sm:flex-1 rounded-md px-3 py-2 text-sm">
+                    <select id="media-lib-folder-filter" class="admin-form-field min-w-0 w-full sm:w-44 rounded-md px-2 py-2 text-sm"></select>
+                    <button type="button" id="media-lib-search-btn" class="admin-primary-btn shrink-0 rounded-md px-4 py-2 text-sm font-medium">搜索</button>
                 </div>
 
-                <div id="media-lib-grid" class="mlm-grid grid max-h-96 grid-cols-2 gap-3 overflow-y-auto rounded-md p-3 md:grid-cols-4">
+                <div id="media-lib-grid" class="mlm-grid grid max-h-96 grid-cols-1 min-[420px]:grid-cols-2 gap-3 overflow-y-auto rounded-md p-3 md:grid-cols-4">
                     <div id="media-lib-loading" class="mlm-muted col-span-full py-8 text-center text-sm">加载中...</div>
                 </div>
 
@@ -84,7 +84,7 @@
                 </div>
 
                 <div id="media-lib-upload-status" class="mlm-status hidden rounded-md p-3 text-sm"></div>
-                <div id="media-lib-uploaded-preview" class="grid grid-cols-3 gap-3"></div>
+                <div id="media-lib-uploaded-preview" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
             </section>
         </div>
     </div>

@@ -24,7 +24,7 @@ from typing import Dict, Any
 from ..core.admin_path import get_request_admin_path
 from ..core.config import settings
 from ..core.database import get_db, resolve_sqlite_database_path
-from ..core.security import get_current_user
+from ..core.security import get_current_user, require_admin_user
 from ..core.template_filters import get_templates
 from ..models import Media
 from ..schemas import User
@@ -36,7 +36,7 @@ templates = get_templates()
 def system_info_page(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """
     系统信息页面
@@ -56,7 +56,7 @@ def system_info_page(
 
 def get_system_info_api(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """
     获取系统信息API接口

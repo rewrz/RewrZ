@@ -17,7 +17,7 @@ from datetime import datetime
 import difflib
 
 from ..core.database import get_db
-from ..core.security import get_current_user, is_admin_user
+from ..core.security import get_current_user, require_admin_user, is_admin_user
 from ..core.template_filters import get_templates
 from ..core.time_utils import as_utc, format_site_time, utc_now, utc_now_naive
 from ..core.content_utils import (
@@ -39,7 +39,7 @@ def get_post_snapshots(
     post_id: int,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """获取文章的版本快照列表，按时间倒序排列。"""
     db_post = _load_post_or_404(db, post_id)
@@ -61,7 +61,7 @@ def get_post_snapshots(
 def get_post_snapshots_json(
     post_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """供编辑页快照弹窗使用的 JSON 数据。"""
     db_post = _load_post_or_404(db, post_id)
@@ -85,7 +85,7 @@ def get_snapshot_content(
     post_id: int,
     snapshot_index: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """获取指定快照的详细内容，用于预览或比较。"""
     db_post = _load_post_or_404(db, post_id)
@@ -103,7 +103,7 @@ def restore_snapshot(
     post_id: int,
     snapshot_index: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """恢复到指定快照版本，并把当前正文保存为新的恢复点。"""
     db_post = _load_post_or_404(db, post_id)
@@ -152,7 +152,7 @@ def compare_snapshot(
     snapshot_index: int,
     compare_with: str = "current",  # "current" 或 "previous"
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """比较快照与当前内容或更早快照的差异，按保留段落结构的可比文本对比。"""
     db_post = _load_post_or_404(db, post_id)
@@ -198,7 +198,7 @@ def delete_snapshot(
     post_id: int,
     snapshot_index: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """删除指定的历史快照。"""
     db_post = _load_post_or_404(db, post_id)
@@ -223,7 +223,7 @@ def batch_delete_snapshots(
     post_id: int,
     indices: List[int] = Body(..., embed=True),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """批量删除指定的历史快照。"""
     db_post = _load_post_or_404(db, post_id)
@@ -250,7 +250,7 @@ def cleanup_snapshots(
     post_id: int,
     keep_count: int = 3,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin_user)
 ):
     """只保留最新的 N 个快照。"""
     db_post = _load_post_or_404(db, post_id)

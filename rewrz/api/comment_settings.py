@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from ..core.admin_path import get_admin_path, get_request_admin_path
 from ..core.database import get_db
-from ..core.security import get_current_user, generate_csrf_token # 导入 generate_csrf_token
+from ..core.security import get_current_user, require_admin_user, generate_csrf_token # 导入 generate_csrf_token
 from ..core.template_filters import get_templates
 from ..crud import setting as crud_setting
 from ..schemas import User, SettingCreate, SettingUpdate
@@ -102,7 +102,7 @@ def comment_settings_page(
 async def update_comment_settings(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     
     # 第一层：无感防御设置
     honeypot_enabled: Optional[str] = Form(None),
@@ -244,7 +244,7 @@ async def update_comment_settings(
 async def test_akismet_key(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
     api_key: str = "",
 ):
     """

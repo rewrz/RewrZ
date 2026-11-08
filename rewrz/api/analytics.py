@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from ..core import traffic_analytics
 from ..core.admin_path import get_admin_path, get_request_admin_path
 from ..core.database import get_db
-from ..core.security import get_current_user, verify_csrf_token
+from ..core.security import get_current_user, require_admin_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..core.time_utils import site_now
 from ..crud import traffic as crud_traffic
@@ -120,7 +120,7 @@ def analytics_page(
     saved: int = Query(0),
     cleared: int = Query(0),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     try:
         summary = _summary_payload(db, range_key, start, end)
@@ -153,7 +153,7 @@ def analytics_summary(
     end: str = Query(""),
     refresh: int = Query(0),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     try:
         payload = _summary_payload(db, range_key, start, end, refresh=bool(refresh))
@@ -166,7 +166,7 @@ def analytics_summary(
 def analytics_live(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     live = crud_traffic.get_live_fragment(db)
     response = templates.TemplateResponse(
@@ -181,7 +181,7 @@ def analytics_live(
 def dashboard_traffic_summary(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     summary = _dashboard_payload(db)
     response = templates.TemplateResponse(
@@ -206,7 +206,7 @@ def update_analytics_settings(
     end: str = Form(""),
     csrf_token: str = Form(""),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     verify_csrf_token(request, csrf_token)
     if retention_days < traffic_analytics.MIN_RETENTION_DAYS or (
@@ -233,7 +233,7 @@ def clear_analytics(
     end: str = Form(""),
     csrf_token: str = Form(""),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_user),
 ):
     verify_csrf_token(request, csrf_token)
     traffic_analytics.clear_analytics_data(db)

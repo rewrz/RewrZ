@@ -11,9 +11,14 @@ from rewrz.schemas.user import UserCreate
 from rewrz.crud import user as crud_user
 from rewrz.crud import post as crud_post
 from rewrz.core.content_access import (
+    build_comment_unlock_cookie_value,
     extract_hide_block,
+    get_comment_unlock_cookie_name,
+    get_post_access_cookie_name,
+    has_valid_comment_unlock_cookie,
     render_markdown_with_hide_blocks,
 )
+from rewrz.core.comment_security import sanitize_comment_content
 from rewrz.core.format_archive_metrics import (
     attach_format_comment_counts,
     build_format_category_topic_count,
@@ -74,6 +79,68 @@ def test_extract_hide_block():
     assert extract_hide_block(md, 0) == "A"
     assert extract_hide_block(md, 1) == "B"
     assert extract_hide_block(md, 2) is None
+
+
+def test_comment_unlock_cookie_cannot_be_forged():
+    from types import SimpleNamespace
+
+    post_id = 12
+    cookie_name = get_comment_unlock_cookie_name(post_id)
+
+    forged = SimpleNamespace(cookies={cookie_name: "true"})
+    assert has_valid_comment_unlock_cookie(forged, post_id) is False
+
+    valid = SimpleNamespace(cookies={cookie_name: build_comment_unlock_cookie_value(post_id)})
+    assert has_valid_comment_unlock_cookie(valid, post_id) is True
+    assert has_valid_comment_unlock_cookie(valid, post_id + 1) is False
+    assert has_valid_comment_unlock_cookie(SimpleNamespace(cookies={}), post_id) is False
+
+
+def test_detail_cache_excludes_unlock_and_password_cookies(monkeypatch):
+    from starlette.requests import Request
+
+    from rewrz.core import public_detail_cache as cache
+
+    monkeypatch.setattr("rewrz.core.admin_path.get_admin_path", lambda: "/rewrz-admin")
+
+    def build_request(cookie_pairs):
+        headers = [(b"host", b"testserver")]
+        if cookie_pairs:
+            raw = "; ".join(f"{key}={value}" for key, value in cookie_pairs.items())
+            headers.append((b"cookie", raw.encode("utf-8")))
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/posts/example",
+            "query_string": b"",
+            "headers": headers,
+            "scheme": "http",
+            "server": ("testserver", 80),
+            "client": ("127.0.0.1", 12345),
+            "root_path": "",
+        }
+        request = Request(scope)
+        request.state.authenticated_user = None
+        return request
+
+    assert cache.is_cacheable_detail_request(build_request({})) is True
+    assert cache.is_cacheable_detail_request(
+        build_request({get_comment_unlock_cookie_name(7): "signed"})
+    ) is False
+    assert cache.is_cacheable_detail_request(
+        build_request({get_post_access_cookie_name(7): "signed"})
+    ) is False
+
+
+def test_comment_markdown_supports_quote_lists_and_code_blocks():
+    rendered = sanitize_comment_content(
+        "> 引用内容\n\n- 第一项\n- 第二项\n\n```\nprint('ok')\n```\n\n<script>alert(1)</script>"
+    )
+    assert "<blockquote>" in rendered
+    assert "<ul>" in rendered
+    assert "<li>" in rendered
+    assert "<pre>" in rendered
+    assert "<script>" not in rendered
 
 
 def test_get_posts_by_year_month_and_archives(db: Session, test_user: User):

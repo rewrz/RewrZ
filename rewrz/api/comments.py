@@ -25,7 +25,6 @@ from ..core.security import (
 import hmac
 from pydantic import BaseModel
 from typing import List, Optional
-from markdown import markdown
 from ..core.anti_spam import get_anti_spam_engine # 导入反垃圾引擎
 from ..core.avatar import get_avatar_service # 导入头像服务
 from ..core.comment_security import (
@@ -33,7 +32,14 @@ from ..core.comment_security import (
     sanitize_comment_content,
 )
 from ..core.template_filters import get_templates # 导入模板函数
-from ..core.content_access import extract_hide_block, get_comment_unlock_cookie_name, is_publicly_accessible
+from ..core.content_access import (
+    build_comment_unlock_cookie_value,
+    extract_hide_block,
+    get_comment_unlock_cookie_name,
+    has_valid_comment_unlock_cookie,
+    is_publicly_accessible,
+)
+from ..core.content_utils import render_markdown_html
 from ..core.admin_security import check_comment_rate_limit, get_admin_email, get_client_ip
 from ..core.notification_email import (
     send_comment_reply_notification,
@@ -90,8 +96,9 @@ def _resolve_new_comment_depth(db: Session, parent_comment) -> int:
 def _set_comment_unlock_cookie(request: Request, response: HTMLResponse, post_id: int) -> None:
     response.set_cookie(
         key=get_comment_unlock_cookie_name(post_id),
-        value="true",
+        value=build_comment_unlock_cookie_value(post_id),
         max_age=30 * 24 * 60 * 60,  # 30天
+        httponly=True,
         samesite="lax",
         secure=should_use_secure_cookie(request),
     )
@@ -394,8 +401,7 @@ def reveal_hidden_content(
     if not is_publicly_accessible(request, db_post, is_admin=_is_admin_request(request, db)):
         raise HTTPException(status_code=404, detail="文章不存在")
 
-    unlock_cookie_name = get_comment_unlock_cookie_name(post_id)
-    if request.cookies.get(unlock_cookie_name) != "true":
+    if not has_valid_comment_unlock_cookie(request, post_id):
         return HTMLResponse(
             content="<div class='text-sm text-red-600'>请先发表评论后再查看隐藏内容。</div>",
             status_code=403,
@@ -408,7 +414,7 @@ def reveal_hidden_content(
     return HTMLResponse(
         content=(
             '<div class="my-4 rounded-lg border border-green-300 bg-green-50 p-4">'
-            f"{markdown(hidden_markdown)}"
+            f"{render_markdown_html(hidden_markdown)}"
             "</div>"
         ),
         status_code=200,
