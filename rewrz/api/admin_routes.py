@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from math import ceil
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Form, Header, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -452,6 +452,7 @@ def register_admin_primary_routes(
         request: Request,
         background_type: str = Form(...),
         custom_background_url: Optional[str] = Form(None),
+        background_effects: Optional[List[str]] = Form(None),
         csrf_token: str = Form(...),
         db: Session = Depends(get_db),
         current_user: User = Depends(require_admin_user),
@@ -463,6 +464,7 @@ def register_admin_primary_routes(
             background_type=background_type,
             custom_background_url=custom_background_url,
             csrf_token=csrf_token,
+            background_effects=background_effects,
         )
 
     @app.get(f"{admin_path}/media", response_class=HTMLResponse)

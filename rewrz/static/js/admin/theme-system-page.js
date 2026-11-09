@@ -6,6 +6,38 @@ function showThemePageNotification(message, type = 'info') {
     alert(message);
 }
 
+function currentBackgroundImage() {
+    const selected = document.querySelector('input[name="background_type"]:checked');
+    const type = selected?.value || 'none';
+    if (type === 'custom') {
+        const url = document.querySelector('input[name="custom_background_url"]')?.value?.trim() || '';
+        return url ? `url('${url.replace(/'/g, '%27')}')` : '';
+    }
+    if (type === 'none') return '';
+    const swatch = selected?.closest('label')?.querySelector('.theme-swatch-option');
+    return swatch ? (swatch.style.backgroundImage || swatch.style.background || '') : '';
+}
+
+function updateBackgroundPreview() {
+    const preview = document.getElementById('background-fx-preview');
+    if (!preview) return;
+    const backgroundImage = currentBackgroundImage();
+    preview.style.backgroundImage = backgroundImage;
+    // 后台整页背景与预览使用同一张画面，刷新页面后也能同步显示
+    document.body.style.backgroundImage = backgroundImage;
+    const layer = preview.querySelector('.site-bg-fx');
+    if (!layer) return;
+    const activeClasses = [];
+    document.querySelectorAll('input[name="background_effects"]').forEach((checkbox) => {
+        layer.classList.toggle(`fx-${checkbox.value}`, checkbox.checked);
+        if (checkbox.checked) activeClasses.push(`fx-${checkbox.value}`);
+    });
+    const pageLayer = document.getElementById('theme-admin-bg-fx');
+    if (!pageLayer) return;
+    if (!pageLayer.children.length) pageLayer.innerHTML = layer.innerHTML;
+    pageLayer.className = `site-bg-fx theme-admin-bg-fx${activeClasses.length ? ' ' + activeClasses.join(' ') : ''}`;
+}
+
 async function saveBackgroundImage() {
     const selectedValue = document.querySelector('input[name="background_type"]:checked')?.value || 'none';
     const customUrl = document.querySelector('input[name="custom_background_url"]')?.value || '';
@@ -16,6 +48,9 @@ async function saveBackgroundImage() {
         if (selectedValue === 'custom' && customUrl) {
             formData.append('custom_background_url', customUrl);
         }
+        document.querySelectorAll('input[name="background_effects"]:checked').forEach((checkbox) => {
+            formData.append('background_effects', checkbox.value);
+        });
         formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
 
         const response = await fetch(`${window.ADMIN_PATH}/api/v1/admin/themes/background`, {
@@ -55,7 +90,7 @@ async function saveBackgroundImage() {
                 break;
         }
 
-        showThemePageNotification('背景图片设置已保存并应用', 'success');
+        showThemePageNotification('背景设置已保存并应用', 'success');
     } catch (error) {
         console.error('保存背景图片设置错误:', error);
         showThemePageNotification(`保存背景图片设置失败: ${error.message}`, 'error');
@@ -172,6 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 document.getElementById('custom-background-input')?.classList.add('hidden');
             }
+            updateBackgroundPreview();
             saveBackgroundImage();
         });
     });
@@ -181,7 +217,18 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('custom-background-input')?.classList.remove('hidden');
     }
 
-    document.querySelector('input[name="custom_background_url"]')?.addEventListener('blur', saveBackgroundImage);
+    document.querySelectorAll('input[name="background_effects"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', function() {
+            updateBackgroundPreview();
+            saveBackgroundImage();
+        });
+    });
+
+    const customBackgroundInput = document.querySelector('input[name="custom_background_url"]');
+    customBackgroundInput?.addEventListener('input', updateBackgroundPreview);
+    customBackgroundInput?.addEventListener('blur', saveBackgroundImage);
+
+    updateBackgroundPreview();
 
     document.getElementById('custom-theme-form')?.addEventListener('submit', createCustomTheme);
     document.querySelectorAll('.delete-custom-theme').forEach((button) => {

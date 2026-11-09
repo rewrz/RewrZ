@@ -398,6 +398,18 @@ PUBLIC_HOLIDAY_CODE_DISPLAY_NAMES = {
 GLASS_INTENSITY_LEVELS = {"weak", "medium", "strong"}
 DEFAULT_GLASS_INTENSITY = "medium"
 
+# 站点背景类型与特效滤镜：同一份选项同时驱动后台表单和保存侧白名单校验
+BACKGROUND_TYPES = ("none", "gradient", "gradient1", "gradient2", "gradient3", "gradient4", "custom")
+BACKGROUND_EFFECT_OPTIONS = (
+    {"value": "glow", "label": "辉光效果", "icon": "fa-sun", "description": "柔焦泛光，让背景呈现梦幻朦胧感"},
+    {"value": "blur", "label": "毛玻璃化", "icon": "fa-glasses", "description": "模糊背景细节，避免壁纸抢走内容焦点"},
+    {"value": "translucent", "label": "半透明", "icon": "fa-tint", "description": "叠一层主题底色，降低画面对比度"},
+    {"value": "dim", "label": "黑色透明遮罩", "icon": "fa-moon", "description": "压暗背景，适合高饱和节日壁纸"},
+    {"value": "particles", "label": "粒子光效", "icon": "fa-star", "description": "细碎光点缓慢上浮，增加动感"},
+    {"value": "orbs", "label": "粒子光球", "icon": "fa-circle", "description": "大小不一的光玉从底部缓缓升起，颜色跟随主题"},
+)
+BACKGROUND_EFFECT_KEYS = tuple(item["value"] for item in BACKGROUND_EFFECT_OPTIONS)
+
 
 def _extract_setting_value(setting: Optional[Setting], default: Any = None) -> Any:
     if not setting or setting.value is None:
@@ -448,6 +460,16 @@ def normalize_glass_intensity(intensity: Optional[str]) -> str:
     if normalized in GLASS_INTENSITY_LEVELS:
         return normalized
     return DEFAULT_GLASS_INTENSITY
+
+
+def normalize_background_effects(values: Any) -> List[str]:
+    """按固定顺序去重并过滤非白名单的背景特效。"""
+    if isinstance(values, str):
+        values = [values]
+    if not isinstance(values, (list, tuple, set)):
+        return []
+    selected = {str(value).strip().lower() for value in values}
+    return [key for key in BACKGROUND_EFFECT_KEYS if key in selected]
 
 
 def get_scene_effects(scene: Optional[str], explicit_effects: Optional[List[str]] = None) -> List[str]:
@@ -645,14 +667,16 @@ def resolve_active_theme(
     glass_intensity_setting = crud_setting.get_setting(db, key="glass_intensity")
     glass_intensity = normalize_glass_intensity(_extract_setting_value(glass_intensity_setting, DEFAULT_GLASS_INTENSITY))
     background_setting = crud_setting.get_setting(db, key="background_image_settings")
-    background = background_setting.value.get("value") if background_setting and isinstance(background_setting.value, dict) else {"type": "none", "custom_url": None}
+    background = background_setting.value.get("value") if background_setting and isinstance(background_setting.value, dict) else None
+    background = dict(background) if isinstance(background, dict) else {"type": "none", "custom_url": None}
+    background["effects"] = normalize_background_effects(background.get("effects"))
 
     return {
         "theme_id": resolved_theme,
         "theme_source": theme_source,
         "variables": resolve_theme_variables(resolved_theme, custom_themes),
         "glass_intensity": glass_intensity,
-        "background": background or {"type": "none", "custom_url": None},
+        "background": background,
     }
 
 
@@ -759,7 +783,9 @@ def _get_theme_page_context(request: Request, current_user: User, db: Session) -
 
     current_theme = resolve_theme_name(_extract_setting_value(theme_setting, "light"), custom_themes)
     glass_intensity = normalize_glass_intensity(_extract_setting_value(glass_intensity_setting, DEFAULT_GLASS_INTENSITY))
-    background_settings = background_setting.value.get("value") if background_setting else {"type": "none", "custom_url": None}
+    raw_background = background_setting.value.get("value") if background_setting and isinstance(background_setting.value, dict) else None
+    background_settings = dict(raw_background) if isinstance(raw_background, dict) else {"type": "none", "custom_url": None}
+    background_settings["effects"] = normalize_background_effects(background_settings.get("effects"))
 
     return {
         "request": request,
@@ -769,6 +795,7 @@ def _get_theme_page_context(request: Request, current_user: User, db: Session) -
         "custom_themes": custom_themes,
         "glass_intensity": glass_intensity,
         "background_settings": background_settings,
+        "background_effect_options": BACKGROUND_EFFECT_OPTIONS,
         "settings": _build_settings_holder(anniversaries=[], background_settings=background_settings),
     }
 
@@ -1083,16 +1110,18 @@ def update_background_image(
     current_user: User,
     background_type: str,
     custom_background_url: Optional[str],
-    csrf_token: str
+    csrf_token: str,
+    background_effects: Optional[List[str]] = None,
 ):
-    """更新背景图片设置"""
+    """更新背景图片与特效滤镜设置"""
     verify_csrf_token(request, csrf_token)
     ensure_admin_user(current_user)
     
-    # 构建背景设置数据
+    # 构建背景设置数据，特效按白名单收敛后再入库
     background_settings = {
-        "type": background_type,
-        "custom_url": custom_background_url
+        "type": background_type if background_type in BACKGROUND_TYPES else "none",
+        "custom_url": custom_background_url,
+        "effects": normalize_background_effects(background_effects),
     }
     
     # 保存到数据库
@@ -1115,6 +1144,7 @@ def update_background_image_api(
     request: Request,
     background_type: str = Form(...),
     custom_background_url: Optional[str] = Form(None),
+    background_effects: Optional[List[str]] = Form(None),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_user),
@@ -1126,6 +1156,7 @@ def update_background_image_api(
         background_type=background_type,
         custom_background_url=custom_background_url,
         csrf_token=csrf_token,
+        background_effects=background_effects,
     )
 
 

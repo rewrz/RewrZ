@@ -6932,3 +6932,202 @@ body.is-nsfw.is-nsfw-revealed .anime-hero-bg img {
         overflow-wrap: anywhere;
     }
 }
+
+/* ===== 站点背景特效滤镜 =====
+   由后台「主题系统 → 背景特效滤镜」多选控制，未启用时整层完全不可见。
+   颜色统一取自动态主题变量；黑色遮罩为需求明确指定的固定暗色。 */
+.site-bg-fx {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    --orb-rise: -78vh;
+    --p-rise: -88vh;
+}
+.site-bg-fx-glow,
+.site-bg-fx-veil,
+.site-bg-fx-particles,
+.site-bg-fx-orbs {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+.site-bg-fx-glow,
+.site-bg-fx-particles,
+.site-bg-fx-orbs {
+    display: none;
+}
+/* 辉光：先对背景画面柔焦提亮，再叠主题色光雾，形成梦幻朦胧感 */
+.site-bg-fx.fx-glow .site-bg-fx-glow {
+    display: block;
+    backdrop-filter: blur(5px) brightness(1.18) saturate(1.22);
+    -webkit-backdrop-filter: blur(5px) brightness(1.18) saturate(1.22);
+    background:
+        radial-gradient(48% 52% at 20% 26%, color-mix(in srgb, var(--color-primary) 46%, transparent) 0%, transparent 72%),
+        radial-gradient(42% 46% at 80% 32%, color-mix(in srgb, var(--color-secondary) 42%, transparent) 0%, transparent 74%),
+        radial-gradient(58% 54% at 50% 96%, color-mix(in srgb, var(--color-primary) 34%, transparent) 0%, transparent 76%),
+        linear-gradient(180deg, color-mix(in srgb, var(--color-text) 12%, transparent) 0%, transparent 55%, color-mix(in srgb, var(--color-primary) 16%, transparent) 100%);
+    animation: site-fx-glow 8s ease-in-out infinite alternate;
+}
+/* 毛玻璃：模糊身后的背景画面，正文不受影响 */
+.site-bg-fx.fx-blur .site-bg-fx-veil {
+    backdrop-filter: blur(9px) saturate(118%);
+    -webkit-backdrop-filter: blur(9px) saturate(118%);
+}
+/* 半透明：叠一层主题底色，降低画面对比 */
+.site-bg-fx.fx-translucent .site-bg-fx-veil::before,
+.site-bg-fx.fx-dim .site-bg-fx-veil::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+}
+.site-bg-fx.fx-translucent .site-bg-fx-veil::before {
+    background: color-mix(in srgb, var(--color-background) 40%, transparent);
+}
+/* 黑色透明遮罩：按需求固定为黑色半透明，用于压暗节日壁纸 */
+.site-bg-fx.fx-dim .site-bg-fx-veil::after {
+    background: rgba(0, 0, 0, 0.42);
+}
+/* 粒子光效：位置、大小、速度、亮度与漂移各异的光点自然上浮 */
+.site-bg-fx.fx-particles .site-bg-fx-particles {
+    display: block;
+}
+.site-bg-fx-particles span {
+    position: absolute;
+    left: var(--p-x);
+    bottom: -12px;
+    width: var(--p-size);
+    height: var(--p-size);
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%,
+        color-mix(in srgb, white 85%, transparent) 0%,
+        color-mix(in srgb, var(--color-primary) 70%, transparent) 45%,
+        transparent 80%);
+    opacity: 0;
+    animation: site-fx-particle-rise var(--p-duration) linear var(--p-delay) infinite;
+}
+.site-bg-fx-particles span:nth-child(3n+2) {
+    background: radial-gradient(circle at 40% 40%,
+        color-mix(in srgb, white 80%, transparent) 0%,
+        color-mix(in srgb, var(--color-secondary) 70%, transparent) 45%,
+        transparent 80%);
+}
+/* 粒子光球：大小不一的光玉从画面底部缓缓升起，颜色跟随主题 */
+.site-bg-fx.fx-orbs .site-bg-fx-orbs {
+    display: block;
+}
+.site-bg-fx-orbs span {
+    position: absolute;
+    left: var(--orb-x);
+    bottom: -24px;
+    width: var(--orb-size);
+    height: var(--orb-size);
+    border-radius: 50%;
+    /* 半透明光玉：核心、球体与光晕都带透明度，能透出背后的画面 */
+    background: radial-gradient(circle at 38% 34%,
+        color-mix(in srgb, white 78%, transparent) 0%,
+        color-mix(in srgb, var(--color-primary) 55%, transparent) 26%,
+        color-mix(in srgb, var(--color-primary) 30%, transparent) 56%,
+        transparent 80%);
+    box-shadow:
+        0 0 20px 2px color-mix(in srgb, var(--color-primary) 40%, transparent),
+        0 0 46px 10px color-mix(in srgb, var(--color-primary) 18%, transparent);
+    filter: blur(0.4px);
+    opacity: 0;
+    animation: site-fx-orb-rise var(--orb-duration) linear var(--orb-delay) infinite;
+}
+.site-bg-fx-orbs span:nth-child(3n+2) {
+    background: radial-gradient(circle at 38% 34%,
+        color-mix(in srgb, white 74%, transparent) 0%,
+        color-mix(in srgb, var(--color-secondary) 52%, transparent) 28%,
+        color-mix(in srgb, var(--color-secondary) 28%, transparent) 56%,
+        transparent 80%);
+    box-shadow:
+        0 0 20px 2px color-mix(in srgb, var(--color-secondary) 38%, transparent),
+        0 0 46px 10px color-mix(in srgb, var(--color-secondary) 16%, transparent);
+}
+@keyframes site-fx-glow {
+    from { opacity: 0.62; }
+    to { opacity: 1; }
+}
+@keyframes site-fx-particle-rise {
+    0% { transform: translate3d(0, 0, 0) scale(0.7); opacity: 0; }
+    12% { opacity: var(--p-alpha, 0.7); }
+    78% { opacity: calc(var(--p-alpha, 0.7) * 0.65); }
+    100% { transform: translate3d(calc(var(--p-drift, 1) * 34px), var(--p-rise), 0) scale(1.15); opacity: 0; }
+}
+@keyframes site-fx-orb-rise {
+    0% { transform: translate3d(0, 0, 0) scale(0.45); opacity: 0; }
+    8% { opacity: 0.9; }
+    72% { opacity: 0.72; }
+    100% { transform: translate3d(calc(var(--orb-drift, 1) * 22px), var(--orb-rise), 0) scale(1.2); opacity: 0; }
+}
+
+/* 后台预览与选项：复用同一套滤镜层，保证所见即所得 */
+.site-bg-preview {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    height: 190px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background-color: var(--color-background-alt);
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.site-bg-preview .site-bg-fx--preview {
+    position: absolute;
+    z-index: 1;
+    --orb-rise: -230px;
+    --p-rise: -250px;
+}
+.site-bg-preview-label {
+    position: relative;
+    z-index: 2;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-card-bg) 72%, transparent);
+    border: 1px solid var(--color-border);
+}
+.site-bg-fx-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    min-width: 0;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-card-bg) 60%, transparent);
+}
+.site-bg-fx-option:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 55%, var(--color-border));
+}
+.site-bg-fx-option input {
+    margin-top: 0.2rem;
+    flex: none;
+}
+@media (prefers-reduced-motion: reduce) {
+    .site-bg-fx.fx-glow .site-bg-fx-glow {
+        animation: none;
+    }
+    .site-bg-fx-particles span {
+        animation: none;
+        bottom: var(--p-y);
+        opacity: calc(var(--p-alpha, 0.7) * 0.7);
+        transform: none;
+    }
+    .site-bg-fx-orbs span {
+        animation: none;
+        bottom: var(--orb-y);
+        opacity: 0.6;
+        transform: none;
+    }
+}

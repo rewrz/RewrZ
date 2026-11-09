@@ -149,3 +149,87 @@ def test_public_holiday_catalog_stays_within_target_solar_year():
     assert "dumplings" in items_by_code["winter_solstice"]["effects"]
     assert "tree_lights" in items_by_code["christmas_day"]["effects"]
     assert "rain" in items_by_code["dragon_heads_raising_day"]["effects"]
+
+
+def _build_theme_admin_client(test_db, monkeypatch):
+    from rewrz.core.security import get_current_user
+    from rewrz.models.user import User as DbUser
+
+    monkeypatch.setattr(
+        type(main_module.settings),
+        "installation_complete",
+        property(lambda self: True),
+    )
+    if not main_module.ADMIN_ROUTES_REGISTERED:
+        main_module.register_admin_routes()
+        main_module.ADMIN_ROUTES_REGISTERED = True
+
+    if test_db.query(DbUser).filter(DbUser.id == 1).first() is None:
+        test_db.add(
+            DbUser(
+                id=1,
+                username="admin",
+                hashed_password="hashed",
+                email="admin@example.com",
+                is_active=True,
+                role="super_admin",
+                use_gravatar="auto",
+            )
+        )
+    for key in ("site_title", "site_url"):
+        if test_db.query(Setting).filter(Setting.key == key).first() is None:
+            test_db.add(Setting(key=key, value={"value": "RewrZ Test"}, description="测试设置"))
+    test_db.commit()
+
+    main_module.app.dependency_overrides[get_db] = lambda: test_db
+    main_module.app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        id=1,
+        username="admin",
+        email="admin@example.com",
+        role="super_admin",
+        is_active=True,
+        use_gravatar="auto",
+    )
+    return TestClient(main_module.app)
+
+
+def test_normalize_background_effects_filters_and_orders():
+    assert themes_api.normalize_background_effects(["orbs", "glow", "glow", "不存在的特效", "DIM"]) == ["glow", "dim", "orbs"]
+    assert themes_api.normalize_background_effects("blur") == ["blur"]
+    assert themes_api.normalize_background_effects(None) == []
+
+
+def test_background_effects_saved_and_rendered(test_db, monkeypatch):
+    from rewrz.core.config import settings as app_settings
+
+    monkeypatch.setattr(themes_api, "verify_csrf_token", lambda request, token: None)
+    client = _build_theme_admin_client(test_db, monkeypatch)
+    admin_prefix = app_settings.ADMIN_PATH.rstrip("/")
+
+    try:
+        response = client.post(
+            f"{admin_prefix}/api/v1/admin/themes/background",
+            data={
+                "background_type": "custom",
+                "custom_background_url": "/static/images/covers/home-default.jpg",
+                "background_effects": ["glow", "dim", "invalid"],
+                "csrf_token": "test-token",
+            },
+        )
+        assert response.status_code == 200
+        stored = crud_setting.get_setting(test_db, key="background_image_settings").value["value"]
+        assert stored["type"] == "custom"
+        assert stored["effects"] == ["glow", "dim"]
+
+        page = client.get(f"{admin_prefix}/themes")
+        assert page.status_code == 200
+        assert "背景特效滤镜" in page.text
+        assert "site-bg-preview" in page.text
+        assert "粒子光球" in page.text
+        assert 'value="invalid"' not in page.text
+
+        home = client.get("/")
+        assert home.status_code == 200
+        assert 'class="site-bg-fx fx-glow fx-dim"' in home.text
+    finally:
+        main_module.app.dependency_overrides.clear()

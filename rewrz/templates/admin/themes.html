@@ -3,6 +3,11 @@
 {% block title_text %}主题系统{% endblock %}
 {% block page_title %}<i class="fas fa-palette admin-accent-text mr-3"></i>主题系统{% endblock %}
 {% block content %}
+{% set admin_fx = namespace(classes='') %}
+{% for effect in (background_settings.effects or []) %}
+    {% set admin_fx.classes = admin_fx.classes ~ ' fx-' ~ effect %}
+{% endfor %}
+<div class="site-bg-fx theme-admin-bg-fx{{ admin_fx.classes }}" id="theme-admin-bg-fx" aria-hidden="true"></div>
 <style>
 /* 背景预设是固定渐变示意，标签文字不能跟随主题反转；用中性深底 + 主题反色字保证任何主题下可读 */
 .theme-admin-page .theme-swatch-label {
@@ -205,6 +210,53 @@
                     </div>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div class="admin-section-card rounded-lg">
+        <div class="px-6 py-4" style="border-bottom: 1px solid var(--color-border);">
+            <h2 class="text-xl font-semibold flex items-center gap-2" style="color: var(--color-text);">
+                <i class="fas fa-magic admin-accent-text"></i>背景特效滤镜
+            </h2>
+            <p class="text-sm mt-1" style="color: var(--color-text-light);">
+                给背景画面叠一层氛围滤镜，可多选叠加：压住过清晰的壁纸，节日壁纸再叠加粒子与光球增加动感。
+            </p>
+        </div>
+        <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            <div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {% for option in background_effect_options %}
+                    <label class="site-bg-fx-option">
+                        <input type="checkbox" name="background_effects" value="{{ option.value }}" {% if option.value in background_settings.effects %}checked{% endif %}>
+                        <span class="min-w-0">
+                            <span class="block text-sm font-medium"><i class="fas {{ option.icon }} mr-1 admin-accent-text"></i>{{ option.label }}</span>
+                            <span class="block text-xs mt-1" style="color: var(--color-text-light);">{{ option.description }}</span>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <p class="text-xs mt-3" style="color: var(--color-text-light);">勾选后自动保存，前台刷新即可生效；作用于本页设置的站点背景，首页沉浸式背景与登录页背景另有独立设置。系统开启「减少动效」时粒子与光球保持静态。</p>
+            </div>
+            <div>
+                <p class="text-xs mb-2" style="color: var(--color-text-light);">实时预览（跟随上方所选背景）</p>
+                <div id="background-fx-preview" class="site-bg-preview">
+                    <div class="site-bg-fx site-bg-fx--preview" aria-hidden="true">
+                        <div class="site-bg-fx-glow"></div>
+                        <div class="site-bg-fx-veil"></div>
+                        <div class="site-bg-fx-particles">
+                            {% for i in range(36) %}
+                            <span style="--p-x:{{ (2 + (i * 37) % 96) | round(1) }}%;--p-size:{{ (1.6 + (i % 5) * 0.7) | round(1) }}px;--p-delay:-{{ (i * 0.73) | round(2) }}s;--p-duration:{{ 11 + (i % 7) * 2 }}s;--p-y:{{ 5 + (i * 29) % 78 }}%;--p-drift:{{ 1 if i % 3 == 0 else -1 }};--p-alpha:{{ (0.45 + (i % 4) * 0.14) | round(2) }}"></span>
+                            {% endfor %}
+                        </div>
+                        <div class="site-bg-fx-orbs">
+                            {% for i in range(18) %}
+                            <span style="--orb-x:{{ (3 + i * 5.3) | round(1) }}%;--orb-size:{{ 10 + (i % 6) * 5 }}px;--orb-delay:-{{ (i * 0.9) | round(1) }}s;--orb-duration:{{ 9 + (i % 4) * 2 }}s;--orb-y:{{ 6 + (i * 23) % 72 }}%;--orb-drift:{{ 1 if i % 2 == 0 else -1 }}"></span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <span class="site-bg-preview-label">内容区域示意</span>
+                </div>
+            </div>
         </div>
     </div>
 

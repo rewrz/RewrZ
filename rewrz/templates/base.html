@@ -162,6 +162,24 @@
       data-background-type="{{ background_image_settings.type if background_image_settings else 'none' }}"
       data-background-url="{{ background_image_settings.custom_url if background_image_settings and background_image_settings.custom_url else '' }}"
       data-homepage-mode="{{ homepage_mode if homepage_mode else 'default' }}">
+    {% set bg_fx = namespace(classes='') %}
+    {% for effect in ((background_image_settings.get('effects') if background_image_settings else []) or []) %}
+        {% set bg_fx.classes = bg_fx.classes ~ ' fx-' ~ effect %}
+    {% endfor %}
+    <div class="site-bg-fx{{ bg_fx.classes }}" aria-hidden="true">
+        <div class="site-bg-fx-glow"></div>
+        <div class="site-bg-fx-veil"></div>
+        <div class="site-bg-fx-particles">
+            {% for i in range(36) %}
+            <span style="--p-x:{{ (2 + (i * 37) % 96) | round(1) }}%;--p-size:{{ (1.6 + (i % 5) * 0.7) | round(1) }}px;--p-delay:-{{ (i * 0.73) | round(2) }}s;--p-duration:{{ 11 + (i % 7) * 2 }}s;--p-y:{{ 5 + (i * 29) % 78 }}%;--p-drift:{{ 1 if i % 3 == 0 else -1 }};--p-alpha:{{ (0.45 + (i % 4) * 0.14) | round(2) }}"></span>
+            {% endfor %}
+        </div>
+        <div class="site-bg-fx-orbs">
+            {% for i in range(18) %}
+            <span style="--orb-x:{{ (3 + i * 5.3) | round(1) }}%;--orb-size:{{ 10 + (i % 6) * 5 }}px;--orb-delay:-{{ (i * 0.9) | round(1) }}s;--orb-duration:{{ 9 + (i % 4) * 2 }}s;--orb-y:{{ 6 + (i * 23) % 72 }}%;--orb-drift:{{ 1 if i % 2 == 0 else -1 }}"></span>
+            {% endfor %}
+        </div>
+    </div>
     <header class="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 border-b border-gray-200 dark:border-gray-700">
         <div class="container mx-auto px-3 md:px-6 py-3 md:py-4">
             <div class="flex justify-between items-center">
