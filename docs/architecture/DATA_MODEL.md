@@ -9,8 +9,8 @@
 | `users` | 后台用户 | `id`, `username`, `email`, `hashed_password`, `role`, `token_version` |
 | `posts` | 内容主表 | `id`, `title`, `slug`, `post_type`, `status`, `visibility`, `author_id` |
 | `comments` | 评论 | `id`, `post_id`, `parent_id`, `status`, `author_name` |
-| `categories` | 分类 | `id`, `name`, `slug`, `parent_id` |
-| `tags` | 标签 | `id`, `name`, `slug` |
+| `categories` | 分类 | `id`, `name`, `slug`, `parent_id`, `description` |
+| `tags` | 标签 | `id`, `name`, `slug`, `description` |
 | `formats` | 内容意图 | `id`, `name`, `slug` |
 | `media` | 媒体元数据 | `id`, `filepath`, `file_type`, `mime_type`, `file_hash`, `file_size` |
 | `settings` | 系统配置 | `id`, `key`, `value(JSON)`, `category`, `type` |
