@@ -9,38 +9,114 @@
 <script src="{{ static_asset(request, 'js/editor-raw-html.js') }}"></script>
 <script src="{{ static_asset(request, 'js/editor-block-directives.js') }}"></script>
 <style>
-    .editor-hero {
-        position: relative;
-        overflow: hidden;
-        background: linear-gradient(130deg, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 56%), color-mix(in srgb, var(--color-card-bg) 96%, transparent);
-    }
-    .editor-hero::after {
-        content: '';
-        position: absolute;
-        right: -26px;
-        top: -24px;
-        width: 130px;
-        height: 130px;
-        border-radius: 999px;
-        background: color-mix(in srgb, var(--color-primary) 18%, transparent);
-    }
-    .editor-status-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        border-radius: 999px;
-        border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
-        background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-        padding: 0.26rem 0.72rem;
-        font-size: 0.76rem;
-        font-weight: 600;
-    }
     .editor-input {
         width: 100%;
         border-radius: 0.75rem;
         border: 1px solid var(--ui-border);
         padding: 0.62rem 0.82rem;
         font-size: 0.93rem;
+    }
+    /* 标签编辑器：整体呈现为一个输入框，已选标签与输入框在同一行内自然流动 */
+    .editor-tag-editor {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+        min-height: 2.7rem;
+        padding: 0.38rem 0.5rem;
+        border: 1px solid var(--ui-border);
+        border-radius: 0.75rem;
+        background: var(--color-card-bg);
+        transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+    .editor-tag-editor:focus-within {
+        border-color: color-mix(in srgb, var(--color-primary) 45%, var(--ui-border) 55%);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
+    }
+    /* 让胶囊直接参与外层 flex 流，避免再套一层块级盒子 */
+    #tag-container {
+        display: contents;
+    }
+    .editor-tag-input {
+        flex: 1 1 9rem;
+        min-width: 9rem;
+        border: 0;
+        background: transparent;
+        padding: 0.18rem 0.3rem;
+        font-size: 0.9rem;
+        color: var(--color-text);
+        outline: none;
+    }
+    .editor-tag-input::placeholder {
+        color: var(--color-text-light);
+    }
+    /* 工具栏统计：三项等距分组，数字用等宽数位，数值变化时宽度不抖动 */
+    .editor-toolbar-stats {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem 0.7rem;
+        line-height: 1.5;
+    }
+    .editor-stat-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-variant-numeric: tabular-nums;
+    }
+    .editor-stat-sep {
+        width: 1px;
+        height: 0.95em;
+        background: var(--ui-border);
+    }
+    /* PC 端「更多」容器用 display:contents 让内部按钮仍平铺在工具栏 */
+    .editor-extra-tools {
+        display: contents;
+    }
+    .editor-more-toggle {
+        display: none;
+    }
+    @media (max-width: 767.98px) {
+        .editor-toolbar {
+            position: relative;
+        }
+        /* 窄屏分隔线会悬在行尾，改用间距分组；触屏没有 Ctrl/Cmd+S，快捷键提示也一并隐藏 */
+        .editor-stat-sep,
+        .editor-stat-shortcut {
+            display: none;
+        }
+        .editor-toolbar-stats {
+            gap: 0.25rem 0.6rem;
+        }
+        .editor-extra-tools {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 0.4rem);
+            z-index: 45;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.42rem;
+            min-width: 11rem;
+            padding: 0.5rem;
+            border: 1px solid var(--ui-border);
+            border-radius: 0.8rem;
+            background: var(--color-card-bg);
+            box-shadow: var(--ui-shadow-soft);
+        }
+        .editor-extra-tools.is-open {
+            display: flex;
+        }
+        .editor-more-toggle {
+            display: inline-flex;
+            align-items: center;
+        }
+        /* 移动端下拉面板里，版式菜单改为就地展开，避免再叠一层浮层溢出屏幕 */
+        .editor-extra-tools .editor-block-menu {
+            position: static !important;
+            width: 100%;
+            margin-top: 0.35rem;
+        }
     }
     .editor-toolbar {
         border: 1px solid var(--ui-border);
@@ -206,11 +282,6 @@
         gap: 0.75rem;
         margin-bottom: 0.6rem;
     }
-    .editor-meta-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        gap: 0.9rem 1.1rem;
-    }
     .editor-meta-field {
         min-width: 0;
     }
@@ -223,11 +294,6 @@
     #post-excerpt {
         resize: vertical;
         min-height: 6.1rem;
-    }
-    @media (min-width: 860px) {
-        .editor-meta-grid {
-            grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
-        }
     }
     .editor-inline-trigger {
         display: inline-flex;
@@ -275,7 +341,8 @@
     }
     @media (min-width: 1120px) {
         #editor-layout-grid {
-            grid-template-columns: minmax(0, 1.42fr) minmax(320px, 0.9fr);
+            /* 侧栏收窄到 300–340px，把剩余宽度让给正文编辑区 */
+            grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
         }
         #editor-side-panel > .admin-panel {
             /* 高度由脚本按左栏底部实测设置，内容超出面板时内部滚动 */
@@ -344,9 +411,6 @@
         overflow: auto;
         background: color-mix(in srgb, var(--color-card-bg) 96%, white);
     }
-    #post-form.editor-fullscreen .editor-hero {
-        display: none;
-    }
     #post-form.editor-fullscreen #editor-side-panel {
         display: none;
     }
@@ -367,52 +431,38 @@
             {% if post %}
             <input type="hidden" name="_method" value="PUT">
             {% endif %}
-            <section class="admin-panel editor-hero p-5 md:p-6">
-                <div class="relative z-10 flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                        <div class="editor-status-pill mb-2">
-                            <i class="fas fa-pen-nib"></i>
-                            {% if post %}正在编辑 #{{ post.id }}{% else %}新的文章草稿{% endif %}
-                        </div>
-                        <h2 class="text-xl md:text-2xl font-semibold tracking-tight text-[var(--color-text)]">沉浸式写作工作区</h2>
-                        <p class="mt-1.5 text-sm text-[var(--color-text-light)]">支持媒体插入、快捷保存、离开提醒与字数统计。</p>
-                    </div>
-                    <div class="space-y-1 text-sm text-[var(--color-text-light)]">
-                        <div id="editor-wording">字数统计: 0 字</div>
-                        <div id="editor-chars">字符统计: 0 字符</div>
-                    </div>
-                </div>
-            </section>
             <div id="editor-layout-grid">
                 <!-- Main Editor -->
                 <div id="editor-main-panel" class="space-y-6">
                     <div class="admin-panel p-4 md:p-6">
                         <div class="mb-4">
-                            <label for="title" class="block text-sm font-medium text-[var(--color-text)]">标题</label>
-                            <input type="text" id="title" name="title" value="{% if post %}{{ post.title }}{% endif %}" class="editor-input" placeholder="输入文章标题（可留空，适合短内容）">
-                            <p class="mt-2 text-xs text-[var(--color-text-light)]">标题会影响 SEO 与分享卡片展示。</p>
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <label for="title" class="block text-sm font-medium text-[var(--color-text)]">标题</label>
+                                <span class="text-xs text-[var(--color-text-light)]">影响 SEO 与分享卡片</span>
+                            </div>
+                            <input type="text" id="title" name="title" value="{% if post %}{{ post.title }}{% endif %}" class="editor-input mt-2" placeholder="输入文章标题（可留空，适合短内容）">
                         </div>
-                        <div class="editor-meta-grid mb-4">
-                            <div class="editor-meta-field">
+                        <div class="editor-meta-field mb-4">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <label for="post-excerpt" class="block text-sm font-medium text-[var(--color-text)]">摘要</label>
+                                <span class="text-xs text-[var(--color-text-light)]">选填 · 留空自动截取正文</span>
+                            </div>
+                            <textarea id="post-excerpt" name="excerpt" rows="3" class="editor-input mt-2" placeholder="仅在需要时手动填写摘要，不会自动生成">{% if post %}{{ post.excerpt }}{% endif %}</textarea>
+                        </div>
+
+                        <div class="editor-meta-field mb-4">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
                                 <label for="tag-input" class="block text-sm font-medium text-[var(--color-text)]">标签</label>
-                                <input type="text" id="tag-input" class="editor-input mt-2" placeholder="添加标签后按回车...">
-                                <div id="tag-container" class="mt-2 flex flex-wrap gap-2"></div>
-                                <p class="editor-meta-hint">支持回车、英文逗号、中文逗号快速添加；保存时不存在的标签会自动创建。</p>
-                                <input type="hidden" name="tags" id="tags-hidden-input" value="{% if post %}{{ post.tags|map(attribute='name')|join(',') }}{% endif %}">
+                                <span class="text-xs text-[var(--color-text-light)]">回车或逗号添加</span>
                             </div>
-                            <div class="editor-meta-field">
-                                <div class="flex items-center justify-between gap-2">
-                                    <label for="post-excerpt" class="block text-sm font-medium text-[var(--color-text)]">摘要</label>
-                                    <span class="text-xs text-[var(--color-text-light)]">选填</span>
-                                </div>
-                                <textarea id="post-excerpt" name="excerpt" rows="3" class="editor-input mt-2" placeholder="仅在需要时手动填写摘要，不会自动生成">{% if post %}{{ post.excerpt }}{% endif %}</textarea>
-                                <p class="editor-meta-hint">仅手动填写时才会展示；留空时前台聚合页会自动截取正文。</p>
+                            <div id="tag-editor" class="editor-tag-editor mt-2">
+                                <div id="tag-container"></div>
+                                <input type="text" id="tag-input" class="editor-tag-input" placeholder="输入标签后按回车..." title="支持回车、英文逗号、中文逗号快速添加；保存时不存在的标签会自动创建。">
                             </div>
+                            <input type="hidden" name="tags" id="tags-hidden-input" value="{% if post %}{{ post.tags|map(attribute='name')|join(',') }}{% endif %}">
                         </div>
+
                         <div class="editor-toolbar mb-3 flex flex-wrap items-center justify-between gap-2">
-                            <div class="text-sm text-[var(--color-text-light)]">
-                                快捷键: <kbd class="admin-inline-kbd px-1.5 py-0.5 rounded">Ctrl/Cmd + S</kbd>
-                            </div>
                             <div class="editor-mode-toggle inline-flex overflow-hidden rounded-md text-sm" role="group" aria-label="编辑模式切换">
                                 <button type="button" id="editor-mode-markdown" class="editor-mode-button is-active px-3 py-2">Markdown</button>
                                 <button type="button" id="editor-mode-html" class="editor-mode-button px-3 py-2">富文本</button>
@@ -428,21 +478,22 @@
                             <button type="button" id="editor-fullscreen-toggle" class="editor-utility-pill" title="切换全屏编辑（Ctrl/Cmd+Shift+F）">
                                 <i class="fas fa-expand"></i><span>全屏</span>
                             </button>
-                            <input type="file" id="direct-upload-input" class="hidden" multiple>
-                            <button type="button" id="direct-upload-button" title="也可以直接把截图粘贴进编辑器" class="admin-secondary-btn inline-flex items-center rounded-md px-3 py-2 text-sm">
-                                <i class="fas fa-upload mr-2"></i>上传文件
-                            </button>
                             <button type="button" id="insert-media-button" class="admin-primary-btn inline-flex items-center rounded-md px-3 py-2 text-sm">
                                 <i class="fas fa-paperclip mr-2"></i>插入媒体
                             </button>
-                            <div class="editor-block-menu-wrap">
-                                <button type="button" id="insert-block-button" class="admin-soft-btn inline-flex items-center rounded-md px-3 py-2 text-sm" aria-haspopup="true" aria-expanded="false" title="插入提示块、分栏、图集等版式块（仅 Markdown 模式）">
-                                    <i class="fas fa-layer-group mr-2"></i>插入版式<i class="fas fa-caret-down ml-1"></i>
+                            <div id="editor-extra-tools" class="editor-extra-tools">
+                                <div class="editor-block-menu-wrap">
+                                    <button type="button" id="insert-block-button" class="admin-soft-btn inline-flex items-center rounded-md px-3 py-2 text-sm" aria-haspopup="true" aria-expanded="false" title="插入提示块、分栏、图集等版式块（仅 Markdown 模式）">
+                                        <i class="fas fa-layer-group mr-2"></i>插入版式<i class="fas fa-caret-down ml-1"></i>
+                                    </button>
+                                    <div id="insert-block-menu" class="editor-block-menu" hidden></div>
+                                </div>
+                                <button type="button" id="insert-hide-block-button" class="admin-soft-btn inline-flex items-center rounded-md px-3 py-2 text-sm" title="插入 [hide] 评论后可见块（仅 Markdown 模式）">
+                                    <i class="fas fa-comment-dots mr-2"></i>评论后可见
                                 </button>
-                                <div id="insert-block-menu" class="editor-block-menu" hidden></div>
                             </div>
-                            <button type="button" id="insert-hide-block-button" class="admin-soft-btn inline-flex items-center rounded-md px-3 py-2 text-sm" title="插入 [hide] 评论后可见块（仅 Markdown 模式）">
-                                <i class="fas fa-comment-dots mr-2"></i>评论后可见
+                            <button type="button" id="editor-more-toggle" class="editor-more-toggle admin-soft-btn rounded-md px-3 py-2 text-sm" aria-expanded="false" aria-controls="editor-extra-tools">
+                                <i class="fas fa-ellipsis-h mr-2"></i>更多
                             </button>
                             </div>
                         </div>
@@ -465,19 +516,24 @@
                                     </label>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <a href="{{ request.state.admin_path }}/posts" 
-                                        class="admin-secondary-btn inline-block rounded-md px-4 py-2">
-                                        <i class="fas fa-arrow-left mr-2"></i>返回列表
-                                    </a>
                                     <button type="submit" id="save-post-button"
                                         class="admin-primary-btn rounded-md px-4 py-2">
                                         <i class="fas fa-save mr-2"></i>保存
                                     </button>
                                 </div>
                             </div>
-                            <div class="mt-2 text-sm text-[var(--color-text-light)]">
-                                <span id="dirty-indicator" class="hidden admin-accent-text"><i class="fas fa-circle text-[0.55rem] mr-1"></i>有未保存更改</span>
-                                <span id="saved-indicator" class="admin-accent-text"><i class="fas fa-check-circle mr-1"></i>已同步到当前表单</span>
+                            <div class="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-[var(--color-text-light)]">
+                                <div class="editor-toolbar-stats">
+                                    <span class="editor-stat-item editor-stat-shortcut">快捷键: <kbd class="admin-inline-kbd px-1.5 py-0.5 rounded">Ctrl/Cmd + S</kbd></span>
+                                    <span class="editor-stat-sep" aria-hidden="true"></span>
+                                    <span class="editor-stat-item" id="editor-wording">字数统计: 0 字</span>
+                                    <span class="editor-stat-sep" aria-hidden="true"></span>
+                                    <span class="editor-stat-item" id="editor-chars">字符统计: 0 字符</span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span id="dirty-indicator" class="hidden admin-accent-text"><i class="fas fa-circle text-[0.55rem] mr-1"></i>有未保存更改</span>
+                                    <span id="saved-indicator" class="admin-accent-text"><i class="fas fa-check-circle mr-1"></i>已同步到当前表单</span>
+                                </div>
                             </div>
                     </div>
                 </div>
@@ -731,6 +787,32 @@
         const tagContainer = document.getElementById('tag-container');
         const tagsHiddenInput = document.getElementById('tags-hidden-input');
         const csrfToken = postForm.querySelector('input[name="csrf_token"]')?.value || '';
+
+        // 移动端「更多」收纳：PC 端容器为 display:contents，按钮仍平铺在工具栏
+        (() => {
+            const moreToggle = document.getElementById('editor-more-toggle');
+            const extraTools = document.getElementById('editor-extra-tools');
+            if (!moreToggle || !extraTools) return;
+
+            const closeMore = () => {
+                extraTools.classList.remove('is-open');
+                moreToggle.setAttribute('aria-expanded', 'false');
+            };
+
+            moreToggle.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const isOpen = extraTools.classList.toggle('is-open');
+                moreToggle.setAttribute('aria-expanded', String(isOpen));
+            });
+            document.addEventListener('click', (event) => {
+                if (!extraTools.classList.contains('is-open')) return;
+                if (extraTools.contains(event.target) || moreToggle.contains(event.target)) return;
+                closeMore();
+            });
+            window.addEventListener('resize', () => {
+                if (window.innerWidth >= 768) closeMore();
+            });
+        })();
         const visibilitySelect = document.getElementById('visibility-select');
         const passwordField = document.getElementById('password-field');
         const passwordInput = document.getElementById('post-password-input');
@@ -1585,16 +1667,8 @@
             const files = Array.from(fileList || []);
             if (!files.length) return;
 
-            const directUploadButton = document.getElementById('direct-upload-button');
             const insertSnippets = [];
             const failedUploads = [];
-            const originalButtonHtml = directUploadButton ? directUploadButton.innerHTML : '';
-
-            if (directUploadButton) {
-                directUploadButton.disabled = true;
-                directUploadButton.classList.add('opacity-70', 'cursor-not-allowed');
-                directUploadButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>上传中...';
-            }
 
             for (const file of files) {
                 try {
@@ -1615,22 +1689,6 @@
             if (failedUploads.length) {
                 window.adminNotify(`以下文件上传失败：\n${failedUploads.join('\n')}`, 'warning', { duration: 6200 });
             }
-
-            if (directUploadButton) {
-                directUploadButton.disabled = false;
-                directUploadButton.classList.remove('opacity-70', 'cursor-not-allowed');
-                directUploadButton.innerHTML = originalButtonHtml;
-            }
-        }
-
-        const directUploadButton = document.getElementById('direct-upload-button');
-        const directUploadInput = document.getElementById('direct-upload-input');
-        if (directUploadButton && directUploadInput) {
-            directUploadButton.addEventListener('click', () => directUploadInput.click());
-            directUploadInput.addEventListener('change', async (event) => {
-                await handleDirectUpload(event.target.files);
-                event.target.value = '';
-            });
         }
 
         // 拖拽上传图片/视频/音频：复用直传逻辑，拖入时高亮，失败时统一提示
