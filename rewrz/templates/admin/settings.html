@@ -340,6 +340,13 @@
             </div>
             <div>
                 <label class="inline-flex items-center">
+                    <input type="checkbox" name="allow_nsfw_indexing" class="form-checkbox" {% if settings.allow_nsfw_indexing %}checked{% endif %}>
+                    <span class="ml-2 text-gray-700">允许搜索引擎收录 NSFW 内容</span>
+                </label>
+                <p class="mt-1 text-sm text-gray-500">默认关闭：NSFW 页面不输出 noindex、不进 sitemap、不输出分享封面，正文图片仍默认模糊。开启后这些内容可能进入网页与图片搜索，请自行评估风险；RSS 仍不输出 NSFW 内容。</p>
+            </div>
+            <div>
+                <label class="inline-flex items-center">
                     <input type="checkbox" name="block_ai_crawlers" class="form-checkbox" {% if settings.block_ai_crawlers %}checked{% endif %}>
                     <span class="ml-2 text-gray-700">阻止已知的 AI 训练爬虫</span>
                 </label>

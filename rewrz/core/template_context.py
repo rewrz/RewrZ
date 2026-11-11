@@ -34,6 +34,7 @@ DEFAULT_BASE_SETTINGS = {
     "site_description": "",
     "site_announcement": "",
     "noindex_site": False,
+    "allow_nsfw_indexing": False,
     "block_ai_crawlers": False,
     # 新增：站点基础展示相关
     "site_logo_light": "",
@@ -210,6 +211,7 @@ def build_base_template_context(request: Request) -> dict:
         "site_description": settings.get("site", {}).get("description") or getattr(request.state, "site_description", DEFAULT_BASE_SETTINGS["site_description"]),
         "site_announcement": settings.get("site", {}).get("announcement") or getattr(request.state, "site_announcement", DEFAULT_BASE_SETTINGS["site_announcement"]),
         "noindex_site": settings.get("seo", {}).get("noindex_site") if settings.get("seo", {}).get("noindex_site") is not None else getattr(request.state, "noindex_site", DEFAULT_BASE_SETTINGS["noindex_site"]),
+        "allow_nsfw_indexing": settings.get("seo", {}).get("allow_nsfw_indexing") if settings.get("seo", {}).get("allow_nsfw_indexing") is not None else getattr(request.state, "allow_nsfw_indexing", DEFAULT_BASE_SETTINGS["allow_nsfw_indexing"]),
         "block_ai_crawlers": settings.get("seo", {}).get("block_ai_crawlers") if settings.get("seo", {}).get("block_ai_crawlers") is not None else getattr(request.state, "block_ai_crawlers", DEFAULT_BASE_SETTINGS["block_ai_crawlers"]),
         
         # 站点展示相关（logo / favicon）

@@ -104,6 +104,7 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "social_links": social_links,
         "sitemap_enabled": get_setting_value("sitemap_enabled", False),
         "noindex_site": get_setting_value("noindex_site", DEFAULT_BASE_SETTINGS["noindex_site"]),
+        "allow_nsfw_indexing": get_setting_value("allow_nsfw_indexing", DEFAULT_BASE_SETTINGS["allow_nsfw_indexing"]),
         "block_ai_crawlers": get_setting_value("block_ai_crawlers", DEFAULT_BASE_SETTINGS["block_ai_crawlers"]),
         "rss_enabled": get_setting_value("rss_enabled", True),
         "rss_items_limit": get_setting_value("rss_items_limit", 20),
@@ -189,6 +190,7 @@ async def update_admin_settings(
     social_links_json = str(form.get("social_links_json", "[]") or "[]")
     sitemap_enabled = _form_bool(form, "sitemap_enabled", False)
     noindex_site = _form_bool(form, "noindex_site", DEFAULT_BASE_SETTINGS["noindex_site"])
+    allow_nsfw_indexing = _form_bool(form, "allow_nsfw_indexing", False)
     block_ai_crawlers = _form_bool(form, "block_ai_crawlers", DEFAULT_BASE_SETTINGS["block_ai_crawlers"])
     rss_enabled = _form_bool(form, "rss_enabled", False)
     rss_items_limit = _form_int(form, "rss_items_limit", 20)
@@ -322,6 +324,7 @@ async def update_admin_settings(
         "social_links": social_links,
         "sitemap_enabled": sitemap_enabled,
         "noindex_site": noindex_site,
+        "allow_nsfw_indexing": allow_nsfw_indexing,
         "block_ai_crawlers": block_ai_crawlers,
         "rss_enabled": rss_enabled,
         "rss_items_limit": rss_items_limit,

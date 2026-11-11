@@ -26,6 +26,13 @@ DEFAULT_SEO_SETTINGS = [
         "type": "boolean"
     },
     {
+        "key": "allow_nsfw_indexing",
+        "value": {"value": False},
+        "description": "是否允许搜索引擎索引 NSFW 内容（开启后不再输出 noindex，并恢复 sitemap 与分享封面；RSS 仍不输出）",
+        "category": "seo",
+        "type": "boolean"
+    },
+    {
         "key": "block_ai_crawlers",
         "value": {"value": False},
         "description": "是否阻止AI爬虫抓取内容",

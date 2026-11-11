@@ -29,9 +29,12 @@
 {% block head %}
 {{ super() }}
 {% if seo_data %}
-    {% for meta in seo_data.meta_tags %}
-    <meta name="{{ meta.name }}" content="{{ meta.content }}">
-    {% endfor %}
+    {# 详情页的分享封面只取 SEO 数据里的 image，NSFW 是否输出由站点「允许收录 NSFW」开关决定 #}
+    {% set _og_image = seo_data.open_graph.get('og:image') if seo_data.open_graph else none %}
+    {% if _og_image %}
+    <meta property="og:image" content="{{ _og_image }}">
+    <meta name="twitter:image" content="{{ (seo_data.twitter_cards or {}).get('twitter:image', _og_image) }}">
+    {% endif %}
 {% endif %}
 
 {% if seo_data and seo_data.structured_data %}

@@ -591,9 +591,9 @@
                             <select id="content-rating-select" name="content_rating" class="admin-form-field mt-1 block w-full rounded-md px-3 py-2">
                                 <option value="general" {% if _content_rating == "general" %}selected{% endif %}>通用</option>
                                 <option value="sensitive" {% if _content_rating == "sensitive" %}selected{% endif %}>敏感（显示提示，不模糊图片）</option>
-                                <option value="nsfw" {% if _content_rating == "nsfw" %}selected{% endif %}>NSFW（默认模糊图片且不收录）</option>
+                                <option value="nsfw" {% if _content_rating == "nsfw" %}selected{% endif %}>NSFW（默认模糊图片）</option>
                             </select>
-                            <p class="mt-1 text-xs text-[var(--color-text-light)]">NSFW 内容会默认模糊正文图片，并同时关闭搜索引擎收录与 sitemap 收录。</p>
+                            <p class="mt-1 text-xs text-[var(--color-text-light)]">NSFW 内容会默认模糊正文图片；是否允许搜索引擎收录由「常规设置 → 搜索引擎可见性」决定。</p>
                         </div>
                         <div>
                             <h3 class="mb-2 text-lg font-semibold text-[var(--color-text)]">特色图片</h3>

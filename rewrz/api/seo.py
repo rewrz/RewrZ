@@ -46,6 +46,9 @@ def generate_sitemap(request: Request, db: Session = Depends(get_db)):
     # 获取站点URL设置
     site_url_setting = crud_setting.get_setting(db, key="site_url")
     base_url = site_url_setting.value.get("value") if site_url_setting else str(request.base_url).rstrip('/')
+    # 站点级开关：允许收录 NSFW 时，NSFW 文章恢复进入 sitemap
+    allow_nsfw_indexing_setting = crud_setting.get_setting(db, key="allow_nsfw_indexing")
+    allow_nsfw_indexing = bool(allow_nsfw_indexing_setting.value.get("value")) if allow_nsfw_indexing_setting and allow_nsfw_indexing_setting.value else False
     
     # 创建XML根元素
     urlset = ET.Element("urlset")
@@ -60,8 +63,8 @@ def generate_sitemap(request: Request, db: Session = Depends(get_db)):
     # 添加已发布的文章
     posts = crud_post.get_posts(db, status="published", limit=1000, post_type="post")
     for post in posts:
-        # NSFW 内容不进入 sitemap，避免被搜索引擎收录缩略图与正文入口
-        if str(getattr(post, "content_rating", "general") or "general") == "nsfw":
+        # NSFW 内容默认不进入 sitemap，避免被搜索引擎收录缩略图与正文入口；站点允许收录时才放行
+        if str(getattr(post, "content_rating", "general") or "general") == "nsfw" and not allow_nsfw_indexing:
             continue
         format_slugs = [fmt.slug for fmt in post.formats if getattr(fmt, "slug", None)] if post.formats else []
         primary_intent = choose_primary_intent_slug(format_slugs)
@@ -382,6 +385,9 @@ def _generate_post_seo_data(db_post, request, db: Session) -> Dict:
     
     site_title = site_title_setting.value.get("value") if site_title_setting and site_title_setting.value else DEFAULT_BASE_SETTINGS["site_title"]
     base_url = site_url_setting.value.get("value") if site_url_setting else str(request.base_url).rstrip('/')
+    # 站点级开关：允许收录 NSFW 时，分享卡片恢复封面图
+    allow_nsfw_indexing_setting = crud_setting.get_setting(db, key="allow_nsfw_indexing")
+    allow_nsfw_indexing = bool(allow_nsfw_indexing_setting.value.get("value")) if allow_nsfw_indexing_setting and allow_nsfw_indexing_setting.value else False
     
     format_slugs = [fmt.slug for fmt in db_post.formats if getattr(fmt, "slug", None)] if db_post.formats else []
     primary_intent = choose_primary_intent_slug(format_slugs)
@@ -395,8 +401,8 @@ def _generate_post_seo_data(db_post, request, db: Session) -> Dict:
         "title": f"{db_post.title} - {site_title}",
         "description": public_excerpt or _extract_description_from_content(public_markdown),
         "url": post_url,
-        # NSFW 内容不输出封面图，避免 Open Graph / Twitter 卡片抓走敏感缩略图
-        "image": None if str(getattr(db_post, "content_rating", "general") or "general") == "nsfw" else db_post.featured_image_url,
+        # NSFW 内容默认不输出封面图，避免 Open Graph / Twitter 卡片抓走敏感缩略图；站点允许收录时才恢复
+        "image": None if (str(getattr(db_post, "content_rating", "general") or "general") == "nsfw" and not allow_nsfw_indexing) else db_post.featured_image_url,
         "type": "article",
         "published_time": utc_iso(db_post.published_at),
         "modified_time": utc_iso(db_post.updated_at),

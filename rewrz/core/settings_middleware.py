@@ -68,7 +68,8 @@ class SettingsMiddleware(BaseHTTPMiddleware):
             "copyright_info", "custom_footer_text", "icp_beian", "gongan_beian",
 
             # SEO设置
-            "noindex_site", "block_ai_crawlers",
+            "noindex_site", "allow_nsfw_indexing", "block_ai_crawlers",
+
 
             # 社交和其他设置
             "social_links_json",
@@ -146,6 +147,7 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                 },
                 "seo": {
                     "noindex_site": all_settings.get("noindex_site", DEFAULT_BASE_SETTINGS["noindex_site"]),
+                    "allow_nsfw_indexing": all_settings.get("allow_nsfw_indexing", DEFAULT_BASE_SETTINGS["allow_nsfw_indexing"]),
                     "block_ai_crawlers": all_settings.get("block_ai_crawlers", DEFAULT_BASE_SETTINGS["block_ai_crawlers"]),
                 },
                 "social": {

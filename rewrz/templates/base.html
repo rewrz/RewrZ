@@ -64,7 +64,7 @@
     <meta name="twitter:title" content="{% block twitter_title %}{{ title if title else site_title }}{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}{{ site_description if site_description else (tagline if tagline else site_title) }}{% endblock %}">
     {% if featured_image_url %}<meta name="twitter:image" content="{{ featured_image_url }}">{% endif %}
-    {% if noindex_site or _content_rating == 'nsfw' %}<meta name="robots" content="noindex, nofollow">{% endif %}
+    {% if noindex_site or (_content_rating == 'nsfw' and not allow_nsfw_indexing) %}<meta name="robots" content="noindex, nofollow">{% endif %}
     
     {% block head %}{% endblock %}
     
