@@ -161,12 +161,13 @@
       data-theme-persist-allowed="{{ 'true' if theme_persist_allowed else 'false' }}"
       data-background-type="{{ background_image_settings.type if background_image_settings else 'none' }}"
       data-background-url="{{ background_image_settings.custom_url if background_image_settings and background_image_settings.custom_url else '' }}"
+      data-background-effects='{{ ((background_image_settings.get('effects') if background_image_settings else []) or []) | tojson }}'
       data-homepage-mode="{{ homepage_mode if homepage_mode else 'default' }}">
     {% set bg_fx = namespace(classes='') %}
     {% for effect in ((background_image_settings.get('effects') if background_image_settings else []) or []) %}
         {% set bg_fx.classes = bg_fx.classes ~ ' fx-' ~ effect %}
     {% endfor %}
-    <div class="site-bg-fx{{ bg_fx.classes }}" aria-hidden="true">
+    <div class="site-bg-fx{{ bg_fx.classes }}" id="site-bg-fx" aria-hidden="true">
         <div class="site-bg-fx-glow"></div>
         <div class="site-bg-fx-veil"></div>
         <div class="site-bg-fx-particles">
@@ -725,6 +726,7 @@
             }
         })();
     </script>
+    <script src="{{ static_asset(request, 'js/theme-background.js') }}" defer></script>
     <script src="{{ static_asset(request, 'js/site-shell.js') }}" defer></script>
     <script src="{{ static_asset(request, 'js/effects/effect-manager.js') }}" defer></script>
     <script type="module" src="{{ static_asset(request, 'js/multi-format-interactions.js') }}"></script>

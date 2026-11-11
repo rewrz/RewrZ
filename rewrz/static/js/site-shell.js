@@ -189,6 +189,7 @@ class SiteShellController {
     this.canPersistTheme = this.body?.dataset.themePersistAllowed === 'true';
     this.backgroundType = this.body?.dataset.backgroundType || 'none';
     this.backgroundUrl = this.body?.dataset.backgroundUrl || '';
+    this.backgroundEffects = this.parseBackgroundEffects();
     this.pageBackgroundUrl = this.body?.dataset.pageBackgroundUrl || '';
     this.homepageMode = this.body?.dataset.homepageMode || 'default';
     this.isReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -197,6 +198,15 @@ class SiteShellController {
     this.themeSyncPending = null;
     this.themeSyncTimer = null;
     this.isPageUnloading = false;
+  }
+
+  parseBackgroundEffects() {
+    try {
+      const effects = JSON.parse(this.body?.dataset.backgroundEffects || '[]');
+      return Array.isArray(effects) ? effects : [];
+    } catch (_) {
+      return [];
+    }
   }
 
   init() {
@@ -551,56 +561,24 @@ class SiteShellController {
   }
 
   applyBackground() {
-    if (!this.body) return;
-    this.body.classList.remove('bg-none', 'bg-gradient', 'bg-gradient-1', 'bg-gradient-2', 'bg-gradient-3', 'bg-gradient-4', 'bg-custom', 'bg-page-cover');
-    this.body.style.backgroundImage = '';
-    this.body.style.backgroundSize = '';
-    this.body.style.backgroundPosition = '';
-    this.body.style.backgroundRepeat = '';
-    this.body.style.backgroundAttachment = '';
-    this.body.style.removeProperty('--page-bg-image');
+    if (!this.body || !window.themeBackground) return;
+    const background = window.themeBackground;
 
+    // 文章/页面封面优先于站点背景，且由 CSS 的 --page-bg-image 铺底
     if (this.pageBackgroundUrl) {
+      background.clear(this.body);
       this.body.classList.add('bg-page-cover');
-      this.body.style.setProperty('--page-bg-image', `url('${this.pageBackgroundUrl}')`);
+      this.body.style.setProperty('--page-bg-image', background.backgroundImageFor('custom', this.pageBackgroundUrl));
       this.body.style.backgroundSize = 'cover';
       this.body.style.backgroundPosition = 'center';
       this.body.style.backgroundRepeat = 'no-repeat';
       this.body.style.backgroundAttachment = 'fixed';
-      return;
-    }
-
-    switch (this.backgroundType) {
-      case 'gradient':
-      case 'gradient1':
-        this.body.classList.add('bg-gradient', 'bg-gradient-1');
-        this.body.style.backgroundImage = 'linear-gradient(135deg, #6c7ef8 0%, #4b5fcf 100%)';
-        break;
-      case 'gradient2':
-        this.body.classList.add('bg-gradient', 'bg-gradient-2');
-        this.body.style.backgroundImage = 'linear-gradient(135deg, #ffb5c2 0%, #ffd8b8 100%)';
-        break;
-      case 'gradient3':
-        this.body.classList.add('bg-gradient', 'bg-gradient-3');
-        this.body.style.backgroundImage = 'linear-gradient(135deg, #c0f4ed 0%, #d8e6ff 100%)';
-        break;
-      case 'gradient4':
-        this.body.classList.add('bg-gradient', 'bg-gradient-4');
-        this.body.style.backgroundImage = 'linear-gradient(135deg, #ffe7c8 0%, #ffd1d1 100%)';
-        break;
-      case 'custom':
-        if (this.backgroundUrl) {
-          this.body.classList.add('bg-custom');
-          this.body.style.backgroundImage = `url('${this.backgroundUrl}')`;
-          this.body.style.backgroundSize = 'cover';
-          this.body.style.backgroundPosition = 'center';
-          this.body.style.backgroundRepeat = 'no-repeat';
-          this.body.style.backgroundAttachment = 'fixed';
-          break;
-        }
-      default:
-        this.body.classList.add('bg-none');
-        break;
+    } else {
+      background.apply(this.body, {
+        type: this.backgroundType,
+        custom_url: this.backgroundUrl,
+      });
+      background.applyEffects(document.getElementById('site-bg-fx'), this.backgroundEffects);
     }
   }
 
@@ -775,6 +753,7 @@ class SiteShellController {
       }
       this.backgroundType = payload.background?.type || 'none';
       this.backgroundUrl = payload.background?.custom_url || '';
+      this.backgroundEffects = Array.isArray(payload.background?.effects) ? payload.background.effects : [];
       this.pageBackgroundUrl = this.body?.dataset.pageBackgroundUrl || this.pageBackgroundUrl || '';
       this.homepageMode = payload.homepage_mode || this.homepageMode;
       this.applyBackground();

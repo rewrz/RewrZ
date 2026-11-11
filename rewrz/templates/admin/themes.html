@@ -3,11 +3,6 @@
 {% block title_text %}主题系统{% endblock %}
 {% block page_title %}<i class="fas fa-palette admin-accent-text mr-3"></i>主题系统{% endblock %}
 {% block content %}
-{% set admin_fx = namespace(classes='') %}
-{% for effect in (background_settings.effects or []) %}
-    {% set admin_fx.classes = admin_fx.classes ~ ' fx-' ~ effect %}
-{% endfor %}
-<div class="site-bg-fx theme-admin-bg-fx{{ admin_fx.classes }}" id="theme-admin-bg-fx" aria-hidden="true"></div>
 <style>
 /* 背景预设是固定渐变示意，标签文字不能跟随主题反转；用中性深底 + 主题反色字保证任何主题下可读 */
 .theme-admin-page .theme-swatch-label {
@@ -170,25 +165,25 @@
                                     </label>
                                     <label class="cursor-pointer">
                                         <input type="radio" name="background_type" value="gradient1" class="sr-only" {% if background_settings and background_settings.type == 'gradient1' %}checked{% endif %}>
-                                        <div class="theme-swatch-option p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                        <div class="theme-swatch-option p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300">
                                             <div class="theme-swatch-label">渐变1</div>
                                         </div>
                                     </label>
                                     <label class="cursor-pointer">
                                         <input type="radio" name="background_type" value="gradient2" class="sr-only" {% if background_settings and background_settings.type == 'gradient2' %}checked{% endif %}>
-                                        <div class="theme-swatch-option p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);">
+                                        <div class="theme-swatch-option p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300">
                                             <div class="theme-swatch-label">渐变2</div>
                                         </div>
                                     </label>
                                     <label class="cursor-pointer">
                                         <input type="radio" name="background_type" value="gradient3" class="sr-only" {% if background_settings and background_settings.type == 'gradient3' %}checked{% endif %}>
-                                        <div class="theme-swatch-option p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
+                                        <div class="theme-swatch-option p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300">
                                             <div class="theme-swatch-label">渐变3</div>
                                         </div>
                                     </label>
                                     <label class="cursor-pointer">
                                         <input type="radio" name="background_type" value="gradient4" class="sr-only" {% if background_settings and background_settings.type == 'gradient4' %}checked{% endif %}>
-                                        <div class="theme-swatch-option p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
+                                        <div class="theme-swatch-option p-3 border-2 border-gray-200 rounded-lg text-center hover:border-blue-300">
                                             <div class="theme-swatch-label">渐变4</div>
                                         </div>
                                     </label>

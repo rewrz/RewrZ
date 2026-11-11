@@ -9,33 +9,26 @@ function showThemePageNotification(message, type = 'info') {
 function currentBackgroundImage() {
     const selected = document.querySelector('input[name="background_type"]:checked');
     const type = selected?.value || 'none';
-    if (type === 'custom') {
-        const url = document.querySelector('input[name="custom_background_url"]')?.value?.trim() || '';
-        return url ? `url('${url.replace(/'/g, '%27')}')` : '';
-    }
-    if (type === 'none') return '';
-    const swatch = selected?.closest('label')?.querySelector('.theme-swatch-option');
-    return swatch ? (swatch.style.backgroundImage || swatch.style.background || '') : '';
+    const customUrl = document.querySelector('input[name="custom_background_url"]')?.value?.trim() || '';
+    return window.themeBackground.backgroundImageFor(type, customUrl);
+}
+
+function selectedBackgroundEffects() {
+    return Array.from(
+        document.querySelectorAll('input[name="background_effects"]:checked'),
+        (checkbox) => checkbox.value
+    );
 }
 
 function updateBackgroundPreview() {
     const preview = document.getElementById('background-fx-preview');
     if (!preview) return;
-    const backgroundImage = currentBackgroundImage();
-    preview.style.backgroundImage = backgroundImage;
-    // 后台整页背景与预览使用同一张画面，刷新页面后也能同步显示
-    document.body.style.backgroundImage = backgroundImage;
+    preview.style.backgroundImage = currentBackgroundImage();
     const layer = preview.querySelector('.site-bg-fx');
     if (!layer) return;
-    const activeClasses = [];
     document.querySelectorAll('input[name="background_effects"]').forEach((checkbox) => {
         layer.classList.toggle(`fx-${checkbox.value}`, checkbox.checked);
-        if (checkbox.checked) activeClasses.push(`fx-${checkbox.value}`);
     });
-    const pageLayer = document.getElementById('theme-admin-bg-fx');
-    if (!pageLayer) return;
-    if (!pageLayer.children.length) pageLayer.innerHTML = layer.innerHTML;
-    pageLayer.className = `site-bg-fx theme-admin-bg-fx${activeClasses.length ? ' ' + activeClasses.join(' ') : ''}`;
 }
 
 async function saveBackgroundImage() {
@@ -68,27 +61,11 @@ async function saveBackgroundImage() {
             throw new Error(result.message || '保存失败');
         }
 
-        const bodyStyle = document.body.style;
-        switch (selectedValue) {
-            case 'gradient1':
-                bodyStyle.backgroundImage = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                break;
-            case 'gradient2':
-                bodyStyle.backgroundImage = 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)';
-                break;
-            case 'gradient3':
-                bodyStyle.backgroundImage = 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)';
-                break;
-            case 'gradient4':
-                bodyStyle.backgroundImage = 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)';
-                break;
-            case 'custom':
-                bodyStyle.backgroundImage = customUrl ? `url('${customUrl}')` : 'none';
-                break;
-            default:
-                bodyStyle.backgroundImage = 'none';
-                break;
-        }
+        window.adminThemeBackground.apply({
+            type: selectedValue,
+            custom_url: selectedValue === 'custom' ? customUrl : '',
+            effects: selectedBackgroundEffects()
+        });
 
         showThemePageNotification('背景设置已保存并应用', 'success');
     } catch (error) {
@@ -210,6 +187,13 @@ document.addEventListener('DOMContentLoaded', function() {
             updateBackgroundPreview();
             saveBackgroundImage();
         });
+    });
+
+    // 色块与实际站点背景共用同一份渐变定义，避免预览和全站效果不一致
+    document.querySelectorAll('input[name="background_type"]').forEach((radio) => {
+        const option = radio.closest('label')?.querySelector('.theme-swatch-option');
+        const image = window.themeBackground.backgroundImageFor(radio.value, '');
+        if (option && image) option.style.backgroundImage = image;
     });
 
     const selectedBackgroundType = document.querySelector('input[name="background_type"]:checked')?.value;

@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="{{ static_asset(request, 'vendor/font-awesome/css/all.min.css') }}">
 
     <link rel="stylesheet" href="{{ static_asset(request, 'css/unified-theme.css') }}">
+    <script src="{{ static_asset(request, 'js/theme-background.js') }}"></script>
     <!-- 动态主题变量：服务端内联，避免后台首屏多一次阻塞样式请求 -->
     <style id="admin-theme-variables-inline">
         :root {
@@ -222,7 +223,39 @@
         }, true);
     </script>
 </head>
-<body class="admin-app {{ effect_body_class if effect_body_class else '' }}" data-current-theme="{{ request.state.current_theme }}">
+{% set admin_background = request.state.background_image_settings or {} %}
+<body class="admin-app {{ effect_body_class if effect_body_class else '' }}" data-current-theme="{{ request.state.current_theme }}"
+      data-background-type="{{ admin_background.get('type') or 'none' }}"
+      data-background-url="{{ admin_background.get('custom_url') or '' }}"
+      data-background-effects='{{ (admin_background.get('effects') or []) | tojson }}'>
+    <div class="site-bg-fx admin-bg-fx" id="admin-bg-fx" aria-hidden="true"></div>
+    <script>
+        // 后台所有页面共用同一份站点背景；首屏直接应用，主题同步时复用这个入口
+        window.adminThemeBackground = {
+            apply: function (settings) {
+                if (!window.themeBackground) return;
+                window.themeBackground.apply(document.body, settings || {});
+                window.themeBackground.applyEffects(
+                    document.getElementById('admin-bg-fx'),
+                    (settings || {}).effects || []
+                );
+            }
+        };
+        (function () {
+            const body = document.body;
+            let effects = [];
+            try {
+                effects = JSON.parse(body.dataset.backgroundEffects || '[]');
+            } catch (_) {
+                // 配置异常时按无特效处理
+            }
+            window.adminThemeBackground.apply({
+                type: body.dataset.backgroundType || 'none',
+                custom_url: body.dataset.backgroundUrl || '',
+                effects: effects
+            });
+        })();
+    </script>
     <script>
         window.ADMIN_PATH = {{ request.state.admin_path | tojson }};
     </script>
@@ -441,6 +474,9 @@
                 if (!response.ok) return;
 
                 const config = await response.json();
+                if (config.background) {
+                    window.adminThemeBackground.apply(config.background);
+                }
                 const themeName = config.theme || 'light';
                 const root = document.documentElement;
                 const body = document.body;

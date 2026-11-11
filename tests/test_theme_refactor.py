@@ -1,3 +1,5 @@
+import json
+import re
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
@@ -227,6 +229,19 @@ def test_background_effects_saved_and_rendered(test_db, monkeypatch):
         assert "site-bg-preview" in page.text
         assert "粒子光球" in page.text
         assert 'value="invalid"' not in page.text
+        assert "theme-admin-bg-fx" not in page.text
+
+        # 站点背景必须作用于后台所有页面，而不只是主题系统页
+        for admin_page_path in ("/themes", "/settings"):
+            admin_page = client.get(f"{admin_prefix}{admin_page_path}")
+            assert admin_page.status_code == 200
+            assert 'data-background-type="custom"' in admin_page.text
+            assert 'data-background-url="/static/images/covers/home-default.jpg"' in admin_page.text
+            assert "js/theme-background.js" in admin_page.text
+            assert 'id="admin-bg-fx"' in admin_page.text
+            effects_match = re.search(r"data-background-effects='([^']*)'", admin_page.text)
+            assert effects_match is not None
+            assert json.loads(effects_match.group(1)) == ["glow", "dim"]
 
         home = client.get("/")
         assert home.status_code == 200
