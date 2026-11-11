@@ -1,0 +1,11 @@
+{# 分类/标签聚合页与无限滚动追加片段共用的卡片分发，保证首屏与追加内容一致 #}
+{% set format_slugs = post.formats | map(attribute='slug') | list if post.formats else [] %}
+{% if 'micro' in format_slugs or 'poem' in format_slugs %}
+<article class="archive-card-equal archive-card rounded-2xl border p-4 shadow-sm">
+    {% include "components/timeline_card.html" %}
+</article>
+{% else %}
+    {% set article_cover_url_map = archive_cover_url_map if archive_cover_url_map is defined else {} %}
+    {% set post_archive_cover_url = article_cover_url_map.get(post.id, '') if article_cover_url_map else '' %}
+    {% include "components/article_archive_card.html" %}
+{% endif %}

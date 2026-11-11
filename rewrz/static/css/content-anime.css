@@ -518,3 +518,17 @@ body.site-shell .format-archive-glass .format-hero-motto-poem {
         transform: none;
     }
 }
+
+/* 后台关闭「时光轴背景容器」：容器只保留内边距，不渲染底色、边框、点阵与阴影，
+   轴线、节点圆点与图片/内容卡片仍然完整显示。选择器权重需高于上方的首页专属覆盖。 */
+body.site-shell #homepage-posts-panel.homepage-timeline-shell-off .timeline-shell {
+    border-color: transparent;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    overflow: visible;
+}
+
+body.site-shell #homepage-posts-panel.homepage-timeline-shell-off .timeline-shell::after {
+    display: none;
+}

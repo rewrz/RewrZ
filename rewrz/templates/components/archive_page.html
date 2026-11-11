@@ -1,0 +1,41 @@
+{# 分类与标签聚合页共用骨架：尺寸与相对位置完全一致，视觉差异由 archive_kind 钩子承担 #}
+<section class="py-8 archive-shell archive-shell--{{ archive_kind }}">
+    <div class="container mx-auto max-w-6xl px-4">
+        <div class="archive-hero mb-7 rounded-2xl border p-5 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="min-w-0">
+                    <p class="archive-kicker text-xs font-semibold uppercase tracking-wide">{{ archive_label }}</p>
+                    <div class="archive-title-row mt-1 flex items-center gap-2">
+                        <span class="archive-mark" aria-hidden="true">{% if archive_kind == 'tag' %}#{% else %}<i class="fas fa-folder-open"></i>{% endif %}</span>
+                        <h1 class="archive-title text-2xl font-bold md:text-3xl">{{ archive_title }}</h1>
+                    </div>
+                    {% if archive_description and archive_description | trim %}
+                    <div class="archive-description mt-3">
+                        <span class="archive-description-label">{{ archive_description_label }}</span>
+                        <p class="archive-description-text">{{ archive_description | trim }}</p>
+                    </div>
+                    {% endif %}
+                    <p class="archive-summary mt-1 text-sm">{{ archive_summary }}</p>
+                </div>
+                <a href="/archives" class="archive-back inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold transition">
+                    <i class="fas {{ archive_back_icon }} mr-1"></i>{{ archive_back_text }}
+                </a>
+            </div>
+        </div>
+
+        <div id="{{ pagination_target_id }}">
+            {% if posts %}
+            <div class="archive-grid-equal grid grid-cols-1 gap-5 md:grid-cols-2">
+                {% for post in posts %}
+                    {% include "components/archive_post_card.html" %}
+                {% endfor %}
+            </div>
+            {% include "components/list_pagination.html" %}
+            {% else %}
+            <div class="archive-empty rounded-2xl border border-dashed p-10 text-center">
+                {{ archive_empty_text }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>

@@ -3,45 +3,15 @@
 {% block title %}标签：{{ tag.name }}{% endblock %}
 
 {% block content %}
-<section class="py-8 tag-archive-shell">
-    <div class="container mx-auto max-w-6xl px-4">
-        <div class="tag-archive-hero mb-7 rounded-2xl border p-5 shadow-sm">
-            <div class="flex flex-wrap items-center justify-between gap-4">
-                <div class="min-w-0">
-                    <p class="tag-archive-kicker text-xs font-semibold uppercase tracking-wide">标签聚合</p>
-                    <h1 class="tag-archive-title mt-1 text-2xl font-bold md:text-3xl">#{{ tag.name }}</h1>
-                    <p class="tag-archive-summary mt-1 text-sm">此标签下共 {{ pagination.total_count if pagination else (posts|length) }} 条内容，适合追踪同主题阅读。</p>
-                </div>
-                <a href="/archives" class="tag-archive-back inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold transition">
-                    <i class="fas fa-stream mr-1"></i>返回归档
-                </a>
-            </div>
-        </div>
-
-        {% set pagination_target_id = "tag-posts-panel" %}
-        <div id="{{ pagination_target_id }}">
-            {% if posts %}
-            <div class="archive-grid-equal grid grid-cols-1 gap-5 md:grid-cols-2">
-                {% for post in posts %}
-                    {% set format_slugs = post.formats | map(attribute='slug') | list if post.formats else [] %}
-                    {% if 'micro' in format_slugs or 'poem' in format_slugs %}
-                    <article class="archive-card-equal tag-archive-card rounded-2xl border p-4 shadow-sm">
-                        {% include "components/timeline_card.html" %}
-                    </article>
-                    {% else %}
-                        {% set article_cover_url_map = archive_cover_url_map if archive_cover_url_map is defined else {} %}
-                        {% set post_archive_cover_url = article_cover_url_map.get(post.id, '') if article_cover_url_map else '' %}
-                        {% include "components/article_archive_card.html" %}
-                    {% endif %}
-                {% endfor %}
-            </div>
-            {% include "components/list_pagination.html" %}
-            {% else %}
-            <div class="tag-archive-empty rounded-2xl border border-dashed p-10 text-center">
-                此标签下暂无内容。
-            </div>
-            {% endif %}
-        </div>
-    </div>
-</section>
+{% set archive_kind = "tag" %}
+{% set archive_label = "标签聚合" %}
+{% set archive_title = tag.name %}
+{% set archive_description = tag.description %}
+{% set archive_description_label = "词条释义" %}
+{% set archive_summary = "此标签下共 " ~ (pagination.total_count if pagination else (posts|length)) ~ " 条内容，适合追踪同主题阅读。" %}
+{% set archive_back_icon = "fa-stream" %}
+{% set archive_back_text = "返回归档" %}
+{% set archive_empty_text = "此标签下暂无内容。" %}
+{% set pagination_target_id = "tag-posts-panel" %}
+{% include "components/archive_page.html" %}
 {% endblock %}

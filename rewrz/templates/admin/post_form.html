@@ -69,6 +69,27 @@
         overflow-y: auto;
         padding-right: 0.1rem;
     }
+    /* 分类描述浮层挂在 body 上，避免被分类列表的滚动容器裁切 */
+    .editor-category-tooltip {
+        position: fixed;
+        z-index: 90;
+        max-width: 20rem;
+        padding: 0.55rem 0.72rem;
+        border: 1px solid var(--ui-border);
+        border-radius: 0.6rem;
+        background: var(--color-card-bg);
+        color: var(--color-text);
+        box-shadow: var(--ui-shadow-soft);
+        font-size: 0.78rem;
+        line-height: 1.6;
+        white-space: pre-line;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 140ms ease;
+    }
+    .editor-category-tooltip.is-visible {
+        opacity: 1;
+    }
     .editor-format-grid {
         max-height: 13rem;
         overflow-y: auto;
@@ -603,7 +624,7 @@
                             </div>
                             <div id="category-list" class="editor-scroll-list grid grid-cols-1 gap-2">
                                 {% for category in categories %}
-                                <label class="editor-check-item">
+                                <label class="editor-check-item" data-category-description="{{ category.description or '' }}">
                                     <input type="checkbox" name="category_ids" value="{{ category.id }}" {% if post and category in post.categories %}checked{% endif %} class="admin-form-check form-checkbox js-category-checkbox">
                                     <span class="text-sm text-[var(--color-text)]">{{ category.name }}</span>
                                 </label>
@@ -1260,6 +1281,7 @@
             }
             const label = document.createElement('label');
             label.className = 'editor-check-item';
+            label.dataset.categoryDescription = category.description || '';
             label.innerHTML = `
                 <input type="checkbox" name="category_ids" value="${escapeHtml(String(category.id))}" class="admin-form-check form-checkbox js-category-checkbox">
                 <span class="text-sm text-[var(--color-text)]">${escapeHtml(category.name || '')}</span>
@@ -1269,6 +1291,56 @@
             syncCategoryPanelByIntent();
             return label.querySelector('input[name="category_ids"]');
         }
+
+        (() => {
+            const panel = document.getElementById('category-list');
+            if (!panel) return;
+
+            const tooltip = document.createElement('div');
+            tooltip.className = 'editor-category-tooltip';
+            tooltip.setAttribute('role', 'tooltip');
+            document.body.appendChild(tooltip);
+
+            const hideTooltip = () => {
+                tooltip.classList.remove('is-visible');
+                tooltip.textContent = '';
+            };
+
+            const positionTooltip = (event) => {
+                const gap = 14;
+                const width = tooltip.offsetWidth || 240;
+                const height = tooltip.offsetHeight || 60;
+                let left = event.clientX + gap;
+                let top = event.clientY + gap;
+                if (left + width > window.innerWidth - 8) {
+                    left = Math.max(8, event.clientX - width - gap);
+                }
+                if (top + height > window.innerHeight - 8) {
+                    top = Math.max(8, event.clientY - height - gap);
+                }
+                tooltip.style.left = `${left}px`;
+                tooltip.style.top = `${top}px`;
+            };
+
+            panel.addEventListener('mouseover', (event) => {
+                const item = event.target.closest('[data-category-description]');
+                if (!item) return;
+                const text = (item.dataset.categoryDescription || '').trim();
+                if (!text) return;
+                tooltip.textContent = text;
+                tooltip.classList.add('is-visible');
+                positionTooltip(event);
+            });
+            panel.addEventListener('mousemove', (event) => {
+                if (tooltip.classList.contains('is-visible')) positionTooltip(event);
+            });
+            panel.addEventListener('mouseout', (event) => {
+                const item = event.target.closest('[data-category-description]');
+                if (item && !item.contains(event.relatedTarget)) hideTooltip();
+            });
+            panel.addEventListener('scroll', hideTooltip);
+            window.addEventListener('blur', hideTooltip);
+        })();
 
         function flushPendingTags() {
             if (!tagInput) return;

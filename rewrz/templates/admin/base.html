@@ -27,6 +27,67 @@
         }
     </style>
     <style>
+        /* 后台返回顶部：固定在视口左下，避开右侧密集的表单与操作区 */
+        .admin-back-to-top {
+            position: fixed;
+            left: 1.25rem;
+            bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+            /* 低于后台弹窗遮罩（z-50），弹窗打开时按钮不浮在遮罩之上 */
+            z-index: 40;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.75rem;
+            height: 2.75rem;
+            padding: 0;
+            border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border) 70%);
+            border-radius: var(--ui-radius-full);
+            background: linear-gradient(
+                135deg,
+                var(--color-primary),
+                color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%)
+            );
+            color: var(--color-card-bg);
+            box-shadow: var(--ui-shadow-soft);
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(0.5rem);
+            transition: opacity 220ms ease, transform 220ms ease, box-shadow 220ms ease, visibility 220ms ease;
+        }
+        .admin-back-to-top.is-visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .admin-back-to-top:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 28px -12px color-mix(in srgb, var(--color-primary) 58%, transparent);
+        }
+        .admin-back-to-top:focus-visible {
+            outline: 2px solid var(--color-primary);
+            outline-offset: 3px;
+        }
+        /* 设置页有横跨底部的悬浮保存栏，按钮上移一行避让，避免压住保存栏文字 */
+        .admin-back-to-top.has-bottom-dock {
+            bottom: calc(6.25rem + env(safe-area-inset-bottom, 0px));
+        }
+        @media (max-width: 767.98px) {
+            .admin-back-to-top {
+                left: 1rem;
+                bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+                width: 2.5rem;
+                height: 2.5rem;
+            }
+            .admin-back-to-top:hover {
+                transform: none;
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .admin-back-to-top {
+                transition: none;
+            }
+        }
         .admin-toast-stack {
             position: fixed;
             top: 1rem;
@@ -292,6 +353,31 @@
             </div>
         </div>
     </div>
+
+    <!-- 返回顶部：与前台一致，滚动一段距离后才出现，避免首屏挡住侧栏 -->
+    <button type="button" id="admin-back-to-top" class="admin-back-to-top" aria-label="返回顶部" title="返回顶部">
+        <i class="fas fa-arrow-up" aria-hidden="true"></i>
+    </button>
+    <script>
+        (function () {
+            const button = document.getElementById('admin-back-to-top');
+            if (!button) return;
+            const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const syncVisibility = () => {
+                button.classList.toggle('is-visible', window.scrollY > 360);
+            };
+            const syncDockOffset = () => {
+                button.classList.toggle('has-bottom-dock', Boolean(document.getElementById('settings-save-dock')));
+            };
+            window.addEventListener('scroll', syncVisibility, { passive: true });
+            document.body.addEventListener('htmx:afterSwap', syncDockOffset);
+            syncVisibility();
+            syncDockOffset();
+            button.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
+            });
+        })();
+    </script>
 
     <script>
         // 标签页在后台时暂停 HTMX 轮询，避免统计接口在不可见页面持续消耗连接池

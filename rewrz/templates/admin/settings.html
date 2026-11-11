@@ -831,6 +831,16 @@
                 </div>
             </div>
 
+            <!-- 时光轴背景容器 -->
+            <div class="space-y-3 p-4 bg-[color:var(--color-background-alt)] rounded-lg">
+                <h3 class="text-lg font-medium text-[var(--color-text)]">时光轴背景容器</h3>
+                <label class="inline-flex items-center">
+                    <input type="checkbox" name="homepage_timeline_shell_enabled" value="1" class="form-checkbox" {% if settings.homepage_timeline_shell_enabled %}checked{% endif %}>
+                    <span class="ml-2 text-[var(--color-text)]">显示时光轴背景容器</span>
+                </label>
+                <p class="text-sm text-[var(--color-text-light)]">关闭后只保留时光轴竖线、节点与图片/内容卡片，不再显示半透明背景块，整体更接近微博信息流。</p>
+            </div>
+
             <!-- 全屏相册背景图片 -->
             <div id="fullscreen-gallery-settings" class="space-y-4 p-4 bg-gray-50 rounded-lg {% if settings.homepage_mode != 'fullscreen_gallery' %}hidden{% endif %}">
                 <h3 class="text-lg font-medium text-gray-800">全屏相册背景设置</h3>

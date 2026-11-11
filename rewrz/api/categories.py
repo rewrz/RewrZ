@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from slugify import slugify
 
 from .. import crud, schemas
+from ..core import public_list_cache
 from ..core.database import get_db
 from ..core.security import get_current_user, require_admin_user, verify_csrf_token
 
@@ -44,6 +45,7 @@ def create_category(
         description=description,
     )
     db_category = crud.category.create_category(db=db, category=category)
+    public_list_cache.invalidate_public_list_cache()
     return {"success": True, "data": db_category}
 
 
@@ -97,6 +99,8 @@ def bulk_action_categories(
     missing_ids = set(result["missing_ids"])
     blocked_by_posts_ids = set(result["blocked_by_posts_ids"])
     blocked_by_children_ids = set(result["blocked_by_children_ids"])
+    if deleted_ids:
+        public_list_cache.invalidate_public_list_cache()
 
     failed = []
     for category_id in category_ids:
@@ -133,7 +137,8 @@ def update_category(
     name: Optional[str] = Form(None),
     slug: Optional[str] = Form(None),
     parent_id: Optional[int] = Form(None),
-    description: Optional[str] = Form(None),
+    # 表单里的空描述必须能真正清空，不能用 None 兜底，否则空字符串会被解析成缺省值
+    description: str = Form(""),
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
@@ -146,8 +151,7 @@ def update_category(
         update_data["slug"] = slug
     if parent_id is not None:
         update_data["parent_id"] = parent_id
-    if description is not None:
-        update_data["description"] = description
+    update_data["description"] = description
 
     if "slug" not in update_data and "name" in update_data:
         update_data["slug"] = slugify(update_data["name"])
@@ -158,6 +162,7 @@ def update_category(
     db_category = crud.category.update_category(db, category_id=category_id, category_update=category_update)
     if db_category is None:
         raise HTTPException(status_code=404, detail="Category not found")
+    public_list_cache.invalidate_public_list_cache()
     return {"success": True, "data": db_category}
 
 
@@ -173,4 +178,5 @@ def delete_category(
     db_category = crud.category.delete_category(db, category_id=category_id)
     if db_category is None:
         raise HTTPException(status_code=404, detail="Category not found")
+    public_list_cache.invalidate_public_list_cache()
     return {"success": True, "data": db_category}

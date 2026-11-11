@@ -152,7 +152,7 @@ def get_tag_by_name(db: Session, name: str):
     return db.execute(select(Tag).filter(Tag.name == name)).scalar_one_or_none()
 
 def create_tag(db: Session, tag: TagCreate):
-    db_tag = Tag(name=tag.name, slug=tag.slug)
+    db_tag = Tag(name=tag.name, slug=tag.slug, description=tag.description or "")
     db.add(db_tag)
     db.commit()
     db.refresh(db_tag)

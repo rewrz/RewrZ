@@ -237,7 +237,8 @@ class DataExportManager:
                 "id": category.id,
                 "name": category.name,
                 "slug": category.slug,
-                "parent_id": category.parent_id
+                "parent_id": category.parent_id,
+                "description": category.description or ""
             }
             exported_categories.append(category_data)
         
@@ -252,7 +253,8 @@ class DataExportManager:
             tag_data = {
                 "id": tag.id,
                 "name": tag.name,
-                "slug": tag.slug
+                "slug": tag.slug,
+                "description": tag.description or ""
             }
             exported_tags.append(tag_data)
         
@@ -2533,7 +2535,8 @@ class RewrZImporter:
                 if not existing_cat and not existing_cat_by_name:
                     category_data = CategoryCreate(
                         name=name,
-                        slug=slug
+                        slug=slug,
+                        description=(cat_data.get("description") or "").strip()
                     )
                     crud_category.create_category(self.db, category_data)
                     stats["categories_imported"] += 1
@@ -2555,7 +2558,8 @@ class RewrZImporter:
                 if not existing_tag and not existing_tag_by_name:
                     tag_create = TagCreate(
                         name=name,
-                        slug=slug
+                        slug=slug,
+                        description=(tag_data.get("description") or "").strip()
                     )
                     crud_tag.create_tag(self.db, tag_create)
                     stats["tags_imported"] += 1

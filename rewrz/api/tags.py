@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from slugify import slugify
 
 from .. import crud, schemas
+from ..core import public_list_cache
 from ..core.database import get_db
 from ..core.security import get_current_user, require_admin_user, verify_csrf_token
 
@@ -27,6 +28,7 @@ def create_tag(
     request: Request,
     name: str = Form(...),
     slug: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
@@ -46,8 +48,13 @@ def create_tag(
     if conflict is not None:
         raise HTTPException(status_code=400, detail="标签名称或别名已存在")
 
-    tag = schemas.TagCreate(name=normalized_name, slug=normalized_slug)
+    tag = schemas.TagCreate(
+        name=normalized_name,
+        slug=normalized_slug,
+        description=description,
+    )
     db_tag = crud.tag.create_tag(db=db, tag=tag)
+    public_list_cache.invalidate_public_list_cache()
     return {"success": True, "data": db_tag}
 
 
@@ -100,6 +107,8 @@ def bulk_action_tags(
     deleted_ids = result["deleted_ids"]
     missing_ids = set(result["missing_ids"])
     blocked_by_posts_ids = set(result["blocked_by_posts_ids"])
+    if deleted_ids:
+        public_list_cache.invalidate_public_list_cache()
 
     failed = []
     for tag_id in tag_ids:
@@ -133,6 +142,8 @@ def update_tag(
     tag_id: int,
     name: Optional[str] = Form(None),
     slug: Optional[str] = Form(None),
+    # 表单里的空释义必须能真正清空，不能用 None 兜底，否则空字符串会被解析成缺省值
+    description: str = Form(""),
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(require_admin_user),
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
@@ -146,6 +157,7 @@ def update_tag(
         update_data["name"] = normalized_name
     if slug is not None:
         update_data["slug"] = crud.tag.normalize_tag_text(slug)
+    update_data["description"] = description
 
     if "slug" not in update_data and "name" in update_data:
         update_data["slug"] = slugify(update_data["name"])
@@ -167,6 +179,7 @@ def update_tag(
     db_tag = crud.tag.update_tag(db, tag_id=tag_id, tag_update=tag_update)
     if db_tag is None:
         raise HTTPException(status_code=404, detail="Tag not found")
+    public_list_cache.invalidate_public_list_cache()
     return {"success": True, "data": db_tag}
 
 
@@ -182,4 +195,5 @@ def delete_tag(
     db_tag = crud.tag.delete_tag(db, tag_id=tag_id)
     if db_tag is None:
         raise HTTPException(status_code=404, detail="Tag not found")
+    public_list_cache.invalidate_public_list_cache()
     return {"success": True, "data": db_tag}

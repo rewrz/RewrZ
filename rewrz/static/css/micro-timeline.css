@@ -25,17 +25,24 @@
     left: var(--micro-line-left);
     top: 0.5rem;
     bottom: 0.5rem;
-    width: 2px;
+    width: 8px;
+    margin-left: -3px;
     border-radius: 999px;
+    /* 横向渐变：中间略实，向外柔和散开到一点点底色调，不画硬白边 */
     background: linear-gradient(
-        180deg,
-        transparent 0%,
-        color-mix(in srgb, var(--color-primary) 42%, transparent) 6%,
-        color-mix(in srgb, var(--color-primary) 42%, transparent) 94%,
-        transparent 100%
+        90deg,
+        color-mix(in srgb, var(--color-card-bg) 16%, transparent) 0%,
+        color-mix(in srgb, var(--color-primary) 30%, transparent) 22%,
+        color-mix(in srgb, var(--color-primary) 60%, transparent) 50%,
+        color-mix(in srgb, var(--color-primary) 30%, transparent) 78%,
+        color-mix(in srgb, var(--color-card-bg) 16%, transparent) 100%
     );
+    /* 纵向渐隐交给遮罩，遮罩里的纯黑只表示完全不透明，不参与视觉配色 */
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 6%, #000 94%, transparent 100%);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 6%, #000 94%, transparent 100%);
     pointer-events: none;
 }
+
 
 /* 日期分组节点 */
 .micro-timeline-day {

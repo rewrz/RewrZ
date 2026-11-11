@@ -434,12 +434,12 @@ body.homepage-immersive-collapsed .homepage-immersive-copy {
 
         {% set pagination_target_id = "homepage-posts-panel" %}
         {% set homepage_use_infinite = list_navigation_mode == 'infinite_scroll' %}
-        <div id="{{ pagination_target_id }}">
+        <div id="{{ pagination_target_id }}"{% if homepage_timeline_shell_enabled is defined and not homepage_timeline_shell_enabled %} class="homepage-timeline-shell-off"{% endif %}>
             {% if posts %}
             <div class="timeline-shell px-3 py-4 md:px-6 md:py-7">
                 <div class="relative">
-                    <div class="hidden md:block absolute left-1/2 top-0 h-full w-0.5 timeline-axis opacity-55"></div>
-                    <div class="md:hidden absolute left-4 top-0 h-full w-0.5 timeline-axis opacity-55"></div>
+                    <div class="hidden md:block absolute left-1/2 top-0 h-full w-0.5 timeline-axis"></div>
+                    <div class="md:hidden absolute left-4 top-0 h-full w-0.5 timeline-axis"></div>
 
                     {% set timeline_start = timeline_start_index if timeline_start_index is defined else 0 %}
                     {% for post in posts %}

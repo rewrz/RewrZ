@@ -102,8 +102,9 @@
         <table class="admin-list-table min-w-full">
             <colgroup>
                 <col class="w-12">
-                <col class="w-[40%]">
-                <col class="w-[35%]">
+                <col class="w-[24%]">
+                <col class="w-[22%]">
+                <col class="w-[30%]">
                 <col class="w-24">
                 <col class="w-24">
             </colgroup>
@@ -114,6 +115,7 @@
                     </th>
                     <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">标签名称</th>
                     <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">别名</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">词条释义</th>
                     <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">文章数</th>
                     <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-light)]">操作</th>
                 </tr>
@@ -135,6 +137,11 @@
                         <div class="mt-1 text-xs text-[var(--color-text-light)]">/archives/by-tag/{{ tag.slug }}</div>
                     </td>
                     <td class="px-4 py-4 align-top">
+                        <div class="text-sm text-[var(--color-text-light)] whitespace-pre-line break-words leading-6">
+                            {{ tag.description if tag.description else '无释义' }}
+                        </div>
+                    </td>
+                    <td class="px-4 py-4 align-top">
                         <span class="admin-badge {% if tag.post_count > 0 %}admin-badge-info{% else %}admin-badge-neutral{% endif %} px-2 py-0.5 text-xs font-semibold">
                             {{ tag.post_count }} 篇
                         </span>
@@ -146,6 +153,7 @@
                                     data-id="{{ tag.id }}"
                                     data-name="{{ tag.name }}"
                                     data-slug="{{ tag.slug }}"
+                                    data-description="{{ tag.description or '' }}"
                                     class="admin-action-link"
                                     title="编辑">
                                 <i class="fas fa-edit"></i>
@@ -170,7 +178,7 @@
 
                 {% if not tags %}
                 <tr>
-                    <td colspan="5" class="admin-empty-state px-6 py-12 text-center text-[var(--color-text-light)]">
+                    <td colspan="6" class="admin-empty-state px-6 py-12 text-center text-[var(--color-text-light)]">
                         <i class="fas fa-tags mb-4 text-4xl opacity-60"></i>
                         <div class="text-lg">暂无标签</div>
                         <div class="text-sm">
@@ -247,6 +255,18 @@
                        class="admin-form-field w-full rounded-md px-3 py-2"
                        placeholder="自动生成或手动输入">
                 <p class="mt-1 text-xs text-[var(--color-text-light)]">留空将根据标签名称自动生成</p>
+            </div>
+
+            <div>
+                <label for="tagDescription" class="mb-1 block text-sm font-medium text-[var(--color-text)]">
+                    标签释义（Wiki 词条）
+                </label>
+                <textarea id="tagDescription"
+                          name="description"
+                          rows="3"
+                          class="admin-form-field w-full rounded-md px-3 py-2"
+                          placeholder="用一句话解释这个标签，可以是简短介绍，也可以是一句吐槽"></textarea>
+                <p class="mt-1 text-xs text-[var(--color-text-light)]">会展示在标签聚合页，帮助读者理解这个标签收录什么内容。</p>
             </div>
         </form>
 
@@ -350,6 +370,7 @@ function editTagFromButton(button) {
     document.getElementById('tagId').value = button.dataset.id || '';
     document.getElementById('tagName').value = button.dataset.name || '';
     document.getElementById('tagSlug').value = button.dataset.slug || '';
+    document.getElementById('tagDescription').value = button.dataset.description || '';
     tagSlugTouched = true;
     document.getElementById('tagModal').classList.remove('hidden');
     document.getElementById('tagModal').classList.add('flex');

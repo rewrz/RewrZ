@@ -332,8 +332,19 @@ body.site-shell footer {
 }
 
 .timeline-axis {
-    opacity: 0.5;
-    background-image: none !important;
+    /* 加宽成一条渐变带，用负外边距保持原本 2px 线的中心位置不变 */
+    width: 8px;
+    margin-left: -3px;
+    background-color: transparent !important;
+    /* 中间略实，向外柔和散开，最外缘只带一点点底色调；不画硬描边 */
+    background-image: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--color-card-bg) 16%, transparent) 0%,
+        color-mix(in srgb, var(--color-primary) 30%, transparent) 22%,
+        color-mix(in srgb, var(--color-primary) 60%, transparent) 50%,
+        color-mix(in srgb, var(--color-primary) 30%, transparent) 78%,
+        color-mix(in srgb, var(--color-card-bg) 16%, transparent) 100%
+    );
 }
 
 .timeline-marker-pulse {
@@ -399,9 +410,8 @@ body.site-shell footer {
             color-mix(in srgb, var(--color-primary) 56%, var(--color-text) 10%) 28%,
             color-mix(in srgb, var(--color-primary) 72%, white 8%)
         );
-    box-shadow:
-        0 0 0 1px color-mix(in srgb, var(--color-primary) 10%, transparent),
-        0 0 14px color-mix(in srgb, var(--color-primary) 16%, transparent);
+    /* 连接线不做硬描边，只留一层柔和光晕，避免出现突兀的白色边缘 */
+    box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 18%, transparent);
 }
 
 .timeline-bridge-left > .timeline-bridge-stroke {
@@ -3157,8 +3167,7 @@ body.site-shell .password-guard-submit {
 
 body.site-shell .search-shell-panel,
 body.site-shell .search-results-summary,
-body.site-shell .media-archive-hero,
-body.site-shell .category-archive-hero {
+body.site-shell .media-archive-hero {
     border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
     background:
         linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 44%),
@@ -3184,13 +3193,11 @@ body.site-shell .search-submit-btn,
 body.site-shell .search-results-archive-link,
 body.site-shell .search-results-loader,
 body.site-shell .media-archive-pill,
-body.site-shell .media-archive-count-chip,
-body.site-shell .category-archive-pill {
+body.site-shell .media-archive-count-chip {
     border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
 }
 
 body.site-shell .media-archive-count-chip,
-body.site-shell .category-archive-pill,
 body.site-shell .search-results-loader {
     background: color-mix(in srgb, var(--color-card-bg) 94%, transparent) !important;
     color: var(--color-text) !important;
@@ -5009,163 +5016,126 @@ body.site-shell[data-current-theme="galaxy"] {
     --surface-quiet-icon: color-mix(in srgb, var(--color-primary) 60%, white 40%);
 }
 
-body.site-shell .tag-archive-shell {
+/* 分类 / 标签聚合页共用骨架：尺寸、间距、圆角完全一致，颜色全部取自动态主题变量。
+   视觉差异只由 archive-shell--category / archive-shell--tag 钩子承担。 */
+body.site-shell .archive-shell {
     color: var(--color-text);
 }
 
-body.site-shell .tag-archive-hero {
+body.site-shell .archive-hero {
     border-color: var(--surface-glass-border);
-    background:
-        linear-gradient(
-            135deg,
-            color-mix(in srgb, var(--color-primary) 10%, var(--surface-soft-bg)),
-            var(--surface-solid-bg)
-        );
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-primary) 10%, var(--surface-soft-bg)),
+        var(--surface-solid-bg)
+    );
     box-shadow: var(--surface-glass-shadow);
     transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.dark body.site-shell .tag-archive-hero {
-    border-color: rgba(242, 205, 132, 0.18);
-    background:
-        linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(20, 25, 44, 0.72)),
-        linear-gradient(180deg, rgba(20, 25, 44, 0.72), rgba(20, 25, 44, 0.56));
-    box-shadow: 0 18px 42px -28px rgba(2, 6, 23, 0.44);
-}
-
-body.site-shell .tag-archive-kicker {
+body.site-shell .archive-kicker {
     color: color-mix(in srgb, var(--color-primary) 72%, var(--surface-muted-text) 28%);
     letter-spacing: 0.08em;
 }
 
-.dark body.site-shell .tag-archive-kicker {
-    color: #f2d49a;
-}
-
-body.site-shell .tag-archive-title {
+body.site-shell .archive-title {
     color: var(--surface-overlay-text);
     line-height: 1.18;
     letter-spacing: 0.01em;
 }
 
-.dark body.site-shell .tag-archive-title {
-    color: #fff1d2;
+body.site-shell .archive-mark {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border) 70%);
+    border-radius: 0.6rem;
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--surface-solid-bg));
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+    font-size: 0.9rem;
+    font-weight: 700;
 }
 
-body.site-shell .tag-archive-summary {
+body.site-shell .archive-summary {
     max-width: 42rem;
     color: var(--surface-muted-text);
     line-height: 1.7;
     font-size: 0.96rem;
 }
 
-.dark body.site-shell .tag-archive-summary {
-    color: rgba(241, 223, 188, 0.84);
+body.site-shell .archive-description {
+    max-width: 42rem;
+    padding: 0.55rem 0.85rem;
+    border-left: 3px solid color-mix(in srgb, var(--color-primary) 55%, var(--color-border) 45%);
+    border-radius: 0 0.6rem 0.6rem 0;
+    background: color-mix(in srgb, var(--color-primary) 8%, var(--surface-solid-bg));
 }
 
-body.site-shell .tag-archive-back {
+body.site-shell .archive-description-label {
+    display: block;
+    margin-bottom: 0.2rem;
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--surface-muted-text) 28%);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+body.site-shell .archive-description-text {
+    color: var(--surface-overlay-text);
+    font-size: 0.94rem;
+    line-height: 1.7;
+    white-space: pre-line;
+}
+
+body.site-shell .archive-back {
     border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
     background: var(--surface-solid-bg);
     color: color-mix(in srgb, var(--color-primary) 70%, var(--color-text) 30%);
-    box-shadow: 0 10px 24px -20px color-mix(in srgb, var(--color-primary) 34%, rgba(15, 23, 42, 0.2));
+    box-shadow: 0 10px 24px -20px color-mix(in srgb, var(--color-primary) 34%, transparent);
 }
 
-.dark body.site-shell .tag-archive-back {
-    border-color: rgba(242, 205, 132, 0.18);
-    background: rgba(20, 25, 44, 0.42);
-    color: #f2d49a;
-}
-
-.dark body.site-shell .tag-archive-back:hover {
-    background: rgba(88, 61, 23, 0.32);
-    color: #fff1d2;
-}
-
-body.site-shell .tag-archive-back:hover {
+body.site-shell .archive-back:hover {
     background: color-mix(in srgb, var(--color-primary) 11%, var(--surface-solid-bg));
     color: color-mix(in srgb, var(--color-primary) 80%, var(--color-text) 20%);
 }
 
-body.site-shell .tag-archive-card {
+body.site-shell .archive-card {
     border-color: var(--surface-soft-border);
     background: var(--surface-soft-bg);
-    box-shadow: 0 16px 32px -28px color-mix(in srgb, var(--color-primary) 22%, rgba(15, 23, 42, 0.22));
+    box-shadow: 0 16px 32px -28px color-mix(in srgb, var(--color-primary) 22%, transparent);
 }
 
-body.site-shell .category-archive-hero {
-    border-color: var(--surface-glass-border);
-    background:
-        linear-gradient(
-            135deg,
-            color-mix(in srgb, var(--color-primary) 10%, var(--surface-soft-bg)),
-            var(--surface-solid-bg)
-        );
-    box-shadow: var(--surface-glass-shadow);
-}
-
-.dark body.site-shell .category-archive-hero {
-    border-color: rgba(242, 205, 132, 0.18);
-    background:
-        linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(20, 25, 44, 0.72)),
-        linear-gradient(180deg, rgba(20, 25, 44, 0.72), rgba(20, 25, 44, 0.56));
-    box-shadow: 0 18px 42px -28px rgba(2, 6, 23, 0.44);
-}
-
-body.site-shell .category-archive-hero .text-sky-600,
-body.site-shell .category-archive-hero .text-sky-700,
-body.site-shell .category-archive-hero .text-gray-900,
-body.site-shell .category-archive-hero .text-gray-600 {
-    color: var(--surface-overlay-text) !important;
-}
-
-body.site-shell .category-archive-hero .text-gray-600 {
-    color: var(--surface-muted-text) !important;
-}
-
-.dark body.site-shell .category-archive-hero .text-sky-600,
-.dark body.site-shell .category-archive-hero .text-sky-700 {
-    color: #f2d49a !important;
-}
-
-body.site-shell .category-archive-hero .category-archive-pill {
-    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
-    background: var(--surface-solid-bg);
-    color: color-mix(in srgb, var(--color-primary) 70%, var(--color-text) 30%);
-    box-shadow: 0 10px 24px -20px color-mix(in srgb, var(--color-primary) 34%, rgba(15, 23, 42, 0.2));
-}
-
-body.site-shell .category-archive-hero .category-archive-pill:hover {
-    background: color-mix(in srgb, var(--color-primary) 11%, var(--surface-solid-bg));
-    color: color-mix(in srgb, var(--color-primary) 80%, var(--color-text) 20%);
-}
-
-.dark body.site-shell .category-archive-hero .category-archive-pill {
-    border-color: rgba(242, 205, 132, 0.18);
-    background: rgba(20, 25, 44, 0.42);
-    color: #f2d49a;
-}
-
-.dark body.site-shell .category-archive-hero .category-archive-pill:hover {
-    background: rgba(88, 61, 23, 0.32);
-    color: #fff1d2;
-}
-
-body.site-shell .category-archive-card {
-    border-color: var(--surface-soft-border);
-    background: var(--surface-soft-bg);
-    box-shadow: 0 16px 32px -28px color-mix(in srgb, var(--color-primary) 22%, rgba(15, 23, 42, 0.22));
-}
-
-body.site-shell .category-archive-empty {
+body.site-shell .archive-empty {
     border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
     background: var(--surface-soft-bg);
     color: var(--surface-muted-text);
 }
 
-body.site-shell .tag-archive-empty {
-    border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
-    background: var(--surface-soft-bg);
-    color: var(--surface-muted-text);
+/* 差异化：分类是方形文件夹 + 正向渐变 + 实线分界说明；标签是圆形 # + 反向渐变 + 虚线词条 */
+body.site-shell .archive-shell--tag .archive-hero {
+    background: linear-gradient(
+        315deg,
+        color-mix(in srgb, var(--color-primary) 10%, var(--surface-soft-bg)),
+        var(--surface-solid-bg)
+    );
+}
+
+body.site-shell .archive-shell--tag .archive-kicker {
+    color: color-mix(in srgb, var(--surface-muted-text) 55%, var(--color-primary) 45%);
+}
+
+body.site-shell .archive-shell--tag .archive-mark {
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-background-alt) 46%, var(--surface-solid-bg));
+    font-size: 1.05rem;
+}
+
+body.site-shell .archive-shell--tag .archive-description {
+    border-left-style: dashed;
+    background: color-mix(in srgb, var(--color-background-alt) 34%, var(--surface-solid-bg));
 }
 
 body.site-shell .timeline-card {

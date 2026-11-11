@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
+from ..core import public_list_cache
 from ..core.admin_path import get_request_admin_path
 from ..core.database import get_db
 from ..core.security import get_current_user, require_admin_user
@@ -140,6 +141,7 @@ def _get_settings_data(db: Session, request: Request, current_user: User) -> Dic
         "homepage_background_video_url": get_setting_value("homepage_background_video_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_video_url"]),
         "homepage_background_music_url": get_setting_value("homepage_background_music_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_music_url"]),
         "homepage_music_autoplay": get_setting_value("homepage_music_autoplay", DEFAULT_HOMEPAGE_SETTINGS["homepage_music_autoplay"]),
+        "homepage_timeline_shell_enabled": get_setting_value("homepage_timeline_shell_enabled", DEFAULT_HOMEPAGE_SETTINGS["homepage_timeline_shell_enabled"]),
     }
     return settings_data
 
@@ -219,6 +221,8 @@ async def update_admin_settings(
     homepage_background_video_url = _form_text(form, "homepage_background_video_url", "")
     homepage_background_music_url = _form_text(form, "homepage_background_music_url", "")
     homepage_music_autoplay = _form_bool(form, "homepage_music_autoplay", DEFAULT_HOMEPAGE_SETTINGS["homepage_music_autoplay"])
+    # 默认开启的开关不能用默认值兜底：复选框未勾选时表单里没有这个键，必须落为 False
+    homepage_timeline_shell_enabled = _form_bool(form, "homepage_timeline_shell_enabled", False)
     csrf_token = _form_text(form, "csrf_token", "")
 
     from ..core.security import verify_csrf_token
@@ -351,6 +355,7 @@ async def update_admin_settings(
         "homepage_background_video_url": homepage_background_video_url or '',
         "homepage_background_music_url": homepage_background_music_url or '',
         "homepage_music_autoplay": homepage_music_autoplay,
+        "homepage_timeline_shell_enabled": homepage_timeline_shell_enabled,
     }
 
     for key, value in settings_to_update.items():
@@ -361,6 +366,9 @@ async def update_admin_settings(
         else:
             crud_setting.create_setting(db, setting=SettingCreate(key=key, value=update_payload, description=f"Global setting for {key.replace('_', ' ')}"))
     
+    # 首页外观开关会改变整页 HTML，保存后立即失效公开列表缓存，避免旧状态在 TTL 内继续返回
+    public_list_cache.invalidate_public_list_cache()
+
     # Re-fetch settings using the helper function to ensure the template gets the latest data
     settings_data = _get_settings_data(db, request, current_user)
 

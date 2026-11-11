@@ -4,6 +4,7 @@ from typing import Optional
 class TagBase(BaseModel):
     name: str
     slug: str
+    description: Optional[str] = None
 
 class TagCreate(TagBase):
     pass
@@ -18,3 +19,4 @@ class Tag(TagBase):
 class TagUpdate(TagBase):
     name: Optional[str] = None
     slug: Optional[str] = None
+    description: Optional[str] = None

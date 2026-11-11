@@ -200,6 +200,7 @@ class SettingsMiddleware(BaseHTTPMiddleware):
                     "background_video_url": all_settings.get("homepage_background_video_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_video_url"]),
                     "background_music_url": all_settings.get("homepage_background_music_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_music_url"]),
                     "music_autoplay": all_settings.get("homepage_music_autoplay", DEFAULT_HOMEPAGE_SETTINGS["homepage_music_autoplay"]),
+                    "timeline_shell_enabled": all_settings.get("homepage_timeline_shell_enabled", DEFAULT_HOMEPAGE_SETTINGS["homepage_timeline_shell_enabled"]),
                 },
                 "sitemap": {
                     "enabled": all_settings.get("sitemap_enabled", False),

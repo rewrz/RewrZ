@@ -24,6 +24,7 @@ HOMEPAGE_SETTING_KEYS = [
     "homepage_background_video_url",
     "homepage_background_music_url",
     "homepage_music_autoplay",
+    "homepage_timeline_shell_enabled",
 ]
 
 # 基础全局设置的集中默认值（与所有页面相关且在多处使用）
@@ -77,6 +78,7 @@ DEFAULT_HOMEPAGE_SETTINGS = {
     "homepage_background_video_url": "",
     "homepage_background_music_url": "",
     "homepage_music_autoplay": False,
+    "homepage_timeline_shell_enabled": True,
 }
 
 
@@ -237,6 +239,7 @@ def build_base_template_context(request: Request) -> dict:
         "homepage_background_video_url": settings.get("homepage", {}).get("background_video_url") or getattr(request.state, "homepage_background_video_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_video_url"]),
         "homepage_background_music_url": settings.get("homepage", {}).get("background_music_url") or getattr(request.state, "homepage_background_music_url", DEFAULT_HOMEPAGE_SETTINGS["homepage_background_music_url"]),
         "homepage_music_autoplay": settings.get("homepage", {}).get("music_autoplay") if settings.get("homepage", {}).get("music_autoplay") is not None else getattr(request.state, "homepage_music_autoplay", DEFAULT_HOMEPAGE_SETTINGS["homepage_music_autoplay"]),
+        "homepage_timeline_shell_enabled": settings.get("homepage", {}).get("timeline_shell_enabled") if settings.get("homepage", {}).get("timeline_shell_enabled") is not None else getattr(request.state, "homepage_timeline_shell_enabled", DEFAULT_HOMEPAGE_SETTINGS["homepage_timeline_shell_enabled"]),
         # 分页配置（供归档/相关文章等模板使用）
         "homepage_posts_limit": settings.get("pagination", {}).get("homepage_posts_limit") if settings.get("pagination", {}).get("homepage_posts_limit") is not None else getattr(request.state, "homepage_posts_limit", 10),
         "archive_posts_limit": settings.get("pagination", {}).get("archive_posts_limit") if settings.get("pagination", {}).get("archive_posts_limit") is not None else getattr(request.state, "archive_posts_limit", 20),
