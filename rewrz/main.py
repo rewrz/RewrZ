@@ -209,7 +209,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=DEFAULT_BASE_SETTINGS["site_title"],
     description=DEFAULT_BASE_SETTINGS["tagline"],
-    version="1.0.0",
+    version="3.2.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
