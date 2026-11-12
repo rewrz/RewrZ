@@ -273,6 +273,12 @@
             box-shadow: var(--ui-ring);
         }
     </style>
+    {# 编辑器资源固定在全局 head：后台页面常经 HTMX 局部替换，放在内容区会被动态插入并异步加载，
+       初始化脚本先执行就会偶发 toastui is not defined。同步放在 head 可保证任何导航方式下全局都已就绪。 #}
+    <link rel="stylesheet" href="{{ static_asset(request, 'vendor/toastui/toastui-editor.min.css') }}" />
+    <script src="{{ static_asset(request, 'vendor/toastui/toastui-editor-all.min.js') }}"></script>
+    <script src="{{ static_asset(request, 'js/editor-raw-html.js') }}"></script>
+    <script src="{{ static_asset(request, 'js/editor-block-directives.js') }}"></script>
     {% block head %}{% endblock %}
     <script>
         // 图片加载失败时隐藏破损图标与替代文字，保留容器底色，避免侧栏 Logo 失效后重复显示站名

@@ -302,7 +302,7 @@
         const fullUrl = item.url || previewUrl;
         const imageAlt = item.alt_text || item.title || item.filename || "image";
         const preview = String(item.file_type || "").startsWith("image")
-            ? `<img data-src="${escapeHtml(previewUrl)}" data-full-src="${escapeHtml(fullUrl)}" alt="${escapeHtml(imageAlt)}" class="mlm-placeholder h-28 w-full object-cover" loading="lazy" decoding="async" fetchpriority="low" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">`
+            ? `<img data-src="${escapeHtml(previewUrl)}" data-full-src="${escapeHtml(fullUrl)}" alt="${escapeHtml(imageAlt)}" class="mlm-placeholder h-28 w-full object-cover" decoding="async" fetchpriority="low" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">`
             : `<div class="mlm-placeholder flex h-28 w-full items-center justify-center text-xs">非图片文件</div>`;
         card.innerHTML = `
             ${preview}
