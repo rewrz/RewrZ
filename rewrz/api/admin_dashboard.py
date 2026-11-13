@@ -60,14 +60,11 @@ def _safe_media_stats() -> tuple[int, float]:
     if not media_dir.exists() or not media_dir.is_dir():
         return 0, 0.0
 
-    file_count = 0
-    total_bytes = 0
-    for item in media_dir.rglob("*"):
-        if item.is_file():
-            file_count += 1
-            total_bytes += item.stat().st_size
-    total_mb = round(total_bytes / (1024 * 1024), 2)
-    return file_count, total_mb
+    # 与系统信息页共用同一套目录扫描口径，避免两处各自遍历整个媒体目录
+    from .system_info import get_directory_stats
+
+    total_bytes, file_count = get_directory_stats(media_dir)
+    return file_count, round(total_bytes / (1024 * 1024), 2)
 
 
 def _load_site_health_cache(db: Session) -> dict | None:

@@ -28,7 +28,10 @@ templates = get_templates()
 ADMIN_PATH = get_admin_path()
 
 SUMMARY_CACHE_TTL_SECONDS = 30
-DASHBOARD_CACHE_TTL_SECONDS = 30
+# 流量卡片每 60 秒轮询一次：缓存略短于轮询周期，保证每次轮询仍会重算，
+# 同时把两次轮询之间的页面刷新、多标签请求合并掉。
+DASHBOARD_CACHE_TTL_SECONDS = 55
+LIVE_CACHE_BUCKET_SECONDS = 30
 _CACHE_LOCK = threading.Lock()
 _CACHE: dict[tuple, tuple[float, dict]] = {}
 _CACHE_MAX_ENTRIES = 64
@@ -88,6 +91,19 @@ def _dashboard_payload(db: Session, *, refresh: bool = False) -> dict:
             return cached
     payload = crud_traffic.get_dashboard_summary(db)
     _cache_set(cache_key, payload, DASHBOARD_CACHE_TTL_SECONDS)
+    return payload
+
+
+def _live_payload(db: Session) -> dict:
+    # 按 30 秒时间桶缓存，与访问统计页轮询周期对齐：桶内多个请求只算一次，
+    # 跨桶必定重算，保证实时片段最多滞后一个轮询周期。
+    bucket = int(time.time() // LIVE_CACHE_BUCKET_SECONDS)
+    cache_key = ("live", bucket)
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+    payload = crud_traffic.get_live_fragment(db)
+    _cache_set(cache_key, payload, LIVE_CACHE_BUCKET_SECONDS)
     return payload
 
 
@@ -168,7 +184,7 @@ def analytics_live(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_user),
 ):
-    live = crud_traffic.get_live_fragment(db)
+    live = _live_payload(db)
     response = templates.TemplateResponse(
         request,
         "admin/components/analytics_live.html",

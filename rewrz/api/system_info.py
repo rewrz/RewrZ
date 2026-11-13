@@ -14,6 +14,8 @@ import math
 import os
 import sys
 import platform
+import threading
+import time
 import psutil
 from pathlib import Path
 from fastapi import APIRouter, Depends, Request
@@ -31,6 +33,37 @@ from ..schemas import User
 
 router = APIRouter()
 templates = get_templates()
+
+# psutil 的 interval=None 首次调用只返回 0.0，模块加载时先建立采样基准；
+# 之后按「距上次采样的间隔」返回利用率，避免每个系统信息请求固定阻塞 100ms。
+_CPU_SAMPLE_LOCK = threading.Lock()
+_CPU_SAMPLE_CACHE: dict[str, float] = {"at": 0.0, "value": 0.0}
+CPU_SAMPLE_MIN_INTERVAL_SECONDS = 1.0
+psutil.cpu_percent(interval=None)
+
+
+def _warm_psutil_swap_cache() -> None:
+    """Windows 上首次读取交换分区需要几百毫秒，放到后台预热，避免首个系统信息请求承担冷启动。"""
+    try:
+        psutil.swap_memory()
+    except Exception:
+        pass
+
+
+threading.Thread(target=_warm_psutil_swap_cache, name="psutil-swap-warmup", daemon=True).start()
+
+
+def _cpu_usage_percent() -> float:
+    """一秒内的重复请求复用同一次采样，避免并发调用互相重置 psutil 的全局基准。"""
+    now = time.monotonic()
+    with _CPU_SAMPLE_LOCK:
+        value = _CPU_SAMPLE_CACHE["value"]
+        if value and now - _CPU_SAMPLE_CACHE["at"] < CPU_SAMPLE_MIN_INTERVAL_SECONDS:
+            return value
+        value = float(psutil.cpu_percent(interval=None))
+        _CPU_SAMPLE_CACHE["at"] = now
+        _CPU_SAMPLE_CACHE["value"] = value
+        return value
 
 
 def system_info_page(
@@ -376,7 +409,7 @@ def get_system_resources() -> Dict[str, Any]:
         resources['cpu'] = {
             'count': psutil.cpu_count() or 0,
             'count_logical': psutil.cpu_count(logical=True) or 0,
-            'usage_percent': psutil.cpu_percent(interval=0.1),
+            'usage_percent': _cpu_usage_percent(),
             'frequency': cpu_frequency._asdict() if cpu_frequency else None
         }
         
@@ -513,18 +546,30 @@ def format_file_size(size_bytes: int) -> str:
 
 
 def get_directory_stats(directory: str) -> tuple[int, int]:
-    """获取目录总大小（字节）与文件数量"""
+    """获取目录总大小（字节）与文件数量。
+
+    用 os.scandir 迭代：Windows 下 DirEntry 复用目录枚举已有的元数据，
+    不必对每个文件再发一次 stat 系统调用。口径与 os.walk 保持一致：
+    不递归符号链接目录，符号链接文件按目标大小计入。
+    """
     total_size = 0
     file_count = 0
-    try:
-        for dirpath, dirnames, filenames in os.walk(directory):
-            for filename in filenames:
-                filepath = os.path.join(dirpath, filename)
-                try:
-                    total_size += os.path.getsize(filepath)
-                    file_count += 1
-                except (OSError, FileNotFoundError):
-                    pass
-    except (OSError, FileNotFoundError):
-        pass
+    pending = [directory]
+    while pending:
+        current = pending.pop()
+        try:
+            with os.scandir(current) as entries:
+                for entry in entries:
+                    try:
+                        if entry.is_dir():
+                            if entry.is_symlink():
+                                continue
+                            pending.append(entry.path)
+                        else:
+                            total_size += entry.stat().st_size
+                            file_count += 1
+                    except (OSError, FileNotFoundError):
+                        pass
+        except (OSError, FileNotFoundError):
+            pass
     return total_size, file_count
