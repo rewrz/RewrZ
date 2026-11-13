@@ -3,9 +3,9 @@
 本模块提供评论相关的数据库操作功能，包括创建、读取、更新、删除评论。
 支持嵌套评论和状态管理。
 """
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select, func, delete, update
-from ..models import Comment
+from ..models import Comment, Post
 from ..schemas import CommentCreate
 from ..core.time_utils import utc_now_naive
 from typing import Iterable, List
@@ -30,7 +30,7 @@ def get_comments_for_post(db: Session, post_id: int, skip: int = 0, limit: int =
     """获取指定文章的评论列表，支持分页"""
     return db.execute(select(Comment).filter(Comment.post_id == post_id).offset(skip).limit(limit)).scalars().all()
 
-def get_comments(db: Session, skip: int = 0, limit: int = 100, sort_by_latest: bool = False, status: str = None):
+def get_comments(db: Session, skip: int = 0, limit: int = 100, sort_by_latest: bool = False, status: str = None, *, with_post: bool = False):
     """获取评论列表，支持分页、排序和状态筛选
     
     Args:
@@ -39,11 +39,14 @@ def get_comments(db: Session, skip: int = 0, limit: int = 100, sort_by_latest: b
         limit: 返回的记录数上限
         sort_by_latest: 是否按最新时间排序
         status: 评论状态 ('approved', 'pending', 'spam')
+        with_post: 是否预加载所属文章及其内容格式，供模板直接生成文章链接
         
     Returns:
         评论对象列表
     """
     query = select(Comment)
+    if with_post:
+        query = query.options(selectinload(Comment.post).selectinload(Post.formats))
     
     if status:
         query = query.filter(Comment.status == status)

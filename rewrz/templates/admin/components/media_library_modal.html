@@ -302,7 +302,7 @@
         const fullUrl = item.url || previewUrl;
         const imageAlt = item.alt_text || item.title || item.filename || "image";
         const preview = String(item.file_type || "").startsWith("image")
-            ? `<img data-src="${escapeHtml(previewUrl)}" data-full-src="${escapeHtml(fullUrl)}" alt="${escapeHtml(imageAlt)}" class="mlm-placeholder h-28 w-full object-cover" decoding="async" fetchpriority="low" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">`
+            ? `<img data-src="${escapeHtml(previewUrl)}" data-full-src="${escapeHtml(fullUrl)}" alt="${escapeHtml(imageAlt)}" class="mlm-placeholder h-28 w-full object-cover" loading="eager" decoding="async" fetchpriority="low" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">`
             : `<div class="mlm-placeholder flex h-28 w-full items-center justify-center text-xs">非图片文件</div>`;
         card.innerHTML = `
             ${preview}
@@ -443,7 +443,7 @@
         if (!featureImageUrlInput || !featureImagePreview || !featureImageRemoveButton) return;
 
         featureImageUrlInput.value = item.url;
-        featureImagePreview.innerHTML = `<img src="${escapeHtml(item.url)}" alt="${escapeHtml(item.alt_text || item.title || item.filename)}" class="max-w-full h-auto rounded-md">`;
+        featureImagePreview.innerHTML = `<img src="${escapeHtml(item.url)}" alt="${escapeHtml(item.alt_text || item.title || item.filename)}" class="max-w-full h-auto rounded-md" loading="eager">`;
         featureImagePreview.classList.remove("hidden");
         featureImageRemoveButton.classList.remove("hidden");
     }
@@ -486,7 +486,7 @@
                 const preview = document.createElement("div");
                 preview.className = "mlm-preview rounded-md";
                 preview.innerHTML = `
-                    <img src="${escapeHtml(data.url)}" alt="${escapeHtml(data.title || data.filename)}" class="h-20 w-full rounded-t-md object-cover">
+                    <img src="${escapeHtml(data.url)}" alt="${escapeHtml(data.title || data.filename)}" class="h-20 w-full rounded-t-md object-cover" loading="eager">
                     <div class="mlm-card-title truncate p-1 text-xs">${escapeHtml(data.title || data.filename)}</div>
                 `;
                 elements.uploadedPreview.appendChild(preview);

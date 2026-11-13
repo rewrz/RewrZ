@@ -146,7 +146,7 @@
                     </td>
                     <td class="px-4 py-4 align-top">
                         <div class="flex items-start gap-3">
-                            <img class="h-10 w-10 rounded-full" src="{{ item.avatar_url }}" alt="{{ comment.author_name }} avatar">
+                            <img class="h-10 w-10 rounded-full" src="{{ item.avatar_url }}" alt="{{ comment.author_name }} avatar" loading="eager">
                             <div class="min-w-0">
                                 <div class="text-sm font-semibold text-gray-900 break-all">{{ comment.author_name }}</div>
                                 <div class="text-xs text-gray-500 break-all">{{ comment.author_email }}</div>
@@ -244,7 +244,7 @@
         >
             <div class="flex items-start gap-3">
                 <input type="checkbox" class="comment-checkbox mt-1 rounded border-gray-300" value="{{ comment.id }}">
-                <img class="h-10 w-10 rounded-full" src="{{ item.avatar_url }}" alt="{{ comment.author_name }} avatar">
+                <img class="h-10 w-10 rounded-full" src="{{ item.avatar_url }}" alt="{{ comment.author_name }} avatar" loading="eager">
                 <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
                     <div class="text-sm font-semibold text-gray-900 break-all">{{ comment.author_name }}</div>

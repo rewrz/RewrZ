@@ -183,7 +183,7 @@
                                 {% if post.admin_cover_url %}
                                 <img src="{{ post.admin_cover_url | thumb_url('media_lib_card', request.state.db) }}"
                                      alt="{{ post_title or '文章封面' }}缩略图"
-                                     loading="lazy"
+                                     loading="eager"
                                      onerror="window.handlePostCoverError && window.handlePostCoverError(this)"
                                      data-cover-img>
                                 {% endif %}
@@ -842,7 +842,7 @@ function updatePostCoverPreview(postId, coverUrl) {
     if (!image) {
         image = document.createElement('img');
         image.dataset.coverImg = '';
-        image.loading = 'lazy';
+        image.loading = 'eager';
         image.alt = '文章封面缩略图';
         image.addEventListener('error', () => handlePostCoverError(image));
         cover.insertBefore(image, cover.firstChild);

@@ -595,7 +595,7 @@
                             <input type="hidden" name="featured_image_url" id="feature-image-url-input" value="{% if post %}{{ post.featured_image_url }}{% endif %}">
                             <div id="feature-image-preview" class="feature-image-shell mb-2 {% if not post or not post.featured_image_url or post.featured_image_url == 'None' %}hidden{% endif %}">
                                 {% if post and post.featured_image_url and post.featured_image_url != 'None' %}
-                                <img src="{{ post.featured_image_url }}" alt="特色图片预览">
+                                <img src="{{ post.featured_image_url }}" alt="特色图片预览" loading="eager">
                                 {% endif %}
                             </div>
                             <button type="button" class="admin-secondary-btn w-full rounded-md border-2 border-dashed px-3 py-2" id="feature-image-upload-button">选择或上传图片</button>
@@ -1781,7 +1781,7 @@
                 featureImageRemoveButton.classList.add('hidden');
                 return;
             }
-            featureImagePreview.innerHTML = `<img src="${url}" alt="${escapeHtml(altText || '特色图片预览')}">`;
+            featureImagePreview.innerHTML = `<img src="${url}" alt="${escapeHtml(altText || '特色图片预览')}" loading="eager">`;
             featureImagePreview.classList.remove('hidden');
             featureImageRemoveButton.classList.remove('hidden');
         }

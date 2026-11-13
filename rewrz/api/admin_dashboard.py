@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from ..core.admin_path import get_admin_path, get_request_admin_path
@@ -19,6 +19,7 @@ from ..crud import comment as crud_comment
 from ..crud import post as crud_post
 from ..crud import setting as crud_setting
 from ..crud import tag as crud_tag
+from ..models import Comment, Post
 from ..models.login_attempt import LoginAttempt
 from ..schemas.setting import SettingCreate, SettingUpdate
 from ..schemas import PostCreate, User
@@ -31,11 +32,24 @@ SITE_HEALTH_CACHE_TTL_SECONDS = 900
 
 
 def _collect_stats(db: Session) -> dict:
+    # 文章与评论各自一次扫描得出全部状态计数，避免轮询时重复扫表
+    post_counts = db.execute(
+        select(
+            func.sum(case((Post.status == "published", 1), else_=0)),
+            func.sum(case((Post.status == "draft", 1), else_=0)),
+        )
+    ).one()
+    comment_counts = db.execute(
+        select(
+            func.count(Comment.id),
+            func.sum(case((Comment.status == "pending", 1), else_=0)),
+        )
+    ).one()
     return {
-        "published_posts": crud_post.count_posts_by_status(db, "published"),
-        "draft_posts": crud_post.count_posts_by_status(db, "draft"),
-        "total_comments": crud_comment.count_comments(db),
-        "pending_comments": crud_comment.count_comments_by_status(db, "pending"),
+        "published_posts": int(post_counts[0] or 0),
+        "draft_posts": int(post_counts[1] or 0),
+        "total_comments": int(comment_counts[0] or 0),
+        "pending_comments": int(comment_counts[1] or 0),
         "total_categories": crud_category.count_categories(db),
         "total_tags": crud_tag.count_tags(db),
     }
@@ -116,16 +130,10 @@ def _collect_site_health(db: Session) -> dict:
     failed_logins_24h = 0
     try:
         since = datetime.now(timezone.utc) - timedelta(hours=24)
-        failed_logins_24h = (
-            db.execute(
-                select(LoginAttempt)
-                .where(LoginAttempt.success.is_(False), LoginAttempt.created_at >= since)
-                .limit(200)
-            )
-            .scalars()
-            .all()
-        )
-        failed_logins_24h = len(failed_logins_24h)
+        failed_logins_24h = db.execute(
+            select(func.count(LoginAttempt.id))
+            .where(LoginAttempt.success.is_(False), LoginAttempt.created_at >= since)
+        ).scalar_one()
     except Exception:
         # Avoid breaking dashboard if login_attempts table is not migrated yet.
         db_ok = False
@@ -161,7 +169,7 @@ def get_site_health_snapshot(db: Session) -> dict:
 
 
 def dashboard_page(request: Request, db: Session, current_user: User):
-    recent_comments = crud_comment.get_comments(db, sort_by_latest=True, limit=8)
+    recent_comments = crud_comment.get_comments(db, sort_by_latest=True, limit=8, with_post=True)
     return templates.TemplateResponse(
         request,
         "admin/dashboard.html",

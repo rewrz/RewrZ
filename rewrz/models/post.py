@@ -7,11 +7,13 @@ from .tag import Tag
 from .format import Format # Import the new Format model
 
 # Many-to-many association table for posts and categories
+# 后台按分类/标签/格式筛选时走反向列，联合主键最左列 post_id 用不上，单独补索引
 post_categories = Table(
     "post_categories",
     Base.metadata,
     Column("post_id", Integer, ForeignKey("posts.id"), primary_key=True),
     Column("category_id", Integer, ForeignKey("categories.id"), primary_key=True),
+    Index("ix_post_categories_category_id", "category_id"),
 )
 
 # Many-to-many association table for posts and tags
@@ -20,6 +22,7 @@ post_tags = Table(
     Base.metadata,
     Column("post_id", Integer, ForeignKey("posts.id"), primary_key=True),
     Column("tag_id", Integer, ForeignKey("tags.id"), primary_key=True),
+    Index("ix_post_tags_tag_id", "tag_id"),
 )
 
 # Many-to-many association table for posts and formats
@@ -28,6 +31,7 @@ post_formats = Table(
     Base.metadata,
     Column("post_id", Integer, ForeignKey("posts.id"), primary_key=True),
     Column("format_id", Integer, ForeignKey("formats.id"), primary_key=True),
+    Index("ix_post_formats_format_id", "format_id"),
 )
 
 class Post(Base):
@@ -37,6 +41,9 @@ class Post(Base):
     __table_args__ = (
         Index("ix_posts_public_listing", "post_type", "visibility", "status", "published_at"),
         Index("ix_posts_page_nav", "post_type", "status", "published_at"),
+        # 后台列表按创建时间倒序分页、按状态单独统计，既有复合索引最左列用不上
+        Index("ix_posts_status", "status"),
+        Index("ix_posts_created_at", "created_at"),
     )
 
     id = Column(Integer, primary_key=True, index=True)

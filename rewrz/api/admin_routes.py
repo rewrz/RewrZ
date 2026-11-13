@@ -8,7 +8,7 @@ from fastapi import BackgroundTasks, Depends, FastAPI, Form, Header, Request, Re
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from starlette.concurrency import run_in_threadpool
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -677,7 +677,7 @@ def register_admin_primary_routes(
         offset = (page - 1) * resolved_page_size
         posts = db.execute(
             select(Post)
-            .options(joinedload(Post.categories), joinedload(Post.tags), joinedload(Post.formats))
+            .options(selectinload(Post.categories), selectinload(Post.tags), selectinload(Post.formats))
             .where(*filter_conditions)
             .order_by(Post.created_at.desc())
             .offset(offset)
@@ -839,7 +839,7 @@ def register_admin_primary_routes(
             page = total_page_count
         offset = (page - 1) * resolved_page_size
 
-        categories_query = select(Category).options(selectinload(Category.posts))
+        categories_query = select(Category)
         if filter_conditions:
             categories_query = categories_query.where(*filter_conditions)
         categories = db.execute(
@@ -849,8 +849,18 @@ def register_admin_primary_routes(
             .limit(resolved_page_size)
         ).scalars().all()
 
+        # 只按关联表聚合当前页分类的文章数，不再加载每个分类下的全部文章对象
+        category_ids = [category.id for category in categories]
+        post_count_map: dict[int, int] = {}
+        if category_ids:
+            count_rows = db.execute(
+                select(post_categories.c.category_id, func.count())
+                .where(post_categories.c.category_id.in_(category_ids))
+                .group_by(post_categories.c.category_id)
+            ).all()
+            post_count_map = {int(category_id): int(count or 0) for category_id, count in count_rows}
         for category in categories:
-            setattr(category, "post_count", len(category.posts) if category.posts else 0)
+            setattr(category, "post_count", post_count_map.get(category.id, 0))
 
         def _build_page_url(target_page: int) -> str:
             params = {}
@@ -953,7 +963,7 @@ def register_admin_primary_routes(
             page = total_page_count
         offset = (page - 1) * resolved_page_size
 
-        tags_query = select(Tag).options(selectinload(Tag.posts))
+        tags_query = select(Tag)
         if filter_conditions:
             tags_query = tags_query.where(*filter_conditions)
         tags = db.execute(
@@ -963,8 +973,18 @@ def register_admin_primary_routes(
             .limit(resolved_page_size)
         ).scalars().all()
 
+        # 只按关联表聚合当前页标签的文章数，不再加载每个标签下的全部文章对象
+        tag_ids = [tag.id for tag in tags]
+        post_count_map: dict[int, int] = {}
+        if tag_ids:
+            count_rows = db.execute(
+                select(post_tags.c.tag_id, func.count())
+                .where(post_tags.c.tag_id.in_(tag_ids))
+                .group_by(post_tags.c.tag_id)
+            ).all()
+            post_count_map = {int(tag_id): int(count or 0) for tag_id, count in count_rows}
         for tag in tags:
-            setattr(tag, "post_count", len(tag.posts) if tag.posts else 0)
+            setattr(tag, "post_count", post_count_map.get(tag.id, 0))
 
         def _build_page_url(target_page: int) -> str:
             params = {}
@@ -1048,16 +1068,19 @@ def register_admin_primary_routes(
                 )
             )
 
-        total_comments = db.execute(select(func.count(Comment.id))).scalar_one()
-        pending_count = db.execute(
-            select(func.count(Comment.id)).where(Comment.status == "pending")
-        ).scalar_one()
-        approved_count = db.execute(
-            select(func.count(Comment.id)).where(Comment.status == "approved")
-        ).scalar_one()
-        spam_count = db.execute(
-            select(func.count(Comment.id)).where(Comment.status == "spam")
-        ).scalar_one()
+        # 一次扫描得出总数与三个状态计数，避免四次全表 COUNT
+        status_counts = db.execute(
+            select(
+                func.count(Comment.id),
+                func.sum(case((Comment.status == "pending", 1), else_=0)),
+                func.sum(case((Comment.status == "approved", 1), else_=0)),
+                func.sum(case((Comment.status == "spam", 1), else_=0)),
+            )
+        ).one()
+        total_comments = int(status_counts[0] or 0)
+        pending_count = int(status_counts[1] or 0)
+        approved_count = int(status_counts[2] or 0)
+        spam_count = int(status_counts[3] or 0)
 
         count_query = select(func.count(Comment.id)).outerjoin(Post, Post.id == Comment.post_id)
         if filter_conditions:

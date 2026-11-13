@@ -1,6 +1,6 @@
 <div class="admin-login-logo inline-block mb-4">
     {% if request.state.site_logo_light %}
-    <img src="{{ request.state.site_logo_light }}" alt="{{ request.state.site_title }}" class="h-16 w-auto mx-auto object-contain" onerror="this.remove()">
+    <img src="{{ request.state.site_logo_light }}" alt="{{ request.state.site_title }}" class="h-16 w-auto mx-auto object-contain" loading="eager" onerror="this.remove()">
     {% else %}
     <div class="admin-login-logo-mark mx-auto" aria-label="RewrZ 品牌标识">
         <span class="admin-login-logo-text"><span class="logo-r">R</span><span class="logo-z">Z</span></span>

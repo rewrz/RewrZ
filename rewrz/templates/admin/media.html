@@ -684,7 +684,7 @@ document.addEventListener('DOMContentLoaded', () => {
         card.dataset.fileSize = String(item?.file_size || 0);
 
         const mediaPreview = isImage
-            ? `<img src="${PLACEHOLDER_IMAGE}" data-src="${escapeHtml(previewUrl)}" alt="${escapeHtml(altText)}" loading="lazy" decoding="async" fetchpriority="low">`
+            ? `<img src="${PLACEHOLDER_IMAGE}" data-src="${escapeHtml(previewUrl)}" alt="${escapeHtml(altText)}" loading="eager" decoding="async" fetchpriority="low">`
             : `<div class="w-full h-full flex items-center justify-center text-[var(--color-text-light)]">
                 <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
             </div>`;
@@ -1418,7 +1418,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="w-full aspect-w-1 aspect-h-1 media-detail-preview rounded-lg overflow-hidden">
                         ${String(media.file_type || '').startsWith('image')
-                            ? `<img src="${safeUrl}" alt="${safePreviewAlt}" class="w-full h-full object-contain">`
+                            ? `<img src="${safeUrl}" alt="${safePreviewAlt}" class="w-full h-full object-contain" loading="eager">`
                             : `<div class="w-full h-full flex items-center justify-center text-[var(--color-text-light)]"><span>不支持预览</span></div>`}
                     </div>
                     <div class="space-y-4">

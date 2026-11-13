@@ -7,9 +7,9 @@
     <!-- Logo 区域增强 -->
     <a href="{{ admin_root }}/dashboard" class="admin-logo-link flex items-center gap-3 px-2 py-3 rounded-xl mb-4 transition-all duration-300 hover:shadow-lg group" title="返回后台首页">
         {% if request.state.site_logo_light %}
-            <img src="{{ request.state.site_logo_light }}" alt="{{ request.state.site_title or '后台' }}" class="h-10 w-auto object-contain rounded-lg transition-transform duration-300 group-hover:scale-105" onerror="this.remove()">
+            <img src="{{ request.state.site_logo_light }}" alt="{{ request.state.site_title or '后台' }}" class="h-10 w-auto object-contain rounded-lg transition-transform duration-300 group-hover:scale-105" loading="eager" onerror="this.remove()">
         {% elif request.state.site_logo_dark %}
-            <img src="{{ request.state.site_logo_dark }}" alt="{{ request.state.site_title or '后台' }}" class="h-10 w-auto object-contain rounded-lg transition-transform duration-300 group-hover:scale-105" onerror="this.remove()">
+            <img src="{{ request.state.site_logo_dark }}" alt="{{ request.state.site_title or '后台' }}" class="h-10 w-auto object-contain rounded-lg transition-transform duration-300 group-hover:scale-105" loading="eager" onerror="this.remove()">
         {% else %}
             <span class="h-11 w-11 rounded-xl border border-white/20 bg-gradient-to-br from-cyan-300 via-emerald-400 to-slate-900 inline-flex items-center justify-center text-sm font-extrabold tracking-[0.22em] shadow-md transition-all duration-300 group-hover:shadow-lg group-hover:scale-105">
                 <span style="color: rgba(10, 10, 10, 0.96);">R</span><span style="color: rgba(255, 255, 255, 0.98);">Z</span>

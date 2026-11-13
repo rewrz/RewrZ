@@ -341,7 +341,7 @@
                         {% set admin_user_name = user.display_name if user.display_name else user.username %}
                         {% set admin_avatar_url = user.avatar_url if user.avatar_url else ('/media/avatar/' ~ (user.email | md5) ~ '?s=48' if user.email else '/static/images/default-avatar.png') %}
                         <span class="admin-chip">
-                            <img src="{{ admin_avatar_url }}" alt="{{ admin_user_name }}" class="h-6 w-6 rounded-full object-cover" onerror="this.src='/static/images/default-avatar.png'">
+                            <img src="{{ admin_avatar_url }}" alt="{{ admin_user_name }}" class="h-6 w-6 rounded-full object-cover" loading="eager" onerror="this.src='/static/images/default-avatar.png'">
                             {{ admin_user_name }}
                         </span>
                         <a href="/" target="_blank" class="admin-chip" title="访问前台">
@@ -688,10 +688,18 @@
             });
         });
 
-        window.addEventListener('focus', () => syncAdminTheme(false));
+        // 窗口重新可见时 focus 与 visibilitychange 连发，复用同一个在途请求避免重复同步
+        let pendingAdminThemeSync = null;
+        const syncAdminThemeOnReturn = () => {
+            if (pendingAdminThemeSync) return;
+            pendingAdminThemeSync = syncAdminTheme(false).finally(() => {
+                pendingAdminThemeSync = null;
+            });
+        };
+        window.addEventListener('focus', syncAdminThemeOnReturn);
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
-                syncAdminTheme(false);
+                syncAdminThemeOnReturn();
             }
         });
         window.addEventListener('adminThemeRefreshRequested', () => syncAdminTheme(true));

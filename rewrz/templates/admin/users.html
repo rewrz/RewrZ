@@ -347,7 +347,7 @@
                 <h2 class="mb-4 text-lg font-semibold text-gray-900">头像管理</h2>
                 <div class="flex items-center gap-4">
                     <img id="profile-avatar-preview" src="{{ avatar_url }}" alt="avatar"
-                         class="h-20 w-20 rounded-full border border-gray-200 object-cover shadow-sm">
+                         class="h-20 w-20 rounded-full border border-gray-200 object-cover shadow-sm" loading="eager">
                     <div class="text-sm text-gray-600">
                         <div class="font-medium text-gray-800">{{ profile_user.display_name or profile_user.username }}</div>
                         <div class="mt-1">当前来源：<span id="avatar-source-badge" class="font-medium text-indigo-600">{{ avatar_source }}</span></div>
@@ -412,15 +412,15 @@
 
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div class="overflow-hidden rounded-lg border border-gray-200">
-                        <img id="preview_creator_profile_cover_url" src="{{ ps.creator_profile_cover_url or '/static/images/covers/format-article.jpg' }}" alt="article-cover" class="h-20 w-full object-cover" loading="lazy" decoding="async">
+                        <img id="preview_creator_profile_cover_url" src="{{ ps.creator_profile_cover_url or '/static/images/covers/format-article.jpg' }}" alt="article-cover" class="h-20 w-full object-cover" loading="eager" decoding="async">
                         <div class="px-2 py-1 text-center text-[11px] text-gray-500">文章</div>
                     </div>
                     <div class="overflow-hidden rounded-lg border border-gray-200">
-                        <img id="preview_creator_profile_micro_cover_url" src="{{ ps.creator_profile_micro_cover_url or '/static/images/covers/format-micro.jpg' }}" alt="micro-cover" class="h-20 w-full object-cover" loading="lazy" decoding="async">
+                        <img id="preview_creator_profile_micro_cover_url" src="{{ ps.creator_profile_micro_cover_url or '/static/images/covers/format-micro.jpg' }}" alt="micro-cover" class="h-20 w-full object-cover" loading="eager" decoding="async">
                         <div class="px-2 py-1 text-center text-[11px] text-gray-500">微博</div>
                     </div>
                     <div class="overflow-hidden rounded-lg border border-gray-200">
-                        <img id="preview_creator_profile_poem_cover_url" src="{{ ps.creator_profile_poem_cover_url or '/static/images/covers/format-poem.jpg' }}" alt="poem-cover" class="h-20 w-full object-cover" loading="lazy" decoding="async">
+                        <img id="preview_creator_profile_poem_cover_url" src="{{ ps.creator_profile_poem_cover_url or '/static/images/covers/format-poem.jpg' }}" alt="poem-cover" class="h-20 w-full object-cover" loading="eager" decoding="async">
                         <div class="px-2 py-1 text-center text-[11px] text-gray-500">诗词</div>
                     </div>
                 </div>

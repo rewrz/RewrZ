@@ -10,6 +10,8 @@ class Comment(Base):
     __table_args__ = (
         Index("ix_comments_post_status_created", "post_id", "status", "created_at"),
         Index("ix_comments_parent_id", "parent_id"),
+        # 后台审核列表按状态过滤并按时间倒序，与前台按文章取评论的口径不同
+        Index("ix_comments_status_created", "status", "created_at"),
     )
 
     id = Column(Integer, primary_key=True, index=True)

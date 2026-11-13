@@ -21,6 +21,7 @@ import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile, Body, Header
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 from ..core.admin_path import get_request_admin_path
@@ -931,30 +932,32 @@ def get_data_stats(
     用于显示当前博客的数据概况
     """
     try:
-        from ..crud import post as crud_post
-        from ..crud import category as crud_category
-        from ..crud import tag as crud_tag
-        from ..crud import media as crud_media
-        from ..crud import setting as crud_setting
-        
-        # 统计数据
-        posts_count = len(crud_post.get_all_posts(db))
-        categories_count = len(crud_category.get_all_categories(db))
-        tags_count = len(crud_tag.get_all_tags(db))
-        media_count = len(crud_media.get_all_media(db, limit=10**9))
-        settings_count = len(crud_setting.get_all_settings(db))
-        
-        # 计算媒体文件总大小
-        media_items = crud_media.get_all_media(db, limit=10**9)
+        from ..models import Category, Media, Post, Setting, Tag
+
+        # 只取计数与媒体路径，避免把整表 ORM 对象（含关联预加载）读进内存
+        posts_count = db.execute(select(func.count(Post.id))).scalar_one()
+        categories_count = db.execute(select(func.count(Category.id))).scalar_one()
+        tags_count = db.execute(select(func.count(Tag.id))).scalar_one()
+        settings_count = db.execute(select(func.count(Setting.id))).scalar_one()
+        media_filepaths = db.execute(select(Media.filepath)).scalars().all()
+        media_count = len(media_filepaths)
+
+        # 单次 stat 同时完成存在性判断与取大小，避免每条记录两次文件系统调用
         total_media_size = 0
         media_root = os.path.abspath(str(settings.MEDIA_UPLOAD_DIR or "media_uploads"))
-        for item in media_items:
-            # 获取实际文件大小
-            if os.path.exists(item.filepath):
-                total_media_size += os.path.getsize(item.filepath)
+        for filepath in media_filepaths:
+            if not filepath:
+                continue
+            try:
+                total_media_size += os.stat(filepath).st_size
+                continue
+            except OSError:
+                pass
             # 兼容历史相对路径记录
-            elif os.path.exists(os.path.join(media_root, item.filepath)):
-                total_media_size += os.path.getsize(os.path.join(media_root, item.filepath))
+            try:
+                total_media_size += os.stat(os.path.join(media_root, filepath)).st_size
+            except OSError:
+                continue
         
         # 格式化文件大小
         def format_file_size(size_bytes):
