@@ -4591,6 +4591,11 @@ body.site-shell .media-external-box {
     color: var(--color-text);
 }
 
+/* 纯 Markdown 模式：预览由 ToastUI 的 tab 模式收起，这里隐藏 tab 切换条，让编辑区占满整宽 */
+.editor-surface.is-markdown-only .toastui-editor-md-tab-container {
+    display: none !important;
+}
+
 .editor-mode-toggle {
     border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
     background: color-mix(in srgb, var(--color-card-bg) 94%, transparent);

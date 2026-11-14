@@ -8,6 +8,7 @@ import json
 import threading
 import time
 from collections import defaultdict, deque
+from urllib.parse import urlsplit
 
 from ..core.admin_path import get_admin_path
 from ..core.database import get_db
@@ -72,6 +73,35 @@ def _check_preview_rate_limit(user_key: str, limit: Optional[int] = None) -> Tup
 
         bucket.append(now_ts)
         return True, 0
+
+
+def _safe_admin_return_url(raw_value: Optional[str], fallback: str) -> str:
+    """只接受本站后台根相对路径，拒绝协议、主机与 // 开头的开放重定向。"""
+    candidate = str(raw_value or "").strip()
+    if not candidate:
+        return fallback
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in candidate):
+        return fallback
+    if "\\" in candidate:
+        return fallback
+    parsed = urlsplit(candidate)
+    if parsed.scheme or parsed.netloc:
+        return fallback
+    if not parsed.path.startswith("/") or parsed.path.startswith("//"):
+        return fallback
+    admin_prefix = ADMIN_PATH.rstrip("/")
+    if admin_prefix and not (parsed.path == admin_prefix or parsed.path.startswith(admin_prefix + "/")):
+        return fallback
+    return candidate
+
+
+def _editor_save_response(return_to: Optional[str], *, default_path: str, status: str, saved_id: int, slug: str):
+    """草稿保存停留在编辑器；发布才跳回列表，并优先回到来源页面的页码与筛选条件。"""
+    if status == "published":
+        response = Response(status_code=200)
+        response.headers["HX-Redirect"] = _safe_admin_return_url(return_to, default_path)
+        return response
+    return JSONResponse({"saved": True, "id": int(saved_id), "slug": slug})
 
 
 def _get_content_primary_mode(db: Session) -> str:
@@ -492,7 +522,7 @@ def update_public_quick_micro_post(
 
 
 @router.get(f"{ADMIN_PATH}/posts/new", response_class=HTMLResponse)
-def new_post_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
+def new_post_page(request: Request, return_to: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
     """
     显示新建文章页面
     """
@@ -509,13 +539,14 @@ def new_post_page(request: Request, db: Session = Depends(get_db), current_user:
         "style_preset_options": get_style_preset_options(),
         "content_primary_mode": content_primary_mode,
         "site_timezone": settings.SITE_TIMEZONE,
+        "return_to": _safe_admin_return_url(return_to, f"{ADMIN_PATH}/posts"),
         "post": None, # 新建文章时没有post对象
         "post_type": "post", # 明确指定为文章类型
         "media_upload_dir_name": settings.MEDIA_UPLOAD_DIR # 传递媒体上传目录名称
     })
 
 @router.get(f"{ADMIN_PATH}/posts/{{post_id}}/edit", response_class=HTMLResponse)
-def edit_post_page(post_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
+def edit_post_page(post_id: int, request: Request, return_to: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
     """
     显示编辑文章页面
     """
@@ -538,6 +569,7 @@ def edit_post_page(post_id: int, request: Request, db: Session = Depends(get_db)
         "style_preset_options": get_style_preset_options(),
         "content_primary_mode": content_primary_mode,
         "site_timezone": settings.SITE_TIMEZONE,
+        "return_to": _safe_admin_return_url(return_to, f"{ADMIN_PATH}/posts"),
         "post_type": "post", # 明确指定为文章类型
         "media_upload_dir_name": settings.MEDIA_UPLOAD_DIR # 传递媒体上传目录名称
     })
@@ -545,6 +577,7 @@ def edit_post_page(post_id: int, request: Request, db: Session = Depends(get_db)
 @router.post(f"{ADMIN_PATH}/posts/new")
 def create_post_api(
     request: Request,
+    return_to: Optional[str] = Form(None),
     title: str = Form(...),
     content: str = Form(""),
     content_html: Optional[str] = Form(None),
@@ -620,17 +653,22 @@ def create_post_api(
         format_ids=resolved_format_ids # 仅传递单个主类型ID
     )
     _refresh_post_cover_cache_safely(db, db_post)
-    
-    # 返回HTMX响应，重定向到文章列表或编辑页面
-    response = Response(status_code=200)
-    response.headers["HX-Redirect"] = f"{ADMIN_PATH}/posts"
-    return response
+
+    # 草稿保存停留在编辑器；发布才跳回来源列表
+    return _editor_save_response(
+        return_to,
+        default_path=f"{ADMIN_PATH}/posts",
+        status=status,
+        saved_id=db_post.id,
+        slug=db_post.slug,
+    )
 
 @router.put(f"{ADMIN_PATH}/posts/{{post_id}}")
 @router.post(f"{ADMIN_PATH}/posts/{{post_id}}")
 def update_post_api(
     request: Request,
     post_id: int,
+    return_to: Optional[str] = Form(None),
     title: str = Form(...),
     content: str = Form(""),
     content_html: Optional[str] = Form(None),
@@ -721,11 +759,15 @@ def update_post_api(
     )
     if updated_post is not None:
         _refresh_post_cover_cache_safely(db, updated_post, previous_slug=previous_slug)
-    
-    # 返回HTMX响应，重定向到文章列表或编辑页面
-    response = Response(status_code=200)
-    response.headers["HX-Redirect"] = f"{ADMIN_PATH}/posts"
-    return response
+
+    # 草稿保存停留在编辑器；发布才跳回来源列表
+    return _editor_save_response(
+        return_to,
+        default_path=f"{ADMIN_PATH}/posts",
+        status=status,
+        saved_id=post_id,
+        slug=updated_post.slug if updated_post is not None else "",
+    )
 
 
 @router.patch(f"{ADMIN_PATH}/api/v1/posts/{{post_id}}/inline", response_model=dict)
@@ -1051,7 +1093,7 @@ def refresh_post_cover_cache_api(
 # --- 页面管理路由 ---
 
 @router.get(f"{ADMIN_PATH}/pages/new", response_class=HTMLResponse)
-def new_page_page(request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
+def new_page_page(request: Request, return_to: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
     """
     显示新建页面页面
     """
@@ -1066,12 +1108,13 @@ def new_page_page(request: Request, db: Session = Depends(get_db), current_user:
         "page_template_groups": get_page_template_grouped_options(),
         "content_primary_mode": content_primary_mode,
         "site_timezone": settings.SITE_TIMEZONE,
+        "return_to": _safe_admin_return_url(return_to, f"{ADMIN_PATH}/pages"),
         "license_options": get_license_options_filter
     })
 
 
 @router.get(f"{ADMIN_PATH}/pages/{{page_id}}/edit", response_class=HTMLResponse)
-def edit_page_page(page_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
+def edit_page_page(page_id: int, request: Request, return_to: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):
     """
     显示编辑页面页面
     """
@@ -1090,12 +1133,14 @@ def edit_page_page(page_id: int, request: Request, db: Session = Depends(get_db)
         "page_template_groups": get_page_template_grouped_options(),
         "content_primary_mode": content_primary_mode,
         "site_timezone": settings.SITE_TIMEZONE,
+        "return_to": _safe_admin_return_url(return_to, f"{ADMIN_PATH}/pages"),
         "license_options": get_license_options_filter
     })
 
 @router.post(f"{ADMIN_PATH}/pages/new")
 def create_page_api(
     request: Request,
+    return_to: Optional[str] = Form(None),
     title: str = Form(...),
     content: str = Form(""),
     content_html: Optional[str] = Form(None),
@@ -1151,17 +1196,22 @@ def create_page_api(
         post=page_create_data, 
         author_id=current_user.id
     )
-    
-    # 返回HTMX响应，重定向到页面列表
-    response = Response(status_code=200)
-    response.headers["HX-Redirect"] = f"{ADMIN_PATH}/pages"
-    return response
+
+    # 草稿保存停留在编辑器；发布才跳回来源列表
+    return _editor_save_response(
+        return_to,
+        default_path=f"{ADMIN_PATH}/pages",
+        status=status,
+        saved_id=db_page.id,
+        slug=db_page.slug,
+    )
 
 @router.put(f"{ADMIN_PATH}/pages/{{page_id}}")
 @router.post(f"{ADMIN_PATH}/pages/{{page_id}}")
 def update_page_api(
     request: Request,
     page_id: int,
+    return_to: Optional[str] = Form(None),
     title: str = Form(...),
     content: str = Form(""),
     content_html: Optional[str] = Form(None),
@@ -1231,10 +1281,14 @@ def update_page_api(
         post=page_update_data
     )
     
-    # 返回HTMX响应，重定向到页面列表
-    response = Response(status_code=200)
-    response.headers["HX-Redirect"] = f"{ADMIN_PATH}/pages"
-    return response
+    # 草稿保存停留在编辑器；发布才跳回来源列表
+    return _editor_save_response(
+        return_to,
+        default_path=f"{ADMIN_PATH}/pages",
+        status=status,
+        saved_id=page_id,
+        slug=updated_page.slug if updated_page is not None else "",
+    )
 
 @router.delete(f"{ADMIN_PATH}/api/v1/pages/{{page_id}}")
 def delete_page_api(page_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin_user)):

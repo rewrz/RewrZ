@@ -3,11 +3,12 @@
 {% block title_text %}页面管理{% endblock %}
 {% block page_title %}<i class="fas fa-file admin-accent-text mr-3"></i>页面管理{% endblock %}
 {% block content %}
+{% set list_return_to = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
 {% set template_labels = page_template_label_map | default({}, true) %}
 <div class="admin-panel admin-pages-shell pages-admin-page p-4 md:p-6 space-y-5">
     <div class="admin-toolbar-shell flex flex-wrap items-center justify-between gap-3 px-4 py-4">
         <div class="admin-toolbar-main flex flex-wrap items-center gap-2">
-            <a href="{{ request.state.admin_path }}/pages/new"
+            <a href="{{ request.state.admin_path }}/pages/new?return_to={{ list_return_to | urlencode }}"
                class="admin-primary-btn rounded-md px-4 py-2">
                 <i class="fas fa-plus mr-2"></i>新建页面
             </a>
@@ -162,7 +163,7 @@
                     </td>
                     <td class="px-4 py-4 align-top">
                         <div class="admin-action-links flex items-center gap-3 text-sm">
-                            <a href="{{ request.state.admin_path }}/pages/{{ page.id }}/edit" class="admin-action-link" title="编辑">
+                            <a href="{{ request.state.admin_path }}/pages/{{ page.id }}/edit?return_to={{ list_return_to | urlencode }}" class="admin-action-link" title="编辑">
                                 <i class="fas fa-edit"></i>
                             </a>
                             <a href="/{{ page.slug }}" target="_blank" class="admin-action-link" title="查看">
@@ -202,7 +203,7 @@
                         <i class="fas fa-file mb-4 text-4xl opacity-60"></i>
                         <div class="text-lg">暂无页面</div>
                         <div class="text-sm">
-                            <a href="{{ request.state.admin_path }}/pages/new" class="admin-accent-link">立即创建第一个页面</a>
+                            <a href="{{ request.state.admin_path }}/pages/new?return_to={{ list_return_to | urlencode }}" class="admin-accent-link">立即创建第一个页面</a>
                         </div>
                     </td>
                 </tr>
@@ -243,7 +244,8 @@
 let pageBatchActionInProgress = false;
 
 function refreshPagesList() {
-    window.location.href = '{{ request.state.admin_path }}/pages';
+    // 保留当前搜索、筛选与分页状态，与文章列表保持一致
+    window.location.reload();
 }
 
 function getSelectedPages() {

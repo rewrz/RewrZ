@@ -273,12 +273,10 @@
             box-shadow: var(--ui-ring);
         }
     </style>
-    {# 编辑器资源固定在全局 head：后台页面常经 HTMX 局部替换，放在内容区会被动态插入并异步加载，
-       初始化脚本先执行就会偶发 toastui is not defined。同步放在 head 可保证任何导航方式下全局都已就绪。 #}
-    <link rel="stylesheet" href="{{ static_asset(request, 'vendor/toastui/toastui-editor.min.css') }}" />
-    <script src="{{ static_asset(request, 'vendor/toastui/toastui-editor-all.min.js') }}"></script>
-    <script src="{{ static_asset(request, 'js/editor-raw-html.js') }}"></script>
-    <script src="{{ static_asset(request, 'js/editor-block-directives.js') }}"></script>
+    {# 编辑器资源由 post_form / page_form 通过 head 块按需输出：同步放在 head 可保证
+       content 内的内联初始化脚本执行前资源已就绪，非编辑器页不再承担这部分开销。
+       当前后台导航均为整页跳转；若将来重新启用 HTMX 片段导航，下方守卫会把
+       进入编辑器页的片段请求降级为整页加载，以规避 toastui is not defined。 #}
     {% block head %}{% endblock %}
     <script>
         // 图片加载失败时隐藏破损图标与替代文字，保留容器底色，避免侧栏 Logo 失效后重复显示站名
@@ -390,6 +388,24 @@
         document.body.addEventListener('htmx:beforeRequest', function (event) {
             if (document.visibilityState === 'hidden') {
                 event.preventDefault();
+            }
+        });
+
+        // 编辑器资源只在编辑器页的 head 输出。若将来有人用 HTMX 片段导航进入编辑器页，
+        // 片段里的资源会被异步插入，而内联初始化脚本立即执行，会重现 toastui is not defined；
+        // 这里拦截该场景并改为整页加载目标地址，让 head 里的同步资源先就绪。
+        document.body.addEventListener('htmx:beforeSwap', function (event) {
+            if (window.toastui) return;
+            var detail = event.detail || {};
+            var fragment = String(detail.serverResponse || (detail.xhr && detail.xhr.responseText) || '');
+            if (fragment.indexOf('id="editor"') === -1) return;
+            var target = (detail.xhr && detail.xhr.responseURL)
+                || (detail.requestConfig && detail.requestConfig.path);
+            event.preventDefault();
+            if (target && target !== window.location.href) {
+                window.location.href = target;
+            } else {
+                window.location.reload();
             }
         });
 

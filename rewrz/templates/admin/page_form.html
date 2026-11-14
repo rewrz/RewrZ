@@ -2,6 +2,13 @@
 
 {% block title_text %}{% if post %}编辑页面{% else %}新建页面{% endif %}{% endblock %}
 {% block page_title %}{% if post %}<i class="fas fa-edit admin-accent-text mr-3"></i>编辑页面{% else %}<i class="fas fa-plus-circle admin-accent-text mr-3"></i>新建页面{% endif %}{% endblock %}
+{% block head %}
+{# 编辑器资源只在本页与文章编辑器页输出，同步加载以保证下方内联初始化脚本先拿到全局对象 #}
+<link rel="stylesheet" href="{{ static_asset(request, 'vendor/toastui/toastui-editor.min.css') }}" />
+<script src="{{ static_asset(request, 'vendor/toastui/toastui-editor-all.min.js') }}"></script>
+<script src="{{ static_asset(request, 'js/editor-raw-html.js') }}"></script>
+<script src="{{ static_asset(request, 'js/editor-block-directives.js') }}"></script>
+{% endblock %}
 {% block content %}
 <style>
     .editor-input {
@@ -145,6 +152,7 @@
             backdrop-filter: none;
         }
     }
+    .editor-surface .toastui-editor-md-container .ProseMirror,
     .editor-surface .toastui-editor-md-container .cm-content,
     .editor-surface .toastui-editor-md-container .CodeMirror-lines,
     .editor-surface .toastui-editor-ww-container .ProseMirror,
@@ -225,8 +233,9 @@
     }
 </style>
 
-<form id="page-form" hx-post="{% if post %}{{ request.state.admin_path }}/pages/{{ post.id }}{% else %}{{ request.state.admin_path }}/pages/new{% endif %}" hx-target="#admin-content" hx-swap="outerHTML" class="editor-admin-page space-y-6">
+<form id="page-form" hx-post="{% if post %}{{ request.state.admin_path }}/pages/{{ post.id }}{% else %}{{ request.state.admin_path }}/pages/new{% endif %}" hx-target="#admin-content" hx-swap="none" class="editor-admin-page space-y-6">
     <input type="hidden" hidden name="csrf_token" value="{{ request.state.csrf_token }}">
+    <input type="hidden" name="return_to" value="{{ return_to }}">
     <input type="hidden" name="editor_mode" id="editor-mode-input" value="markdown">
     {% if post %}
     <input type="hidden" name="_method" value="PUT">
@@ -244,7 +253,8 @@
                 </div>
                 <div class="editor-toolbar mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div class="editor-mode-toggle inline-flex overflow-hidden rounded-md text-sm" role="group" aria-label="编辑模式切换">
-                        <button type="button" id="editor-mode-markdown" class="editor-mode-button is-active px-3 py-2">Markdown</button>
+                        <button type="button" id="editor-mode-markdown" class="editor-mode-button is-active px-3 py-2">Markdown 分屏</button>
+                        <button type="button" id="editor-mode-markdown-wide" class="editor-mode-button px-3 py-2" title="只显示 Markdown 编辑区，不显示预览">Markdown 全宽</button>
                         <button type="button" id="editor-mode-html" class="editor-mode-button px-3 py-2">富文本</button>
                     </div>
                     <div class="flex flex-wrap gap-2">
@@ -493,8 +503,10 @@
     }
 
     const pageForm = document.getElementById('page-form');
+    const editorRoot = document.getElementById('editor');
     const editorModeInput = document.getElementById('editor-mode-input');
     const markdownModeButton = document.getElementById('editor-mode-markdown');
+    const markdownWideModeButton = document.getElementById('editor-mode-markdown-wide');
     const htmlModeButton = document.getElementById('editor-mode-html');
     const fullscreenToggleButton = document.getElementById('editor-fullscreen-toggle');
     const fontIncreaseButton = document.getElementById('editor-font-increase');
@@ -614,25 +626,35 @@
         }
     }
 
-    function getActiveEditorMode() {
+    function getActiveEditorViewMode() {
         if (editor && typeof editor.isWysiwygMode === 'function' && editor.isWysiwygMode()) {
             return 'html';
         }
-        return 'markdown';
+        return editorRoot && editorRoot.classList.contains('is-markdown-only') ? 'markdown_wide' : 'markdown';
     }
 
-    function updateEditorModeButtons(activeMode) {
-        const isMarkdown = activeMode === 'markdown';
+    // 提交与快照仍只区分 markdown / html，全宽只是同一 Markdown 模式的展示差异
+    function getActiveEditorMode() {
+        return getActiveEditorViewMode() === 'html' ? 'html' : 'markdown';
+    }
+
+    function updateEditorModeButtons(activeViewMode) {
         if (markdownModeButton) {
-            markdownModeButton.classList.toggle('is-active', isMarkdown);
+            markdownModeButton.classList.toggle('is-active', activeViewMode === 'markdown');
+        }
+        if (markdownWideModeButton) {
+            markdownWideModeButton.classList.toggle('is-active', activeViewMode === 'markdown_wide');
         }
         if (htmlModeButton) {
-            htmlModeButton.classList.toggle('is-active', !isMarkdown);
+            htmlModeButton.classList.toggle('is-active', activeViewMode === 'html');
         }
     }
 
     function setEditorMode(mode, shouldSwitch = true) {
-        const targetMode = mode === 'html' ? 'html' : 'markdown';
+        const targetViewMode = mode === 'html'
+            ? 'html'
+            : (mode === 'markdown_wide' ? 'markdown_wide' : 'markdown');
+        const targetMode = targetViewMode === 'html' ? 'html' : 'markdown';
         const currentMode = getActiveEditorMode();
         if (editorModeInput) {
             editorModeInput.value = targetMode;
@@ -657,7 +679,14 @@
                 }
             }
         }
-        updateEditorModeButtons(targetMode);
+        // 全宽模式用 tab 布局收起预览，分屏模式恢复 vertical
+        if (targetMode === 'markdown' && editor && typeof editor.changePreviewStyle === 'function') {
+            editor.changePreviewStyle(targetViewMode === 'markdown_wide' ? 'tab' : 'vertical');
+        }
+        if (editorRoot) {
+            editorRoot.classList.toggle('is-markdown-only', targetViewMode === 'markdown_wide');
+        }
+        updateEditorModeButtons(targetViewMode);
     }
 
     function updateDirtyUI() {
@@ -794,6 +823,12 @@
             markDirty();
         });
     }
+    if (markdownWideModeButton) {
+        markdownWideModeButton.addEventListener('click', () => {
+            setEditorMode('markdown_wide');
+            markDirty();
+        });
+    }
     if (htmlModeButton) {
         htmlModeButton.addEventListener('click', () => {
             setEditorMode('html');
@@ -817,6 +852,12 @@
     });
 
     pageForm.addEventListener('htmx:configRequest', function (event) {
+        // 新建页面首次保存成功后地址栏已切到 /pages/{id}/edit，后续保存必须走 PUT，避免重复创建
+        const editMatch = window.location.pathname.match(/\/pages\/(\d+)\/edit$/);
+        if (editMatch) {
+            event.detail.path = '{{ request.state.admin_path }}/pages/' + editMatch[1];
+            event.detail.parameters._method = 'PUT';
+        }
         const mode = getActiveEditorMode();
         const rawMarkdown = editor.getMarkdown();
         const hasRawHtml = window.RewrzEditorRawHtml.hasWrapper(rawMarkdown);
@@ -1163,6 +1204,48 @@
     });
     pageForm.addEventListener('htmx:beforeSwap', () => {
         document.body.classList.remove('editor-fullscreen-active');
+    });
+
+    // 草稿保存返回 JSON：停留在编辑器、切到编辑态并提示；发布由 HX-Redirect 整页跳转
+    pageForm.addEventListener('htmx:afterRequest', (event) => {
+        if (!event.detail || !event.detail.successful) return;
+        const xhr = event.detail.xhr;
+        if (!xhr || xhr.status !== 200) return;
+        let payload = null;
+        try {
+            payload = JSON.parse(xhr.responseText || 'null');
+        } catch (_) {
+            payload = null;
+        }
+        if (!payload || !payload.saved) return;
+
+        const savedId = payload.id;
+        if (savedId) {
+            pageForm.setAttribute('hx-post', '{{ request.state.admin_path }}/pages/' + savedId);
+            if (!pageForm.querySelector('input[name="_method"]')) {
+                const methodInput = document.createElement('input');
+                methodInput.type = 'hidden';
+                methodInput.name = '_method';
+                methodInput.value = 'PUT';
+                pageForm.appendChild(methodInput);
+            }
+            if (window.location.pathname.endsWith('/pages/new')) {
+                window.history.replaceState(
+                    null,
+                    '',
+                    '{{ request.state.admin_path }}/pages/' + savedId + '/edit' + window.location.search
+                );
+            }
+        }
+        isSubmitting = false;
+        isDirty = false;
+        updateDirtyUI();
+        if (savePageButton) {
+            savePageButton.disabled = false;
+            savePageButton.classList.remove('opacity-70', 'cursor-not-allowed');
+            savePageButton.innerHTML = '<i class="fas fa-save mr-2"></i>保存';
+        }
+        window.adminNotify?.('已保存', 'success', { duration: 1800 });
     });
 
     function restoreSaveButtonAfterFailure() {
