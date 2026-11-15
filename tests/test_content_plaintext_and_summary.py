@@ -1,6 +1,12 @@
 from types import SimpleNamespace
 
-from rewrz.core.content_utils import get_effective_plain_text
+from rewrz.core.content_access import render_markdown_with_hide_blocks
+from rewrz.core.content_utils import (
+    get_effective_content_html,
+    get_effective_plain_text,
+    render_markdown_html,
+    strip_empty_paragraphs,
+)
 from rewrz.core.micro_text import _render_micro_inline_text, enhance_micro_html, extract_micro_tags, strip_micro_tags
 from rewrz.core.template_filters import post_summary_text_filter
 
@@ -13,6 +19,107 @@ def test_get_effective_plain_text_renders_markdown_before_stripping_html() -> No
     assert plain_text == "这是一个 #测试 例子"
     assert "href=" not in plain_text
     assert "<a" not in plain_text
+
+
+def test_strip_empty_paragraphs_removes_editor_blank_lines() -> None:
+    html_content = '<p>第一段</p><p><br></p><p>&nbsp;</p><p><img src="/media/a.png"></p>'
+
+    cleaned = strip_empty_paragraphs(html_content)
+
+    assert "<br>" not in cleaned
+    assert "&nbsp;" not in cleaned
+    assert '<img src="/media/a.png">' in cleaned
+
+
+def test_get_effective_content_html_strips_empty_paragraphs() -> None:
+    html_content = "<p>第一段</p><p><br></p><p>第二段</p>"
+
+    rendered = get_effective_content_html("", html_content)
+
+    assert rendered == "<p>第一段</p><p>第二段</p>"
+
+
+def test_render_markdown_html_restores_escaped_tildes() -> None:
+    rendered = render_markdown_html(r"测试\~\~ 和 \~单个\~")
+
+    assert "\\~" not in rendered
+    assert "测试~~ 和 ~单个~" in rendered
+
+
+def test_render_markdown_html_supports_strikethrough() -> None:
+    rendered = render_markdown_html("~~删除线~~")
+
+    assert "<del>删除线</del>" in rendered
+
+
+def test_hide_block_inside_directive_keeps_layout() -> None:
+    markdown_content = ":::notice warn\n\n[hide]\n隐藏内容\n[/hide]\n\n:::\n\n公开段落"
+
+    rendered = render_markdown_with_hide_blocks(
+        markdown_content,
+        post_id=1,
+        can_view_hidden=False,
+    )
+
+    assert ":::notice" not in rendered
+    assert "md-block-notice" in rendered
+    assert "content-hide-placeholder" in rendered
+
+
+def test_hide_block_unlocked_renders_inside_directive() -> None:
+    markdown_content = ":::notice warn\n\n[hide]\n隐藏内容\n[/hide]\n\n:::"
+
+    rendered = render_markdown_with_hide_blocks(
+        markdown_content,
+        post_id=1,
+        can_view_hidden=True,
+    )
+
+    assert "隐藏内容" in rendered
+    assert "md-block-notice" in rendered
+    assert "content-hide-placeholder" not in rendered
+
+
+def test_render_markdown_html_supports_indented_directive() -> None:
+    rendered = render_markdown_html("  :::notice info\n\n  提示内容\n\n  :::")
+
+    assert "md-block-notice" in rendered
+    assert ":::notice" not in rendered
+
+
+def test_render_markdown_html_ignores_directive_in_tilde_fence() -> None:
+    rendered = render_markdown_html("~~~markdown\n\n:::notice\n示例\n:::\n\n~~~")
+
+    assert "md-block-notice" not in rendered
+    assert ":::notice" in rendered
+
+
+def test_columns_keeps_content_outside_left_right_blocks() -> None:
+    rendered = render_markdown_html(
+        ":::columns\n\n:::left\n左列内容\n:::\n\n:::right\n右列内容\n:::\n\n普通说明\n\n:::"
+    )
+
+    assert "左列内容" in rendered
+    assert "右列内容" in rendered
+    assert "普通说明" in rendered
+
+
+def test_task_list_checkbox_attributes_survive_sanitizing() -> None:
+    rendered = render_markdown_html("- [x] 已完成\n- [ ] 待办")
+
+    assert 'class="task-list-checkbox"' in rendered
+    assert "checked" in rendered
+    assert "disabled" in rendered
+
+
+def test_markdown_output_blocks_script_and_event_attributes() -> None:
+    rendered = render_markdown_html(
+        '<p>正文</p><script>alert(1)</script><img src="x" onerror="alert(1)">'
+    )
+
+    assert "<script" not in rendered
+    assert "onerror" not in rendered
+    assert "alert(1)" not in rendered
 
 
 def test_post_summary_text_filter_strips_html_from_manual_excerpt() -> None:

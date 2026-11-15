@@ -103,6 +103,11 @@ flowchart TD
 - 上传采用流式写入，限制大小，避免整文件读入内存。
 - 备份 ZIP 导入执行路径越界、压缩比、条目数、总大小校验。
 
+### 5.4.1 正文输出安全
+- 文章/页面正文统一在服务端渲染，Markdown 与 HTML 模式都经过 `core/content_utils.py` 的白名单过滤。
+- 移除 `<script>`、`<style>`、`on*` 事件、`javascript:` 链接与内联 `style`；`iframe` 仅保留 http/https 源。
+- `[hide]` 使用整篇哨兵渲染，未解锁内容不会进入公开 HTML、摘要与 RSS。
+
 ### 5.5 后台写请求安全流程
 
 ```mermaid

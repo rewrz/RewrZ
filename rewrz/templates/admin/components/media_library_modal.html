@@ -457,6 +457,7 @@
 
         let successCount = 0;
         let dedupedCount = 0;
+        let failedCount = 0;
         const targetFolder = elements.uploadFolderSelect ? elements.uploadFolderSelect.value : "";
         for (const file of files) {
             elements.uploadStatus.textContent = `上传中：${file.name}`;
@@ -474,9 +475,18 @@
                     body: formData,
                     credentials: "same-origin",
                 });
-                const data = await response.json();
+                const responseText = await response.text();
+                let data = {};
+                if (responseText) {
+                    try {
+                        data = JSON.parse(responseText);
+                    } catch (parseError) {
+                        // 上传被中间件/网关拦截时可能返回 HTML，不能把 JSON 解析错误当原因
+                        data = {};
+                    }
+                }
                 if (!response.ok) {
-                    throw new Error(data.detail || response.statusText);
+                    throw new Error(data.detail || `上传失败（HTTP ${response.status}）`);
                 }
                 successCount += 1;
                 if (data && data.is_duplicate) {
@@ -491,6 +501,7 @@
                 `;
                 elements.uploadedPreview.appendChild(preview);
             } catch (error) {
+                failedCount += 1;
                 const errorRow = document.createElement("div");
                 errorRow.className = "mlm-error col-span-full rounded-md p-2 text-xs";
                 errorRow.textContent = `${file.name} 上传失败：${error.message}`;
@@ -498,12 +509,15 @@
             }
         }
 
-        elements.uploadStatus.textContent = dedupedCount > 0
-            ? `上传完成：成功 ${successCount} / ${files.length}，其中复用重复文件 ${dedupedCount}`
-            : `上传完成：成功 ${successCount} / ${files.length}`;
+        const duplicateSuffix = dedupedCount > 0 ? `，其中复用重复文件 ${dedupedCount}` : "";
+        const failedSuffix = failedCount > 0 ? `，失败 ${failedCount} 个` : "";
+        elements.uploadStatus.textContent = `上传完成：成功 ${successCount} / ${files.length}${duplicateSuffix}${failedSuffix}`;
         await loadFolders();
         await loadMediaItems(false);
-        switchTab("library");
+        // 有失败项时留在上传页，保留失败原因，不要立刻切走
+        if (successCount === files.length) {
+            switchTab("library");
+        }
     }
 
     function prewarmLibraryData() {
@@ -587,7 +601,12 @@
     elements.grid.addEventListener("scroll", scheduleLoadMoreByScroll, { passive: true });
 
     elements.dropArea.addEventListener("click", () => elements.fileInput.click());
-    elements.fileInput.addEventListener("change", (event) => uploadFiles(event.target.files));
+    elements.fileInput.addEventListener("change", (event) => {
+        uploadFiles(event.target.files).finally(() => {
+            // 清空 value，否则再次选择同一个文件不会触发 change
+            elements.fileInput.value = "";
+        });
+    });
     elements.dropArea.addEventListener("dragover", (event) => {
         event.preventDefault();
         elements.dropArea.classList.add("is-dragover");

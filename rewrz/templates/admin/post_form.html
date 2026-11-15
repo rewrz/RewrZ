@@ -411,8 +411,16 @@
             /* 侧栏收窄到 300–340px，把剩余宽度让给正文编辑区 */
             grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
         }
+        #editor-side-panel {
+            /* 右栏吸顶并留出上下各 1rem 边距，内容超出在面板内滚动 */
+            position: sticky;
+            top: 1rem;
+            align-self: start;
+            height: calc(100vh - 2rem);
+        }
         #editor-side-panel > .admin-panel {
-            /* 高度由脚本按左栏底部实测设置，内容超出面板时内部滚动 */
+            /* 面板占满右栏高度，内容超出时面板内滚动 */
+            height: 100%;
             overflow-y: auto;
             overscroll-behavior: contain;
         }
@@ -424,29 +432,123 @@
         backdrop-filter: blur(10px);
         transition: padding 160ms ease, box-shadow 160ms ease, border-radius 160ms ease;
     }
-    /* 向下滚动阅读时收成右下角小胶囊，只保留保存按钮，把正文空间让出来 */
+    @media (min-width: 768px) {
+        #post-form .editor-actionbar,
+        #page-form .editor-actionbar {
+            padding: 0.7rem 0.9rem;
+        }
+    }
+    /* 统计与保存状态常驻在操作栏右侧，不再需要悬停才能看到 */
+    #post-form .editor-actionbar-summary,
+    #page-form .editor-actionbar-summary {
+        justify-content: flex-end;
+    }
+    #post-form .editor-actionbar-summary .editor-toolbar-stats,
+    #page-form .editor-actionbar-summary .editor-toolbar-stats {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.2rem 0.5rem;
+        font-size: 0.72rem;
+    }
+    #post-form .editor-actionbar-summary .editor-stat-item,
+    #page-form .editor-actionbar-summary .editor-stat-item {
+        white-space: nowrap;
+    }
+    /* 快捷键提示让位给字数/字符统计，避免常态操作栏被挤成两行 */
+    #post-form .editor-actionbar .editor-stat-shortcut,
+    #page-form .editor-actionbar .editor-stat-shortcut {
+        display: none;
+    }
+    /* 全屏展开态：操作栏回到文档流内的底部横条，不再用大浮块压住正文 */
+    #post-form.editor-fullscreen .editor-actionbar,
+    #page-form.editor-fullscreen .editor-actionbar {
+        position: sticky;
+        left: auto;
+        right: auto;
+        bottom: 0;
+        z-index: 1300;
+        width: auto;
+        max-width: none;
+        margin: 0.75rem 0 0;
+        padding: 0.7rem 0.9rem;
+        box-shadow: none;
+    }
+    /* 全屏收纳态才变成右下角小胶囊 */
+    #post-form.editor-fullscreen .editor-actionbar.is-compact,
+    #page-form.editor-fullscreen .editor-actionbar.is-compact {
+        position: fixed;
+        right: 1rem;
+        bottom: 1rem;
+        width: max-content;
+        max-width: calc(100vw - 1.5rem);
+        margin: 0;
+        padding: 0.3rem 0.45rem;
+        border-radius: 999px;
+        border: 1px solid var(--color-border);
+        background: var(--color-card-bg);
+        box-shadow: 0 10px 24px color-mix(in srgb, var(--color-text) 14%, transparent);
+    }
+    /* 全屏收纳态才隐藏选项与状态文案 */
+    #post-form.editor-fullscreen .editor-actionbar.is-compact .editor-actionbar-options,
+    #page-form.editor-fullscreen .editor-actionbar.is-compact .editor-actionbar-options,
+    #post-form.editor-fullscreen .editor-actionbar.is-compact #dirty-indicator,
+    #page-form.editor-fullscreen .editor-actionbar.is-compact #dirty-indicator,
+    #post-form.editor-fullscreen .editor-actionbar.is-compact #saved-indicator,
+    #page-form.editor-fullscreen .editor-actionbar.is-compact #saved-indicator,
+    #post-form.editor-fullscreen .editor-actionbar.is-compact .editor-stat-shortcut,
+    #page-form.editor-fullscreen .editor-actionbar.is-compact .editor-stat-shortcut {
+        display: none;
+    }
+    /* 只有收纳态才把内容整体靠右；展开态保持“选项在左、统计与保存在右” */
+    #post-form.editor-fullscreen .editor-actionbar.is-compact > div:first-child,
+    #page-form.editor-fullscreen .editor-actionbar.is-compact > div:first-child {
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+    #post-form.editor-fullscreen .editor-actionbar #save-post-button,
+    #page-form.editor-fullscreen .editor-actionbar #save-page-button {
+        padding: 0.4rem 0.9rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+    }
+    /* 给悬浮胶囊留出安全区，避免遮住正文最后一行 */
+    #post-form.editor-fullscreen #editor-main-panel,
+    #page-form.editor-fullscreen #editor-main-panel {
+        padding-bottom: 4.5rem;
+    }
+    /* 向下滚动阅读时收成右下角胶囊：统计 + 保存保持一行，隐藏选项与状态文案 */
     .editor-actionbar.is-compact {
         width: max-content;
-        max-width: 100%;
+        max-width: calc(100vw - 1.5rem);
         margin-left: auto;
-        padding: 0.32rem !important;
+        padding: 0.3rem 0.45rem !important;
+        border: 1px solid var(--color-border);
         border-radius: 999px;
+        background: var(--color-card-bg);
         box-shadow: 0 10px 24px color-mix(in srgb, var(--color-text) 14%, transparent);
     }
     .editor-actionbar.is-compact > div:first-child {
-        gap: 0;
+        gap: 0.5rem;
         justify-content: flex-end;
     }
     .editor-actionbar.is-compact .editor-actionbar-options,
-    .editor-actionbar.is-compact .editor-actionbar-meta {
+    .editor-actionbar.is-compact #dirty-indicator,
+    .editor-actionbar.is-compact #saved-indicator,
+    .editor-actionbar.is-compact .editor-stat-shortcut {
         display: none;
     }
+    .editor-actionbar.is-compact .editor-toolbar-stats {
+        font-size: 0.68rem;
+        gap: 0.15rem 0.4rem;
+    }
     .editor-actionbar.is-compact #save-post-button {
-        padding: 0.4rem 0.9rem;
-        font-size: 0.85rem;
+        padding: 0.38rem 0.8rem;
+        border-radius: 999px;
+        font-size: 0.82rem;
     }
     .editor-actionbar.is-compact #save-post-button i {
-        margin-right: 0.35rem;
+        margin-right: 0.3rem;
     }
     /* 移动端改为文档流内的紧凑操作栏，避免固定浮层盖住工具栏与正文 */
     @media (max-width: 767px) {
@@ -465,6 +567,22 @@
     .editor-surface .toastui-editor-contents {
         font-size: var(--editor-font-size, 17px);
         line-height: 1.9;
+    }
+    /* 分屏预览与编辑区保持同一字号、行高与段落间距，避免左右观感不一致 */
+    .editor-surface .toastui-editor-md-preview {
+        font-size: var(--editor-font-size, 17px);
+        line-height: 1.9;
+        font-family: inherit;
+    }
+    .editor-surface .toastui-editor-md-preview p,
+    .editor-surface .toastui-editor-md-preview li,
+    .editor-surface .toastui-editor-md-preview td,
+    .editor-surface .toastui-editor-md-preview th {
+        font-size: inherit;
+        line-height: inherit;
+    }
+    .editor-surface .toastui-editor-md-preview p {
+        margin: 0;
     }
     /* 编辑区按尺寸片段预览图片，与前台 md-img 档位保持一致 */
     .editor-surface .toastui-editor-contents img[src*="#md-img-xs"] {
@@ -611,27 +729,23 @@
                                         </select>
                                     </label>
                                 </div>
-                                <div class="flex flex-wrap items-center gap-2">
+                                <div class="editor-actionbar-summary flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-text-light)]">
+                                    <div class="editor-toolbar-stats">
+                                        <span class="editor-stat-item editor-stat-shortcut">快捷键: <kbd class="admin-inline-kbd px-1.5 py-0.5 rounded">Ctrl/Cmd + S</kbd></span>
+                                        <span class="editor-stat-sep" aria-hidden="true"></span>
+                                        <span class="editor-stat-item" id="editor-wording">字数统计: 0 字</span>
+                                        <span class="editor-stat-sep" aria-hidden="true"></span>
+                                        <span class="editor-stat-item" id="editor-chars">字符统计: 0 字符</span>
+                                    </div>
+                                    <span id="dirty-indicator" class="hidden admin-accent-text"><i class="fas fa-circle text-[0.55rem] mr-1"></i>有未保存更改</span>
+                                    <span id="saved-indicator" class="admin-accent-text"><i class="fas fa-check-circle mr-1"></i>已同步到当前表单</span>
                                     <button type="submit" id="save-post-button"
                                         class="admin-primary-btn rounded-md px-4 py-2">
                                         <i class="fas fa-save mr-2"></i>保存
                                     </button>
                                 </div>
-                            </div>
-                            <div class="editor-actionbar-meta mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-[var(--color-text-light)]">
-                                <div class="editor-toolbar-stats">
-                                    <span class="editor-stat-item editor-stat-shortcut">快捷键: <kbd class="admin-inline-kbd px-1.5 py-0.5 rounded">Ctrl/Cmd + S</kbd></span>
-                                    <span class="editor-stat-sep" aria-hidden="true"></span>
-                                    <span class="editor-stat-item" id="editor-wording">字数统计: 0 字</span>
-                                    <span class="editor-stat-sep" aria-hidden="true"></span>
-                                    <span class="editor-stat-item" id="editor-chars">字符统计: 0 字符</span>
-                                </div>
-                                <div class="flex items-center gap-3">
-                                    <span id="dirty-indicator" class="hidden admin-accent-text"><i class="fas fa-circle text-[0.55rem] mr-1"></i>有未保存更改</span>
-                                    <span id="saved-indicator" class="admin-accent-text"><i class="fas fa-check-circle mr-1"></i>已同步到当前表单</span>
-                                </div>
-                            </div>
                     </div>
+                </div>
                 </div>
 
                 <!-- Sidebar -->
@@ -944,9 +1058,70 @@
             return postForm.classList.contains('editor-fullscreen');
         }
 
+        let autoHeightTimer = null;
+        const MIN_EDITOR_HEIGHT = 420;
+        // 编辑器工具栏、模式栏与内边距的总高度，用来兜住内容，避免编辑器内部出现滚动条
+        const EDITOR_CHROME_ALLOWANCE = 190;
+
+        function measureEditorBody(element) {
+            if (!element) return 0;
+            // 空文档的 scrollHeight 会继承当前容器高度，必须先判断是否真的有内容
+            const hasContent = (element.textContent || '').trim()
+                || element.querySelector('img, video, audio, iframe, table, pre, blockquote');
+            if (!hasContent) return 0;
+            const firstChild = element.firstElementChild;
+            const lastChild = element.lastElementChild;
+            if (!firstChild || !lastChild) return 0;
+            // 用首尾内容块的实际位置计算，避免 scrollHeight 随容器高度产生正反馈
+            const firstRect = firstChild.getBoundingClientRect();
+            const lastRect = lastChild.getBoundingClientRect();
+            const blocksHeight = Math.max(0, Math.round(lastRect.bottom - firstRect.top));
+            const overflow = (element.scrollHeight || 0) - (element.clientHeight || 0);
+            // 内容已经溢出可视区时按真实滚动高度给，避免编辑器里还留着小滚动条
+            return overflow > 2 ? (element.scrollHeight || blocksHeight) : blocksHeight;
+        }
+
+        function getEditorContentHeight() {
+            const viewMode = getActiveEditorViewMode();
+            const heights = [];
+            if (viewMode === 'markdown' || viewMode === 'markdown_wide') {
+                // Toast UI 新版 Markdown 模式也使用 ProseMirror，不再是 CodeMirror
+                const markdownBody = document.querySelector('.toastui-editor-md-container .ProseMirror')
+                    || document.querySelector('.toastui-editor-md-container .cm-content')
+                    || document.querySelector('.toastui-editor-md-container .CodeMirror-lines');
+                heights.push(measureEditorBody(markdownBody));
+            }
+            if (viewMode === 'markdown') {
+                // 分屏预览按渲染后的高度计算，避免预览区自己出现内部滚动条
+                const previewBody = document.querySelector('.toastui-editor-md-preview');
+                heights.push(measureEditorBody(previewBody));
+            }
+            if (viewMode === 'markdown' || viewMode === 'html') {
+                const richBody = document.querySelector('.toastui-editor-ww-container .ProseMirror');
+                heights.push(measureEditorBody(richBody));
+            }
+            return Math.max(0, ...heights);
+        }
+
         function applyEditorHeight() {
             if (!editor || typeof editor.setHeight !== 'function') return;
-            editor.setHeight(isEditorFullscreen() ? '82vh' : '70vh');
+            const contentHeight = getEditorContentHeight();
+            if (isEditorFullscreen()) {
+                // 全屏同样随内容增长，内容少时至少铺满大部分视口
+                const viewportTarget = Math.max(420, Math.round(window.innerHeight * 0.72));
+                const contentTarget = Math.ceil(contentHeight + EDITOR_CHROME_ALLOWANCE);
+                editor.setHeight(`${Math.max(viewportTarget, contentTarget)}px`);
+                return;
+            }
+            // 让编辑区随内容增长，避免长文只能在固定高度里滚动
+            const targetHeight = Math.max(MIN_EDITOR_HEIGHT, Math.ceil(contentHeight + EDITOR_CHROME_ALLOWANCE));
+            editor.setHeight(`${targetHeight}px`);
+            syncSidePanelHeight();
+        }
+
+        function scheduleEditorHeight() {
+            window.clearTimeout(autoHeightTimer);
+            autoHeightTimer = window.setTimeout(applyEditorHeight, 120);
         }
 
         function syncSidePanelHeight() {
@@ -959,10 +1134,9 @@
                 sidePanel.style.maxHeight = '';
                 return;
             }
-            // 两栏随页面同步位移，视口坐标差值不受滚动影响；直接把右栏拉到左栏底部
-            const alignHeight = mainPanel.getBoundingClientRect().bottom - sideHost.getBoundingClientRect().top;
-            sidePanel.style.height = `${Math.round(Math.max(320, alignHeight))}px`;
-            sidePanel.style.maxHeight = 'none';
+            // 右栏高度交给 CSS（宽屏整屏吸顶、窄屏随内容），这里只清理旧的行内高度
+            sidePanel.style.height = '';
+            sidePanel.style.maxHeight = '';
         }
 
         function updateFullscreenButton() {
@@ -986,6 +1160,7 @@
             updateFullscreenButton();
             applyEditorHeight();
             syncSidePanelHeight();
+            postForm.dispatchEvent(new CustomEvent('editor-fullscreen-change'));
             setTimeout(() => {
                 try {
                     editor.focus();
@@ -1068,6 +1243,7 @@
                 editorRoot.classList.toggle('is-markdown-only', targetViewMode === 'markdown_wide');
             }
             updateEditorModeButtons(targetViewMode);
+            scheduleEditorHeight();
         }
 
         function updateDirtyUI() {
@@ -1199,9 +1375,7 @@
                 categoryPanel.classList.toggle('hidden', !categoryEnabled);
             }
             categoryInputs.forEach((item) => {
-                if (!categoryEnabled) {
-                    item.checked = false;
-                }
+                // 只在非文章意图下禁用提交，保留勾选状态，切回标准文章时自动恢复
                 item.disabled = !categoryEnabled;
             });
         }
@@ -1272,10 +1446,11 @@
             return String(value || '')
                 .trim()
                 .toLowerCase()
-                .replace(/[^\p{L}\p{N}\s-]/gu, '')
+                .replace(/[^\p{L}\p{N}\s.-]/gu, '')
                 .replace(/\s+/g, '-')
+                .replace(/\.{2,}/g, '.')
                 .replace(/-+/g, '-')
-                .replace(/^-+|-+$/g, '');
+                .replace(/^[.\-]+|[.\-]+$/g, '');
         }
 
         function updateSlugPreview() {
@@ -1333,10 +1508,12 @@
             editor.on('change', () => {
                 if (!hasUserInteracted) {
                     updateEditorStats();
+                    scheduleEditorHeight();
                     return;
                 }
                 markDirty();
                 updateEditorStats();
+                scheduleEditorHeight();
             });
         } catch (error) {
             console.warn('Unable to bind editor change event:', error);
@@ -1348,6 +1525,7 @@
         updateFullscreenButton();
         applyEditorHeight();
         syncSidePanelHeight();
+        window.addEventListener('resize', scheduleEditorHeight, { passive: true });
         if (window.ResizeObserver) {
             new ResizeObserver(syncSidePanelHeight).observe(document.getElementById('editor-main-panel'));
         }
@@ -1406,11 +1584,19 @@
                 event.detail.path = '{{ request.state.admin_path }}/posts/' + editMatch[1];
                 event.detail.parameters._method = 'PUT';
             }
+            const titleValue = (document.getElementById('title')?.value || '').trim();
+            const bodyValue = (editor.getMarkdown() || '').trim();
+            if (!titleValue && !bodyValue) {
+                // 标题允许留空，但正文不能为空，避免提交后才落到参数错误页
+                event.preventDefault();
+                if (window.adminNotify) window.adminNotify('标题或正文至少填写一项', 'warn');
+                return;
+            }
             const mode = getActiveEditorMode();
-            const rawMarkdown = editor.getMarkdown();
+            let rawMarkdown = editor.getMarkdown();
             const hasRawHtml = window.RewrzEditorRawHtml.hasWrapper(rawMarkdown);
             // 保护容器只用于富文本过渡，保存时必须拆掉才能还原原始 HTML
-            const markdownContent = window.RewrzEditorRawHtml.unwrap(rawMarkdown);
+            let markdownContent = window.RewrzEditorRawHtml.unwrap(rawMarkdown);
             const forceReasons = [];
             if (hasHideBlock(markdownContent)) forceReasons.push('评论后可见块');
             // 版式块靠 ::: 语法渲染，按富文本保存会变成前台可见的裸标记
@@ -1418,7 +1604,13 @@
             if (hasRawHtml) forceReasons.push('原始 HTML');
             const shouldForceMarkdown = mode === 'html' && forceReasons.length > 0;
             const submitMode = shouldForceMarkdown ? 'markdown' : mode;
-            setEditorMode(submitMode, false);
+            if (shouldForceMarkdown) {
+                // 界面与隐藏域保持一致，避免“显示富文本却按 Markdown 保存”
+                setEditorMode('markdown', true);
+                rawMarkdown = editor.getMarkdown();
+                markdownContent = window.RewrzEditorRawHtml.unwrap(rawMarkdown);
+            }
+            editorModeInput.value = submitMode;
             event.detail.parameters.editor_mode = submitMode;
             // 保存时把标签输入框里尚未回车的标签一起提交
             flushPendingTags();
@@ -1539,7 +1731,7 @@
                     event.preventDefault();
                     selectTagSuggest(index);
                 });
-                button.addEventListener('mouseenter', () => setTagSuggestActive(index));
+                // 悬停只做视觉高亮，不占用键盘选中态，避免回车误插建议项
                 tagSuggest.appendChild(button);
             });
             tagSuggest.hidden = false;
@@ -1669,7 +1861,7 @@
             const pendingValue = tagInput.value.trim();
             if (!pendingValue) return;
             pendingValue
-                .split(/[,，]/)
+                .split(/[,，;；\n\r\t]+/)
                 .map((name) => name.trim())
                 .filter(Boolean)
                 .forEach((name) => addTag(name));
@@ -1709,11 +1901,8 @@
                 }
                 if (event.key === 'Enter' || event.key === ',' || event.key === '，') {
                     event.preventDefault();
-                    const tagName = tagInput.value.trim().replace(/,$|，$/g, '');
-                    if (tagName) {
-                        addTag(tagName);
-                        tagInput.value = '';
-                    }
+                    // 回车/逗号与失焦共用同一套拆分逻辑，粘贴多个标签也能一次拆开
+                    flushPendingTags();
                     hideTagSuggest();
                 }
             });
@@ -1739,6 +1928,7 @@
             let expandTimer = null;
             let compacted = false;
 
+            const isFullscreen = () => postForm.classList.contains('editor-fullscreen');
             const setCompact = (next) => {
                 if (next === compacted) return;
                 compacted = next;
@@ -1748,8 +1938,29 @@
                 window.clearTimeout(expandTimer);
                 setCompact(false);
             };
+            let isHovering = false;
+            let isFocusWithin = false;
+            let fullscreenUserScrolled = false;
 
-            window.addEventListener('scroll', () => {
+            // 只把真实的滚动输入算作用户滚动，切换全屏时的重排不会触发收纳
+            postForm.addEventListener('wheel', () => { fullscreenUserScrolled = true; }, { passive: true });
+            postForm.addEventListener('touchmove', () => { fullscreenUserScrolled = true; }, { passive: true });
+            postForm.addEventListener('keydown', (event) => {
+                if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) {
+                    fullscreenUserScrolled = true;
+                }
+            });
+
+            const syncByScroll = () => {
+                // 全屏容器自身是滚动区；只有用户真正滚动后才收纳
+                if (isFullscreen()) {
+                    lastScrollTop = postForm.scrollTop;
+                    if (fullscreenUserScrolled && !isHovering && !isFocusWithin) {
+                        window.clearTimeout(expandTimer);
+                        setCompact(true);
+                    }
+                    return;
+                }
                 const currentTop = window.scrollY;
                 const scrollingDown = currentTop > lastScrollTop;
                 lastScrollTop = currentTop;
@@ -1762,11 +1973,32 @@
                     window.clearTimeout(expandTimer);
                     expandTimer = window.setTimeout(() => setCompact(false), 600);
                 }
-            }, { passive: true });
+            };
 
-            // 鼠标或键盘焦点进入操作栏时立刻展开，收起状态也能直接操作
-            actionBar.addEventListener('mouseenter', expand);
-            actionBar.addEventListener('focusin', expand);
+            window.addEventListener('scroll', syncByScroll, { passive: true });
+            postForm.addEventListener('scroll', syncByScroll, { passive: true });
+            postForm.addEventListener('editor-fullscreen-change', () => {
+                lastScrollTop = isFullscreen() ? postForm.scrollTop : window.scrollY;
+                fullscreenUserScrolled = false;
+                // 进入全屏先展开完整操作栏，滚动后再收纳，悬停可随时展开
+                expand();
+            });
+            actionBar.addEventListener('mouseenter', () => {
+                isHovering = true;
+                expand();
+            });
+            actionBar.addEventListener('mouseleave', () => {
+                isHovering = false;
+                if (isFullscreen() && !isFocusWithin) setCompact(true);
+            });
+            actionBar.addEventListener('focusin', () => {
+                isFocusWithin = true;
+                expand();
+            });
+            actionBar.addEventListener('focusout', (event) => {
+                isFocusWithin = actionBar.contains(event.relatedTarget);
+                if (isFullscreen() && !isFocusWithin) setCompact(true);
+            });
         })();
 
         if (toggleCategoryQuickCreateButton && categoryQuickCreatePanel && categoryQuickCreateInput) {
@@ -1816,7 +2048,7 @@
                 try {
                     const formData = new FormData();
                     formData.append('name', categoryName);
-                    const response = await fetch('/api/v1/categories/', {
+                    const response = await fetch(`{{ request.state.admin_path }}/api/v1/categories/`, {
                         method: 'POST',
                         headers: { 'X-CSRF-Token': csrfToken },
                         body: formData,
@@ -1925,6 +2157,12 @@
                 const sizeClass = String((options && options.sizeClass) || '').trim();
                 const imageUrl = sizeClass ? `${safeUrl}#${sizeClass}` : safeUrl;
                 return `![${escapeMarkdownText(altText)}](${imageUrl})`;
+            }
+            if (mediaItem.file_type === 'video') {
+                return `<video controls preload="metadata" src="${safeUrl}"></video>`;
+            }
+            if (mediaItem.file_type === 'audio') {
+                return `<audio controls preload="metadata" src="${safeUrl}"></audio>`;
             }
             return `<a href="${safeUrl}">${escapeHtml(fileLabel)}</a>`;
         }
@@ -2058,6 +2296,11 @@
                     onSelect: (item, options) => {
                         const snippet = buildMediaInsertSnippet(item, options);
                         if (snippet) {
+                            // 媒体片段是 Markdown/原始 HTML，富文本模式下直接插入会被当成纯文本
+                            if (getActiveEditorMode() !== 'markdown') {
+                                setEditorMode('markdown');
+                                window.adminNotify('已自动切换到 Markdown 模式以插入媒体。', 'info', { duration: 2000 });
+                            }
                             insertEditorText(`\n${snippet}\n`);
                             markDirty();
                         }

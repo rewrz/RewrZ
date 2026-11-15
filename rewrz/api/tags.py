@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Form, Header, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from slugify import slugify
+from ..core.slug_utils import slugify_with_dots
 
 from .. import crud, schemas
 from ..core import public_list_cache
@@ -40,7 +40,7 @@ def create_tag(
 
     normalized_slug = crud.tag.normalize_tag_text(slug)
     if not normalized_slug:
-        normalized_slug = slugify(normalized_name)
+        normalized_slug = slugify_with_dots(normalized_name)
     if not normalized_slug:
         raise HTTPException(status_code=400, detail="标签别名不能为空")
 
@@ -174,9 +174,9 @@ def update_tag(
     update_data["description"] = description
 
     if "slug" not in update_data and "name" in update_data:
-        update_data["slug"] = slugify(update_data["name"])
+        update_data["slug"] = slugify_with_dots(update_data["name"])
     elif "slug" in update_data and not update_data["slug"] and "name" in update_data:
-        update_data["slug"] = slugify(update_data["name"])
+        update_data["slug"] = slugify_with_dots(update_data["name"])
     if "slug" in update_data and not update_data["slug"]:
         raise HTTPException(status_code=400, detail="标签别名不能为空")
 

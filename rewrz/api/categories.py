@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Form, Header, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from slugify import slugify
+from ..core.slug_utils import slugify_with_dots
 
 from .. import crud, schemas
 from ..core import public_list_cache
@@ -36,7 +36,7 @@ def create_category(
 ):
     verify_csrf_token(request, csrf_token)
     if not slug:
-        slug = slugify(name)
+        slug = slugify_with_dots(name)
 
     category = schemas.CategoryCreate(
         name=name,
@@ -154,9 +154,9 @@ def update_category(
     update_data["description"] = description
 
     if "slug" not in update_data and "name" in update_data:
-        update_data["slug"] = slugify(update_data["name"])
+        update_data["slug"] = slugify_with_dots(update_data["name"])
     elif "slug" in update_data and not update_data["slug"] and "name" in update_data:
-        update_data["slug"] = slugify(update_data["name"])
+        update_data["slug"] = slugify_with_dots(update_data["name"])
 
     category_update = schemas.CategoryUpdate(**update_data)
     db_category = crud.category.update_category(db, category_id=category_id, category_update=category_update)

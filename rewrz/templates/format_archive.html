@@ -294,6 +294,9 @@
                 <div class="p-4 md:p-5">
                     <form id="micro-quick-post-form" class="space-y-3"{% if micro_edit_post %} data-edit-post-id="{{ micro_edit_post.id }}" data-password-protected="{{ 1 if micro_edit_post.password_protected else 0 }}"{% endif %}>
                         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                        {% if micro_edit_post and micro_edit_post.keep_tags %}
+                        <input type="hidden" name="keep_tags" value="{{ micro_edit_post.keep_tags | join(',') }}">
+                        {% endif %}
                         <input type="hidden" id="micro-quick-visibility" name="visibility" value="{{ micro_edit_visibility }}">
                         <input type="hidden" id="micro-quick-content-rating" name="content_rating" value="{{ micro_edit_rating }}">
                         <input id="micro-quick-media-input" type="file" class="hidden" accept="image/*,video/*,audio/*" multiple>
@@ -897,6 +900,54 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         detectedTopics.innerHTML = `<span class="micro-panel-label">识别：</span>${chips}${mentionChips}`;
     };
 
+    // 编辑已有动态时，正文里的媒体 Markdown 是系统生成的，应还原成媒体卡片，
+    // 否则编辑态看不到旧图，保存时还会把封面替换成新上传的第一张
+    const parseMediaFromContent = (rawContent) => {
+        const media = [];
+        const keptLines = [];
+        String(rawContent || "").split("\n").forEach((line) => {
+            const trimmed = line.trim();
+            let match = trimmed.match(/^!\[动态配图\d+\]\(([^)]+)\)$/);
+            if (match) {
+                media.push({
+                    id: 0,
+                    url: match[1],
+                    file_type: "image",
+                    name: `动态配图${media.length + 1}`,
+                    preview_url: match[1],
+                });
+                return;
+            }
+            match = trimmed.match(/^\[视频：([^\]]*)\]\(([^)]+)\)$/);
+            if (match) {
+                media.push({
+                    id: 0,
+                    url: match[2],
+                    file_type: "video",
+                    name: match[1] || "视频",
+                    preview_url: match[2],
+                });
+                return;
+            }
+            match = trimmed.match(/^\[音频：([^\]]*)\]\(([^)]+)\)$/);
+            if (match) {
+                media.push({
+                    id: 0,
+                    url: match[2],
+                    file_type: "audio",
+                    name: match[1] || "音频",
+                    preview_url: match[2],
+                });
+                return;
+            }
+            keptLines.push(line);
+        });
+        return {
+            media: media.slice(0, maxMediaCount),
+            text: keptLines.join("\n").replace(/\n{3,}/g, "\n\n").trim(),
+        };
+    };
+
     const renderMediaList = () => {
         if (!mediaList) {
             return;
@@ -1119,7 +1170,9 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         }
         renderDetectedTopics(content);
         renderPreview(content);
-        const hasPublishableData = currentLength > 0 || attachedMedia.length > 0;
+        // 只打标签不算正文，避免按钮可用但服务端拒绝
+        const contentWithoutTags = trimmed.replace(/#[0-9A-Za-z_\u4e00-\u9fff-]+/g, "").trim();
+        const hasPublishableData = contentWithoutTags.length > 0 || attachedMedia.length > 0;
         submitButton.disabled = isSubmitting || isUploadingMedia || !hasPublishableData || currentLength > maxLength;
     };
 
@@ -1290,24 +1343,34 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             }
 
             const uploadedItems = Array.isArray(payload.items) ? payload.items : [];
-            if (!uploadedItems.length) {
-                setUploadStatus("未获取到有效媒体文件", "error");
-                return;
+            const failedItems = Array.isArray(payload.failed) ? payload.failed : [];
+            if (uploadedItems.length) {
+                attachedMedia = attachedMedia.concat(
+                    uploadedItems.map((item) => ({
+                        id: Number(item.id || 0),
+                        url: String(item.url || "").trim(),
+                        file_type: String(item.file_type || "image").trim().toLowerCase(),
+                        name: String(item.name || "media").trim(),
+                        preview_url: String(item.preview_url || item.url || "").trim(),
+                    })).filter((item) => item.url)
+                ).slice(0, maxMediaCount);
+                renderMediaList();
+                renderPreview(textarea.value || "");
             }
 
-            attachedMedia = attachedMedia.concat(
-                uploadedItems.map((item) => ({
-                    id: Number(item.id || 0),
-                    url: String(item.url || "").trim(),
-                    file_type: String(item.file_type || "image").trim().toLowerCase(),
-                    name: String(item.name || "media").trim(),
-                    preview_url: String(item.preview_url || item.url || "").trim(),
-                })).filter((item) => item.url)
-            ).slice(0, maxMediaCount);
-
-            renderMediaList();
-            renderPreview(textarea.value || "");
-            setUploadStatus(`已附加 ${attachedMedia.length} 个媒体文件`, "success");
+            if (failedItems.length) {
+                const failedText = failedItems
+                    .map((item) => `${item.name || "文件"}：${item.reason || "上传失败"}`)
+                    .join("；");
+                setUploadStatus(
+                    `成功 ${uploadedItems.length} 个，失败 ${failedItems.length} 个：${failedText}`,
+                    "error"
+                );
+            } else if (uploadedItems.length) {
+                setUploadStatus(`已附加 ${attachedMedia.length} 个媒体文件`, "success");
+            } else {
+                setUploadStatus("未获取到有效媒体文件", "error");
+            }
         } catch (error) {
             setUploadStatus(getErrorMessage(error, "媒体上传失败，请稍后重试"), "error");
         } finally {
@@ -1544,6 +1607,10 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
     });
 
     textarea.addEventListener("keydown", (event) => {
+        // 中文输入法组合态下回车用于上屏，不能触发标签选择或快速发布
+        if (event.isComposing || event.keyCode === 229) {
+            return;
+        }
         // 标签建议打开时优先响应上下键与回车，避免误发布或误插新标签
         if (tagSuggestPanel && !tagSuggestPanel.hidden && tagSuggestItems.length) {
             if (event.key === "ArrowDown") {
@@ -1671,6 +1738,10 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
 
     if (clearDraftButton) {
         clearDraftButton.addEventListener("click", () => {
+            if (draftTimer) {
+                window.clearTimeout(draftTimer);
+                draftTimer = null;
+            }
             textarea.value = "";
             attachedMedia = [];
             try {
@@ -1863,6 +1934,10 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
                 throw new Error(getErrorMessage(payload.error, payload.detail || "发布失败，请稍后重试。"));
             }
 
+            if (draftTimer) {
+                window.clearTimeout(draftTimer);
+                draftTimer = null;
+            }
             textarea.value = "";
             attachedMedia = [];
             try {
@@ -1908,6 +1983,14 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         }
     } catch (error) {
         setDraftText("浏览器不支持草稿存储", "warn");
+    }
+
+    if (isEditing) {
+        const parsedMedia = parseMediaFromContent(textarea.value);
+        if (parsedMedia.media.length) {
+            attachedMedia = parsedMedia.media;
+            textarea.value = parsedMedia.text;
+        }
     }
 
         syncTextareaHeight();

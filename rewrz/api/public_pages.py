@@ -1,3 +1,4 @@
+import re
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..core.content_intents import normalize_public_intent_slug
+from ..core.content_utils import get_effective_plain_text
 from ..core.format_archive_metrics import (
     attach_format_comment_counts,
     build_format_category_topic_count,
@@ -422,20 +424,33 @@ def format_page(
         ):
             raise HTTPException(status_code=404, detail="动态不存在或无权编辑")
         edit_content = (edit_post.content_markdown or "").strip()
+        if not edit_content and (edit_post.content_html or "").strip():
+            # HTML 模式保存的动态没有 content_markdown，前台编辑必须回退到纯文本，
+            # 否则输入框为空，保存时会把原正文整体覆盖掉
+            edit_content = get_effective_plain_text("", edit_post.content_html)
         edit_tags = [
             str(getattr(tag, "name", "") or "").strip()
             for tag in (edit_post.tags or [])
             if str(getattr(tag, "name", "") or "").strip()
         ]
-        if edit_tags:
+        round_trip_tags = []
+        keep_tags = []
+        for tag_name in edit_tags:
+            if re.fullmatch(r"[0-9A-Za-z_\u4e00-\u9fff-]+", tag_name):
+                round_trip_tags.append(tag_name)
+            else:
+                # C++、设计·UI 等标签无法用 #标签 语法无损往返，交给隐藏字段保留
+                keep_tags.append(tag_name)
+        if round_trip_tags:
             # 标签存在关联表里，编辑时回填到正文，避免保存后标签被整体清空
-            edit_content = f"{edit_content} {' '.join('#' + name for name in edit_tags)}".strip()
+            edit_content = f"{edit_content} {' '.join('#' + name for name in round_trip_tags)}".strip()
         micro_edit_post = {
             "id": int(edit_post.id),
             "content": edit_content,
             "visibility": str(getattr(edit_post, "visibility", "public") or "public"),
             "content_rating": str(getattr(edit_post, "content_rating", "general") or "general"),
             "password_protected": bool(getattr(edit_post, "password", None)),
+            "keep_tags": keep_tags,
         }
 
     context.update(

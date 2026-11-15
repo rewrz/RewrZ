@@ -20,6 +20,14 @@ from .time_utils import utc_now_naive
 
 
 HIDE_BLOCK_RE = re.compile(r"\[hide\](.*?)\[/hide\]", re.IGNORECASE | re.DOTALL)
+# 隐藏块先替换成单行哨兵，让整篇 Markdown 一次性解析，避免 ::: 指令被切断
+HIDE_SENTINEL_PREFIX = "@@REWRZ_HIDE_BLOCK_"
+HIDE_SENTINEL_RE = re.compile(
+    r"(?:<p>\s*)?@@REWRZ_HIDE_BLOCK_(\d+)@@(?:\s*<br\s*/?>)?\s*(?:</p>)?",
+    re.IGNORECASE,
+)
+# 引用式链接与脚注定义，隐藏段单独渲染时需要复用整篇的定义
+LINK_DEFINITION_RE = re.compile(r"^\[[^\]]+\]:\s+\S+.*$", re.MULTILINE)
 
 
 # 前缀集中定义：详情页缓存用同一批常量排除敏感 Cookie，避免两处拼写漂移
@@ -152,29 +160,32 @@ def render_markdown_with_hide_blocks(
     if not content_markdown:
         return ""
 
-    if not has_hide_blocks(content_markdown):
+    matches = list(HIDE_BLOCK_RE.finditer(content_markdown))
+    if not matches:
         return render_markdown_html(content_markdown)
 
-    rendered_parts = []
+    # 整篇一次性渲染：隐藏块用哨兵占位，::: 版式块与引用定义不会被分段切断
+    source_parts: list[str] = []
+    hidden_blocks: list[str] = []
     last_end = 0
-    block_index = 0
-
-    for match in HIDE_BLOCK_RE.finditer(content_markdown):
-        normal_segment = content_markdown[last_end : match.start()]
-        if normal_segment.strip():
-            rendered_parts.append(render_markdown_html(normal_segment))
-
-        hidden_segment = (match.group(1) or "").strip()
-        if can_view_hidden:
-            rendered_parts.append(render_markdown_html(hidden_segment))
-        else:
-            rendered_parts.append(build_hidden_placeholder_html(post_id, block_index))
-
+    for index, match in enumerate(matches):
+        source_parts.append(content_markdown[last_end:match.start()])
+        source_parts.append(f"\n\n{HIDE_SENTINEL_PREFIX}{index}@@\n\n")
+        hidden_blocks.append((match.group(1) or "").strip())
         last_end = match.end()
-        block_index += 1
+    source_parts.append(content_markdown[last_end:])
 
-    tail_segment = content_markdown[last_end:]
-    if tail_segment.strip():
-        rendered_parts.append(render_markdown_html(tail_segment))
+    rendered = render_markdown_html("".join(source_parts))
+    definitions = "\n".join(LINK_DEFINITION_RE.findall(content_markdown))
 
-    return "".join(rendered_parts)
+    def replace_sentinel(match: re.Match) -> str:
+        block_index = int(match.group(1))
+        if not can_view_hidden:
+            return build_hidden_placeholder_html(post_id, block_index)
+        hidden_segment = hidden_blocks[block_index]
+        if definitions:
+            # 隐藏段单独渲染时补上整篇的链接/脚注定义，避免跨段引用失效
+            hidden_segment = f"{hidden_segment}\n\n{definitions}"
+        return render_markdown_html(hidden_segment)
+
+    return HIDE_SENTINEL_RE.sub(replace_sentinel, rendered)

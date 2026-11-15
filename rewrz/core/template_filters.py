@@ -690,6 +690,8 @@ def post_summary_text_filter(post_obj, length: int = 200) -> str:
         return ""
     manual_excerpt = str(getattr(post_obj, "excerpt", "") or "").strip()
     if manual_excerpt:
+        # 手写摘要也可能包含 [hide] 块，不能把隐藏内容带进卡片与搜索结果
+        manual_excerpt = strip_hide_blocks(manual_excerpt).strip()
         normalized_excerpt = html_to_plain_text(manual_excerpt) if "<" in manual_excerpt and ">" in manual_excerpt else manual_excerpt
         if len(normalized_excerpt) <= length:
             return normalized_excerpt

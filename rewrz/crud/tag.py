@@ -6,7 +6,7 @@ from typing import List, Optional
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from slugify import slugify
+from ..core.slug_utils import slugify_with_dots
 
 from ..models import Tag
 from ..models.post import post_tags
@@ -87,7 +87,7 @@ def resolve_or_create_tag(db: Session, raw_name: str, *, create_if_missing: bool
     if not create_if_missing:
         return None
 
-    base_slug = slugify(normalized_name) or "tag"
+    base_slug = slugify_with_dots(normalized_name) or "tag"
     # 用户也可能直接写 slug；slug 已被占用时复用已有标签，避免重复与唯一约束报错。
     tag = db.execute(select(Tag).where(Tag.slug == base_slug)).scalars().first()
     if tag is not None:

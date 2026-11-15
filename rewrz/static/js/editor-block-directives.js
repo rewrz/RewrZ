@@ -270,9 +270,18 @@
             setOpen(false);
             const selected = readSelection(editor);
             if (getActiveEditorMode() !== 'markdown') {
+                // 先移除富文本里的选中内容，避免切换模式后同一段文字出现两份
+                try {
+                    const modeEditor = editor.getCurrentModeEditor();
+                    if (modeEditor && typeof modeEditor.replaceSelection === 'function') {
+                        modeEditor.replaceSelection('');
+                    }
+                } catch (error) {
+                    // 编辑器实现差异时保持原行为
+                }
                 setEditorMode('markdown');
                 if (window.adminNotify) {
-                    window.adminNotify('版式块仅在 Markdown 模式生效，已自动切换。', 'info', { duration: 2200 });
+                    window.adminNotify('版式块仅在 Markdown 模式生效，已自动切换并插入到文末。', 'info', { duration: 2400 });
                 }
             }
             insertEditorText(`\n${item.build(selected || item.placeholder)}`);

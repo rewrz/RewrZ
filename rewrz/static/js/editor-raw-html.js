@@ -66,10 +66,23 @@
         const flush = () => {
             if (!buffer.length) return;
             const raw = buffer.join('\n');
+            buffer = [];
+            // 只包裹 div 配平的完整块；不配平时原样输出，避免 unwrap 找不到闭合标签
+            // 时把保护容器和 base64 属性写回正文
+            const openCount = (raw.match(/<div\b/gi) || []).length;
+            const closeCount = (raw.match(/<\/div\s*>/gi) || []).length;
+            if (openCount !== closeCount) {
+                output.push(raw);
+                return;
+            }
             const encoded = encodeSource(raw);
             const sourceAttr = encoded ? ` ${SOURCE_ATTR}="${encoded}"` : '';
             output.push(`${WRAP_OPEN}${sourceAttr}>${raw}</div>`);
-            buffer = [];
+        };
+
+        const hasUnclosedDiv = () => {
+            const raw = buffer.join('\n');
+            return (raw.match(/<div\b/gi) || []).length > (raw.match(/<\/div\s*>/gi) || []).length;
         };
 
         lines.forEach((line) => {
@@ -84,11 +97,25 @@
                 buffer.push(line);
                 return;
             }
+            if (buffer.length && hasUnclosedDiv() && String(line).trim() !== '') {
+                // HTML 块中间可能是普通文本行，继续收集，避免开闭标签被拆开
+                buffer.push(line);
+                return;
+            }
             flush();
             output.push(line);
         });
         flush();
         return output.join('\n');
+    }
+
+    function isInsideFence(text, index) {
+        let fenceState = null;
+        const before = text.slice(0, index);
+        for (const line of before.split('\n')) {
+            fenceState = updateFenceState(line, fenceState);
+        }
+        return Boolean(fenceState);
     }
 
     /**
@@ -106,6 +133,7 @@
         let openMatch;
 
         while ((openMatch = openTagPattern.exec(source))) {
+            if (isInsideFence(source, openMatch.index)) continue;
             const openTag = openMatch[0];
             if (!openTag.includes(WRAP_ATTR)) continue;
 
@@ -126,7 +154,13 @@
                     depth += 1;
                 }
             }
-            if (closeEnd < 0) break;
+            if (closeEnd < 0) {
+                // 容器被编辑到不配平时，只移除开标签并保留其后的内容，
+                // 不能把整段原文（含 base64 属性）写回正文
+                result += source.slice(lastIndex, openMatch.index) + source.slice(openTagPattern.lastIndex);
+                lastIndex = source.length;
+                break;
+            }
 
             // 优先使用容器上保存的原始源码，避免富文本解析改写了嵌套标签
             const sourceMatch = openTag.match(new RegExp(`${SOURCE_ATTR}="([^"]*)"`));
@@ -141,7 +175,18 @@
     }
 
     function hasWrapper(text) {
-        return String(text ?? '').includes(WRAP_ATTR);
+        const source = String(text ?? '');
+        if (!source.includes(WRAP_ATTR)) return false;
+        // 代码块里的同名属性只是示例文本，不能触发“原始 HTML”强制保存
+        let fenceState = null;
+        return source.split('\n').some((line) => {
+            const nextFence = updateFenceState(line, fenceState);
+            if (fenceState || nextFence?.char) {
+                fenceState = nextFence;
+                return false;
+            }
+            return line.includes(WRAP_ATTR) && line.trimStart().startsWith('<div');
+        });
     }
 
     /**

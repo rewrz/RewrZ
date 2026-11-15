@@ -28,6 +28,7 @@ from ..models.category import Category
 from ..schemas import Post, PostCreate, PostUpdate, PostInlineUpdate, User, PostBatchUpdate, FormatCreate
 from ..core.content_intents import INTENT_SLUGS, INTENT_NAME_MAP, to_public_post_segment
 from ..core.content_utils import normalize_content_rating, render_markdown_html
+from ..core.content_access import render_markdown_with_hide_blocks
 from ..core.micro_text import MICRO_TAG_LIMIT, enhance_micro_html, extract_micro_tags, strip_micro_tags
 from ..core.time_utils import site_local_to_utc_naive, utc_iso, format_site_time
 from . import media as media_api
@@ -169,15 +170,25 @@ def _resolve_post_primary_intent_slug(post_obj) -> str:
     return "article"
 
 
-def _normalize_category_ids_for_intent(category_ids: Optional[List[int]], intent_slug: str) -> List[int]:
+def _normalize_category_ids_for_intent(category_ids: Optional[List[Any]], intent_slug: str) -> List[int]:
+    """归整分类 ID，忽略空串等无效值，避免表单里的空分类直接把请求判为 422。"""
     normalized_intent = str(intent_slug or "article").strip().lower() or "article"
     if normalized_intent in {"micro", "poem"}:
         return []
-    cleaned = sorted({
-        int(item) for item in (category_ids or [])
-        if isinstance(item, int) and item > 0
-    })
-    return cleaned
+    cleaned: set[int] = set()
+    for item in (category_ids or []):
+        if isinstance(item, bool):
+            continue
+        if isinstance(item, int):
+            value = item
+        else:
+            text = str(item or "").strip()
+            if not text.isdigit():
+                continue
+            value = int(text)
+        if value > 0:
+            cleaned.add(value)
+    return sorted(cleaned)
 
 
 def _build_micro_quick_title(content: str) -> str:
@@ -208,7 +219,13 @@ def _parse_micro_media_items(raw_media_items: Optional[str], limit: int = 9) -> 
         url = str(item.get("url", "")).strip()
         file_type = str(item.get("file_type", "")).strip().lower()
         name = str(item.get("name", "")).strip()[:80]
-        if not url.startswith("/media/"):
+        # CDN 模式下媒体地址是绝对 URL，但仍然必须落在 /media/ 路径下
+        parsed_media_url = urlsplit(url)
+        is_media_url = url.startswith("/media/") or (
+            parsed_media_url.scheme in {"http", "https"}
+            and "/media/" in parsed_media_url.path
+        )
+        if not is_media_url:
             continue
         if file_type not in {"image", "video", "audio"}:
             continue
@@ -281,27 +298,38 @@ async def upload_public_quick_micro_media(
         raise HTTPException(status_code=400, detail="单次最多上传 9 个文件")
 
     uploaded_items: List[Dict[str, Any]] = []
+    failed_items: List[Dict[str, str]] = []
     for media_file in selected_files:
+        file_name = str(getattr(media_file, "filename", "") or "文件")
         mime_type = str(getattr(media_file, "content_type", "") or "").strip().lower()
         if not mime_type.startswith(("image/", "video/", "audio/")):
-            raise HTTPException(status_code=400, detail="仅支持图片、视频或音频文件")
+            failed_items.append({"name": file_name, "reason": "仅支持图片、视频或音频文件"})
+            continue
 
-        uploaded_media = await media_api.upload_media(
-            request=request,
-            file=media_file,
-            title=None,
-            alt_text=None,
-            description=None,
-            target_folder="micro",
-            deduplicate=False,
-            auto_process=True,
-            db=db,
-            current_user=current_user,
-            csrf_token=csrf_token,
-        )
+        try:
+            uploaded_media = await media_api.upload_media(
+                request=request,
+                file=media_file,
+                title=None,
+                alt_text=None,
+                description=None,
+                target_folder="micro",
+                deduplicate=False,
+                auto_process=True,
+                db=db,
+                current_user=current_user,
+                csrf_token=csrf_token,
+            )
+        except HTTPException as exc:
+            failed_items.append({"name": file_name, "reason": str(exc.detail)})
+            continue
+        except Exception:
+            failed_items.append({"name": file_name, "reason": "上传失败"})
+            continue
 
         media_url = str(getattr(uploaded_media, "url", "") or "").strip()
         if not media_url:
+            failed_items.append({"name": file_name, "reason": "未返回有效媒体地址"})
             continue
 
         uploaded_items.append(
@@ -314,9 +342,11 @@ async def upload_public_quick_micro_media(
             }
         )
 
+    # 部分成功也要返回成功项，前端只重试失败文件，避免整批丢弃与重复上传
     return {
-        "success": True,
+        "success": bool(uploaded_items),
         "items": uploaded_items,
+        "failed": failed_items,
     }
 
 
@@ -439,9 +469,15 @@ def preview_public_quick_micro_post(
         if len(normalized_content) > 2000:
             raise HTTPException(status_code=400, detail="动态内容最多 2000 字")
         preview_source = strip_micro_tags(normalized_content)
+        # 与详情页同源：未解锁时显示占位卡片，不能把隐藏内容明文放进预览
+        preview_html = render_markdown_with_hide_blocks(
+            preview_source,
+            post_id=0,
+            can_view_hidden=False,
+        )
         return {
             "success": True,
-            "html": enhance_micro_html(render_markdown_html(preview_source), db),
+            "html": enhance_micro_html(preview_html, db),
         }
     finally:
         _PREVIEW_SEMAPHORE.release()
@@ -497,6 +533,7 @@ def update_public_quick_micro_post(
     request: Request,
     content: str = Form(""),
     media_items: Optional[str] = Form(None),
+    keep_tags: Optional[str] = Form(None),
     visibility: str = Form("public"),
     content_rating: str = Form("general"),
     password: Optional[str] = Form(None),
@@ -540,6 +577,22 @@ def update_public_quick_micro_post(
         raise HTTPException(status_code=400, detail="动态正文不能只包含标签")
     merged_content, featured_image_url = _merge_micro_content_with_media(body_content, parsed_media_items)
 
+    # 正文里的 #标签 与隐藏字段里的特殊标签合并，避免编辑时把 C++ 这类标签清掉
+    tag_names = extract_micro_tags(normalized_content)
+    keep_tag_values = (
+        (keep_tags or "")
+        .replace("，", ",")
+        .replace("；", ",")
+        .replace(";", ",")
+        .replace("\n", ",")
+        .replace("\r", ",")
+        .replace("\t", ",")
+    )
+    for raw_name in keep_tag_values.split(","):
+        normalized_name = raw_name.strip()
+        if normalized_name and normalized_name not in tag_names:
+            tag_names.append(normalized_name)
+
     updated = crud_post.update_post(
         db=db,
         post_id=post_id,
@@ -552,7 +605,7 @@ def update_public_quick_micro_post(
             # 未新增媒体时保留原封面，避免仅在正文改动时把封面清空
             featured_image_url=featured_image_url or db_post.featured_image_url,
         ),
-        tag_names=extract_micro_tags(normalized_content),
+        tag_names=tag_names[:MICRO_TAG_LIMIT],
         tag_limit=MICRO_TAG_LIMIT,
     )
 
@@ -623,7 +676,8 @@ def edit_post_page(post_id: int, request: Request, return_to: Optional[str] = No
 def create_post_api(
     request: Request,
     return_to: Optional[str] = Form(None),
-    title: str = Form(...),
+    # 标题允许留空（前台会显示“无标题内容”），但正文不能为空
+    title: str = Form(""),
     content: str = Form(""),
     content_html: Optional[str] = Form(None),
     editor_mode: Optional[str] = Form(None),
@@ -636,7 +690,7 @@ def create_post_api(
     password: Optional[str] = Form(None),
     # 复选框未勾选时浏览器不会提交该字段，默认值必须为 False，否则会恒定保存为允许评论
     allow_comments: bool = Form(False),
-    category_ids: Optional[List[int]] = Form(None),
+    category_ids: Optional[List[str]] = Form(None),
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
     format_id: Optional[int] = Form(None),
     post_template: str = Form(DEFAULT_POST_TEMPLATE),
@@ -651,6 +705,9 @@ def create_post_api(
     创建新文章的API端点
     """
     verify_csrf_token(request, csrf_token)
+    normalized_title = (title or "").strip()
+    if not normalized_title and not (content or "").strip():
+        raise HTTPException(status_code=400, detail="标题或正文至少需要填写一项")
     normalized_password = (password or "").strip() or None
     if visibility == "password" and not normalized_password:
         raise HTTPException(status_code=400, detail="密码保护内容必须设置访问密码")
@@ -662,7 +719,7 @@ def create_post_api(
     resolved_style_preset = normalize_style_preset_for_intent(selected_intent_slug, style_preset)
 
     create_payload = {
-        "title": title,
+        "title": normalized_title,
         "content_markdown": content,
         "content_html": content_html,
         "editor_mode": editor_mode or _get_content_primary_mode(db),
@@ -714,7 +771,8 @@ def update_post_api(
     request: Request,
     post_id: int,
     return_to: Optional[str] = Form(None),
-    title: str = Form(...),
+    # 标题允许留空（前台会显示“无标题内容”）
+    title: str = Form(""),
     content: str = Form(""),
     content_html: Optional[str] = Form(None),
     editor_mode: Optional[str] = Form(None),
@@ -727,7 +785,7 @@ def update_post_api(
     password: Optional[str] = Form(None),
     # 复选框未勾选时浏览器不会提交该字段，默认值必须为 False，否则会恒定保存为允许评论
     allow_comments: bool = Form(False),
-    category_ids: Optional[List[int]] = Form(None),
+    category_ids: Optional[List[str]] = Form(None),
     tags: Optional[str] = Form(None), # 接收逗号分隔的标签字符串
     format_id: Optional[int] = Form(None),
     post_template: str = Form(DEFAULT_POST_TEMPLATE),
@@ -767,7 +825,7 @@ def update_post_api(
     resolved_style_preset = normalize_style_preset_for_intent(selected_intent_slug, style_preset)
 
     update_payload = {
-        "title": title,
+        "title": (title or "").strip(),
         "content_markdown": content,
         "content_html": content_html,
         "editor_mode": editor_mode or _get_content_primary_mode(db),
@@ -1186,7 +1244,7 @@ def edit_page_page(page_id: int, request: Request, return_to: Optional[str] = No
 def create_page_api(
     request: Request,
     return_to: Optional[str] = Form(None),
-    title: str = Form(...),
+    title: str = Form(""),
     content: str = Form(""),
     content_html: Optional[str] = Form(None),
     editor_mode: Optional[str] = Form(None),
@@ -1210,6 +1268,8 @@ def create_page_api(
     创建新页面的API端点
     """
     verify_csrf_token(request, csrf_token)
+    if not (title or "").strip():
+        raise HTTPException(status_code=400, detail="页面标题不能为空")
     normalized_password = (password or "").strip() or None
     if visibility == "password" and not normalized_password:
         raise HTTPException(status_code=400, detail="密码保护内容必须设置访问密码")
@@ -1257,7 +1317,7 @@ def update_page_api(
     request: Request,
     page_id: int,
     return_to: Optional[str] = Form(None),
-    title: str = Form(...),
+    title: str = Form(""),
     content: str = Form(""),
     content_html: Optional[str] = Form(None),
     editor_mode: Optional[str] = Form(None),
@@ -1282,6 +1342,8 @@ def update_page_api(
     更新页面的API端点
     """
     verify_csrf_token(request, csrf_token)
+    if not (title or "").strip():
+        raise HTTPException(status_code=400, detail="页面标题不能为空")
     if request.method.upper() == "POST":
         normalized_method_override = str(method_override or "").strip().upper()
         if normalized_method_override not in {"", "PUT"}:

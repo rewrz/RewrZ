@@ -8,7 +8,7 @@ from sqlalchemy import select
 from typing import List, Optional
 from ..models import Format
 from ..schemas import FormatCreate, FormatUpdate
-from slugify import slugify
+from ..core.slug_utils import slugify_with_dots
 
 def get_format(db: Session, format_id: int) -> Optional[Format]:
     """根据格式ID获取格式信息"""
@@ -32,7 +32,7 @@ def create_format(db: Session, format: FormatCreate, *, auto_commit: bool = True
     如果未提供别名，则自动从名称生成
     """
     # 仅在未提供别名时自动生成
-    slug = format.slug if format.slug else slugify(format.name)
+    slug = format.slug if format.slug else slugify_with_dots(format.name)
     existing_by_slug = get_format_by_slug(db, slug)
     if existing_by_slug:
         return existing_by_slug
@@ -68,7 +68,7 @@ def update_format(db: Session, format_id: int, format_update: FormatUpdate) -> O
         for key, value in format_update.model_dump(exclude_unset=True).items():
             if key == "name":
                 # 如果名称变化，自动更新别名
-                db_format.slug = slugify(value)
+                db_format.slug = slugify_with_dots(value)
             setattr(db_format, key, value)
         db.commit()
         db.refresh(db_format)

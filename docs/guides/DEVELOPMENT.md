@@ -178,6 +178,15 @@ npm run watch:css
 - 把后台管理语义接口直接暴露到固定公共路径
 - 上传/导入路径未做边界校验
 
+### 8.3 编辑器与正文渲染约定
+- 正文 Markdown/HTML 渲染统一走 `core/content_utils.py`；不要在模板或路由里直接调用 `markdown`，也不要绕过 `sanitize_content_html`。
+- HTML 模式与 Markdown 渲染结果共用同一套白名单；新增标签或属性时必须同步 `CONTENT_ALLOWED_TAGS` / `CONTENT_ALLOWED_ATTRIBUTES`。
+- `[hide]` 使用 `core/content_access.py` 的哨兵整篇渲染：先整篇解析 Markdown，再替换占位符。不要再改回按段切分，否则 `:::` 版式块与跨段引用链接会破版。
+- `:::` 指令与代码围栏的判定必须与 `static/js/editor-raw-html.js` 保持一致：允许 0-3 个空格缩进，围栏同时支持三个反引号与 `~~~`。
+- 保存时 `editor_mode` 必须与真实内容一致；强制 Markdown 时要真正切换编辑器模式，不能只改隐藏域。
+- 改动编辑器或正文渲染链路时，至少运行 `tests/test_content_plaintext_and_summary.py` 与 `tests/test_content_access_and_archives.py`。
+- slug 统一走 `core/slug_utils.py` 的 `slugify_with_dots`，不要直接调用 `slugify`；该函数保留点号（`Node.js` → `node.js`、`v1.2` → `v1.2`），文章、页面、分类、标签、内容意图共用。
+
 ## 9. 文档协同
 
 - 文档中心：[`docs/INDEX.md`](../INDEX.md)

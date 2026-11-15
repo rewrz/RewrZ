@@ -93,3 +93,16 @@ class PostInlineUpdate(BaseModel):
     published_at: Optional[str] = None
     category_ids: Optional[List[int]] = None
     tag_names: Optional[List[str]] = None
+
+    @field_validator("category_ids", mode="before")
+    @classmethod
+    def _drop_blank_category_ids(cls, value):
+        """忽略空分类值，避免表单里的空选项把整次内联编辑判为参数错误。"""
+        if value is None:
+            return None
+        cleaned = []
+        for item in value:
+            text = str(item).strip()
+            if text.isdigit():
+                cleaned.append(int(text))
+        return cleaned

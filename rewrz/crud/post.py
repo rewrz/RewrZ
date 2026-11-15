@@ -10,7 +10,7 @@ import threading
 from ..models import Post, Format, Category, Tag, Comment
 from ..models.post import post_tags
 from ..schemas import PostCreate, PostUpdate, FormatCreate
-from slugify import slugify
+from ..core.slug_utils import slugify_with_dots
 from ..core.time_utils import site_month_range_utc, utc_now_naive
 from ..core.security import get_password_hash, verify_password
 from ..crud import format as crud_format
@@ -24,6 +24,7 @@ from ..core.content_utils import (
     get_effective_content_html,
     get_comparable_content_text,
     render_markdown_html,
+    strip_empty_paragraphs,
     detect_stored_editor_mode,
 )
 from ..core.content_intents import choose_primary_intent_slug, normalize_intent_slug, INTENT_NAME_MAP
@@ -234,7 +235,9 @@ def _resolve_storage_contents(
     html_content = content_html or ""
 
     if mode == "html":
-        resolved_html = html_content.strip() or render_markdown_html(markdown_content)
+        # 富文本编辑器会用 <p><br></p> 表示空行，直接入库会在前台多占一整行
+        cleaned_html = strip_empty_paragraphs(html_content)
+        resolved_html = cleaned_html.strip() or render_markdown_html(markdown_content)
         return "", resolved_html
 
     resolved_markdown = markdown_content
@@ -508,11 +511,12 @@ def create_post(
     excerpt = _normalize_excerpt_value(post.excerpt)
 
     # 如果没有提供别名，则从标题生成，并确保唯一性
-    if post.slug:
-        base_slug = post.slug
+    if post.slug and str(post.slug).strip():
+        base_slug = str(post.slug).strip()
     else:
-        base_slug = slugify(post.title)
-    
+        # 标题可以为空，slug 不能为空，否则详情链接会退化成一个无法访问的目录
+        base_slug = slugify_with_dots(post.title) or f"post-{utc_now_naive().strftime('%Y%m%d%H%M%S')}"
+
     slug = base_slug
     i = 1
     # 检查别名是否已存在，如果存在则添加数字后缀
@@ -646,16 +650,12 @@ def update_post(db: Session, post_id: int, post: PostUpdate, tag_names: Optional
         if incoming_title is not None:
             db_post.title = incoming_title
 
-        if incoming_slug is not None:
-            base_slug = slugify(incoming_slug)
-            slug = base_slug
-            i = 1
-            while db.execute(select(Post).filter(Post.slug == slug, Post.id != db_post.id)).scalar_one_or_none():
-                slug = f"{base_slug}-{i}"
-                i += 1
-            db_post.slug = slug
-        elif incoming_title is not None:
-            base_slug = slugify(incoming_title)
+        if incoming_slug is not None or incoming_title is not None:
+            candidate = slugify_with_dots(incoming_slug) if incoming_slug is not None else ""
+            if not candidate and incoming_title is not None:
+                candidate = slugify_with_dots(incoming_title)
+            # 清空 slug 输入框时保留原链接，不能被空串覆盖
+            base_slug = candidate or db_post.slug or f"post-{utc_now_naive().strftime('%Y%m%d%H%M%S')}"
             slug = base_slug
             i = 1
             while db.execute(select(Post).filter(Post.slug == slug, Post.id != db_post.id)).scalar_one_or_none():

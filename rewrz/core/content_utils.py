@@ -3,16 +3,25 @@ from functools import lru_cache
 from html import unescape
 from typing import Optional
 
+import bleach
 from markdown import markdown
+from markdown.extensions import Extension
+from markdown.inlinepatterns import SimpleTagInlineProcessor
 
 
 VALID_EDITOR_MODES = {"markdown", "html"}
 MARKDOWN_RENDER_EXTENSIONS = ("extra", "sane_lists", "nl2br", "attr_list")
 VALID_CONTENT_RATINGS = ("general", "sensitive", "nsfw")
 TASK_LIST_ITEM_PATTERN = re.compile(r"<li>\s*\[([ xX])\]\s*")
+# 松散列表会被 Markdown 包成 <li><p>[ ] 文本</p></li>，需要单独识别
+LOOSE_TASK_LIST_ITEM_PATTERN = re.compile(
+    r"<li>\s*<p>\s*\[([ xX])\]\s*(.*?)</p>\s*",
+    re.DOTALL,
+)
 # Markdown 区块指令：:::名称 [参数]，闭合为单独一行 :::
 DIRECTIVE_OPEN_PATTERN = re.compile(r"^:::(\w+)(?:\s+([\w-]+))?$")
 DIRECTIVE_CLOSE_LINE = ":::"
+FENCE_LINE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})")
 # 正文图片标签与尺寸档位：编辑器用 URL fragment 承载尺寸（#md-img-lg），
 # 因为 Toast UI 在 Markdown/富文本往返时会丢弃 class 等非白名单属性。
 HTML_IMAGE_TAG_PATTERN = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
@@ -20,6 +29,11 @@ HTML_SRC_ATTR_PATTERN = re.compile(r'(?<![\w:-])src\s*=\s*(?:"([^"]*)"|\'([^\']*
 HTML_ALT_ATTR_PATTERN = re.compile(r'(?<![\w:-])alt\s*=\s*(?:"([^"]*)"|\'([^\']*)\')', re.IGNORECASE)
 HTML_CLASS_ATTR_PATTERN = re.compile(r'(?<![\w:-])class\s*=\s*(?:"([^"]*)"|\'([^\']*)\')', re.IGNORECASE)
 MARKDOWN_IMAGE_SIZE_FRAGMENT_PATTERN = re.compile(r"#md-img-(?:xs|sm|md|lg|full)$", re.IGNORECASE)
+# 富文本编辑器常用 <p><br></p> 表示空行，渲染到前台会额外占一整行
+EMPTY_PARAGRAPH_PATTERN = re.compile(
+    r"<p(?:\s[^>]*)?>(?:\s|<br\b[^>]*>|&nbsp;|\u00a0)*</p>",
+    re.IGNORECASE,
+)
 # 可比文本按块级标签断行，保证 diff 有真实的行结构
 HTML_BLOCK_BOUNDARY_PATTERN = re.compile(
     r"</?(?:p|div|section|article|aside|header|footer|nav|blockquote|figure|figcaption|"
@@ -74,6 +88,66 @@ def _replace_image_size_fragment(match: re.Match) -> str:
     return f'{body} class="{size_class}" {closing}'
 
 
+# 正文允许的标签与属性：覆盖 Markdown 渲染结果、图片尺寸、代码块、表格、
+# 任务列表、提示块与常见媒体嵌入；style 与 on* 一律不放行。
+CONTENT_ALLOWED_TAGS = [
+    "p", "br", "h1", "h2", "h3", "h4", "h5", "h6",
+    "ul", "ol", "li", "blockquote", "pre", "code", "hr",
+    "strong", "em", "del", "s", "a", "img", "figure", "figcaption",
+    "table", "thead", "tbody", "tr", "th", "td",
+    "video", "audio", "source", "iframe",
+    "div", "span", "section", "aside", "details", "summary",
+    "kbd", "mark", "sup", "sub", "input", "dl", "dt", "dd", "small",
+]
+CONTENT_ALLOWED_ATTRIBUTES = {
+    "*": ["class"],
+    "a": ["href", "title", "target", "rel"],
+    "img": ["src", "alt", "title", "width", "height", "loading"],
+    "video": ["src", "controls", "preload", "poster", "width", "height"],
+    "audio": ["src", "controls", "preload"],
+    "source": ["src", "type", "media"],
+    "iframe": ["src", "width", "height", "allow", "allowfullscreen", "frameborder", "title", "sandbox"],
+    "h1": ["id"], "h2": ["id"], "h3": ["id"], "h4": ["id"], "h5": ["id"], "h6": ["id"],
+    "div": ["id"], "span": ["id"], "section": ["id"],
+    "th": ["colspan", "rowspan", "align"], "td": ["colspan", "rowspan", "align"],
+    "input": ["type", "checked", "disabled"],
+}
+
+
+def sanitize_content_html(html_content: Optional[str]) -> str:
+    """对正文 HTML 做统一白名单过滤，阻止脚本、事件属性与危险链接协议。"""
+    raw_html = html_content or ""
+    if not raw_html:
+        return ""
+    # bleach 的 strip 只去标签、会留下脚本正文文本，这里先整段删除 script/style
+    raw_html = re.sub(
+        r"<(script|style)\b[^>]*>.*?</\1\s*>",
+        "",
+        raw_html,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    return bleach.clean(
+        raw_html,
+        tags=CONTENT_ALLOWED_TAGS,
+        attributes=CONTENT_ALLOWED_ATTRIBUTES,
+        protocols=("http", "https", "mailto"),
+        strip=True,
+        strip_comments=True,
+    )
+
+
+def strip_empty_paragraphs(html_content: Optional[str]) -> str:
+    """移除富文本编辑器写入的纯空段落，避免前台平白多出一整行空白。
+
+    只处理仅由空白、``<br>`` 或 ``&nbsp;`` 构成的段落；包含图片、文本或
+    其他标签的段落一律保留，避免误删正文内容。
+    """
+    raw_html = html_content or ""
+    if not raw_html:
+        return ""
+    return EMPTY_PARAGRAPH_PATTERN.sub("", raw_html)
+
+
 def apply_image_size_fragments(html_content: Optional[str]) -> str:
     """把正文图片地址里的尺寸片段转换为真实 class，供前端尺寸样式生效。"""
     raw_html = html_content or ""
@@ -104,25 +178,64 @@ def _render_task_list_items(html_content: str) -> str:
         checked = " checked" if match.group(1).lower() == "x" else ""
         return f'<li class="task-list-item"><input type="checkbox" class="task-list-checkbox" disabled{checked}> '
 
+    def replace_loose_item(match: re.Match) -> str:
+        checked = " checked" if match.group(1).lower() == "x" else ""
+        content = (match.group(2) or "").strip()
+        return (
+            '<li class="task-list-item">'
+            f'<input type="checkbox" class="task-list-checkbox" disabled{checked}> {content} '
+        )
+
+    html_content = LOOSE_TASK_LIST_ITEM_PATTERN.sub(replace_loose_item, html_content)
     return TASK_LIST_ITEM_PATTERN.sub(replace_item, html_content)
+
+
+class _StrikethroughExtension(Extension):
+    """让 Markdown 模式也支持编辑器的 ~~删除线~~ 语法。"""
+
+    def extendMarkdown(self, md):  # noqa: N802 - Python-Markdown 固定接口名
+        md.inlinePatterns.register(
+            SimpleTagInlineProcessor(r"(~~)(.+?)~~", "del"),
+            "rewrz_strikethrough",
+            175,
+        )
+
+
+# Toast UI 会把普通文本里的波浪线转义成 \~，而 Python-Markdown 不消费这个转义；
+# 先换成占位符，渲染完再还原成字面量，避免前台把反斜杠显示出来。
+_ESCAPED_TILDE_TOKEN = "\x00REWRZ_TILDE\x00"
 
 
 def _render_plain_markdown(text: str) -> str:
     """渲染不含区块指令的 Markdown 片段。"""
     if not text.strip():
         return ""
-    return markdown(text, extensions=list(MARKDOWN_RENDER_EXTENSIONS))
+    protected = text.replace("\\~", _ESCAPED_TILDE_TOKEN)
+    rendered = markdown(
+        protected,
+        extensions=[*MARKDOWN_RENDER_EXTENSIONS, _StrikethroughExtension()],
+    )
+    return sanitize_content_html(rendered.replace(_ESCAPED_TILDE_TOKEN, "~"))
 
 
-def _split_directive_columns(inner: str) -> tuple[str, str]:
-    """拆分 columns 指令内的 left / right 子块，缺省时按空列处理。"""
+def _split_directive_columns(inner: str) -> tuple[str, str, str, bool]:
+    """拆分 columns 指令内的 left / right 子块，并保留其余文本。"""
     columns: dict[str, str] = {}
+    remainder_parts: list[str] = []
     for kind, payload in _parse_directive_segments(inner):
-        if kind != "block":
-            continue
-        if payload["name"] in {"left", "right"} and payload["name"] not in columns:
+        if kind == "block" and payload["name"] in {"left", "right"} and payload["name"] not in columns:
             columns[payload["name"]] = payload["inner"]
-    return columns.get("left", ""), columns.get("right", "")
+        elif kind == "text":
+            remainder_parts.append(str(payload))
+        else:
+            # 嵌套的未知块保留内部内容，避免整段被丢弃
+            remainder_parts.append(str(payload.get("inner", "")))
+    return (
+        columns.get("left", ""),
+        columns.get("right", ""),
+        "".join(remainder_parts),
+        bool(columns),
+    )
 
 
 def _render_directive_block(name: str, arg: str, inner: str) -> str:
@@ -152,9 +265,12 @@ def _render_directive_block(name: str, arg: str, inner: str) -> str:
         return f'<aside class="md-block md-block-notice {notice_class}">{inner_html}</aside>'
 
     if name == "columns":
-        left_inner, right_inner = _split_directive_columns(inner)
-        if not left_inner and not right_inner:
+        left_inner, right_inner, remainder, has_columns = _split_directive_columns(inner)
+        if not has_columns:
             return inner_html
+        if remainder.strip():
+            # 没有归入 left/right 的内容放进左列，保证不会静默丢失
+            left_inner = f"{left_inner}\n\n{remainder}".strip()
         left_html = _render_task_list_items(_render_plain_markdown(left_inner))
         right_html = _render_task_list_items(_render_plain_markdown(right_inner))
         return (
@@ -183,20 +299,29 @@ def _parse_directive_segments(text: str) -> list[tuple[str, object]]:
     segments: list[tuple[str, object]] = []
     buffer: list[str] = []
     index = 0
-    in_code_fence = False
+    fence_char = ""
+    fence_length = 0
 
     while index < len(lines):
         line = lines[index]
-        stripped = line.strip()
-
-        if stripped.startswith("```"):
-            in_code_fence = not in_code_fence
+        fence_match = FENCE_LINE_PATTERN.match(line)
+        if fence_match:
+            marker = fence_match.group(1)
+            if not fence_char:
+                fence_char = marker[0]
+                fence_length = len(marker)
+            elif marker[0] == fence_char and len(marker) >= fence_length:
+                fence_char = ""
+                fence_length = 0
             buffer.append(line)
             index += 1
             continue
 
-        # 指令必须从行首书写，避免把缩进代码块里的 ::: 误判为区块指令
-        match = None if in_code_fence else DIRECTIVE_OPEN_PATTERN.match(line.rstrip())
+        # 允许 0-3 个空格缩进（编辑器会 trim 后识别），4 空格仍按代码块处理
+        leading_spaces = len(line) - len(line.lstrip(" "))
+        match = None
+        if not fence_char and leading_spaces < 4:
+            match = DIRECTIVE_OPEN_PATTERN.match(line.lstrip(" ").rstrip())
         if match is None:
             buffer.append(line)
             index += 1
@@ -211,21 +336,31 @@ def _parse_directive_segments(text: str) -> list[tuple[str, object]]:
         inner_lines: list[str] = []
         depth = 1
         cursor = index + 1
-        inner_code_fence = False
+        inner_fence_char = ""
+        inner_fence_length = 0
 
         while cursor < len(lines):
-            inner_stripped = lines[cursor].strip()
-            inner_line = lines[cursor].rstrip()
-            if inner_stripped.startswith("```"):
-                inner_code_fence = not inner_code_fence
-            if not inner_code_fence:
-                if inner_line == DIRECTIVE_CLOSE_LINE:
-                    depth -= 1
-                    if depth == 0:
-                        break
-                elif DIRECTIVE_OPEN_PATTERN.match(inner_line):
-                    depth += 1
-            inner_lines.append(lines[cursor])
+            inner_line_raw = lines[cursor]
+            inner_fence_match = FENCE_LINE_PATTERN.match(inner_line_raw)
+            if inner_fence_match:
+                marker = inner_fence_match.group(1)
+                if not inner_fence_char:
+                    inner_fence_char = marker[0]
+                    inner_fence_length = len(marker)
+                elif marker[0] == inner_fence_char and len(marker) >= inner_fence_length:
+                    inner_fence_char = ""
+                    inner_fence_length = 0
+            if not inner_fence_char:
+                inner_leading = len(inner_line_raw) - len(inner_line_raw.lstrip(" "))
+                inner_line = inner_line_raw.strip()
+                if inner_leading < 4:
+                    if inner_line == DIRECTIVE_CLOSE_LINE:
+                        depth -= 1
+                        if depth == 0:
+                            break
+                    elif DIRECTIVE_OPEN_PATTERN.match(inner_line):
+                        depth += 1
+            inner_lines.append(inner_line_raw)
             cursor += 1
 
         if cursor >= len(lines):
@@ -331,8 +466,8 @@ def infer_editor_mode(
 def _get_effective_content_html_cached(content_markdown: str, content_html: str) -> str:
     html_content = content_html.strip()
     if html_content:
-        # HTML 模式同样可能带着编辑器写入的尺寸片段，这里统一收口
-        return apply_image_size_fragments(html_content)
+        # HTML 模式同样可能带着编辑器写入的尺寸片段与空段落，这里统一收口
+        return sanitize_content_html(strip_empty_paragraphs(apply_image_size_fragments(html_content)))
 
     return render_markdown_html(content_markdown)
 
@@ -346,7 +481,8 @@ def html_to_plain_text(content_html: Optional[str]) -> str:
     raw_html = content_html or ""
     if not raw_html:
         return ""
-    plain_text = re.sub(r"<[^>]+>", " ", raw_html)
+    # 先剥标签再反解实体，避免 &amp; / &nbsp; 以字面量进入摘要
+    plain_text = unescape(re.sub(r"<[^>]+>", " ", raw_html))
     plain_text = re.sub(r"\s+", " ", plain_text).strip()
     return plain_text
 
