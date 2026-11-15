@@ -50,6 +50,8 @@ def _refresh_post_cover_cache_safely(db: Session, post, *, previous_slug: Option
 # 预览请求会占用请求级数据库会话，输入风暴下若不加限制会耗尽连接池。
 _PREVIEW_RATE_LIMIT_PER_MINUTE = 120
 _PREVIEW_MAX_CONCURRENT = 4
+# 标签补全会随输入触发，单独给一个额度，避免挤占预览渲染的配额
+_QUICK_TAG_SUGGEST_RATE_LIMIT_PER_MINUTE = 90
 _PREVIEW_RATE_BUCKETS: Dict[str, Deque[float]] = defaultdict(deque)
 _PREVIEW_RATE_LOCK = threading.Lock()
 _PREVIEW_SEMAPHORE = threading.BoundedSemaphore(_PREVIEW_MAX_CONCURRENT)
@@ -443,6 +445,49 @@ def preview_public_quick_micro_post(
         }
     finally:
         _PREVIEW_SEMAPHORE.release()
+
+
+@router.get("/api/v1/posts/quick/tag-suggest", response_model=dict)
+@router.get("/api/posts/quick/tag-suggest", response_model=dict)
+def suggest_public_quick_micro_tags(
+    q: str = "",
+    limit: int = 6,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """前台微动态标签补全：输入 # 前缀时带出已有标签，减少近义标签发散。"""
+    rate_allowed, retry_after = _check_preview_rate_limit(
+        f"quick-tag-suggest:{current_user.id}",
+        limit=_QUICK_TAG_SUGGEST_RATE_LIMIT_PER_MINUTE,
+    )
+    if not rate_allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="标签建议请求过于频繁，请稍后再试",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    keyword = str(q or "").strip().lstrip("#＃").strip()
+    try:
+        safe_limit = int(limit)
+    except (TypeError, ValueError):
+        safe_limit = 6
+    safe_limit = max(1, min(safe_limit, MICRO_TAG_LIMIT))
+
+    items = crud_tag.suggest_tags(db, keyword, limit=safe_limit)
+    return {
+        "success": True,
+        "items": [
+            {
+                "name": item["name"],
+                "post_count": item["post_count"],
+                "match": item["match"],
+            }
+            for item in items
+            # 微动态语法只认连续字符，含空格的标签无法以 #标签 形式表达
+            if not any(char.isspace() for char in str(item.get("name") or ""))
+        ],
+    }
 
 
 @router.post("/api/v1/posts/quick/{post_id}", response_model=dict)

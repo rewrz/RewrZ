@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from rewrz.core.data_manager import RewrZImporter, WordPressImporter
-from rewrz.models import Base, Media
+from rewrz.models import Base, Media, PostViewStat
 from rewrz.crud import category as crud_category
 from rewrz.crud import comment as crud_comment
 from rewrz.crud import format as crud_format
@@ -221,6 +221,47 @@ def test_rewrz_import_preserves_created_updated_published(db, tmp_path):
     assert imported.created_at == datetime(2020, 1, 1, 2, 0, 0)
     assert imported.published_at == datetime(2020, 1, 2, 12, 0, 0)
     assert imported.updated_at == datetime(2020, 1, 3, 5, 30, 0)
+
+
+def test_rewrz_import_restores_views_and_ignores_legacy_metric_settings(db, tmp_path):
+    crud_user.create_user(
+        db,
+        UserCreate(username="admin-views", email="admin-views@example.com", password="password123"),
+    )
+
+    payload = {
+        "posts": [
+            {
+                "title": "浏览量导入测试",
+                "slug": "rewrz-views-post",
+                "content_markdown": "content",
+                "status": "published",
+                "views": 321,
+            }
+        ],
+        "settings": [
+            # 旧备份把浏览量写成 settings 行，导入时必须丢弃而不是重新塞回配置表
+            {"key": "post_views_count_9", "value": {"value": 321}},
+            {"key": "site_title", "value": {"value": "导入站点"}},
+        ],
+    }
+    json_file = tmp_path / "rewrz_views.json"
+    json_file.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    importer = RewrZImporter(db)
+    stats = importer.import_from_json(str(json_file))
+
+    assert stats["posts_imported"] == 1
+    assert stats["views_imported"] == 1
+    assert stats["settings_imported"] == 1
+    assert stats["errors"] == []
+
+    imported = crud_post.get_post_by_slug(db, "rewrz-views-post")
+    assert imported is not None
+    metric_row = db.get(PostViewStat, imported.id)
+    assert metric_row is not None and int(metric_row.views) == 321
+    assert crud_setting.get_setting(db, "post_views_count_9") is None
+    assert crud_setting.get_setting(db, "site_title") is not None
 
 
 def test_wordpress_import_uses_post_name_creator_excerpt_and_preserves_html(db, tmp_path):
@@ -560,9 +601,9 @@ def test_wordpress_import_comments_and_views_meta(db, tmp_path):
     assert child.status == "pending"
     assert child.parent_id == parent.id
 
-    metric_setting = crud_setting.get_setting(db, f"post_views_count_{post.id}")
-    assert metric_setting is not None
-    assert metric_setting.value.get("value") == 584
+    metric_row = db.get(PostViewStat, post.id)
+    assert metric_row is not None
+    assert int(metric_row.views) == 584
 
 
 def test_wordpress_import_options_can_disable_comments_and_views(db, tmp_path):

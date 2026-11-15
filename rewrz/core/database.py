@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import shutil
@@ -265,6 +266,7 @@ class DatabaseManager:
             self.engine = create_engine(database_url, **engine_kwargs)
             if is_sqlite:
                 self._configure_sqlite(self.engine)
+                self._verify_sqlite_journal_mode(self.engine)
             self._configure_diagnostics(self.engine)
             self.SessionLocal = sessionmaker(
                 autocommit=False, 
@@ -292,11 +294,65 @@ class DatabaseManager:
             try:
                 cursor.execute(f"PRAGMA busy_timeout={busy_timeout_ms}")
                 cursor.execute(f"PRAGMA journal_mode={journal_mode}")
+                # WAL 文件 checkpoint 后回落到 64MB，避免长时间运行后 WAL 无限膨胀、
+                # 每次提交都要搬运大量页帧而拉长写事务。
+                cursor.execute("PRAGMA journal_size_limit=67108864")
                 # 负值表示 KiB：限制每个连接的页缓存，连接池放大后内存仍可控
                 cursor.execute(f"PRAGMA cache_size=-{cache_size_kib}")
                 cursor.execute(f"PRAGMA synchronous={synchronous}")
             finally:
                 cursor.close()
+
+    @staticmethod
+    def _verify_sqlite_journal_mode(engine) -> None:
+        """确认 WAL 真正生效。
+
+        `PRAGMA journal_mode=WAL` 在数据库被其他连接占用时会静默失败并保持
+        回滚日志模式，此后读写互斥：一个长写事务会把所有读请求排到几十秒，
+        连接池随后被等待中的请求占满。这里在建引擎后立刻校验一次，
+        失败时主动重试并输出可定位的告警。
+        """
+        expected = str(getattr(settings, "SQLITE_JOURNAL_MODE", "WAL") or "WAL").strip().upper()
+        if expected not in VALID_SQLITE_JOURNAL_MODES:
+            expected = "WAL"
+        try:
+            raw_connection = engine.raw_connection()
+        except Exception:
+            logger.debug("读取 SQLite journal_mode 失败", exc_info=True)
+            return
+        try:
+            cursor = raw_connection.cursor()
+            try:
+                cursor.execute("PRAGMA journal_mode")
+                row = cursor.fetchone()
+                actual = str(row[0] if row else "").strip().lower()
+                if actual == expected.lower():
+                    return
+                cursor.execute(f"PRAGMA journal_mode={expected}")
+                row = cursor.fetchone()
+                switched = str(row[0] if row else "").strip().lower()
+                if switched == expected.lower():
+                    logger.warning(
+                        "SQLite 日志模式已从 %s 切换为 %s，读写并发能力恢复",
+                        actual.upper() or "UNKNOWN",
+                        switched.upper(),
+                    )
+                    return
+                logger.error(
+                    "SQLite 日志模式未能切换为 %s（当前 %s）。回滚日志模式下读写互斥，"
+                    "长写事务会阻塞读请求并放大连接池等待，请检查是否有其他进程占用数据库文件。",
+                    expected.upper(),
+                    switched.upper() or actual.upper() or "UNKNOWN",
+                )
+            finally:
+                cursor.close()
+        except Exception:
+            logger.debug("校验 SQLite journal_mode 失败", exc_info=True)
+        finally:
+            try:
+                raw_connection.close()
+            except Exception:
+                pass
 
     def _configure_diagnostics(self, engine) -> None:
         """注册慢 SQL、连接持有与池事件的诊断监听器。"""
@@ -626,12 +682,97 @@ def ensure_post_columns(bind) -> None:
     logger.info("已为 posts 表补齐列：%s", ", ".join(name for name, _ in missing))
 
 
+_POST_VIEWS_METRIC_KEY_PREFIX = "post_views_count_"
+
+
+def _parse_setting_views_value(raw_value) -> int:
+    """解析 settings.value 中的浏览量数值，兼容 JSON 文本与已解析的 dict。"""
+    if isinstance(raw_value, bool):
+        return int(raw_value)
+    if isinstance(raw_value, (int, float)):
+        return max(0, int(raw_value))
+    payload = raw_value
+    if isinstance(raw_value, (str, bytes)):
+        try:
+            payload = json.loads(raw_value)
+        except (TypeError, ValueError):
+            return 0
+    if isinstance(payload, dict):
+        payload = payload.get("value")
+    try:
+        return max(0, int(payload or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def migrate_post_views_out_of_settings(bind) -> int:
+    """把旧 settings 里的浏览量指标一次性迁到 post_view_stats。
+
+    旧实现按文章写一行 `post_views_count_<id>`，配置表被撑大后，设置读取与
+    全表 LIKE 统计都会变慢。迁移完成后旧键直接删除，不做运行时兼容分支。
+    """
+    try:
+        table_names = set(inspect(bind).get_table_names())
+    except Exception:
+        logger.debug("检查浏览量指标迁移失败", exc_info=True)
+        return 0
+    if "post_view_stats" not in table_names or "settings" not in table_names:
+        return 0
+
+    try:
+        with bind.begin() as connection:
+            rows = connection.execute(
+                text("SELECT key, value FROM settings WHERE key LIKE 'post_views_count_%'")
+            ).fetchall()
+            if not rows:
+                return 0
+
+            metrics: dict[int, int] = {}
+            for key, value in rows:
+                key_text = str(key or "")
+                if not key_text.startswith(_POST_VIEWS_METRIC_KEY_PREFIX):
+                    continue
+                try:
+                    post_id = int(key_text[len(_POST_VIEWS_METRIC_KEY_PREFIX) :])
+                except (TypeError, ValueError):
+                    continue
+                if post_id <= 0:
+                    continue
+                views = _parse_setting_views_value(value)
+                metrics[post_id] = max(metrics.get(post_id, 0), views)
+
+            if metrics:
+                connection.execute(
+                    text(
+                        "INSERT INTO post_view_stats (post_id, views, updated_at) "
+                        "VALUES (:post_id, :views, CURRENT_TIMESTAMP) "
+                        "ON CONFLICT (post_id) DO UPDATE SET "
+                        "views = CASE WHEN post_view_stats.views > :views "
+                        "THEN post_view_stats.views ELSE :views END, "
+                        "updated_at = CURRENT_TIMESTAMP"
+                    ),
+                    [
+                        {"post_id": post_id, "views": views}
+                        for post_id, views in metrics.items()
+                    ],
+                )
+            connection.execute(
+                text("DELETE FROM settings WHERE key LIKE 'post_views_count_%'")
+            )
+            logger.info("已把 %s 条浏览量指标从 settings 迁移到 post_view_stats", len(metrics))
+            return len(metrics)
+    except Exception:
+        logger.exception("浏览量指标迁移失败，下次启动会重试")
+        return 0
+
+
 # 创建所有表的函数（仅用于初始设置，不用于迁移）
 def create_all_tables():
     """创建所有表，并为已存在的表补齐新增列"""
     if db_manager.is_available:
         Base.metadata.create_all(bind=db_manager.engine)
         ensure_post_columns(db_manager.engine)
+        migrate_post_views_out_of_settings(db_manager.engine)
         return True
     return False
 

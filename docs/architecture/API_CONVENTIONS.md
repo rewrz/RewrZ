@@ -78,6 +78,8 @@ RewrZ 当前 API 分为四层：
 - 微博前台发布器接口：
   - `POST /api/v1/posts/quick`：发布动态
   - `POST /api/v1/posts/quick/{post_id}`：前台编辑动态，仅作者本人或管理员可用，编辑不重建 slug，原链接保持不变
+  - `GET /api/v1/posts/quick/tag-suggest`：输入 `#` 前缀时推荐已有标签，仅登录用户可用，
+    按用户独立限流；含空格的标签不返回（微动态语法无法表达）
 
 ### 3.3 外部 API
 - 使用：

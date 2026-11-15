@@ -122,6 +122,44 @@ def test_record_request_updates_buffers_and_flush_persists(traffic_db, monkeypat
     assert dimensions[("bot", "Googlebot")] == 1
 
 
+def test_flush_caps_rows_per_round_and_converges(traffic_db, monkeypatch):
+    session_factory = _make_session_factory(traffic_db.get_bind())
+    monkeypatch.setattr(traffic_analytics.db_manager, "get_session", lambda: session_factory())
+    # 把单轮上限压到 1 行，验证未写入的增量会留到下一轮而不是被丢掉
+    monkeypatch.setattr(traffic_analytics, "_MAX_FLUSH_VISITOR_ROWS", 1)
+    monkeypatch.setattr(traffic_analytics, "_MAX_FLUSH_DIMENSION_ROWS", 1)
+
+    with traffic_analytics._LOCK:
+        traffic_analytics._clear_buffers_locked()
+
+    for client_ip in ("203.0.113.21", "203.0.113.22"):
+        monkeypatch.setattr(
+            traffic_analytics, "_get_client_ip", lambda request, ip=client_ip: ip
+        )
+        traffic_analytics.record_http_request(_fake_request(path="/cap"), _html_response(), None)
+
+    traffic_analytics._flush_once()
+    traffic_db.expire_all()
+    visitors = traffic_db.execute(select(TrafficVisitorDaily)).scalars().all()
+    assert len(visitors) == 1
+    # 另一个访客还没写入，不能提前推进它的水位
+    assert len(traffic_analytics._VISITOR_VALUES) == 1
+
+    traffic_analytics._flush_once()
+    traffic_db.expire_all()
+    visitors = traffic_db.execute(select(TrafficVisitorDaily)).scalars().all()
+    assert len(visitors) == 2
+    assert sum(int(row.hits) for row in visitors) == 2
+
+    # 维度同样逐轮补齐，累计值不能因为限批而重复或丢失
+    dimensions = [
+        int(row.hits)
+        for row in traffic_db.execute(select(TrafficDimensionDaily)).scalars().all()
+        if row.kind == "path" and row.value == "/cap"
+    ]
+    assert dimensions == [2]
+
+
 def test_flush_failure_restores_buffers(traffic_db, monkeypatch):
     session_factory = _make_session_factory(traffic_db.get_bind())
     monkeypatch.setattr(traffic_analytics, "_get_client_ip", lambda request: "203.0.113.11")

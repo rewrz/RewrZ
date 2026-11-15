@@ -19,6 +19,7 @@ from rewrz.core.content_access import (
     render_markdown_with_hide_blocks,
 )
 from rewrz.core.comment_security import sanitize_comment_content
+from rewrz.core.post_views import load_post_views_map
 from rewrz.core.format_archive_metrics import (
     attach_format_comment_counts,
     build_format_category_topic_count,
@@ -35,8 +36,8 @@ from rewrz.core.template_filters import (
 from rewrz.models.category import Category
 from rewrz.models.comment import Comment
 from rewrz.models.format import Format
+from rewrz.models.post_view_stat import PostViewStat
 from rewrz.models.reaction import ContentReaction
-from rewrz.models.setting import Setting
 from sqlalchemy import select
 
 
@@ -491,8 +492,8 @@ def test_format_archive_metrics_helpers_build_expected_statistics(db: Session, t
             ContentReaction(target_type="post", target_id=first_post.id, visitor_token="u1", like_active=True, reaction_type=None),
             ContentReaction(target_type="post", target_id=first_post.id, visitor_token="u2", like_active=False, reaction_type="heart"),
             ContentReaction(target_type="post", target_id=second_post.id, visitor_token="u3", like_active=True, reaction_type=None),
-            Setting(key=f"post_views_count_{first_post.id}", value={"value": 20}, description="metric"),
-            Setting(key=f"post_views_count_{second_post.id}", value={"value": 5}, description="metric"),
+            PostViewStat(post_id=first_post.id, views=20),
+            PostViewStat(post_id=second_post.id, views=5),
         ]
     )
     db.commit()
@@ -513,13 +514,7 @@ def test_format_archive_metrics_helpers_build_expected_statistics(db: Session, t
     assert interaction_count == 6
 
     def _load_views_metrics_map(metric_db, post_ids):
-        metric_keys = [f"post_views_count_{post_id}" for post_id in post_ids]
-        rows = metric_db.query(Setting).filter(Setting.key.in_(metric_keys)).all()
-        results = {}
-        for row in rows:
-            post_id = int(str(row.key).replace("post_views_count_", "", 1))
-            results[post_id] = int((row.value or {}).get("value", 0))
-        return results
+        return load_post_views_map(metric_db, post_ids)
 
     tag_topic_count, hot_tags = build_format_tag_metrics(
         db,

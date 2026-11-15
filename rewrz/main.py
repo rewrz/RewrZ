@@ -61,7 +61,7 @@ from .crud import comment as crud_comment
 from .crud import reaction as crud_reaction
 from .crud import setting as crud_setting # Import crud_setting
 from .crud import format as crud_format # 导入格式CRUD模块以修复未定义变量错误
-from .models import Post, Setting
+from .models import Post
 from .core import error_handler  # 导入错误处理模块
 from .core import public_list_cache  # 公共列表页缓存：匿名列表页跳过 CSRF 会话创建
 from .core import public_detail_cache  # 公开详情页整页缓存（CSRF 占位符替换）
@@ -989,15 +989,6 @@ def get_page_config(db: Session, config_key: str, default_value: Any) -> Any:
     return setting.value.get("value") if setting and setting.value else default_value
 
 
-def _extract_metric_int(raw_value: Any, default: int = 0) -> int:
-    if isinstance(raw_value, dict):
-        raw_value = raw_value.get("value")
-    try:
-        return int(raw_value)
-    except (TypeError, ValueError):
-        return default
-
-
 def _build_comment_view_context(db: Session, post_obj, request: Request) -> Dict[str, Any]:
     """构建评论区首屏上下文：批量互动摘要、隐藏内容提示、解锁状态。"""
     comments = list(getattr(post_obj, "comments", None) or [])
@@ -1022,44 +1013,11 @@ def _build_comment_view_context(db: Session, post_obj, request: Request) -> Dict
 
 
 def _sum_post_views_metrics(db: Session) -> int:
-    total_views = 0
-    rows = db.execute(
-        select(Setting.value).where(Setting.key.like("post_views_count_%"))
-    ).scalars().all()
-    for row in rows:
-        total_views += max(0, _extract_metric_int(row, default=0))
-    return total_views
+    return post_views.sum_post_views(db)
 
 
 def _load_post_views_metrics_map(db: Session, post_ids: List[int], chunk_size: int = 300) -> Dict[int, int]:
-    normalized_post_ids = sorted({int(post_id) for post_id in post_ids if isinstance(post_id, int) or str(post_id).isdigit()})
-    if not normalized_post_ids:
-        return {}
-
-    views_map: Dict[int, int] = {}
-    metric_keys = [f"post_views_count_{post_id}" for post_id in normalized_post_ids]
-    batch_size = max(50, int(chunk_size or 300))
-
-    for offset in range(0, len(metric_keys), batch_size):
-        batch_keys = metric_keys[offset: offset + batch_size]
-        try:
-            rows = db.execute(
-                select(Setting.key, Setting.value).where(Setting.key.in_(batch_keys))
-            ).all()
-        except Exception:
-            continue
-
-        for key, value in rows:
-            key_text = str(key or "")
-            if not key_text.startswith("post_views_count_"):
-                continue
-            suffix = key_text.replace("post_views_count_", "", 1)
-            try:
-                post_id = int(suffix)
-            except (TypeError, ValueError):
-                continue
-            views_map[post_id] = max(0, _extract_metric_int(value, default=0))
-    return views_map
+    return post_views.load_post_views_map(db, post_ids, chunk_size=chunk_size)
 
 
 def _parse_bool(value: Any, default: bool) -> bool:
@@ -1458,27 +1416,41 @@ def _schedule_article_api_cache_prefetch(
             if db is None:
                 return
 
+            cache_dir = _ensure_article_api_cache_dir()
             try:
-                cache_dir = _ensure_article_api_cache_dir()
                 cache_index = _load_article_api_cache_index(db)
                 now_utc = datetime.now(timezone.utc)
+            finally:
+                # 下载可能持续数秒到数十秒，不能带着已开启的事务占住连接池
+                db.close()
 
-                _, changed = _resolve_cached_remote_article_image(
-                    seed_value=seed_value,
-                    fallback_api_url=fallback_api_url,
-                    cache_index=cache_index,
-                    cache_ttl_minutes=cache_ttl_minutes,
-                    cache_dir=cache_dir,
-                    now_utc=now_utc,
-                    download_if_missing=True,
+            _, changed = _resolve_cached_remote_article_image(
+                seed_value=seed_value,
+                fallback_api_url=fallback_api_url,
+                cache_index=cache_index,
+                cache_ttl_minutes=cache_ttl_minutes,
+                cache_dir=cache_dir,
+                now_utc=now_utc,
+                download_if_missing=True,
+            )
+            if not changed:
+                return
+
+            db = db_manager.get_session()
+            if db is None:
+                return
+            try:
+                # 重新读取最新索引后再合并，避免覆盖其他预热线程刚写入的条目
+                latest_index = _load_article_api_cache_index(db)
+                entry = cache_index.get(cache_key)
+                if isinstance(entry, dict):
+                    latest_index[cache_key] = entry
+                _upsert_runtime_setting(
+                    db,
+                    _ARTICLE_API_CACHE_INDEX_KEY,
+                    latest_index,
+                    "Article fallback API cache index",
                 )
-                if changed:
-                    _upsert_runtime_setting(
-                        db,
-                        _ARTICLE_API_CACHE_INDEX_KEY,
-                        cache_index,
-                        "Article fallback API cache index",
-                    )
             finally:
                 db.close()
         except Exception:

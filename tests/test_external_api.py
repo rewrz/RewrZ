@@ -16,7 +16,7 @@ from rewrz.core.api_keys import build_api_key_plaintext, hash_api_key_secret
 from rewrz.core.database import Base
 from rewrz.core.database import get_db
 from rewrz.core.security import create_access_token, verify_password
-from rewrz.models import ApiKey, Category, Format, Post, Setting, Tag, User as DbUser
+from rewrz.models import ApiKey, Category, Format, Post, PostViewStat, Setting, Tag, User as DbUser
 
 
 def _set_installation_complete(monkeypatch, value: bool) -> None:
@@ -683,6 +683,49 @@ def test_frontend_quick_post_preview_does_not_create_tags(monkeypatch, tmp_path)
         engine.dispose()
 
 
+def test_frontend_quick_tag_suggest_returns_similar_existing_tags(monkeypatch, tmp_path):
+    client, session_factory, engine = _build_client(monkeypatch, tmp_path)
+    with session_factory() as db:
+        _seed_external_api_basics(db)
+        db.add_all(
+            [
+                Tag(name="Python", slug="python-suggest"),
+                Tag(name="Python3", slug="python3-suggest"),
+                Tag(name="Rust", slug="rust-suggest"),
+                Tag(name="带 空格", slug="with-space-suggest"),
+            ]
+        )
+        db.commit()
+
+    try:
+        access_token = create_access_token({"sub": "1"})
+        client.cookies.set("access_token", access_token)
+
+        response = client.get(
+            "/api/v1/posts/quick/tag-suggest",
+            params={"q": "python", "limit": 6},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["success"] is True
+        names = [item["name"] for item in payload["items"]]
+        assert names[:2] == ["Python", "Python3"]
+        assert "Rust" not in names
+        # 微动态语法无法表达含空格的标签，不应推荐出来
+        assert "带 空格" not in names
+
+        # 未登录用户不能访问，避免匿名刷标签库
+        client.cookies.clear()
+        anonymous = client.get(
+            "/api/v1/posts/quick/tag-suggest",
+            params={"q": "python"},
+        )
+        assert anonymous.status_code in {401, 403}
+    finally:
+        main_module.app.dependency_overrides.clear()
+        engine.dispose()
+
+
 def test_frontend_quick_post_supports_password_visibility_and_hide_block(monkeypatch, tmp_path):
     client, session_factory, engine = _build_client(monkeypatch, tmp_path)
     with session_factory() as db:
@@ -913,21 +956,13 @@ def test_delete_post_cleans_stale_views_metric(monkeypatch, tmp_path):
             db.add(post)
             db.commit()
             db.refresh(post)
-            db.add(
-                Setting(
-                    key=f"post_views_count_{post.id}",
-                    value={"value": 164},
-                    description="test views",
-                    category="post_metrics",
-                    type="integer",
-                )
-            )
+            db.add(PostViewStat(post_id=post.id, views=164))
             db.commit()
 
             crud_post.delete_post(db, post.id)
 
             deleted_post = db.query(Post).filter(Post.id == post.id).first()
-            deleted_metric = db.query(Setting).filter(Setting.key == f"post_views_count_{post.id}").first()
+            deleted_metric = db.get(PostViewStat, post.id)
             assert deleted_post is None
             assert deleted_metric is None
     finally:

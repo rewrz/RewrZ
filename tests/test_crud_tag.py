@@ -114,7 +114,7 @@ def test_resolve_or_create_tag_normalizes_unicode_nfc(db: Session):
 
 
 def test_resolve_or_create_tag_reuses_existing_when_generated_slug_conflicts(db: Session):
-    # “測試”与“测试”名称不同，但都会生成同一个 slug，必须复用已有标签。
+    # "測試"与"测试"名称不同，但都会生成同一个 slug，必须复用已有标签。
     existing = crud_tag.create_tag(db, TagCreate(name="測試", slug="ce-shi"))
 
     resolved = crud_tag.resolve_or_create_tag(db, "测试")
@@ -150,3 +150,56 @@ def test_find_conflicting_tag_matches_name_or_slug_across_fields(db: Session):
         exclude_tag_id=existing.id,
     ) is None
     assert crud_tag.find_conflicting_tag(db, name="全新名称", slug="brand-new") is None
+
+
+def test_suggest_tags_prefers_exact_then_prefix(db: Session):
+    crud_tag.create_tag(db, TagCreate(name="Python", slug="python"))
+    crud_tag.create_tag(db, TagCreate(name="Python3", slug="python3"))
+    crud_tag.create_tag(db, TagCreate(name="Rust", slug="rust"))
+
+    items = crud_tag.suggest_tags(db, "python")
+
+    assert items[0]["name"] == "Python"
+    assert items[0]["match"] == "exact"
+    assert [item["name"] for item in items[:2]] == ["Python", "Python3"]
+    assert all(item["name"] != "Rust" for item in items)
+
+
+def test_suggest_tags_marks_longer_input_as_similar(db: Session):
+    crud_tag.create_tag(db, TagCreate(name="前端开发", slug="frontend-dev"))
+
+    items = crud_tag.suggest_tags(db, "前端开发工程师")
+
+    assert items
+    assert items[0]["name"] == "前端开发"
+    assert items[0]["match"] == "contains"
+
+
+def test_suggest_tags_respects_exclude_list(db: Session):
+    crud_tag.create_tag(db, TagCreate(name="前端开发", slug="frontend-dev"))
+    crud_tag.create_tag(db, TagCreate(name="后端开发", slug="backend-dev"))
+
+    items = crud_tag.suggest_tags(db, "前端", exclude=["前端开发"])
+
+    assert all(item["name"] != "前端开发" for item in items)
+
+
+def test_suggest_tags_empty_query_orders_by_usage(db: Session):
+    crud_tag.create_tag(db, TagCreate(name="偶尔使用", slug="rare"))
+    hot_tag = crud_tag.create_tag(db, TagCreate(name="经常使用", slug="hot"))
+    for index in range(2):
+        post = Post(
+            title=f"热门标签 {index}",
+            slug=f"hot-tag-post-{index}",
+            content_markdown="x",
+            content_html="<p>x</p>",
+        )
+        post.tags.append(hot_tag)
+        db.add(post)
+    db.commit()
+
+    items = crud_tag.suggest_tags(db, "", limit=5)
+
+    assert items[0]["name"] == "经常使用"
+    assert items[0]["post_count"] == 2
+    assert items[0]["match"] == "popular"

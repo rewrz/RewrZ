@@ -20,6 +20,7 @@
     }
     /* 标签编辑器：整体呈现为一个输入框，已选标签与输入框在同一行内自然流动 */
     .editor-tag-editor {
+        position: relative;
         display: flex;
         flex-wrap: wrap;
         align-items: center;
@@ -51,6 +52,70 @@
     }
     .editor-tag-input::placeholder {
         color: var(--color-text-light);
+    }
+    /* 标签建议下拉：绝对定位在编辑器下方，颜色全部走主题语义变量 */
+    .editor-tag-suggest {
+        position: absolute;
+        top: calc(100% + 0.35rem);
+        left: 0;
+        right: 0;
+        z-index: 40;
+        max-height: 15rem;
+        overflow-y: auto;
+        padding: 0.3rem;
+        border: 1px solid var(--ui-border);
+        border-radius: 0.75rem;
+        background: var(--color-card-bg);
+        box-shadow: 0 12px 32px color-mix(in srgb, var(--color-text) 16%, transparent);
+    }
+    .editor-tag-suggest[hidden] {
+        display: none;
+    }
+    .editor-tag-suggest-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        width: 100%;
+        padding: 0.42rem 0.55rem;
+        border: 1px solid transparent;
+        border-radius: 0.55rem;
+        background: transparent;
+        color: var(--color-text);
+        font-size: 0.82rem;
+        text-align: left;
+        cursor: pointer;
+    }
+    .editor-tag-suggest-item:hover,
+    .editor-tag-suggest-item.is-active {
+        border-color: color-mix(in srgb, var(--color-primary) 26%, transparent);
+        background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    }
+    .editor-tag-suggest-name {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .editor-tag-suggest-meta {
+        flex: none;
+        font-size: 0.72rem;
+        color: var(--color-text-light);
+        font-variant-numeric: tabular-nums;
+    }
+    .editor-tag-suggest-badge {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        padding: 0 0.38rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+        color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
+        font-size: 0.66rem;
+        line-height: 1.5;
     }
     /* 工具栏统计：三项等距分组，数字用等宽数位，数值变化时宽度不抖动 */
     .editor-toolbar-stats {
@@ -357,6 +422,31 @@
         bottom: 0.75rem;
         z-index: 35;
         backdrop-filter: blur(10px);
+        transition: padding 160ms ease, box-shadow 160ms ease, border-radius 160ms ease;
+    }
+    /* 向下滚动阅读时收成右下角小胶囊，只保留保存按钮，把正文空间让出来 */
+    .editor-actionbar.is-compact {
+        width: max-content;
+        max-width: 100%;
+        margin-left: auto;
+        padding: 0.32rem !important;
+        border-radius: 999px;
+        box-shadow: 0 10px 24px color-mix(in srgb, var(--color-text) 14%, transparent);
+    }
+    .editor-actionbar.is-compact > div:first-child {
+        gap: 0;
+        justify-content: flex-end;
+    }
+    .editor-actionbar.is-compact .editor-actionbar-options,
+    .editor-actionbar.is-compact .editor-actionbar-meta {
+        display: none;
+    }
+    .editor-actionbar.is-compact #save-post-button {
+        padding: 0.4rem 0.9rem;
+        font-size: 0.85rem;
+    }
+    .editor-actionbar.is-compact #save-post-button i {
+        margin-right: 0.35rem;
     }
     /* 移动端改为文档流内的紧凑操作栏，避免固定浮层盖住工具栏与正文 */
     @media (max-width: 767px) {
@@ -461,7 +551,8 @@
                             </div>
                             <div id="tag-editor" class="editor-tag-editor mt-2">
                                 <div id="tag-container"></div>
-                                <input type="text" id="tag-input" class="editor-tag-input" placeholder="输入标签后按回车..." title="支持回车、英文逗号、中文逗号快速添加；保存时不存在的标签会自动创建。">
+                                <input type="text" id="tag-input" class="editor-tag-input" placeholder="输入标签后按回车..." title="支持回车、英文逗号、中文逗号快速添加；输入时会提示已有相似标签，优先复用可以减少重复标签。">
+                                <div id="tag-suggest" class="editor-tag-suggest" role="listbox" aria-label="标签建议" hidden></div>
                             </div>
                             <input type="hidden" name="tags" id="tags-hidden-input" value="{% if post %}{{ post.tags|map(attribute='name')|join(',') }}{% endif %}">
                         </div>
@@ -508,7 +599,7 @@
                     </div>
                     <div class="admin-panel editor-actionbar p-4 md:p-6">
                             <div class="flex flex-wrap items-center justify-between gap-3">
-                                <div class="flex flex-wrap items-center gap-2">
+                                <div class="editor-actionbar-options flex flex-wrap items-center gap-2">
                                     <label class="inline-flex items-center gap-2 rounded-md border border-[color:var(--ui-border)] px-2.5 py-1.5 text-sm text-[var(--color-text)]">
                                         <input type="checkbox" name="allow_comments" {% if post is none or post.allow_comments %}checked{% endif %} class="admin-form-check form-checkbox">
                                         <span class="text-[var(--color-text)]">允许评论</span>
@@ -527,7 +618,7 @@
                                     </button>
                                 </div>
                             </div>
-                            <div class="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-[var(--color-text-light)]">
+                            <div class="editor-actionbar-meta mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-[var(--color-text-light)]">
                                 <div class="editor-toolbar-stats">
                                     <span class="editor-stat-item editor-stat-shortcut">快捷键: <kbd class="admin-inline-kbd px-1.5 py-0.5 rounded">Ctrl/Cmd + S</kbd></span>
                                     <span class="editor-stat-sep" aria-hidden="true"></span>
@@ -792,6 +883,7 @@
         const categoryList = document.getElementById('category-list');
         const tagInput = document.getElementById('tag-input');
         const tagContainer = document.getElementById('tag-container');
+        const tagSuggest = document.getElementById('tag-suggest');
         const tagsHiddenInput = document.getElementById('tags-hidden-input');
         const csrfToken = postForm.querySelector('input[name="csrf_token"]')?.value || '';
 
@@ -1343,10 +1435,19 @@
             }
         });
 
+        function normalizeTagName(name) {
+            return String(name || '').normalize('NFC').trim();
+        }
+
+        function tagKey(name) {
+            // 与后端 casefold 去重保持一致，避免 Python / python 并排出现
+            return normalizeTagName(name).toLocaleLowerCase();
+        }
+
         function getTags() {
             return (tagsHiddenInput.value || '')
                 .split(',')
-                .map(tag => tag.trim())
+                .map(tag => normalizeTagName(tag))
                 .filter(Boolean);
         }
 
@@ -1357,7 +1458,8 @@
                 chip.className = 'tag-chip';
                 chip.innerHTML = `<span>${escapeHtml(tagName)}</span><button type="button" aria-label="移除标签 ${escapeHtml(tagName)}">&times;</button>`;
                 chip.querySelector('button').addEventListener('click', () => {
-                    const nextTags = getTags().filter(tag => tag !== tagName);
+                    const removeKey = tagKey(tagName);
+                    const nextTags = getTags().filter(tag => tagKey(tag) !== removeKey);
                     tagsHiddenInput.value = nextTags.join(',');
                     renderTags(nextTags);
                     markDirty();
@@ -1367,14 +1469,116 @@
         }
 
         function addTag(name) {
-            const nextTag = String(name || '').trim();
+            const nextTag = normalizeTagName(name);
             if (!nextTag) return;
             const currentTags = getTags();
-            if (!currentTags.includes(nextTag)) {
+            const existingKeys = new Set(currentTags.map(tagKey));
+            if (!existingKeys.has(tagKey(nextTag))) {
                 currentTags.push(nextTag);
                 tagsHiddenInput.value = currentTags.join(',');
                 renderTags(currentTags);
                 markDirty();
+            }
+        }
+
+        // ---- 标签建议：输入时带出已有标签，减少近义标签发散 ----
+        let tagSuggestItems = [];
+        let tagSuggestActiveIndex = -1;
+        let tagSuggestTimer = null;
+        let tagSuggestRequestId = 0;
+
+        function hideTagSuggest() {
+            if (!tagSuggest) return;
+            tagSuggest.hidden = true;
+            tagSuggest.innerHTML = '';
+            tagSuggestItems = [];
+            tagSuggestActiveIndex = -1;
+        }
+
+        function setTagSuggestActive(index) {
+            if (!tagSuggest || !tagSuggestItems.length) return;
+            const total = tagSuggestItems.length;
+            tagSuggestActiveIndex = ((index % total) + total) % total;
+            const nodes = Array.from(tagSuggest.querySelectorAll('.editor-tag-suggest-item'));
+            nodes.forEach((node, nodeIndex) => {
+                const active = nodeIndex === tagSuggestActiveIndex;
+                node.classList.toggle('is-active', active);
+                node.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            const activeNode = nodes[tagSuggestActiveIndex];
+            if (activeNode && typeof activeNode.scrollIntoView === 'function') {
+                activeNode.scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        function renderTagSuggest(items) {
+            if (!tagSuggest) return;
+            tagSuggest.innerHTML = '';
+            tagSuggestItems = items;
+            tagSuggestActiveIndex = -1;
+            if (!items.length) {
+                hideTagSuggest();
+                return;
+            }
+            items.forEach((item, index) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'editor-tag-suggest-item';
+                button.setAttribute('role', 'option');
+                button.setAttribute('aria-selected', 'false');
+                const countLabel = Number(item.post_count) > 0 ? `已用 ${item.post_count} 篇` : '未使用';
+                const badge = item.match === 'similar' || item.match === 'contains'
+                    ? '<span class="editor-tag-suggest-badge">相似</span>'
+                    : '';
+                button.innerHTML = `
+                    <span class="editor-tag-suggest-name">${escapeHtml(item.name || '')}${badge}</span>
+                    <span class="editor-tag-suggest-meta">${escapeHtml(countLabel)}</span>
+                `;
+                // 用 mousedown 抢在 blur 之前选中，避免失焦把半截输入也存成标签
+                button.addEventListener('mousedown', (event) => {
+                    event.preventDefault();
+                    selectTagSuggest(index);
+                });
+                button.addEventListener('mouseenter', () => setTagSuggestActive(index));
+                tagSuggest.appendChild(button);
+            });
+            tagSuggest.hidden = false;
+        }
+
+        function selectTagSuggest(index) {
+            const item = tagSuggestItems[index];
+            if (!item) return;
+            addTag(item.name);
+            if (tagInput) {
+                tagInput.value = '';
+                tagInput.focus();
+            }
+            hideTagSuggest();
+        }
+
+        async function requestTagSuggest() {
+            if (!tagSuggest || !tagInput) return;
+            const query = tagInput.value.trim();
+            if (!query) {
+                hideTagSuggest();
+                return;
+            }
+            const requestId = ++tagSuggestRequestId;
+            const params = new URLSearchParams({ q: query, limit: '8' });
+            const selected = getTags().join(',');
+            if (selected) params.set('exclude', selected);
+            try {
+                const response = await fetch(`{{ request.state.admin_path }}/api/v1/tags/suggest?${params.toString()}`, {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin',
+                });
+                if (!response.ok) throw new Error('标签建议请求失败');
+                const payload = await response.json();
+                // 输入已经变化时丢弃过期响应，避免下拉内容与输入不一致
+                if (requestId !== tagSuggestRequestId || tagInput.value.trim() !== query) return;
+                renderTagSuggest(Array.isArray(payload?.items) ? payload.items : []);
+            } catch (error) {
+                if (requestId === tagSuggestRequestId) hideTagSuggest();
             }
         }
 
@@ -1473,9 +1677,36 @@
         }
 
         if (tagInput) {
+            tagInput.addEventListener('input', function() {
+                window.clearTimeout(tagSuggestTimer);
+                tagSuggestTimer = window.setTimeout(requestTagSuggest, 220);
+            });
             tagInput.addEventListener('keydown', function(event) {
                 // 中文输入法选词确认也会触发 Enter，组合态下不能当作“添加标签”
                 if (event.isComposing || event.keyCode === 229) return;
+                const suggestOpen = tagSuggest && !tagSuggest.hidden && tagSuggestItems.length > 0;
+                if (suggestOpen) {
+                    if (event.key === 'ArrowDown') {
+                        event.preventDefault();
+                        setTagSuggestActive(tagSuggestActiveIndex + 1);
+                        return;
+                    }
+                    if (event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        setTagSuggestActive(tagSuggestActiveIndex - 1);
+                        return;
+                    }
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        hideTagSuggest();
+                        return;
+                    }
+                    if (event.key === 'Enter' && tagSuggestActiveIndex >= 0) {
+                        event.preventDefault();
+                        selectTagSuggest(tagSuggestActiveIndex);
+                        return;
+                    }
+                }
                 if (event.key === 'Enter' || event.key === ',' || event.key === '，') {
                     event.preventDefault();
                     const tagName = tagInput.value.trim().replace(/,$|，$/g, '');
@@ -1483,12 +1714,60 @@
                         addTag(tagName);
                         tagInput.value = '';
                     }
+                    hideTagSuggest();
                 }
             });
             // 输入框里还没回车的标签，失焦或保存时一并写入，避免输完直接保存丢失
-            tagInput.addEventListener('blur', flushPendingTags);
+            tagInput.addEventListener('blur', function() {
+                flushPendingTags();
+                window.clearTimeout(tagSuggestTimer);
+                // 稍等再关，让面板项的 mousedown 先完成选中
+                window.setTimeout(hideTagSuggest, 120);
+            });
+            tagInput.addEventListener('focus', function() {
+                if (tagInput.value.trim()) requestTagSuggest();
+            });
         }
         renderTags(getTags());
+
+        // ---- 底部操作栏自动收起：向下滚动阅读时只留一个保存胶囊，把正文空间让出来 ----
+        (() => {
+            const actionBar = document.querySelector('.editor-actionbar');
+            if (!actionBar || window.matchMedia('(max-width: 767px)').matches) return;
+
+            let lastScrollTop = window.scrollY;
+            let expandTimer = null;
+            let compacted = false;
+
+            const setCompact = (next) => {
+                if (next === compacted) return;
+                compacted = next;
+                actionBar.classList.toggle('is-compact', next);
+            };
+            const expand = () => {
+                window.clearTimeout(expandTimer);
+                setCompact(false);
+            };
+
+            window.addEventListener('scroll', () => {
+                const currentTop = window.scrollY;
+                const scrollingDown = currentTop > lastScrollTop;
+                lastScrollTop = currentTop;
+                const nearPageBottom = currentTop + window.innerHeight
+                    >= document.documentElement.scrollHeight - 120;
+                if (scrollingDown && !nearPageBottom && currentTop > 160) {
+                    setCompact(true);
+                } else if (!scrollingDown) {
+                    // 向上滚动或接近底部时展开，避免要保存时找不到按钮
+                    window.clearTimeout(expandTimer);
+                    expandTimer = window.setTimeout(() => setCompact(false), 600);
+                }
+            }, { passive: true });
+
+            // 鼠标或键盘焦点进入操作栏时立刻展开，收起状态也能直接操作
+            actionBar.addEventListener('mouseenter', expand);
+            actionBar.addEventListener('focusin', expand);
+        })();
 
         if (toggleCategoryQuickCreateButton && categoryQuickCreatePanel && categoryQuickCreateInput) {
             toggleCategoryQuickCreateButton.addEventListener('click', () => {

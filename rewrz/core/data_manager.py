@@ -23,7 +23,9 @@ from typing import Dict, List, Optional, Any, Tuple, Callable
 from urllib.parse import ParseResult, quote, unquote, urljoin, urlparse
 from urllib.request import Request as UrlRequest, build_opener, HTTPRedirectHandler
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import case, select
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from bs4 import BeautifulSoup, Comment, NavigableString as BsNavigableString, Tag as BsTag
 from ..crud import post as crud_post
 from ..crud import category as crud_category
@@ -31,9 +33,10 @@ from ..crud import tag as crud_tag
 from ..crud import format as crud_format
 from ..crud import setting as crud_setting
 from .time_utils import utc_now_naive
+from .post_views import load_post_views_map
 from ..crud import media as crud_media
 from ..crud import user as crud_user
-from ..models import Post, Category, Tag, Format, Media, User, Comment, Setting
+from ..models import Post, PostViewStat, Category, Tag, Format, Media, User, Comment, Setting
 from ..schemas import PostCreate, CategoryCreate, TagCreate, FormatCreate, SettingCreate
 from .cache import clear_cache, cache_key_for_setting, cache
 import re
@@ -165,6 +168,8 @@ class DataExportManager:
     def _export_posts(self) -> List[Dict[str, Any]]:
         """导出所有文章"""
         posts = crud_post.get_all_posts(self.db)
+        # 浏览量按 ID 批量取，随文章一起导出，避免再以 settings 行的形式混进配置
+        views_map = load_post_views_map(self.db, [post.id for post in posts])
         exported_posts = []
         
         for post in posts:
@@ -193,7 +198,8 @@ class DataExportManager:
                 "categories": [cat.name for cat in post.categories] if post.categories else [],
                 "tags": [tag.name for tag in post.tags] if post.tags else [],
                 "formats": [fmt.name for fmt in post.formats] if post.formats else [],
-                "version_snapshots": post.version_snapshots or []
+                "version_snapshots": post.version_snapshots or [],
+                "views": int(views_map.get(post.id, 0)),
             }
             exported_posts.append(post_data)
         
@@ -333,9 +339,13 @@ class DataExportManager:
         }
         
         for setting in settings:
-            if setting.key.lower() not in sensitive_keys:
+            setting_key = str(setting.key or "")
+            # 浏览量已随文章导出；旧库若还留着指标行，也不能再混进设置区
+            if setting_key.startswith("post_views_count_"):
+                continue
+            if setting_key.lower() not in sensitive_keys:
                 setting_data = {
-                    "key": setting.key,
+                    "key": setting_key,
                     "value": setting.value,
                     "description": setting.description,
                     "category": setting.category,
@@ -391,6 +401,35 @@ class DataExportManager:
                 shutil.rmtree(temp_dir)
         
         return backup_path
+
+
+def _write_post_views_metric(db: Session, post_id: int, views_count: int) -> None:
+    """写入文章浏览量，只保留较大值，不提交事务。
+
+    WordPress 导入与 RewrZ 备份导入共用这一处，避免两套 upsert 逻辑分叉。
+    """
+    table = PostViewStat.__table__
+    normalized_views = int(max(0, views_count))
+    dialect_name = str(db.get_bind().dialect.name or "").lower()
+    if dialect_name == "postgresql":
+        statement = postgresql_insert(table).values(
+            post_id=int(post_id), views=normalized_views
+        )
+    else:
+        statement = sqlite_insert(table).values(
+            post_id=int(post_id), views=normalized_views
+        )
+    statement = statement.on_conflict_do_update(
+        index_elements=[table.c.post_id],
+        set_={
+            "views": case(
+                (table.c.views > statement.excluded.views, table.c.views),
+                else_=statement.excluded.views,
+            ),
+            "updated_at": utc_now_naive(),
+        },
+    )
+    db.execute(statement)
 
 
 class WordPressImporter:
@@ -849,17 +888,13 @@ class WordPressImporter:
                         self._import_wp_comments(item, new_post, stats)
 
                     # 导入阅读量（postmeta）
-                    imported_views_key = None
                     if self.options.get("import_views", True):
                         views_count = self._extract_wp_views_count(item)
                         if views_count is not None:
                             if self._upsert_post_views_metric(new_post.id, views_count, auto_commit=False):
                                 stats["views_imported"] += 1
-                                imported_views_key = f"post_views_count_{new_post.id}"
 
                     self.db.commit()
-                    if imported_views_key:
-                        self._deferred_setting_cache_keys.add(imported_views_key)
                     stats["posts_imported"] += 1
                         
             except Exception as e:
@@ -1052,26 +1087,10 @@ class WordPressImporter:
         return max_views
 
     def _upsert_post_views_metric(self, post_id: int, views_count: int, *, auto_commit: bool = True) -> bool:
-        key = f"post_views_count_{post_id}"
-        setting_value = {"value": int(max(0, views_count))}
-        existing = self.db.execute(select(Setting).filter(Setting.key == key)).scalar_one_or_none()
-        if existing:
-            existing.value = setting_value
-            existing.description = "Imported WordPress post views"
-            existing.category = "post_metrics"
-            existing.type = "integer"
-        else:
-            self.db.add(Setting(
-                key=key,
-                value=setting_value,
-                description="Imported WordPress post views",
-                category="post_metrics",
-                type="integer",
-            ))
-
+        """导入阅读量：写入 post_view_stats，只保留较大值。"""
+        _write_post_views_metric(self.db, post_id, views_count)
         if auto_commit:
             self.db.commit()
-            clear_cache(cache_key_for_setting(key))
         return True
 
     def _clear_deferred_setting_cache(self) -> None:
@@ -2571,11 +2590,15 @@ class RewrZImporter:
         """导入设置"""
         for setting_data in settings:
             try:
-                existing_setting = crud_setting.get_setting(self.db, setting_data["key"])
+                setting_key = str(setting_data.get("key") or "")
+                # 浏览量已迁到 post_view_stats，旧备份里的指标键不再写回配置表
+                if setting_key.startswith("post_views_count_"):
+                    continue
+                existing_setting = crud_setting.get_setting(self.db, setting_key)
                 if not existing_setting:
                     from ..schemas import SettingCreate
                     setting_create = SettingCreate(
-                        key=setting_data["key"],
+                        key=setting_key,
                         value=setting_data["value"],
                         description=setting_data.get("description", ""),
                         category=setting_data.get("category", "general"),
@@ -2647,7 +2670,19 @@ class RewrZImporter:
                             tag = crud_tag.get_tag_by_name(self.db, tag_name)
                             if tag:
                                 new_post.tags.append(tag)
-                    
+
+                    # 浏览量随文章导出，导入时按新建文章 ID 恢复，不再依赖 settings 行
+                    raw_views = post_data.get("views")
+                    if raw_views is not None:
+                        try:
+                            imported_views = max(0, int(raw_views))
+                        except (TypeError, ValueError):
+                            imported_views = 0
+                        if imported_views > 0:
+                            # 与 WordPress 导入共用同一套写入逻辑，只保留较大值
+                            _write_post_views_metric(self.db, new_post.id, imported_views)
+                            stats["views_imported"] += 1
+
                     self.db.commit()
                     stats["posts_imported"] += 1
                         

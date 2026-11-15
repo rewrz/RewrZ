@@ -64,6 +64,20 @@ def read_tags(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return tags
 
 
+@router.get("/suggest")
+def suggest_tags(
+    q: str = "",
+    limit: int = 8,
+    exclude: str = "",
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(require_admin_user),
+):
+    """编辑器标签补全：按名称相似度推荐已有标签，并带出使用量。"""
+    exclude_names = [item.strip() for item in (exclude or "").split(",") if item.strip()]
+    items = crud.tag.suggest_tags(db, q, limit=limit, exclude=exclude_names)
+    return {"success": True, "items": items}
+
+
 @router.post("/bulk-action")
 def bulk_action_tags(
     request: Request,

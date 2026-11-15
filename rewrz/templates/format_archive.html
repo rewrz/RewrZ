@@ -307,6 +307,7 @@
                                 class="micro-composer-textarea w-full resize-none rounded-2xl border px-4 py-3 text-[15px] leading-7 outline-none transition"
                                 placeholder="今天想掉落哪一段心情、灵感或碎片？支持 #标签、@对象、粘贴截图和 Ctrl+Enter 快捷发布"
                             >{{ micro_edit_post.content if micro_edit_post else '' }}</textarea>
+                            <div id="micro-quick-tag-suggest" class="micro-tag-suggest" role="listbox" aria-label="标签建议" hidden></div>
                         </div>
                         <div class="micro-composer-corner-note">
                             <span>☆ 适合发碎碎念、练习日志、临时脑洞和小广播</span>
@@ -355,7 +356,7 @@
                                     <i class="fas fa-eye" id="micro-quick-password-toggle-icon"></i>
                                 </button>
                             </div>
-                            <p class="micro-status-label micro-status-muted mt-2">选择“密码保护”后，访客需输入密码才能查看这条动态。</p>
+                            <p class="micro-status-label micro-status-muted mt-2">选择"密码保护"后，访客需输入密码才能查看这条动态。</p>
                         </div>
 
                         <div id="micro-quick-preview-panel" class="micro-composer-panel hidden rounded-2xl border p-3">
@@ -1404,13 +1405,168 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         });
     });
 
+    // ---- # 标签建议：输入井号前缀时带出已有标签，减少近义标签发散 ----
+    const tagSuggestPanel = document.getElementById("micro-quick-tag-suggest");
+    let tagSuggestItems = [];
+    let tagSuggestActiveIndex = -1;
+    let tagSuggestTimer = null;
+    let tagSuggestRequestId = 0;
+    // 与后端 extract_micro_tags 的字符集保持一致，避免把 URL 片段当成标签
+    const microTagPrefixPattern = /[#＃]([0-9A-Za-z_\u4e00-\u9fff-]{1,32})$/;
+
+    const getMicroTagPrefix = () => {
+        const value = textarea.value || "";
+        const caret = textarea.selectionStart ?? value.length;
+        const beforeCaret = value.slice(0, caret);
+        const match = beforeCaret.match(microTagPrefixPattern);
+        if (!match) return null;
+        return { keyword: match[1], start: caret - match[0].length };
+    };
+
+    const hideMicroTagSuggest = () => {
+        if (!tagSuggestPanel) return;
+        tagSuggestPanel.hidden = true;
+        tagSuggestPanel.innerHTML = "";
+        tagSuggestItems = [];
+        tagSuggestActiveIndex = -1;
+    };
+
+    const setMicroTagSuggestActive = (index) => {
+        if (!tagSuggestPanel || !tagSuggestItems.length) return;
+        const total = tagSuggestItems.length;
+        tagSuggestActiveIndex = ((index % total) + total) % total;
+        Array.from(tagSuggestPanel.querySelectorAll(".micro-tag-suggest-item")).forEach((node, nodeIndex) => {
+            const active = nodeIndex === tagSuggestActiveIndex;
+            node.classList.toggle("is-active", active);
+            node.setAttribute("aria-selected", active ? "true" : "false");
+        });
+    };
+
+    const selectMicroTagSuggest = (index) => {
+        const item = tagSuggestItems[index];
+        if (!item) return;
+        const prefix = getMicroTagPrefix();
+        if (!prefix) {
+            hideMicroTagSuggest();
+            return;
+        }
+        const value = textarea.value || "";
+        const caret = textarea.selectionStart ?? value.length;
+        const afterCaret = value.slice(caret);
+        const tagText = `#${item.name}`;
+        const needsSpace = afterCaret.length === 0 || !/^[\s,，。.!！?？]/.test(afterCaret);
+        const inserted = tagText + (needsSpace ? " " : "");
+        textarea.value = value.slice(0, prefix.start) + inserted + afterCaret;
+        const nextCaret = prefix.start + inserted.length;
+        hideMicroTagSuggest();
+        textarea.focus();
+        textarea.setSelectionRange(nextCaret, nextCaret);
+        textarea.dispatchEvent(new Event("input"));
+    };
+
+    const renderMicroTagSuggest = (items) => {
+        if (!tagSuggestPanel) return;
+        tagSuggestPanel.innerHTML = "";
+        tagSuggestItems = items;
+        tagSuggestActiveIndex = -1;
+        if (!items.length) {
+            hideMicroTagSuggest();
+            return;
+        }
+        items.forEach((item, index) => {
+            const count = Number(item.post_count) || 0;
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "micro-tag-suggest-item";
+            button.setAttribute("role", "option");
+            button.setAttribute("aria-selected", "false");
+
+            const nameSpan = document.createElement("span");
+            nameSpan.className = "micro-tag-suggest-name";
+            nameSpan.textContent = `#${item.name || ""}`;
+
+            const metaSpan = document.createElement("span");
+            metaSpan.className = "micro-tag-suggest-meta";
+            metaSpan.textContent = count > 0 ? `已用 ${count} 篇` : "未使用";
+
+            button.appendChild(nameSpan);
+            button.appendChild(metaSpan);
+            // mousedown 抢在 blur 之前选中，避免失焦后光标位置丢失
+            button.addEventListener("mousedown", (event) => {
+                event.preventDefault();
+                selectMicroTagSuggest(index);
+            });
+            button.addEventListener("mouseenter", () => setMicroTagSuggestActive(index));
+            tagSuggestPanel.appendChild(button);
+        });
+        tagSuggestPanel.hidden = false;
+    };
+
+    const requestMicroTagSuggest = () => {
+        if (!tagSuggestPanel) return;
+        window.clearTimeout(tagSuggestTimer);
+        const prefix = getMicroTagPrefix();
+        if (!prefix) {
+            hideMicroTagSuggest();
+            return;
+        }
+        const keyword = prefix.keyword;
+        const requestId = ++tagSuggestRequestId;
+        tagSuggestTimer = window.setTimeout(async () => {
+            try {
+                const params = new URLSearchParams({ q: keyword, limit: "6" });
+                const response = await fetch(`/api/v1/posts/quick/tag-suggest?${params.toString()}`, {
+                    headers: { Accept: "application/json" },
+                    credentials: "same-origin",
+                });
+                if (!response.ok) throw new Error("标签建议请求失败");
+                const payload = await response.json().catch(() => ({}));
+                if (requestId !== tagSuggestRequestId) return;
+                const latest = getMicroTagPrefix();
+                if (!latest || latest.keyword !== keyword) return;
+                renderMicroTagSuggest(Array.isArray(payload.items) ? payload.items : []);
+            } catch (error) {
+                if (requestId === tagSuggestRequestId) hideMicroTagSuggest();
+            }
+        }, 220);
+    };
+
     textarea.addEventListener("input", () => {
         scheduleDraftSave(textarea.value || "");
         refreshState();
         syncTextareaHeight();
+        requestMicroTagSuggest();
+    });
+
+    textarea.addEventListener("blur", () => {
+        window.clearTimeout(tagSuggestTimer);
+        window.setTimeout(hideMicroTagSuggest, 120);
     });
 
     textarea.addEventListener("keydown", (event) => {
+        // 标签建议打开时优先响应上下键与回车，避免误发布或误插新标签
+        if (tagSuggestPanel && !tagSuggestPanel.hidden && tagSuggestItems.length) {
+            if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setMicroTagSuggestActive(tagSuggestActiveIndex + 1);
+                return;
+            }
+            if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setMicroTagSuggestActive(tagSuggestActiveIndex - 1);
+                return;
+            }
+            if (event.key === "Escape") {
+                event.preventDefault();
+                hideMicroTagSuggest();
+                return;
+            }
+            if (event.key === "Enter" && !event.ctrlKey && !event.metaKey && tagSuggestActiveIndex >= 0) {
+                event.preventDefault();
+                selectMicroTagSuggest(tagSuggestActiveIndex);
+                return;
+            }
+        }
         if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
             event.preventDefault();
             form.requestSubmit();

@@ -1,4 +1,6 @@
+import math
 import unicodedata
+from difflib import SequenceMatcher
 from typing import List, Optional
 
 from sqlalchemy import func, select
@@ -126,6 +128,135 @@ def resolve_or_create_tags(
         if limit is not None and len(resolved) >= limit:
             break
     return resolved
+
+
+_SUGGEST_MIN_SCORE = 35.0
+_SUGGEST_MATCH_LIMIT = 20
+
+
+def _char_overlap_ratio(left: str, right: str) -> float:
+    """字符集合重合度，对中文短标签比编辑距离更宽容。"""
+    left_chars = set(left)
+    right_chars = set(right)
+    if not left_chars or not right_chars:
+        return 0.0
+    return len(left_chars & right_chars) / len(left_chars | right_chars)
+
+
+def _score_tag_candidate(query_key: str, name_key: str) -> tuple[float, str]:
+    """给候选标签打分，同时返回命中类型供前端展示。"""
+    if name_key == query_key:
+        return 100.0, "exact"
+    if name_key.startswith(query_key):
+        return 92.0, "prefix"
+    if query_key in name_key:
+        return 84.0, "contains"
+    if name_key in query_key:
+        return 76.0, "contains"
+    ratio = SequenceMatcher(None, query_key, name_key).ratio()
+    overlap = _char_overlap_ratio(query_key, name_key)
+    score = round(max(ratio, overlap * 0.92) * 74.0, 2)
+    return score, "similar"
+
+
+def _load_post_counts(db: Session, tag_ids: List[int]) -> dict[int, int]:
+    if not tag_ids:
+        return {}
+    counts: dict[int, int] = {}
+    for offset in range(0, len(tag_ids), 300):
+        batch = tag_ids[offset : offset + 300]
+        rows = db.execute(
+            select(post_tags.c.tag_id, func.count(post_tags.c.post_id))
+            .where(post_tags.c.tag_id.in_(batch))
+            .group_by(post_tags.c.tag_id)
+        ).all()
+        for tag_id, count in rows:
+            try:
+                counts[int(tag_id)] = int(count or 0)
+            except (TypeError, ValueError):
+                continue
+    return counts
+
+
+def suggest_tags(
+    db: Session,
+    query: str,
+    *,
+    limit: int = 8,
+    exclude: Optional[List[str]] = None,
+) -> List[dict]:
+    """按输入推荐已有标签，避免用户把近义标签拆成多个。
+
+    返回按匹配度排序的候选：精确命中最高，其次是前缀、包含、相似；
+    使用量只作为同分时的次要权重，防止长尾高频标签盖过明显的文本匹配。
+    """
+    limit = max(1, min(int(limit or 8), _SUGGEST_MATCH_LIMIT))
+    exclude_keys = {
+        normalize_tag_key(item) for item in (exclude or []) if normalize_tag_key(item)
+    }
+    query_key = normalize_tag_key(query)
+
+    if not query_key:
+        # 空输入展示常用标签，方便直接点选已有标签而不是新建
+        rows = db.execute(
+            select(Tag.id, Tag.name, Tag.slug, func.count(post_tags.c.post_id))
+            .outerjoin(post_tags, post_tags.c.tag_id == Tag.id)
+            .group_by(Tag.id, Tag.name, Tag.slug)
+            .order_by(func.count(post_tags.c.post_id).desc(), Tag.name.asc())
+            .limit(limit + len(exclude_keys) + 5)
+        ).all()
+        items = []
+        for tag_id, name, slug, count in rows:
+            if normalize_tag_key(name) in exclude_keys:
+                continue
+            items.append(
+                {
+                    "id": int(tag_id),
+                    "name": name,
+                    "slug": slug,
+                    "post_count": int(count or 0),
+                    "score": 0.0,
+                    "match": "popular",
+                }
+            )
+            if len(items) >= limit:
+                break
+        return items
+
+    rows = db.execute(select(Tag.id, Tag.name, Tag.slug)).all()
+    scored: list[tuple[float, str, int, str, str]] = []
+    for tag_id, name, slug in rows:
+        name_key = normalize_tag_key(name)
+        if not name_key or name_key in exclude_keys:
+            continue
+        score, match = _score_tag_candidate(query_key, name_key)
+        if score < _SUGGEST_MIN_SCORE:
+            continue
+        scored.append((score, match, int(tag_id), name, slug))
+
+    if not scored:
+        return []
+
+    scored.sort(key=lambda item: (-item[0], item[3]))
+    count_map = _load_post_counts(db, [item[2] for item in scored[: limit * 2]])
+
+    items = []
+    for score, match, tag_id, name, slug in scored[: limit * 2]:
+        post_count = int(count_map.get(tag_id, 0))
+        # 使用量最多加 6 分，只用于同分附近的排序，不改变命中类型的优先级
+        weighted = round(score + min(6.0, math.log2(1 + post_count) * 1.2), 2)
+        items.append(
+            {
+                "id": tag_id,
+                "name": name,
+                "slug": slug,
+                "post_count": post_count,
+                "score": weighted,
+                "match": match,
+            }
+        )
+    items.sort(key=lambda item: (-item["score"], -item["post_count"], item["name"]))
+    return items[:limit]
 
 
 def get_tag(db: Session, tag_id: int):

@@ -37,6 +37,7 @@ from . import time_utils
 from .admin_path import get_admin_path
 from .config import settings
 from .database import db_manager
+from .db_write_gate import background_write_gate
 from .traffic_classifier import (
     CATEGORY_ADMIN,
     CATEGORY_API,
@@ -78,6 +79,14 @@ _MAX_HOUR_BUCKETS = 72
 _MAX_VISITOR_HASHES_PER_DAY = 20000
 _MAX_ANOMALY_PENDING = 2000
 _MAX_IP_MINUTE_KEYS = 5000
+
+# 单轮刷写最多写入的增量行数。新的一天第一次刷写时 UV 是全天累计值，
+# 几万行塞进一个事务会把 SQLite 写锁占住数秒，请求侧只能排队等待；
+# 超出部分留在内存，下一轮继续，统计延迟增长但写入可控。
+_MAX_FLUSH_DIMENSION_ROWS = 1200
+_MAX_FLUSH_VISITOR_ROWS = 2000
+# 单条 upsert 的行数：避免绑定参数超过 SQLite 旧版本 999 的上限。
+_UPSERT_CHUNK_SIZE = 300
 
 _DIMENSION_LIMITS = {
     "path": 300,
@@ -557,40 +566,64 @@ def _take_flush_snapshot() -> dict[str, Any]:
 
         dimension_rows = []
         dimension_state: dict[datetime, dict[str, dict[str, int]]] = {}
+        dimension_budget = _MAX_FLUSH_DIMENSION_ROWS
         for day, kinds in _DIMENSION_VALUES.items():
+            if dimension_budget <= 0:
+                break
             flushed_day = _DIMENSION_FLUSHED.get(day, {})
+            written_kinds: dict[str, dict[str, int]] = {}
             for kind, values in kinds.items():
+                if dimension_budget <= 0:
+                    break
                 flushed_kind = flushed_day.get(kind, {})
+                written_values: dict[str, int] = {}
                 for value, total in values.items():
+                    if dimension_budget <= 0:
+                        break
                     delta = int(total) - int(flushed_kind.get(value, 0))
-                    if delta > 0:
-                        dimension_rows.append(
-                            {
-                                "day_start_utc": day,
-                                "kind": kind,
-                                "value": value[:512],
-                                "hits": delta,
-                            }
-                        )
-            dimension_state[day] = {
-                kind: dict(values) for kind, values in kinds.items()
-            }
-
-        visitor_rows = []
-        visitor_state: dict[datetime, dict[str, int]] = {}
-        for day, values in _VISITOR_VALUES.items():
-            flushed = _VISITOR_FLUSHED.get(day, {})
-            for visitor_hash, total in values.items():
-                delta = int(total) - int(flushed.get(visitor_hash, 0))
-                if delta > 0:
-                    visitor_rows.append(
+                    if delta <= 0:
+                        continue
+                    dimension_rows.append(
                         {
                             "day_start_utc": day,
-                            "visitor_hash": visitor_hash,
+                            "kind": kind,
+                            "value": value[:512],
                             "hits": delta,
                         }
                     )
-            visitor_state[day] = dict(values)
+                    # 只推进已写入项的水位，未写入的留到下一轮继续算增量
+                    written_values[value] = int(total)
+                    dimension_budget -= 1
+                if written_values:
+                    written_kinds[kind] = written_values
+            if written_kinds:
+                dimension_state[day] = written_kinds
+
+        visitor_rows = []
+        visitor_state: dict[datetime, dict[str, int]] = {}
+        visitor_budget = _MAX_FLUSH_VISITOR_ROWS
+        for day, values in _VISITOR_VALUES.items():
+            if visitor_budget <= 0:
+                break
+            flushed = _VISITOR_FLUSHED.get(day, {})
+            written: dict[str, int] = {}
+            for visitor_hash, total in values.items():
+                if visitor_budget <= 0:
+                    break
+                delta = int(total) - int(flushed.get(visitor_hash, 0))
+                if delta <= 0:
+                    continue
+                visitor_rows.append(
+                    {
+                        "day_start_utc": day,
+                        "visitor_hash": visitor_hash,
+                        "hits": delta,
+                    }
+                )
+                written[visitor_hash] = int(total)
+                visitor_budget -= 1
+            if written:
+                visitor_state[day] = written
 
         anomaly_rows = list(_ANOMALY_PENDING.values())
         _ANOMALY_PENDING.clear()
@@ -662,12 +695,18 @@ def _restore_snapshot(snapshot: dict[str, Any]) -> None:
 
 def _commit_state(snapshot: dict[str, Any]) -> None:
     with _LOCK:
+        # 合并而不是整体覆盖：刷写可能只推进了当天的一部分维度/访客，
+        # 覆盖会让未写入项的已刷水位丢失，下一轮重复计数。
         for day, kinds in snapshot["dimension_state"].items():
-            _DIMENSION_FLUSHED[day] = {
-                kind: dict(values) for kind, values in kinds.items()
-            }
+            flushed_day = _DIMENSION_FLUSHED.setdefault(day, {})
+            for kind, values in kinds.items():
+                flushed_kind = flushed_day.setdefault(kind, {})
+                for value, total in values.items():
+                    flushed_kind[value] = int(total)
         for day, values in snapshot["visitor_state"].items():
-            _VISITOR_FLUSHED[day] = dict(values)
+            flushed_day = _VISITOR_FLUSHED.setdefault(day, {})
+            for visitor_hash, total in values.items():
+                flushed_day[visitor_hash] = int(total)
         _trim_days(_DIMENSION_FLUSHED)
         _trim_days(_VISITOR_FLUSHED)
 
@@ -682,96 +721,107 @@ def _insert_factory(dialect_name: str):
     return insert
 
 
+def _chunk_rows(rows: list[dict], size: int = _UPSERT_CHUNK_SIZE):
+    """把一次 upsert 的行切成小块，避开数据库绑定参数上限。"""
+    for offset in range(0, len(rows), size):
+        yield rows[offset : offset + size]
+
+
 def _upsert_minute_rows(session: Session, rows: list[dict], dialect_name: str, now: datetime) -> None:
     if not rows:
         return
     table = TrafficMinuteStat.__table__
-    stmt = _insert_factory(dialect_name)(table).values(rows)
-    set_map = {
-        field: table.c[field] + stmt.excluded[field] for field in _COUNTER_FIELDS
-    }
-    set_map["duration_ms_sum"] = table.c.duration_ms_sum + stmt.excluded.duration_ms_sum
-    if dialect_name == "postgresql":
-        set_map["peak_concurrency"] = func.greatest(
-            table.c.peak_concurrency, stmt.excluded.peak_concurrency
+    for chunk in _chunk_rows(rows):
+        stmt = _insert_factory(dialect_name)(table).values(chunk)
+        set_map = {
+            field: table.c[field] + stmt.excluded[field] for field in _COUNTER_FIELDS
+        }
+        set_map["duration_ms_sum"] = table.c.duration_ms_sum + stmt.excluded.duration_ms_sum
+        if dialect_name == "postgresql":
+            set_map["peak_concurrency"] = func.greatest(
+                table.c.peak_concurrency, stmt.excluded.peak_concurrency
+            )
+        else:
+            set_map["peak_concurrency"] = func.max(
+                table.c.peak_concurrency, stmt.excluded.peak_concurrency
+            )
+        set_map["updated_at"] = now
+        session.execute(
+            stmt.on_conflict_do_update(index_elements=[table.c.bucket_start], set_=set_map)
         )
-    else:
-        set_map["peak_concurrency"] = func.max(
-            table.c.peak_concurrency, stmt.excluded.peak_concurrency
-        )
-    set_map["updated_at"] = now
-    session.execute(
-        stmt.on_conflict_do_update(index_elements=[table.c.bucket_start], set_=set_map)
-    )
 
 
 def _upsert_hour_rows(session: Session, rows: list[dict], dialect_name: str, now: datetime) -> None:
     if not rows:
         return
     table = TrafficHourStat.__table__
-    stmt = _insert_factory(dialect_name)(table).values(rows)
-    set_map = {
-        field: table.c[field] + stmt.excluded[field] for field in _COUNTER_FIELDS
-    }
-    set_map["updated_at"] = now
-    session.execute(
-        stmt.on_conflict_do_update(index_elements=[table.c.bucket_start], set_=set_map)
-    )
+    for chunk in _chunk_rows(rows):
+        stmt = _insert_factory(dialect_name)(table).values(chunk)
+        set_map = {
+            field: table.c[field] + stmt.excluded[field] for field in _COUNTER_FIELDS
+        }
+        set_map["updated_at"] = now
+        session.execute(
+            stmt.on_conflict_do_update(index_elements=[table.c.bucket_start], set_=set_map)
+        )
 
 
 def _upsert_dimension_rows(session: Session, rows: list[dict], dialect_name: str, now: datetime) -> None:
     if not rows:
         return
     table = TrafficDimensionDaily.__table__
-    stmt = _insert_factory(dialect_name)(table).values(rows)
-    set_map = {
-        "hits": table.c.hits + stmt.excluded.hits,
-        "updated_at": now,
-    }
-    session.execute(
-        stmt.on_conflict_do_update(
-            index_elements=["day_start_utc", "kind", "value"], set_=set_map
+    for chunk in _chunk_rows(rows):
+        stmt = _insert_factory(dialect_name)(table).values(chunk)
+        set_map = {
+            "hits": table.c.hits + stmt.excluded.hits,
+            "updated_at": now,
+        }
+        session.execute(
+            stmt.on_conflict_do_update(
+                index_elements=["day_start_utc", "kind", "value"], set_=set_map
+            )
         )
-    )
 
 
 def _upsert_visitor_rows(session: Session, rows: list[dict], dialect_name: str, now: datetime) -> None:
     if not rows:
         return
     table = TrafficVisitorDaily.__table__
-    stmt = _insert_factory(dialect_name)(table).values(rows)
-    set_map = {
-        "hits": table.c.hits + stmt.excluded.hits,
-        "updated_at": now,
-    }
-    session.execute(
-        stmt.on_conflict_do_update(
-            index_elements=["day_start_utc", "visitor_hash"], set_=set_map
+    for chunk in _chunk_rows(rows):
+        stmt = _insert_factory(dialect_name)(table).values(chunk)
+        set_map = {
+            "hits": table.c.hits + stmt.excluded.hits,
+            "updated_at": now,
+        }
+        session.execute(
+            stmt.on_conflict_do_update(
+                index_elements=["day_start_utc", "visitor_hash"], set_=set_map
+            )
         )
-    )
 
 
 def _upsert_anomaly_rows(session: Session, rows: list[dict], dialect_name: str, now: datetime) -> None:
     if not rows:
         return
     table = TrafficAnomalySource.__table__
-    stmt = _insert_factory(dialect_name)(table).values(rows)
-    set_map = {
-        "hits": table.c.hits + stmt.excluded.hits,
-        "reason": stmt.excluded.reason,
-        "sample_path": stmt.excluded.sample_path,
-        "sample_user_agent": stmt.excluded.sample_user_agent,
-        "updated_at": now,
-    }
-    if dialect_name == "postgresql":
-        set_map["first_seen"] = func.least(table.c.first_seen, stmt.excluded.first_seen)
-        set_map["last_seen"] = func.greatest(table.c.last_seen, stmt.excluded.last_seen)
-    else:
-        set_map["first_seen"] = func.min(table.c.first_seen, stmt.excluded.first_seen)
-        set_map["last_seen"] = func.max(table.c.last_seen, stmt.excluded.last_seen)
-    session.execute(
-        stmt.on_conflict_do_update(index_elements=["ip"], set_=set_map)
-    )
+    for chunk in _chunk_rows(rows):
+        stmt = _insert_factory(dialect_name)(table).values(chunk)
+        set_map = {
+            "hits": table.c.hits + stmt.excluded.hits,
+            "reason": stmt.excluded.reason,
+            "sample_path": stmt.excluded.sample_path,
+            "sample_user_agent": stmt.excluded.sample_user_agent,
+            "updated_at": now,
+        }
+        if dialect_name == "postgresql":
+            set_map["first_seen"] = func.least(table.c.first_seen, stmt.excluded.first_seen)
+            set_map["last_seen"] = func.greatest(table.c.last_seen, stmt.excluded.last_seen)
+        else:
+            set_map["first_seen"] = func.min(table.c.first_seen, stmt.excluded.first_seen)
+            set_map["last_seen"] = func.max(table.c.last_seen, stmt.excluded.last_seen)
+        session.execute(
+            stmt.on_conflict_do_update(index_elements=["ip"], set_=set_map)
+        )
 
 
 def _read_runtime_settings(session: Session) -> tuple[bool, str]:
@@ -796,6 +846,14 @@ def _apply_runtime_state(enabled: bool, reset_token: str) -> None:
 
 
 def _flush_once() -> None:
+    """与浏览量落库串行执行，避免两类后台写互相等待 SQLite 写锁。"""
+    with background_write_gate() as acquired:
+        if not acquired:
+            return
+        _flush_once_locked()
+
+
+def _flush_once_locked() -> None:
     global _LAST_FLUSH_AT, _LAST_FLUSH_ERROR
     session = db_manager.get_session()
     if session is None:

@@ -13,6 +13,7 @@ from .comment import Comment
 from .media import Media
 from .format import Format
 from .setting import Setting
+from .post_view_stat import PostViewStat
 from .login_attempt import LoginAttempt
 from .reaction import ContentReaction
 from .api_key import ApiKey

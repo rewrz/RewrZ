@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload, defer
 from sqlalchemy import select, func, delete, cast, Integer
 from cachetools import TTLCache
 import threading
-from ..models import Post, Format, Category, Tag, Setting, Comment
+from ..models import Post, Format, Category, Tag, Comment
 from ..models.post import post_tags
 from ..schemas import PostCreate, PostUpdate, FormatCreate
 from slugify import slugify
@@ -224,17 +224,6 @@ def _json_extract_media_summary_int(db: Session, path: str):
     return func.json_extract(Post.media_attachment_summary, path)
 
 
-def _extract_setting_int_value(raw) -> int:
-    if isinstance(raw, dict):
-        value = raw.get("value")
-    else:
-        value = raw
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return 0
-
-
 def _resolve_storage_contents(
     editor_mode: str,
     content_markdown: Optional[str],
@@ -262,21 +251,10 @@ def attach_post_views_metrics(db: Session, posts: List[Post]) -> None:
     if not post_ids:
         return
 
-    metric_keys = [f"post_views_count_{post_id}" for post_id in post_ids]
     try:
-        settings = db.execute(select(Setting).where(Setting.key.in_(metric_keys))).scalars().all()
+        views_map = post_views.load_post_views_map(db, post_ids)
     except Exception:
-        settings = []
-    views_map = {}
-    for setting in settings:
-        if not setting.key.startswith("post_views_count_"):
-            continue
-        suffix = setting.key.replace("post_views_count_", "", 1)
-        try:
-            post_id = int(suffix)
-        except (TypeError, ValueError):
-            continue
-        views_map[post_id] = _extract_setting_int_value(setting.value)
+        views_map = {}
 
     # 列表卡片一次性带出已通过评论数，避免逐条查询
     comment_count_map: dict[int, int] = {}
@@ -302,12 +280,7 @@ def attach_post_views_metrics(db: Session, posts: List[Post]) -> None:
 
 
 def _delete_post_views_metrics_by_ids(db: Session, post_ids: List[int]) -> None:
-    normalized_ids = sorted({int(post_id) for post_id in post_ids if isinstance(post_id, int) and post_id > 0})
-    if not normalized_ids:
-        return
-
-    metric_keys = [f"post_views_count_{post_id}" for post_id in normalized_ids]
-    db.execute(delete(Setting).where(Setting.key.in_(metric_keys)))
+    post_views.delete_post_view_stats(db, post_ids)
 
 
 def _ensure_intent_format(db: Session, intent_slug: str) -> Optional[Format]:
