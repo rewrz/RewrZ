@@ -94,6 +94,171 @@ def test_render_markdown_html_ignores_directive_in_tilde_fence() -> None:
     assert ":::notice" in rendered
 
 
+def test_interview_block_renders_question_and_answer() -> None:
+    rendered = render_markdown_html(
+        ":::interview\n\n**问：** 请介绍一下项目。\n\n**答：** 这是一个写作博客。\n\n:::"
+    )
+
+    assert "md-block-interview" in rendered
+    assert "is-question" in rendered
+    assert "is-answer" in rendered
+    assert "请介绍一下项目。" in rendered
+    assert "这是一个写作博客。" in rendered
+
+
+def test_interview_block_supports_named_roles() -> None:
+    rendered = render_markdown_html(
+        ":::interview\n\n:::question 张三\n在做什么？\n:::\n\n:::answer 李四\n写代码。\n:::\n\n:::"
+    )
+
+    assert "md-block-interview" in rendered
+    assert "张三" in rendered
+    assert "李四" in rendered
+    assert "is-question" in rendered
+    assert "is-answer" in rendered
+
+
+def test_interview_block_supports_spaced_role_names() -> None:
+    rendered = render_markdown_html(
+        ":::interview\n\n:::answer 首席产品经理 张伟\n结论是保留版式块。\n:::\n\n:::"
+    )
+
+    assert "md-interview-item is-answer" in rendered
+    assert "首席产品经理 张伟" in rendered
+    assert "结论是保留版式块。" in rendered
+
+
+def test_chat_block_renders_bubbles_with_media() -> None:
+    rendered = render_markdown_html(
+        ":::chat\n\n**我：** 在吗？\n\n**对方：** 在的 ![表情包](/media/x.png)\n\n:::"
+    )
+
+    assert "md-block-chat" in rendered
+    assert "is-right" in rendered
+    assert "is-left" in rendered
+    assert "在吗？" in rendered
+    assert "<img" in rendered
+
+
+def test_chat_block_supports_timestamp_speaker() -> None:
+    rendered = render_markdown_html(":::chat\n\n**我（10:30）：** 晚点聊\n\n:::")
+
+    assert "md-block-chat" in rendered
+    assert "晚点聊" in rendered
+    assert "10:30" not in rendered
+
+
+def test_chat_block_renders_time_system_and_rich_messages() -> None:
+    rendered = render_markdown_html(
+        ":::chat\n\n"
+        "[时间] 昨天 14:30\n\n"
+        "[系统] 你已添加了对方为好友\n\n"
+        "**我：** 在吗？\n\n"
+        "**对方：** 在的\n\n"
+        "**对方：** 刚看到\n\n"
+        "**对方：** [文件] 季度报告.pdf\n\n"
+        "**对方：** [链接] 项目主页 | https://example.com\n\n"
+        "**对方：** ![表情包](/media/x.png)\n\n"
+        ":::"
+    )
+
+    assert 'md-chat-time">昨天 14:30' in rendered
+    assert 'md-chat-system">你已添加了对方为好友' in rendered
+    assert "md-chat-file" in rendered
+    assert "季度报告.pdf" in rendered
+    assert "md-chat-link" in rendered
+    assert "is-image" in rendered
+    # 同一人连续发言只保留第一组头像与名字
+    assert rendered.count("md-chat-avatar") == 2
+
+
+def test_chat_block_keeps_long_speaker_names_inside_bubbles() -> None:
+    rendered = render_markdown_html(
+        ":::chat\n\n**产品经理张伟：** 名字很长也不会破版。\n\n:::"
+    )
+
+    assert "md-chat-avatar" in rendered
+    assert ">产</div>" in rendered
+    assert "md-chat-name" in rendered
+    assert "产品经理张伟" in rendered
+    assert "名字很长也不会破版。" in rendered
+
+
+def test_interview_block_shows_initial_and_full_role_name() -> None:
+    rendered = render_markdown_html(
+        ":::interview\n\n:::question 首席产品经理张伟\n重点是什么？\n:::\n\n:::"
+    )
+
+    assert "md-interview-role" in rendered
+    assert ">首</span>" in rendered
+    assert "md-interview-name" in rendered
+    assert "首席产品经理张伟" in rendered
+    assert "重点是什么？" in rendered
+
+
+def test_chat_block_does_not_treat_urls_or_time_as_speakers() -> None:
+    rendered = render_markdown_html(
+        ":::chat\n\n**对方：** 看这个\nhttps://example.com/a\n\n"
+        "[时间] 14:30\n今天下雨了\n\n10:30 开会\n\n:::"
+    )
+
+    assert "https://example.com/a" in rendered
+    assert ">H</div>" not in rendered
+    assert "md-chat-name\">https" not in rendered
+    assert 'md-chat-time">14:30' in rendered
+    assert "md-chat-name\">10" not in rendered
+    assert "10:30 开会" in rendered
+
+
+def test_chat_block_supports_tight_colon_for_common_roles() -> None:
+    rendered = render_markdown_html(":::chat\n\n我：在吗\n\n对方：在的\n\n:::")
+
+    assert rendered.count("md-chat-avatar") == 2
+    assert "is-right" in rendered
+    assert "md-chat-name\">对方" in rendered
+    assert "在吗" in rendered
+    assert "在的" in rendered
+
+
+def test_chat_block_keeps_unruled_colon_inside_message() -> None:
+    rendered = render_markdown_html(":::chat\n\n我的意思是：这句其实是正文。\n\n:::")
+
+    # 冒号后没有空格、也不是常见对话角色，按普通消息处理，不生成气泡名字
+    assert "md-chat-name" not in rendered
+    assert "我的意思是：这句其实是正文。" in rendered
+
+
+def test_chat_block_link_message_falls_back_on_unsafe_protocol() -> None:
+    rendered = render_markdown_html(
+        ":::chat\n\n**我：** [链接] 点我 | javascript:alert(1)\n\n"
+        "**我：** [链接] 项目主页 | https://example.com\n\n:::"
+    )
+
+    assert "javascript:" not in rendered
+    assert 'href="https://example.com"' in rendered
+    assert "点我" in rendered
+
+
+def test_chat_block_keeps_nested_directive_content() -> None:
+    rendered = render_markdown_html(
+        ":::chat\n\n**我：** 你好\n\n:::gallery\n![配图](/media/a.png)\n\n:::\n\n:::"
+    )
+
+    assert "md-chat-embed" in rendered
+    assert "md-block-gallery" in rendered
+    assert "/media/a.png" in rendered
+
+
+def test_interview_block_keeps_nested_directive_content() -> None:
+    rendered = render_markdown_html(
+        ":::interview\n\n**问：** 你好\n\n:::quote\n引用一段\n\n:::\n\n:::"
+    )
+
+    assert "is-question" in rendered
+    assert "md-block-quote" in rendered
+    assert "引用一段" in rendered
+
+
 def test_columns_keeps_content_outside_left_right_blocks() -> None:
     rendered = render_markdown_html(
         ":::columns\n\n:::left\n左列内容\n:::\n\n:::right\n右列内容\n:::\n\n普通说明\n\n:::"

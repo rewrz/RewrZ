@@ -68,6 +68,49 @@
             placeholder: '| 项目 | 说明 |\n| --- | --- |\n| 内容 | 在这里填写 |',
             build: (content) => `:::table\n\n${content}\n\n:::\n`,
         },
+        {
+            key: 'interview',
+            label: '访谈对话',
+            icon: 'fa-comments',
+            hint: '角色名 + 多轮问答，插入的是完整示例',
+            placeholder: [
+                ':::question 主持人',
+                '这里写问题，可以照着再复制几轮。',
+                ':::',
+                '',
+                ':::answer 嘉宾姓名',
+                '这里写回答，正文里可以直接插入图片、视频或音频。',
+                ':::',
+            ].join('\n'),
+            build: (content) => `:::interview\n\n${content}\n\n:::\n`,
+            // 问答结构需要成对出现，选中文字直接塞进来会破坏结构
+            useSelection: false,
+        },
+        {
+            key: 'chat',
+            label: '聊天记录',
+            icon: 'fa-comment-dots',
+            hint: '时间、系统、文件、链接、图片与连续发言，插入的是完整示例',
+            placeholder: [
+                '[时间] 昨天 20:00',
+                '',
+                '[系统] 这里写系统提示，不需要可以删掉',
+                '',
+                '**我：** 这里写自己的消息',
+                '',
+                '**对方：** 这里写对方的消息',
+                '',
+                '**对方：** 同一人连续发言时，头像和名字会自动省略',
+                '',
+                '**对方：** [文件] 文件名.pdf',
+                '',
+                '**对方：** [链接] 链接标题 | https://example.com',
+                '',
+                '**对方：** ![图片：换成自己的表情包或截图](/static/images/default-avatar.png)',
+            ].join('\n'),
+            build: (content) => `:::chat\n\n${content}\n\n:::\n`,
+            useSelection: false,
+        },
     ];
 
     const PREVIEW_LABELS = {
@@ -80,8 +123,13 @@
         timeline: '时间线',
         gallery: '图集',
         table: '表格容器',
+        interview: '访谈对话',
+        question: '提问',
+        answer: '回答',
+        chat: '聊天记录',
     };
-    const DIRECTIVE_OPEN_LINE = /^:::(\w+)(?:\s+([\w-]+))?$/;
+    // 参数取行内剩余内容，允许中文与空格，访谈角色全名靠它
+    const DIRECTIVE_OPEN_LINE = /^:::(\w+)(?:\s+(.+?))?\s*$/;
 
     function ensureStyle() {
         if (document.getElementById(STYLE_ID)) return;
@@ -171,7 +219,7 @@
         if (!source.includes(':::')) return source;
 
         const open = source.replace(
-            /(<p[^>]*>)\s*:::([a-z]+)(?:[ \t]+([\w-]+))?\s*(?=<br\b|<\/p>)/gi,
+            /(<p[^>]*>)\s*:::([a-z]+)(?:[ \t]+([^<]+?))?\s*(?=<br\b|<\/p>)/gi,
             (match, tag, name, arg) => {
                 const label = PREVIEW_LABELS[name.toLowerCase()];
                 if (!label) return match;
@@ -207,7 +255,7 @@
         });
         const tip = document.createElement('p');
         tip.className = 'editor-block-menu-tip';
-        tip.textContent = '版式块仅 Markdown 模式生效，预览显示标记，发布后由前台主题呈现；选中文字后插入可直接入块。';
+        tip.textContent = '版式块仅 Markdown 模式生效，预览显示标记，发布后由前台主题呈现。访谈与聊天会插入完整示例，可直接改内容，不会使用选中文字：访谈用 :::question / :::answer 写角色名与多轮问答；聊天支持 [时间]、[系统]、[文件]、[链接]、图片消息，同一人连续发言会自动省略头像。聊天配色统一跟随站点主题。';
         menu.appendChild(tip);
     }
 
@@ -268,12 +316,14 @@
             if (!item) return;
 
             setOpen(false);
-            const selected = readSelection(editor);
+            // 访谈与聊天需要成对/成段结构，插入时用模板占位而不是塞入选中文字
+            const selected = item.useSelection === false ? '' : readSelection(editor);
             if (getActiveEditorMode() !== 'markdown') {
-                // 先移除富文本里的选中内容，避免切换模式后同一段文字出现两份
+                // 只用选中文字时才移除富文本里的选区，避免切换模式后同一段文字出现两份；
+                // 访谈/聊天忽略选中文字，不能顺手把用户选中的内容删掉
                 try {
                     const modeEditor = editor.getCurrentModeEditor();
-                    if (modeEditor && typeof modeEditor.replaceSelection === 'function') {
+                    if (selected && modeEditor && typeof modeEditor.replaceSelection === 'function') {
                         modeEditor.replaceSelection('');
                     }
                 } catch (error) {

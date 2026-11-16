@@ -1,7 +1,7 @@
 import re
 from functools import lru_cache
-from html import unescape
-from typing import Optional
+from html import escape, unescape
+from typing import Callable, Optional
 
 import bleach
 from markdown import markdown
@@ -19,8 +19,38 @@ LOOSE_TASK_LIST_ITEM_PATTERN = re.compile(
     re.DOTALL,
 )
 # Markdown 区块指令：:::名称 [参数]，闭合为单独一行 :::
-DIRECTIVE_OPEN_PATTERN = re.compile(r"^:::(\w+)(?:\s+([\w-]+))?$")
+# 参数取行内剩余内容，允许中文与空格，用于访谈角色全名等场景
+DIRECTIVE_OPEN_PATTERN = re.compile(r"^:::(\w+)(?:\s+(.+?))?\s*$")
 DIRECTIVE_CLOSE_LINE = ":::"
+# 访谈角色前缀：**问：** / **答：** / 问： / A: 等
+INTERVIEW_ROLE_PATTERN = re.compile(
+    r"^(?:\*\*|__)?\s*(?P<role>问|答|提问|回答|Q|A)\s*(?:\*\*|__)?\s*[：:]\s*(?:\*\*|__)?\s*",
+    re.IGNORECASE,
+)
+# 聊天气泡前缀：**我：** / **对方：** / **产品经理张伟：** / **我（10:30）：** / 我： 内容
+# 加粗写法不要求冒号后留空格；裸写写法要求冒号后至少一个空格，避免网址、
+# 时间与正文里的冒号被误判成说话人（如 https://… 与 10:30）。
+CHAT_SPEAKER_PATTERN = re.compile(
+    r"^(?:\*\*|__)\s*(?P<bold>[^：:\n]{1,16}?)\s*(?:[（(][^）)]*[）)])?"
+    r"\s*(?:\*\*|__)?\s*[：:]\s*(?:\*\*|__)?\s*"
+    r"|^(?P<plain>[^\W\d_][^：:\n]{0,15}?)\s*(?:[（(][^）)]*[）)])?"
+    r"\s*[：:][ \t\u3000]+(?:\*\*|__)?\s*",
+)
+# 聊天消息类型：时间分隔、系统提示、文件、链接、纯图片
+CHAT_TIME_PATTERN = re.compile(r"^\[(?:时间|time)\]\s*(.+?)\s*$", re.IGNORECASE)
+CHAT_SYSTEM_PATTERN = re.compile(r"^\[系统\]\s*(.+?)\s*$", re.IGNORECASE)
+CHAT_FILE_PATTERN = re.compile(r"^\[文件\]\s*(.+?)\s*$", re.IGNORECASE)
+CHAT_LINK_PATTERN = re.compile(r"^\[链接\]\s*(.+?)(?:\s*\|\s*(\S+))?\s*$", re.IGNORECASE)
+# 常见对话角色允许紧贴冒号书写（我：在吗），其他名字需要冒号后留空格
+CHAT_TIGHT_ROLE_PATTERN = re.compile(
+    r"^(?P<role>我|你|他|她|它|对方|me|you|he|she)\s*(?:[（(][^）)]*[）)])?"
+    r"\s*[：:]\s*(?:\*\*|__)?\s*",
+    re.IGNORECASE,
+)
+# 链接消息只放行显式协议白名单与相对地址，避免 javascript: 等协议进入正文
+URL_SCHEME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.\-]*:")
+SAFE_LINK_SCHEMES = {"http", "https", "mailto"}
+CHAT_IMAGE_ONLY_PATTERN = re.compile(r"^!\[[^\]]*\]\(\s*[^)\s]+(?:\s+\"[^\"]*\")?\s*\)$")
 FENCE_LINE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})")
 # 正文图片标签与尺寸档位：编辑器用 URL fragment 承载尺寸（#md-img-lg），
 # 因为 Toast UI 在 Markdown/富文本往返时会丢弃 class 等非白名单属性。
@@ -238,8 +268,272 @@ def _split_directive_columns(inner: str) -> tuple[str, str, str, bool]:
     )
 
 
+def _split_markdown_paragraphs(
+    text: str,
+    is_message_start: Callable[[str], bool],
+    is_status_line: Optional[Callable[[str], bool]] = None,
+) -> list[str]:
+    """按空行拆段；连续的消息行各自成段，时间/系统提示行单独成段。
+
+    ``is_message_start`` 判定某一行是否开启了新消息（访谈的问答行、聊天的说话人行），
+    只有整段每一行都开启新消息时才按行拆分，避免把段内换行误拆成多条消息。
+    段首的时间/系统提示行必须单独成段，否则会被当成普通说话人前缀。
+    """
+    paragraphs: list[str] = []
+    for block in re.split(r"\n\s*\n", text or ""):
+        lines = [line.strip() for line in block.splitlines() if line.strip()]
+        while lines:
+            if len(lines) > 1 and all(is_message_start(line) for line in lines):
+                paragraphs.extend(lines)
+                break
+            if is_status_line is not None and is_status_line(lines[0]):
+                paragraphs.append(lines[0])
+                lines = lines[1:]
+                continue
+            paragraphs.append("\n".join(lines))
+            break
+    return paragraphs
+
+
+def _match_chat_speaker(text: str) -> Optional[tuple[str, int]]:
+    """解析聊天说话人前缀，返回 (说话人, 前缀长度)；不是说话人行时返回 None。"""
+    match = CHAT_SPEAKER_PATTERN.match(text)
+    if match:
+        speaker = (match.group("bold") or match.group("plain") or "").strip()
+        if speaker:
+            return speaker, match.end()
+    tight_match = CHAT_TIGHT_ROLE_PATTERN.match(text)
+    if tight_match:
+        return tight_match.group("role"), tight_match.end()
+    return None
+
+
+def _is_chat_status_line(line: str) -> bool:
+    """时间分隔与系统提示行需要脱离气泡单独渲染。"""
+    return bool(CHAT_TIME_PATTERN.match(line) or CHAT_SYSTEM_PATTERN.match(line))
+
+
+def _is_chat_message_start(line: str) -> bool:
+    return _is_chat_status_line(line) or _match_chat_speaker(line) is not None
+
+
+def _is_interview_message_start(line: str) -> bool:
+    return INTERVIEW_ROLE_PATTERN.match(line) is not None
+
+
+def _safe_chat_link_url(raw: str) -> str:
+    """只放行 http/https/mailto 与相对地址，避免危险协议进入链接卡片。"""
+    url = str(raw or "").strip()
+    if not url:
+        return ""
+    scheme_match = URL_SCHEME_PATTERN.match(url)
+    if not scheme_match:
+        return url
+    scheme = scheme_match.group(0)[:-1].lower()
+    return url if scheme in SAFE_LINK_SCHEMES else ""
+
+
+def _avatar_initial(name: str) -> str:
+    """角色头像只显示名字首字，长名字不会把圆形气泡撑破。"""
+    text = str(name or "").strip()
+    if not text:
+        return ""
+    first = text[0]
+    return first.upper() if first.isascii() and first.isalpha() else first
+
+
+def _render_interview_block(inner: str) -> str:
+    """把访谈块渲染成问答条目，角色标签与正文都支持富媒体。"""
+    items: list[str] = []
+
+    def append_item(role_label: str, role_class: str, body_html: str) -> None:
+        if not body_html:
+            return
+        initial = _avatar_initial(role_label) or "?"
+        name_html = (
+            f'<div class="md-interview-name">{escape(role_label)}</div>'
+            if len(role_label) > 1
+            else ""
+        )
+        items.append(
+            f'<div class="md-interview-item {role_class}">'
+            f'<span class="md-interview-role" aria-hidden="true">{escape(initial)}</span>'
+            f'<div class="md-interview-body">{name_html}{body_html}</div></div>'
+        )
+
+    def append_free(body_html: str) -> None:
+        if body_html:
+            items.append(
+                f'<div class="md-interview-item is-free">'
+                f'<div class="md-interview-body">{body_html}</div></div>'
+            )
+
+    for kind, payload in _parse_directive_segments(inner):
+        if kind == "block":
+            block = payload
+            name = str(block.get("name") or "")
+            arg = str(block.get("arg") or "")
+            block_inner = str(block.get("inner") or "")
+            if name in {"question", "answer"}:
+                role_label = arg.strip() or ("问" if name == "question" else "答")
+                body = _render_plain_markdown(block_inner).strip()
+                append_item(
+                    role_label,
+                    "is-question" if name == "question" else "is-answer",
+                    body,
+                )
+            else:
+                # 其他版式子块整块嵌进访谈，避免内容被静默丢弃
+                append_free(_render_directive_block(name, arg, block_inner).strip())
+            continue
+        for paragraph in _split_markdown_paragraphs(str(payload), _is_interview_message_start):
+            match = INTERVIEW_ROLE_PATTERN.match(paragraph)
+            if match:
+                is_question = match.group("role").lower() in {"问", "q", "提问"}
+                body = _render_plain_markdown(paragraph[match.end():]).strip()
+                append_item(
+                    "问" if is_question else "答",
+                    "is-question" if is_question else "is-answer",
+                    body,
+                )
+            else:
+                append_free(_render_plain_markdown(paragraph).strip())
+    if not items:
+        return ""
+    return f'<div class="md-block md-block-interview">{"".join(items)}</div>'
+
+
+def _render_chat_message_body(source: str) -> tuple[str, str]:
+    """识别气泡内的消息类型：文件、链接、纯图片或普通 Markdown。"""
+    text = (source or "").strip()
+    file_match = CHAT_FILE_PATTERN.match(text)
+    if file_match:
+        file_name = escape(file_match.group(1))
+        return (
+            '<div class="md-chat-file">'
+            '<span class="md-chat-file-icon" aria-hidden="true">'
+            '<i class="fas fa-file-alt"></i></span>'
+            f'<span class="md-chat-file-name">{file_name}</span></div>',
+            "file",
+        )
+    link_match = CHAT_LINK_PATTERN.match(text)
+    if link_match:
+        link_title = escape(link_match.group(1))
+        link_url = _safe_chat_link_url(link_match.group(2) or "")
+        if not link_url:
+            # 缺少地址或协议不安全时降级成普通卡片，避免生成危险链接
+            return f'<div class="md-chat-link"><span class="md-chat-link-title">{link_title}</span></div>', "link"
+        safe_url = escape(link_url)
+        return (
+            f'<a class="md-chat-link" href="{safe_url}" target="_blank" rel="noopener noreferrer">'
+            f'<span class="md-chat-link-title">{link_title}</span>'
+            f'<span class="md-chat-link-url">{safe_url}</span></a>',
+            "link",
+        )
+    if CHAT_IMAGE_ONLY_PATTERN.match(text):
+        return f'<div class="md-chat-image">{_render_plain_markdown(text)}</div>', "image"
+    return _render_plain_markdown(text), "text"
+
+
+def _render_chat_block(inner: str) -> str:
+    """把聊天记录渲染成通用气泡，支持时间、系统提示、文件、链接与纯图片消息。
+
+    不区分聊天软件：配色完全交给站点主题，避免平台样式与主题风格打架。
+    """
+    items: list[str] = []
+    last_speaker = ""
+
+    for kind, payload in _parse_directive_segments(inner):
+        if kind != "text":
+            # 聊天块内的其他版式子块整块嵌入，避免内容被静默丢弃
+            block = payload
+            nested_html = _render_directive_block(
+                str(block.get("name") or ""),
+                str(block.get("arg") or ""),
+                str(block.get("inner") or ""),
+            ).strip()
+            if nested_html:
+                items.append(f'<div class="md-chat-embed">{nested_html}</div>')
+                last_speaker = ""
+            continue
+        for paragraph in _split_markdown_paragraphs(
+            str(payload), _is_chat_message_start, _is_chat_status_line
+        ):
+            time_match = CHAT_TIME_PATTERN.match(paragraph)
+            if time_match:
+                items.append(f'<div class="md-chat-time">{escape(time_match.group(1))}</div>')
+                last_speaker = ""
+                continue
+            system_match = CHAT_SYSTEM_PATTERN.match(paragraph)
+            if system_match:
+                items.append(f'<div class="md-chat-system">{escape(system_match.group(1))}</div>')
+                last_speaker = ""
+                continue
+
+            speaker_match = _match_chat_speaker(paragraph)
+            side = "is-left"
+            avatar = ""
+            speaker = ""
+            body_source = paragraph
+            if speaker_match:
+                speaker, prefix_length = speaker_match
+                if speaker.lower() in {"我", "me"}:
+                    side = "is-right"
+                    avatar = "我"
+                else:
+                    side = "is-left"
+                    avatar = speaker
+                body_source = paragraph[prefix_length:]
+            else:
+                last_speaker = ""
+
+            body, message_kind = _render_chat_message_body(body_source)
+            if not body:
+                continue
+
+            is_continuation = speaker_match is not None and speaker == last_speaker
+            avatar_html = ""
+            name_html = ""
+            if avatar and not is_continuation:
+                avatar_html = (
+                    f'<div class="md-chat-avatar" aria-hidden="true">'
+                    f"{escape(_avatar_initial(avatar))}</div>"
+                )
+                if len(avatar) > 1:
+                    name_html = f'<div class="md-chat-name">{escape(avatar)}</div>'
+            bubble_class = (
+                f"md-chat-bubble is-{message_kind}" if message_kind != "text" else "md-chat-bubble"
+            )
+            item_class = f"md-chat-item {side}"
+            if is_continuation:
+                item_class += " is-continuation"
+            if speaker_match is None:
+                # 没有说话人的段落没有头像列，样式层要补回缩进保持气泡对齐
+                item_class += " is-bare"
+            if message_kind == "image":
+                # 图片可能很高，头像改为顶部对齐
+                item_class += " is-media"
+            items.append(
+                f'<div class="{item_class}">{avatar_html}'
+                f'<div class="{bubble_class}">{name_html}{body}</div></div>'
+            )
+            if speaker_match:
+                last_speaker = speaker
+
+    if not items:
+        return ""
+    return f'<div class="md-block md-block-chat">{"".join(items)}</div>'
+
+
 def _render_directive_block(name: str, arg: str, inner: str) -> str:
     """把单个区块指令渲染为带样式的 HTML 片段。"""
+    # 访谈与聊天有自己的分段渲染逻辑，先分流，避免整段重复渲染一次
+    if name == "interview":
+        return _render_interview_block(inner)
+
+    if name == "chat":
+        return _render_chat_block(inner)
+
     inner_html = _render_task_list_items(_render_plain_markdown(inner))
 
     if name == "wide":
@@ -261,7 +555,8 @@ def _render_directive_block(name: str, arg: str, inner: str) -> str:
         return f'<figure class="md-block md-block-quote"><blockquote>{inner_html}</blockquote></figure>'
 
     if name == "notice":
-        notice_class = "is-warn" if arg in {"warn", "warning"} else "is-info"
+        notice_arg = (arg.strip().split() or [""])[0].lower()
+        notice_class = "is-warn" if notice_arg in {"warn", "warning"} else "is-info"
         return f'<aside class="md-block md-block-notice {notice_class}">{inner_html}</aside>'
 
     if name == "columns":
@@ -332,7 +627,8 @@ def _parse_directive_segments(text: str) -> list[tuple[str, object]]:
             buffer = []
 
         name = match.group(1).lower()
-        arg = (match.group(2) or "").lower()
+        # 参数保留原样（角色名可能是中文或英文姓名），比较时再按需小写
+        arg = (match.group(2) or "").strip()
         inner_lines: list[str] = []
         depth = 1
         cursor = index + 1
@@ -495,8 +791,8 @@ def markdown_to_plain_text(content_markdown: Optional[str]) -> str:
     plain_text = markdown_content
     plain_text = re.sub(r"```[\s\S]*?```", " ", plain_text)
     plain_text = re.sub(r"`[^`]*`", " ", plain_text)
-    # 区块指令的 ::: 行只用于排版，不进入纯文本口径
-    plain_text = re.sub(r"^:::\w*(?:\s+[\w-]+)?$", "", plain_text, flags=re.MULTILINE)
+    # 区块指令的 ::: 行只用于排版，不进入纯文本口径；参数可能是带空格的中文角色名
+    plain_text = re.sub(r"^:::\w*(?:\s+.*)?$", "", plain_text, flags=re.MULTILINE)
     plain_text = re.sub(r"!\[[^\]]*\]\([^)]+\)", " ", plain_text)
     plain_text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", plain_text)
     plain_text = re.sub(r"^#{1,6}\s+", "", plain_text, flags=re.MULTILINE)

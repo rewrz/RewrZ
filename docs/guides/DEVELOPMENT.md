@@ -183,6 +183,11 @@ npm run watch:css
 - HTML 模式与 Markdown 渲染结果共用同一套白名单；新增标签或属性时必须同步 `CONTENT_ALLOWED_TAGS` / `CONTENT_ALLOWED_ATTRIBUTES`。
 - `[hide]` 使用 `core/content_access.py` 的哨兵整篇渲染：先整篇解析 Markdown，再替换占位符。不要再改回按段切分，否则 `:::` 版式块与跨段引用链接会破版。
 - `:::` 指令与代码围栏的判定必须与 `static/js/editor-raw-html.js` 保持一致：允许 0-3 个空格缩进，围栏同时支持三个反引号与 `~~~`。
+- 新增 `:::` 指令时，除 `core/content_utils.py` 的渲染分支，还要同步 `static/js/editor-block-directives.js` 的 `DIRECTIVES`（菜单项）、`PREVIEW_LABELS`（预览徽标）与 `DIRECTIVE_OPEN_LINE`（识别规则），否则编辑器里插不出来或预览显示裸标记；指令参数取行内剩余内容，允许中文与空格（如访谈角色全名），不要在解析时强制小写。
+- 版式块样式统一放 `static/css/md-blocks.css`，由 `base.html` 全站引入，文章页与页面正文共用；不要再把新的 `.md-block` 样式只写进 `post-detail.css`，否则页面类型的内容会没有版式。
+- 聊天记录是通用气泡，不区分聊天软件：不要新增 `is-wechat` 之类的平台配色分支。配色全部从 `--chat-primary` / `--chat-secondary` 派生，这两个变量直接绑定站点主题色；新增视觉只允许用 `color-mix()` 组合主题变量，不写死色值。
+- 访谈/聊天卡的四角贴纸由 `md-blocks.css` 里的 `--md-doodle-a` / `--md-doodle-b` 控制，按 `body[data-current-theme]` 切换形状（如 sakura 用花瓣、galaxy 用星星），颜色仍取主题变量；新增预设主题时补一组形状即可，自定义主题自动回落到 `:root` 的星星 + 爱心。不要再用固定图片或满屏重复纹样做背景。
+- 聊天说话人由 `CHAT_SPEAKER_PATTERN` 与 `CHAT_TIGHT_ROLE_PATTERN` 共同判定：加粗写法不要求冒号后留空格，裸写要求留空格，避免把 URL、时间与正文冒号误判成说话人；链接消息必须经过 `_safe_chat_link_url`，不要直接拼接 href。
 - 保存时 `editor_mode` 必须与真实内容一致；强制 Markdown 时要真正切换编辑器模式，不能只改隐藏域。
 - 改动编辑器或正文渲染链路时，至少运行 `tests/test_content_plaintext_and_summary.py` 与 `tests/test_content_access_and_archives.py`。
 - slug 统一走 `core/slug_utils.py` 的 `slugify_with_dots`，不要直接调用 `slugify`；该函数保留点号（`Node.js` → `node.js`、`v1.2` → `v1.2`），文章、页面、分类、标签、内容意图共用。

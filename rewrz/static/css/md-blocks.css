@@ -1,0 +1,757 @@
+/* ===== Markdown 区块指令（全站通用） =====
+   统一收口为 .md-block 家族，供 markdown 里以 ::: 指令书写的区块使用。
+   文章页与页面共用本文件；所有颜色都从动态主题变量派生，不写死色值。 */
+
+/* ===== 主题手绘装饰 =====
+   每个主题一套手绘涂鸦图形，只有形状不同；颜色统一取主题色，
+   自定义主题自动落到默认的星星 + 爱心。 */
+:root {
+    --md-doodle-a: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 2.1c1.3 5.6 4.3 8.6 9.9 9.9-5.6 1.3-8.6 4.3-9.9 9.9-1.3-5.6-4.3-8.6-9.9-9.9 5.6-1.3 8.6-4.3 9.9-9.9z'/%3E%3C/svg%3E");
+    --md-doodle-b: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 20.6S4.1 15.6 4.1 10.4A4.6 4.6 0 0 1 12 7.2a4.6 4.6 0 0 1 7.9 3.2c0 5.2-7.9 10.2-7.9 10.2z'/%3E%3C/svg%3E");
+}
+body[data-current-theme="light"] {
+    --md-doodle-a: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M7.4 18.6a4 4 0 0 1-.6-7.9 5.2 5.2 0 0 1 9.9-1.4 3.9 3.9 0 0 1 1.7 7.5 4 4 0 0 1-2.1.6z'/%3E%3C/svg%3E");
+    --md-doodle-b: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 20.6S4.1 15.6 4.1 10.4A4.6 4.6 0 0 1 12 7.2a4.6 4.6 0 0 1 7.9 3.2c0 5.2-7.9 10.2-7.9 10.2z'/%3E%3C/svg%3E");
+}
+body[data-current-theme="dark"] {
+    --md-doodle-a: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M20 14.2A8.5 8.5 0 0 1 9.8 4a8.3 8.3 0 1 0 10.2 10.2z'/%3E%3C/svg%3E");
+    --md-doodle-b: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 2.1c1.3 5.6 4.3 8.6 9.9 9.9-5.6 1.3-8.6 4.3-9.9 9.9-1.3-5.6-4.3-8.6-9.9-9.9 5.6-1.3 8.6-4.3 9.9-9.9z'/%3E%3C/svg%3E");
+}
+body[data-current-theme="nature"] {
+    --md-doodle-a: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M4.6 19.4C4.6 10.9 10.9 4.6 19.4 4.6c0 8.5-6.3 14.8-14.8 14.8z'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M4.9 19.1 15.6 8.4'/%3E%3C/svg%3E");
+    --md-doodle-b: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 2.1c1.3 5.6 4.3 8.6 9.9 9.9-5.6 1.3-8.6 4.3-9.9 9.9-1.3-5.6-4.3-8.6-9.9-9.9 5.6-1.3 8.6-4.3 9.9-9.9z'/%3E%3C/svg%3E");
+}
+body[data-current-theme="ocean"] {
+    --md-doodle-a: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' cx='12' cy='12' r='8.4'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M8.2 9.6a4.6 4.6 0 0 1 2.2-1.6'/%3E%3C/svg%3E");
+    --md-doodle-b: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 2.1c1.3 5.6 4.3 8.6 9.9 9.9-5.6 1.3-8.6 4.3-9.9 9.9-1.3-5.6-4.3-8.6-9.9-9.9 5.6-1.3 8.6-4.3 9.9-9.9z'/%3E%3C/svg%3E");
+}
+body[data-current-theme="sunset"] {
+    --md-doodle-a: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' cx='12' cy='12' r='4'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 1.6v3' transform='rotate(0 12 12)'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 1.6v3' transform='rotate(45 12 12)'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 1.6v3' transform='rotate(90 12 12)'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 1.6v3' transform='rotate(135 12 12)'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 1.6v3' transform='rotate(180 12 12)'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 1.6v3' transform='rotate(225 12 12)'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 1.6v3' transform='rotate(270 12 12)'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 1.6v3' transform='rotate(315 12 12)'/%3E%3C/svg%3E");
+    --md-doodle-b: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M7.4 18.6a4 4 0 0 1-.6-7.9 5.2 5.2 0 0 1 9.9-1.4 3.9 3.9 0 0 1 1.7 7.5 4 4 0 0 1-2.1.6z'/%3E%3C/svg%3E");
+}
+body[data-current-theme="sakura"] {
+    --md-doodle-a: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' cx='12' cy='5.8' r='3.1'/%3E%3Ccircle fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' cx='17.5' cy='9.8' r='3.1'/%3E%3Ccircle fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' cx='15.4' cy='16.2' r='3.1'/%3E%3Ccircle fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' cx='8.6' cy='16.2' r='3.1'/%3E%3Ccircle fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' cx='6.5' cy='9.8' r='3.1'/%3E%3Ccircle fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' cx='12' cy='11.5' r='1.6'/%3E%3C/svg%3E");
+    --md-doodle-b: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 2.6c3.8 3.2 5.7 6.8 5.7 9.9 0 4.3-2.8 7.8-5.7 9.1-2.9-1.3-5.7-4.8-5.7-9.1 0-3.1 1.9-6.7 5.7-9.9z'/%3E%3C/svg%3E");
+}
+body[data-current-theme="galaxy"] {
+    --md-doodle-a: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 2.6l2.8 5.9 6.5.9-4.7 4.5 1.2 6.4L12 17.3l-5.8 3 1.2-6.4-4.7-4.5 6.5-.9z'/%3E%3C/svg%3E");
+    --md-doodle-b: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M12 2.1c1.3 5.6 4.3 8.6 9.9 9.9-5.6 1.3-8.6 4.3-9.9 9.9-1.3-5.6-4.3-8.6-9.9-9.9 5.6-1.3 8.6-4.3 9.9-9.9z'/%3E%3C/svg%3E");
+}
+body[data-current-theme="mint"] {
+    --md-doodle-a: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M4.6 19.4C4.6 10.9 10.9 4.6 19.4 4.6c0 8.5-6.3 14.8-14.8 14.8z'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M4.9 19.1 15.6 8.4'/%3E%3C/svg%3E");
+    --md-doodle-b: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' cx='12' cy='12' r='8.4'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' d='M8.2 9.6a4.6 4.6 0 0 1 2.2-1.6'/%3E%3C/svg%3E");
+}
+
+.md-block {
+    margin: 2rem 0;
+}
+
+.md-block-wide {
+    position: relative;
+    left: 50%;
+    width: min(920px, calc(100vw - 2.5rem));
+    max-width: none;
+    transform: translateX(-50%);
+}
+
+.md-block-wide img {
+    width: 100%;
+    border-radius: 0.9rem;
+}
+
+.md-block-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+}
+
+.md-block-gallery.md-gallery-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.md-block-gallery img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 0.8rem;
+}
+
+.md-block-quote {
+    padding: 1.25rem 1.5rem;
+    border-left: 3px solid color-mix(in srgb, var(--color-primary) 56%, var(--color-border) 44%);
+    border-radius: 0.9rem;
+    background: var(--color-background-alt);
+}
+
+.md-block-quote blockquote {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    font-size: 1.1rem;
+    line-height: 1.85;
+    color: var(--color-text);
+}
+
+.md-block-notice {
+    display: flex;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-radius: 0.9rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-card-bg) 92%);
+    color: var(--color-text);
+    line-height: 1.8;
+}
+
+.md-block-notice::before {
+    content: '提示';
+    flex: none;
+    align-self: flex-start;
+    border-radius: 999px;
+    padding: 0.1rem 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
+}
+
+.md-block-notice.is-warn {
+    border-color: color-mix(in srgb, var(--color-warning, var(--color-primary)) 32%, var(--color-border) 68%);
+    background: color-mix(in srgb, var(--color-warning, var(--color-primary)) 10%, var(--color-card-bg) 90%);
+}
+
+.md-block-notice.is-warn::before {
+    content: '注意';
+    background: color-mix(in srgb, var(--color-warning, var(--color-primary)) 18%, transparent);
+    color: color-mix(in srgb, var(--color-warning, var(--color-primary)) 82%, var(--color-text) 18%);
+}
+
+.md-block-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.md-column > :first-child {
+    margin-top: 0;
+}
+
+.md-column > :last-child {
+    margin-bottom: 0;
+}
+
+.md-block-timeline {
+    position: relative;
+    padding-left: 1.35rem;
+    border-left: 2px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%);
+}
+
+.md-block-timeline li {
+    position: relative;
+    margin-bottom: 1rem;
+    list-style: none;
+    line-height: 1.8;
+}
+
+.md-block-timeline li::before {
+    content: '';
+    position: absolute;
+    left: calc(-1.35rem - 5px);
+    top: 0.55rem;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--color-primary);
+}
+
+.md-block-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ===== 访谈对话：主题手绘问答卡 =====
+   角色标签、问答分栏都跟随主题色；角落贴纸按主题名切换图形，
+   只做氛围装饰，不参与信息层级。 */
+.md-block-interview {
+    --md-accent-a: var(--color-primary);
+    --md-accent-b: color-mix(in srgb, var(--color-primary) 86%, var(--color-secondary, var(--color-primary)) 14%);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 1.5rem 1.3rem 1.25rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border) 80%);
+    border-radius: 1.25rem;
+    background-color: color-mix(in srgb, var(--color-background-alt) 94%, var(--color-primary) 6%);
+    background-image:
+        radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--color-primary) 14%, transparent) 0, transparent 56%),
+        radial-gradient(100% 90% at 100% 100%, color-mix(in srgb, var(--color-primary) 9%, transparent) 0, transparent 58%);
+    box-shadow: 0 18px 38px -32px var(--color-card-shadow);
+    isolation: isolate;
+}
+
+.md-block-interview > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* 正文统一用主题文字色，避免 Tailwind Typography 的深浅色预设覆盖气泡内文字 */
+.md-interview-body {
+    color: var(--color-text);
+}
+
+.md-interview-body p,
+.md-interview-body li {
+    color: inherit;
+}
+
+.md-interview-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.9rem 0;
+}
+
+.md-interview-item:first-child { padding-top: 0; }
+.md-interview-item:last-child { padding-bottom: 0; }
+
+.md-interview-item + .md-interview-item {
+    border-top: 1px dashed color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+}
+
+.md-interview-role {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 0.75rem;
+    background: linear-gradient(
+        140deg,
+        color-mix(in srgb, var(--color-primary) 30%, var(--color-card-bg) 70%),
+        color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%)
+    );
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+    outline: 1.5px dashed color-mix(in srgb, var(--color-primary) 28%, transparent);
+    outline-offset: 2px;
+    box-shadow: 0 5px 12px -9px var(--color-card-shadow);
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.1;
+    text-align: center;
+    /* 只显示名字首字，长名字不会把圆形撑破，完整名字另起一行 */
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.md-interview-item.is-answer .md-interview-role {
+    background: linear-gradient(
+        140deg,
+        color-mix(in srgb, var(--color-secondary, var(--color-primary)) 26%, var(--color-card-bg) 74%),
+        color-mix(in srgb, var(--color-secondary, var(--color-primary)) 8%, var(--color-card-bg) 92%)
+    );
+    color: color-mix(in srgb, var(--color-secondary, var(--color-primary)) 68%, var(--color-text) 32%);
+    outline-color: color-mix(in srgb, var(--color-secondary, var(--color-primary)) 26%, transparent);
+}
+
+/* 头像首字只用于识别角色，复制正文时不带出去 */
+.md-chat-avatar,
+.md-interview-role {
+    user-select: none;
+}
+
+.md-interview-body {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.8;
+}
+
+.md-interview-body > :first-child { margin-top: 0; }
+.md-interview-body > :last-child { margin-bottom: 0; }
+.md-interview-body img,
+.md-interview-body video {
+    max-width: 100%;
+    margin: 0.5rem 0;
+    border-radius: 0.75rem;
+    box-shadow: none;
+}
+.md-interview-body audio { width: min(320px, 100%); }
+
+/* 访谈块里的自由段落与正文列对齐，避免贴住左侧头像列 */
+.md-interview-item.is-free {
+    padding-left: calc(2.2rem + 0.75rem);
+}
+
+.md-interview-body > .md-block {
+    margin: 0.4rem 0;
+}
+
+.md-interview-name {
+    display: inline-flex;
+    align-items: baseline;
+    margin-bottom: 0.18rem;
+    color: var(--color-text-light);
+    font-size: 0.78rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* 名字前的主题色小圆点，替代纯文字标签的呆板感 */
+.md-interview-name::before {
+    content: '';
+    flex: none;
+    width: 0.34rem;
+    height: 0.34rem;
+    margin-right: 0.4rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-primary) 62%, var(--color-text) 38%);
+}
+
+.md-interview-item.is-answer .md-interview-name::before {
+    background: color-mix(in srgb, var(--color-secondary, var(--color-primary)) 62%, var(--color-text) 38%);
+}
+
+/* ===== 聊天记录：通用气泡 =====
+   不区分聊天软件，配色全部由站点主题派生；角落贴纸与淡底纹随主题名切换图形。 */
+.md-block-chat {
+    --chat-primary: var(--color-primary);
+    --chat-secondary: color-mix(in srgb, var(--color-secondary, var(--color-primary)) 72%, var(--color-primary) 28%);
+    --chat-line: color-mix(in srgb, var(--chat-primary) 24%, var(--color-border) 76%);
+    --chat-bubble: color-mix(in srgb, var(--color-card-bg) 90%, var(--chat-primary) 10%);
+    --chat-bubble-me-top: color-mix(in srgb, var(--chat-primary) 26%, var(--color-card-bg) 74%);
+    --chat-bubble-me-bottom: color-mix(in srgb, var(--chat-primary) 10%, var(--color-card-bg) 90%);
+    --md-accent-a: var(--chat-primary);
+    --md-accent-b: color-mix(in srgb, var(--chat-primary) 86%, var(--chat-secondary) 14%);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 1.35rem 1.2rem 1.15rem;
+    border: 1px solid var(--chat-line);
+    border-radius: 1.25rem;
+    background-color: color-mix(in srgb, var(--color-background-alt) 93%, var(--chat-primary) 7%);
+    background-image:
+        radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--chat-primary) 15%, transparent) 0, transparent 55%),
+        radial-gradient(100% 90% at 100% 100%, color-mix(in srgb, var(--chat-primary) 10%, transparent) 0, transparent 58%);
+    box-shadow: 0 18px 38px -32px var(--color-card-shadow);
+    isolation: isolate;
+}
+
+/* ===== 卡片装饰 =====
+   ::before 是极淡的主题小图形底纹，::after 是四角贴纸；
+   图形与颜色都来自主题变量，切换主题时即时变化。 */
+.md-block-interview::before,
+.md-block-chat::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-color: color-mix(in srgb, var(--md-accent-b) 62%, transparent);
+    -webkit-mask-image: var(--md-doodle-b), var(--md-doodle-b);
+    -webkit-mask-position: 2rem 2.4rem, 7rem 9rem;
+    -webkit-mask-size: 12rem 12rem, 16rem 16rem;
+    -webkit-mask-repeat: repeat;
+    mask-image: var(--md-doodle-b), var(--md-doodle-b);
+    mask-position: 2rem 2.4rem, 7rem 9rem;
+    mask-size: 12rem 12rem, 16rem 16rem;
+    mask-repeat: repeat;
+    opacity: 0.035;
+    pointer-events: none;
+}
+
+.md-block-interview::after,
+.md-block-chat::after {
+    content: '';
+    position: absolute;
+    inset: -0.6rem;
+    z-index: 0;
+    background-color: color-mix(in srgb, var(--md-accent-a) 82%, transparent);
+    -webkit-mask-image: var(--md-doodle-a), var(--md-doodle-a), var(--md-doodle-b), var(--md-doodle-b);
+    -webkit-mask-position: 2% 3%, 98% 96%, 97% 2%, 3% 97%;
+    -webkit-mask-size: 1.7rem, 2.3rem, 1.15rem, 1rem;
+    -webkit-mask-repeat: no-repeat;
+    mask-image: var(--md-doodle-a), var(--md-doodle-a), var(--md-doodle-b), var(--md-doodle-b);
+    mask-position: 2% 3%, 98% 96%, 97% 2%, 3% 97%;
+    mask-size: 1.7rem, 2.3rem, 1.15rem, 1rem;
+    mask-repeat: no-repeat;
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.md-block-chat > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* 气泡内文字统一取主题文字色，避免 Typography 的深浅色预设把深色主题写成黑字 */
+.md-chat-bubble {
+    color: var(--color-text);
+}
+
+.md-chat-bubble p,
+.md-chat-bubble li {
+    color: inherit;
+}
+
+.md-chat-item {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.55rem;
+}
+
+.md-chat-item.is-right {
+    flex-direction: row-reverse;
+}
+
+.md-chat-avatar {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 999px;
+    background: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--color-card-bg) 82%, var(--chat-secondary) 18%),
+        var(--color-card-bg)
+    );
+    color: color-mix(in srgb, var(--chat-secondary) 68%, var(--color-text) 32%);
+    outline: 1.5px dashed color-mix(in srgb, var(--chat-secondary) 26%, transparent);
+    outline-offset: 2px;
+    box-shadow: 0 5px 12px -10px var(--color-card-shadow);
+    font-size: 0.74rem;
+    font-weight: 600;
+    line-height: 1.1;
+    text-align: center;
+    /* 只显示名字首字，长名字不会把圆形撑破，完整名字另起一行 */
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.md-chat-item.is-right .md-chat-avatar {
+    background: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--chat-primary) 32%, var(--color-card-bg) 68%),
+        color-mix(in srgb, var(--chat-primary) 12%, var(--color-card-bg) 88%)
+    );
+    color: color-mix(in srgb, var(--chat-primary) 74%, var(--color-text) 26%);
+    outline-color: color-mix(in srgb, var(--chat-primary) 32%, transparent);
+}
+
+/* 名字做成小胶囊标签，比裸文字更像贴纸 */
+.md-chat-name {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    margin-bottom: 0.24rem;
+    padding: 0.06rem 0.5rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--chat-primary) 11%, transparent);
+    color: color-mix(in srgb, var(--color-text-light) 82%, var(--chat-primary) 18%);
+    font-size: 0.7rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.md-chat-bubble {
+    position: relative;
+    max-width: 78%;
+    padding: 0.62rem 0.9rem;
+    border: 1px solid color-mix(in srgb, var(--chat-primary) 15%, var(--color-border) 85%);
+    border-radius: 1.05rem 1.05rem 1.05rem 0.32rem;
+    background: var(--chat-bubble);
+    box-shadow: 0 8px 20px -18px var(--color-card-shadow);
+    line-height: 1.78;
+    overflow-wrap: anywhere;
+}
+
+.md-chat-item.is-right .md-chat-bubble {
+    border-color: var(--chat-line);
+    border-radius: 1.05rem 1.05rem 0.32rem 1.05rem;
+    background: linear-gradient(135deg, var(--chat-bubble-me-top), var(--chat-bubble-me-bottom));
+}
+
+/* 气泡尖角：让通用聊天卡更像真实对话 */
+.md-chat-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: 0.55rem;
+    left: -0.33rem;
+    width: 0.66rem;
+    height: 0.66rem;
+    background: var(--chat-bubble);
+    border-bottom-left-radius: 0.22rem;
+    transform: rotate(45deg);
+    pointer-events: none;
+}
+
+.md-chat-item.is-right .md-chat-bubble::after {
+    left: auto;
+    right: -0.33rem;
+    background: var(--chat-bubble-me-bottom);
+    border-bottom-left-radius: 0;
+    border-top-right-radius: 0.22rem;
+}
+
+/* 纯图片与无说话人的消息没有头像指向，不需要尖角 */
+.md-chat-bubble.is-image::after,
+.md-chat-item.is-bare .md-chat-bubble::after {
+    display: none;
+}
+
+/* 气泡里的富媒体不撑破气泡；正文段落的默认两端对齐在窄气泡里会让字距忽大忽小 */
+.md-block-chat .md-chat-bubble img,
+.md-block-chat .md-chat-bubble video {
+    margin: 0.35rem 0;
+    border-radius: 0.6rem;
+    box-shadow: none;
+}
+
+/* 没有写尺寸档位的图片（表情包）压在气泡尺寸内，写了档位的截图按作者选择展示 */
+.md-block-chat .md-chat-bubble img:not([class*="md-img-"]),
+.md-block-chat .md-chat-bubble video {
+    max-width: min(240px, 100%) !important;
+}
+
+.md-chat-bubble audio { width: min(240px, 100%); }
+.md-chat-bubble > :first-child { margin-top: 0; }
+.md-chat-bubble > :last-child { margin-bottom: 0; }
+.md-chat-bubble p { text-align: left; }
+.md-chat-bubble p > br:only-child { display: none; }
+.md-interview-body p > br:only-child { display: none; }
+
+/* 聊天块内嵌的其他版式块占满整行，不参与左右气泡布局 */
+.md-chat-embed > .md-block {
+    margin: 0.2rem 0;
+}
+
+/* 时间分隔与系统提示：居中，不套气泡 */
+.md-chat-time {
+    align-self: center;
+    padding: 0.12rem 0.65rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--chat-primary) 10%, transparent);
+    color: color-mix(in srgb, var(--color-text-light) 86%, var(--chat-primary) 14%);
+    font-size: 0.72rem;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chat-primary) 13%, transparent);
+}
+
+.md-chat-time::before {
+    content: '✦';
+    margin-right: 0.3em;
+    font-size: 0.85em;
+    opacity: 0.7;
+}
+
+.md-chat-system {
+    align-self: center;
+    max-width: 86%;
+    color: var(--color-text-muted);
+    font-size: 0.76rem;
+    text-align: center;
+}
+
+/* 同一人连续发言：间距收紧，头像与名字由渲染层省略 */
+.md-chat-item.is-continuation {
+    margin-top: -0.35rem;
+}
+
+/* 省略头像后要补回头像列宽度，否则连续气泡会贴到容器边缘、与上一条错位 */
+.md-chat-item.is-left.is-continuation {
+    padding-left: calc(2.1rem + 0.55rem);
+}
+
+.md-chat-item.is-right.is-continuation {
+    padding-right: calc(2.1rem + 0.55rem);
+}
+
+.md-chat-item.is-right .md-chat-name {
+    margin-left: auto;
+    text-align: right;
+}
+
+/* 没有说话人的段落没有头像列，补回缩进才能与上面的气泡列对齐 */
+.md-chat-item.is-bare {
+    padding-left: calc(2.1rem + 0.55rem);
+}
+
+/* 图片消息可能很高，头像改为顶部对齐 */
+.md-chat-item.is-media {
+    align-items: flex-start;
+}
+
+/* 名字与正文之间不该再叠一层段落上边距 */
+.md-chat-bubble .md-chat-name + p,
+.md-interview-body .md-interview-name + p {
+    margin-top: 0.1rem;
+}
+
+/* 文件消息 */
+.md-chat-file {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 10rem;
+}
+
+.md-chat-file-icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 0.5rem;
+    background: linear-gradient(140deg, var(--chat-bubble-me-top), var(--chat-bubble-me-bottom));
+    color: color-mix(in srgb, var(--chat-primary) 74%, var(--color-text) 26%);
+    font-size: 0.82rem;
+}
+
+.md-chat-file-name {
+    font-size: 0.86rem;
+    word-break: break-all;
+}
+
+/* 链接消息 */
+.md-chat-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    text-decoration: none;
+}
+
+/* 正文链接有悬停下划线动画，卡片式链接不需要 */
+.md-block-chat .md-chat-link::after {
+    display: none;
+}
+
+.md-chat-link-title {
+    color: var(--color-text);
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+.md-chat-link-url {
+    color: var(--color-text-light);
+    font-size: 0.72rem;
+    word-break: break-all;
+}
+
+/* 纯图片 / 表情包消息：不要气泡背景与边框（右侧消息的强调色不应覆盖） */
+.md-block-chat .md-chat-bubble.is-image {
+    max-width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.md-chat-bubble.is-image .md-chat-image p {
+    margin: 0;
+}
+
+/* 图片气泡宽度由图片决定，右侧消息要把图片贴到头像一侧 */
+.md-chat-item.is-right .md-chat-bubble.is-image {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.md-chat-item.is-right .md-chat-bubble.is-image .md-chat-image img {
+    margin-left: auto;
+    margin-right: 0;
+}
+
+.md-chat-bubble.is-image .md-chat-image img:not([class*="md-img-"]) {
+    max-width: min(200px, 100%) !important;
+    border-radius: 0.75rem;
+}
+
+.md-chat-bubble.is-file,
+.md-chat-bubble.is-link {
+    padding: 0.5rem 0.75rem;
+}
+
+@media (max-width: 640px) {
+    .md-block-wide {
+        left: auto;
+        width: 100%;
+        transform: none;
+    }
+
+    .md-block-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .md-block-interview,
+    .md-block-chat {
+        padding: 1.1rem 0.85rem 0.95rem;
+        border-radius: 0.9rem;
+    }
+
+    .md-block-interview::before,
+    .md-block-chat::before {
+        -webkit-mask-position: 1.4rem 1.6rem, 5rem 6rem;
+        -webkit-mask-size: 8.5rem 8.5rem, 11.5rem 11.5rem;
+        mask-position: 1.4rem 1.6rem, 5rem 6rem;
+        mask-size: 8.5rem 8.5rem, 11.5rem 11.5rem;
+        opacity: 0.03;
+    }
+
+    .md-block-interview::after,
+    .md-block-chat::after {
+        inset: -0.45rem;
+        -webkit-mask-size: 1.4rem, 1.9rem, 0.95rem, 0.85rem;
+        mask-size: 1.4rem, 1.9rem, 0.95rem, 0.85rem;
+        opacity: 0.5;
+    }
+
+    .md-chat-bubble {
+        max-width: 84%;
+    }
+
+    .md-chat-file {
+        min-width: 0;
+    }
+
+    /* 窄屏头像列同步收窄，连续气泡仍然对齐 */
+    .md-chat-item.is-left.is-continuation,
+    .md-chat-item.is-bare {
+        padding-left: calc(1.8rem + 0.55rem);
+    }
+
+    .md-chat-item.is-right.is-continuation {
+        padding-right: calc(1.8rem + 0.55rem);
+    }
+
+    .md-chat-avatar,
+    .md-interview-role {
+        width: 1.8rem;
+        height: 1.8rem;
+        font-size: 0.7rem;
+    }
+
+    .md-interview-item.is-free {
+        padding-left: calc(1.8rem + 0.75rem);
+    }
+}
+
+/* 打印时不输出装饰与阴影，避免底纹和贴纸抢正文 */
+@media print {
+    .md-block-chat,
+    .md-block-interview {
+        background-image: none !important;
+        box-shadow: none !important;
+    }
+
+    .md-block-chat::before,
+    .md-block-chat::after,
+    .md-block-interview::before,
+    .md-block-interview::after {
+        display: none !important;
+    }
+}

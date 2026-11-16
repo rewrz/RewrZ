@@ -84,6 +84,8 @@
     <link rel="stylesheet" href="{{ static_asset(request, 'css/site-tailwind.css') }}">
     <link rel="stylesheet" href="{{ static_asset(request, 'css/tailwind-optimized.css') }}">
     <link rel="stylesheet" href="{{ static_asset(request, 'css/unified-theme.css') }}">
+    {# Markdown 版式块全站通用：文章页与页面正文都靠这份样式，避免只有文章页生效 #}
+    <link rel="stylesheet" href="{{ static_asset(request, 'css/md-blocks.css') }}">
     <!-- 动态主题CSS变量：服务端直接内联，省掉首屏一次阻塞样式请求 -->
     <style id="theme-variables-inline">
         :root {
