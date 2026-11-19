@@ -325,6 +325,11 @@ def format_page(
     if format_obj is None:
         raise HTTPException(status_code=404, detail="Format not found")
 
+    cache_version = public_list_cache.get_public_list_cache_version()
+    cached_html = public_list_cache.get_cached_public_list_html(request, version=cache_version)
+    if cached_html is not None:
+        return HTMLResponse(content=cached_html)
+
     page = max(1, int(page or 1))
     canonical_format_slug = resolved_slug or normalize_public_intent_slug(format_slug) or format_slug
     archive_posts_limit = _resolve_archive_posts_per_page(_get_page_config(db, "archive_posts_limit", 20), 20)
@@ -487,7 +492,13 @@ def format_page(
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
         return _templates.TemplateResponse(request, "fragments/format_archive_append.html", context)
 
-    return _templates.TemplateResponse(request, "format_archive.html", context)
+    response = _templates.TemplateResponse(request, "format_archive.html", context)
+    public_list_cache.store_public_list_html(
+        request,
+        response.body.decode("utf-8"),
+        version=cache_version,
+    )
+    return response
 
 
 @router.get("/archives/by-category/{category_slug}", response_class=HTMLResponse)

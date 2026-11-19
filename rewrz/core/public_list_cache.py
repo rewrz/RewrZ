@@ -46,9 +46,11 @@ GUEST_THEME_COOKIE_NAME = "rewrz_theme"
 
 # 纳入缓存的路径前缀（首页单独判断）。
 # 归档域下所有页面（年/月归档、媒体归档、分类与标签归档）都是纯展示列表，
-# 不含需要 CSRF 令牌的表单，可整页缓存。格式归档 /formats/{slug} 例外：
-# 该页含微动态快捷发布表单，必须携带真实令牌，因此不纳入整页缓存。
-_CACHEABLE_PREFIXES = ("/archives",)
+# 不含需要 CSRF 令牌的表单，可整页缓存。
+# 格式归档 /formats/{slug} 的快捷发布表单只在登录态渲染（模板条件
+# `is_micro and is_logged_in`），匿名页面本身不含令牌，因此同样可整页缓存；
+# 登录访客带 access_token Cookie，会整体绕过缓存。
+_CACHEABLE_PREFIXES = ("/archives", "/formats/")
 
 _lock = threading.Lock()
 _cache: "OrderedDict[str, tuple[float, str]]" = OrderedDict()
@@ -70,6 +72,10 @@ def is_cacheable_public_list_request(request: Request) -> bool:
     if str(request.headers.get("HX-Request") or "").lower() == "true":
         return False
     if str(request.query_params.get("append") or "") == "1":
+        return False
+    # 前台编辑态与具体动态绑定，既不能命中匿名缓存，也不能把编辑内容写进缓存。
+    # 匿名请求同样带 edit 时必须在缓存之外走 404 判定，不能被普通页面命中。
+    if str(request.query_params.get("edit") or "").strip():
         return False
     # 缓存命中已前移到中间件、早于认证解析，必须用 Cookie 判定登录态，
     # 否则登录访客会拿到匿名缓存 HTML。
