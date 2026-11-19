@@ -9,6 +9,6 @@ class Category(Base):
     name = Column(String, unique=True, index=True, nullable=False)
     slug = Column(String, unique=True, index=True, nullable=False)
     description = Column(Text, nullable=True, default="")
-    parent_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    parent_id = Column(Integer, ForeignKey("categories.id"), nullable=True, index=True)
 
     parent = relationship("Category", remote_side=[id])

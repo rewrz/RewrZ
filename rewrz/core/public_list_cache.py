@@ -38,13 +38,17 @@ MAX_TOTAL_CHARS = 16 * 1024 * 1024
 
 # 只有这些查询参数会改变列表页 HTML；?p= 旧链接探测、UTM 与跟踪参数一律忽略，
 # 否则每个变体都会占一个缓存条目并触发一次全量列表查询。
-_CACHEABLE_QUERY_KEYS = frozenset({"page", "append"})
+# append_view 只影响归档页的年/月视图切换，不参与缓存键会让两种视图互相串页。
+_CACHEABLE_QUERY_KEYS = frozenset({"page", "append", "append_view"})
 
 # 游客主题 Cookie 名，与 themes 模块保持一致。
 GUEST_THEME_COOKIE_NAME = "rewrz_theme"
 
 # 纳入缓存的路径前缀（首页单独判断）。
-_CACHEABLE_PREFIXES = ("/archives/by-category/", "/archives/by-tag/")
+# 归档域下所有页面（年/月归档、媒体归档、分类与标签归档）都是纯展示列表，
+# 不含需要 CSRF 令牌的表单，可整页缓存。格式归档 /formats/{slug} 例外：
+# 该页含微动态快捷发布表单，必须携带真实令牌，因此不纳入整页缓存。
+_CACHEABLE_PREFIXES = ("/archives",)
 
 _lock = threading.Lock()
 _cache: "OrderedDict[str, tuple[float, str]]" = OrderedDict()

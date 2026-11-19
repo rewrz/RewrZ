@@ -44,6 +44,8 @@ class Post(Base):
         # 后台列表按创建时间倒序分页、按状态单独统计，既有复合索引最左列用不上
         Index("ix_posts_status", "status"),
         Index("ix_posts_created_at", "created_at"),
+        # 作者维度列表按作者过滤；SQLite 不会为外键自动建索引
+        Index("ix_posts_author_id", "author_id"),
     )
 
     id = Column(Integer, primary_key=True, index=True)

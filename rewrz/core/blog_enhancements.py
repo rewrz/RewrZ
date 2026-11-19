@@ -13,7 +13,7 @@ import math
 import hashlib
 import time
 from typing import List, Dict, Any, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import and_, or_, func, select
 from ..models.post import Post
 from ..models.tag import Tag
@@ -21,6 +21,14 @@ from ..models.category import Category
 from .database import get_db
 from ..crud import setting as setting_crud
 from ..crud.post import get_public_post_conditions
+
+# 相关文章打分要在 Python 侧读取 tags/categories/formats；
+# 不预加载会退化成每篇 3 条懒查询，候选 15 篇就是 45 条附加 SQL。
+_RELATED_POST_LOAD_OPTIONS = (
+    selectinload(Post.tags),
+    selectinload(Post.categories),
+    selectinload(Post.formats),
+)
 
 
 class BlogEnhancementEngine:
@@ -242,6 +250,7 @@ class BlogEnhancementEngine:
                 if post_ids:
                     related_posts = db.execute(
                         select(Post)
+                        .options(*_RELATED_POST_LOAD_OPTIONS)
                         .filter(Post.id.in_(post_ids))
                         .filter(*get_public_post_conditions())
                     ).scalars().all()
@@ -259,6 +268,7 @@ class BlogEnhancementEngine:
             tag_ids = [tag.id for tag in current_post.tags]
             tag_related = db.execute(
                 select(Post)
+                .options(*_RELATED_POST_LOAD_OPTIONS)
                 .join(Post.tags)
                 .filter(
                     Tag.id.in_(tag_ids),
@@ -277,6 +287,7 @@ class BlogEnhancementEngine:
             category_ids = [cat.id for cat in current_post.categories]
             category_related = db.execute(
                 select(Post)
+                .options(*_RELATED_POST_LOAD_OPTIONS)
                 .join(Post.categories)
                 .filter(
                     Category.id.in_(category_ids),
@@ -299,6 +310,7 @@ class BlogEnhancementEngine:
 
             format_related = db.execute(
                 select(Post)
+                .options(*_RELATED_POST_LOAD_OPTIONS)
                 .join(Post.formats)
                 .filter(
                     Format.id.in_(format_ids),
@@ -318,6 +330,7 @@ class BlogEnhancementEngine:
         if len(related_posts) < limit:
             recent_posts = db.execute(
                 select(Post)
+                .options(*_RELATED_POST_LOAD_OPTIONS)
                 .filter(
                     Post.id != current_post.id,
                     *get_public_post_conditions(),

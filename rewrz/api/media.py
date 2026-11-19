@@ -19,6 +19,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload
+from starlette.concurrency import run_in_threadpool
 
 from ..core.admin_path import get_admin_path
 from ..core.avatar import get_avatar_service
@@ -261,13 +262,14 @@ async def _store_media_upload(
         if not is_valid:
             raise HTTPException(status_code=400, detail=error_msg)
 
-        file_info = media_processor.get_file_info(str(temp_filepath))
+        # 图片元数据提取与压缩是纯 CPU 阻塞操作，放进线程池避免占住事件循环
+        file_info = await run_in_threadpool(media_processor.get_file_info, str(temp_filepath))
 
         if file_info.get("file_type") == "image" and auto_process:
             try:
-                media_processor.extract_image_metadata(str(temp_filepath))
+                await run_in_threadpool(media_processor.extract_image_metadata, str(temp_filepath))
                 if media_processor.auto_compress:
-                    media_processor.optimize_image(str(temp_filepath))
+                    await run_in_threadpool(media_processor.optimize_image, str(temp_filepath))
             except Exception:
                 pass
 
@@ -309,7 +311,8 @@ async def _store_media_upload(
 
         if str(db_media.file_type or "").startswith("image"):
             try:
-                generate_media_variant(
+                await run_in_threadpool(
+                    generate_media_variant,
                     db=db,
                     media_obj=db_media,
                     preset_name="media_lib_card",

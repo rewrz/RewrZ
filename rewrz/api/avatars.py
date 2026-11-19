@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from PIL import Image
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from ..core.avatar import get_avatar_service
 from ..core.database import get_db
@@ -26,6 +27,43 @@ _AVATAR_MAX_PIXELS = 16_000_000
 def _ensure_avatar_permission(target_user_id: int, current_user: User) -> None:
     if current_user.id != target_user_id:
         raise HTTPException(status_code=403, detail="Not authorized to modify this avatar")
+
+
+def _render_avatar_image(file_content: bytes, avatar_service, user_id: int, original_filename: str) -> str:
+    """同步完成图片校验、缩放与落盘；由线程池调用，避免阻塞事件循环。"""
+    try:
+        # Validate image integrity first.
+        verify_image = Image.open(BytesIO(file_content))
+        verify_image.verify()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="File is not a valid image") from exc
+
+    image = Image.open(BytesIO(file_content))
+    # 头像最终只需 300px，JPEG 先在解码阶段降采样，避免大图全尺寸解码
+    if image.format == "JPEG":
+        image.draft("RGB", (300, 300))
+    if image.width * image.height > _AVATAR_MAX_PIXELS:
+        raise HTTPException(status_code=400, detail="图片像素超出处理上限")
+    image.thumbnail((300, 300), Image.Resampling.LANCZOS)
+
+    os.makedirs(avatar_service.avatar_upload_path, exist_ok=True)
+
+    new_filename = avatar_service.generate_avatar_filename(user_id, original_filename)
+    final_filename = f"{new_filename.rsplit('.', 1)[0]}.jpg"
+    final_file_path = avatar_service.get_avatar_file_path(final_filename)
+
+    if image.mode in ("RGBA", "LA"):
+        background = Image.new("RGB", image.size, (255, 255, 255))
+        if image.mode == "RGBA":
+            background.paste(image, mask=image.split()[-1])
+        else:
+            background.paste(image)
+        image = background
+    elif image.mode != "RGB":
+        image = image.convert("RGB")
+
+    image.save(final_file_path, "JPEG", quality=85, optimize=True)
+    return final_filename
 
 
 @router.post("/api/v1/users/{user_id}/avatar/upload")
@@ -53,43 +91,19 @@ async def upload_user_avatar(
         raise HTTPException(status_code=400, detail=error_msg)
 
     try:
-        # Validate image integrity first.
-        verify_image = Image.open(BytesIO(file_content))
-        verify_image.verify()
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="File is not a valid image") from exc
+        # 图片校验、解码、缩放与编码都是纯 CPU 操作，放到线程池执行
+        final_filename = await run_in_threadpool(
+            _render_avatar_image,
+            file_content,
+            avatar_service,
+            user_id,
+            avatar_file.filename,
+        )
 
-    try:
-        image = Image.open(BytesIO(file_content))
-        # 头像最终只需 300px，JPEG 先在解码阶段降采样，避免大图全尺寸解码
-        if image.format == "JPEG":
-            image.draft("RGB", (300, 300))
-        if image.width * image.height > _AVATAR_MAX_PIXELS:
-            raise HTTPException(status_code=400, detail="图片像素超出处理上限")
-        image.thumbnail((300, 300), Image.Resampling.LANCZOS)
-
-        os.makedirs(avatar_service.avatar_upload_path, exist_ok=True)
-
-        if user.avatar_filename:
+        if user.avatar_filename and user.avatar_filename != final_filename:
             old_file_path = avatar_service.get_avatar_file_path(user.avatar_filename)
             if os.path.exists(old_file_path):
                 os.remove(old_file_path)
-
-        new_filename = avatar_service.generate_avatar_filename(user_id, avatar_file.filename)
-        final_filename = f"{new_filename.rsplit('.', 1)[0]}.jpg"
-        final_file_path = avatar_service.get_avatar_file_path(final_filename)
-
-        if image.mode in ("RGBA", "LA"):
-            background = Image.new("RGB", image.size, (255, 255, 255))
-            if image.mode == "RGBA":
-                background.paste(image, mask=image.split()[-1])
-            else:
-                background.paste(image)
-            image = background
-        elif image.mode != "RGB":
-            image = image.convert("RGB")
-
-        image.save(final_file_path, "JPEG", quality=85, optimize=True)
 
         avatar_url = avatar_service.get_avatar_url_from_filename(final_filename)
         user.avatar_filename = final_filename

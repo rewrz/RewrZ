@@ -228,6 +228,11 @@ def posts_by_media_attachment(
     if normalized_media_slug not in registered_media_keys:
         raise HTTPException(status_code=404, detail="Media attachment type not found")
 
+    cache_version = public_list_cache.get_public_list_cache_version()
+    cached_html = public_list_cache.get_cached_public_list_html(request, version=cache_version)
+    if cached_html is not None:
+        return HTMLResponse(content=cached_html)
+
     page = max(1, int(page or 1))
     archive_posts_limit = _resolve_archive_posts_per_page(_get_page_config(db, "archive_posts_limit", 20), 20)
     list_navigation_mode = _normalize_list_navigation_mode(_get_page_config(db, "list_navigation_mode", "pagination"))
@@ -296,7 +301,14 @@ def posts_by_media_attachment(
     )
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
         return _templates.TemplateResponse(request, "fragments/media_archive_append.html", context)
-    return _templates.TemplateResponse(request, "media_archive.html", context)
+
+    response = _templates.TemplateResponse(request, "media_archive.html", context)
+    public_list_cache.store_public_list_html(
+        request,
+        response.body.decode("utf-8"),
+        version=cache_version,
+    )
+    return response
 
 
 @router.get("/formats/{format_slug}", response_class=HTMLResponse)
@@ -629,12 +641,16 @@ def posts_by_month(
     if month < 1 or month > 12:
         raise HTTPException(status_code=404, detail="Invalid month")
 
+    cache_version = public_list_cache.get_public_list_cache_version()
+    cached_html = public_list_cache.get_cached_public_list_html(request, version=cache_version)
+    if cached_html is not None:
+        return HTMLResponse(content=cached_html)
+
     page = max(1, int(page or 1))
     archive_posts_limit = _resolve_archive_posts_per_page(_get_page_config(db, "archive_posts_limit", 20), 20)
     list_navigation_mode = _normalize_list_navigation_mode(_get_page_config(db, "list_navigation_mode", "pagination"))
 
-    all_posts = crud_post.get_posts_by_year_month(db, year=year, month=month)
-    total_posts_count = len(all_posts)
+    total_posts_count = crud_post.count_posts_by_year_month(db, year=year, month=month)
     page, pagination = _build_public_pagination(
         page,
         total_posts_count,
@@ -642,7 +658,13 @@ def posts_by_month(
         lambda target_page: f"/archives/{year}/{month}?page={target_page}",
     )
     offset = (page - 1) * archive_posts_limit
-    posts = all_posts[offset : offset + archive_posts_limit]
+    posts = crud_post.get_posts_by_year_month(
+        db,
+        year=year,
+        month=month,
+        skip=offset,
+        limit=archive_posts_limit,
+    )
 
     context = build_base_template_context(request)
     context.update(
@@ -659,7 +681,13 @@ def posts_by_month(
     if request.headers.get("HX-Request") == "true" and int(append or 0) == 1 and list_navigation_mode == "infinite_scroll":
         return _templates.TemplateResponse(request, "fragments/monthly_archive_append.html", context)
 
-    return _templates.TemplateResponse(request, "monthly_archive.html", context)
+    response = _templates.TemplateResponse(request, "monthly_archive.html", context)
+    public_list_cache.store_public_list_html(
+        request,
+        response.body.decode("utf-8"),
+        version=cache_version,
+    )
+    return response
 
 
 @router.get("/archives", response_class=HTMLResponse)
@@ -671,6 +699,12 @@ def archives_page(
     db: Session = Depends(get_db),
 ):
     _ensure_registered()
+
+    cache_version = public_list_cache.get_public_list_cache_version()
+    cached_html = public_list_cache.get_cached_public_list_html(request, version=cache_version)
+    if cached_html is not None:
+        return HTMLResponse(content=cached_html)
+
     page = max(1, int(page or 1))
     archive_posts_limit = _resolve_archive_posts_per_page(_get_page_config(db, "archive_posts_limit", 20), 20)
     list_navigation_mode = _normalize_list_navigation_mode(_get_page_config(db, "list_navigation_mode", "pagination"))
@@ -706,4 +740,10 @@ def archives_page(
             return _templates.TemplateResponse(request, "fragments/archives_monthly_append.html", context)
         return _templates.TemplateResponse(request, "fragments/archives_yearly_append.html", context)
 
-    return _templates.TemplateResponse(request, "archives.html", context)
+    response = _templates.TemplateResponse(request, "archives.html", context)
+    public_list_cache.store_public_list_html(
+        request,
+        response.body.decode("utf-8"),
+        version=cache_version,
+    )
+    return response

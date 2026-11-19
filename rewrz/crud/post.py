@@ -850,13 +850,33 @@ def update_post_metadata(
     return db_post
 
 
+def count_posts_by_year_month(db: Session, year: int, month: int) -> int:
+    """按年/月统计已发布文章数量（不包含页面）。"""
+    if month < 1 or month > 12:
+        return 0
+
+    start, end = site_month_range_utc(year, month)
+    return int(
+        db.execute(
+            select(func.count(Post.id))
+            .filter(*get_public_post_conditions())
+            .filter(Post.published_at >= start, Post.published_at < end)
+        ).scalar_one()
+    )
+
+
 def get_posts_by_year_month(
     db: Session,
     year: int,
     month: int,
     limit: Optional[int] = None,
+    skip: int = 0,
 ) -> List[Post]:
-    """按年/月获取已发布文章（不包含页面）"""
+    """按年/月获取已发布文章（不包含页面）。
+
+    分页必须下推到 SQL：整月文章连正文一起读进内存再切片，热门月份会浪费
+    数十倍的 IO 与常驻内存。
+    """
     if month < 1 or month > 12:
         return []
 
@@ -869,8 +889,10 @@ def get_posts_by_year_month(
         .filter(Post.published_at >= start, Post.published_at < end)
         .order_by(Post.published_at.desc())
     )
+    if skip:
+        query = query.offset(max(0, int(skip)))
     if limit is not None:
-        query = query.limit(limit)
+        query = query.limit(max(0, int(limit)))
 
     posts = db.execute(query).unique().scalars().all()
     attach_post_views_metrics(db, posts)
