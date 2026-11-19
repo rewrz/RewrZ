@@ -704,70 +704,15 @@
         return pageForm.classList.contains('editor-fullscreen');
     }
 
-    let autoHeightTimer = null;
-    const MIN_EDITOR_HEIGHT = 420;
-    // 编辑器工具栏、模式栏与内边距的总高度，用来兜住内容，避免编辑器内部出现滚动条
-    const EDITOR_CHROME_ALLOWANCE = 190;
-
-    function measureEditorBody(element) {
-        if (!element) return 0;
-        // 空文档的 scrollHeight 会继承当前容器高度，必须先判断是否真的有内容
-        const hasContent = (element.textContent || '').trim()
-            || element.querySelector('img, video, audio, iframe, table, pre, blockquote');
-        if (!hasContent) return 0;
-        const firstChild = element.firstElementChild;
-        const lastChild = element.lastElementChild;
-        if (!firstChild || !lastChild) return 0;
-        // 用首尾内容块的实际位置计算，避免 scrollHeight 随容器高度产生正反馈
-        const firstRect = firstChild.getBoundingClientRect();
-        const lastRect = lastChild.getBoundingClientRect();
-        const blocksHeight = Math.max(0, Math.round(lastRect.bottom - firstRect.top));
-        const overflow = (element.scrollHeight || 0) - (element.clientHeight || 0);
-        // 内容已经溢出可视区时按真实滚动高度给，避免编辑器里还留着小滚动条
-        return overflow > 2 ? (element.scrollHeight || blocksHeight) : blocksHeight;
-    }
-
-    function getEditorContentHeight() {
-        const viewMode = getActiveEditorViewMode();
-        const heights = [];
-        if (viewMode === 'markdown' || viewMode === 'markdown_wide') {
-            // Toast UI 新版 Markdown 模式也使用 ProseMirror，不再是 CodeMirror
-            const markdownBody = document.querySelector('.toastui-editor-md-container .ProseMirror')
-                || document.querySelector('.toastui-editor-md-container .cm-content')
-                || document.querySelector('.toastui-editor-md-container .CodeMirror-lines');
-            heights.push(measureEditorBody(markdownBody));
-        }
-        if (viewMode === 'markdown') {
-            // 分屏预览按渲染后的高度计算，避免预览区自己出现内部滚动条
-            const previewBody = document.querySelector('.toastui-editor-md-preview');
-            heights.push(measureEditorBody(previewBody));
-        }
-        if (viewMode === 'markdown' || viewMode === 'html') {
-            const richBody = document.querySelector('.toastui-editor-ww-container .ProseMirror');
-            heights.push(measureEditorBody(richBody));
-        }
-        return Math.max(0, ...heights);
-    }
+    // 编辑器保持固定高度，长文只在编辑区内部滚动，
+    // 避免正文越长越把工具栏顶出视口
+    const NORMAL_EDITOR_HEIGHT = '70vh';
+    const FULLSCREEN_EDITOR_HEIGHT = '82vh';
 
     function applyEditorHeight() {
         if (!editor || typeof editor.setHeight !== 'function') return;
-        const contentHeight = getEditorContentHeight();
-        if (isEditorFullscreen()) {
-            // 全屏同样随内容增长，内容少时至少铺满大部分视口
-            const viewportTarget = Math.max(420, Math.round(window.innerHeight * 0.72));
-            const contentTarget = Math.ceil(contentHeight + EDITOR_CHROME_ALLOWANCE);
-            editor.setHeight(`${Math.max(viewportTarget, contentTarget)}px`);
-            return;
-        }
-        const contentTarget = Math.ceil(contentHeight + EDITOR_CHROME_ALLOWANCE);
-        const targetHeight = Math.max(MIN_EDITOR_HEIGHT, contentTarget);
-        editor.setHeight(`${targetHeight}px`);
+        editor.setHeight(isEditorFullscreen() ? FULLSCREEN_EDITOR_HEIGHT : NORMAL_EDITOR_HEIGHT);
         syncSidePanelHeight();
-    }
-
-    function scheduleEditorHeight() {
-        window.clearTimeout(autoHeightTimer);
-        autoHeightTimer = window.setTimeout(applyEditorHeight, 120);
     }
 
     function syncSidePanelHeight() {
@@ -889,7 +834,6 @@
             editorRoot.classList.toggle('is-markdown-only', targetViewMode === 'markdown_wide');
         }
         updateEditorModeButtons(targetViewMode);
-        scheduleEditorHeight();
     }
 
     function updateDirtyUI() {
@@ -1006,7 +950,6 @@
         editor.on('change', () => {
             markDirty();
             updateEditorStats();
-            scheduleEditorHeight();
         });
     } catch (error) {
         console.warn('Unable to bind editor change event:', error);
@@ -1019,7 +962,6 @@
     updateFullscreenButton();
     applyEditorHeight();
     syncSidePanelHeight();
-    window.addEventListener('resize', scheduleEditorHeight, { passive: true });
     if (window.ResizeObserver) {
         new ResizeObserver(syncSidePanelHeight).observe(document.getElementById('editor-main-panel'));
     }
@@ -1137,12 +1079,8 @@
     if (fullscreenToggleButton) {
         fullscreenToggleButton.addEventListener('click', () => toggleFullscreen());
     }
-    window.addEventListener('resize', () => {
-        if (isEditorFullscreen()) {
-            applyEditorHeight();
-        }
-        syncSidePanelHeight();
-    });
+    // 编辑器高度用 vh 固定，窗口缩放由浏览器换算，这里只需同步右栏
+    window.addEventListener('resize', syncSidePanelHeight, { passive: true });
 
     pageForm.addEventListener('htmx:configRequest', function (event) {
         // 新建页面首次保存成功后地址栏已切到 /pages/{id}/edit，后续保存必须走 PUT，避免重复创建

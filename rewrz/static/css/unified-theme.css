@@ -2954,11 +2954,15 @@ body.site-shell .micro-detail-card .post-content pre > code:not(.hljs) {
     border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%) !important;
 }
 
+/* 正文排版统一走主题语义色；快捷发布预览也纳入，
+   避免夜间主题下加粗、链接、引用等回落到 prose 默认深色 */
 body.site-shell .anime-page-shell .anime-content,
 body.site-shell .article-detail-card .article-content,
 body.site-shell .micro-detail-card .micro-content,
+body.site-shell .micro-card-text,
 body.site-shell .page-detail-section .page-content,
-body.site-shell .poetry-section .poetry-content {
+body.site-shell .poetry-section .poetry-content,
+body.site-shell .format-archive-glass .micro-preview-content {
     --tw-prose-body: var(--color-text);
     --tw-prose-headings: var(--color-text);
     --tw-prose-lead: var(--color-text-light);
@@ -2991,6 +2995,14 @@ body.site-shell .poetry-section .poetry-content {
     --tw-prose-invert-pre-bg: color-mix(in srgb, var(--color-background-alt) 88%, var(--color-card-bg) 12%);
     --tw-prose-invert-th-borders: color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
     --tw-prose-invert-td-borders: color-mix(in srgb, var(--color-primary) 12%, var(--color-border) 88%);
+}
+
+/* .post-content 自带的段落/引用固定色会压过主题变量，微动态卡片与预览统一回到主题文字色 */
+body.site-shell .micro-card-text p,
+body.site-shell .micro-card-text blockquote,
+body.site-shell .format-archive-glass .micro-preview-content p,
+body.site-shell .format-archive-glass .micro-preview-content blockquote {
+    color: var(--color-text);
 }
 
 body.site-shell .anime-page-shell .anime-license-box {
