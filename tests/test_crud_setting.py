@@ -103,3 +103,36 @@ def test_delete_setting_clears_cache(db: Session):
     assert crud_setting.get_setting(db, "delete_key") is None
     # And the cache for this key should be cleared
     assert cache_key_for_setting("delete_key") not in cache
+
+
+def test_upsert_settings_bulk_creates_and_updates(db: Session):
+    crud_setting.create_setting(
+        db,
+        SettingCreate(
+            key="bulk_existing",
+            value={"value": "old"},
+            description="old description",
+            category="site",
+        ),
+    )
+    # 预热缓存，确认批量写入会统一失效
+    assert crud_setting.get_setting(db, "bulk_existing").value == {"value": "old"}
+    assert cache_key_for_setting("bulk_existing") in cache
+
+    written = crud_setting.upsert_settings_bulk(
+        db,
+        {"bulk_existing": "new", "bulk_created": 42},
+    )
+
+    assert written == 2
+    assert cache_key_for_setting("bulk_existing") not in cache
+    assert cache_key_for_setting("bulk_created") not in cache
+    assert crud_setting.get_setting(db, "bulk_existing").value == {"value": "new"}
+    created = crud_setting.get_setting(db, "bulk_created")
+    assert created.value == {"value": 42}
+    assert created.description == "Global setting for bulk created"
+
+
+def test_upsert_settings_bulk_ignores_empty_input(db: Session):
+    assert crud_setting.upsert_settings_bulk(db, {}) == 0
+    assert crud_setting.upsert_settings_bulk(db, {"   ": "ignored"}) == 0

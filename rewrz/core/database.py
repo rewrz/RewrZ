@@ -67,21 +67,34 @@ class _PoolDiagnostics:
             "request": _DB_REQUEST_INFO.get() or "后台任务/非请求线程",
             "thread": threading.current_thread().name,
         }
+        # 复用的连接可能残留上一轮的统计；执行中途抛异常的语句不会触发
+        # after_cursor_execute，开始时间栈也必须一起清，否则下一次正常查询
+        # 会配对到旧时间戳并误报慢 SQL。
+        connection_record.info.pop("_rewrz_sql_stats", None)
+        connection_record.info.pop("_rewrz_sql_started", None)
         with self._lock:
             self._checked_out[id(connection_record)] = info
 
     def on_checkin(self, connection_record) -> None:
         with self._lock:
             info = self._checked_out.pop(id(connection_record), None)
+        stats = connection_record.info.pop("_rewrz_sql_stats", None) or {}
         if not info:
             return
         held_ms = (time.monotonic() - info["at"]) * 1000
         if held_ms >= self.hold_warn_ms:
+            # 同时输出 SQL 累计耗时：持有 30 秒而 SQL 只占 1 秒，说明卡在渲染或 GIL，
+            # 不是数据库等待；两者占比相反时才需要继续查锁竞争。
             logger.warning(
-                "数据库连接持有过久 %.0fms｜请求: %s｜线程: %s",
+                "数据库连接持有过久 %.0fms｜请求: %s｜线程: %s｜"
+                "SQL %s 条，累计 %.0fms，最慢 %.0fms: %s",
                 held_ms,
                 info["request"],
                 info["thread"],
+                int(stats.get("count", 0) or 0),
+                float(stats.get("total_ms", 0.0) or 0.0),
+                float(stats.get("max_ms", 0.0) or 0.0),
+                stats.get("slowest") or "-",
             )
 
     def snapshot(self, limit: int = 20) -> list[dict]:
@@ -283,7 +296,9 @@ class DatabaseManager:
         if journal_mode not in VALID_SQLITE_JOURNAL_MODES:
             journal_mode = "WAL"
         busy_timeout_ms = max(1000, int(getattr(settings, "SQLITE_BUSY_TIMEOUT_MS", 5000) or 5000))
-        cache_size_kib = max(256, int(getattr(settings, "SQLITE_CACHE_SIZE_KIB", 1024) or 1024))
+        # 归档页会反复扫描 posts（含正文），1MB 页缓存会持续回盘；
+        # 2MB 在 512MB 小机上仍可控，大库可通过环境变量继续调高。
+        cache_size_kib = max(256, int(getattr(settings, "SQLITE_CACHE_SIZE_KIB", 2048) or 2048))
         synchronous = str(getattr(settings, "SQLITE_SYNCHRONOUS", "NORMAL") or "NORMAL").strip().upper()
         if synchronous not in {"OFF", "NORMAL", "FULL", "EXTRA"}:
             synchronous = "NORMAL"
@@ -366,15 +381,27 @@ class DatabaseManager:
 
         @event.listens_for(engine, "before_cursor_execute")
         def _before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-            conn.info.setdefault("_rewrz_sql_started", []).append(time.perf_counter())
+            conn.info.setdefault("_rewrz_sql_started", []).append(
+                (time.perf_counter(), " ".join(str(statement).split())[:200])
+            )
 
         @event.listens_for(engine, "after_cursor_execute")
         def _after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
             started_stack = conn.info.get("_rewrz_sql_started")
             if not started_stack:
                 return
-            started_at = started_stack.pop()
+            started_at, statement_summary = started_stack.pop()
             elapsed_ms = (time.perf_counter() - started_at) * 1000
+            # 按连接累计本轮 SQL 开销，连接归还时随持有告警一起输出
+            stats = conn.info.get("_rewrz_sql_stats")
+            if stats is None:
+                stats = {"count": 0, "total_ms": 0.0, "max_ms": 0.0, "slowest": ""}
+                conn.info["_rewrz_sql_stats"] = stats
+            stats["count"] += 1
+            stats["total_ms"] += elapsed_ms
+            if elapsed_ms > stats["max_ms"]:
+                stats["max_ms"] = elapsed_ms
+                stats["slowest"] = statement_summary
             if elapsed_ms >= slow_sql_ms:
                 logger.warning(
                     "慢 SQL %.0fms｜请求: %s｜SQL: %s",

@@ -49,6 +49,7 @@ def clear_setting_cache_between_tests():
     from rewrz.core.public_list_cache import clear_public_list_cache
     from rewrz.core.public_detail_cache import clear_public_detail_cache
     from rewrz.core.public_metrics_cache import clear_public_metrics_memory_cache
+    from rewrz.api.rss import clear_rss_feed_cache
     from rewrz.core import traffic_analytics
     from rewrz.crud.category import invalidate_category_post_counts_cache
     from rewrz.crud.post import invalidate_nav_pages_cache
@@ -60,6 +61,7 @@ def clear_setting_cache_between_tests():
     clear_public_metrics_memory_cache()
     clear_public_list_cache()
     clear_public_detail_cache()
+    clear_rss_feed_cache()
     invalidate_category_post_counts_cache()
     invalidate_nav_pages_cache()
     yield
@@ -69,6 +71,7 @@ def clear_setting_cache_between_tests():
     clear_public_metrics_memory_cache()
     clear_public_list_cache()
     clear_public_detail_cache()
+    clear_rss_feed_cache()
     invalidate_category_post_counts_cache()
     invalidate_nav_pages_cache()
 

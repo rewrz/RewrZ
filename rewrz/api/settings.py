@@ -6,7 +6,7 @@ from ..core.admin_path import get_request_admin_path
 from ..core.database import get_db
 from ..core.security import get_current_user, require_admin_user
 from ..crud import setting as crud_setting
-from ..schemas import Setting, SettingCreate, SettingUpdate, User
+from ..schemas import User
 from fastapi.templating import Jinja2Templates
 from ..core.template_filters import get_templates
 from typing import List, Dict, Any, Optional
@@ -361,13 +361,9 @@ async def update_admin_settings(
         "homepage_timeline_shell_enabled": homepage_timeline_shell_enabled,
     }
 
-    for key, value in settings_to_update.items():
-        db_setting = crud_setting.get_setting(db, key=key)
-        update_payload = {"value": value}
-        if db_setting:
-            crud_setting.update_setting(db, key=key, setting_update=SettingUpdate(value=update_payload))
-        else:
-            crud_setting.create_setting(db, setting=SettingCreate(key=key, value=update_payload, description=f"Global setting for {key.replace('_', ' ')}"))
+    # 一次事务提交全部设置：逐 key 写入会在 SQLite 上产生几十个写事务，
+    # 正好与公开页读请求、后台统计刷写争抢同一把写锁。
+    crud_setting.upsert_settings_bulk(db, settings_to_update)
     
     # 首页外观开关会改变整页 HTML，保存后立即失效公开列表缓存，避免旧状态在 TTL 内继续返回
     public_list_cache.invalidate_public_list_cache()

@@ -124,6 +124,60 @@ def update_setting(
             db.flush()
     return db_setting
 
+def upsert_settings_bulk(
+    db: Session,
+    values: Dict[str, Any],
+    *,
+    description_template: str = "Global setting for {key}",
+) -> int:
+    """一次事务内写入多个设置项。
+
+    保存站点设置原先逐 key 调用 update_setting：每个 key 一次 SELECT、
+    一次 UPDATE、一次 COMMIT 和一次 refresh，一次保存约 40 个写事务，
+    在 SQLite 上把写锁窗口放大几十倍。这里合并为一次查询 + 一次提交，
+    提交后统一失效缓存，写锁只覆盖这一批数据。
+    """
+    if not values:
+        return 0
+
+    normalized: Dict[str, Any] = {}
+    for key, raw_value in values.items():
+        key_text = str(key or "").strip()
+        if not key_text:
+            continue
+        normalized[key_text] = {"value": raw_value}
+    if not normalized:
+        return 0
+
+    keys = list(normalized.keys())
+    existing_rows = db.execute(select(Setting).where(Setting.key.in_(keys))).scalars().all()
+    existing_map = {row.key: row for row in existing_rows}
+
+    for key, payload in normalized.items():
+        row = existing_map.get(key)
+        if row is None:
+            db.add(
+                Setting(
+                    key=key,
+                    value=payload,
+                    description=description_template.format(key=key.replace("_", " ")),
+                )
+            )
+        else:
+            row.value = payload
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    for key in keys:
+        clear_cache(cache_key_for_setting(key))
+    invalidate_settings_batch_cache()
+    return len(normalized)
+
+
 def delete_setting(db: Session, key: str) -> Optional[Setting]:
     db_setting = db.execute(select(Setting).filter(Setting.key == key)).scalar_one_or_none()
     if db_setting:

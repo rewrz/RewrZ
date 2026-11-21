@@ -9,11 +9,15 @@ RSS订阅 API 模块
 5. RSS配置管理
 """
 import html
+import threading
+import time
+from collections import OrderedDict
 from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
+from ..core import public_list_cache
 from ..core.database import get_db
 from ..crud import post as crud_post
 from ..crud import category as crud_category
@@ -29,10 +33,128 @@ from ..core.content_intents import choose_primary_intent_slug, to_public_post_se
 
 router = APIRouter()
 
+# 单条订阅源最多输出多少篇。后台可以填任意数字，读取端必须收口：
+# 一次请求读取并逐篇渲染上千篇正文会把单 worker 的渲染线程占满。
+RSS_ITEMS_LIMIT_MAX = 100
+
+# 订阅源 XML 缓存。爬虫与阅读器会反复抓 /feed、/rss、/atom.xml，
+# 每次请求都重新查文章并渲染 Markdown 是纯浪费；缓存最终 XML 即可。
+# 版本号复用 public_list_cache：发布/修改文章、保存站点设置都会递增，
+# 缓存随内容变更立即失效，不需要维护第二套失效链路。
+_RSS_CACHE_TTL_SECONDS = 60
+_RSS_CACHE_MAX_ENTRIES = 32
+_RSS_CACHE_MAX_CHARS = 4 * 1024 * 1024
+_rss_cache: "OrderedDict[str, tuple[float, str]]" = OrderedDict()
+_rss_cache_chars = 0
+_rss_cache_lock = threading.Lock()
+
+
+def _build_feed_cache_key(
+    kind: str,
+    *,
+    filter_key: str,
+    limit: int,
+    content_mode: str,
+    cache_duration: int,
+    base_url: str,
+) -> str:
+    return "|".join(
+        [
+            kind,
+            filter_key or "",
+            str(int(limit or 0)),
+            str(content_mode or ""),
+            str(int(cache_duration or 0)),
+            str(base_url or ""),
+            str(public_list_cache.get_public_list_cache_version()),
+        ]
+    )
+
+
+def _drop_feed_cache_entry(cache_key: str) -> None:
+    """移除条目并同步字符计数，调用方必须持有缓存锁。"""
+    global _rss_cache_chars
+    entry = _rss_cache.pop(cache_key, None)
+    if entry is not None:
+        _rss_cache_chars -= len(entry[1])
+
+
+def _read_feed_cache(cache_key: str) -> Optional[str]:
+    now = time.monotonic()
+    with _rss_cache_lock:
+        entry = _rss_cache.get(cache_key)
+        if entry is None:
+            return None
+        expires_at, xml = entry
+        if expires_at <= now:
+            _drop_feed_cache_entry(cache_key)
+            return None
+        _rss_cache.move_to_end(cache_key)
+        return xml
+
+
+def _write_feed_cache(cache_key: str, xml: str) -> None:
+    global _rss_cache_chars
+    size = len(xml)
+    if size <= 0 or size > _RSS_CACHE_MAX_CHARS:
+        return
+    with _rss_cache_lock:
+        _drop_feed_cache_entry(cache_key)
+        _rss_cache[cache_key] = (time.monotonic() + _RSS_CACHE_TTL_SECONDS, xml)
+        _rss_cache_chars += size
+        while _rss_cache and (
+            len(_rss_cache) > _RSS_CACHE_MAX_ENTRIES or _rss_cache_chars > _RSS_CACHE_MAX_CHARS
+        ):
+            _, (_, removed_xml) = _rss_cache.popitem(last=False)
+            _rss_cache_chars -= len(removed_xml)
+
+
+def clear_rss_feed_cache() -> None:
+    """清空订阅源 XML 缓存，供测试与配置重载使用。"""
+    global _rss_cache_chars
+    with _rss_cache_lock:
+        _rss_cache.clear()
+        _rss_cache_chars = 0
+
+
+def _build_feed_response(
+    xml: str,
+    *,
+    media_type: str,
+    cache_duration: int,
+) -> Response:
+    return Response(
+        content=xml,
+        media_type=media_type,
+        headers={"Cache-Control": f"max-age={max(0, int(cache_duration or 0)) * 60}"},
+    )
+
 def check_rss_enabled(db: Session) -> bool:
     """检查RSS是否启用"""
     rss_enabled_setting = crud_setting.get_setting(db, key="rss_enabled")
     return rss_enabled_setting.value.get("value", True) if rss_enabled_setting and rss_enabled_setting.value else True
+
+def _resolve_rss_items_limit(raw_value) -> int:
+    """收口订阅条数：后台可填任意值，输出端必须限制在安全范围内。"""
+    try:
+        limit = int(raw_value)
+    except (TypeError, ValueError):
+        return 20
+    return max(1, min(limit, RSS_ITEMS_LIMIT_MAX))
+
+
+def _resolve_rss_cache_duration(raw_value) -> int:
+    """收口缓存时长（分钟）。
+
+    历史站点可能存在字符串或空值；缓存键与响应头都要用整数，
+    这里统一转换为 0–1440 分钟，避免脏值直接触发 500。
+    """
+    try:
+        duration = int(raw_value)
+    except (TypeError, ValueError):
+        return 60
+    return max(0, min(duration, 1440))
+
 
 def get_rss_config(db: Session) -> dict:
     """获取RSS配置"""
@@ -42,8 +164,16 @@ def get_rss_config(db: Session) -> dict:
     rss_content_mode_setting = crud_setting.get_setting(db, key="rss_content_mode")
     
     return {
-        "items_limit": rss_items_limit_setting.value.get("value", 20) if rss_items_limit_setting and rss_items_limit_setting.value else 20,
-        "cache_duration": rss_cache_duration_setting.value.get("value", 60) if rss_cache_duration_setting and rss_cache_duration_setting.value else 60,
+        "items_limit": _resolve_rss_items_limit(
+            rss_items_limit_setting.value.get("value", 20)
+            if rss_items_limit_setting and rss_items_limit_setting.value
+            else 20
+        ),
+        "cache_duration": _resolve_rss_cache_duration(
+            rss_cache_duration_setting.value.get("value", 60)
+            if rss_cache_duration_setting and rss_cache_duration_setting.value
+            else 60
+        ),
         "description": rss_description_setting.value.get("value", "") if rss_description_setting and rss_description_setting.value else "",
         "content_mode": normalize_rss_content_mode(
             rss_content_mode_setting.value.get("value")
@@ -162,9 +292,36 @@ def generate_rss_feed(
         limit: 文章数量限制
         cache_duration: 缓存时间（分钟）
     """
-    # 获取站点信息
+    # 获取站点信息（单键设置缓存 300s，命中时不产生 SQL）
     site_info = get_site_info(db, request)
-    
+    normalized_mode = normalize_rss_content_mode(content_mode)
+    limit = _resolve_rss_items_limit(limit)
+    cache_duration = _resolve_rss_cache_duration(cache_duration)
+    filter_key = (
+        f"cat:{category.slug}"
+        if category
+        else f"tag:{tag.slug}"
+        if tag
+        else f"fmt:{format_obj.slug}"
+        if format_obj
+        else ""
+    )
+    cache_key = _build_feed_cache_key(
+        "rss",
+        filter_key=filter_key,
+        limit=limit,
+        content_mode=normalized_mode,
+        cache_duration=cache_duration,
+        base_url=site_info["base_url"],
+    )
+    cached_xml = _read_feed_cache(cache_key)
+    if cached_xml is not None:
+        return _build_feed_response(
+            cached_xml,
+            media_type="application/rss+xml; charset=utf-8",
+            cache_duration=cache_duration,
+        )
+
     # 获取文章列表
     posts = get_filtered_posts(db, category, tag, format_obj, limit)
     
@@ -193,13 +350,14 @@ def generate_rss_feed(
         link=feed_link,
         posts=posts,
         site_info=site_info,
-        content_mode=normalize_rss_content_mode(content_mode)
+        content_mode=normalized_mode
     )
-    
-    return Response(
-        content=rss_xml,
+    _write_feed_cache(cache_key, rss_xml)
+
+    return _build_feed_response(
+        rss_xml,
         media_type="application/rss+xml; charset=utf-8",
-        headers={"Cache-Control": f"max-age={cache_duration * 60}"}  # 使用配置的缓存时间
+        cache_duration=cache_duration,
     )
 
 def generate_atom_feed(
@@ -211,21 +369,41 @@ def generate_atom_feed(
 ):
     """生成Atom 1.0格式的订阅源"""
     site_info = get_site_info(db, request)
+    normalized_mode = normalize_rss_content_mode(content_mode)
+    limit = _resolve_rss_items_limit(limit)
+    cache_duration = _resolve_rss_cache_duration(cache_duration)
+    cache_key = _build_feed_cache_key(
+        "atom",
+        filter_key="",
+        limit=limit,
+        content_mode=normalized_mode,
+        cache_duration=cache_duration,
+        base_url=site_info["base_url"],
+    )
+    cached_xml = _read_feed_cache(cache_key)
+    if cached_xml is not None:
+        return _build_feed_response(
+            cached_xml,
+            media_type="application/atom+xml; charset=utf-8",
+            cache_duration=cache_duration,
+        )
+
     posts = get_filtered_posts(db, limit=limit)
-    
+
     atom_xml = generate_atom_xml(
         title=site_info['title'],
         subtitle=site_info['description'],
         link=site_info['base_url'],
         posts=posts,
         site_info=site_info,
-        content_mode=normalize_rss_content_mode(content_mode)
+        content_mode=normalized_mode
     )
-    
-    return Response(
-        content=atom_xml,
+    _write_feed_cache(cache_key, atom_xml)
+
+    return _build_feed_response(
+        atom_xml,
         media_type="application/atom+xml; charset=utf-8",
-        headers={"Cache-Control": f"max-age={cache_duration * 60}"}  # 使用配置的缓存时间
+        cache_duration=cache_duration,
     )
 
 def get_site_info(db: Session, request: Request) -> dict:

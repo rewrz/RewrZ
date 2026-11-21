@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ..crud import setting as crud_setting
 from ..schemas.setting import SettingCreate, SettingUpdate
+from .db_write_gate import background_write_gate
 
 
 HOMEPAGE_STATS_CACHE_KEY = "public_homepage_stats_cache"
@@ -72,7 +73,7 @@ def _load_cache_payload(db: Session, cache_key: str) -> dict | None:
     return payload if isinstance(payload, dict) else None
 
 
-def _save_cache_payload(db: Session, cache_key: str, payload: dict, description: str) -> None:
+def _save_cache_payload_ungated(db: Session, cache_key: str, payload: dict, description: str) -> None:
     normalized_payload = {"value": payload}
     existing = crud_setting.get_setting(db, cache_key)
     if existing is None:
@@ -105,6 +106,55 @@ def _save_cache_payload(db: Session, cache_key: str, payload: dict, description:
             type="json",
         ),
     )
+
+
+def _save_cache_payload(
+    db: Session,
+    cache_key: str,
+    payload: dict,
+    description: str,
+    *,
+    gate_timeout: float = 2.0,
+) -> bool:
+    """在写闸门内落库；拿不到闸门就跳过，避免与后台刷写争抢 SQLite 写锁。"""
+    with background_write_gate(timeout=gate_timeout) as acquired:
+        if not acquired:
+            return False
+        _save_cache_payload_ungated(db, cache_key, payload, description)
+        return True
+
+
+def _save_cache_payload_isolated(
+    bind,
+    cache_key: str,
+    payload: dict,
+    description: str,
+    *,
+    gate_timeout: float = 2.0,
+) -> bool:
+    """用独立短会话写快照。
+
+    请求内的冷启动原先直接在请求会话上 commit，会把整个请求拖进写事务，
+    和后台刷写、浏览量落库互相等锁。改成独立会话后写事务只覆盖这一条快照。
+    """
+    with background_write_gate(timeout=gate_timeout) as acquired:
+        if not acquired:
+            return False
+        session = sessionmaker(bind=bind, autocommit=False, autoflush=False)()
+        try:
+            _save_cache_payload_ungated(session, cache_key, payload, description)
+            return True
+        except Exception:
+            try:
+                session.rollback()
+            except Exception:
+                pass
+            return False
+        finally:
+            try:
+                session.close()
+            except Exception:
+                pass
 
 
 def _is_cache_fresh(cached: dict | None, *, ttl_seconds: int, now: datetime | None = None) -> bool:
@@ -146,8 +196,9 @@ def _schedule_snapshot_refresh(
             payload["checked_at_iso"] = now_utc.isoformat()
             payload["checked_at"] = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
             payload["cache_hit"] = False
-            _save_cache_payload(session, cache_key, payload, description)
+            # 先写进程内缓存：即使没拿到写闸门，本轮统计也不会被丢弃
             _write_local_cache(cache_key, payload, ttl_seconds)
+            _save_cache_payload(session, cache_key, payload, description)
         except Exception:
             # 后台刷新失败保留旧快照，下一次请求会再次触发
             if session is not None:
@@ -225,8 +276,14 @@ def get_homepage_stats_snapshot(
         payload["checked_at_iso"] = now_utc.isoformat()
         payload["checked_at"] = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
         payload["cache_hit"] = False
-        _save_cache_payload(db, HOMEPAGE_STATS_CACHE_KEY, payload, "前台首页聚合统计缓存")
         _write_local_cache(HOMEPAGE_STATS_CACHE_KEY, payload, ttl_seconds)
+        # 落库走独立短会话 + 写闸门，请求会话不进入写事务
+        _save_cache_payload_isolated(
+            db.get_bind(),
+            HOMEPAGE_STATS_CACHE_KEY,
+            payload,
+            "前台首页聚合统计缓存",
+        )
         return payload
 
 
@@ -293,8 +350,14 @@ def get_format_archive_stats_snapshot(
         payload["checked_at_iso"] = now_utc.isoformat()
         payload["checked_at"] = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
         payload["cache_hit"] = False
-        _save_cache_payload(db, cache_key, payload, "前台格式归档聚合统计缓存")
         _write_local_cache(cache_key, payload, ttl_seconds)
+        # 格式页冷启动的聚合最重，落库必须离开请求会话
+        _save_cache_payload_isolated(
+            db.get_bind(),
+            cache_key,
+            payload,
+            "前台格式归档聚合统计缓存",
+        )
         return payload
 
 

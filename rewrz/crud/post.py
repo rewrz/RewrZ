@@ -358,16 +358,24 @@ def get_post_by_slug(db: Session, slug: str):
         attach_post_views_metrics(db, [post])
     return post
 
-def get_posts(db: Session, skip: int = 0, limit: int = 100, status: Optional[str] = None, post_type: Optional[str] = None):
-    """获取文章列表，支持分页和状态过滤"""
-    # 列表模板会读 content_markdown/content_html 计算阅读时长，正文不能延迟加载；
-    # 版本快照 JSON 只用于后台与快照接口，前台列表一律不取，避免无谓的大字段传输。
-    query = select(Post).options(
+def public_list_load_options():
+    """公开列表统一的加载选项。
+
+    列表模板会读 content_markdown/content_html 计算阅读时长与摘要，正文不能延迟加载；
+    版本快照 JSON 只用于后台与快照接口，前台列表一律不取，避免无谓的大字段传输。
+    所有公开归档查询必须复用这里，否则爬虫扫描归档页时会重复搬运整份快照。
+    """
+    return (
         joinedload(Post.formats),
         joinedload(Post.categories),
         joinedload(Post.tags),
         defer(Post.version_snapshots),
     )
+
+
+def get_posts(db: Session, skip: int = 0, limit: int = 100, status: Optional[str] = None, post_type: Optional[str] = None):
+    """获取文章列表，支持分页和状态过滤"""
+    query = select(Post).options(*public_list_load_options())
     normalized_post_type = _normalize_post_type_value(post_type, allow_none=True) if post_type is not None else None
 
     # 公开文章列表统一走公共 helper，避免各处条件漂移。
@@ -424,7 +432,7 @@ def get_posts_by_category(db: Session, category_id: int, skip: int = 0, limit: i
     """根据分类ID获取已发布文章列表"""
     posts = db.execute(
         select(Post)
-        .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
+        .options(*public_list_load_options())
         .filter(Post.categories.any(id=category_id))
         .filter(*get_public_post_conditions())
         .order_by(Post.published_at.desc())
@@ -444,7 +452,7 @@ def get_posts_by_format(
     """根据格式ID获取文章列表，仅返回已发布的文章"""
     query = (
         select(Post)
-        .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
+        .options(*public_list_load_options())
         .filter(Post.formats.any(id=format_id))
         .filter(*get_public_post_conditions())
     )
@@ -466,7 +474,7 @@ def get_posts_by_tag(db: Session, tag_id: int, skip: int = 0, limit: int = 100):
     """根据标签ID获取已发布文章列表"""
     posts = db.execute(
         select(Post)
-        .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
+        .options(*public_list_load_options())
         .filter(Post.tags.any(id=tag_id))
         .filter(*get_public_post_conditions())
         .order_by(Post.published_at.desc())
@@ -884,7 +892,7 @@ def get_posts_by_year_month(
 
     query = (
         select(Post)
-        .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
+        .options(*public_list_load_options())
         .filter(*get_public_post_conditions())
         .filter(Post.published_at >= start, Post.published_at < end)
         .order_by(Post.published_at.desc())
@@ -903,7 +911,7 @@ def get_archive_posts(db: Session) -> List[Post]:
     """获取归档页使用的全部已发布文章（不包含页面）"""
     query = (
         select(Post)
-        .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
+        .options(*public_list_load_options())
         .filter(*get_public_post_conditions())
         .order_by(Post.published_at.desc())
     )
@@ -916,7 +924,7 @@ def get_archive_posts_paginated(db: Session, skip: int = 0, limit: int = 20) -> 
     """获取归档页使用的分页文章（仅 post）。"""
     query = (
         select(Post)
-        .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags))
+        .options(*public_list_load_options())
         .filter(*get_public_post_conditions())
         .order_by(Post.published_at.desc())
         .offset(skip)
@@ -954,7 +962,7 @@ def get_posts_by_media_attachment(
     media_key = str(media_slug or "").strip().lower()
     query = (
         select(Post)
-        .options(joinedload(Post.formats), joinedload(Post.categories), joinedload(Post.tags), joinedload(Post.author))
+        .options(*public_list_load_options(), joinedload(Post.author))
         .filter(*get_public_post_conditions())
         # 媒体聚合页属于公开分发入口，NSFW 内容不在此展示，避免缩略图被直接浏览
         .filter(Post.content_rating != "nsfw")

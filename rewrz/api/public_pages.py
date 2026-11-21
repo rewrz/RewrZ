@@ -11,7 +11,6 @@ from ..core.database import get_db
 from ..core.content_intents import normalize_public_intent_slug
 from ..core.content_utils import get_effective_plain_text
 from ..core.format_archive_metrics import (
-    attach_format_comment_counts,
     build_format_category_topic_count,
     build_format_tag_metrics,
     build_micro_interaction_count,
@@ -364,7 +363,8 @@ def format_page(
         limit=archive_posts_limit,
         exclude_format_ids=exclude_format_ids,
     )
-    attach_format_comment_counts(db, posts)
+    # get_posts_by_format 内部已通过 attach_post_views_metrics 批量带出评论数，
+    # 这里不再重复跑同一条 comments group by（格式页是归档重查询的主要入口）。
 
     format_post_ids_query = select(Post.id).where(
         Post.formats.any(id=format_obj.id),

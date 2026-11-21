@@ -82,6 +82,47 @@ DEFAULT_HOMEPAGE_SETTINGS = {
     "homepage_timeline_shell_enabled": True,
 }
 
+# 全局请求上下文统一读取的设置键。
+# SettingsMiddleware 与 main._populate_global_request_state 必须共用这同一份键：
+# crud.setting 的批量缓存键由排序后的键集合生成，两份不同的键集合会在同一个
+# 5 秒窗口内各打一次 SELECT ... WHERE key IN (...)，写入后还会同时回表。
+GLOBAL_REQUEST_SETTING_KEYS = tuple(
+    dict.fromkeys(
+        [
+            *DEFAULT_BASE_SETTINGS.keys(),
+            *HOMEPAGE_SETTING_KEYS,
+            "site_url",
+            "admin_email",
+            "social_links_json",
+            "sitemap_enabled",
+            "rss_items_limit",
+            "rss_cache_duration",
+            "rss_description",
+            "homepage_posts_limit",
+            "archive_posts_limit",
+            "search_results_limit",
+            "related_posts_limit",
+            "current_theme",
+            "glass_intensity",
+            "background_image_settings",
+            "article_card_fallback_source",
+            "article_card_fallback_api_url",
+            "article_card_fallback_local_dir",
+            "article_card_api_cache_enabled",
+            "article_card_api_cache_ttl_minutes",
+            "article_card_api_cache_cleanup_minutes",
+            "donation_enabled",
+            "donation_title",
+            "donation_description",
+            "donation_qr_code_url",
+            "donation_link_text",
+            "donation_link_url",
+            "donation_style_theme",
+            "donation_show_position",
+        ]
+    )
+)
+
 
 def _render_copyright_info(raw_value: str, current_year: int) -> str:
     """规范化页脚版权文案，确保动态年份始终存在。"""

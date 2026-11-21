@@ -14,7 +14,7 @@ from typing import Dict, Any
 from ..crud import setting as crud_setting
 from ..core.database import get_db, reset_db_request_info, set_db_request_info
 from ..core.template_context import (
-    HOMEPAGE_SETTING_KEYS, 
+    GLOBAL_REQUEST_SETTING_KEYS,
     DEFAULT_HOMEPAGE_SETTINGS, 
     DEFAULT_BASE_SETTINGS,
     CODE_HIGHLIGHT_THEME_OPTIONS,
@@ -57,48 +57,9 @@ class SettingsMiddleware(BaseHTTPMiddleware):
         if request.url.path.startswith(("/static/", "/media/")):
             return await call_next(request)
 
-        # 定义需要加载的所有设置键（提到 try 外，缓存未命中时才需要数据库会话）
-        all_setting_keys = [
-            # 基础站点设置
-            "site_title", "tagline", "site_url", "admin_email",
-            "site_description", "site_announcement",
-            "public_contact_email",
-            "site_logo_light", "site_logo_dark", "favicon",
-            "site_cover_url",
-            "copyright_info", "custom_footer_text", "icp_beian", "gongan_beian",
-
-            # SEO设置
-            "noindex_site", "allow_nsfw_indexing", "block_ai_crawlers",
-
-
-            # 社交和其他设置
-            "social_links_json",
-
-            # RSS设置
-            "rss_enabled", "rss_items_limit", "rss_cache_duration", "rss_description", "rss_content_mode",
-
-            # 站点地图设置
-            "sitemap_enabled",
-
-            # 分页设置
-            "homepage_posts_limit", "archive_posts_limit", "search_results_limit", "related_posts_limit", "list_navigation_mode",
-            # 展示设置
-            "code_highlight_theme",
-            "current_theme",
-            "glass_intensity",
-            "background_image_settings",
-            # /formats/article 图文卡片兜底图设置
-            "article_card_fallback_source", "article_card_fallback_api_url", "article_card_fallback_local_dir",
-            "article_card_api_cache_enabled", "article_card_api_cache_ttl_minutes", "article_card_api_cache_cleanup_minutes",
-
-            # 打赏功能设置
-            "donation_enabled", "donation_title", "donation_description",
-            "donation_qr_code_url", "donation_link_text", "donation_link_url",
-            "donation_style_theme", "donation_show_position",
-        ]
-
-        # 添加主页个性化设置键
-        all_setting_keys.extend(HOMEPAGE_SETTING_KEYS)
+        # 统一键集合：与 main._populate_global_request_state 共用同一份，
+        # 两边才能命中同一条批量缓存，避免每请求重复回表。
+        all_setting_keys = list(GLOBAL_REQUEST_SETTING_KEYS)
 
         try:
             # 先查批量设置缓存：命中时完全不需要创建数据库会话，

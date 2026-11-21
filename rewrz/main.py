@@ -28,7 +28,7 @@ from contextlib import asynccontextmanager
 import json
 from sqlalchemy.orm import Session
 from .core.template_filters import get_templates  # 导入带过滤器的模板系统
-from .core.template_context import build_base_template_context, HOMEPAGE_SETTING_KEYS, DEFAULT_HOMEPAGE_SETTINGS, DEFAULT_BASE_SETTINGS
+from .core.template_context import build_base_template_context, GLOBAL_REQUEST_SETTING_KEYS, DEFAULT_HOMEPAGE_SETTINGS, DEFAULT_BASE_SETTINGS
 from .core.database import get_db, create_all_tables, db_manager, set_db_request_info, reset_db_request_info
 from .core.config import get_env_file_path, settings  # 导入settings实例
 from .schemas import UserCreate, User, PostCreate, PostUpdate, SettingCreate, SettingUpdate
@@ -673,17 +673,17 @@ def _populate_global_request_state(request: Request) -> None:
     if db is None:
         return
     try:
-        # 获取并设置所有全局上下文
-        settings_keys = dict(DEFAULT_BASE_SETTINGS)
-        # 主页个性化设置
-        settings_keys.update(DEFAULT_HOMEPAGE_SETTINGS)
-        settings_keys.update({
+        # 获取并设置所有全局上下文。
+        # 读取键集合必须与 SettingsMiddleware 完全一致，才能命中同一条批量缓存。
+        setting_defaults = dict(DEFAULT_BASE_SETTINGS)
+        setting_defaults.update(DEFAULT_HOMEPAGE_SETTINGS)
+        setting_defaults.update({
             "current_theme": "light",
             "glass_intensity": "medium",
             "background_image_settings": {"type": "none", "custom_url": None},
         })
-        all_settings = crud_setting.get_settings_by_keys(db, list(settings_keys.keys()))
-        for key, default_value in settings_keys.items():
+        all_settings = crud_setting.get_settings_by_keys(db, list(GLOBAL_REQUEST_SETTING_KEYS))
+        for key, default_value in setting_defaults.items():
             setattr(request.state, key, all_settings.get(key, default_value))
         resolved_theme = themes_api.resolve_active_theme(db, request=request)
         resolved_effects = themes_api.resolve_active_effects(db)

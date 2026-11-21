@@ -168,8 +168,9 @@ DB_POOL_PRE_PING=true
 # SQLite 默认启用 WAL，写锁等待上限 5 秒；长时间等待会把连接池拖死
 SQLITE_BUSY_TIMEOUT_MS=5000
 SQLITE_JOURNAL_MODE=WAL
-# 每连接页缓存上限（KiB），默认 1MB；24 个连接最坏约 24MB
-SQLITE_CACHE_SIZE_KIB=1024
+# 每连接页缓存上限（KiB），默认 2MB；SQLite 按需分配，24 个连接最坏约 48MB
+# 正文库较大或内存 1GB 以上可调到 8192；512MB 小机保持默认
+SQLITE_CACHE_SIZE_KIB=2048
 # WAL 下 synchronous=NORMAL 可减少每次提交的 fsync，提升写吞吐；
 # 断电时可能丢失最后少量事务，博客场景可接受
 SQLITE_SYNCHRONOUS=NORMAL
@@ -220,6 +221,10 @@ SQLite 适合单实例博客，不适合作为横向扩容的共享数据库：
   只是等待上限，不会提升写入吞吐。
 - 高频计数（文章浏览量、访问统计等）只写进程内存，由后台线程每 15 秒批量落库；
   请求路径不做逐次提交，避免单写者被大量小事务占满。
+- 浏览量落库、访问统计刷写、公开统计快照共用同一把进程内写闸门，写入串行执行；
+  请求内不再提交统计快照，拿不到闸门时跳过本轮落库，内存值仍然有效。
+- 订阅源（`/feed`、`/rss`、`/atom.xml` 及各分类/标签/格式订阅）缓存最终 XML 60 秒，
+  随列表缓存版本失效；单次最多输出 100 篇，后台配置更大的条数会在读取端收口。
 - 每个 worker 进程都会独立创建连接池、整页缓存和封面预取线程。SQLite 站点
   增加 worker 只会放大内存占用与写锁竞争，不能提升写入能力。
 - 需要多 worker、多实例读写或持续高并发写入时，先迁移到 PostgreSQL，见 5.4。
@@ -912,6 +917,9 @@ Nginx 配置只用示例后台路径 `/rewrz-admin`，请替换为你的实际 `
 limit_req_zone $binary_remote_addr zone=rewrz_login:10m rate=5r/m;
 limit_req_zone $binary_remote_addr zone=rewrz_comment:10m rate=40r/m;
 limit_req_zone $binary_remote_addr zone=rewrz_captcha:10m rate=50r/m;
+# 抓取型只读路径：归档页、格式页、订阅源、站点地图。
+# 正常访客浏览远低于 30 次/分；异常扫描会在这里被 429，不再进入应用。
+limit_req_zone $binary_remote_addr zone=rewrz_crawl:10m rate=30r/m;
 limit_conn_zone $binary_remote_addr zone=rewrz_conn:10m;
 
 limit_req_status 429;
@@ -932,6 +940,20 @@ Nginx 阈值不要低于应用阈值，否则请求会先被 Nginx 429 拦下，
 在站点配置的 `server {}` 内加入：
 
 ```nginx
+    # 抓取型只读路径：归档 / 格式 / 订阅源 / 站点地图。
+    # 这些页面单次渲染成本高（20 篇文章全文 + Markdown + 封面解析），
+    # 且没有登录态依赖，适合在 Nginx 层先按 IP 收口。
+    # 正常读者连续翻页远低于 30 次/分；RSS 阅读器按小时抓取也不受影响。
+    location ~ ^/(?:archives|formats|feed|rss|atom\.xml|sitemap) {
+        limit_req zone=rewrz_crawl burst=20 nodelay;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     location = /api/v1/captcha {
         limit_req zone=rewrz_captcha burst=20 nodelay;
         proxy_pass http://127.0.0.1:8000;
@@ -1026,7 +1048,12 @@ curl -i -X POST --data-binary @/tmp/rewrz-big.bin https://example.com/
 - `keepalive_timeout` / `keepalive_requests` 限制长连接占用
 - `proxy_read_timeout` / `proxy_send_timeout` 给缩略图生成与大文件导入留出时间；
   不要低于 60s，否则后台生成缩略图或导入备份会被提前断开
-- `limit_conn` 限制单 IP 并发连接数，配合 `limit_conn_status 429`
+- `limit_conn` 限制**单 IP** 并发连接数，配合 `limit_conn_status 429`；
+  它与 uvicorn `--limit-concurrency 20` 的**全站**并发上限是两个维度。
+  排查时先区分来源：Nginx 429（单 IP 命中配额）与应用 503（连接池等待超时，
+  日志会打印 `数据库连接池等待超时`），两者不能混为一谈
+- `/static/`、`/media/` 由 Nginx 直出、不经过 uvicorn，`limit_conn` 对它们的实际影响
+  只有建连瞬间；真正需要收口的是 `/archives/`、`/formats/`、订阅源这类动态渲染路径
 
 验证限流与连接数：
 
@@ -1052,6 +1079,37 @@ gzip_types text/plain text/css text/xml application/javascript application/json
 
 只压缩文本类资源，不要对图片、视频、音频再压缩。
 
+#### 7.7.5 429 自动封禁（fail2ban）
+
+`limit_req` / `limit_conn` 命中时 Nginx 会向 `error.log` 写
+`limiting requests` / `limiting connections`，可以直接交给 fail2ban 自动延长封禁，
+不必人工盯日志：
+
+```bash
+sudo tee /etc/fail2ban/jail.d/rewrz.conf >/dev/null <<'EOF'
+[nginx-limit-req]
+enabled  = true
+backend  = auto
+port     = http,https
+filter   = nginx-limit-req
+logpath  = /var/log/nginx/error.log
+maxretry = 8
+findtime = 600
+bantime  = 3600
+EOF
+sudo systemctl restart fail2ban
+sudo fail2ban-client status nginx-limit-req
+```
+
+- `maxretry=8` / `findtime=600` 表示 10 分钟内累计 8 次限流才封禁，
+  正常读者连续翻页不会触发；`bantime=3600` 比应用层登录封禁（15 分钟）更长，
+  专门针对扫描器
+- 封禁后 `fail2ban-client status nginx-limit-req` 的 `Banned IP list`
+  应与 Nginx 429 的来源一致
+- 使用 Cloudflare 时可在边缘再加 Rate Limiting 规则（例如对 `/archives/` 与
+  `/feed` 按 IP 限制 60 次/分钟），但不要把 Googlebot / Bingbot 等正规抓取一并封禁；
+  边缘规则与应用层 `BOT_BLOCK_ENABLED` 的 UA 名单要保持一致
+
 ### 7.8 应用层与部署层防护分工
 
 | 防护项 | 应用层已实现（不要重复改代码） | 部署层负责 |
@@ -1063,6 +1121,7 @@ gzip_types text/plain text/css text/xml application/javascript application/json
 | 验证码图片 | 40 次/分/IP 限流、`no-store` 缓存头、单次使用 | 7.7.1 的 `limit_req` |
 | 请求体大小 | 媒体单文件 50MB 流式校验；备份 100MB、WXR 50MB、JSON 10MB | 7.7.2 的 `client_max_body_size` |
 | 慢连接 / 连接数 | 不实现 | 7.7.3 的 timeout 与 `limit_conn` |
+| 抓取型路径频控 | 只做 UA 与扫描路径拦截，不做通用 IP 频控 | 7.7.1 的 `rewrz_crawl` 与 7.7.5 的 fail2ban |
 | 真实 IP | `TRUSTED_PROXIES` + XFF 可信链解析 | 7.6 的 `real_ip` 与 XFF 覆盖 |
 | 静态资源缓存 | 列表页/详情页缓存策略与 `Cache-Control` | `/static/`、`/media/` 直出与 `expires` |
 
@@ -1107,8 +1166,9 @@ sudo systemctl reload nginx
 3. **worker 与数据库**：`uvicorn --workers N`（N ≈ CPU 核数），SQLite 保持单实例单写者；
    多 worker 会让进程内缓存各自独立，命中率按 worker 数摊薄，务必配合第 1 条。
    写冲突或 `busy_timeout` 告警持续出现时迁 PostgreSQL（修改 `DATABASE_URL`）。
-4. **全站宽松频控 + 写接口严格频控**：7.7.1 的三个 `limit_req` 只保护登录/评论/验证码；
-   另加一个宽松区兜住扫描器，避免大量 404 探测挤占回源容量：
+4. **全站宽松频控 + 抓取路径频控 + 写接口严格频控**：7.7.1 的 `limit_req` 中，
+   登录/评论/验证码保护写接口，`rewrz_crawl` 保护归档与订阅源；
+   另加一个全站宽松区兜住扫描器，避免大量 404 探测挤占回源容量：
 
 ```nginx
 limit_req_zone $binary_remote_addr zone=rewrz_global:20m rate=30r/s;
