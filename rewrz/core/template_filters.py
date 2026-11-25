@@ -713,11 +713,30 @@ def post_summary_text_filter(post_obj, length: int = 200) -> str:
     return f"{plain_text[:length]}..."
 
 
-def _strip_media_nodes_from_soup(soup) -> None:
-    """原地剔除正文中的媒体标签，保留文本与基础格式标签。"""
-    media_tags = ["img", "video", "audio", "iframe", "figure", "picture", "source", "embed", "object"]
-    for media_node in soup.find_all(media_tags):
-        media_node.decompose()
+def _strip_media_nodes_from_soup(soup, local_only: bool = False) -> None:
+    """原地剔除正文中的媒体标签，保留文本与基础格式标签。
+
+    local_only 为真时只剥离本地媒体附件（/media/ 下的图片、视频、音频），
+    外链图片仍作为正文的一部分保留；详情页需要这种粒度，
+    列表卡片则维持「媒体全部交给九宫格」的既有行为。
+    """
+    if local_only:
+        for image_node in soup.find_all("img"):
+            if _is_local_media_url(str(image_node.get("src") or "")):
+                image_node.decompose()
+
+        for media_node in soup.find_all(["video", "audio"]):
+            media_sources = [str(media_node.get("src") or "").strip()]
+            media_sources.extend(
+                str(source_node.get("src") or "").strip()
+                for source_node in media_node.find_all("source")
+            )
+            if any(_is_local_media_url(src) for src in media_sources if src):
+                media_node.decompose()
+    else:
+        media_tags = ["img", "video", "audio", "iframe", "figure", "picture", "source", "embed", "object"]
+        for media_node in soup.find_all(media_tags):
+            media_node.decompose()
 
     # 清理正文中仅用于媒体占位的本地媒体链接，避免与下方播放器重复。
     for link_node in soup.find_all("a"):
@@ -752,11 +771,17 @@ def strip_media_nodes_filter(content_html: str) -> str:
         return content_html
 
 
-def split_micro_content_filter(content_html: str, featured_image_url: Optional[str] = None) -> dict:
-    """微博卡片专用：一次解析同时产出「去媒体正文 + 媒体清单」。
+def split_micro_content_filter(
+    content_html: str,
+    featured_image_url: Optional[str] = None,
+    local_only: bool = False,
+) -> dict:
+    """微博卡片/详情专用：一次解析同时产出「去媒体正文 + 媒体清单」。
 
     模板分别调用 strip_media_nodes 与 extract_media_assets 时，同一段 HTML
     会被 BeautifulSoup 完整解析、重建两次；列表页每张卡片都要付这份成本。
+
+    local_only 为真时只剥离本地媒体附件，外链图片留在正文里（详情页用）。
     """
     if not content_html:
         return {"html": "", "images": [], "videos": [], "audio": []}
@@ -766,7 +791,7 @@ def split_micro_content_filter(content_html: str, featured_image_url: Optional[s
 
         soup = BeautifulSoup(content_html, "html.parser")
         assets = _collect_media_assets_from_soup(soup, featured_image_url)
-        _strip_media_nodes_from_soup(soup)
+        _strip_media_nodes_from_soup(soup, local_only=local_only)
         assets["html"] = str(soup)
         return assets
     except Exception:

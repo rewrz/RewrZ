@@ -1,5 +1,13 @@
 {% extends "base.html" %}
 
+{# 详情页属于文章型内容，分享卡片类型跟随内容而不是站点首页 #}
+{% block og_type %}article{% endblock %}
+
+{# 分享卡片与页面描述使用本文摘要，避免社交平台抓到站点级通用文案 #}
+{% block meta_description %}{{ (seo_data.meta_data.description if seo_data and seo_data.meta_data else '') or super() }}{% endblock %}
+{% block og_description %}{{ (seo_data.meta_data.description if seo_data and seo_data.meta_data else '') or super() }}{% endblock %}
+{% block twitter_description %}{{ (seo_data.meta_data.description if seo_data and seo_data.meta_data else '') or super() }}{% endblock %}
+
 {% block title %}
 {% set _title_text = (post.title or '') | trim %}
 {% set _format_for_title = active_format_slug if active_format_slug is defined and active_format_slug else '' %}
@@ -30,17 +38,34 @@
 {{ super() }}
 {% if seo_data %}
     {# 详情页的分享封面只取 SEO 数据里的 image，NSFW 是否输出由站点「允许收录 NSFW」开关决定 #}
-    {% set _og_image = seo_data.open_graph.get('og:image') if seo_data.open_graph else none %}
+    {% set _og_image_raw = seo_data.open_graph.get('og:image') if seo_data.open_graph else none %}
+    {% set _og_image = (_og_image_raw | trim) if _og_image_raw else '' %}
     {% if _og_image %}
-    <meta property="og:image" content="{{ _og_image }}">
-    <meta name="twitter:image" content="{{ (seo_data.twitter_cards or {}).get('twitter:image', _og_image) }}">
+    {# 社交平台抓取时相对路径不一定能被解析，统一补成绝对地址 #}
+    {% set _og_image_path = _og_image[1:] if _og_image.startswith('/') else _og_image %}
+    {% set _og_image_abs = _og_image if _og_image.startswith('http') else ((request.base_url | string).rstrip('/') ~ '/' ~ _og_image_path) %}
+    {% set _og_image_alt = ((post.title or '') | trim) or site_title %}
+    <meta property="og:image" content="{{ _og_image_abs }}">
+    <meta property="og:image:alt" content="{{ _og_image_alt }}">
+    <meta name="twitter:image" content="{{ _og_image_abs }}">
+    <meta name="twitter:image:alt" content="{{ _og_image_alt }}">
     {% endif %}
+    {# 文章发布时间等 Open Graph 扩展字段，方便社交平台抓取摘要 #}
+    {% for _og_key, _og_value in (seo_data.open_graph or {}).items() %}
+        {% if _og_key.startswith('article:') and _og_value %}
+    <meta property="{{ _og_key }}" content="{{ _og_value }}">
+        {% endif %}
+    {% endfor %}
 {% endif %}
 
 {% if seo_data and seo_data.structured_data %}
 <script type="application/ld+json">
 {{ seo_data.structured_data|tojson }}
 </script>
+{% endif %}
+
+{% if seo_data and seo_data.meta_data and seo_data.meta_data.url %}
+<link rel="canonical" href="{{ seo_data.meta_data.url }}">
 {% endif %}
 
 {% set _head_format = active_format_slug if active_format_slug is defined and active_format_slug else (post.formats[0].slug if post.formats else 'article') %}
@@ -57,7 +82,22 @@
 {% set active_format = active_format_slug if active_format_slug is defined and active_format_slug else (format_slugs[0] if format_slugs else 'article') %}
 {% set is_micro_post = active_format == 'micro' %}
 {% set is_poetry_song = active_format == 'poem' %}
-{% set content_images = (rendered_content | extract_image_urls(post.featured_image_url)) if rendered_content else [] %}
+{# 微动态：正文与媒体拆开渲染，避免同一批图片既在正文又进九宫格。
+   local_only=true 只剥离 /media/ 下的附件，外链图片仍留在正文里。 #}
+{% if is_micro_post and rendered_content %}
+    {% set micro_parts = rendered_content | split_micro_content(post.featured_image_url, true) %}
+    {% set micro_text_html = micro_parts.html %}
+    {% set micro_images = micro_parts.images %}
+    {% set micro_videos = micro_parts.videos %}
+    {% set micro_audio = micro_parts.audio %}
+    {% set content_images = micro_parts.images %}
+{% else %}
+    {% set micro_text_html = rendered_content %}
+    {% set micro_images = [] %}
+    {% set micro_videos = [] %}
+    {% set micro_audio = [] %}
+    {% set content_images = (rendered_content | extract_image_urls(post.featured_image_url)) if rendered_content else [] %}
+{% endif %}
 {% set comment_count = post.comments | length %}
 {% set post_author_name = post.author_display_name if post.author_display_name is defined and post.author_display_name else ((post.author.display_name if post.author and post.author.display_name else '博主') if post.author else '博主') %}
 {% set post_author_avatar = post.author_avatar_url if post.author_avatar_url is defined and post.author_avatar_url else '/static/images/default-avatar.png' %}
@@ -368,6 +408,7 @@ function syncPoetrySpeakFallbackState() {
 async function copyCurrentUrl(options = {}) {
     const {
         silentSuccess = false,
+        successMessage = '链接已复制',
         fallbackTitle = '手动复制链接',
         fallbackSubtitle = '当前浏览器限制剪贴板，请复制下方链接。',
     } = options;
@@ -376,7 +417,7 @@ async function copyCurrentUrl(options = {}) {
         if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(url);
             if (!silentSuccess) {
-                showDetailToast('链接已复制', 'success', 1200);
+                showDetailToast(successMessage, 'success', 1600);
             }
             return true;
         }
@@ -392,7 +433,7 @@ async function copyCurrentUrl(options = {}) {
     input.remove();
     if (copied) {
         if (!silentSuccess) {
-            showDetailToast('链接已复制', 'success', 1200);
+            showDetailToast(successMessage, 'success', 1600);
         }
         return true;
     }
@@ -402,25 +443,13 @@ async function copyCurrentUrl(options = {}) {
     return false;
 }
 
+// 分享改为复制链接：不唤起系统分享面板，社交平台读取页面 Open Graph 元数据自动解析
 async function shareMicroPost() {
-    const shareTitleNode = document.querySelector('h1');
-    const shareTitle = shareTitleNode ? shareTitleNode.textContent.trim() : document.title;
-    const shareData = {
-        title: shareTitle || document.title,
-        text: '分享一篇文章给你',
-        url: window.location.href,
-    };
-
-    if (navigator.share) {
-        try {
-            await navigator.share(shareData);
-            return;
-        } catch (_) {
-            // 用户取消分享时不提示
-        }
-    }
-
-    await copyCurrentUrl();
+    await copyCurrentUrl({
+        successMessage: '链接已复制，粘贴到社交平台即可自动解析标题与配图',
+        fallbackTitle: '手动复制分享链接',
+        fallbackSubtitle: '当前浏览器限制剪贴板，请复制下方链接后自行分享。',
+    });
 }
 
 async function sharePoetry() {

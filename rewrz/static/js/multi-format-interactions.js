@@ -258,31 +258,33 @@ class MultiFormatInteractions {
             if (btn.dataset.bound === '1') return;
             btn.dataset.bound = '1';
             btn.addEventListener('click', async () => {
-                const title = btn.dataset.shareTitle || document.title;
                 const rawUrl = btn.dataset.shareUrl || window.location.pathname;
                 const shareUrl = rawUrl.startsWith('http')
                     ? rawUrl
                     : new URL(rawUrl, window.location.origin).toString();
 
-                if (navigator.share) {
-                    try {
-                        await navigator.share({ title, text: title, url: shareUrl });
-                        return;
-                    } catch (_) {
-                        // ignore cancel
-                    }
-                }
-
+                // 直接复制链接，由社交平台读取页面 Open Graph 元数据自动生成分享卡片
                 try {
                     if (navigator.clipboard && navigator.clipboard.writeText) {
                         await navigator.clipboard.writeText(shareUrl);
-                        this.showToast('链接已复制', 'success', 1200);
+                        this.showToast('链接已复制，粘贴到社交平台即可自动解析', 'success', 1600);
                         return;
                     }
                 } catch (_) {
                     // ignore and fallback
                 }
-                this.showToast('当前浏览器不支持分享', 'info', 1200);
+
+                const input = document.createElement('input');
+                input.value = shareUrl;
+                document.body.appendChild(input);
+                input.select();
+                const copied = document.execCommand('copy');
+                input.remove();
+                if (copied) {
+                    this.showToast('链接已复制，粘贴到社交平台即可自动解析', 'success', 1600);
+                    return;
+                }
+                this.showToast('当前浏览器不支持复制，请手动复制地址栏链接', 'info', 1600);
             });
         });
     }

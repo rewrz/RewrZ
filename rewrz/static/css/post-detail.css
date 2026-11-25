@@ -2536,6 +2536,216 @@ body.site-shell[data-current-theme="galaxy"] .poetry-section .poetry-format-badg
     padding: 0;
 }
 
+/* ===== 微动态详情媒体区：参考 X / Facebook / 微博的图集节奏 =====
+   1 张整幅、2/4 张两列、其余按三列排布；末行不足三张时自动拉宽，
+   避免出现“最后一格空着”的残缺感。 */
+.micro-detail-gallery {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.3rem;
+    padding: 0.4rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    border-radius: 1.2rem;
+    background: color-mix(in srgb, var(--micro-surface-solid-bg) 88%, var(--color-background-alt) 12%);
+    box-shadow:
+        inset 0 1px 0 color-mix(in srgb, var(--color-card-bg) 58%, transparent),
+        0 10px 22px color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+.micro-detail-gallery-item {
+    position: relative;
+    display: block;
+    grid-column: span 2;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0.85rem;
+    background: var(--color-background-alt);
+    cursor: zoom-in;
+    isolation: isolate;
+}
+
+.micro-detail-gallery-item img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: inherit;
+    object-fit: cover;
+    transition: transform 0.45s ease, filter 0.3s ease;
+}
+
+.micro-detail-gallery-item:hover img {
+    transform: scale(1.04);
+}
+
+.micro-detail-gallery-item::after {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    content: "";
+    background: linear-gradient(
+        180deg,
+        transparent 52%,
+        color-mix(in srgb, var(--color-text) 32%, transparent) 100%
+    );
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+}
+
+.micro-detail-gallery-item:hover::after {
+    opacity: 0.9;
+}
+
+/* 单图：完整幅面，不做裁切式的九宫格 */
+.micro-detail-gallery[data-count="1"] .micro-detail-gallery-item {
+    grid-column: span 6;
+    aspect-ratio: 16 / 10;
+    max-height: 30rem;
+}
+
+.micro-detail-gallery[data-count="1"] .micro-detail-gallery-item img {
+    object-fit: cover;
+}
+
+.micro-detail-gallery[data-count="2"] .micro-detail-gallery-item {
+    grid-column: span 3;
+    aspect-ratio: 4 / 3;
+}
+
+.micro-detail-gallery[data-count="4"] .micro-detail-gallery-item {
+    grid-column: span 3;
+    aspect-ratio: 1 / 1;
+}
+
+/* 5 张：上三下二，末行两张各占一半宽度 */
+.micro-detail-gallery[data-count="5"] .micro-detail-gallery-item:nth-child(n + 4) {
+    grid-column: span 3;
+}
+
+/* 7 张：末行单独一张铺满，保持版面完整 */
+.micro-detail-gallery[data-count="7"] .micro-detail-gallery-item:last-child {
+    grid-column: span 6;
+    aspect-ratio: 16 / 9;
+}
+
+/* 8 张：末行两张各占一半 */
+.micro-detail-gallery[data-count="8"] .micro-detail-gallery-item:nth-child(n + 7) {
+    grid-column: span 3;
+}
+
+.micro-detail-gallery-zoom {
+    position: absolute;
+    right: 0.45rem;
+    bottom: 0.45rem;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-card-bg) 82%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+    font-size: 0.6rem;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.micro-detail-gallery-item:hover .micro-detail-gallery-zoom,
+.micro-detail-gallery-item:focus-visible .micro-detail-gallery-zoom {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* 触屏设备没有 hover，常驻放大标识提示可点 */
+@media (hover: none) {
+    .micro-detail-gallery-zoom {
+        opacity: 0.9;
+        transform: none;
+    }
+}
+
+.micro-detail-gallery-more {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--color-text) 48%, transparent);
+    color: var(--color-card-bg);
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
+}
+
+.micro-detail-media-hint {
+    margin: 0.45rem 0 0;
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--micro-surface-muted);
+}
+
+.micro-detail-media-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.micro-detail-media-frame {
+    padding: 0.4rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    border-radius: 1.15rem;
+    background: color-mix(in srgb, var(--micro-surface-solid-bg) 88%, var(--color-background-alt) 12%);
+    box-shadow:
+        inset 0 1px 0 color-mix(in srgb, var(--color-card-bg) 58%, transparent),
+        0 10px 22px color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+.micro-detail-media-video video {
+    display: block;
+    width: 100%;
+    max-height: 30rem;
+    border-radius: 0.8rem;
+    background: var(--color-background-alt);
+}
+
+.micro-detail-media-audio audio {
+    display: block;
+    width: 100%;
+}
+
+@media (max-width: 640px) {
+    .micro-detail-gallery {
+        gap: 0.22rem;
+        padding: 0.28rem;
+        border-radius: 1rem;
+    }
+
+    .micro-detail-gallery-item {
+        border-radius: 0.7rem;
+    }
+
+    .micro-detail-gallery[data-count="1"] .micro-detail-gallery-item {
+        aspect-ratio: 4 / 3;
+        max-height: 22rem;
+    }
+
+    .micro-detail-gallery[data-count="2"] .micro-detail-gallery-item,
+    .micro-detail-gallery[data-count="4"] .micro-detail-gallery-item {
+        aspect-ratio: 1 / 1;
+    }
+}
+
 /* 底部操作按钮统一为胶囊，和上方点赞/表态保持一致 */
 .micro-detail-footer .micro-action-btn {
     display: inline-flex;
@@ -2797,14 +3007,9 @@ body.site-shell[data-current-theme="galaxy"] .poetry-section .poetry-format-badg
     gap: 0.4rem;
 }
 
-.micro-detail-card.micro-preset-gallery .micro-image-grid img {
-    height: 11rem;
-}
-
-@media (min-width: 768px) {
-    .micro-detail-card.micro-preset-gallery .micro-image-grid img {
-        height: 13.5rem;
-    }
+/* 新图集按容器比例铺满：覆盖 preset-gallery 原先的固定高度 */
+.micro-detail-card.micro-preset-gallery .micro-detail-gallery img {
+    height: 100%;
 }
 
 .micro-detail-card.micro-preset-plain .micro-content {

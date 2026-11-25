@@ -331,7 +331,21 @@
                         </div>
 
                         <div id="micro-quick-media-list" class="hidden grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4"></div>
-                        <p id="micro-quick-upload-status" class="hidden micro-status-text micro-status-muted"></p>
+                        <div id="micro-quick-upload-progress" class="micro-upload-panel hidden">
+                            <div class="micro-upload-panel-head">
+                                <span id="micro-quick-upload-progress-text" class="micro-upload-panel-text">正在上传</span>
+                                <span id="micro-quick-upload-progress-percent" class="micro-upload-panel-percent">0%</span>
+                            </div>
+                            <div class="micro-upload-track">
+                                <span id="micro-quick-upload-progress-bar" class="micro-upload-track-bar"></span>
+                            </div>
+                            <div class="micro-upload-panel-foot">
+                                {# 重试按钮放左侧：右下角有站点的回到顶部悬浮按钮，放右侧会被压住 #}
+                                <button type="button" id="micro-quick-upload-retry-all" class="micro-upload-retry-all hidden">重试全部</button>
+                                <span id="micro-quick-upload-progress-meta" class="micro-upload-panel-meta"></span>
+                            </div>
+                        </div>
+                        <p id="micro-quick-upload-status" class="hidden micro-status-text micro-status-muted" aria-live="polite"></p>
 
                         <div id="micro-quick-detected-topics" class="micro-composer-panel hidden flex flex-wrap items-center gap-1.5 rounded-xl border px-3 py-2 text-xs"></div>
 
@@ -388,18 +402,19 @@
                                     <i class="fas fa-at micro-tool-emoji" aria-hidden="true"></i>提及
                                 </button>
                                 <div class="relative">
-                                    <button id="micro-quick-emoji-toggle" type="button" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100" aria-expanded="false">
+                                    <button id="micro-quick-emoji-toggle" type="button" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100" aria-expanded="false" aria-controls="micro-quick-emoji-panel">
                                         <i class="fas fa-smile micro-tool-emoji" aria-hidden="true"></i>表情
                                     </button>
-                                    <div id="micro-quick-emoji-panel" class="micro-emoji-panel fixed z-[140] hidden w-80 max-w-[92vw] rounded-2xl border p-2 shadow-2xl">
-                                        <div class="mb-2 flex flex-wrap items-center gap-1.5">
+                                    <div id="micro-quick-emoji-panel" class="micro-emoji-panel fixed z-[140] hidden w-80 max-w-[92vw] rounded-2xl border" role="dialog" aria-label="表情选择">
+                                        <span class="micro-emoji-handle" aria-hidden="true"></span>
+                                        <div class="micro-emoji-tabs mb-2 flex flex-wrap items-center gap-1.5">
                                             <button type="button" data-emoji-tab="recent" class="micro-emoji-tab is-active rounded-full px-2 py-1 text-[11px] font-medium">常用</button>
                                             <button type="button" data-emoji-tab="emotion" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] font-medium">情绪</button>
                                             <button type="button" data-emoji-tab="gesture" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] font-medium">手势</button>
                                             <button type="button" data-emoji-tab="symbol" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] font-medium">符号</button>
                                             <button type="button" data-emoji-tab="celebration" class="micro-emoji-tab rounded-full px-2 py-1 text-[11px] font-medium">庆祝</button>
                                         </div>
-                                        <div id="micro-quick-emoji-grid" class="grid grid-cols-10 gap-1">
+                                        <div id="micro-quick-emoji-grid" class="micro-emoji-grid grid grid-cols-10 gap-1">
                                         </div>
                                     </div>
                                 </div>
@@ -524,6 +539,12 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         const mediaUploadTrigger = document.getElementById("micro-quick-upload-trigger");
         const mediaList = document.getElementById("micro-quick-media-list");
         const uploadStatus = document.getElementById("micro-quick-upload-status");
+        const uploadProgressPanel = document.getElementById("micro-quick-upload-progress");
+        const uploadProgressText = document.getElementById("micro-quick-upload-progress-text");
+        const uploadProgressPercent = document.getElementById("micro-quick-upload-progress-percent");
+        const uploadProgressBar = document.getElementById("micro-quick-upload-progress-bar");
+        const uploadProgressMeta = document.getElementById("micro-quick-upload-progress-meta");
+        const uploadRetryAllButton = document.getElementById("micro-quick-upload-retry-all");
         const visibilityInput = document.getElementById("micro-quick-visibility");
         const visibilityButtons = Array.from(document.querySelectorAll("[data-quick-visibility]"));
         const contentRatingInput = document.getElementById("micro-quick-content-rating");
@@ -557,11 +578,15 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             celebration: ["🎉", "🎊", "🎁", "🚀", "🏆", "🎬", "📸", "📌", "💡", "🧠", "⌛", "📣", "📝", "🧩", "🎯", "🏅", "🥂", "🍻", "🍰", "🎈"],
         };
         let isSubmitting = false;
-        let isUploadingMedia = false;
-        let activeMediaUploads = 0;
         let previewEnabled = false;
         let draftTimer = null;
         let attachedMedia = [];
+        // 待上传队列：保存每个文件的进度、速度与失败原因，支持单文件重试
+        let uploadQueue = [];
+        // 本轮上传会话的字节基线：已完成文件仍计入总进度，避免总体进度条回跳
+        let uploadSessionBytes = 0;
+        let uploadSessionDoneBytes = 0;
+        let uploadUiFrame = 0;
         let activeEmojiTab = "recent";
 
     const syncTextareaHeight = () => {
@@ -629,7 +654,462 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             uploadStatus.className = "micro-status-text micro-status-ok";
             return;
         }
+        if (type === "warn") {
+            uploadStatus.className = "micro-status-text micro-status-warn";
+            return;
+        }
         uploadStatus.className = "micro-status-text micro-status-muted";
+    };
+
+    // ===== 上传队列：单文件进度 / 速度 / 失败重试 =====
+    const maxParallelUploads = 3;
+    let uploadUidSeed = 0;
+
+    const createUploadUid = () => {
+        uploadUidSeed += 1;
+        return `upload-${uploadUidSeed}-${Date.now().toString(36)}`;
+    };
+
+    const formatBytes = (bytes) => {
+        const value = Number(bytes) || 0;
+        if (value < 1024) {
+            return `${Math.round(value)} B`;
+        }
+        if (value < 1024 * 1024) {
+            return `${(value / 1024).toFixed(1)} KB`;
+        }
+        if (value < 1024 * 1024 * 1024) {
+            return `${(value / 1024 / 1024).toFixed(1)} MB`;
+        }
+        return `${(value / 1024 / 1024 / 1024).toFixed(2)} GB`;
+    };
+
+    const formatSpeed = (bytesPerSecond) => {
+        const value = Number(bytesPerSecond) || 0;
+        if (value <= 0) {
+            return "0 KB/s";
+        }
+        return `${formatBytes(value)}/s`;
+    };
+
+    const formatRemainingTime = (seconds) => {
+        const value = Math.max(0, Math.round(Number(seconds) || 0));
+        if (!Number.isFinite(value)) {
+            return "--";
+        }
+        if (value < 1) {
+            return "不足 1 秒";
+        }
+        if (value < 60) {
+            return `${value} 秒`;
+        }
+        const minutes = Math.floor(value / 60);
+        const rest = value % 60;
+        return `${minutes} 分 ${String(rest).padStart(2, "0")} 秒`;
+    };
+
+    const resolveMediaFileType = (file) => {
+        const mimeType = String(file && file.type ? file.type : "").toLowerCase();
+        if (mimeType.startsWith("video/")) {
+            return "video";
+        }
+        if (mimeType.startsWith("audio/")) {
+            return "audio";
+        }
+        return "image";
+    };
+
+    const createUploadEntry = (file) => {
+        const fileType = resolveMediaFileType(file);
+        let previewUrl = "";
+        // 图片先本地预览，不用等上传完成就能看到缩略图
+        if (fileType === "image" && typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+            try {
+                previewUrl = URL.createObjectURL(file);
+            } catch (error) {
+                previewUrl = "";
+            }
+        }
+        return {
+            uid: createUploadUid(),
+            file,
+            name: String(file && file.name ? file.name : "媒体文件"),
+            fileType,
+            previewUrl,
+            status: "queued",
+            loaded: 0,
+            total: Number(file && file.size ? file.size : 0),
+            percent: 0,
+            speed: 0,
+            error: "",
+            xhr: null,
+            sampleAt: Date.now(),
+            sampleLoaded: 0,
+        };
+    };
+
+    const revokeUploadPreview = (entry) => {
+        if (!entry || !entry.previewUrl) {
+            return;
+        }
+        if (entry.previewUrl.startsWith("blob:") && typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function") {
+            try {
+                URL.revokeObjectURL(entry.previewUrl);
+            } catch (error) {
+                // 忽略回收失败
+            }
+        }
+        entry.previewUrl = "";
+    };
+
+    const hasPendingUploads = () => uploadQueue.some((entry) => entry.status === "queued" || entry.status === "uploading");
+
+    const hasFailedUploads = () => uploadQueue.some((entry) => entry.status === "error");
+
+    const readUploadErrorMessage = (responseText) => {
+        try {
+            const payload = JSON.parse(responseText || "{}");
+            if (payload && typeof payload === "object") {
+                if (payload.error && typeof payload.error === "object" && payload.error.message) {
+                    return String(payload.error.message);
+                }
+                if (payload.detail) {
+                    return String(payload.detail);
+                }
+                if (typeof payload.error === "string" && payload.error) {
+                    return payload.error;
+                }
+            }
+        } catch (error) {
+            // 响应不是 JSON 时交给调用方兜底
+        }
+        return "";
+    };
+
+    const updateUploadProgressUi = () => {
+        const pendingEntries = uploadQueue;
+        const activeEntries = pendingEntries.filter((entry) => entry.status === "uploading");
+        const queuedEntries = pendingEntries.filter((entry) => entry.status === "queued");
+        const failedEntries = pendingEntries.filter((entry) => entry.status === "error");
+
+        const totalBytes = uploadSessionBytes;
+        const pendingLoadedBytes = pendingEntries.reduce(
+            (sum, entry) => sum + (entry.status === "queued" ? 0 : (Number(entry.loaded) || 0)),
+            0
+        );
+        const loadedBytes = uploadSessionDoneBytes + pendingLoadedBytes;
+        const totalSpeed = activeEntries.reduce((sum, entry) => sum + (Number(entry.speed) || 0), 0);
+        const overallPercent = totalBytes > 0 ? Math.min(100, Math.round((loadedBytes / totalBytes) * 100)) : 0;
+
+        // 面板：有排队/上传/失败任务时常驻，全部成功后收起并重置会话基线
+        if (uploadProgressPanel) {
+            uploadProgressPanel.classList.toggle("hidden", pendingEntries.length === 0);
+        }
+        if (pendingEntries.length === 0) {
+            uploadSessionBytes = 0;
+            uploadSessionDoneBytes = 0;
+        }
+        if (uploadProgressText) {
+            if (activeEntries.length || queuedEntries.length) {
+                uploadProgressText.textContent = `正在上传 ${activeEntries.length + queuedEntries.length} 个文件`;
+            } else if (failedEntries.length) {
+                uploadProgressText.textContent = `${failedEntries.length} 个文件上传失败`;
+            } else {
+                uploadProgressText.textContent = "上传完成";
+            }
+        }
+        if (uploadProgressPercent) {
+            uploadProgressPercent.textContent = pendingEntries.length ? `${overallPercent}%` : "";
+        }
+        if (uploadProgressBar) {
+            uploadProgressBar.style.width = `${overallPercent}%`;
+            uploadProgressBar.classList.toggle("is-error", failedEntries.length > 0 && !activeEntries.length && !queuedEntries.length);
+        }
+        if (uploadProgressMeta) {
+            if (activeEntries.length) {
+                const remainingBytes = Math.max(0, totalBytes - loadedBytes);
+                const remainingSeconds = totalSpeed > 0 ? remainingBytes / totalSpeed : 0;
+                uploadProgressMeta.textContent = `${formatSpeed(totalSpeed)} · 剩余 ${formatRemainingTime(remainingSeconds)}`;
+            } else if (failedEntries.length) {
+                uploadProgressMeta.textContent = "可逐个重试，或点击右侧一键重试";
+            } else if (queuedEntries.length) {
+                uploadProgressMeta.textContent = "排队中…";
+            } else {
+                uploadProgressMeta.textContent = "";
+            }
+        }
+        if (uploadRetryAllButton) {
+            uploadRetryAllButton.classList.toggle("hidden", failedEntries.length === 0 || activeEntries.length > 0);
+        }
+
+        // 单张媒体卡片：只更新进度文本与进度条，避免整块重建导致图片闪烁
+        pendingEntries.forEach((entry) => {
+            const card = mediaList ? mediaList.querySelector(`[data-upload-uid="${entry.uid}"]`) : null;
+            if (!card) {
+                return;
+            }
+            card.classList.toggle("is-queued", entry.status === "queued");
+            card.classList.toggle("is-uploading", entry.status === "uploading");
+            card.classList.toggle("is-error", entry.status === "error");
+
+            const percentLabel = card.querySelector("[data-upload-percent]");
+            if (percentLabel) {
+                if (entry.status === "error") {
+                    percentLabel.textContent = "失败";
+                } else if (entry.status === "queued") {
+                    percentLabel.textContent = "0%";
+                } else {
+                    percentLabel.textContent = `${Math.round(entry.percent || 0)}%`;
+                }
+            }
+
+            const bar = card.querySelector("[data-upload-bar]");
+            if (bar) {
+                bar.style.width = `${entry.status === "error" ? 100 : Math.round(entry.percent || 0)}%`;
+            }
+
+            const speedLabel = card.querySelector("[data-upload-speed]");
+            if (speedLabel) {
+                if (entry.status === "error") {
+                    speedLabel.textContent = entry.error || "上传失败";
+                    speedLabel.title = entry.error || "上传失败";
+                } else if (entry.status === "queued") {
+                    speedLabel.textContent = "排队中";
+                    speedLabel.removeAttribute("title");
+                } else {
+                    speedLabel.textContent = formatSpeed(entry.speed);
+                    speedLabel.removeAttribute("title");
+                }
+            }
+        });
+    };
+
+    const scheduleUploadProgressRefresh = () => {
+        if (uploadUiFrame) {
+            return;
+        }
+        const schedule = typeof window.requestAnimationFrame === "function"
+            ? window.requestAnimationFrame.bind(window)
+            : (callback) => window.setTimeout(callback, 16);
+        uploadUiFrame = schedule(() => {
+            uploadUiFrame = 0;
+            updateUploadProgressUi();
+        });
+    };
+
+    const finishUploadEntry = (entry, item) => {
+        entry.status = "done";
+        entry.percent = 100;
+        entry.loaded = entry.total;
+        // 会话总量按文件原始大小累计，与 uploadSessionBytes 保持同一口径
+        uploadSessionDoneBytes += Number(entry.file && entry.file.size ? entry.file.size : entry.total) || 0;
+
+        attachedMedia = attachedMedia.concat({
+            id: Number(item.id || 0),
+            url: String(item.url || "").trim(),
+            file_type: String(item.file_type || entry.fileType || "image").trim().toLowerCase(),
+            name: String(item.name || entry.name || "media").trim(),
+            preview_url: String(item.preview_url || item.url || "").trim(),
+        }).filter((media) => media.url).slice(0, maxMediaCount);
+
+        uploadQueue = uploadQueue.filter((queued) => queued.uid !== entry.uid);
+        revokeUploadPreview(entry);
+        setUploadStatus(`已附加 ${attachedMedia.length} 个媒体文件`, "success");
+        renderMediaList();
+        renderPreview(textarea.value || "");
+        refreshState();
+        pumpUploadQueue();
+    };
+
+    const failUploadEntry = (entry, reason) => {
+        entry.status = "error";
+        entry.error = String(reason || "上传失败");
+        entry.speed = 0;
+        setUploadStatus(`「${entry.name}」上传失败：${entry.error}`, "error");
+        renderMediaList();
+        refreshState();
+        updateUploadProgressUi();
+        pumpUploadQueue();
+    };
+
+    const startUploadEntry = (entry) => {
+        if (!entry || !entry.file || entry.status === "uploading") {
+            return;
+        }
+        entry.status = "uploading";
+        entry.loaded = 0;
+        entry.percent = 0;
+        entry.speed = 0;
+        entry.error = "";
+        entry.sampleAt = Date.now();
+        entry.sampleLoaded = 0;
+
+        const csrfInput = form.querySelector("input[name='csrf_token']");
+        const uploadFormData = new FormData();
+        uploadFormData.append("csrf_token", csrfInput ? csrfInput.value : "");
+        uploadFormData.append("files", entry.file, entry.file.name || entry.name);
+
+        const xhr = new XMLHttpRequest();
+        entry.xhr = xhr;
+        xhr.open("POST", "/api/v1/posts/quick/media", true);
+        xhr.responseType = "text";
+
+        xhr.upload.onprogress = (event) => {
+            if (!event) {
+                return;
+            }
+            if (event.lengthComputable && event.total) {
+                entry.total = event.total;
+            }
+            entry.loaded = Number(event.loaded) || 0;
+            if (entry.total > 0) {
+                // 留 0.6% 给服务端处理，避免条跑满但仍在等待响应
+                entry.percent = Math.min(99.4, (entry.loaded / entry.total) * 100);
+            }
+            const now = Date.now();
+            const elapsedSeconds = (now - entry.sampleAt) / 1000;
+            if (elapsedSeconds >= 0.25) {
+                const deltaBytes = Math.max(0, entry.loaded - entry.sampleLoaded);
+                const instantSpeed = deltaBytes / elapsedSeconds;
+                entry.speed = entry.speed > 0 ? entry.speed * 0.6 + instantSpeed * 0.4 : instantSpeed;
+                entry.sampleAt = now;
+                entry.sampleLoaded = entry.loaded;
+            }
+            scheduleUploadProgressRefresh();
+        };
+
+        xhr.onload = () => {
+            entry.xhr = null;
+            if (xhr.status < 200 || xhr.status >= 300) {
+                const reason = readUploadErrorMessage(xhr.responseText) || `上传失败（HTTP ${xhr.status}）`;
+                failUploadEntry(entry, reason);
+                return;
+            }
+            let payload = {};
+            try {
+                payload = JSON.parse(xhr.responseText || "{}");
+            } catch (error) {
+                payload = {};
+            }
+            const uploadedItems = Array.isArray(payload.items) ? payload.items : [];
+            const failedItems = Array.isArray(payload.failed) ? payload.failed : [];
+            const uploaded = uploadedItems.find((item) => item && String(item.url || "").trim());
+            if (!uploaded) {
+                const reason = (failedItems[0] && failedItems[0].reason) || readUploadErrorMessage(xhr.responseText) || "未获取到有效媒体地址";
+                failUploadEntry(entry, reason);
+                return;
+            }
+            finishUploadEntry(entry, uploaded);
+        };
+        xhr.onerror = () => {
+            entry.xhr = null;
+            failUploadEntry(entry, "网络中断，请检查网络后重试");
+        };
+        xhr.ontimeout = () => {
+            entry.xhr = null;
+            failUploadEntry(entry, "上传超时，请重试");
+        };
+        xhr.onabort = () => {
+            entry.xhr = null;
+        };
+
+        xhr.send(uploadFormData);
+        scheduleUploadProgressRefresh();
+    };
+
+    function pumpUploadQueue() {
+        const activeCount = uploadQueue.filter((entry) => entry.status === "uploading").length;
+        const availableSlots = Math.max(0, maxParallelUploads - activeCount);
+        if (availableSlots > 0) {
+            uploadQueue
+                .filter((entry) => entry.status === "queued")
+                .slice(0, availableSlots)
+                .forEach(startUploadEntry);
+        }
+        updateUploadProgressUi();
+        refreshState();
+    }
+
+    const retryUploadEntry = (uid) => {
+        const target = uploadQueue.find((entry) => entry.uid === uid);
+        if (!target || target.status === "uploading") {
+            return;
+        }
+        target.status = "queued";
+        target.error = "";
+        target.loaded = 0;
+        target.percent = 0;
+        target.speed = 0;
+        target.sampleAt = Date.now();
+        target.sampleLoaded = 0;
+        setUploadStatus("");
+        renderMediaList();
+        updateUploadProgressUi();
+        pumpUploadQueue();
+    };
+
+    const retryAllFailedUploads = () => {
+        let touched = false;
+        uploadQueue.forEach((entry) => {
+            if (entry.status !== "error") {
+                return;
+            }
+            entry.status = "queued";
+            entry.error = "";
+            entry.loaded = 0;
+            entry.percent = 0;
+            entry.speed = 0;
+            entry.sampleAt = Date.now();
+            entry.sampleLoaded = 0;
+            touched = true;
+        });
+        if (!touched) {
+            return;
+        }
+        setUploadStatus("");
+        renderMediaList();
+        updateUploadProgressUi();
+        pumpUploadQueue();
+    };
+
+    const cancelUploadEntry = (uid) => {
+        const target = uploadQueue.find((entry) => entry.uid === uid);
+        if (!target) {
+            return;
+        }
+        if (target.xhr) {
+            try {
+                target.xhr.abort();
+            } catch (error) {
+                // 忽略中断失败
+            }
+            target.xhr = null;
+        }
+        revokeUploadPreview(target);
+        // 主动取消的文件不再计入本轮总进度
+        uploadSessionBytes = Math.max(0, uploadSessionBytes - (Number(target.total) || 0));
+        uploadQueue = uploadQueue.filter((entry) => entry.uid !== uid);
+        renderMediaList();
+        updateUploadProgressUi();
+        pumpUploadQueue();
+    };
+
+    const resetUploadQueue = () => {
+        uploadQueue.forEach((entry) => {
+            if (entry.xhr) {
+                try {
+                    entry.xhr.abort();
+                } catch (error) {
+                    // 忽略中断失败
+                }
+                entry.xhr = null;
+            }
+            revokeUploadPreview(entry);
+        });
+        uploadQueue = [];
+        uploadSessionBytes = 0;
+        uploadSessionDoneBytes = 0;
+        updateUploadProgressUi();
     };
 
     const contentLength = (content) => Array.from(content || "").length;
@@ -952,14 +1432,44 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         if (!mediaList) {
             return;
         }
-        if (!attachedMedia.length) {
+        if (!attachedMedia.length && !uploadQueue.length) {
             mediaList.classList.add("hidden");
             mediaList.innerHTML = "";
             return;
         }
 
         mediaList.classList.remove("hidden");
-        mediaList.innerHTML = attachedMedia.map((item, index) => {
+
+        const pendingCards = uploadQueue.map((entry) => {
+            const typeName = mediaTypeName(entry.fileType);
+            const escapedName = escapeHtml(entry.name || typeName);
+            const coverUrl = entry.previewUrl ? escapeHtml(entry.previewUrl) : "";
+            const hasThumb = entry.fileType === "image" && Boolean(coverUrl);
+            const statusClass = entry.status === "uploading" ? "is-uploading" : (entry.status === "error" ? "is-error" : "is-queued");
+            return `
+                <div class="micro-media-card micro-media-card-pending ${statusClass} group relative overflow-hidden rounded-2xl border" data-upload-uid="${entry.uid}">
+                    ${hasThumb
+                        ? `<img src="${coverUrl}" alt="${escapedName}" class="h-24 w-full object-cover">`
+                        : `<div class="micro-media-card-placeholder flex h-24 w-full items-center justify-center">
+                                <i class="fas ${entry.fileType === "video" ? "fa-video" : "fa-music"} mr-1"></i>${typeName}
+                           </div>`}
+                    <span class="micro-media-upload-bar" data-upload-bar></span>
+                    <div class="micro-media-upload-mask">
+                        <span class="micro-media-upload-percent" data-upload-percent>0%</span>
+                        <span class="micro-media-upload-speed" data-upload-speed>排队中</span>
+                        <button type="button" data-retry-upload-uid="${entry.uid}" class="micro-media-retry">重试</button>
+                    </div>
+                    <div class="micro-media-card-meta flex items-center justify-between gap-2 border-t px-2 py-1 text-[11px]">
+                        <span class="micro-media-card-name truncate">${escapedName}</span>
+                        <button type="button" data-cancel-upload-uid="${entry.uid}" class="micro-media-remove inline-flex h-5 w-5 items-center justify-center rounded-full transition" title="取消上传" aria-label="取消上传">
+                            <i class="fas fa-times text-[10px]"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+        const attachedCards = attachedMedia.map((item, index) => {
             const typeName = mediaTypeName(item.file_type);
             const escapedName = escapeHtml(item.name || `${typeName}${index + 1}`);
             const coverUrl = escapeHtml(item.preview_url || item.url || "");
@@ -973,13 +1483,16 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
                            </div>`}
                     <div class="micro-media-card-meta flex items-center justify-between gap-2 border-t px-2 py-1 text-[11px]">
                         <span class="micro-media-card-name truncate">${escapedName}</span>
-                        <button type="button" data-remove-media-index="${index}" class="micro-media-remove inline-flex h-5 w-5 items-center justify-center rounded-full transition">
+                        <button type="button" data-remove-media-index="${index}" class="micro-media-remove inline-flex h-5 w-5 items-center justify-center rounded-full transition" title="移除媒体" aria-label="移除媒体">
                             <i class="fas fa-times text-[10px]"></i>
                         </button>
                     </div>
                 </div>
             `;
         }).join("");
+
+        mediaList.innerHTML = `${pendingCards}${attachedCards}`;
+        updateUploadProgressUi();
     };
 
     const previewFromServer = async (content, signal) => {
@@ -1173,7 +1686,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         // 只打标签不算正文，避免按钮可用但服务端拒绝
         const contentWithoutTags = trimmed.replace(/#[0-9A-Za-z_\u4e00-\u9fff-]+/g, "").trim();
         const hasPublishableData = contentWithoutTags.length > 0 || attachedMedia.length > 0;
-        submitButton.disabled = isSubmitting || isUploadingMedia || !hasPublishableData || currentLength > maxLength;
+        submitButton.disabled = isSubmitting || hasPendingUploads() || !hasPublishableData || currentLength > maxLength;
     };
 
     const closeEmojiPanel = () => {
@@ -1194,6 +1707,22 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         return !emojiPanel.classList.contains("hidden");
     };
 
+    // 移动端（含窄屏）把表情面板当作贴底浮层，避免小屏上气泡遮住输入区
+    const isEmojiSheetLayout = () => {
+        const width = window.innerWidth || document.documentElement.clientWidth || 0;
+        return width <= 640;
+    };
+
+    const getVisualViewportMetrics = () => {
+        const viewport = window.visualViewport;
+        const height = viewport && viewport.height ? viewport.height : (window.innerHeight || document.documentElement.clientHeight || 0);
+        const offsetTop = viewport && typeof viewport.offsetTop === "number" ? viewport.offsetTop : 0;
+        // 虚拟键盘会压缩可视视口，用内高差值估算键盘遮住的高度
+        const innerHeight = window.innerHeight || document.documentElement.clientHeight || height;
+        const keyboardInset = Math.max(0, innerHeight - height - offsetTop);
+        return { height, offsetTop, keyboardInset };
+    };
+
     const positionEmojiPanel = () => {
         if (!emojiPanel || !emojiToggle || !isEmojiPanelVisible()) {
             return;
@@ -1201,7 +1730,17 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
 
         const gap = 8;
         const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
-        const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+        const metrics = getVisualViewportMetrics();
+        const viewportHeight = metrics.height;
+
+        if (isEmojiSheetLayout()) {
+            // 贴底展示：左右边距交给 CSS，脚本只负责让面板避开虚拟键盘
+            emojiPanel.style.left = "";
+            emojiPanel.style.top = "auto";
+            emojiPanel.style.bottom = `${Math.round(metrics.keyboardInset + gap)}px`;
+            return;
+        }
+
         const toggleRect = emojiToggle.getBoundingClientRect();
         const panelRect = emojiPanel.getBoundingClientRect();
 
@@ -1226,6 +1765,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             top = gap;
         }
 
+        emojiPanel.style.bottom = "auto";
         emojiPanel.style.left = `${Math.round(left)}px`;
         emojiPanel.style.top = `${Math.round(top)}px`;
     };
@@ -1293,19 +1833,25 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         return files.map(buildPastedMediaFile);
     };
 
-    const uploadMediaFiles = async (fileList) => {
+    const uploadMediaFiles = (fileList) => {
         const selectedFiles = Array.from(fileList || []);
+        // 先清空 input：校验失败后再选同一个文件也能重新触发 change
+        if (mediaInput) {
+            mediaInput.value = "";
+        }
         if (!selectedFiles.length) {
             return;
         }
 
-        if (attachedMedia.length >= maxMediaCount) {
+        const totalCount = attachedMedia.length + uploadQueue.length;
+        if (totalCount >= maxMediaCount) {
             setUploadStatus(`最多可附加 ${maxMediaCount} 个媒体文件`, "error");
             return;
         }
 
-        const remaining = maxMediaCount - attachedMedia.length;
+        const remaining = maxMediaCount - totalCount;
         const uploadingBatch = selectedFiles.slice(0, remaining);
+        const skippedCount = selectedFiles.length - uploadingBatch.length;
         const hasUnsupported = uploadingBatch.some((file) => {
             const mimeType = String(file.type || "").toLowerCase();
             return !mimeType.startsWith("image/") && !mimeType.startsWith("video/") && !mimeType.startsWith("audio/");
@@ -1322,66 +1868,21 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             return;
         }
 
-        activeMediaUploads += 1;
-        isUploadingMedia = true;
-        refreshState();
-        setUploadStatus(`正在上传 ${uploadingBatch.length} 个文件...`);
-        try {
-            const uploadFormData = new FormData();
-            uploadFormData.append("csrf_token", csrfToken);
-            uploadingBatch.forEach((file) => {
-                uploadFormData.append("files", file);
-            });
-
-            const response = await fetch("/api/v1/posts/quick/media", {
-                method: "POST",
-                body: uploadFormData,
-            });
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok || !payload.success) {
-                throw new Error(getErrorMessage(payload.error, payload.detail || "媒体上传失败"));
-            }
-
-            const uploadedItems = Array.isArray(payload.items) ? payload.items : [];
-            const failedItems = Array.isArray(payload.failed) ? payload.failed : [];
-            if (uploadedItems.length) {
-                attachedMedia = attachedMedia.concat(
-                    uploadedItems.map((item) => ({
-                        id: Number(item.id || 0),
-                        url: String(item.url || "").trim(),
-                        file_type: String(item.file_type || "image").trim().toLowerCase(),
-                        name: String(item.name || "media").trim(),
-                        preview_url: String(item.preview_url || item.url || "").trim(),
-                    })).filter((item) => item.url)
-                ).slice(0, maxMediaCount);
-                renderMediaList();
-                renderPreview(textarea.value || "");
-            }
-
-            if (failedItems.length) {
-                const failedText = failedItems
-                    .map((item) => `${item.name || "文件"}：${item.reason || "上传失败"}`)
-                    .join("；");
-                setUploadStatus(
-                    `成功 ${uploadedItems.length} 个，失败 ${failedItems.length} 个：${failedText}`,
-                    "error"
-                );
-            } else if (uploadedItems.length) {
-                setUploadStatus(`已附加 ${attachedMedia.length} 个媒体文件`, "success");
-            } else {
-                setUploadStatus("未获取到有效媒体文件", "error");
-            }
-        } catch (error) {
-            setUploadStatus(getErrorMessage(error, "媒体上传失败，请稍后重试"), "error");
-        } finally {
-            // 允许多个上传批次并行，只有全部结束才恢复可提交状态
-            activeMediaUploads = Math.max(0, activeMediaUploads - 1);
-            isUploadingMedia = activeMediaUploads > 0;
-            if (mediaInput) {
-                mediaInput.value = "";
-            }
-            refreshState();
-        }
+        // 每个文件单独走一次请求：只有单文件粒度才能拿到真实进度与失败重试
+        const newEntries = uploadingBatch.map(createUploadEntry);
+        newEntries.forEach((entry) => {
+            uploadSessionBytes += Number(entry.total) || 0;
+        });
+        uploadQueue = uploadQueue.concat(newEntries);
+        setUploadStatus(
+            skippedCount > 0
+                ? `已达到 ${maxMediaCount} 个媒体上限，本次忽略 ${skippedCount} 个文件`
+                : "",
+            skippedCount > 0 ? "warn" : "info"
+        );
+        renderMediaList();
+        updateUploadProgressUi();
+        pumpUploadQueue();
     };
 
     form.querySelectorAll("[data-insert-text]").forEach((button) => {
@@ -1744,6 +2245,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             }
             textarea.value = "";
             attachedMedia = [];
+            resetUploadQueue();
             try {
                 localStorage.removeItem(draftKey);
                 setDraftText("草稿已清空");
@@ -1841,6 +2343,19 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             if (!clickTarget || typeof clickTarget.closest !== "function") {
                 return;
             }
+
+            const cancelButton = clickTarget.closest("[data-cancel-upload-uid]");
+            if (cancelButton) {
+                cancelUploadEntry(String(cancelButton.getAttribute("data-cancel-upload-uid") || ""));
+                return;
+            }
+
+            const retryButton = clickTarget.closest("[data-retry-upload-uid]");
+            if (retryButton) {
+                retryUploadEntry(String(retryButton.getAttribute("data-retry-upload-uid") || ""));
+                return;
+            }
+
             const removeButton = clickTarget.closest("[data-remove-media-index]");
             if (!removeButton) {
                 return;
@@ -1853,6 +2368,12 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             renderMediaList();
             setUploadStatus(attachedMedia.length ? `已附加 ${attachedMedia.length} 个媒体文件` : "");
             refreshState();
+        });
+    }
+
+    if (uploadRetryAllButton) {
+        uploadRetryAllButton.addEventListener("click", () => {
+            retryAllFailedUploads();
         });
     }
 
@@ -1875,10 +2396,24 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
 
     window.addEventListener("resize", positionEmojiPanel);
     window.addEventListener("scroll", positionEmojiPanel, true);
+    // 移动端虚拟键盘弹出/收起只会改变 visualViewport，不触发 window.resize
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", positionEmojiPanel);
+        window.visualViewport.addEventListener("scroll", positionEmojiPanel);
+    }
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         if (isSubmitting) {
+            return;
+        }
+        if (hasPendingUploads()) {
+            setMessage("还有媒体文件在上传，请等待上传完成后再发布。", "error");
+            return;
+        }
+        // 失败文件既没进附件列表也不该被静默丢弃：要求先重试或移除
+        if (hasFailedUploads()) {
+            setMessage("有媒体文件上传失败，请点击重试或移除失败项后再发布。", "error");
             return;
         }
 
@@ -1940,6 +2475,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             }
             textarea.value = "";
             attachedMedia = [];
+            resetUploadQueue();
             try {
                 localStorage.removeItem(draftKey);
             } catch (error) {

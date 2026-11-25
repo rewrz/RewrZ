@@ -47,9 +47,11 @@
                 <p class="micro-detail-excerpt text-base leading-relaxed border-l-4 pl-4 italic">{{ manual_excerpt }}</p>
                 {% endif %}
 
+                {% if micro_text_html and micro_text_html | striptags | trim %}
                 <div class="post-content prose dark:prose-invert max-w-none micro-content">
-                    {{ rendered_content | content_lazy_images | safe }}
+                    {{ micro_text_html | content_lazy_images | safe }}
                 </div>
+                {% endif %}
 
                 {% if post.tags %}
                 <div class="micro-topic-chip-list" aria-label="动态话题标签">
@@ -59,22 +61,77 @@
                 </div>
                 {% endif %}
 
-                {% if content_images %}
-                <div class="space-y-3 micro-gallery micro-gallery-frame">
-                    {% set grid_cols = 2 if content_images|length in [2, 4] else 3 %}
-                    <div class="micro-image-grid grid grid-cols-{{ grid_cols }} gap-2" data-image-count="{{ content_images|length }}">
-                        {% for image_url in content_images[:9] %}
-                        <button type="button" class="micro-grid-item overflow-hidden rounded-xl border group relative" data-lightbox-group="micro-gallery" data-lightbox-position="{{ loop.index0 }}" data-lightbox-image="{{ image_url }}" data-lightbox-title="{{ post.title }} - 图{{ loop.index }}">
-                            <img src="{{ image_url }}" alt="{{ post.title }}" class="h-32 md:h-40 w-full object-cover transition-all duration-300 group-hover:scale-110" loading="lazy">
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                {# 媒体附件统一走图集/播放器，正文里不再重复渲染同一批图片 #}
+                {% set gallery_images = micro_images[:9] if micro_images else [] %}
+                {% set gallery_total = micro_images | length if micro_images else 0 %}
+                {% if gallery_images %}
+                {% set gallery_shown = gallery_images | length %}
+                <div class="micro-detail-gallery-wrap">
+                    <div class="micro-image-grid micro-detail-gallery" data-count="{{ gallery_shown }}" data-image-count="{{ gallery_total }}">
+                        {% for image_url in gallery_images %}
+                        <button
+                            type="button"
+                            class="micro-grid-item micro-detail-gallery-item"
+                            data-lightbox-group="micro-detail-gallery"
+                            data-lightbox-position="{{ loop.index0 }}"
+                            data-lightbox-image="{{ image_url }}"
+                            data-lightbox-title="{{ (post.title or '微博图片') ~ ' - 图' ~ loop.index }}"
+                            aria-label="查看第{{ loop.index }}张图片"
+                        >
+                            <img src="{{ image_url }}" alt="{{ post.title or '微博图片' }}" loading="lazy">
+                            <span class="micro-detail-gallery-zoom" aria-hidden="true"><i class="fas fa-expand"></i></span>
+                            {% if loop.last and gallery_total > gallery_shown %}
+                            <span class="micro-detail-gallery-more">+{{ gallery_total - gallery_shown }}</span>
+                            {% endif %}
                         </button>
                         {% endfor %}
                     </div>
-                    {% if content_images|length > 9 %}
-                    <p class="micro-detail-meta text-xs text-center">
-                        <i class="fas fa-images mr-1"></i>共 {{ content_images|length }} 张图片，点击查看更多
+                    {% if gallery_total > gallery_shown %}
+                    <p class="micro-detail-media-hint">
+                        <i class="fas fa-images mr-1"></i>共 {{ gallery_total }} 张图片，点击可翻看全部
                     </p>
                     {% endif %}
+                </div>
+                {% if gallery_total > gallery_shown %}
+                {# 超出 9 张的图片只进灯箱序列，不额外占用版面 #}
+                <div hidden aria-hidden="true">
+                    {% for image_url in micro_images[9:] %}
+                    <button
+                        type="button"
+                        hidden
+                        tabindex="-1"
+                        data-lightbox-group="micro-detail-gallery"
+                        data-lightbox-position="{{ loop.index0 + 9 }}"
+                        data-lightbox-image="{{ image_url }}"
+                        data-lightbox-title="{{ (post.title or '微博图片') ~ ' - 图' ~ (loop.index0 + 10) }}"
+                    ></button>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endif %}
+
+                {% if micro_videos %}
+                <div class="micro-detail-media-stack">
+                    {% for video_url in micro_videos %}
+                    <div class="micro-detail-media-frame micro-detail-media-video">
+                        <video controls preload="metadata" playsinline src="{{ video_url }}">
+                            你的浏览器不支持视频播放。
+                        </video>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if micro_audio %}
+                <div class="micro-detail-media-stack">
+                    {% for audio_url in micro_audio %}
+                    <div class="micro-detail-media-frame micro-detail-media-audio">
+                        <audio controls preload="metadata">
+                            <source src="{{ audio_url }}">
+                            你的浏览器不支持音频播放。
+                        </audio>
+                    </div>
+                    {% endfor %}
                 </div>
                 {% endif %}
 
@@ -164,11 +221,9 @@
                     <button type="button" id="micro-focus-btn" class="micro-action-btn" title="进入沉浸全屏阅读" aria-pressed="false">
                         <i class="fas fa-expand-alt mr-1" data-immersive-icon></i><span data-immersive-label>沉浸</span>
                     </button>
-                    <button type="button" class="micro-action-btn" onclick="shareMicroPost()" title="分享">
+                    {# 分享统一走复制链接：社交平台会读取页面里的 Open Graph 元数据自动解析 #}
+                    <button type="button" class="micro-action-btn" onclick="shareMicroPost()" title="复制链接，粘贴到社交平台即可自动解析">
                         <i class="fas fa-share-alt mr-1"></i>分享
-                    </button>
-                    <button type="button" class="micro-action-btn" onclick="copyCurrentUrl()" title="复制链接">
-                        <i class="fas fa-link mr-1"></i>复制
                     </button>
                 </div>
             </footer>
