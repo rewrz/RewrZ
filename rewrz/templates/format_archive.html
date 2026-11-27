@@ -386,6 +386,9 @@
                                 <button id="micro-quick-upload-trigger" type="button" title="也可以直接把截图粘贴进编辑框" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
                                     <i class="fas fa-image micro-tool-emoji" aria-hidden="true"></i>多媒体
                                 </button>
+                                <button id="micro-quick-library-trigger" type="button" title="直接插入自己以前上传过的图片、视频或音频" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+                                    <i class="fas fa-photo-video micro-tool-emoji" aria-hidden="true"></i>已上传
+                                </button>
                                 <button type="button" data-wrap-markdown="bold" class="micro-tool-btn inline-flex items-center rounded-full px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100">
                                     <i class="fas fa-bold micro-tool-emoji" aria-hidden="true"></i>加粗
                                 </button>
@@ -454,6 +457,36 @@
                     </form>
                 </div>
             </div>
+            {# 已上传媒体选择器：用原生 dialog 进顶层，避免被发布器的玻璃层裁剪 #}
+            <dialog id="micro-quick-library-dialog" class="micro-library-dialog" aria-label="选择已上传媒体">
+                <div class="micro-library-head">
+                    <p class="micro-library-title"><i class="fas fa-photo-video" aria-hidden="true"></i>插入已上传媒体</p>
+                    <button type="button" id="micro-quick-library-close" class="micro-library-close" aria-label="关闭媒体选择">
+                        <i class="fas fa-times" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="micro-library-toolbar">
+                    <div class="micro-library-tabs" role="group" aria-label="按类型筛选">
+                        <button type="button" data-library-type="" class="micro-library-tab is-active">全部</button>
+                        <button type="button" data-library-type="image" class="micro-library-tab">图片</button>
+                        <button type="button" data-library-type="video" class="micro-library-tab">视频</button>
+                        <button type="button" data-library-type="audio" class="micro-library-tab">音频</button>
+                    </div>
+                    <input id="micro-quick-library-search" type="search" class="micro-library-search" placeholder="搜索文件名" maxlength="60" autocomplete="off">
+                </div>
+                <div id="micro-quick-library-list" class="micro-library-grid"></div>
+                <p id="micro-quick-library-empty" class="micro-library-empty hidden">还没有上传过媒体，先用「多媒体」上传一个吧。</p>
+                <div class="micro-library-foot">
+                    <div class="micro-library-foot-info">
+                        <span id="micro-quick-library-count" class="micro-library-count">已选 0 个</span>
+                        <span id="micro-quick-library-hint" class="micro-library-hint" aria-live="polite"></span>
+                    </div>
+                    <div class="micro-library-foot-actions">
+                        <button type="button" id="micro-quick-library-load-more" class="micro-library-btn hidden">加载更多</button>
+                        <button type="button" id="micro-quick-library-confirm" class="micro-library-btn micro-library-btn-primary" disabled>插入</button>
+                    </div>
+                </div>
+            </dialog>
         </section>
         {% endif %}
 
@@ -537,6 +570,17 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         const clearDraftButton = document.getElementById("micro-quick-clear-draft");
         const mediaInput = document.getElementById("micro-quick-media-input");
         const mediaUploadTrigger = document.getElementById("micro-quick-upload-trigger");
+        const mediaLibraryTrigger = document.getElementById("micro-quick-library-trigger");
+        const mediaLibraryDialog = document.getElementById("micro-quick-library-dialog");
+        const mediaLibraryClose = document.getElementById("micro-quick-library-close");
+        const mediaLibraryList = document.getElementById("micro-quick-library-list");
+        const mediaLibraryEmpty = document.getElementById("micro-quick-library-empty");
+        const mediaLibrarySearch = document.getElementById("micro-quick-library-search");
+        const mediaLibraryTypeButtons = Array.from(document.querySelectorAll("[data-library-type]"));
+        const mediaLibraryCount = document.getElementById("micro-quick-library-count");
+        const mediaLibraryHint = document.getElementById("micro-quick-library-hint");
+        const mediaLibraryLoadMore = document.getElementById("micro-quick-library-load-more");
+        const mediaLibraryConfirm = document.getElementById("micro-quick-library-confirm");
         const mediaList = document.getElementById("micro-quick-media-list");
         const uploadStatus = document.getElementById("micro-quick-upload-status");
         const uploadProgressPanel = document.getElementById("micro-quick-upload-progress");
@@ -581,6 +625,18 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         let previewEnabled = false;
         let draftTimer = null;
         let attachedMedia = [];
+        // 已上传媒体选择器：分页拉取当前账号的历史媒体，勾选后直接附加
+        // 每页 12 个与后台媒体库一致：缩略图变体首次生成有并发上限，一次拉太多会被限流
+        const mediaLibraryPageSize = 12;
+        let mediaLibraryItems = [];
+        let mediaLibrarySelected = new Map();
+        let mediaLibraryPage = 1;
+        let mediaLibraryHasMore = false;
+        let mediaLibraryLoading = false;
+        let mediaLibraryFileType = "";
+        let mediaLibraryKeyword = "";
+        let mediaLibraryRequestId = 0;
+        let mediaLibrarySearchTimer = null;
         // 待上传队列：保存每个文件的进度、速度与失败原因，支持单文件重试
         let uploadQueue = [];
         // 本轮上传会话的字节基线：已完成文件仍计入总进度，避免总体进度条回跳
@@ -918,6 +974,8 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         renderMediaList();
         renderPreview(textarea.value || "");
         refreshState();
+        // 上传完成即写入草稿快照，刷新后图片不会丢
+        scheduleDraftSave();
         pumpUploadQueue();
     };
 
@@ -1387,7 +1445,9 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         const keptLines = [];
         String(rawContent || "").split("\n").forEach((line) => {
             const trimmed = line.trim();
-            let match = trimmed.match(/^!\[动态配图\d+\]\(([^)]+)\)$/);
+            // 媒体 Markdown 后面可能还跟着同一行的文字（编辑态回填会把 #标签 拼在图片行尾），
+            // 这里只摘掉媒体片段，把行内剩余文字原样保留
+            let match = trimmed.match(/^!\[动态配图\d+\]\(([^)]+)\)\s*(.*)$/);
             if (match) {
                 media.push({
                     id: 0,
@@ -1396,9 +1456,12 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
                     name: `动态配图${media.length + 1}`,
                     preview_url: match[1],
                 });
+                if (match[2]) {
+                    keptLines.push(match[2]);
+                }
                 return;
             }
-            match = trimmed.match(/^\[视频：([^\]]*)\]\(([^)]+)\)$/);
+            match = trimmed.match(/^\[视频：([^\]]*)\]\(([^)]+)\)\s*(.*)$/);
             if (match) {
                 media.push({
                     id: 0,
@@ -1407,9 +1470,12 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
                     name: match[1] || "视频",
                     preview_url: match[2],
                 });
+                if (match[3]) {
+                    keptLines.push(match[3]);
+                }
                 return;
             }
-            match = trimmed.match(/^\[音频：([^\]]*)\]\(([^)]+)\)$/);
+            match = trimmed.match(/^\[音频：([^\]]*)\]\(([^)]+)\)\s*(.*)$/);
             if (match) {
                 media.push({
                     id: 0,
@@ -1418,6 +1484,9 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
                     name: match[1] || "音频",
                     preview_url: match[2],
                 });
+                if (match[3]) {
+                    keptLines.push(match[3]);
+                }
                 return;
             }
             keptLines.push(line);
@@ -1477,7 +1546,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             return `
                 <div class="micro-media-card group relative overflow-hidden rounded-2xl border">
                     ${hasImageThumb
-                        ? `<img src="${coverUrl}" alt="${escapedName}" class="h-24 w-full object-cover">`
+                        ? `<img src="${coverUrl}" data-fallback-src="${escapeHtml(item.url || "")}" alt="${escapedName}" class="h-24 w-full object-cover">`
                         : `<div class="micro-media-card-placeholder flex h-24 w-full items-center justify-center">
                                 <i class="fas ${item.file_type === "video" ? "fa-video" : "fa-music"} mr-1"></i>${typeName}
                            </div>`}
@@ -1493,6 +1562,226 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
 
         mediaList.innerHTML = `${pendingCards}${attachedCards}`;
         updateUploadProgressUi();
+    };
+
+    // ===== 已上传媒体选择器：直接复用历史媒体，避免同一张图重复上传 =====
+    const mediaLibraryItemUrl = (item) => String(item && item.url ? item.url : "").trim();
+
+    const setMediaLibraryHint = (text) => {
+        if (!mediaLibraryHint) {
+            return;
+        }
+        mediaLibraryHint.textContent = text || "";
+        mediaLibraryHint.className = text ? "micro-library-hint is-warn" : "micro-library-hint";
+    };
+
+    const syncMediaLibraryFoot = () => {
+        if (mediaLibraryCount) {
+            mediaLibraryCount.textContent = `已选 ${mediaLibrarySelected.size} 个（最多 ${maxMediaCount} 个）`;
+        }
+        if (mediaLibraryConfirm) {
+            mediaLibraryConfirm.disabled = mediaLibrarySelected.size === 0 || mediaLibraryLoading;
+        }
+        if (mediaLibraryLoadMore) {
+            mediaLibraryLoadMore.classList.toggle("hidden", !mediaLibraryHasMore || mediaLibraryLoading);
+        }
+    };
+
+    const renderMediaLibrary = () => {
+        if (!mediaLibraryList) {
+            return;
+        }
+        const attachedUrls = new Set(attachedMedia.map(mediaLibraryItemUrl).filter(Boolean));
+        mediaLibraryList.innerHTML = mediaLibraryItems.map((item) => {
+            const url = mediaLibraryItemUrl(item);
+            const fileType = String(item.file_type || "image").trim().toLowerCase();
+            const name = escapeHtml(item.name || mediaTypeName(fileType));
+            const previewUrl = escapeHtml(item.preview_url || url);
+            const isSelected = mediaLibrarySelected.has(url);
+            const isAttached = attachedUrls.has(url);
+            const stateClass = isSelected ? " is-selected" : (isAttached ? " is-attached" : "");
+            const badgeText = isSelected ? "已选" : (isAttached ? "已添加" : "");
+            const thumb = fileType === "image"
+                ? `<img src="${previewUrl}" data-fallback-src="${escapeHtml(url)}" alt="${name}" loading="lazy" decoding="async" class="micro-library-thumb">`
+                : `<span class="micro-library-thumb micro-library-thumb-icon"><i class="fas ${fileType === "video" ? "fa-video" : "fa-music"}" aria-hidden="true"></i></span>`;
+            return `
+                <button type="button" class="micro-library-item${stateClass}" data-library-url="${escapeHtml(url)}" aria-pressed="${isSelected ? "true" : "false"}">
+                    ${thumb}
+                    <span class="micro-library-name">${name}</span>
+                    <span class="micro-library-badge">${badgeText}</span>
+                </button>
+            `;
+        }).join("");
+        // 缩略图变体首次生成可能被并发限流，失败时回落到原图，避免出现破图
+        Array.from(mediaLibraryList.querySelectorAll("img[data-fallback-src]")).forEach((thumbImage) => {
+            thumbImage.addEventListener("error", () => {
+                const fallbackSrc = thumbImage.getAttribute("data-fallback-src") || "";
+                if (!fallbackSrc || thumbImage.dataset.fallbackApplied === "1") {
+                    return;
+                }
+                thumbImage.dataset.fallbackApplied = "1";
+                thumbImage.src = fallbackSrc;
+            });
+        });
+        if (mediaLibraryEmpty) {
+            mediaLibraryEmpty.classList.toggle("hidden", mediaLibraryItems.length > 0);
+        }
+        syncMediaLibraryFoot();
+    };
+
+    const loadMediaLibrary = async (reset = false) => {
+        if (!mediaLibraryDialog) {
+            return;
+        }
+        if (mediaLibraryLoading && !reset) {
+            return;
+        }
+        if (reset) {
+            mediaLibraryPage = 1;
+            mediaLibraryItems = [];
+            mediaLibraryHasMore = false;
+            renderMediaLibrary();
+        }
+        mediaLibraryLoading = true;
+        syncMediaLibraryFoot();
+        const requestId = ++mediaLibraryRequestId;
+        const params = new URLSearchParams({
+            page: String(mediaLibraryPage),
+            limit: String(mediaLibraryPageSize),
+        });
+        if (mediaLibraryKeyword) {
+            params.set("search", mediaLibraryKeyword);
+        }
+        if (mediaLibraryFileType) {
+            params.set("file_type", mediaLibraryFileType);
+        }
+        try {
+            const response = await fetch(`/api/v1/media/mine?${params.toString()}`, {
+                headers: { Accept: "application/json" },
+                credentials: "same-origin",
+            });
+            const payload = await response.json().catch(() => ({}));
+            // 筛选条件变化会作废旧请求，只认最后一次结果
+            if (requestId !== mediaLibraryRequestId) {
+                return;
+            }
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.detail || "媒体列表加载失败");
+            }
+            const items = Array.isArray(payload.items) ? payload.items : [];
+            mediaLibraryItems = reset ? items : mediaLibraryItems.concat(items);
+            mediaLibraryHasMore = Boolean(payload.has_more);
+            mediaLibraryPage += 1;
+            setMediaLibraryHint("");
+            renderMediaLibrary();
+        } catch (error) {
+            if (requestId === mediaLibraryRequestId) {
+                setMediaLibraryHint(getErrorMessage(error, "媒体列表加载失败，请稍后重试"));
+            }
+        } finally {
+            if (requestId === mediaLibraryRequestId) {
+                mediaLibraryLoading = false;
+                syncMediaLibraryFoot();
+            }
+        }
+    };
+
+    const closeMediaLibrary = () => {
+        if (!mediaLibraryDialog) {
+            return;
+        }
+        mediaLibrarySelected = new Map();
+        setMediaLibraryHint("");
+        if (typeof mediaLibraryDialog.close === "function" && mediaLibraryDialog.open) {
+            mediaLibraryDialog.close();
+            return;
+        }
+        mediaLibraryDialog.removeAttribute("open");
+    };
+
+    const openMediaLibrary = () => {
+        if (!mediaLibraryDialog) {
+            return;
+        }
+        mediaLibrarySelected = new Map();
+        mediaLibraryKeyword = "";
+        mediaLibraryFileType = "";
+        if (mediaLibrarySearch) {
+            mediaLibrarySearch.value = "";
+        }
+        mediaLibraryTypeButtons.forEach((button) => {
+            button.classList.toggle("is-active", !button.getAttribute("data-library-type"));
+        });
+        setMediaLibraryHint("");
+        // 用原生 dialog 进顶层，避免被发布器的 overflow / backdrop-filter 裁剪
+        if (typeof mediaLibraryDialog.showModal === "function") {
+            if (!mediaLibraryDialog.open) {
+                mediaLibraryDialog.showModal();
+            }
+        } else {
+            mediaLibraryDialog.setAttribute("open", "");
+        }
+        loadMediaLibrary(true);
+    };
+
+    const toggleMediaLibrarySelection = (url) => {
+        const key = String(url || "").trim();
+        if (!key) {
+            return;
+        }
+        const target = mediaLibraryItems.find((item) => mediaLibraryItemUrl(item) === key);
+        if (!target) {
+            return;
+        }
+        if (mediaLibrarySelected.has(key)) {
+            mediaLibrarySelected.delete(key);
+            setMediaLibraryHint("");
+            renderMediaLibrary();
+            return;
+        }
+        const remaining = maxMediaCount - attachedMedia.length;
+        if (mediaLibrarySelected.size >= remaining) {
+            setMediaLibraryHint(remaining > 0
+                ? `最多还能再选 ${remaining} 个媒体文件`
+                : `本条动态的媒体已满（最多 ${maxMediaCount} 个）`);
+            return;
+        }
+        mediaLibrarySelected.set(key, {
+            id: Number(target.id) || 0,
+            url: key,
+            file_type: String(target.file_type || "image").trim().toLowerCase(),
+            name: String(target.name || "").trim() || mediaTypeName(target.file_type),
+            preview_url: String(target.preview_url || key),
+        });
+        setMediaLibraryHint("");
+        renderMediaLibrary();
+    };
+
+    const applyMediaLibrarySelection = () => {
+        let added = 0;
+        const existingUrls = new Set(attachedMedia.map(mediaLibraryItemUrl).filter(Boolean));
+        mediaLibrarySelected.forEach((item) => {
+            if (attachedMedia.length >= maxMediaCount) {
+                return;
+            }
+            if (!item.url || existingUrls.has(item.url)) {
+                return;
+            }
+            existingUrls.add(item.url);
+            attachedMedia.push(item);
+            added += 1;
+        });
+        mediaLibrarySelected = new Map();
+        closeMediaLibrary();
+        if (!added) {
+            return;
+        }
+        renderMediaList();
+        setUploadStatus(`已附加 ${attachedMedia.length} 个媒体文件`, "success");
+        // 选图也算草稿变更，立刻落盘，刷新后能随正文一起恢复
+        scheduleDraftSave();
+        renderPreview(textarea.value || "");
+        refreshState();
     };
 
     const previewFromServer = async (content, signal) => {
@@ -1585,7 +1874,23 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         }, previewDebounceDelay);
     };
 
-    const scheduleDraftSave = (content) => {
+    // 草稿快照：正文 + 已附加媒体一起存，刷新后图片才能跟着正文一起回来
+    const buildDraftSnapshot = () => ({
+        version: 2,
+        content: textarea.value || "",
+        media: attachedMedia.map((item) => ({
+            id: Number(item.id) || 0,
+            url: String(item.url || ""),
+            file_type: String(item.file_type || ""),
+            name: String(item.name || ""),
+            preview_url: String(item.preview_url || item.url || ""),
+        })),
+        visibility: getSelectedVisibility(),
+        content_rating: String(contentRatingInput?.value || "general"),
+        saved_at: Date.now(),
+    });
+
+    const scheduleDraftSave = () => {
         // 编辑模式下正文已持久化在服务端，不再写入本地草稿，避免新旧草稿互相覆盖
         if (isEditing) {
             return;
@@ -1595,9 +1900,15 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         }
         draftTimer = window.setTimeout(() => {
             try {
-                if ((content || "").trim()) {
-                    localStorage.setItem(draftKey, content);
-                    setDraftText("草稿已自动保存", "ok");
+                const snapshot = buildDraftSnapshot();
+                if (snapshot.content.trim() || snapshot.media.length) {
+                    localStorage.setItem(draftKey, JSON.stringify(snapshot));
+                    setDraftText(
+                        snapshot.media.length
+                            ? `草稿已自动保存（含 ${snapshot.media.length} 个媒体）`
+                            : "草稿已自动保存",
+                        "ok"
+                    );
                 } else {
                     localStorage.removeItem(draftKey);
                     setDraftText("");
@@ -2096,7 +2407,7 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
     };
 
     textarea.addEventListener("input", () => {
-        scheduleDraftSave(textarea.value || "");
+        scheduleDraftSave();
         refreshState();
         syncTextareaHeight();
         requestMicroTagSuggest();
@@ -2338,6 +2649,20 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
     }
 
     if (mediaList) {
+        // 缩略图变体偶发被限流或缺失时回落到原图，避免附件区出现破图
+        mediaList.addEventListener("error", (event) => {
+            const failedImage = event.target;
+            if (!(failedImage instanceof HTMLImageElement)) {
+                return;
+            }
+            const fallbackSrc = failedImage.getAttribute("data-fallback-src") || "";
+            if (!fallbackSrc || failedImage.dataset.fallbackApplied === "1") {
+                return;
+            }
+            failedImage.dataset.fallbackApplied = "1";
+            failedImage.src = fallbackSrc;
+        }, true);
+
         mediaList.addEventListener("click", (event) => {
             const clickTarget = event.target;
             if (!clickTarget || typeof clickTarget.closest !== "function") {
@@ -2368,6 +2693,68 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
             renderMediaList();
             setUploadStatus(attachedMedia.length ? `已附加 ${attachedMedia.length} 个媒体文件` : "");
             refreshState();
+            // 移除媒体同样要更新草稿快照，避免刷新后已删掉的图又回来
+            scheduleDraftSave();
+        });
+    }
+
+    if (mediaLibraryTrigger) {
+        mediaLibraryTrigger.addEventListener("click", openMediaLibrary);
+    }
+    if (mediaLibraryClose) {
+        mediaLibraryClose.addEventListener("click", closeMediaLibrary);
+    }
+    if (mediaLibraryConfirm) {
+        mediaLibraryConfirm.addEventListener("click", applyMediaLibrarySelection);
+    }
+    if (mediaLibraryLoadMore) {
+        mediaLibraryLoadMore.addEventListener("click", () => loadMediaLibrary(false));
+    }
+    if (mediaLibraryList) {
+        mediaLibraryList.addEventListener("click", (event) => {
+            const clickTarget = event.target;
+            if (!clickTarget || typeof clickTarget.closest !== "function") {
+                return;
+            }
+            const itemButton = clickTarget.closest("[data-library-url]");
+            if (!itemButton) {
+                return;
+            }
+            toggleMediaLibrarySelection(itemButton.getAttribute("data-library-url"));
+        });
+    }
+    if (mediaLibrarySearch) {
+        mediaLibrarySearch.addEventListener("input", () => {
+            window.clearTimeout(mediaLibrarySearchTimer);
+            mediaLibrarySearchTimer = window.setTimeout(() => {
+                mediaLibraryKeyword = String(mediaLibrarySearch.value || "").trim();
+                loadMediaLibrary(true);
+            }, 280);
+        });
+    }
+    mediaLibraryTypeButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            const nextType = String(button.getAttribute("data-library-type") || "").trim();
+            if (nextType === mediaLibraryFileType) {
+                return;
+            }
+            mediaLibraryFileType = nextType;
+            mediaLibraryTypeButtons.forEach((item) => {
+                item.classList.toggle("is-active", item === button);
+            });
+            loadMediaLibrary(true);
+        });
+    });
+    if (mediaLibraryDialog) {
+        // 点击遮罩（dialog 自身）关闭，避免误触后还要找回关闭按钮
+        mediaLibraryDialog.addEventListener("click", (event) => {
+            if (event.target === mediaLibraryDialog) {
+                closeMediaLibrary();
+            }
+        });
+        mediaLibraryDialog.addEventListener("close", () => {
+            mediaLibrarySelected = new Map();
+            setMediaLibraryHint("");
         });
     }
 
@@ -2510,16 +2897,88 @@ window.__rewrzMicroComposer = window.__rewrzMicroComposer || { ready: false, rea
         }
     });
 
-    try {
-        // 编辑模式正文来自服务端，不恢复本地草稿，避免覆盖待编辑内容
-        const savedDraft = isEditing ? "" : (localStorage.getItem(draftKey) || "");
-        if (savedDraft.trim()) {
-            textarea.value = savedDraft;
-            setDraftText("已恢复上次草稿");
+    // 读取草稿快照：新版是 JSON（正文 + 媒体 + 可见性 + 分级），
+    // 旧版只存纯文本，这里一次性按正文迁移，下一次自动保存即升级为快照
+    const readDraftSnapshot = () => {
+        let raw = "";
+        try {
+            raw = localStorage.getItem(draftKey) || "";
+        } catch (error) {
+            setDraftText("浏览器不支持草稿存储", "warn");
+            return null;
         }
-    } catch (error) {
-        setDraftText("浏览器不支持草稿存储", "warn");
-    }
+        if (!raw) {
+            return null;
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            // 只认带 content 字段的快照，避免用户正文本身是 JSON 时被误判
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && typeof parsed.content === "string") {
+                return parsed;
+            }
+        } catch (error) {
+            // 旧版纯文本草稿走下面的迁移分支
+        }
+        return { content: raw, media: [] };
+    };
+
+    const normalizeDraftMedia = (rawMedia) => {
+        if (!Array.isArray(rawMedia)) {
+            return [];
+        }
+        return rawMedia.map((item) => {
+            if (!item || typeof item !== "object") {
+                return null;
+            }
+            const url = String(item.url || "").trim();
+            const fileType = String(item.file_type || "").trim().toLowerCase();
+            if (!url || ["image", "video", "audio"].indexOf(fileType) === -1) {
+                return null;
+            }
+            return {
+                id: Number(item.id) || 0,
+                url,
+                file_type: fileType,
+                name: String(item.name || "").trim().slice(0, 80) || mediaTypeName(fileType),
+                preview_url: String(item.preview_url || "").trim() || url,
+            };
+        }).filter(Boolean).slice(0, maxMediaCount);
+    };
+
+    const restoreDraftSnapshot = () => {
+        if (isEditing) {
+            // 编辑模式正文来自服务端，不恢复本地草稿，避免覆盖待编辑内容
+            return;
+        }
+        const snapshot = readDraftSnapshot();
+        if (!snapshot) {
+            return;
+        }
+        const draftContent = String(snapshot.content || "");
+        const draftMedia = normalizeDraftMedia(snapshot.media);
+        if (!draftContent.trim() && !draftMedia.length) {
+            return;
+        }
+        textarea.value = draftContent;
+        attachedMedia = draftMedia;
+        // 可见性与分级一起恢复，避免恢复后与上次写作状态不一致
+        const draftVisibility = String(snapshot.visibility || "").trim().toLowerCase();
+        if (visibilityInput && ["public", "private", "password"].indexOf(draftVisibility) !== -1) {
+            visibilityInput.value = draftVisibility;
+        }
+        const draftRating = String(snapshot.content_rating || "").trim().toLowerCase();
+        if (contentRatingInput && ["general", "sensitive", "nsfw"].indexOf(draftRating) !== -1) {
+            contentRatingInput.value = draftRating;
+        }
+        setDraftText(draftMedia.length
+            ? `已恢复上次草稿（含 ${draftMedia.length} 个媒体）`
+            : "已恢复上次草稿");
+        if (draftMedia.length) {
+            setUploadStatus(`已附加 ${draftMedia.length} 个媒体文件`);
+        }
+    };
+
+    restoreDraftSnapshot();
 
     if (isEditing) {
         const parsedMedia = parseMediaFromContent(textarea.value);

@@ -36,7 +36,7 @@ from ..core.thumbnail_service import (
     purge_media_variant_cache,
     verify_variant_signature,
 )
-from ..core.security import get_client_ip, require_admin_user, verify_csrf_token
+from ..core.security import get_client_ip, get_current_user, require_admin_user, verify_csrf_token
 from ..core.template_filters import get_templates
 from ..crud import media as crud_media
 from ..crud import setting as crud_setting
@@ -1194,6 +1194,67 @@ def get_media_item_ids_api(
         uploaded_to=uploaded_to,
         limit=limit,
     )
+
+
+@router.get("/api/v1/media/mine")
+def get_my_media_items_api(
+    page: int = 1,
+    limit: int = 24,
+    search: Optional[str] = None,
+    file_type: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """前台登录用户的「我的媒体」列表。
+
+    只返回本人上传的媒体，供前台发布器直接复用已上传文件，避免同一张图重复上传。
+    不暴露后台媒体管理路径，也不返回他人媒体。
+    """
+    page = max(1, int(page))
+    limit = max(1, min(48, int(limit)))
+    skip = (page - 1) * limit
+    keyword = (search or "").strip() or None
+    file_type_prefix = (file_type or "").strip().lower() or None
+
+    media_items = crud_media.get_all_media(
+        db=db,
+        skip=skip,
+        limit=limit,
+        search=keyword,
+        file_type_prefix=file_type_prefix,
+        uploaded_by_id=current_user.id,
+    )
+    total_count = crud_media.count_all_media(
+        db=db,
+        search=keyword,
+        file_type_prefix=file_type_prefix,
+        uploaded_by_id=current_user.id,
+    )
+
+    cdn_base = _get_media_cdn_base(db)
+    items: List[Dict[str, Any]] = []
+    for media_item in media_items:
+        _attach_media_url(media_item, cdn_base=cdn_base)
+        items.append(
+            {
+                "id": int(media_item.id),
+                "url": str(media_item.url or ""),
+                "preview_url": str(media_item.preview_url or media_item.url or ""),
+                # 统一收敛成 image / video / audio，前端可直接按类型渲染占位图
+                "file_type": str(media_item.file_type or "").split("/")[0].strip().lower(),
+                "name": str(media_item.filename or "media"),
+                "uploaded_at": utc_iso(media_item.uploaded_at),
+            }
+        )
+
+    return {
+        "success": True,
+        "items": items,
+        "page": page,
+        "limit": limit,
+        "total": total_count,
+        "has_more": skip + len(items) < total_count,
+    }
 
 
 @router.get(f"{ADMIN_PATH}/api/v1/media/folders")

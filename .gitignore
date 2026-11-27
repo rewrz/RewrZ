@@ -114,3 +114,4 @@ backups/
 tmp_*
 *.tmp
 AGENTS.md
+/data/logs

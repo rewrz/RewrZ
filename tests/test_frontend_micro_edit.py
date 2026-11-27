@@ -1,13 +1,15 @@
-"""前台微博发布器：内容分级与前台编辑能力的回归测试。
+"""前台微博发布器：内容分级、前台编辑与已上传媒体复用的回归测试。
 
-覆盖四件事：
+覆盖五件事：
 1. 前台快捷发布接口能把 content_rating 写入数据库。
 2. 前台快捷编辑接口只允许作者本人或管理员调用，且编辑后链接（slug）保持不变。
 3. `/formats/micro?edit=<id>` 仅在作者/管理员访问时回填发布器，越权一律 404。
 4. 编辑时标签按正文重新同步，旧标签不会残留。
+5. `/api/v1/media/mine` 只返回本人上传的媒体，供发布器插入历史媒体。
 """
 
 import re
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -19,7 +21,7 @@ from rewrz import main as main_module
 from rewrz.core.database import Base, get_db
 from rewrz.core.security import create_access_token, verify_password
 from rewrz.crud import post as crud_post
-from rewrz.models import Format, Post, User as DbUser
+from rewrz.models import Format, Media, Post, User as DbUser
 from rewrz.schemas.post import PostCreate
 
 
@@ -318,3 +320,93 @@ def test_micro_detail_page_shows_edit_entry_for_author(site_client):
     other_page = client.get(created_payload["post_url"])
     assert other_page.status_code == 200
     assert edit_href not in other_page.text
+
+
+def _seed_media_rows(session_local, rows) -> None:
+    """按 (文件名, 文件类型, 上传者) 批量写入媒体记录，供「我的媒体」接口测试使用。
+
+    filepath 必须是上传根目录下的绝对路径，否则对外 URL 无法解析。
+    """
+    from rewrz.api import media as media_api
+
+    with session_local() as db:
+        for filename, file_type, uploader_id in rows:
+            db.add(
+                Media(
+                    filename=filename,
+                    filepath=str(Path(media_api.UPLOAD_ROOT) / "micro" / filename),
+                    folder="micro",
+                    file_type=file_type,
+                    mime_type=f"{file_type}/test",
+                    file_size=1024,
+                    uploaded_by_id=uploader_id,
+                )
+            )
+        db.commit()
+
+
+def test_my_media_lists_only_current_user(site_client):
+    """「我的媒体」只返回本人上传的媒体，别人的文件不能出现在列表里。"""
+    client, session_local = site_client
+    _seed_media_rows(
+        session_local,
+        [
+            ("author-cover.jpg", "image", 2),
+            ("visitor-clip.mp4", "video", 3),
+        ],
+    )
+    _login_as(client, 2)
+
+    response = client.get("/api/v1/media/mine")
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["total"] == 1
+    assert payload["has_more"] is False
+    assert [item["name"] for item in payload["items"]] == ["author-cover.jpg"]
+    item = payload["items"][0]
+    assert item["url"] == "/media/micro/author-cover.jpg"
+    assert item["file_type"] == "image"
+    assert item["preview_url"]
+
+
+def test_my_media_requires_login(site_client):
+    """未登录访问「我的媒体」直接 401，不暴露任何媒体数据。"""
+    client, _session_local = site_client
+    response = client.get("/api/v1/media/mine")
+    assert response.status_code == 401
+
+
+def test_my_media_filters_by_file_type(site_client):
+    """按类型筛选时只返回对应类型的本人媒体。"""
+    client, session_local = site_client
+    _seed_media_rows(
+        session_local,
+        [
+            ("note.png", "image", 2),
+            ("voice.mp4", "video", 2),
+        ],
+    )
+    _login_as(client, 2)
+
+    response = client.get("/api/v1/media/mine", params={"file_type": "video"})
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["total"] == 1
+    assert payload["items"][0]["name"] == "voice.mp4"
+
+
+def test_micro_composer_exposes_media_library_entry(site_client):
+    """发布器要提供「已上传」入口，并通过草稿快照保存已附加媒体。"""
+    client, _session_local = site_client
+    _login_as(client, 2)
+
+    response = client.get("/formats/micro")
+
+    assert response.status_code == 200
+    assert 'id="micro-quick-library-trigger"' in response.text
+    assert 'id="micro-quick-library-dialog"' in response.text
+    assert "/api/v1/media/mine" in response.text
+    assert "buildDraftSnapshot" in response.text

@@ -1874,6 +1874,296 @@
     color: color-mix(in srgb, var(--color-primary) 18%, #e11d48 82%);
 }
 
+/* ===== 已上传媒体选择器 =====
+   用原生 dialog 进顶层，避免被发布器的 overflow / backdrop-filter 裁剪；
+   颜色全部走主题变量，深浅色与动态主题自动跟随。 */
+.micro-library-dialog {
+    width: min(46rem, calc(100vw - 2rem));
+    max-height: min(36rem, calc(100vh - 2rem));
+    margin: auto;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border) 80%);
+    border-radius: 1.25rem;
+    background: color-mix(in srgb, var(--color-card-bg) 96%, var(--color-background-alt) 4%);
+    color: var(--color-text);
+    box-shadow: 0 26px 60px color-mix(in srgb, var(--color-text) 26%, transparent);
+    overflow: hidden;
+}
+
+.micro-library-dialog[open] {
+    display: flex;
+    flex-direction: column;
+}
+
+.micro-library-dialog::backdrop {
+    background: color-mix(in srgb, var(--color-text) 46%, transparent);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.micro-library-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+}
+
+.micro-library-title {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.micro-library-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-text-light);
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.micro-library-close:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%);
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: var(--color-primary);
+}
+
+.micro-library-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.7rem 1rem;
+}
+
+.micro-library-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.micro-library-tab {
+    padding: 0.3rem 0.7rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-card-bg) 88%, transparent);
+    color: color-mix(in srgb, var(--color-text-light) 82%, var(--color-primary) 18%);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.micro-library-tab:hover {
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card-bg) 90%);
+}
+
+.micro-library-tab.is-active {
+    border-color: color-mix(in srgb, var(--color-primary) 38%, var(--color-border) 62%);
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg) 86%);
+    color: color-mix(in srgb, var(--color-primary) 76%, var(--color-text) 24%);
+}
+
+.micro-library-search {
+    flex: 1 1 9rem;
+    min-width: 8rem;
+    padding: 0.4rem 0.7rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+    border-radius: 0.7rem;
+    background: color-mix(in srgb, var(--color-card-bg) 74%, transparent);
+    color: var(--color-text);
+    font-size: 0.8rem;
+}
+
+.micro-library-search::placeholder {
+    color: var(--color-text-light);
+}
+
+.micro-library-search:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.micro-library-grid {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+    gap: 0.6rem;
+    min-height: 8rem;
+    padding: 0 1rem 0.8rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.micro-library-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.35rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+    border-radius: 0.85rem;
+    background: color-mix(in srgb, var(--color-card-bg) 92%, transparent);
+    color: var(--color-text);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.micro-library-item:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border) 60%);
+}
+
+.micro-library-item.is-attached {
+    opacity: 0.62;
+}
+
+.micro-library-item.is-selected {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+.micro-library-thumb {
+    width: 100%;
+    height: 5rem;
+    border-radius: 0.6rem;
+    object-fit: cover;
+    background: color-mix(in srgb, var(--color-background-alt) 84%, var(--color-card-bg) 16%);
+}
+
+.micro-library-thumb-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: color-mix(in srgb, var(--color-text-light) 76%, var(--color-primary) 24%);
+    font-size: 1.1rem;
+}
+
+.micro-library-name {
+    overflow: hidden;
+    color: var(--color-text-light);
+    font-size: 0.72rem;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.micro-library-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.05rem 0.35rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-primary) 16%, var(--color-card-bg) 84%);
+    color: color-mix(in srgb, var(--color-primary) 78%, var(--color-text) 22%);
+    font-size: 0.62rem;
+    line-height: 1.4;
+}
+
+.micro-library-badge:empty {
+    display: none;
+}
+
+.micro-library-empty {
+    margin: 0;
+    padding: 1.5rem 1rem 2rem;
+    color: var(--color-text-light);
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+.micro-library-empty.hidden {
+    display: none;
+}
+
+.micro-library-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid color-mix(in srgb, var(--color-primary) 14%, var(--color-border) 86%);
+}
+
+.micro-library-foot-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.micro-library-foot-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-left: auto;
+}
+
+.micro-library-count {
+    color: var(--color-text-light);
+    font-size: 0.75rem;
+}
+
+.micro-library-hint {
+    color: var(--color-text-light);
+    font-size: 0.72rem;
+}
+
+.micro-library-hint.is-warn {
+    color: color-mix(in srgb, #e11d48 70%, var(--color-text) 30%);
+}
+
+.micro-library-btn {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border) 76%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-card-bg) 90%, transparent);
+    color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text) 28%);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.micro-library-btn:hover {
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card-bg) 88%);
+}
+
+#micro-quick-library-load-more.hidden {
+    display: none;
+}
+
+#micro-quick-library-confirm:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+@media (max-width: 640px) {
+    .micro-library-dialog {
+        width: calc(100vw - 1rem);
+        max-height: calc(100vh - 1rem);
+    }
+
+    .micro-library-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
 /* 聚合卡片：中玻璃 */
 .format-archive-glass #format-posts-panel .archive-card-equal,
 .format-archive-glass #format-posts-panel article[data-micro-card] {

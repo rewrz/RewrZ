@@ -20,6 +20,7 @@ def get_all_media(
     file_type_prefix: Optional[str] = None,
     uploaded_from: Optional[datetime] = None,
     uploaded_to: Optional[datetime] = None,
+    uploaded_by_id: Optional[int] = None,
 ) -> List[Media]:
     """
     获取所有媒体项目，按上传时间降序排列（最新的在前面）
@@ -33,6 +34,7 @@ def get_all_media(
         file_type_prefix (str, optional): 媒体类型前缀过滤（如 image/video/audio）. Defaults to None.
         uploaded_from (datetime, optional): 上传时间起始（含）. Defaults to None.
         uploaded_to (datetime, optional): 上传时间结束（含）. Defaults to None.
+        uploaded_by_id (int, optional): 仅返回指定用户上传的媒体. Defaults to None.
 
     Returns:
         List[Media]: 媒体项目列表，按上传时间降序排列.
@@ -49,6 +51,7 @@ def get_all_media(
         file_type_prefix=file_type_prefix,
         uploaded_from=uploaded_from,
         uploaded_to=uploaded_to,
+        uploaded_by_id=uploaded_by_id,
     )
     return db.execute(query.offset(skip).limit(limit)).scalars().all()
 
@@ -61,6 +64,7 @@ def _apply_media_filters(
     file_type_prefix: Optional[str] = None,
     uploaded_from: Optional[datetime] = None,
     uploaded_to: Optional[datetime] = None,
+    uploaded_by_id: Optional[int] = None,
 ):
     """列表、ID 列表与总数统计共用同一套筛选条件，避免三处口径不一致。"""
     if search:
@@ -73,6 +77,8 @@ def _apply_media_filters(
         query = query.filter(Media.uploaded_at >= uploaded_from)
     if uploaded_to is not None:
         query = query.filter(Media.uploaded_at <= uploaded_to)
+    if uploaded_by_id is not None:
+        query = query.filter(Media.uploaded_by_id == uploaded_by_id)
     return query
 
 
@@ -84,6 +90,7 @@ def count_all_media(
     file_type_prefix: Optional[str] = None,
     uploaded_from: Optional[datetime] = None,
     uploaded_to: Optional[datetime] = None,
+    uploaded_by_id: Optional[int] = None,
 ) -> int:
     """按列表筛选条件统计总数，供前端准确判断分页与展示「已加载 / 总数」。"""
     query = _apply_media_filters(
@@ -93,6 +100,7 @@ def count_all_media(
         file_type_prefix=file_type_prefix,
         uploaded_from=uploaded_from,
         uploaded_to=uploaded_to,
+        uploaded_by_id=uploaded_by_id,
     )
     return int(db.execute(query).scalar_one() or 0)
 

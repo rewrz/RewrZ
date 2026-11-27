@@ -1382,21 +1382,45 @@ class MultiFormatInteractions {
         const lightboxButtons = Array.from(document.querySelectorAll('[data-lightbox-image]'));
         if (!lightboxButtons.length) return;
 
-        const lightboxGroups = new Map();
-        lightboxButtons.forEach((btn, index) => {
-            const groupName = btn.dataset.lightboxGroup || `__single_${index}`;
-            const position = Number.isNaN(Number(btn.dataset.lightboxPosition))
-                ? (lightboxGroups.get(groupName)?.length || 0)
-                : Number(btn.dataset.lightboxPosition);
-            if (!lightboxGroups.has(groupName)) {
-                lightboxGroups.set(groupName, []);
+        // 先按组收集再按 position 排序压缩成连续数组：
+        // 直接用 position 当下标会留下稀疏空洞，翻页走到空洞处就卡住，
+        // 表现为「只能往一个方向翻，另一个方向点不动」。
+        const collectedGroups = new Map();
+        lightboxButtons.forEach((btn, order) => {
+            const groupName = btn.dataset.lightboxGroup || `__single_${order}`;
+            const rawPosition = Number(btn.dataset.lightboxPosition);
+            if (!collectedGroups.has(groupName)) {
+                collectedGroups.set(groupName, []);
             }
-            lightboxGroups.get(groupName)[position] = {
+            collectedGroups.get(groupName).push({
+                position: Number.isNaN(rawPosition) ? Number.MAX_SAFE_INTEGER : rawPosition,
+                order,
                 src: btn.dataset.lightboxImage || '',
                 title: btn.dataset.lightboxTitle || '',
-            };
-            btn.dataset.lightboxGroup = groupName;
-            btn.dataset.lightboxPosition = String(position);
+                btn,
+            });
+        });
+
+        const lightboxGroups = new Map();
+        collectedGroups.forEach((entries, groupName) => {
+            entries.sort((a, b) => (a.position - b.position) || (a.order - b.order));
+            const items = [];
+            const indexByKey = new Map();
+            entries.forEach((entry) => {
+                // 同一 position 上的同一张图可能被模板重复挂两次（相册封面 + 「观影模式」入口），
+                // 这类重复只保留一张，避免灯箱里出现连续两页完全相同的图
+                const dedupeKey = `${entry.position}|${entry.src}`;
+                let itemIndex = indexByKey.get(dedupeKey);
+                if (itemIndex === undefined) {
+                    itemIndex = items.length;
+                    indexByKey.set(dedupeKey, itemIndex);
+                    items.push({ src: entry.src, title: entry.title });
+                }
+                // 回写压缩后的连续下标，点击入口直接用它定位，不再依赖原始 position
+                entry.btn.dataset.lightboxGroup = groupName;
+                entry.btn.dataset.lightboxIndex = String(itemIndex);
+            });
+            lightboxGroups.set(groupName, items);
         });
 
         let activeLightbox = null;
@@ -1428,6 +1452,9 @@ class MultiFormatInteractions {
 
             const modal = document.createElement('div');
             modal.dataset.lightboxModal = '1';
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-label', '图片预览');
             modal.style.cssText = `
                 position: fixed;
                 inset: 0;
@@ -1437,16 +1464,20 @@ class MultiFormatInteractions {
                 justify-content: center;
                 padding: 1rem;
                 background: rgba(0, 0, 0, 0.9);
+                overscroll-behavior: contain;
+                touch-action: pan-y pinch-zoom;
             `;
+            // 操作按钮统一 z-index: 3，图片容器 z-index: 1 且不接收指针事件：
+            // 否则居中的图片容器会盖住左侧「上一张」按钮，点上去没反应。
             modal.innerHTML = `
-                <button type="button" data-close-lightbox aria-label="关闭大图" style="position:absolute;top:1rem;right:1.5rem;border:none;background:transparent;color:#fff;font-size:2.25rem;line-height:1;cursor:pointer;">&times;</button>
-                <button type="button" data-lightbox-prev aria-label="上一张" style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);border:none;border-radius:0.75rem;background:rgba(0,0,0,0.35);color:#fff;font-size:1.875rem;padding:0.5rem 0.85rem;cursor:pointer;"><i class="fas fa-chevron-left"></i></button>
-                <div style="position:relative;width:100%;max-width:72rem;">
-                    <img data-lightbox-img style="display:block;width:100%;max-height:84vh;object-fit:contain;border-radius:0.75rem;" />
+                <button type="button" data-close-lightbox aria-label="关闭大图" style="position:absolute;z-index:3;top:1rem;right:1.5rem;border:none;background:transparent;color:#fff;font-size:2.25rem;line-height:1;cursor:pointer;">&times;</button>
+                <button type="button" data-lightbox-prev aria-label="上一张" style="position:absolute;z-index:3;left:0.75rem;top:50%;transform:translateY(-50%);border:none;border-radius:0.75rem;background:rgba(0,0,0,0.45);color:#fff;font-size:1.875rem;padding:0.5rem 0.85rem;cursor:pointer;"><i class="fas fa-chevron-left"></i></button>
+                <div data-lightbox-stage style="position:relative;z-index:1;width:100%;max-width:72rem;pointer-events:none;">
+                    <img data-lightbox-img draggable="false" style="display:block;width:100%;max-height:84vh;object-fit:contain;border-radius:0.75rem;pointer-events:auto;" />
                     <div data-lightbox-title style="margin-top:0.75rem;text-align:center;font-size:0.875rem;color:rgba(255,255,255,0.82);"></div>
                     <div data-lightbox-counter style="margin-top:0.25rem;text-align:center;font-size:0.75rem;color:rgba(255,255,255,0.62);"></div>
                 </div>
-                <button type="button" data-lightbox-next aria-label="下一张" style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);border:none;border-radius:0.75rem;background:rgba(0,0,0,0.35);color:#fff;font-size:1.875rem;padding:0.5rem 0.85rem;cursor:pointer;"><i class="fas fa-chevron-right"></i></button>
+                <button type="button" data-lightbox-next aria-label="下一张" style="position:absolute;z-index:3;right:0.75rem;top:50%;transform:translateY(-50%);border:none;border-radius:0.75rem;background:rgba(0,0,0,0.45);color:#fff;font-size:1.875rem;padding:0.5rem 0.85rem;cursor:pointer;"><i class="fas fa-chevron-right"></i></button>
             `;
             document.body.appendChild(modal);
             document.body.classList.add('overflow-hidden');
@@ -1477,6 +1508,26 @@ class MultiFormatInteractions {
                 if (event.target === modal) closeLightbox();
             });
 
+            // 触屏左右滑动切换，和按钮/键盘保持同一套 move 逻辑
+            let swipeStart = null;
+            modal.addEventListener('touchstart', (event) => {
+                const touch = event.touches && event.touches[0];
+                swipeStart = touch ? { x: touch.clientX, y: touch.clientY } : null;
+            }, { passive: true });
+            modal.addEventListener('touchend', (event) => {
+                if (!swipeStart) return;
+                const touch = event.changedTouches && event.changedTouches[0];
+                const startX = swipeStart.x;
+                const startY = swipeStart.y;
+                swipeStart = null;
+                if (!touch) return;
+                const deltaX = touch.clientX - startX;
+                const deltaY = touch.clientY - startY;
+                // 只认明显的横向滑动，避免把纵向滚动或轻微误触当成翻页
+                if (Math.abs(deltaX) < 40 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+                move(deltaX > 0 ? -1 : 1);
+            }, { passive: true });
+
             state.onKeydown = (event) => {
                 if (!activeLightbox) return;
                 if (event.key === 'Escape') {
@@ -1502,13 +1553,14 @@ class MultiFormatInteractions {
         scopedButtons.forEach((btn) => {
             if (btn.dataset.lightboxBound === '1') return;
             btn.dataset.lightboxBound = '1';
-            btn.addEventListener('click', function(event) {
+            // 绑定瞬间就把组名与下标固定下来，避免后续重建分组时读到的下标与闭包里的分组不一致
+            const groupName = btn.dataset.lightboxGroup || '';
+            const startIndex = Number(btn.dataset.lightboxIndex || '0');
+            btn.addEventListener('click', (event) => {
                 if (event && typeof event.preventDefault === 'function') {
                     event.preventDefault();
                 }
-                const group = this.dataset.lightboxGroup;
-                const position = Number(this.dataset.lightboxPosition || '0');
-                openLightbox(group, Number.isNaN(position) ? 0 : position);
+                openLightbox(groupName, Number.isNaN(startIndex) ? 0 : startIndex);
             });
         });
     }

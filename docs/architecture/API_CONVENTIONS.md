@@ -88,6 +88,11 @@ RewrZ 当前 API 分为四层：
   - `POST /api/v1/posts/quick/media`：前台快捷媒体上传，单次最多 9 个文件。
     服务端逐文件处理，返回 `items`（成功项）与 `failed`（失败项，含 `name`、`reason`）；
     `success` 只表示本次是否有成功项，HTTP 200 不代表全部成功。
+  - `GET /api/v1/media/mine`：前台「我的媒体」只读列表，供发布器直接插入已上传文件。
+    仅登录用户可用，固定只返回 `uploaded_by_id` 为当前用户的行，不接受跨用户查询；
+    支持 `page`、`limit`（上限 48）、`search`（文件名/标题模糊匹配）、`file_type`（image/video/audio）。
+    响应为 `{success, items, page, limit, total, has_more}`，条目字段为
+    `id/url/preview_url/file_type/name/uploaded_at`，不返回上传者等账号信息。
 - 前台快捷编辑补充字段：
   - `keep_tags`（可选，逗号分隔）：保留无法用 `#标签` 语法无损往返的特殊标签
     （如 `C++`、`设计·UI`）。服务端会与正文解析出的标签合并去重，仍受 8 个上限约束。
